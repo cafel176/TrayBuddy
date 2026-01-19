@@ -4,9 +4,9 @@
     "img": "border.png",
     "sequence": false,
     "frame_time": 0.3,
-    "size_x": 827,
-    "size_y": 197,
-    "gridnum_x": 1,
-    "gridnum_y": 1
+    "frame_size_x": 827,
+    "frame_size_y": 197,
+    "frame_num_x": 1,
+    "frame_num_y": 1
   }
 ]
