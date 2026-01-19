@@ -74,6 +74,9 @@ pub struct CharacterInfo {
 /// 动作映射定义
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ActionInfo {
+    #[serde(default = "default_name")]
+    pub name: String,        // Action 名称
+
     pub anima: String,       // 对应 AssetInfo 中的 name
 }
 
@@ -86,13 +89,14 @@ pub struct ModManifest {
     pub default_audio_lang_id: String, // 默认语音语言 ID
     
     pub important_actions: HashMap<String, ActionInfo>, // 核心动作 (border, idle 等)
-    pub actions: HashMap<String, ActionInfo>,           // 其他动作 
+    pub actions: Vec<ActionInfo>,           // 其他动作 
 }
 
 impl ModManifest {
     /// 根据名称查找动作映射 (如 "border", "idle")
     pub fn get_action_by_name(&self, name: &str) -> Option<&ActionInfo> {
-        self.important_actions.get(name).or(self.actions.get(name))
+        self.important_actions.get(name)
+            .or_else(|| self.actions.iter().find(|a| a.name == name))
     }
 }
 

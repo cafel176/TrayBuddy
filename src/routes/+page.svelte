@@ -1,9 +1,9 @@
 <script lang="ts">
-  import DebugWindow from "$lib/components/DebugWindow.svelte";
+  import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
 </script>
 
 <main class="container">
-  <DebugWindow />
+  <ResourceManagerDebugger/>
 </main>
 
 <style>

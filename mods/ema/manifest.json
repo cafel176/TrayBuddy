@@ -5,9 +5,11 @@
   "default_audio_lang_id" : "jp",
   "important_actions": {
     "border": {
+      "name" : "border",
       "anima" : "border"
     },
     "idle": {
+      "name" : "idle",
       "anima" : "idle"
     }
   },

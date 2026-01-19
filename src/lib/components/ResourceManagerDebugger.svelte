@@ -2,13 +2,49 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
 
+  interface AssetInfo {
+    name: string;
+    img: string;
+    sequence: boolean;
+    frame_time: number;
+    frame_size_x: number;
+    frame_size_y: number;
+    frame_num_x: number;
+    frame_num_y: number;
+  }
+
+
+  interface ActionInfo {
+    anima: string;
+  }
+
+  interface ModManifest {
+    id: string;
+    version: string;
+    author: string;
+    default_audio_lang_id: string;
+    important_actions: Record<string, ActionInfo>;
+    actions: Record<string, ActionInfo>;
+  }
+
+  interface ModInfo {
+    path: string;
+    manifest: ModManifest;
+    imgs: AssetInfo[];
+    sequences: AssetInfo[];
+    audios: Record<string, { name: string, audio: string }[]>;
+    speech: Record<string, { name: string, text: string }[]>;
+    info: Record<string, { name: string, lang: string, id: string }>;
+  }
+
   let searchPaths: string[] = $state([]);
   let mods: string[] = $state([]);
   let selectedMod = $state("");
 
   let statusMsg = $state("等待操作...");
-  let currentModInfo = $state<any>(null);
+  let currentModInfo = $state<ModInfo | null>(null);
   let loading = $state(false);
+
 
   async function refreshMods() {
     try {
@@ -28,9 +64,11 @@
     loading = true;
     statusMsg = `正在加载 ${selectedMod}...`;
     try {
-      currentModInfo = await invoke("load_mod", { modName: selectedMod });
-      statusMsg = `加载成功: ${currentModInfo.manifest.id} (v${currentModInfo.manifest.version})`;
+      const info = await invoke("load_mod", { modName: selectedMod }) as ModInfo;
+      currentModInfo = info;
+      statusMsg = `加载成功: ${info.manifest.id} (v${info.manifest.version})`;
     } catch (e) {
+
       statusMsg = `加载失败: ${e}`;
       currentModInfo = null;
     } finally {
@@ -90,16 +128,114 @@
 
   {#if currentModInfo}
     <div class="info-panel">
-      <h4>当前 Mod 详情:</h4>
-      <ul>
-        <li><strong>ID:</strong> {currentModInfo.manifest.id}</li>
-        <li><strong>作者:</strong> {currentModInfo.manifest.author}</li>
-        <li><strong>版本:</strong> {currentModInfo.manifest.version}</li>
-        <li><strong>默认语音:</strong> {currentModInfo.manifest.default_audio_lang_id}</li>
-        <li><strong>图片资产:</strong> {currentModInfo.imgs.length}</li>
-        <li><strong>序列帧资产:</strong> {currentModInfo.sequences.length}</li>
-      </ul>
-      <pre>{JSON.stringify(currentModInfo.manifest.important_actions, null, 2)}</pre>
+      <div class="info-header">
+        <h4>当前 Mod 详情</h4>
+        <div class="path-badge" title={currentModInfo.path}>{currentModInfo.path.split(/[\\/]/).pop()}</div>
+      </div>
+      
+      <div class="tabs">
+        <details open>
+          <summary>基本信息 (Manifest)</summary>
+          <div class="tab-content">
+            <ul>
+              <li><strong>ID:</strong> {currentModInfo.manifest.id}</li>
+              <li><strong>作者:</strong> {currentModInfo.manifest.author}</li>
+              <li><strong>版本:</strong> {currentModInfo.manifest.version}</li>
+              <li><strong>默认语音:</strong> {currentModInfo.manifest.default_audio_lang_id}</li>
+            </ul>
+            <h5>核心动作 (Important Actions):</h5>
+            <div class="tag-container">
+              {#each Object.entries(currentModInfo.manifest.important_actions) as [name, action]}
+                <span class="tag action-tag" title="动画: {action.anima}">{name}</span>
+              {/each}
+            </div>
+            {#if Object.keys(currentModInfo.manifest.actions).length > 0}
+              <h5>其他动作 (Actions):</h5>
+              <div class="tag-container">
+                {#each Object.entries(currentModInfo.manifest.actions) as [name, action]}
+                  <span class="tag action-tag" title="动画: {action.anima}">{name}</span>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </details>
+
+        <details>
+          <summary>角色信息 ({Object.keys(currentModInfo.info).length})</summary>
+          <div class="tab-content">
+            {#each Object.entries(currentModInfo.info) as [lang, info]}
+              <div class="lang-item">
+                <span class="lang-code">{lang}</span>
+                <span class="char-name">{info.name} ({info.lang})</span>
+              </div>
+            {/each}
+          </div>
+        </details>
+
+        <details>
+          <summary>静态图片 ({currentModInfo.imgs.length})</summary>
+          <div class="tab-content grid">
+            {#each currentModInfo.imgs as img}
+              <div class="asset-card">
+                <div class="asset-name">{img.name}</div>
+                <div class="asset-file">{img.img}</div>
+                <div class="asset-dim">{img.frame_size_x}x{img.frame_size_y}</div>
+              </div>
+            {/each}
+          </div>
+        </details>
+
+        <details>
+          <summary>序列动画 ({currentModInfo.sequences.length})</summary>
+          <div class="tab-content grid">
+            {#each currentModInfo.sequences as seq}
+              <div class="asset-card sequence">
+                <div class="asset-name">{seq.name}</div>
+                <div class="asset-file">{seq.img}</div>
+                <div class="asset-meta">
+                  <span>{seq.frame_num_x}x{seq.frame_num_y} 帧</span>
+                  <span>{seq.frame_time}s</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </details>
+
+        <details>
+          <summary>语音资源 ({Object.values(currentModInfo.audios).flat().length})</summary>
+          <div class="tab-content">
+            {#each Object.entries(currentModInfo.audios) as [lang, audios]}
+              <div class="lang-section">
+                <h6>{lang}</h6>
+                <div class="tag-container">
+                  {#each audios as audio}
+                    <span class="tag audio-tag" title={audio.audio}>{audio.name}</span>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </details>
+
+        <details>
+          <summary>对话文本 ({Object.values(currentModInfo.speech).flat().length})</summary>
+          <div class="tab-content">
+            {#each Object.entries(currentModInfo.speech) as [lang, texts]}
+              <div class="lang-section">
+                <h6>{lang}</h6>
+                <div class="text-list">
+                  {#each texts as text}
+                    <div class="text-item">
+                      <span class="text-name">{text.name}:</span>
+                      <span class="text-body">{text.text}</span>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </details>
+      </div>
     </div>
   {/if}
 </div>
@@ -110,7 +246,7 @@
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    max-width: 500px;
+    width: 600px;
     margin: 20px auto;
     color: #333;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -140,8 +276,6 @@
     background: rgba(0,0,0,0.05);
     border-radius: 2px;
   }
-
-
 
   .controls {
     display: flex;
@@ -221,12 +355,146 @@
     background: #f8f9fa;
     border-radius: 8px;
     font-size: 0.85em;
+    max-height: 600px;
+    overflow-y: auto;
   }
 
-  h4 {
-    margin-top: 0;
+  .info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
     margin-bottom: 10px;
+    padding-bottom: 5px;
   }
+
+  .path-badge {
+    font-size: 0.7em;
+    background: #e0e0e0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  h4, h5, h6 {
+    margin: 10px 0 5px 0;
+    color: #2c3e50;
+  }
+
+  details {
+    margin-bottom: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background: white;
+  }
+
+  summary {
+    padding: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  details[open] summary {
+    border-bottom: 1px solid #eee;
+    border-radius: 4px 4px 0 0;
+  }
+
+  .tab-content {
+    padding: 10px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  .asset-card {
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 0.8em;
+  }
+
+  .asset-name {
+    font-weight: bold;
+    color: #2980b9;
+    word-break: break-all;
+  }
+
+  .asset-file {
+    color: #7f8c8d;
+    font-size: 0.9em;
+  }
+
+  .asset-dim, .asset-meta {
+    margin-top: 4px;
+    color: #95a5a6;
+    font-size: 0.85em;
+  }
+
+  .sequence {
+    border-left: 3px solid #f1c40f;
+  }
+
+  .tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 5px 0;
+  }
+
+  .tag {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    background: #ecf0f1;
+    border: 1px solid #bdc3c7;
+  }
+
+  .action-tag { background: #d5f5e3; border-color: #2ecc71; }
+  .audio-tag { background: #d6eaf8; border-color: #3498db; }
+
+  .lang-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+  }
+
+  .lang-code {
+    background: #34495e;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8em;
+  }
+
+  .lang-section {
+    margin-bottom: 15px;
+    border-left: 2px solid #3498db;
+    padding-left: 10px;
+  }
+
+  .text-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .text-item {
+    display: flex;
+    gap: 5px;
+  }
+
+  .text-name { font-weight: bold; color: #7f8c8d; min-width: 60px; }
+  .text-body { color: #2c3e50; }
 
   ul {
     list-style: none;
@@ -238,34 +506,29 @@
     margin-bottom: 4px;
   }
 
-  pre {
-    background: #2c3e50;
-    color: #ecf0f1;
-    padding: 10px;
-    border-radius: 4px;
-    overflow-x: auto;
-    margin-top: 10px;
-  }
-
   @media (prefers-color-scheme: dark) {
     .debug-panel {
       background: #2c3e50;
       color: #ecf0f1;
     }
-    h3 {
-      color: #ecf0f1;
-      border-bottom-color: #34495e;
-    }
+    h3, h4, h5, h6 { color: #ecf0f1; }
+    h3 { border-bottom-color: #34495e; }
+    
     select {
       background: #34495e;
       color: white;
       border-color: #455a64;
     }
-    .status-bar {
-      background: #34495e;
-    }
-    .info-panel {
-      background: #3e5871;
-    }
+    
+    .status-bar { background: #34495e; }
+    .info-panel { background: #34495e; }
+    
+    details { background: #2c3e50; border-color: #34495e; }
+    summary { background: #3e5871; color: #ecf0f1; }
+    .asset-card { background: #3e5871; border-color: #455a64; }
+    .asset-name { color: #3498db; }
+    .text-body { color: #bdc3c7; }
+    .path-badge { background: #455a64; color: #bdc3c7; }
+    .tag { background: #455a64; border-color: #546e7a; color: #ecf0f1; }
   }
 </style>
