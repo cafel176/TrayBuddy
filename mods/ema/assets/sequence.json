@@ -1,7 +1,7 @@
 [
   {
     "name": "idle",
-    "img": "idle.png",
+    "img": "sequence/idle.png",
     "sequence": false,
     "frame_time": 0.3,
     "frame_size_x": 260,

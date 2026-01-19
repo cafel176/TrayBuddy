@@ -1,7 +1,7 @@
 [
   {
     "name": "border",
-    "img": "border.png",
+    "img": "img/border.png",
     "sequence": false,
     "frame_time": 0.3,
     "frame_size_x": 827,

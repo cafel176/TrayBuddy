@@ -49,7 +49,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `name` | String | 动画/图像名称 |
-| `img` | String | 对应文件名 (相对 `img/` 目录) |
+| `img` | String | 对应文件名 (相对 `assets/` 目录) |
 | `sequence` | Boolean | 是否为序列帧 (如果是设为 true，静态图设为 false) |
 | `frame_time` | Number | 每帧间隔时间 (单位：秒) |
 | `frame_size_x` | Number | 单帧的宽度 |
@@ -63,7 +63,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `name` | String | 动画/图像名称 |
-| `img` | String | 对应文件名 (相对 `sequence/` 目录) |
+| `img` | String | 对应文件名 (相对 `assets/` 目录) |
 | `sequence` | Boolean | 是否为序列帧 (如果是设为 true，静态图设为 false) |
 | `frame_time` | Number | 每帧间隔时间 (单位：秒) |
 | `size_x` | Number | 单帧的宽度 |
@@ -77,7 +77,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `name` | String | 关联的文本内容名称 (如 `morning`) |
-| `audio` | String | 对应音频文件名 (在 `speech/` 目录下) |
+| `audio` | String | 对应音频文件名 (在 `audio/` 目录下) |
 
 ### 2.5 `text/[lang]/info.json`
 定义角色在该语言下的基础信息。

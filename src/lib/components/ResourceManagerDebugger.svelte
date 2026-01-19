@@ -90,7 +90,20 @@
     }
   }
 
+  async function openAssetFile(relativePath: string) {
+    if (!currentModInfo) return;
+    try {
+      // 这里的 path 是绝对路径，直接拼接相对路径
+      // 注意在 Windows 上路径分隔符的处理
+      const fullPath = `${currentModInfo.path}/${relativePath}`.replace(/\//g, '\\');
+      await invoke("open_path", { path: fullPath });
+    } catch (e) {
+      statusMsg = `打开文件失败: ${e}`;
+    }
+  }
+
   onMount(refreshMods);
+
 </script>
 
 <div class="debug-panel">
@@ -177,7 +190,9 @@
           <div class="tab-content grid">
             {#each currentModInfo.imgs as img}
               <div class="asset-card">
-                <div class="asset-name">{img.name}</div>
+                <button class="link-btn asset-name" onclick={() => openAssetFile(`assets/${img.img}`)} title="打开文件">
+                  {img.name}
+                </button>
                 <div class="asset-file">{img.img}</div>
                 <div class="asset-dim">{img.frame_size_x}x{img.frame_size_y}</div>
               </div>
@@ -190,7 +205,9 @@
           <div class="tab-content grid">
             {#each currentModInfo.sequences as seq}
               <div class="asset-card sequence">
-                <div class="asset-name">{seq.name}</div>
+                <button class="link-btn asset-name" onclick={() => openAssetFile(`assets/${seq.img}`)} title="打开文件">
+                  {seq.name}
+                </button>
                 <div class="asset-file">{seq.img}</div>
                 <div class="asset-meta">
                   <span>{seq.frame_num_x}x{seq.frame_num_y} 帧</span>
@@ -209,7 +226,9 @@
                 <h6>{lang}</h6>
                 <div class="tag-container">
                   {#each audios as audio}
-                    <span class="tag audio-tag" title={audio.audio}>{audio.name}</span>
+                    <button class="tag audio-tag link-btn" onclick={() => openAssetFile(`audio/${lang}/${audio.audio}`)} title="打开文件">
+                      {audio.name}
+                    </button>
                   {/each}
                 </div>
               </div>
@@ -427,6 +446,36 @@
     color: #2980b9;
     word-break: break-all;
   }
+
+  .link-btn {
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
+    display: inline-block;
+    transition: all 0.2s;
+  }
+
+  button.link-btn:not(.tag) {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .link-btn:not(.tag):hover {
+    color: #3498db;
+    text-decoration: underline;
+  }
+
+
+  .tag.link-btn:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+
 
   .asset-file {
     color: #7f8c8d;
