@@ -1,0 +1,12 @@
+[
+  {
+    "name": "border",
+    "img": "border.png",
+    "sequence": false,
+    "frame_time": 0.3,
+    "size_x": 827,
+    "size_y": 197,
+    "gridnum_x": 1,
+    "gridnum_y": 1
+  }
+]

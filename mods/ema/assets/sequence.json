@@ -1,0 +1,12 @@
+[
+  {
+    "name": "idle",
+    "img": "idle.png",
+    "sequence": false,
+    "frame_time": 0.3,
+    "size_x": 260,
+    "size_y": 300,
+    "gridnum_x": 1,
+    "gridnum_y": 1
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "id": "com.traybuddy.ema",
+  "version": "1.0.0",
+  "author": "TrayBuddy Team", 
+  "default_audio_lang_id" : "jp",
+  "important_actions": {
+    "border": {
+      "anima" : "border"
+    },
+    "idle": {
+      "anima" : "idle"
+    }
+  },
+  "actions": [
+
+  ],
+  "triggers": [
+
+  ]
+}
