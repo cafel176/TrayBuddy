@@ -52,10 +52,10 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `img` | String | 对应文件名 (相对 `img/` 目录) |
 | `sequence` | Boolean | 是否为序列帧 (如果是设为 true，静态图设为 false) |
 | `frame_time` | Number | 每帧间隔时间 (单位：秒) |
-| `size_x` | Number | 单帧的宽度 |
-| `size_y` | Number | 单帧的高度 |
-| `gridnum_x` | Number | x方向上有多少个单帧 |
-| `gridnum_y` | Number | y方向上有多少个单帧 |
+| `frame_size_x` | Number | 单帧的宽度 |
+| `frame_size_y` | Number | 单帧的高度 |
+| `frame_num_x` | Number | x方向上有多少个单帧 |
+| `frame_num_y` | Number | y方向上有多少个单帧 |
 
 ### 2.3 `assets/sequence.json`
 定义如何解析对应的动画图像资源。
