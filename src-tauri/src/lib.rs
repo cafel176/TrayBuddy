@@ -9,6 +9,14 @@ struct AppState {
 }
 
 #[tauri::command]
+fn get_mod_search_paths(state: State<'_, AppState>) -> Vec<String> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.search_paths.iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect()
+}
+
+#[tauri::command]
 fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
     let rm = state.resource_manager.lock().unwrap();
     rm.list_mods()
@@ -37,7 +45,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_available_mods, load_mod, unload_mod])
+        .invoke_handler(tauri::generate_handler![get_mod_search_paths, get_available_mods, load_mod, unload_mod])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

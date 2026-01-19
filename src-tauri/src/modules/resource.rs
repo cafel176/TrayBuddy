@@ -220,6 +220,7 @@ impl ResourceManager {
                     if entry.path().is_dir() {
                         if let Some(name) = entry.file_name().to_str() {
                             mods.insert(name.to_string());
+                            println!("mods finded: {:?}", name.to_string());
                         }
                     }
                 }

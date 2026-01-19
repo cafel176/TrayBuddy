@@ -4038,6 +4038,7 @@ dependencies = [
 name = "traybuddy"
 version = "0.1.0"
 dependencies = [
+ "dunce",
  "serde",
  "serde_json",
  "tauri",
