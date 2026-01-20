@@ -2,11 +2,12 @@
   {
     "name": "idle",
     "img": "sequence/idle.png",
-    "sequence": false,
+    "sequence": true,
+    "need_reverse": true,
     "frame_time": 0.3,
-    "frame_size_x": 260,
+    "frame_size_x": 236,
     "frame_size_y": 300,
-    "frame_num_x": 1,
+    "frame_num_x": 4,
     "frame_num_y": 1
   }
 ]

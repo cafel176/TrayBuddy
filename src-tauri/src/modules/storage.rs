@@ -3,6 +3,8 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
 
+// ========================================================================= //
+
 /// 用户个性化设置
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserSettings {
@@ -19,6 +21,7 @@ pub struct UserSettings {
     pub auto_silence_when_fullscreen: bool, // 开启全屏应用自动进入免打扰模式
 
     pub show_character: bool,        // 显示桌面挂件
+    pub animation_scale: f32,        // 动画窗口缩放比例 (0.5 到 2.0, 默认 1.0 即 100%)
 }
 
 impl Default for UserSettings {
@@ -37,15 +40,20 @@ impl Default for UserSettings {
             auto_silence_when_fullscreen: true,
 
             show_character: true,
+            animation_scale: 0.8,
         }
     }
 }
+
+// ========================================================================= //
 
 /// 用户基础信息
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserInfo {
     pub last_login: Option<i64>,   // 最后一次启动的时间戳
     pub current_mod: String, // 上次关闭前加载的 Mod ID
+    pub animation_window_x: Option<f64>, // animation 窗口上次关闭时的 X 坐标
+    pub animation_window_y: Option<f64>, // animation 窗口上次关闭时的 Y 坐标
 }
 
 impl Default for UserInfo {
@@ -53,9 +61,13 @@ impl Default for UserInfo {
         Self {
             last_login: None,
             current_mod: "ema".to_string(),
+            animation_window_x: None,
+            animation_window_y: None,
         }
     }
 }
+
+// ========================================================================= //
 
 /// 存储在文件中的完整数据结构
 #[derive(Debug, Serialize, Deserialize, Clone)]

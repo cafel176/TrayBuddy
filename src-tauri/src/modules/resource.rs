@@ -9,6 +9,7 @@ use tauri::Manager;
 fn default_name() -> String { "ERROR".to_string() }
 
 fn default_sequence() -> bool { false }
+fn default_need_reverse() -> bool { false }
 fn default_frame_time() -> f32 { 0.3 }
 fn default_frame_num() -> u32 { 1 }
 
@@ -24,6 +25,8 @@ pub struct AssetInfo {
 
     #[serde(default = "default_sequence")]
     pub sequence: bool,      // 是否为序列帧 (true) 还是静态图 (false)
+    #[serde(default = "default_need_reverse")]
+    pub need_reverse: bool,      // 循环时是否需要后接反向播放
     #[serde(default = "default_frame_time")]
     pub frame_time: f32,     // 每帧播放间隔 (秒)
 
@@ -155,14 +158,12 @@ impl ModInfo {
     }
 }
 
-
 // ========================================================================= //
 
 /// 资源管理器：负责 Mod 的扫描、解析与内存映射
 pub struct ResourceManager {
     pub current_mod: Option<ModInfo>, // 当前加载的 Mod
     pub search_paths: Vec<PathBuf>, // 所有探测到的有效 mods 目录列表
-    pub important_action_names: Vec<String>, // 预定义的关键动作名称列表
 }
 
 impl ResourceManager {
@@ -214,11 +215,7 @@ impl ResourceManager {
 
         Self {
             current_mod: None,
-            search_paths,
-            important_action_names: vec![
-                "border".to_string(), 
-                "idle".to_string()
-            ],
+            search_paths
         }
     }
 
@@ -265,13 +262,6 @@ impl ResourceManager {
             .map_err(|e| format!("Failed to read manifest: {}", e))?;
         let manifest: ModManifest = serde_json::from_str(&manifest_content)
             .map_err(|e| format!("Failed to parse manifest: {}", e))?;
-
-        // 验证关键动作是否存在
-        for action_name in &self.important_action_names {
-            if !manifest.important_actions.contains_key(action_name) {
-                return Err(format!("Missing important action: '{}' in manifest.json", action_name));
-            }
-        }
 
         // 2. 解析图像/动画定义 (assets/*.json)
         let assets_path = mod_path.join("assets");

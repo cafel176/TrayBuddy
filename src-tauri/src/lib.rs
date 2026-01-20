@@ -1,15 +1,47 @@
 mod modules;
 
-use modules::resource::{ModInfo, ResourceManager};
+use modules::resource::{ModInfo, ResourceManager, ActionInfo, AssetInfo, AudioInfo, TextInfo, CharacterInfo};
 use modules::storage::{Storage, UserSettings, UserInfo};
 use std::sync::Mutex;
-use tauri::{Manager, State};
-
+use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition};
 
 struct AppState {
     resource_manager: Mutex<ResourceManager>,
     storage: Mutex<Storage>,
 }
+
+// ========================================================================= //
+
+/// Animation 窗口基础尺寸常量
+const ANIMATION_WINDOW_BASE_WIDTH: f64 = 265.0;
+const ANIMATION_WINDOW_BASE_HEIGHT: f64 = 330.0;
+
+/// 常量名称管理
+#[tauri::command]
+fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<String, f64> {
+    let storage = state.storage.lock().unwrap();
+    let scale = storage.data.settings.animation_scale as f64;
+    
+    let mut map = std::collections::HashMap::new();
+    map.insert("animation_window_width".to_string(), ANIMATION_WINDOW_BASE_WIDTH * scale);
+    map.insert("animation_window_height".to_string(), ANIMATION_WINDOW_BASE_HEIGHT * scale);
+    map.insert("animation_scale".to_string(), scale);
+    map
+}
+
+const ANIMATION_IDLE: &str = "idle";
+const ANIMATION_BORDER: &str = "border";
+
+/// 常量名称管理
+#[tauri::command]
+fn get_const_text() -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    map.insert(ANIMATION_IDLE.to_string(), ANIMATION_IDLE.to_string());
+    map.insert(ANIMATION_BORDER.to_string(), ANIMATION_BORDER.to_string());
+    map
+}
+
+// ========================================================================= //
 
 #[tauri::command]
 fn get_settings(state: State<'_, AppState>) -> UserSettings {
@@ -35,6 +67,7 @@ fn update_user_info(info: UserInfo, state: State<'_, AppState>) -> Result<(), St
     storage.update_user_info(info)
 }
 
+// ========================================================================= //
 
 #[tauri::command]
 fn get_mod_search_paths(state: State<'_, AppState>) -> Vec<String> {
@@ -63,6 +96,11 @@ fn load_mod(mod_name: String, state: State<'_, AppState>) -> Result<ModInfo, Str
     Ok(mod_info)
 }
 
+#[tauri::command]
+fn unload_mod(state: State<'_, AppState>) -> bool {
+    let mut rm = state.resource_manager.lock().unwrap();
+    rm.unload_mod()
+}
 
 #[tauri::command]
 fn get_current_mod(state: State<'_, AppState>) -> Option<ModInfo> {
@@ -70,11 +108,67 @@ fn get_current_mod(state: State<'_, AppState>) -> Option<ModInfo> {
     rm.current_mod.clone()
 }
 
+#[tauri::command]
+fn get_mod_path(state: State<'_, AppState>) -> Option<String> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.current_mod.as_ref().map(|m| m.path.to_string_lossy().to_string())
+}
 
 #[tauri::command]
-fn unload_mod(state: State<'_, AppState>) -> bool {
-    let mut rm = state.resource_manager.lock().unwrap();
-    rm.unload_mod()
+fn get_action_by_name(name: String, state: State<'_, AppState>) -> Option<ActionInfo> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_action_by_name(&name).cloned()
+}
+
+#[tauri::command]
+fn get_asset_by_name(name: String, state: State<'_, AppState>) -> Option<AssetInfo> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_asset_by_name(&name).cloned()
+}
+
+#[tauri::command]
+fn get_audio_by_name(lang: String, name: String, state: State<'_, AppState>) -> Option<AudioInfo> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_audio_by_name(&lang, &name).cloned()
+}
+
+#[tauri::command]
+fn get_speech_by_name(lang: String, name: String, state: State<'_, AppState>) -> Option<TextInfo> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_speech_by_name(&lang, &name).cloned()
+}
+
+#[tauri::command]
+fn get_info_by_lang(lang: String, state: State<'_, AppState>) -> Option<CharacterInfo> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_info_by_lang(&lang).cloned()
+}
+
+// ========================================================================= //
+
+#[tauri::command]
+fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    // 限制范围 0.1 到 2.0
+    let scale = scale.clamp(0.1, 2.0);
+    
+    // 更新设置
+    {
+        let mut storage = state.storage.lock().unwrap();
+        storage.data.settings.animation_scale = scale as f32;
+        storage.save()?;
+    }
+    
+    // 计算新尺寸
+    let new_width = ANIMATION_WINDOW_BASE_WIDTH * scale;
+    let new_height = ANIMATION_WINDOW_BASE_HEIGHT * scale;
+    
+    // 调整 animation 窗口大小
+    if let Some(window) = app.get_webview_window("animation") {
+        window.set_size(LogicalSize::new(new_width, new_height))
+            .map_err(|e| e.to_string())?;
+    }
+    
+    Ok(())
 }
 
 #[tauri::command]
@@ -131,21 +225,88 @@ pub fn run() {
             }
 
 
+            // 获取动画缩放比例
+            let animation_scale = storage.data.settings.animation_scale as f64;
+            let window_width = ANIMATION_WINDOW_BASE_WIDTH * animation_scale;
+            let window_height = ANIMATION_WINDOW_BASE_HEIGHT * animation_scale;
+
+            // 获取上次保存的窗口位置
+            let saved_position = (storage.data.info.animation_window_x, storage.data.info.animation_window_y);
+
             app.manage(AppState {
                 resource_manager: Mutex::new(rm),
                 storage: Mutex::new(storage),
             });
+
+            // 新建另一个窗口，用于播放序列帧动画
+            let animation_window = WebviewWindowBuilder::new(
+                app,
+                "animation",
+                WebviewUrl::App("animation".into())
+            )
+            .title("Animation")
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(true)
+            .build()
+            .map_err(|e: tauri::Error| e.to_string())?;
+
+            // 设置窗口位置：优先使用上次保存的位置，否则吸附到屏幕右下角
+            if let (Some(x), Some(y)) = saved_position {
+                // 使用上次保存的位置
+                let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+            } else if let Some(monitor) = animation_window.primary_monitor().ok().flatten() {
+                // 首次启动，吸附到屏幕右下角
+                let scale_factor = monitor.scale_factor();
+                let screen_size = monitor.size();
+                let screen_position = monitor.position();
+                
+                let taskbar_height = 48.0; // Windows 任务栏大约高度
+                
+                // 转换为逻辑像素
+                let screen_width_logical = screen_size.width as f64 / scale_factor;
+                let screen_height_logical = screen_size.height as f64 / scale_factor;
+                
+                let x = screen_position.x as f64 + screen_width_logical - window_width;
+                let y = screen_position.y as f64 + screen_height_logical - window_height - taskbar_height;
+                
+                let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+            }
+
+
+
             Ok(())
         })
+
         .on_window_event(|window, event| {
-            // 5. 每次退出应用时，自动更新用户信息并立即同步到磁盘
+            // 每次退出应用时，保存 animation 窗口位置并同步到磁盘
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                let state: State<AppState> = window.state();
-                let storage = state.storage.lock().unwrap();
-                if let Err(e) = storage.save() {
-                    eprintln!("退出保存数据失败: {}", e);
-                } else {
-                    println!("退出保存数据成功");
+                // 只在主窗口关闭时保存（避免重复保存）
+                if window.label() == "main" {
+                    let app = window.app_handle();
+                    
+                    // 保存 animation 窗口位置
+                    if let Some(animation_window) = app.get_webview_window("animation") {
+                        if let Ok(position) = animation_window.outer_position() {
+                            let state: State<AppState> = window.state();
+                            let mut storage = state.storage.lock().unwrap();
+                            
+                            // 获取 scale_factor 将物理像素转换为逻辑像素
+                            let scale_factor = animation_window.scale_factor().unwrap_or(1.0);
+                            storage.data.info.animation_window_x = Some(position.x as f64 / scale_factor);
+                            storage.data.info.animation_window_y = Some(position.y as f64 / scale_factor);
+                            
+                            if let Err(e) = storage.save() {
+                                eprintln!("退出保存数据失败: {}", e);
+                            } else {
+                                println!("退出保存数据成功，窗口位置: ({}, {})", position.x, position.y);
+                            }
+                        }
+                    }
                 }
             }
         })
@@ -159,7 +320,16 @@ pub fn run() {
             update_settings,
             get_user_info,
             update_user_info,
-            get_current_mod
+            get_current_mod,
+            get_action_by_name,
+            get_asset_by_name,
+            get_mod_path,
+            get_audio_by_name,
+            get_speech_by_name,
+            get_info_by_lang,
+            get_const_float,
+            get_const_text,
+            set_animation_scale
         ])
 
         .run(tauri::generate_context!())

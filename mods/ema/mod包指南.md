@@ -52,6 +52,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `name` | String | 动画/图像名称 |
 | `img` | String | 对应文件名 (相对 `assets/` 目录) |
 | `sequence` | Boolean | 是否为序列帧 (如果是设为 true，静态图设为 false) |
+| `need_reverse` | Boolean | 循环时是否需要后接反向播放 |
 | `frame_time` | Number | 每帧间隔时间 (单位：秒) |
 | `frame_size_x` | Number | 单帧的宽度 |
 | `frame_size_y` | Number | 单帧的高度 |

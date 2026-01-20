@@ -12,6 +12,7 @@
     silence_mode: boolean;
     auto_silence_when_fullscreen: boolean;
     show_character: boolean;
+    animation_scale: number;
   }
 
   let settings = $state<UserSettings | null>(null);
@@ -38,6 +39,19 @@
       statusMsg = `保存失败: ${e}`;
     } finally {
       saving = false;
+    }
+  }
+
+  async function onAnimationScaleChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const scale = parseFloat(target.value);
+    if (settings) {
+      settings.animation_scale = scale;
+    }
+    try {
+      await invoke("set_animation_scale", { scale });
+    } catch (err) {
+      console.error("Failed to set animation scale:", err);
     }
   }
 
@@ -78,6 +92,11 @@
         <input type="checkbox" bind:checked={settings.show_character} />
         显示桌面挂件
       </label>
+    </div>
+
+    <div class="form-group">
+      <label for="animation_scale">角色大小 ({Math.round(settings.animation_scale * 100)}%)</label>
+      <input id="animation_scale" type="range" min="0.1" max="2.0" step="0.1" value={settings.animation_scale} oninput={onAnimationScaleChange} />
     </div>
 
     <div class="divider">音频设置</div>
@@ -208,6 +227,12 @@
   input[type="range"] {
     width: 100%;
     cursor: pointer;
+  }
+
+  .hint {
+    font-size: 0.75em;
+    color: #95a5a6;
+    font-style: italic;
   }
 
   .actions {

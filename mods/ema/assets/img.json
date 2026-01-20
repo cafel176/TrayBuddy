@@ -3,9 +3,10 @@
     "name": "border",
     "img": "img/border.png",
     "sequence": false,
+    "need_reverse": false,
     "frame_time": 0.3,
-    "frame_size_x": 827,
-    "frame_size_y": 197,
+    "frame_size_x": 265,
+    "frame_size_y": 96,
     "frame_num_x": 1,
     "frame_num_y": 1
   }
