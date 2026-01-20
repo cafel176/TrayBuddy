@@ -39,6 +39,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `version` | String | 适用版本号 |
 | `author` | String | 作者名称 |
 | `default_audio_lang_id` | String | 找不到对应语言的语音文件时，会使用默认id语言的音频文件 |
+| `default_text_lang_id` | String | 找不到对应语言的文本时，会使用默认id语言的文本 |
 | `important_actions` | Object | 关键映射，缺一不可 |
 | `actions` | Array | 其他映射 |
 | `triggers` | Array | 事件触发 |

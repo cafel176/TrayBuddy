@@ -23,9 +23,11 @@
     version: string;
     author: string;
     default_audio_lang_id: string;
+    default_text_lang_id: string;
     important_actions: Record<string, ActionInfo>;
     actions: Record<string, ActionInfo>;
   }
+
 
   interface ModInfo {
     path: string;
@@ -170,7 +172,9 @@
               <li><strong>作者:</strong> {currentModInfo.manifest.author}</li>
               <li><strong>版本:</strong> {currentModInfo.manifest.version}</li>
               <li><strong>默认语音:</strong> {currentModInfo.manifest.default_audio_lang_id}</li>
+              <li><strong>默认文本:</strong> {currentModInfo.manifest.default_text_lang_id}</li>
             </ul>
+
             <h5>核心动作 (Important Actions):</h5>
             <div class="tag-container">
               {#each Object.entries(currentModInfo.manifest.important_actions) as [name, action]}

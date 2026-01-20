@@ -87,7 +87,8 @@ pub struct ModManifest {
     pub version: String,     // Mod 版本
     pub author: String,      // 作者
     pub default_audio_lang_id: String, // 默认语音语言 ID
-    
+    pub default_text_lang_id: String, // 默认语音文本 ID
+
     pub important_actions: HashMap<String, ActionInfo>, // 核心动作 (border, idle 等)
     pub actions: Vec<ActionInfo>,           // 其他动作 
 }
@@ -139,8 +140,14 @@ impl ModInfo {
 
     /// 根据语言代码和名称查找对话文本
     pub fn get_speech_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
-        self.speech.get(lang)?.iter().find(|s| s.name == name)
+        self.speech.get(lang)
+            .and_then(|list| list.iter().find(|s| s.name == name))
+            .or_else(|| {
+                self.speech.get(&self.manifest.default_text_lang_id)
+                    .and_then(|list| list.iter().find(|s| s.name == name))
+            })
     }
+
 
     /// 根据语言代码查找角色基础信息
     pub fn get_info_by_lang(&self, lang: &str) -> Option<&CharacterInfo> {

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "author": "TrayBuddy Team", 
   "default_audio_lang_id" : "jp",
+  "default_text_lang_id" : "zh",
   "important_actions": {
     "border": {
       "name" : "border",
