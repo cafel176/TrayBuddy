@@ -4,7 +4,9 @@
 
   interface UserInfo {
     last_login: number | null;
-    current_mod: string | null;
+    current_mod: string;
+    animation_window_x: number | null;
+    animation_window_y: number | null;
   }
 
   let info = $state<UserInfo | null>(null);
@@ -55,8 +57,18 @@
       <span class="value">{info.current_mod || '未加载'}</span>
     </div>
 
+    <div class="data-row">
+      <span class="label">窗口位置:</span>
+      <span class="value">
+        {#if info.animation_window_x !== null && info.animation_window_y !== null}
+          ({Math.round(info.animation_window_x)}, {Math.round(info.animation_window_y)})
+        {:else}
+          未保存
+        {/if}
+      </span>
+    </div>
 
-    <div class="hint">注：修改当前 Mod 后失去焦点将自动保存。</div>
+    <div class="hint">注：窗口位置在程序退出时自动保存。</div>
   {:else}
     <div class="loading">{statusMsg}</div>
   {/if}

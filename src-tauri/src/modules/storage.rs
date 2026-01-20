@@ -7,6 +7,7 @@ use tauri::Manager;
 
 /// 用户个性化设置
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct UserSettings {
     pub nickname: String,            // 用户昵称
     pub birthday: Option<String>,    // 用户生日 (格式: "MM-DD")
@@ -49,6 +50,7 @@ impl Default for UserSettings {
 
 /// 用户基础信息
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct UserInfo {
     pub last_login: Option<i64>,   // 最后一次启动的时间戳
     pub current_mod: String, // 上次关闭前加载的 Mod ID
@@ -71,9 +73,19 @@ impl Default for UserInfo {
 
 /// 存储在文件中的完整数据结构
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct AppStorageData {
     pub settings: UserSettings,
     pub info: UserInfo,
+}
+
+impl Default for AppStorageData {
+    fn default() -> Self {
+        Self {
+            settings: UserSettings::default(),
+            info: UserInfo::default(),
+        }
+    }
 }
 
 /// 存储管理器：负责数据的内存缓存与磁盘同步

@@ -128,7 +128,7 @@
 
     <div class="actions">
       <button class="primary" onclick={saveSettings} disabled={saving}>保存设置</button>
-      <button class="secondary" onclick={loadSettings} disabled={saving}>重置</button>
+      <!-- <button class="secondary" onclick={loadSettings} disabled={saving}>重置</button> -->
     </div>
   {:else}
     <div class="loading">{statusMsg}</div>

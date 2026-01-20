@@ -6,6 +6,7 @@
     name: string;
     img: string;
     sequence: boolean;
+    need_reverse: boolean;
     frame_time: number;
     frame_size_x: number;
     frame_size_y: number;
@@ -15,6 +16,7 @@
 
 
   interface ActionInfo {
+    name: string;
     anima: string;
   }
 
@@ -231,6 +233,9 @@
                 <div class="asset-meta">
                   <span>{seq.frame_num_x}x{seq.frame_num_y} 帧</span>
                   <span>{seq.frame_time}s</span>
+                  {#if seq.need_reverse}
+                    <span class="badge reverse">反向</span>
+                  {/if}
                 </div>
               </div>
             {/each}
@@ -509,6 +514,19 @@
 
   .sequence {
     border-left: 3px solid #f1c40f;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    font-weight: bold;
+  }
+
+  .badge.reverse {
+    background: #e74c3c;
+    color: white;
   }
 
   .tag-container {

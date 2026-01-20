@@ -17,74 +17,117 @@ fn default_frame_num() -> u32 { 1 }
 
 /// 资产定义
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct AssetInfo {
-    #[serde(default = "default_name")]
     pub name: String,        // 资产名称 (如 "idle", "border")
-
     pub img: String,         // 文件名 (如 "idle.png")
 
-    #[serde(default = "default_sequence")]
     pub sequence: bool,      // 是否为序列帧 (true) 还是静态图 (false)
-    #[serde(default = "default_need_reverse")]
     pub need_reverse: bool,      // 循环时是否需要后接反向播放
-    #[serde(default = "default_frame_time")]
     pub frame_time: f32,     // 每帧播放间隔 (秒)
 
     pub frame_size_x: u32,   // 单帧像素宽度
     pub frame_size_y: u32,   // 单帧像素高度
 
-    #[serde(default = "default_frame_num")]
     pub frame_num_x: u32,    // X 轴单帧数量 (列数)
-    #[serde(default = "default_frame_num")]
     pub frame_num_y: u32,    // Y 轴单帧数量 (行数)
+}
+
+impl Default for AssetInfo {
+    fn default() -> Self {
+        Self {
+            name: default_name(),
+            img: String::new(),
+            sequence: default_sequence(),
+            need_reverse: default_need_reverse(),
+            frame_time: default_frame_time(),
+            frame_size_x: 0,
+            frame_size_y: 0,
+            frame_num_x: default_frame_num(),
+            frame_num_y: default_frame_num(),
+        }
+    }
 }
 
 // ========================================================================= //
 
 /// 语音定义
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct AudioInfo {
-    #[serde(default = "default_name")]
     pub name: String,        // 语音名称 (如 "morning")
-
     pub audio: String,       // 语音文件名 (如 "morning.wav")
+}
+
+impl Default for AudioInfo {
+    fn default() -> Self {
+        Self {
+            name: default_name(),
+            audio: String::new(),
+        }
+    }
 }
 
 // ========================================================================= //
 
 /// 对话文本定义
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct TextInfo {
-    #[serde(default = "default_name")]
     pub name: String,        // 文本名称
-
     pub text: String,        // 显示的文本内容
+}
+
+impl Default for TextInfo {
+    fn default() -> Self {
+        Self {
+            name: default_name(),
+            text: String::new(),
+        }
+    }
 }
 
 /// 角色多语言基础信息
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct CharacterInfo {
-    #[serde(default = "default_name")]
     pub id: String,          // 语言 ID (如 "zh")
-    #[serde(default = "default_name")]
     pub lang: String,        // 语言显示名称 (如 "中文")
-
     pub name: String,        // 角色在该语言下的名字
+}
+
+impl Default for CharacterInfo {
+    fn default() -> Self {
+        Self {
+            id: default_name(),
+            lang: default_name(),
+            name: String::new(),
+        }
+    }
 }
 
 // ========================================================================= //
 
 /// 动作映射定义
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct ActionInfo {
-    #[serde(default = "default_name")]
     pub name: String,        // Action 名称
-
     pub anima: String,       // 对应 AssetInfo 中的 name
+}
+
+impl Default for ActionInfo {
+    fn default() -> Self {
+        Self {
+            name: default_name(),
+            anima: String::new(),
+        }
+    }
 }
 
 /// Mod 全局清单 (manifest.json)
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct ModManifest {
     pub id: String,          // Mod 唯一标识
     pub version: String,     // Mod 版本
@@ -94,6 +137,20 @@ pub struct ModManifest {
 
     pub important_actions: HashMap<String, ActionInfo>, // 核心动作 (border, idle 等)
     pub actions: Vec<ActionInfo>,           // 其他动作 
+}
+
+impl Default for ModManifest {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            version: String::new(),
+            author: String::new(),
+            default_audio_lang_id: String::new(),
+            default_text_lang_id: String::new(),
+            important_actions: HashMap::new(),
+            actions: Vec::new(),
+        }
+    }
 }
 
 impl ModManifest {
