@@ -1,12 +1,39 @@
 mod modules;
 
 use modules::resource::{ModInfo, ResourceManager};
+use modules::storage::{Storage, UserSettings, UserInfo};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
 struct AppState {
     resource_manager: Mutex<ResourceManager>,
+    storage: Mutex<Storage>,
 }
+
+#[tauri::command]
+fn get_settings(state: State<'_, AppState>) -> UserSettings {
+    let storage = state.storage.lock().unwrap();
+    storage.data.settings.clone()
+}
+
+#[tauri::command]
+fn update_settings(settings: UserSettings, state: State<'_, AppState>) -> Result<(), String> {
+    let mut storage = state.storage.lock().unwrap();
+    storage.update_settings(settings)
+}
+
+#[tauri::command]
+fn get_user_info(state: State<'_, AppState>) -> UserInfo {
+    let storage = state.storage.lock().unwrap();
+    storage.data.user_info.clone()
+}
+
+#[tauri::command]
+fn update_user_info(info: UserInfo, state: State<'_, AppState>) -> Result<(), String> {
+    let mut storage = state.storage.lock().unwrap();
+    storage.update_user_info(info)
+}
+
 
 #[tauri::command]
 fn get_mod_search_paths(state: State<'_, AppState>) -> Vec<String> {
@@ -65,8 +92,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let rm = ResourceManager::new(app.handle());
+            let storage = Storage::new(app.handle());
             app.manage(AppState {
                 resource_manager: Mutex::new(rm),
+                storage: Mutex::new(storage),
             });
             Ok(())
         })
@@ -75,10 +104,15 @@ pub fn run() {
             get_available_mods, 
             load_mod, 
             unload_mod,
-            open_path
+            open_path,
+            get_settings,
+            update_settings,
+            get_user_info,
+            update_user_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
 
 
