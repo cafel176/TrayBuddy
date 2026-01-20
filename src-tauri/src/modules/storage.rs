@@ -45,7 +45,7 @@ impl Default for UserSettings {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserInfo {
     pub last_login: Option<i64>,   // 最后一次启动的时间戳
-    pub current_mod: Option<String>, // 上次关闭前加载的 Mod ID
+    pub current_mod: String, // 上次关闭前加载的 Mod ID
 }
 
 impl Default for UserInfo {

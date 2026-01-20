@@ -1,12 +1,53 @@
 <script lang="ts">
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
+  import Settings from "$lib/components/Settings.svelte";
+  import InfoDebugger from "$lib/components/InfoDebugger.svelte";
+
+  let activeTab = $state("resource");
 </script>
 
 <main class="container">
-  <ResourceManagerDebugger/>
+  <div class="tabs-nav">
+    <button class:active={activeTab === 'resource'} onclick={() => activeTab = "resource"}>资源管理</button>
+    <button class:active={activeTab === 'settings'} onclick={() => activeTab = "settings"}>用户设置</button>
+    <button class:active={activeTab === 'info'} onclick={() => activeTab = "info"}>运行状态</button>
+  </div>
+
+  <div class="tab-content">
+    {#if activeTab === 'resource'}
+      <ResourceManagerDebugger/>
+    {:else if activeTab === 'settings'}
+      <Settings/>
+    {:else if activeTab === 'info'}
+      <InfoDebugger/>
+    {/if}
+  </div>
 </main>
 
 <style>
+  .tabs-nav {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .tabs-nav button {
+    box-shadow: none;
+    background: #eee;
+    color: #666;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tabs-nav button.active {
+    background: #3498db;
+    color: white;
+  }
+
 .logo.vite:hover {
   filter: drop-shadow(0 0 2em #747bff);
 }

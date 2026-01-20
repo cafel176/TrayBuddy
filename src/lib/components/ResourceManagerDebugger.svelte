@@ -50,11 +50,25 @@
     try {
       searchPaths = await invoke("get_mod_search_paths");
       mods = await invoke("get_available_mods");
-      statusMsg = `已刷新 Mod 列表，共 ${mods.length} 个`;
+      
+      // 检查当前是否已经加载了 mod
+      const info = await invoke("get_current_mod") as ModInfo | null;
+      if (info) {
+        currentModInfo = info;
+        selectedMod = info.path.split(/[\\/]/).pop() || "";
+        statusMsg = `当前已加载: ${info.manifest.id}`;
+      } else {
+        statusMsg = `已刷新 Mod 列表，共 ${mods.length} 个`;
+        if (mods.length > 0 && !selectedMod) {
+          selectedMod = mods[0];
+        }
+      }
+
     } catch (e) {
       statusMsg = `刷新失败: ${e}`;
     }
   }
+
 
   async function loadSelectedMod() {
     if (!selectedMod) {
@@ -121,18 +135,19 @@
     <div class="section">
       <label for="mod-select">可选 Mod 列表:</label>
       <select id="mod-select" bind:value={selectedMod}>
-        <option value="">-- 请选择 --</option>
         {#each mods as mod}
           <option value={mod}>{mod}</option>
         {/each}
       </select>
+
       <button onclick={refreshMods} disabled={loading}>刷新列表</button>
     </div>
 
     <div class="actions">
       <button class="primary" onclick={loadSelectedMod} disabled={loading || !selectedMod}>加载 Mod</button>
-      <button class="danger" onclick={unloadMod} disabled={loading}>卸载当前 Mod</button>
+      <!-- <button class="danger" onclick={unloadMod} disabled={loading}>卸载当前 Mod</button> -->
     </div>
+
   </div>
 
   <div class="status-bar" class:error={statusMsg.includes('失败')}>
