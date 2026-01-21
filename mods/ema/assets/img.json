@@ -2,12 +2,12 @@
   {
     "name": "border",
     "img": "img/border.png",
-    "sequence": false,
+    "sequence": true,
     "need_reverse": false,
-    "frame_time": 0.3,
+    "frame_time": 0.2,
     "frame_size_x": 265,
-    "frame_size_y": 96,
-    "frame_num_x": 1,
-    "frame_num_y": 1
+    "frame_size_y": 94,
+    "frame_num_x": 10,
+    "frame_num_y": 4
   }
 ]
