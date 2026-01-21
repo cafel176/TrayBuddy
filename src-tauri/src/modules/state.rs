@@ -69,7 +69,7 @@ impl StateManager {
     pub fn new() -> Self {
         let states = vec![
             StateInfo::new(STATE_IDLE, true, ANIMATION_IDLE, "", "", 0),
-            StateInfo::new(STATE_MORNING, false, ANIMATION_MORNING, "morning", "morning", 10),
+            StateInfo::new(STATE_MORNING, false, ANIMATION_MORNING, "morning", "morning", 1),
         ];
 
         Self {

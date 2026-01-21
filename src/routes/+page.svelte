@@ -1,5 +1,6 @@
 <script lang="ts">
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
+  import StateDebugger from "$lib/components/StateDebugger.svelte";
   import Settings from "$lib/components/Settings.svelte";
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
 
@@ -9,6 +10,7 @@
 <main class="container">
   <div class="tabs-nav">
     <button class:active={activeTab === 'resource'} onclick={() => activeTab = "resource"}>资源管理</button>
+    <button class:active={activeTab === 'state'} onclick={() => activeTab = "state"}>状态管理</button>
     <button class:active={activeTab === 'settings'} onclick={() => activeTab = "settings"}>用户设置</button>
     <button class:active={activeTab === 'info'} onclick={() => activeTab = "info"}>运行状态</button>
   </div>
@@ -16,6 +18,8 @@
   <div class="tab-content">
     {#if activeTab === 'resource'}
       <ResourceManagerDebugger/>
+    {:else if activeTab === 'state'}
+      <StateDebugger/>
     {:else if activeTab === 'settings'}
       <Settings/>
     {:else if activeTab === 'info'}
