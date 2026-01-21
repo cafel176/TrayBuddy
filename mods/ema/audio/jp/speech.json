@@ -2,6 +2,18 @@
   {
     "name": "morning",
     "audio": "speech/morning.wav"
+  },
+  {
+    "name": "noon",
+    "audio": "speech/morning.wav"
+  },
+  {
+    "name": "evening",
+    "audio": "speech/morning.wav"
+  },
+  {
+    "name": "night",
+    "audio": "speech/morning.wav"
   }
 ]
 

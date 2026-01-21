@@ -5,6 +5,7 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { SpriteAnimator, createAnimator } from "$lib/animation/SpriteAnimator";
   import { getAudioManager, type AudioManager } from "$lib/audio/AudioManager";
+  import { getTriggerManager, type TriggerManager } from "$lib/trigger/TriggerManager";
 
   let characterCanvas: HTMLCanvasElement;
   let borderCanvas: HTMLCanvasElement;
@@ -12,6 +13,7 @@
   let characterAnimator: SpriteAnimator | null = null;
   let borderAnimator: SpriteAnimator | null = null;
   let audioManager: AudioManager | null = null;
+  let triggerManager: TriggerManager | null = null;
   let unlistenState: (() => void) | null = null;
   let unlistenSettings: (() => void) | null = null;
 
@@ -23,6 +25,12 @@
   let animationComplete = false;
   let audioComplete = false;
   let isPlayOnce = false;
+
+  // 拖拽检测
+  let isDragging = false;
+  let isMouseDown = false;
+  let mouseDownPos = { x: 0, y: 0 };
+  const DRAG_THRESHOLD = 5; // 移动超过此像素数视为拖拽
 
   interface StateInfo {
     name: string;
@@ -57,6 +65,9 @@
       // 初始化音频管理器
       audioManager = await getAudioManager();
 
+      // 初始化触发器管理器
+      triggerManager = getTriggerManager();
+
       // 创建 border 动画 (始终播放)
       borderAnimator = await createAnimator(borderCanvas, constVars.border);
       if (!borderAnimator) {
@@ -81,6 +92,10 @@
       if (currentState) {
         await playState(currentState, false);
       }
+
+      // 所有初始化完成后，触发 login 事件
+      console.log("[init] All initialization complete, triggering login event");
+      triggerManager?.trigger("login");
     } catch (e) {
       console.error("Failed to init actions:", e);
     }
@@ -151,10 +166,38 @@
     }
   }
 
-  // 鼠标拖拽窗口
-  async function handleMouseDown(e: MouseEvent) {
+  // 鼠标按下 - 记录位置，准备拖拽或单击
+  function handleMouseDown(e: MouseEvent) {
     if (e.button === 0) { // 左键
-      await getCurrentWindow().startDragging();
+      isDragging = false;
+      isMouseDown = true;
+      mouseDownPos = { x: e.screenX, y: e.screenY };
+    }
+  }
+
+  // 鼠标移动 - 检测是否超过拖拽阈值，超过则启动拖拽
+  async function handleMouseMove(e: MouseEvent) {
+    if (isMouseDown && !isDragging) {
+      const dx = Math.abs(e.screenX - mouseDownPos.x);
+      const dy = Math.abs(e.screenY - mouseDownPos.y);
+      if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+        isDragging = true;
+        // 超过阈值，启动窗口拖拽
+        await getCurrentWindow().startDragging();
+      }
+    }
+  }
+
+  // 鼠标抬起 - 如果未拖拽则触发 click 事件
+  function handleMouseUp(e: MouseEvent) {
+    if (e.button === 0) {
+      if (isMouseDown && !isDragging) {
+        // 非拖拽单击，触发 click 事件
+        console.log("[handleMouseUp] Click detected, triggering click event");
+        triggerManager?.trigger("click");
+      }
+      isMouseDown = false;
+      isDragging = false;
     }
   }
 
@@ -166,12 +209,19 @@
     characterAnimator?.destroy();
     borderAnimator?.destroy();
     audioManager?.destroy();
+    triggerManager?.destroy();
     unlistenState?.();
     unlistenSettings?.();
   });
 </script>
 
-<div class="container" on:mousedown={handleMouseDown}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div 
+  class="container" 
+  on:mousedown={handleMouseDown}
+  on:mousemove={handleMouseMove}
+  on:mouseup={handleMouseUp}
+>
   <canvas 
     class="character-canvas" 
     class:hidden={!showCharacter}

@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
-use super::constants::{ANIMATION_IDLE, ANIMATION_MORNING, STATE_IDLE, STATE_MORNING};
+use super::constants::{
+    ANIMATION_IDLE, ANIMATION_MORNING, ANIMATION_NOON, ANIMATION_EVENING, ANIMATION_NIGHT, ANIMATION_MUSIC,
+    STATE_IDLE, STATE_MUSIC, STATE_MORNING, STATE_NOON, STATE_EVENING, STATE_NIGHT
+};
 
 // ========================================================================= //
 
@@ -64,8 +67,15 @@ impl StateManager {
     /// 创建新的状态管理器，初始化预定义状态
     pub fn new() -> Self {
         let states = vec![
+            // 持久状态
             StateInfo::new(STATE_IDLE, true, ANIMATION_IDLE, "", "", 0),
+            // 持久状态 - 音乐播放中 (优先级比 idle 高)
+            StateInfo::new(STATE_MUSIC, true, ANIMATION_MUSIC, "", "", 0),
+            // 临时状态 - 时间问候
             StateInfo::new(STATE_MORNING, false, ANIMATION_MORNING, "morning", "morning", 1),
+            StateInfo::new(STATE_NOON, false, ANIMATION_NOON, "noon", "noon", 1),
+            StateInfo::new(STATE_EVENING, false, ANIMATION_EVENING, "evening", "evening", 1),
+            StateInfo::new(STATE_NIGHT, false, ANIMATION_NIGHT, "night", "night", 1),
         ];
 
         Self {
@@ -108,6 +118,8 @@ impl StateManager {
     }
 
     /// 设置持久状态
+    /// 如果当前被锁定（临时状态播放中），只更新持久状态，不切换当前状态
+    /// 如果未锁定，同时更新持久状态和当前状态
     pub fn set_persistent_state(&mut self, name: &str) -> Result<(), String> {
         let state = self.get_state_by_name(name)
             .ok_or_else(|| format!("State '{}' not found", name))?
@@ -117,10 +129,17 @@ impl StateManager {
             return Err(format!("State '{}' is not a persistent state", name));
         }
 
+        // 更新持久状态
         self.persistent_state = Some(state.clone());
-        self.current_state = Some(state.clone());
 
-        // 发送事件到前端，持久状态循环播放
+        // 如果被锁定（临时状态播放中），不切换当前状态，等临时状态播放完毕后自动切换
+        if self.locked {
+            println!("[StateManager] 状态锁定中，仅更新持久状态为 '{}'，当前状态保持不变", name);
+            return Ok(());
+        }
+
+        // 未锁定，同时更新当前状态并发送事件
+        self.current_state = Some(state.clone());
         self.emit_state_change(&state, false);
 
         Ok(())

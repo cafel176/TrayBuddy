@@ -13,8 +13,24 @@
       "name" : "idle",
       "anima" : "wink"
     },
+    "music": {
+      "name" : "music",
+      "anima" : "wink"
+    },
     "morning": {
       "name" : "morning",
+      "anima" : "wave"
+    },
+    "noon": {
+      "name" : "noon",
+      "anima" : "wave"
+    },
+    "evening": {
+      "name" : "evening",
+      "anima" : "wave"
+    },
+    "night": {
+      "name" : "night",
       "anima" : "wave"
     }
   },

@@ -3,11 +3,12 @@ mod modules;
 use modules::constants::{
     ANIMATION_WINDOW_BASE_WIDTH, ANIMATION_WINDOW_BASE_HEIGHT,
     ANIMATION_IDLE, ANIMATION_BORDER, ANIMATION_MORNING,
-    STATE_IDLE,
+    STATE_IDLE, STATE_MUSIC,
 };
 use modules::resource::{ModInfo, ResourceManager, ActionInfo, AssetInfo, AudioInfo, TextInfo, CharacterInfo};
 use modules::state::{StateManager, StateInfo};
 use modules::storage::{Storage, UserSettings, UserInfo};
+use modules::media_observer::{MediaObserver, MediaPlaybackStatus};
 use std::sync::Mutex;
 use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition, Emitter};
 
@@ -15,6 +16,8 @@ struct AppState {
     resource_manager: Mutex<ResourceManager>,
     state_manager: Mutex<StateManager>,
     storage: Mutex<Storage>,
+    #[allow(dead_code)]
+    media_observer: Mutex<Option<MediaObserver>>,
 }
 
 // ========================================================================= //
@@ -308,6 +311,56 @@ pub fn run() {
                 resource_manager: Mutex::new(rm),
                 state_manager: Mutex::new(sm),
                 storage: Mutex::new(storage),
+                media_observer: Mutex::new(None),
+            });
+
+            // ============================================================= //
+            // 启动媒体监听器
+            // ============================================================= //
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let mut observer = MediaObserver::new();
+                let mut rx = observer.start();
+
+                // 使用 tokio runtime 处理异步事件
+                let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+                rt.block_on(async move {
+                    while let Some(event) = rx.recv().await {
+                        // 获取 AppState
+                        let state: State<AppState> = app_handle.state();
+                        let mut sm = state.state_manager.lock().unwrap();
+
+                        match event.status {
+                            MediaPlaybackStatus::Playing => {
+                                // 检测到音乐播放，切换到 music 持久状态
+                                if let Some(app_id) = &event.app_id {
+                                    println!("[MediaObserver] 检测到音乐应用播放: {}", app_id);
+                                }
+                                if let Some(title) = &event.title {
+                                    println!("[MediaObserver] 正在播放: {}", title);
+                                }
+                                
+                                // 设置 music 为持久状态
+                                if let Err(e) = sm.set_persistent_state(STATE_MUSIC) {
+                                    eprintln!("[MediaObserver] 切换到 music 状态失败: {}", e);
+                                }
+                            }
+                            MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
+                                // 音乐停止，检查当前是否处于 music 状态
+                                if let Some(current) = sm.get_persistent_state() {
+                                    if current.name == STATE_MUSIC {
+                                        // 从 music 状态退出，返回 idle
+                                        println!("[MediaObserver] 音乐停止，返回 idle 状态");
+                                        if let Err(e) = sm.set_persistent_state(STATE_IDLE) {
+                                            eprintln!("[MediaObserver] 切换到 idle 状态失败: {}", e);
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                });
             });
 
             // 新建另一个窗口，用于播放序列帧动画
