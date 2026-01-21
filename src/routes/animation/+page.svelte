@@ -10,7 +10,12 @@
   
   let characterAnimator: SpriteAnimator | null = null;
   let borderAnimator: SpriteAnimator | null = null;
-  let unlisten: (() => void) | null = null;
+  let unlistenState: (() => void) | null = null;
+  let unlistenSettings: (() => void) | null = null;
+
+  // 显隐控制状态
+  let showCharacter = true;
+  let showBorder = true;
 
   interface StateInfo {
     name: string;
@@ -26,10 +31,21 @@
     play_once: boolean;
   }
 
+  interface UserSettings {
+    show_character: boolean;
+    show_border: boolean;
+    [key: string]: unknown;
+  }
+
   async function init() {
     try {
       // 获取常量
       const constVars: Record<string, string> = await invoke("get_const_text");
+
+      // 获取初始设置
+      const settings: UserSettings = await invoke("get_settings");
+      showCharacter = settings.show_character;
+      showBorder = settings.show_border;
 
       // 创建 border 动画 (始终播放)
       borderAnimator = await createAnimator(borderCanvas, constVars.border);
@@ -38,9 +54,16 @@
       }
 
       // 监听状态切换事件
-      unlisten = await listen<StateChangeEvent>("state-change", async (event) => {
+      unlistenState = await listen<StateChangeEvent>("state-change", async (event) => {
         const { state, play_once } = event.payload;
         await playAnimation(state.action, play_once);
+      });
+
+      // 监听设置变更事件
+      unlistenSettings = await listen<UserSettings>("settings-change", (event) => {
+        const settings = event.payload;
+        showCharacter = settings.show_character;
+        showBorder = settings.show_border;
       });
 
       // 初始化完成后，主动获取当前持久状态并播放
@@ -92,13 +115,22 @@
   onDestroy(() => {
     characterAnimator?.destroy();
     borderAnimator?.destroy();
-    unlisten?.();
+    unlistenState?.();
+    unlistenSettings?.();
   });
 </script>
 
 <div class="container" on:mousedown={handleMouseDown}>
-  <canvas class="character-canvas" bind:this={characterCanvas}></canvas>
-  <canvas class="border-canvas" bind:this={borderCanvas}></canvas>
+  <canvas 
+    class="character-canvas" 
+    class:hidden={!showCharacter}
+    bind:this={characterCanvas}
+  ></canvas>
+  <canvas 
+    class="border-canvas" 
+    class:hidden={!showCharacter || !showBorder}
+    bind:this={borderCanvas}
+  ></canvas>
 </div>
 
 <style>
@@ -136,5 +168,8 @@
     transform: translate(-50%, -50%);
     width: 100%;
     z-index: 2;
+  }
+  .hidden {
+    visibility: hidden;
   }
 </style>

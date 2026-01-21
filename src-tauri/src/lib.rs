@@ -9,7 +9,7 @@ use modules::resource::{ModInfo, ResourceManager, ActionInfo, AssetInfo, AudioIn
 use modules::state::{StateManager, StateInfo};
 use modules::storage::{Storage, UserSettings, UserInfo};
 use std::sync::Mutex;
-use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition};
+use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition, Emitter};
 
 struct AppState {
     resource_manager: Mutex<ResourceManager>,
@@ -51,9 +51,12 @@ fn get_settings(state: State<'_, AppState>) -> UserSettings {
 }
 
 #[tauri::command]
-fn update_settings(settings: UserSettings, state: State<'_, AppState>) -> Result<(), String> {
+fn update_settings(settings: UserSettings, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let mut storage = state.storage.lock().unwrap();
-    storage.update_settings(settings)
+    storage.update_settings(settings.clone())?;
+    // 发送设置变更事件
+    let _ = app.emit("settings-change", settings);
+    Ok(())
 }
 
 #[tauri::command]

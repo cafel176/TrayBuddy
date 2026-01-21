@@ -12,6 +12,7 @@
     silence_mode: boolean;
     auto_silence_when_fullscreen: boolean;
     show_character: boolean;
+    show_border: boolean;
     animation_scale: number;
   }
 
@@ -91,6 +92,10 @@
       <label>
         <input type="checkbox" bind:checked={settings.show_character} />
         显示桌面挂件
+      </label>
+      <label>
+        <input type="checkbox" bind:checked={settings.show_border} disabled={!settings.show_character} />
+        显示边框
       </label>
     </div>
 

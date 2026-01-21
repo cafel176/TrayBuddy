@@ -22,6 +22,7 @@ pub struct UserSettings {
     pub auto_silence_when_fullscreen: bool, // 开启全屏应用自动进入免打扰模式
 
     pub show_character: bool,        // 显示桌面挂件
+    pub show_border: bool,           // 显示桌面挂件边框
     pub animation_scale: f32,        // 动画窗口缩放比例 (0.5 到 2.0, 默认 1.0 即 100%)
 }
 
@@ -41,6 +42,7 @@ impl Default for UserSettings {
             auto_silence_when_fullscreen: true,
 
             show_character: true,
+            show_border: true,
             animation_scale: 0.5,
         }
     }
