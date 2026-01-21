@@ -31,6 +31,9 @@ pub struct AssetInfo {
 
     pub frame_num_x: u32,    // X 轴单帧数量 (列数)
     pub frame_num_y: u32,    // Y 轴单帧数量 (行数)
+
+    pub offset_x: i32,       // 渲染时 X 轴偏移 (像素)
+    pub offset_y: i32,       // 渲染时 Y 轴偏移 (像素)
 }
 
 impl Default for AssetInfo {
@@ -45,6 +48,8 @@ impl Default for AssetInfo {
             frame_size_y: 0,
             frame_num_x: default_frame_num(),
             frame_num_y: default_frame_num(),
+            offset_x: 0,
+            offset_y: 0,
         }
     }
 }

@@ -16,6 +16,9 @@ export interface AssetInfo {
 
   frame_num_x: number;
   frame_num_y: number;
+
+  offset_x: number;  // 渲染时 X 轴偏移
+  offset_y: number;  // 渲染时 Y 轴偏移
 }
 
 /**
@@ -30,6 +33,8 @@ export interface AnimationConfig {
   imgSrc: string;
   sequence: boolean; // 是否为序列帧动画
   needReverse: boolean; // 是否需要反向播放
+  offsetX: number; // 渲染偏移 X
+  offsetY: number; // 渲染偏移 Y
 }
 
 /**
@@ -48,6 +53,9 @@ export class SpriteAnimator {
   private frameHeight = 0;
   private frameTime = 100;
   private lastTime = 0;
+  
+  private offsetX = 0; // 渲染偏移 X
+  private offsetY = 0; // 渲染偏移 Y
   
   private animationId: number | null = null;
   private isPlaying = false;
@@ -102,7 +110,9 @@ export class SpriteAnimator {
         frameTime: (asset.frame_time || 0.1) * 1000,
         imgSrc,
         sequence: asset.sequence !== false, // 默认为 true
-        needReverse: asset.need_reverse === true // 默认为 false
+        needReverse: asset.need_reverse === true, // 默认为 false
+        offsetX: asset.offset_x || 0,
+        offsetY: asset.offset_y || 0
       };
 
       return this.loadWithConfig(config);
@@ -124,6 +134,8 @@ export class SpriteAnimator {
       this.frameTime = config.frameTime;
       this.isSequence = config.sequence;
       this.needReverse = config.needReverse;
+      this.offsetX = config.offsetX || 0;
+      this.offsetY = config.offsetY || 0;
       this.isReversing = false;
 
       this.img = new Image();
@@ -250,10 +262,11 @@ export class SpriteAnimator {
     const sx = this.frameX * this.frameWidth;
     const sy = this.frameY * this.frameHeight;
 
+    // 应用偏移渲染
     this.ctx.drawImage(
       this.img,
       sx, sy, this.frameWidth, this.frameHeight,
-      0, 0, this.frameWidth, this.frameHeight
+      this.offsetX, this.offsetY, this.frameWidth, this.frameHeight
     );
   }
 

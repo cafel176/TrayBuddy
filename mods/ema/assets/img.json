@@ -8,6 +8,8 @@
     "frame_size_x": 265,
     "frame_size_y": 94,
     "frame_num_x": 10,
-    "frame_num_y": 4
+    "frame_num_y": 4,
+    "offset_x": 0,
+    "offset_y": 0
   }
 ]

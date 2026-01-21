@@ -58,6 +58,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `frame_size_y` | Number | 单帧的高度 |
 | `frame_num_x` | Number | x方向上有多少个单帧 |
 | `frame_num_y` | Number | y方向上有多少个单帧 |
+| `offset_x` | Number | 渲染时 X 轴偏移 (像素) |
+| `offset_y` | Number | 渲染时 Y 轴偏移 (像素) |
 
 ### 2.3 `assets/sequence.json`
 定义如何解析对应的动画图像资源。
