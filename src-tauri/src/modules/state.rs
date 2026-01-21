@@ -33,12 +33,6 @@ impl StateInfo {
             priority,
         }
     }
-
-    /// 检查状态是否为空
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.name.is_empty()
-    }
 }
 
 // ========================================================================= //
@@ -62,6 +56,8 @@ pub struct StateManager {
     persistent_state: Option<StateInfo>,
     /// Tauri AppHandle，用于发送事件到前端
     app_handle: Option<AppHandle>,
+    /// 状态锁定标志 (临时状态播放中时锁定，禁止切换)
+    locked: bool,
 }
 
 impl StateManager {
@@ -77,7 +73,13 @@ impl StateManager {
             current_state: None,
             persistent_state: None,
             app_handle: None,
+            locked: false,
         }
+    }
+
+    /// 检查状态是否被锁定
+    pub fn is_locked(&self) -> bool {
+        self.locked
     }
 
     /// 设置 AppHandle，用于发送事件到前端
@@ -128,6 +130,11 @@ impl StateManager {
     /// 如果新状态优先级高于当前状态，则切换
     /// 如果新状态是临时状态，播放完毕后自动回到持久状态
     pub fn switch_state(&mut self, name: &str) -> Result<bool, String> {
+        // 如果状态被锁定，禁止切换
+        if self.locked {
+            return Ok(false);
+        }
+
         let new_state = self.get_state_by_name(name)
             .ok_or_else(|| format!("State '{}' not found", name))?
             .clone();
@@ -148,15 +155,20 @@ impl StateManager {
             self.persistent_state = Some(new_state.clone());
             self.emit_state_change(&new_state, false);
         } else {
-            // 如果是临时状态，播放一次
+            // 如果是临时状态，锁定状态并播放一次
+            self.locked = true;
             self.emit_state_change(&new_state, true);
         }
 
         Ok(true)
     }
 
-    /// 动画播放完毕后调用，回到持久状态
-    pub fn on_animation_complete(&mut self) {
+    /// 状态播放完毕后调用，解锁并回到持久状态
+    pub fn on_state_complete(&mut self) {
+        // 解锁状态
+        self.locked = false;
+        
+        // 回到持久状态
         if let Some(persistent) = &self.persistent_state {
             let persistent = persistent.clone();
             self.current_state = Some(persistent.clone());
@@ -164,8 +176,11 @@ impl StateManager {
         }
     }
 
-    /// 强制切换状态（忽略优先级检查）
+    /// 强制切换状态（忽略优先级检查和锁定）
     pub fn force_switch_state(&mut self, name: &str) -> Result<(), String> {
+        // 强制切换会解除锁定
+        self.locked = false;
+
         let new_state = self.get_state_by_name(name)
             .ok_or_else(|| format!("State '{}' not found", name))?
             .clone();
@@ -176,6 +191,8 @@ impl StateManager {
             self.persistent_state = Some(new_state.clone());
             self.emit_state_change(&new_state, false);
         } else {
+            // 临时状态需要锁定
+            self.locked = true;
             self.emit_state_change(&new_state, true);
         }
 

@@ -20,6 +20,7 @@
   let allStates = $state<StateInfo[]>([]);
   let currentState = $state<StateInfo | null>(null);
   let persistentState = $state<StateInfo | null>(null);
+  let isLocked = $state(false);
   let statusMsg = $state("正在加载...");
   let eventLog = $state<string[]>([]);
   let unlisten: (() => void) | null = null;
@@ -29,6 +30,7 @@
       allStates = await invoke("get_all_states");
       currentState = await invoke("get_current_state");
       persistentState = await invoke("get_persistent_state");
+      isLocked = await invoke("is_state_locked");
       statusMsg = "状态已加载";
     } catch (e) {
       statusMsg = `加载失败: ${e}`;
@@ -42,8 +44,8 @@
         statusMsg = `切换到状态: ${name}`;
         addLog(`switch_state("${name}") -> 成功`);
       } else {
-        statusMsg = `切换失败: 优先级不足`;
-        addLog(`switch_state("${name}") -> 优先级不足`);
+        statusMsg = `切换失败: 优先级不足或状态锁定`;
+        addLog(`switch_state("${name}") -> 失败 (优先级不足或锁定)`);
       }
       await loadStates();
     } catch (e) {
@@ -110,6 +112,9 @@
             {currentState.persistent ? '持久' : '临时'}
           </span>
           <span class="priority">优先级: {currentState.priority}</span>
+          {#if isLocked}
+            <span class="badge locked">锁定中</span>
+          {/if}
         </div>
       {:else}
         <div class="empty">无</div>
@@ -275,6 +280,16 @@
 
   .badge.persistent {
     background: #27ae60;
+  }
+
+  .badge.locked {
+    background: #e74c3c;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   .badge.small {

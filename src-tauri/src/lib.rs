@@ -137,6 +137,12 @@ fn get_audio_by_name(lang: String, name: String, state: State<'_, AppState>) -> 
 }
 
 #[tauri::command]
+fn get_audio_path(lang: String, name: String, state: State<'_, AppState>) -> Option<String> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_audio_path(&lang, &name)
+}
+
+#[tauri::command]
 fn get_speech_by_name(lang: String, name: String, state: State<'_, AppState>) -> Option<TextInfo> {
     let rm = state.resource_manager.lock().unwrap();
     rm.get_speech_by_name(&lang, &name).cloned()
@@ -189,7 +195,13 @@ fn force_switch_state(name: String, state: State<'_, AppState>) -> Result<(), St
 #[tauri::command]
 fn on_animation_complete(state: State<'_, AppState>) {
     let mut sm = state.state_manager.lock().unwrap();
-    sm.on_animation_complete();
+    sm.on_state_complete();
+}
+
+#[tauri::command]
+fn is_state_locked(state: State<'_, AppState>) -> bool {
+    let sm = state.state_manager.lock().unwrap();
+    sm.is_locked()
 }
 
 // ========================================================================= //
@@ -385,6 +397,7 @@ pub fn run() {
             get_asset_by_name,
             get_mod_path,
             get_audio_by_name,
+            get_audio_path,
             get_speech_by_name,
             get_info_by_lang,
             get_const_float,
@@ -397,7 +410,8 @@ pub fn run() {
             set_persistent_state,
             switch_state,
             force_switch_state,
-            on_animation_complete
+            on_animation_complete,
+            is_state_locked
         ])
 
         .run(tauri::generate_context!())

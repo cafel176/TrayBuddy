@@ -198,6 +198,26 @@ impl ModInfo {
             })
     }
 
+    /// 根据语言代码和名称返回音频文件的完整路径 (带 fallback)
+    pub fn get_audio_path(&self, lang: &str, name: &str) -> Option<String> {
+        // 先尝试指定语言
+        if let Some(list) = self.audios.get(lang) {
+            if let Some(audio_info) = list.iter().find(|a| a.name == name) {
+                let path = self.path.join("audio").join(lang).join(&audio_info.audio);
+                return Some(path.to_string_lossy().to_string());
+            }
+        }
+        // Fallback 到默认语言
+        let default_lang = &self.manifest.default_audio_lang_id;
+        if let Some(list) = self.audios.get(default_lang) {
+            if let Some(audio_info) = list.iter().find(|a| a.name == name) {
+                let path = self.path.join("audio").join(default_lang).join(&audio_info.audio);
+                return Some(path.to_string_lossy().to_string());
+            }
+        }
+        None
+    }
+
     /// 根据语言代码和名称查找对话文本
     pub fn get_speech_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
         self.speech.get(lang)
@@ -390,6 +410,12 @@ impl ResourceManager {
     /// 根据语言代码和名称从当前加载的 Mod 中查找语音信息
     pub fn get_audio_by_name(&self, lang: &str, name: &str) -> Option<&AudioInfo> {
         self.current_mod.as_ref()?.get_audio_by_name(lang, name)
+    }
+
+    /// 根据语言代码和名称返回音频文件的完整路径
+    pub fn get_audio_path(&self, lang: &str, name: &str) -> Option<String> {
+        let mod_info = self.current_mod.as_ref()?;
+        mod_info.get_audio_path(lang, name)
     }
 
     /// 根据语言代码和名称从当前加载的 Mod 中查找对话文本
