@@ -13,8 +13,8 @@
       "name" : "idle",
       "anima" : "wink"
     },
-    "hello": {
-      "name" : "hello",
+    "morning": {
+      "name" : "morning",
       "anima" : "wave"
     }
   },

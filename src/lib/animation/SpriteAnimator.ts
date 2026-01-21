@@ -54,6 +54,8 @@ export class SpriteAnimator {
   private isSequence = true; // 是否为序列帧动画
   private needReverse = false; // 是否需要反向播放
   private isReversing = false; // 当前是否正在反向播放
+  private isPlayOnce = false; // 是否只播放一次
+  private onCompleteCallback: (() => void) | null = null; // 播放完成回调
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -156,7 +158,29 @@ export class SpriteAnimator {
     
     if (this.isPlaying) return;
     this.isPlaying = true;
+    this.isPlayOnce = false;
+    this.onCompleteCallback = null;
     this.lastTime = 0;
+    this.animate(0);
+  }
+
+  /**
+   * 播放一次动画，完成后调用回调
+   */
+  playOnce(onComplete?: () => void): void {
+    // 非序列帧直接绘制并回调
+    if (!this.isSequence) {
+      this.drawCurrentFrame();
+      onComplete?.();
+      return;
+    }
+    
+    if (this.isPlaying) return;
+    this.isPlaying = true;
+    this.isPlayOnce = true;
+    this.onCompleteCallback = onComplete || null;
+    this.lastTime = 0;
+    this.reset();
     this.animate(0);
   }
 
@@ -245,6 +269,12 @@ export class SpriteAnimator {
           this.isReversing = false;
           this.frameX = 0;
           this.frameY = 0;
+          // 如果是播放一次模式，触发回调并停止
+          if (this.isPlayOnce) {
+            this.stop();
+            this.onCompleteCallback?.();
+            return;
+          }
         }
       }
     } else {
@@ -272,6 +302,12 @@ export class SpriteAnimator {
           } else {
             // 普通循环，回到第一帧
             this.frameY = 0;
+            // 如果是播放一次模式，触发回调并停止
+            if (this.isPlayOnce) {
+              this.stop();
+              this.onCompleteCallback?.();
+              return;
+            }
           }
         }
       }

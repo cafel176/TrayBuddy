@@ -1,20 +1,23 @@
 mod modules;
 
+use modules::constants::{
+    ANIMATION_WINDOW_BASE_WIDTH, ANIMATION_WINDOW_BASE_HEIGHT,
+    ANIMATION_IDLE, ANIMATION_BORDER, ANIMATION_MORNING,
+    STATE_IDLE,
+};
 use modules::resource::{ModInfo, ResourceManager, ActionInfo, AssetInfo, AudioInfo, TextInfo, CharacterInfo};
+use modules::state::{StateManager, StateInfo};
 use modules::storage::{Storage, UserSettings, UserInfo};
 use std::sync::Mutex;
 use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition};
 
 struct AppState {
     resource_manager: Mutex<ResourceManager>,
+    state_manager: Mutex<StateManager>,
     storage: Mutex<Storage>,
 }
 
 // ========================================================================= //
-
-/// Animation 窗口基础尺寸常量
-const ANIMATION_WINDOW_BASE_WIDTH: f64 = 500.0;
-const ANIMATION_WINDOW_BASE_HEIGHT: f64 = 500.0;
 
 /// 常量名称管理
 #[tauri::command]
@@ -29,15 +32,13 @@ fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<Stri
     map
 }
 
-const ANIMATION_IDLE: &str = "idle";
-const ANIMATION_BORDER: &str = "border";
-
 /// 常量名称管理
 #[tauri::command]
 fn get_const_text() -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
     map.insert(ANIMATION_IDLE.to_string(), ANIMATION_IDLE.to_string());
     map.insert(ANIMATION_BORDER.to_string(), ANIMATION_BORDER.to_string());
+    map.insert(ANIMATION_MORNING.to_string(), ANIMATION_MORNING.to_string());   
     map
 }
 
@@ -147,6 +148,50 @@ fn get_info_by_lang(lang: String, state: State<'_, AppState>) -> Option<Characte
 // ========================================================================= //
 
 #[tauri::command]
+fn get_current_state(state: State<'_, AppState>) -> Option<StateInfo> {
+    let sm = state.state_manager.lock().unwrap();
+    sm.get_current_state().cloned()
+}
+
+#[tauri::command]
+fn get_persistent_state(state: State<'_, AppState>) -> Option<StateInfo> {
+    let sm = state.state_manager.lock().unwrap();
+    sm.get_persistent_state().cloned()
+}
+
+#[tauri::command]
+fn get_all_states(state: State<'_, AppState>) -> Vec<StateInfo> {
+    let sm = state.state_manager.lock().unwrap();
+    sm.get_all_states().clone()
+}
+
+#[tauri::command]
+fn set_persistent_state(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let mut sm = state.state_manager.lock().unwrap();
+    sm.set_persistent_state(&name)
+}
+
+#[tauri::command]
+fn switch_state(name: String, state: State<'_, AppState>) -> Result<bool, String> {
+    let mut sm = state.state_manager.lock().unwrap();
+    sm.switch_state(&name)
+}
+
+#[tauri::command]
+fn force_switch_state(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let mut sm = state.state_manager.lock().unwrap();
+    sm.force_switch_state(&name)
+}
+
+#[tauri::command]
+fn on_animation_complete(state: State<'_, AppState>) {
+    let mut sm = state.state_manager.lock().unwrap();
+    sm.on_animation_complete();
+}
+
+// ========================================================================= //
+
+#[tauri::command]
 fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // 限制范围 0.1 到 2.0
     let scale = scale.clamp(0.1, 2.0);
@@ -202,7 +247,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let mut rm = ResourceManager::new(app.handle());
+            let mut sm = StateManager::new();
             let mut storage = Storage::new(app.handle());
+
+            // 设置 StateManager 的 AppHandle
+            sm.set_app_handle(app.handle().clone());
 
             // 4. 每次启动应用，自动记录时间戳并修改 UserInfo 内表明 last_login
             let now = std::time::SystemTime::now()
@@ -224,6 +273,13 @@ pub fn run() {
                 eprintln!("启动警告：UserInfo 中未记录上次使用的 current_mod");
             }
 
+            // 2. 初始化 StateManager 持久状态为 idle
+            if let Err(e) = sm.set_persistent_state(STATE_IDLE) {
+                eprintln!("设置初始持久状态 'idle' 失败: {}", e);
+            } else {
+                println!("初始化持久状态为 'idle' 成功");
+            }
+
 
             // 获取动画缩放比例
             let animation_scale = storage.data.settings.animation_scale as f64;
@@ -235,6 +291,7 @@ pub fn run() {
 
             app.manage(AppState {
                 resource_manager: Mutex::new(rm),
+                state_manager: Mutex::new(sm),
                 storage: Mutex::new(storage),
             });
 
@@ -329,7 +386,15 @@ pub fn run() {
             get_info_by_lang,
             get_const_float,
             get_const_text,
-            set_animation_scale
+            set_animation_scale,
+            // State Manager commands
+            get_current_state,
+            get_persistent_state,
+            get_all_states,
+            set_persistent_state,
+            switch_state,
+            force_switch_state,
+            on_animation_complete
         ])
 
         .run(tauri::generate_context!())

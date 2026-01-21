@@ -1,33 +1,80 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { SpriteAnimator, createAnimator } from "$lib/animation/SpriteAnimator";
 
-  let idleCanvas: HTMLCanvasElement;
+  let characterCanvas: HTMLCanvasElement;
   let borderCanvas: HTMLCanvasElement;
   
-  let idleAnimator: SpriteAnimator | null = null;
+  let characterAnimator: SpriteAnimator | null = null;
   let borderAnimator: SpriteAnimator | null = null;
+  let unlisten: (() => void) | null = null;
+
+  interface StateInfo {
+    name: string;
+    persistent: boolean;
+    action: string;
+    audio: string;
+    text: string;
+    priority: number;
+  }
+
+  interface StateChangeEvent {
+    state: StateInfo;
+    play_once: boolean;
+  }
 
   async function init() {
     try {
       // 获取常量
       const constVars: Record<string, string> = await invoke("get_const_text");
 
-      // 创建 idle 动画
-      idleAnimator = await createAnimator(idleCanvas, constVars.idle);
-      if (!idleAnimator) {
-        console.error("Failed to create idle animator");
-      }
-
-      // 创建 border 动画
+      // 创建 border 动画 (始终播放)
       borderAnimator = await createAnimator(borderCanvas, constVars.border);
       if (!borderAnimator) {
         console.error("Failed to create border animator");
       }
+
+      // 监听状态切换事件
+      unlisten = await listen<StateChangeEvent>("state-change", async (event) => {
+        const { state, play_once } = event.payload;
+        await playAnimation(state.action, play_once);
+      });
+
+      // 初始化完成后，主动获取当前持久状态并播放
+      const currentState: StateInfo | null = await invoke("get_persistent_state");
+      if (currentState) {
+        await playAnimation(currentState.action, false);
+      }
     } catch (e) {
-      console.error("Failed to init animations:", e);
+      console.error("Failed to init actions:", e);
+    }
+  }
+
+  async function playAnimation(animationName: string, playOnce: boolean) {
+    // 停止并销毁当前动画
+    if (characterAnimator) {
+      characterAnimator.destroy();
+      characterAnimator = null;
+    }
+
+    // 创建新动画，不自动播放
+    characterAnimator = await createAnimator(characterCanvas, animationName, false);
+    if (!characterAnimator) {
+      console.error(`Failed to create animator for '${animationName}'`);
+      return;
+    }
+
+    if (playOnce) {
+      // 播放一次，完成后通知后端
+      characterAnimator.playOnce(() => {
+        invoke("on_animation_complete");
+      });
+    } else {
+      // 循环播放
+      characterAnimator.play();
     }
   }
 
@@ -43,13 +90,14 @@
   });
 
   onDestroy(() => {
-    idleAnimator?.destroy();
+    characterAnimator?.destroy();
     borderAnimator?.destroy();
+    unlisten?.();
   });
 </script>
 
 <div class="container" on:mousedown={handleMouseDown}>
-  <canvas class="character-canvas" bind:this={idleCanvas}></canvas>
+  <canvas class="character-canvas" bind:this={characterCanvas}></canvas>
   <canvas class="border-canvas" bind:this={borderCanvas}></canvas>
 </div>
 
