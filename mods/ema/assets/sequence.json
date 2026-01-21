@@ -1,6 +1,6 @@
 [
   {
-    "name": "idle",
+    "name": "wink",
     "img": "sequence/wink.png",
     "sequence": true,
     "need_reverse": true,
@@ -9,5 +9,16 @@
     "frame_size_y": 298,
     "frame_num_x": 11,
     "frame_num_y": 2
+  },
+  {
+    "name": "wave",
+    "img": "sequence/wave.png",
+    "sequence": true,
+    "need_reverse": true,
+    "frame_time": 0.1,
+    "frame_size_x": 400,
+    "frame_size_y": 298,
+    "frame_num_x": 8,
+    "frame_num_y": 4
   }
 ]

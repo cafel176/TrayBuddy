@@ -13,8 +13,8 @@ struct AppState {
 // ========================================================================= //
 
 /// Animation 窗口基础尺寸常量
-const ANIMATION_WINDOW_BASE_WIDTH: f64 = 265.0;
-const ANIMATION_WINDOW_BASE_HEIGHT: f64 = 330.0;
+const ANIMATION_WINDOW_BASE_WIDTH: f64 = 500.0;
+const ANIMATION_WINDOW_BASE_HEIGHT: f64 = 500.0;
 
 /// 常量名称管理
 #[tauri::command]

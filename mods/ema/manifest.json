@@ -11,7 +11,11 @@
     },
     "idle": {
       "name" : "idle",
-      "anima" : "idle"
+      "anima" : "wink"
+    },
+    "hello": {
+      "name" : "hello",
+      "anima" : "wave"
     }
   },
   "actions": [

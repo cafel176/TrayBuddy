@@ -49,7 +49,7 @@
 </script>
 
 <div class="container" on:mousedown={handleMouseDown}>
-  <canvas class="idle-canvas" bind:this={idleCanvas}></canvas>
+  <canvas class="character-canvas" bind:this={idleCanvas}></canvas>
   <canvas class="border-canvas" bind:this={borderCanvas}></canvas>
 </div>
 
@@ -71,21 +71,21 @@
   .container:active {
     cursor: grabbing;
   }
-  .idle-canvas {
+  .character-canvas {
     display: block;
     position: absolute;
-    top: 0;
     left: 50%;
-    transform: translateX(-50%);
-    height: 90%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    height: 80%;
     z-index: 1;
   }
   .border-canvas {
     display: block;
     position: absolute;
-    bottom: 0;
     left: 50%;
-    transform: translateX(-50%);
+    top: 85%;
+    transform: translate(-50%, -50%);
     width: 100%;
     z-index: 2;
   }

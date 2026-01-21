@@ -41,7 +41,7 @@ impl Default for UserSettings {
             auto_silence_when_fullscreen: true,
 
             show_character: true,
-            animation_scale: 0.8,
+            animation_scale: 0.5,
         }
     }
 }
