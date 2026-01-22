@@ -303,6 +303,8 @@ impl ResourceManager {
         }
     }
 
+    // ========================================================================= //
+
     /// 获取所有可能的 mods 搜索路径
     fn get_mod_search_paths(app_handle: &tauri::AppHandle) -> Vec<PathBuf> {
         let mut search_paths = Vec::new();

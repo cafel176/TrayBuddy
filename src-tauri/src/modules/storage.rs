@@ -29,14 +29,14 @@ pub struct UserSettings {
 impl Default for UserSettings {
     fn default() -> Self {
         Self {
-            nickname: "你".to_string(),
+            nickname: "User".to_string(),
             birthday: None,
 
             lang: "zh".to_string(),
             auto_start: true,
 
             no_audio_mode: false,
-            volume: 0.5,
+            volume: 1.0,
 
             silence_mode: false,
             auto_silence_when_fullscreen: true,
@@ -54,8 +54,10 @@ impl Default for UserSettings {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct UserInfo {
-    pub last_login: Option<i64>,   // 最后一次启动的时间戳
-    pub current_mod: String, // 上次关闭前加载的 Mod ID
+    pub first_login: Option<i64>,        // 第一次启动的时间戳
+    pub last_login: Option<i64>,         // 最后一次启动的时间戳
+    pub current_mod: String,             // 上次关闭前加载的 Mod ID
+
     pub animation_window_x: Option<f64>, // animation 窗口上次关闭时的 X 坐标
     pub animation_window_y: Option<f64>, // animation 窗口上次关闭时的 Y 坐标
 }
@@ -63,8 +65,10 @@ pub struct UserInfo {
 impl Default for UserInfo {
     fn default() -> Self {
         Self {
+            first_login: None,
             last_login: None,
             current_mod: "ema".to_string(),
+
             animation_window_x: None,
             animation_window_y: None,
         }
@@ -90,6 +94,8 @@ impl Default for AppStorageData {
     }
 }
 
+// ========================================================================= //
+
 /// 存储管理器：负责数据的内存缓存与磁盘同步
 pub struct Storage {
     pub data: AppStorageData,    // 内存中的数据缓存
@@ -98,11 +104,20 @@ pub struct Storage {
 
 impl Storage {
     /// 初始化存储管理器
-    /// 
     /// 会自动定位到应用配置目录，如果 storage.json 存在则加载，
     /// 否则创建一个包含默认值的初始环境。
     pub fn new(app_handle: &tauri::AppHandle) -> Self {
-        // 定位存储目录 (通常是 %APPDATA%/TrayBuddy)
+        let storage_dir = Self::get_storage_dir(app_handle);
+        let storage_path = storage_dir.join("storage.json");
+        let data = Self::load(&storage_path);
+
+        Self { data, storage_path }
+    }
+
+    // ========================================================================= //
+
+    /// 获取应用配置存储目录路径
+    fn get_storage_dir(app_handle: &tauri::AppHandle) -> PathBuf {
         let storage_dir = app_handle
             .path()
             .app_config_dir()
@@ -113,25 +128,21 @@ impl Storage {
             let _ = fs::create_dir_all(&storage_dir);
         }
 
-        let storage_path = storage_dir.join("storage.json");
-        println!("storage.json path: {:?}", storage_path);
-        
-        // 尝试从磁盘加载数据
-        let data = if storage_path.exists() {
-            let content = fs::read_to_string(&storage_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_else(|_| AppStorageData {
-                settings: UserSettings::default(),
-                info: UserInfo::default(),
-            })
-        } else {
-            // 文件不存在，使用默认值
-            AppStorageData {
-                settings: UserSettings::default(),
-                info: UserInfo::default(),
-            }
-        };
+        println!("storage path: {:?}", storage_dir);
 
-        Self { data, storage_path }
+        storage_dir
+    }
+
+    // ========================================================================= //
+
+    /// 从磁盘加载存储数据，若文件不存在或解析失败则返回默认值
+    fn load(storage_path: &PathBuf) -> AppStorageData {
+        if storage_path.exists() {
+            let content = fs::read_to_string(storage_path).unwrap_or_default();
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            AppStorageData::default()
+        }
     }
 
     /// 将当前内存中的数据序列化并保存到磁盘文件
