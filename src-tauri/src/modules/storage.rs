@@ -1,3 +1,13 @@
+//! 持久化存储模块
+//!
+//! 负责管理用户设置和应用信息的持久化存储。
+//! 数据以 JSON 格式存储在应用配置目录下的 `storage.json` 文件中。
+//!
+//! ## 主要组件
+//! - [`UserSettings`] - 用户个性化设置（语言、音量、显示选项等）
+//! - [`UserInfo`] - 用户基础信息（登录时间、当前 Mod、窗口位置等）
+//! - [`Storage`] - 存储管理器，负责数据的内存缓存与磁盘同步
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -6,6 +16,8 @@ use tauri::Manager;
 // ========================================================================= //
 
 /// 用户个性化设置
+///
+/// 包含所有可由用户自定义的应用配置项。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct UserSettings {

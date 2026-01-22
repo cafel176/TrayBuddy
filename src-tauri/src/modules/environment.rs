@@ -1,3 +1,18 @@
+//! 环境信息模块
+//!
+//! 提供系统环境信息的获取功能，包括：
+//! - 日期时间信息 - 从系统本地时间获取
+//! - 地理位置信息 - 从系统时区推断大致位置
+//! - 天气信息 - 通过网络 API 获取（带缓存）
+//! - 季节判断 - 根据月份和半球确定
+//!
+//! ## 示例
+//! ```ignore
+//! let mut manager = EnvironmentManager::new();
+//! let env = manager.get_environment_info();
+//! println!("当前时间: {}:{}", env.datetime.hour, env.datetime.minute);
+//! ```
+
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 

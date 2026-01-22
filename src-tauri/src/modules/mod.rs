@@ -1,3 +1,15 @@
+//! TrayBuddy 核心模块
+//!
+//! 本模块包含应用的所有核心功能实现：
+//!
+//! - [`constants`] - 全局常量定义
+//! - [`environment`] - 环境信息（时间、位置、天气）
+//! - [`resource`] - Mod 资源加载与管理
+//! - [`state`] - 角色状态管理与定时触发
+//! - [`storage`] - 用户数据持久化存储
+//! - [`media_observer`] - 系统媒体状态监听
+//! - [`trigger`] - 事件触发处理
+
 pub mod constants;
 pub mod environment;
 pub mod resource;

@@ -1,5 +1,10 @@
 //! 状态管理模块
-//! 负责管理角色状态的切换和事件通知
+//! 
+//! 负责管理角色状态的切换和事件通知，包括：
+//! - 当前状态和持久状态的管理
+//! - 状态优先级和锁定机制
+//! - 定时触发功能
+//! - 随机状态选择
 
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,30 +14,39 @@ use tauri::{AppHandle, Emitter};
 use super::resource::StateInfo;
 
 // ========================================================================= //
+// 事件结构体
+// ========================================================================= //
 
 /// 发送给前端的状态切换事件
 #[derive(Debug, Serialize, Clone)]
 pub struct StateChangeEvent {
+    /// 切换到的状态信息
     pub state: StateInfo,
-    pub play_once: bool,  // true: 播放一次后回到持久状态, false: 循环播放
+    /// true: 播放一次后回到持久状态, false: 循环播放
+    pub play_once: bool,
 }
 
+// ========================================================================= //
+// 状态管理器
 // ========================================================================= //
 
 /// 状态管理器
 /// 
-/// 状态现在从 Mod 的 manifest.json 中加载，不再硬编码。
-/// StateManager 负责管理当前状态和持久状态的切换逻辑。
+/// 负责管理角色的状态切换逻辑：
+/// - **持久状态**: 默认循环播放的状态（如 idle、music）
+/// - **临时状态**: 播放一次后自动回到持久状态（如 morning、login）
+/// - **状态锁定**: 临时状态播放期间锁定，防止被打断
+/// - **优先级机制**: 高优先级状态可以打断低优先级状态
 pub struct StateManager {
-    /// 当前状态 (可能是临时状态)
+    /// 当前正在播放的状态
     current_state: Option<StateInfo>,
-    /// 下一个状态 (当前状态播放完毕后切换)
+    /// 下一个待切换的状态（当前状态播放完毕后切换）
     next_state: Option<StateInfo>,
-    /// 持久状态 (默认循环播放的状态)
+    /// 持久状态（临时状态播放完毕后回到此状态）
     persistent_state: Option<StateInfo>,
     /// Tauri AppHandle，用于发送事件到前端
     app_handle: Option<AppHandle>,
-    /// 状态锁定标志 (临时状态播放中时锁定，禁止切换)
+    /// 状态锁定标志（临时状态播放中时为 true）
     locked: bool,
     /// 定时触发器开关（跨线程共享）
     timer_enabled: Option<Arc<AtomicBool>>,
@@ -56,29 +70,37 @@ impl StateManager {
     // ========================================================================= //
 
     /// 检查状态是否被锁定
+    #[inline]
     pub fn is_locked(&self) -> bool {
         self.locked
     }
 
-    /// 智能切换状态：根据状态类型自动选择合适的切换方式
-    /// - 持久状态：调用 set_persistent_state
-    /// - 临时状态：调用 set_current_state
+    /// 智能切换状态
+    /// 
+    /// 根据状态的 `persistent` 属性自动选择切换方式：
+    /// - 持久状态 → 调用 `set_persistent_state`
+    /// - 临时状态 → 调用 `set_current_state`
+    #[inline]
     pub fn change_state(&mut self, state: StateInfo) -> Result<bool, String> {
         self.change_state_ex(state, false)
     }
 
     /// 智能切换状态（扩展版本）
-    /// - force: 是否忽略优先级和锁定检查强制切换
+    /// 
+    /// # 参数
+    /// - `state`: 目标状态
+    /// - `force`: 是否忽略优先级和锁定检查强制切换
     pub fn change_state_ex(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
-        let result = if state.persistent {
-            self.set_persistent_state(state.clone(), force)
+        let is_persistent = state.persistent;
+        let result = if is_persistent {
+            self.set_persistent_state(state, force)
         } else {
-            self.set_current_state(state.clone(), force)
+            self.set_current_state(state, force)
         };
         
         // 状态切换成功时，更新定时触发开关
         if let Ok(true) = result {
-            self.set_timer_enabled(state.persistent);
+            self.set_timer_enabled(is_persistent);
         }
         
         result
@@ -88,31 +110,35 @@ impl StateManager {
     // 持久状态管理
     // ========================================================================= //
 
-    /// 获取持久状态
+    /// 获取当前持久状态的引用
+    #[inline]
     pub fn get_persistent_state(&self) -> Option<&StateInfo> {
         self.persistent_state.as_ref()
     }
 
     /// 设置持久状态
-    /// 如果当前被锁定（临时状态播放中），只更新持久状态，不切换当前状态
-    /// 如果未锁定，同时更新持久状态和当前状态
-    /// 持久-持久，如 Idle-Music，直接切换并显示动画
-    /// 临时-持久，如 Music_Start-Music，仅更换数据，待播放完毕解锁后自然更换
-    /// - force: 是否忽略优先级和锁定检查强制切换
+    /// 
+    /// 切换逻辑：
+    /// - 如果当前被锁定（临时状态播放中），只更新持久状态数据，不切换当前状态
+    /// - 如果未锁定，同时更新持久状态和当前状态
+    /// 
+    /// # 参数
+    /// - `state`: 目标持久状态
+    /// - `force`: 是否强制切换（忽略优先级和锁定）
     pub fn set_persistent_state(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
         if !state.persistent {
             return Err(format!("State '{}' is not a persistent state", state.name));
         }
 
-        // 如果当前持久状态与传入状态相同，不切换
+        // 如果当前状态与目标状态相同，跳过
         if self.current_state.as_ref().map(|s| &s.name) == Some(&state.name) {
             return Ok(false);
         }
 
+        // 非强制模式下检查优先级
         if !force {
-            // 检查优先级
-            let persistent_priority = self.persistent_state.as_ref().map(|s| s.priority).unwrap_or(0);     
-            if state.priority < persistent_priority {
+            let current_priority = self.persistent_state.as_ref().map_or(0, |s| s.priority);
+            if state.priority < current_priority {
                 println!("[StateManager] 状态优先级不够，禁止变更状态 '{}'", state.name);
                 return Ok(false);
             }
@@ -121,9 +147,9 @@ impl StateManager {
         // 更新持久状态
         self.persistent_state = Some(state.clone());
 
-        // 如果被锁定（临时状态播放中），不切换当前状态，等临时状态播放完毕后自动切换
+        // 被锁定时只更新数据，不切换当前状态
         if self.locked && !force {
-            println!("[StateManager] 状态锁定中，仅更新持久状态为 '{}'，当前状态保持不变", state.name);
+            println!("[StateManager] 状态锁定中，仅更新持久状态为 '{}'", state.name);
             return Ok(false);
         }
 
@@ -132,7 +158,7 @@ impl StateManager {
             self.locked = false;
         }
 
-        // 未锁定，同时更新当前状态并发送事件
+        // 切换当前状态并通知前端
         self.current_state = Some(state.clone());
         self.emit_state_change(&state, false);
 
@@ -143,41 +169,41 @@ impl StateManager {
     // 当前状态管理
     // ========================================================================= //
 
-    /// 获取当前状态
+    /// 获取当前状态的引用
+    #[inline]
     pub fn get_current_state(&self) -> Option<&StateInfo> {
         self.current_state.as_ref()
     }
 
-    /// 切换到指定状态
-    /// 如果新状态优先级高于当前状态，则切换
-    /// 如果新状态是临时状态，播放完毕后自动回到持久状态
-    /// 持久-临时，如 Idle-Morning，直接切换并显示动画
-    /// 临时-临时，当不锁定时，上一个状态其实已经结束，因此直接切换
-    /// - force: 是否忽略优先级和锁定检查强制切换
+    /// 设置临时状态
+    /// 
+    /// 临时状态播放完毕后会自动回到持久状态。
+    /// 
+    /// # 参数
+    /// - `state`: 目标临时状态
+    /// - `force`: 是否强制切换（忽略优先级和锁定）
     pub fn set_current_state(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
         if state.persistent {
-            return Err(format!("State '{}' is a persistent state", state.name));
+            return Err(format!("State '{}' is a persistent state, use set_persistent_state", state.name));
         }
 
+        // 非强制模式下的检查
         if !force {
-            // 如果状态被锁定，禁止切换
             if self.locked {
                 println!("[StateManager] 状态锁定中，禁止变更状态 '{}'", state.name);
                 return Ok(false);
             }
 
-            // 检查优先级
-            let current_priority = self.current_state.as_ref().map(|s| s.priority).unwrap_or(0);     
+            let current_priority = self.current_state.as_ref().map_or(0, |s| s.priority);
             if state.priority < current_priority {
                 println!("[StateManager] 状态优先级不够，禁止变更状态 '{}'", state.name);
                 return Ok(false);
             }
-        } 
+        }
 
-        // 切换到新状态
+        // 切换到临时状态并锁定
         self.current_state = Some(state.clone());
         self.emit_state_change(&state, true);
-
         self.locked = true;
 
         Ok(true)
@@ -187,20 +213,21 @@ impl StateManager {
     // 状态完成处理
     // ========================================================================= //
 
-    /// 状态播放完毕后调用，解锁并切换到下一个状态或回到持久状态
+    /// 状态播放完毕回调
+    /// 
+    /// 解锁状态并切换到下一个状态或回到持久状态
     pub fn on_state_complete(&mut self) {
-        // 解锁状态
         self.locked = false;
         
-        // 优先切换到 next_state（如果有）
+        // 优先切换到 next_state
         if let Some(next) = self.next_state.take() {
             let _ = self.change_state(next);
             return;
         }
         
         // 否则回到持久状态
-        if let Some(persistent) = &self.persistent_state {
-            let _ = self.change_state(persistent.clone());
+        if let Some(persistent) = self.persistent_state.clone() {
+            let _ = self.change_state(persistent);
         }
     }
   
@@ -209,19 +236,20 @@ impl StateManager {
     // ========================================================================= //
 
     /// 从状态列表中随机选择一个可用状态并切换
-    /// 1. 筛选出所有通过 is_enable() 检查的状态
+    /// 
+    /// 流程：
+    /// 1. 筛选出所有通过 `is_enable()` 检查的状态
     /// 2. 随机选择一个
     /// 3. 执行切换
     pub fn trigger_random_state(&mut self, states: &[StateInfo]) -> Result<bool, String> {
-        // 筛选出所有通过 is_enable() 检查的状态
+        // 筛选可用状态（使用引用避免克隆）
         let enabled_states: Vec<&StateInfo> = states.iter()
             .filter(|s| {
-                if s.is_enable() {
-                    true
-                } else {
+                let enabled = s.is_enable();
+                if !enabled {
                     println!("[StateManager] 状态 '{}' 未通过时间/日期检查", s.name);
-                    false
                 }
+                enabled
             })
             .collect();
 
@@ -230,30 +258,25 @@ impl StateManager {
             return Ok(false);
         }
 
-        // 随机选择一个状态
-        let selected_state = if enabled_states.len() == 1 {
-            enabled_states[0].clone()
-        } else {
-            let idx = Self::random_index(enabled_states.len());
-            enabled_states[idx].clone()
-        };
+        // 随机选择（只在需要切换时才克隆）
+        let idx = if enabled_states.len() == 1 { 0 } else { Self::random_index(enabled_states.len()) };
+        let selected = enabled_states[idx].clone();
 
-        println!("[StateManager] 随机选择状态: '{}'", selected_state.name);
-
-        // 执行状态切换
-        self.change_state(selected_state)
+        println!("[StateManager] 随机选择状态: '{}'", selected.name);
+        self.change_state(selected)
     }
 
-    /// 简单的随机索引生成（基于时间戳）
+    /// 基于时间戳的简单随机索引生成
+    #[inline]
     fn random_index(max: usize) -> usize {
-        let nanos = SystemTime::now()
+        SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
-            .subsec_nanos() as usize;
-        nanos % max
+            .subsec_nanos() as usize % max
     }
 
     /// 生成 0.0 到 1.0 之间的随机数
+    #[inline]
     fn random_float() -> f32 {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -268,17 +291,20 @@ impl StateManager {
 
     /// 设置定时触发开关
     fn set_timer_enabled(&self, enabled: bool) {
-        if let Some(timer_enabled) = &self.timer_enabled {
+        if let Some(ref timer) = self.timer_enabled {
             if enabled {
                 println!("[StateManager] 启用定时触发");
             } else {
                 println!("[StateManager] 禁用定时触发");
             }
-            timer_enabled.store(enabled, Ordering::SeqCst);
+            timer.store(enabled, Ordering::Relaxed);
         }
     }
 
     /// 启动定时触发器线程
+    /// 
+    /// 在独立线程中运行，定期检查持久状态的 `trigger_time` 和 `trigger_rate`，
+    /// 按配置的概率触发 `can_trigger_states` 中的随机状态。
     pub fn start_timer_loop(&mut self, app_handle: tauri::AppHandle) {
         let timer_enabled = Arc::new(AtomicBool::new(false));
         self.timer_enabled = Some(timer_enabled.clone());
@@ -290,20 +316,20 @@ impl StateManager {
             
             loop {
                 // 每 1000ms 检查一次
-                std::thread::sleep(Duration::from_millis(1000));
+                std::thread::sleep(Duration::from_secs(1));
 
-                // 检查是否启用
-                if !timer_enabled.load(Ordering::SeqCst) {
+                // 检查开关
+                if !timer_enabled.load(Ordering::Relaxed) {
                     last_trigger_time = SystemTime::now();
                     continue;
                 }
 
-                // 从 AppState 获取持久状态信息
+                // 获取持久状态信息
                 use tauri::Manager;
-                let state: tauri::State<crate::AppState> = app_handle.state();
+                let app_state: tauri::State<crate::AppState> = app_handle.state();
                 
                 let persistent_state = {
-                    let sm = state.state_manager.lock().unwrap();
+                    let sm = app_state.state_manager.lock().unwrap();
                     sm.get_persistent_state().cloned()
                 };
                 
@@ -347,10 +373,10 @@ impl StateManager {
                 println!("[StateManager] 触发随机状态，概率 {:.2} <= {:.2}", random_value, trigger_rate);
 
                 // 执行触发
-                let rm = state.resource_manager.lock().unwrap();
-                let mut sm = state.state_manager.lock().unwrap();
+                let rm = app_state.resource_manager.lock().unwrap();
+                let mut sm = app_state.state_manager.lock().unwrap();
                 
-                // 从 ResourceManager 获取状态信息
+                // 从 ResourceManager 获取状态信息并触发
                 let states: Vec<StateInfo> = state_names.iter()
                     .filter_map(|name| rm.get_state_by_name(name).cloned())
                     .collect();
@@ -371,14 +397,14 @@ impl StateManager {
 
     /// 发送状态切换事件到前端
     fn emit_state_change(&self, state: &StateInfo, play_once: bool) {
-        if let Some(app_handle) = &self.app_handle {
+        if let Some(ref app_handle) = self.app_handle {
             let event = StateChangeEvent {
                 state: state.clone(),
                 play_once,
             };
             
             if let Err(e) = app_handle.emit("state-change", event) {
-                eprintln!("Failed to emit state-change event: {}", e);
+                eprintln!("[StateManager] 发送状态切换事件失败: {}", e);
             }
         }
     }

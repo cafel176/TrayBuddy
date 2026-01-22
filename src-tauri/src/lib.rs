@@ -1,12 +1,22 @@
+//! TrayBuddy 应用主模块
+//! 
+//! 桌面虚拟伴侣应用，支持：
+//! - Mod 资源加载和管理
+//! - 状态切换和动画播放
+//! - 系统媒体监听
+//! - 用户设置持久化
+
 mod modules;
 
 use modules::constants::{
     ANIMATION_WINDOW_BASE_WIDTH, ANIMATION_WINDOW_BASE_HEIGHT,
-    ANIMATION_BORDER,
-    STATE_IDLE,
+    ANIMATION_BORDER, STATE_IDLE,
 };
 use modules::environment::get_current_datetime;
-use modules::resource::{ResourceManager, StateInfo, TriggerInfo, AssetInfo, AudioInfo, TextInfo, CharacterInfo, ModInfo};
+use modules::resource::{
+    ResourceManager, StateInfo, TriggerInfo, AssetInfo, 
+    AudioInfo, TextInfo, CharacterInfo, ModInfo
+};
 use modules::state::StateManager;
 use modules::storage::{Storage, UserSettings, UserInfo};
 use modules::media_observer::{MediaObserver, MediaPlaybackStatus};
@@ -18,7 +28,9 @@ use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, Logic
 // 应用全局状态
 // ========================================================================= //
 
-/// 应用全局状态，通过 Tauri 的状态管理器在各处共享
+/// 应用全局状态
+/// 
+/// 通过 Tauri 的状态管理器在命令处理函数中共享访问
 pub struct AppState {
     /// 资源管理器：负责 Mod 的加载、卸载和资源查询
     pub resource_manager: Mutex<ResourceManager>,
@@ -26,7 +38,7 @@ pub struct AppState {
     pub state_manager: Mutex<StateManager>,
     /// 存储管理器：负责用户设置和信息的持久化
     storage: Mutex<Storage>,
-    /// 媒体监听器：监听系统媒体播放状态（仅保持引用，实际在独立线程运行）
+    /// 媒体监听器引用（实际在独立线程运行）
     #[allow(dead_code)]
     media_observer: Mutex<Option<MediaObserver>>,
 }
@@ -48,7 +60,7 @@ fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<Stri
     map
 }
 
-/// 获取字符串型常量（资源名称等）
+/// 获取字符串型常量
 #[tauri::command]
 fn get_const_text() -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
@@ -67,7 +79,7 @@ fn get_settings(state: State<'_, AppState>) -> UserSettings {
     storage.data.settings.clone()
 }
 
-/// 更新用户设置，同时发送设置变更事件通知前端
+/// 更新用户设置
 #[tauri::command]
 fn update_settings(settings: UserSettings, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let mut storage = state.storage.lock().unwrap();
@@ -99,7 +111,7 @@ fn update_user_info(info: UserInfo, state: State<'_, AppState>) -> Result<(), St
 fn get_mod_search_paths(state: State<'_, AppState>) -> Vec<String> {
     let rm = state.resource_manager.lock().unwrap();
     rm.search_paths.iter()
-        .map(|p| p.to_string_lossy().to_string())
+        .map(|p| p.to_string_lossy().into_owned())
         .collect()
 }
 
@@ -110,7 +122,7 @@ fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
     rm.list_mods()
 }
 
-/// 加载指定 Mod，同时更新用户信息中的 current_mod
+/// 加载指定 Mod
 #[tauri::command]
 fn load_mod(mod_name: String, state: State<'_, AppState>) -> Result<ModInfo, String> {
     let mut rm = state.resource_manager.lock().unwrap();
@@ -142,7 +154,7 @@ fn get_current_mod(state: State<'_, AppState>) -> Option<ModInfo> {
 #[tauri::command]
 fn get_mod_path(state: State<'_, AppState>) -> Option<String> {
     let rm = state.resource_manager.lock().unwrap();
-    rm.current_mod.as_ref().map(|m| m.path.to_string_lossy().to_string())
+    rm.current_mod.as_ref().map(|m| m.path.to_string_lossy().into_owned())
 }
 
 /// 获取边框动画资源名称
@@ -198,6 +210,13 @@ fn get_info_by_lang(lang: String, state: State<'_, AppState>) -> Option<Characte
 // 状态管理命令
 // ========================================================================= //
 
+/// 获取所有预定义状态
+#[tauri::command]
+fn get_all_states(state: State<'_, AppState>) -> Vec<StateInfo> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_all_states()
+}
+
 /// 获取当前状态
 #[tauri::command]
 fn get_current_state(state: State<'_, AppState>) -> Option<StateInfo> {
@@ -212,14 +231,15 @@ fn get_persistent_state(state: State<'_, AppState>) -> Option<StateInfo> {
     sm.get_persistent_state().cloned()
 }
 
-/// 切换状态（根据状态类型自动选择切换方式）
+/// 切换状态（自动选择持久/临时模式）
 #[tauri::command]
 fn change_state(name: String, state: State<'_, AppState>) -> Result<bool, String> {
-    let rm = state.resource_manager.lock().unwrap();
-    let state_info = rm.get_state_by_name(&name)
-        .ok_or_else(|| format!("State '{}' not found", name))?
-        .clone();
-    drop(rm);
+    let state_info = {
+        let rm = state.resource_manager.lock().unwrap();
+        rm.get_state_by_name(&name)
+            .ok_or_else(|| format!("State '{}' not found", name))?
+            .clone()
+    };
     
     let mut sm = state.state_manager.lock().unwrap();
     sm.change_state(state_info)
@@ -228,19 +248,19 @@ fn change_state(name: String, state: State<'_, AppState>) -> Result<bool, String
 /// 强制切换状态（忽略优先级和锁定检查）
 #[tauri::command]
 fn force_change_state(name: String, state: State<'_, AppState>) -> Result<(), String> {
-    let rm = state.resource_manager.lock().unwrap();
-    let state_info = rm.get_state_by_name(&name)
-        .ok_or_else(|| format!("State '{}' not found", name))?
-        .clone();
-    drop(rm);
+    let state_info = {
+        let rm = state.resource_manager.lock().unwrap();
+        rm.get_state_by_name(&name)
+            .ok_or_else(|| format!("State '{}' not found", name))?
+            .clone()
+    };
     
     let mut sm = state.state_manager.lock().unwrap();
     sm.change_state_ex(state_info, true)?;
-    
     Ok(())
 }
 
-/// 动画播放完成回调，触发状态切换逻辑
+/// 动画播放完成回调
 #[tauri::command]
 fn on_animation_complete(state: State<'_, AppState>) {
     let mut sm = state.state_manager.lock().unwrap();
@@ -255,10 +275,29 @@ fn is_state_locked(state: State<'_, AppState>) -> bool {
 }
 
 // ========================================================================= //
+// 触发器命令
+// ========================================================================= //
+
+/// 获取所有触发器
+#[tauri::command]
+fn get_all_triggers(state: State<'_, AppState>) -> Vec<TriggerInfo> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_all_triggers()
+}
+
+/// 触发事件
+#[tauri::command]
+fn trigger_event(event_name: String, state: State<'_, AppState>) -> Result<bool, String> {
+    let rm = state.resource_manager.lock().unwrap();
+    let mut sm = state.state_manager.lock().unwrap();
+    TriggerManager::trigger_event(&event_name, &rm, &mut sm)
+}
+
+// ========================================================================= //
 // 窗口和系统命令
 // ========================================================================= //
 
-/// 设置动画缩放比例，并调整窗口大小
+/// 设置动画缩放比例并调整窗口大小
 #[tauri::command]
 fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let scale = scale.clamp(0.1, 2.0);
@@ -270,7 +309,7 @@ fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppSt
         storage.save()?;
     }
     
-    // 调整 animation 窗口大小
+    // 调整窗口大小
     let new_width = ANIMATION_WINDOW_BASE_WIDTH * scale;
     let new_height = ANIMATION_WINDOW_BASE_HEIGHT * scale;
     
@@ -291,8 +330,7 @@ fn open_path(path: String) -> Result<(), String> {
     
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-        Command::new("explorer")
+        std::process::Command::new("explorer")
             .arg("/select,")
             .arg(&path)
             .spawn()
@@ -311,6 +349,7 @@ fn open_path(path: String) -> Result<(), String> {
 // 应用入口
 // ========================================================================= //
 
+/// 应用入口点
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -321,32 +360,32 @@ pub fn run() {
             let mut sm = StateManager::new();
             let mut storage = Storage::new(app.handle());
 
+            // 启动定时触发器和设置事件发送器
             sm.start_timer_loop(app.handle().clone());
             sm.set_app_handle(app.handle().clone());
 
-            // ========== 启动媒体监听器（独立线程） ==========
+            // 启动媒体监听器
             start_media_observer(app.handle().clone());
 
-            // ========== 记录登录时间 ==========
+            // 记录登录时间
             let dt = get_current_datetime();
             storage.data.info.last_login = Some(dt.timestamp as i64);
             let _ = storage.save();
 
-            // ========== 自动加载上次使用的 Mod ==========
-            let last_mod = &storage.data.info.current_mod;
+            // 自动加载上次使用的 Mod
+            let last_mod = storage.data.info.current_mod.clone();
             if !last_mod.is_empty() {
-                if let Err(e) = rm.load_mod(last_mod) {
-                    eprintln!("自动加载 Mod '{}' 失败: {}", last_mod, e);
+                if let Err(e) = rm.load_mod(&last_mod) {
+                    eprintln!("[TrayBuddy] 自动加载 Mod '{}' 失败: {}", last_mod, e);
                 }
             }
 
-            // ========== 计算窗口尺寸和位置 ==========
+            // ========== 创建动画窗口 ==========
             let scale = storage.data.settings.animation_scale as f64;
             let window_width = ANIMATION_WINDOW_BASE_WIDTH * scale;
             let window_height = ANIMATION_WINDOW_BASE_HEIGHT * scale;
             let saved_position = (storage.data.info.animation_window_x, storage.data.info.animation_window_y);
 
-            // ========== 创建动画窗口 ==========
             let animation_window = WebviewWindowBuilder::new(
                 app,
                 "animation",
@@ -361,9 +400,9 @@ pub fn run() {
             .shadow(false)
             .skip_taskbar(true)
             .build()
-            .map_err(|e: tauri::Error| e.to_string())?;
+            .map_err(|e| e.to_string())?;
 
-            // ========== 设置窗口位置 ==========
+            // 设置窗口位置
             if let (Some(x), Some(y)) = saved_position {
                 let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
             } else if let Some(monitor) = animation_window.primary_monitor().ok().flatten() {
@@ -371,26 +410,26 @@ pub fn run() {
                 let scale_factor = monitor.scale_factor();
                 let screen_size = monitor.size();
                 let screen_pos = monitor.position();
-                let taskbar_height = 48.0;
+                const TASKBAR_HEIGHT: f64 = 48.0;
                 
                 let screen_w = screen_size.width as f64 / scale_factor;
                 let screen_h = screen_size.height as f64 / scale_factor;
                 
                 let x = screen_pos.x as f64 + screen_w - window_width;
-                let y = screen_pos.y as f64 + screen_h - window_height - taskbar_height;
+                let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
                 
                 let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
             }
 
-            // ========== 初始化为 idle 状态 ==========
+            // ========== 初始化状态 ==========
             if let Some(idle_state) = rm.get_state_by_name(STATE_IDLE) {
                 let _ = sm.change_state(idle_state.clone());
             }
 
-            // ========== 触发 login 事件 ==========
+            // 触发 login 事件
             let _ = TriggerManager::trigger_login(&rm, &mut sm);
 
-            // ========== 注册全局状态 ==========
+            // 注册全局状态
             app.manage(AppState {
                 resource_manager: Mutex::new(rm),
                 state_manager: Mutex::new(sm),
@@ -401,7 +440,6 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 主窗口关闭时保存动画窗口位置
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if window.label() == "main" {
                     save_animation_window_position(window);
@@ -432,12 +470,16 @@ pub fn run() {
             get_text_by_name,
             get_info_by_lang,
             // 状态管理
+            get_all_states,
             get_current_state,
             get_persistent_state,
             change_state,
             force_change_state,
             on_animation_complete,
             is_state_locked,
+            // 触发器
+            get_all_triggers,
+            trigger_event,
             // 窗口和系统
             set_animation_scale,
             open_path,
@@ -450,28 +492,27 @@ pub fn run() {
 // 辅助函数
 // ========================================================================= //
 
-/// 启动媒体监听器，在独立线程中运行
+/// 启动媒体监听器（独立线程）
 fn start_media_observer(app_handle: tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut observer = MediaObserver::new();
-        let mut rx = observer.start();
+        let rx = observer.start();
 
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async move {
+            let mut rx = rx;
             while let Some(event) = rx.recv().await {
-                let state: State<AppState> = app_handle.state();
+                let app_state: State<AppState> = app_handle.state();
 
                 match event.status {
                     MediaPlaybackStatus::Playing => {
-                        // 检测到音乐播放，触发 music_start 事件
-                        let rm = state.resource_manager.lock().unwrap();
-                        let mut sm = state.state_manager.lock().unwrap();
+                        let rm = app_state.resource_manager.lock().unwrap();
+                        let mut sm = app_state.state_manager.lock().unwrap();
                         let _ = TriggerManager::trigger_music_start(&rm, &mut sm);
                     }
                     MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
-                        // 音乐停止，触发 music_end 事件
-                        let rm = state.resource_manager.lock().unwrap();
-                        let mut sm = state.state_manager.lock().unwrap();
+                        let rm = app_state.resource_manager.lock().unwrap();
+                        let mut sm = app_state.state_manager.lock().unwrap();
                         let _ = TriggerManager::trigger_music_end(&rm, &mut sm);
                     }
                     _ => {}
@@ -481,14 +522,14 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
     });
 }
 
-/// 保存动画窗口位置到存储
+/// 保存动画窗口位置
 fn save_animation_window_position(window: &tauri::Window) {
     let app = window.app_handle();
     
     if let Some(animation_window) = app.get_webview_window("animation") {
         if let Ok(position) = animation_window.outer_position() {
-            let state: State<AppState> = window.state();
-            let mut storage = state.storage.lock().unwrap();
+            let app_state: State<AppState> = window.state();
+            let mut storage = app_state.storage.lock().unwrap();
             
             let scale_factor = animation_window.scale_factor().unwrap_or(1.0);
             storage.data.info.animation_window_x = Some(position.x as f64 / scale_factor);
