@@ -5,6 +5,7 @@ use modules::constants::{
     ANIMATION_BORDER,
     STATE_IDLE,
 };
+use modules::environment::get_current_datetime;
 use modules::resource::{ResourceManager, StateInfo, TriggerInfo, AssetInfo, AudioInfo, TextInfo, CharacterInfo, ModInfo};
 use modules::state::StateManager;
 use modules::storage::{Storage, UserSettings, UserInfo};
@@ -320,16 +321,27 @@ pub fn run() {
 
             sm.set_app_handle(app.handle().clone());
 
-            // ========== 注册全局状态 ==========
-            app.manage(AppState {
-                resource_manager: Mutex::new(rm),
-                state_manager: Mutex::new(sm),
-                storage: Mutex::new(storage),
-                media_observer: Mutex::new(None),
-            });
+            // ========== 记录登录时间 ==========
+            let dt = get_current_datetime();
+            storage.data.info.last_login = Some(dt.timestamp as i64);
+            let _ = storage.save();
 
             // ========== 启动媒体监听器（独立线程） ==========
             start_media_observer(app.handle().clone());
+
+            // ========== 自动加载上次使用的 Mod ==========
+            let last_mod = &storage.data.info.current_mod;
+            if !last_mod.is_empty() {
+                if let Err(e) = rm.load_mod(last_mod) {
+                    eprintln!("自动加载 Mod '{}' 失败: {}", last_mod, e);
+                }
+            }
+
+            // ========== 计算窗口尺寸和位置 ==========
+            let scale = storage.data.settings.animation_scale as f64;
+            let window_width = ANIMATION_WINDOW_BASE_WIDTH * scale;
+            let window_height = ANIMATION_WINDOW_BASE_HEIGHT * scale;
+            let saved_position = (storage.data.info.animation_window_x, storage.data.info.animation_window_y);
 
             // ========== 创建动画窗口 ==========
             let animation_window = WebviewWindowBuilder::new(
@@ -347,12 +359,6 @@ pub fn run() {
             .skip_taskbar(true)
             .build()
             .map_err(|e: tauri::Error| e.to_string())?;
-
-            // ========== 计算窗口尺寸和位置 ==========
-            let scale = storage.data.settings.animation_scale as f64;
-            let window_width = ANIMATION_WINDOW_BASE_WIDTH * scale;
-            let window_height = ANIMATION_WINDOW_BASE_HEIGHT * scale;
-            let saved_position = (storage.data.info.animation_window_x, storage.data.info.animation_window_y);
 
             // ========== 设置窗口位置 ==========
             if let (Some(x), Some(y)) = saved_position {
@@ -373,26 +379,18 @@ pub fn run() {
                 let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
             }
 
-            // ========== 记录登录时间 ==========
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as i64;
-            storage.data.info.last_login = Some(now);
-            let _ = storage.save();
-
-            // ========== 自动加载上次使用的 Mod ==========
-            let last_mod = &storage.data.info.current_mod;
-            if !last_mod.is_empty() {
-                if let Err(e) = rm.load_mod(last_mod) {
-                    eprintln!("自动加载 Mod '{}' 失败: {}", last_mod, e);
-                }
-            }
-
             // ========== 初始化为 idle 状态 ==========
             if let Some(idle_state) = rm.get_state_by_name(STATE_IDLE) {
                 let _ = sm.change_state(idle_state.clone());
             }
+
+            // ========== 注册全局状态 ==========
+            app.manage(AppState {
+                resource_manager: Mutex::new(rm),
+                state_manager: Mutex::new(sm),
+                storage: Mutex::new(storage),
+                media_observer: Mutex::new(None),
+            });
 
             Ok(())
         })

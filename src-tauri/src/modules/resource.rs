@@ -4,7 +4,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 use super::environment::get_current_datetime;
-use super::environment::get_current_datetime;
 
 // ========================================================================= //
 
