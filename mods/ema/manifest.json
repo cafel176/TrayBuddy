@@ -21,7 +21,8 @@
       "can_trigger_states" :[        
       ],
       "trigger_time" : 0,
-      "trigger_rate" : 0.1
+      "trigger_rate" : 0.1,
+      "branch" :[]
     }
   },
   "states": [
@@ -40,7 +41,8 @@
       "can_trigger_states" :[        
       ],
       "trigger_time" : 0,
-      "trigger_rate" : 0.1
+      "trigger_rate" : 0.1,
+      "branch" :[]
     },
     {
       "name" : "music_start",
@@ -56,7 +58,8 @@
       "next_state" : "music",
       "can_trigger_states" :[],
       "trigger_time" : 0,
-      "trigger_rate" : 0
+      "trigger_rate" : 0,
+      "branch" :[]
     },
     {
       "name" : "music_end",
@@ -72,7 +75,8 @@
       "next_state" : "idle",
       "can_trigger_states" :[],
       "trigger_time" : 0,
-      "trigger_rate" : 0
+      "trigger_rate" : 0,
+      "branch" :[]
     },
     {
       "name" : "morning",
@@ -88,7 +92,8 @@
       "next_state" : "",
       "can_trigger_states" :[],
       "trigger_time" : 0,
-      "trigger_rate" : 0
+      "trigger_rate" : 0,
+      "branch" :[]
     },
     {
       "name" : "noon",
@@ -104,7 +109,8 @@
       "next_state" : "",
       "can_trigger_states" :[],
       "trigger_time" : 0,
-      "trigger_rate" : 0
+      "trigger_rate" : 0,
+      "branch" :[]
     },
     {
       "name" : "evening",
@@ -120,7 +126,8 @@
       "next_state" : "",
       "can_trigger_states" :[],
       "trigger_time" : 0,
-      "trigger_rate" : 0
+      "trigger_rate" : 0,
+      "branch" :[]
     },
     {
       "name" : "night",
@@ -136,7 +143,47 @@
       "next_state" : "",
       "can_trigger_states" :[],
       "trigger_time" : 0,
-      "trigger_rate" : 0
+      "trigger_rate" : 0,
+      "branch" :[]
+    },
+    {
+      "name" : "hello1_1",
+      "persistent" : false,
+      "anima" : "wave",
+      "audio" : "",
+      "text" : "",
+      "priority" : 2,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0,
+      "branch" :[
+        {
+          "text" : "OK",
+          "next_state" : "hello1_2"
+        }
+      ]
+    },
+    {
+      "name" : "hello1_2",
+      "persistent" : false,
+      "anima" : "wave",
+      "audio" : "",
+      "text" : "",
+      "priority" : 2,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0,
+      "branch" :[]
     }
   ],
   "triggers": [

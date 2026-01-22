@@ -62,8 +62,17 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `can_trigger_states` | Array | 处于该状态下可能随机触发的子状态列表 |
 | `trigger_time` | Number | 随机触发的最小间隔时间 (秒) |
 | `trigger_rate` | Number | 随机触发的概率 (0.0 - 1.0) |
+| `branch` | Array | 分支选项数组，用于交互式对话 |
 
-#### 2.1.2 触发器对象 (Trigger Object)
+#### 2.1.2 分支对象 (Branch Object)
+用于状态对象的 `branch` 数组，实现交互式对话选项。
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `text` | String | 选项按钮显示的文本 |
+| `next_state` | String | 点击该选项后跳转到的状态名称 |
+
+#### 2.1.3 触发器对象 (Trigger Object)
 用于 `triggers` 数组。
 
 | 字段 | 类型 | 说明 |

@@ -231,6 +231,13 @@ fn get_persistent_state(state: State<'_, AppState>) -> Option<StateInfo> {
     sm.get_persistent_state().cloned()
 }
 
+/// 获取下一个待切换状态
+#[tauri::command]
+fn get_next_state(state: State<'_, AppState>) -> Option<StateInfo> {
+    let sm = state.state_manager.lock().unwrap();
+    sm.get_next_state().cloned()
+}
+
 /// 切换状态（自动选择持久/临时模式）
 #[tauri::command]
 fn change_state(name: String, state: State<'_, AppState>) -> Result<bool, String> {
@@ -473,6 +480,7 @@ pub fn run() {
             get_all_states,
             get_current_state,
             get_persistent_state,
+            get_next_state,
             change_state,
             force_change_state,
             on_animation_complete,

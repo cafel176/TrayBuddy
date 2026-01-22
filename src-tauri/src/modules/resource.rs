@@ -185,6 +185,8 @@ pub struct StateInfo {
     pub trigger_time: f32,
     /// 触发概率（0.0 - 1.0）
     pub trigger_rate: f32,
+    /// 对话分支选项
+    pub branch: Vec<BranchInfo>,
 }
 
 impl Default for StateInfo {
@@ -204,6 +206,7 @@ impl Default for StateInfo {
             can_trigger_states: Vec::new(),
             trigger_time: 0.0,
             trigger_rate: 0.0,
+            branch: Vec::new(),
         }
     }
 }
@@ -275,6 +278,31 @@ impl StateInfo {
     #[inline]
     pub fn is_enable(&self) -> bool {
         self.is_date_valid() && self.is_time_valid()
+    }
+}
+
+// ========================================================================= //
+// 分支定义
+// ========================================================================= //
+
+/// 对话分支选项
+/// 
+/// 用于交互式对话，让用户选择不同的对话走向
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct BranchInfo {
+    /// 选项按钮显示的文本
+    pub text: String,
+    /// 点击后跳转到的状态名称
+    pub next_state: String,
+}
+
+impl Default for BranchInfo {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            next_state: String::new(),
+        }
     }
 }
 
