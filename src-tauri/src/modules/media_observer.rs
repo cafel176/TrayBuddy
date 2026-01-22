@@ -4,6 +4,8 @@
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+// ========================================================================= //
+
 /// 媒体播放状态
 #[derive(Debug, Clone, PartialEq)]
 pub enum MediaPlaybackStatus {
@@ -22,26 +24,19 @@ pub enum MediaPlaybackStatus {
 pub struct MediaStateEvent {
     pub status: MediaPlaybackStatus,
     pub title: Option<String>,
-    #[allow(dead_code)]
     pub artist: Option<String>,
     /// 播放应用的进程名/App ID
     pub app_id: Option<String>,
 }
 
+// ========================================================================= //
+
 /// 媒体观察者 - 监听系统音频播放状态
 pub struct MediaObserver {
     /// 事件发送通道
-    #[allow(dead_code)]
     event_tx: Option<mpsc::UnboundedSender<MediaStateEvent>>,
     /// 是否正在运行
     running: Arc<std::sync::atomic::AtomicBool>,
-}
-
-/// 检查应用名称是否为音乐应用
-/// 匹配包含 "音乐"、"music"、"Music" 的应用
-fn is_music_app(app_id: &str) -> bool {
-    let app_lower = app_id.to_lowercase();
-    app_lower.contains("music") || app_id.contains("音乐")
 }
 
 impl MediaObserver {
@@ -52,6 +47,8 @@ impl MediaObserver {
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
+
+    // ========================================================================= //
 
     /// 启动媒体监听（返回事件接收通道）
     pub fn start(&mut self) -> mpsc::UnboundedReceiver<MediaStateEvent> {
@@ -73,11 +70,12 @@ impl MediaObserver {
     }
 
     /// 停止媒体监听
-    #[allow(dead_code)]
     pub fn stop(&mut self) {
         self.running.store(false, std::sync::atomic::Ordering::SeqCst);
         self.event_tx = None;
     }
+
+    // ========================================================================= //
 
     /// 媒体状态轮询循环
     #[cfg(windows)]
@@ -133,6 +131,13 @@ impl MediaObserver {
         println!("[MediaObserver] 媒体监听已停止");
     }
 
+    /// 检查应用名称是否为音乐应用
+    /// 匹配包含 "音乐"、"music"、"Music" 的应用
+    fn is_music_app(app_id: &str) -> bool {
+        let app_lower = app_id.to_lowercase();
+        app_lower.contains("music") || app_id.contains("音乐")
+    }
+
     /// 获取当前媒体状态
     #[cfg(windows)]
     fn get_current_media_state(
@@ -151,7 +156,7 @@ impl MediaObserver {
                     
                     // 检查是否为音乐应用
                     if let Some(ref id) = app_id {
-                        if is_music_app(id) {
+                        if Self::is_music_app(id) {
                             // 获取播放信息
                             if let Ok(playback_info) = session.GetPlaybackInfo() {
                                 let status = match playback_info.PlaybackStatus() {
