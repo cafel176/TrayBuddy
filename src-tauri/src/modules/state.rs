@@ -3,15 +3,21 @@
 //! 负责管理角色状态的切换和事件通知，包括：
 //! - 当前状态和持久状态的管理
 //! - 状态优先级和锁定机制
+//! - 下一状态（next_state）链式切换
 //! - 定时触发功能
 //! - 随机状态选择
+//! 
+//! # 架构说明
+//! 
+//! `StateManager` 持有 `ResourceManager` 的 `Arc<Mutex<>>` 引用，
+//! 用于在状态切换时查询 next_state 对应的状态信息。
 
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
-use super::resource::StateInfo;
+use super::resource::{StateInfo, ResourceManager};
 
 // ========================================================================= //
 // 事件结构体
@@ -38,6 +44,8 @@ pub struct StateChangeEvent {
 /// - **状态锁定**: 临时状态播放期间锁定，防止被打断
 /// - **优先级机制**: 高优先级状态可以打断低优先级状态
 pub struct StateManager {
+    /// 资源管理器引用
+    resource_manager: Arc<Mutex<ResourceManager>>,
     /// 当前正在播放的状态
     current_state: Option<StateInfo>,
     /// 下一个待切换的状态（当前状态播放完毕后切换）
@@ -54,8 +62,9 @@ pub struct StateManager {
 
 impl StateManager {
     /// 创建新的状态管理器
-    pub fn new() -> Self {
+    pub fn new(resource_manager: Arc<Mutex<ResourceManager>>) -> Self {
         Self {
+            resource_manager,
             current_state: None,
             next_state: None,
             persistent_state: None,
@@ -162,6 +171,8 @@ impl StateManager {
         self.current_state = Some(state.clone());
         self.emit_state_change(&state, false);
 
+        self.clear_next_state();
+
         Ok(true)
     }
 
@@ -206,12 +217,36 @@ impl StateManager {
         self.emit_state_change(&state, true);
         self.locked = true;
 
+        // 预设下一个状态
+        self.clear_next_state();
+        self.prepare_next_state();
+
         Ok(true)
     }
 
     // ========================================================================= //
     // 下一状态管理
     // ========================================================================= //
+
+    /// 根据当前状态的 next_state 字段预设下一个状态
+    /// 
+    /// 从 ResourceManager 获取状态信息并设置为下一个待切换状态
+    fn prepare_next_state(&mut self) {
+        // 检查当前状态是否定义了 next_state（避免不必要的 clone）
+        let next_state_name = match &self.current_state {
+            Some(s) if !s.next_state.is_empty() => s.next_state.as_str(),
+            _ => return,
+        };
+        
+        // 从 ResourceManager 获取状态信息
+        let rm = self.resource_manager.lock().unwrap();
+        if let Some(next_info) = rm.get_state_by_name(next_state_name) {
+            println!("[StateManager] 预设 next_state: '{}'", next_info.name);
+            self.next_state = Some(next_info.clone());
+        } else {
+            println!("[StateManager] 警告: 找不到 next_state '{}'", next_state_name);
+        }
+    }
 
     /// 获取下一个待切换状态的引用
     #[inline]
@@ -239,17 +274,19 @@ impl StateManager {
 
     /// 状态播放完毕回调
     /// 
-    /// 解锁状态并切换到下一个状态或回到持久状态
+    /// 解锁状态并按优先级切换：
+    /// 1. 如果有 next_state，切换到 next_state
+    /// 2. 否则回到 persistent_state
     pub fn on_state_complete(&mut self) {
         self.locked = false;
         
-        // 优先切换到 next_state
+        // 优先切换到 next_state（使用 take 避免额外 clone）
         if let Some(next) = self.next_state.take() {
             let _ = self.change_state(next);
             return;
         }
         
-        // 否则回到持久状态
+        // 否则回到持久状态（需要 clone 因为持久状态需保留）
         if let Some(persistent) = self.persistent_state.clone() {
             let _ = self.change_state(persistent);
         }
@@ -431,11 +468,5 @@ impl StateManager {
                 eprintln!("[StateManager] 发送状态切换事件失败: {}", e);
             }
         }
-    }
-}
-
-impl Default for StateManager {
-    fn default() -> Self {
-        Self::new()
     }
 }

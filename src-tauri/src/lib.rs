@@ -21,7 +21,7 @@ use modules::state::StateManager;
 use modules::storage::{Storage, UserSettings, UserInfo};
 use modules::media_observer::{MediaObserver, MediaPlaybackStatus};
 use modules::trigger::TriggerManager;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition, Emitter};
 
 // ========================================================================= //
@@ -33,7 +33,7 @@ use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, Logic
 /// 通过 Tauri 的状态管理器在命令处理函数中共享访问
 pub struct AppState {
     /// 资源管理器：负责 Mod 的加载、卸载和资源查询
-    pub resource_manager: Mutex<ResourceManager>,
+    pub resource_manager: Arc<Mutex<ResourceManager>>,
     /// 状态管理器：负责角色状态的切换和事件通知
     pub state_manager: Mutex<StateManager>,
     /// 存储管理器：负责用户设置和信息的持久化
@@ -363,8 +363,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // ========== 初始化核心管理器 ==========
-            let mut rm = ResourceManager::new(app.handle());
-            let mut sm = StateManager::new();
+            let rm = Arc::new(Mutex::new(ResourceManager::new(app.handle())));
+            let mut sm = StateManager::new(Arc::clone(&rm));
             let mut storage = Storage::new(app.handle());
 
             // 启动定时触发器和设置事件发送器
@@ -382,7 +382,7 @@ pub fn run() {
             // 自动加载上次使用的 Mod
             let last_mod = storage.data.info.current_mod.clone();
             if !last_mod.is_empty() {
-                if let Err(e) = rm.load_mod(&last_mod) {
+                if let Err(e) = rm.lock().unwrap().load_mod(&last_mod) {
                     eprintln!("[TrayBuddy] 自动加载 Mod '{}' 失败: {}", last_mod, e);
                 }
             }
@@ -429,16 +429,19 @@ pub fn run() {
             }
 
             // ========== 初始化状态 ==========
-            if let Some(idle_state) = rm.get_state_by_name(STATE_IDLE) {
-                let _ = sm.change_state(idle_state.clone());
-            }
+            {
+                let rm_guard = rm.lock().unwrap();
+                if let Some(idle_state) = rm_guard.get_state_by_name(STATE_IDLE) {
+                    let _ = sm.change_state(idle_state.clone());
+                }
 
-            // 触发 login 事件
-            let _ = TriggerManager::trigger_login(&rm, &mut sm);
+                // 触发 login 事件
+                let _ = TriggerManager::trigger_login(&rm_guard, &mut sm);
+            }
 
             // 注册全局状态
             app.manage(AppState {
-                resource_manager: Mutex::new(rm),
+                resource_manager: rm,
                 state_manager: Mutex::new(sm),
                 storage: Mutex::new(storage),
                 media_observer: Mutex::new(None),
