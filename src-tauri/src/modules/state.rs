@@ -1,42 +1,6 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-use super::constants::{
-    ANIMATION_IDLE, ANIMATION_MORNING, ANIMATION_NOON, ANIMATION_EVENING, ANIMATION_NIGHT, ANIMATION_MUSIC,
-    STATE_IDLE, STATE_MUSIC, STATE_MORNING, STATE_NOON, STATE_EVENING, STATE_NIGHT
-};
-
-// ========================================================================= //
-
-/// 状态信息结构
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct StateInfo {
-    pub name: String,           // 状态名称
-    pub persistent: bool,       // 是否是持久状态
-    pub action: String,      // 动画名称 (对应 action name)
-    pub audio: String,          // 语音名称
-    pub text: String,           // 文本内容
-    pub priority: u32,          // 优先级 (数值越大优先级越高)
-}
-
-impl StateInfo {
-    pub fn new(
-        name: &str,
-        persistent: bool,
-        action: &str,
-        audio: &str,
-        text: &str,
-        priority: u32,
-    ) -> Self {
-        Self {
-            name: name.to_string(),
-            persistent,
-            action: action.to_string(),
-            audio: audio.to_string(),
-            text: text.to_string(),
-            priority,
-        }
-    }
-}
+use super::resource::StateInfo;
 
 // ========================================================================= //
 
@@ -50,11 +14,14 @@ pub struct StateChangeEvent {
 // ========================================================================= //
 
 /// 状态管理器
+/// 
+/// 状态现在从 Mod 的 manifest.json 中加载，不再硬编码。
+/// StateManager 负责管理当前状态和持久状态的切换逻辑。
 pub struct StateManager {
-    /// 预定义的状态数组
-    states: Vec<StateInfo>,
     /// 当前状态 (可能是临时状态)
     current_state: Option<StateInfo>,
+    /// 下一个状态 (当前状态播放完毕后切换)
+    next_state: Option<StateInfo>,
     /// 持久状态 (默认循环播放的状态)
     persistent_state: Option<StateInfo>,
     /// Tauri AppHandle，用于发送事件到前端
@@ -64,158 +31,160 @@ pub struct StateManager {
 }
 
 impl StateManager {
-    /// 创建新的状态管理器，初始化预定义状态
+    /// 创建新的状态管理器
     pub fn new() -> Self {
-        let states = vec![
-            // 持久状态
-            StateInfo::new(STATE_IDLE, true, ANIMATION_IDLE, "", "", 0),
-            // 持久状态 - 音乐播放中 (优先级比 idle 高)
-            StateInfo::new(STATE_MUSIC, true, ANIMATION_MUSIC, "", "", 0),
-            // 临时状态 - 时间问候
-            StateInfo::new(STATE_MORNING, false, ANIMATION_MORNING, "morning", "morning", 1),
-            StateInfo::new(STATE_NOON, false, ANIMATION_NOON, "noon", "noon", 1),
-            StateInfo::new(STATE_EVENING, false, ANIMATION_EVENING, "evening", "evening", 1),
-            StateInfo::new(STATE_NIGHT, false, ANIMATION_NIGHT, "night", "night", 1),
-        ];
-
         Self {
-            states,
             current_state: None,
+            next_state: None,
             persistent_state: None,
             app_handle: None,
             locked: false,
         }
     }
 
+    // ========================================================================= //
+
     /// 检查状态是否被锁定
     pub fn is_locked(&self) -> bool {
         self.locked
     }
 
-    /// 设置 AppHandle，用于发送事件到前端
-    pub fn set_app_handle(&mut self, app_handle: AppHandle) {
-        self.app_handle = Some(app_handle);
+    /// 智能切换状态：根据状态类型自动选择合适的切换方式
+    /// - 持久状态：调用 set_persistent_state
+    /// - 临时状态：调用 set_current_state
+    pub fn change_state(&mut self, state: StateInfo) -> Result<bool, String> {
+        self.change_state_ex(state, false)
     }
 
-    /// 根据名称获取预定义状态
-    pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
-        self.states.iter().find(|s| s.name == name)
+    /// 智能切换状态（扩展版本）
+    /// - force: 是否忽略优先级和锁定检查强制切换
+    pub fn change_state_ex(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
+        if state.persistent {
+            self.set_persistent_state(state, force)
+        } else {
+            self.set_current_state(state, force)
+        }
     }
 
-    /// 获取当前状态
-    pub fn get_current_state(&self) -> Option<&StateInfo> {
-        self.current_state.as_ref()
-    }
+    // ========================================================================= //
 
     /// 获取持久状态
     pub fn get_persistent_state(&self) -> Option<&StateInfo> {
         self.persistent_state.as_ref()
     }
 
-    /// 获取所有预定义状态
-    pub fn get_all_states(&self) -> &Vec<StateInfo> {
-        &self.states
-    }
-
     /// 设置持久状态
     /// 如果当前被锁定（临时状态播放中），只更新持久状态，不切换当前状态
     /// 如果未锁定，同时更新持久状态和当前状态
-    pub fn set_persistent_state(&mut self, name: &str) -> Result<(), String> {
-        let state = self.get_state_by_name(name)
-            .ok_or_else(|| format!("State '{}' not found", name))?
-            .clone();
-
+    /// 持久-持久，如 Idle-Music，直接切换并显示动画
+    /// 临时-持久，如 Music_Start-Music，仅更换数据，待播放完毕解锁后自然更换
+    /// - force: 是否忽略优先级和锁定检查强制切换
+    pub fn set_persistent_state(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
         if !state.persistent {
-            return Err(format!("State '{}' is not a persistent state", name));
+            return Err(format!("State '{}' is not a persistent state", state.name));
+        }
+
+        // 如果当前持久状态与传入状态相同，不切换
+        if self.current_state.as_ref().map(|s| &s.name) == Some(&state.name) {
+            return Ok(false);
+        }
+
+        if !force {
+            // 检查优先级
+            let persistent_priority = self.persistent_state.as_ref().map(|s| s.priority).unwrap_or(0);     
+            if state.priority < persistent_priority {
+                println!("[StateManager] 状态优先级不够，禁止变更状态 '{}'", state.name);
+                return Ok(false);
+            }
         }
 
         // 更新持久状态
         self.persistent_state = Some(state.clone());
 
         // 如果被锁定（临时状态播放中），不切换当前状态，等临时状态播放完毕后自动切换
-        if self.locked {
-            println!("[StateManager] 状态锁定中，仅更新持久状态为 '{}'，当前状态保持不变", name);
-            return Ok(());
+        if self.locked && !force {
+            println!("[StateManager] 状态锁定中，仅更新持久状态为 '{}'，当前状态保持不变", state.name);
+            return Ok(false);
+        }
+
+        // 强制切换时解除锁定
+        if force {
+            self.locked = false;
         }
 
         // 未锁定，同时更新当前状态并发送事件
         self.current_state = Some(state.clone());
         self.emit_state_change(&state, false);
 
-        Ok(())
+        Ok(true)
     }
 
-    /// 切换状态
+    // ========================================================================= //
+
+    /// 获取当前状态
+    pub fn get_current_state(&self) -> Option<&StateInfo> {
+        self.current_state.as_ref()
+    }
+
+    /// 切换到指定状态
     /// 如果新状态优先级高于当前状态，则切换
     /// 如果新状态是临时状态，播放完毕后自动回到持久状态
-    pub fn switch_state(&mut self, name: &str) -> Result<bool, String> {
-        // 如果状态被锁定，禁止切换
-        if self.locked {
-            return Ok(false);
+    /// 持久-临时，如 Idle-Morning，直接切换并显示动画
+    /// 临时-临时，当不锁定时，上一个状态其实已经结束，因此直接切换
+    /// - force: 是否忽略优先级和锁定检查强制切换
+    pub fn set_current_state(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
+        if state.persistent {
+            return Err(format!("State '{}' is a persistent state", state.name));
         }
 
-        let new_state = self.get_state_by_name(name)
-            .ok_or_else(|| format!("State '{}' not found", name))?
-            .clone();
+        if !force {
+            // 如果状态被锁定，禁止切换
+            if self.locked {
+                println!("[StateManager] 状态锁定中，禁止变更状态 '{}'", state.name);
+                return Ok(false);
+            }
 
-        // 检查优先级
-        let current_priority = self.current_state.as_ref().map(|s| s.priority).unwrap_or(0);
-        
-        if new_state.priority < current_priority {
-            // 新状态优先级不够高，不切换
-            return Ok(false);
-        }
+            // 检查优先级
+            let current_priority = self.current_state.as_ref().map(|s| s.priority).unwrap_or(0);     
+            if state.priority < current_priority {
+                println!("[StateManager] 状态优先级不够，禁止变更状态 '{}'", state.name);
+                return Ok(false);
+            }
+        } 
 
         // 切换到新状态
-        self.current_state = Some(new_state.clone());
+        self.current_state = Some(state.clone());
+        self.emit_state_change(&state, true);
 
-        if new_state.persistent {
-            // 如果是持久状态，更新持久状态并循环播放
-            self.persistent_state = Some(new_state.clone());
-            self.emit_state_change(&new_state, false);
-        } else {
-            // 如果是临时状态，锁定状态并播放一次
-            self.locked = true;
-            self.emit_state_change(&new_state, true);
-        }
+        self.locked = true;
 
         Ok(true)
     }
 
-    /// 状态播放完毕后调用，解锁并回到持久状态
+    // ========================================================================= //
+
+    /// 状态播放完毕后调用，解锁并切换到下一个状态或回到持久状态
     pub fn on_state_complete(&mut self) {
         // 解锁状态
         self.locked = false;
         
-        // 回到持久状态
+        // 优先切换到 next_state（如果有）
+        if let Some(next) = self.next_state.take() {
+            let _ = self.change_state(next);
+            return;
+        }
+        
+        // 否则回到持久状态
         if let Some(persistent) = &self.persistent_state {
-            let persistent = persistent.clone();
-            self.current_state = Some(persistent.clone());
-            self.emit_state_change(&persistent, false);
+            let _ = self.change_state(persistent.clone());
         }
     }
+  
+    // ========================================================================= //
 
-    /// 强制切换状态（忽略优先级检查和锁定）
-    pub fn force_switch_state(&mut self, name: &str) -> Result<(), String> {
-        // 强制切换会解除锁定
-        self.locked = false;
-
-        let new_state = self.get_state_by_name(name)
-            .ok_or_else(|| format!("State '{}' not found", name))?
-            .clone();
-
-        self.current_state = Some(new_state.clone());
-
-        if new_state.persistent {
-            self.persistent_state = Some(new_state.clone());
-            self.emit_state_change(&new_state, false);
-        } else {
-            // 临时状态需要锁定
-            self.locked = true;
-            self.emit_state_change(&new_state, true);
-        }
-
-        Ok(())
+    /// 设置 AppHandle，用于发送事件到前端
+    pub fn set_app_handle(&mut self, app_handle: AppHandle) {
+        self.app_handle = Some(app_handle);
     }
 
     /// 发送状态切换事件到前端
