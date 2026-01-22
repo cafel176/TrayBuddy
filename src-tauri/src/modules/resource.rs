@@ -8,11 +8,6 @@ use tauri::Manager;
 
 fn default_name() -> String { "ERROR".to_string() }
 
-fn default_sequence() -> bool { false }
-fn default_need_reverse() -> bool { false }
-fn default_frame_time() -> f32 { 0.3 }
-fn default_frame_num() -> u32 { 1 }
-
 // ========================================================================= //
 
 /// 资产定义
@@ -23,7 +18,7 @@ pub struct AssetInfo {
     pub img: String,         // 文件名 (如 "idle.png")
 
     pub sequence: bool,      // 是否为序列帧 (true) 还是静态图 (false)
-    pub need_reverse: bool,      // 循环时是否需要后接反向播放
+    pub need_reverse: bool,  // 循环时是否需要后接反向播放
     pub frame_time: f32,     // 每帧播放间隔 (秒)
 
     pub frame_size_x: u32,   // 单帧像素宽度
@@ -41,13 +36,17 @@ impl Default for AssetInfo {
         Self {
             name: default_name(),
             img: String::new(),
-            sequence: default_sequence(),
-            need_reverse: default_need_reverse(),
-            frame_time: default_frame_time(),
+
+            sequence: false,
+            need_reverse: false,
+            frame_time: 0.3,
+
             frame_size_x: 0,
             frame_size_y: 0,
-            frame_num_x: default_frame_num(),
-            frame_num_y: default_frame_num(),
+
+            frame_num_x: 1,
+            frame_num_y: 1,
+
             offset_x: 0,
             offset_y: 0,
         }
@@ -106,63 +105,126 @@ impl Default for CharacterInfo {
         Self {
             id: default_name(),
             lang: default_name(),
-            name: String::new(),
+            name: "Default".to_string(),
         }
     }
 }
 
 // ========================================================================= //
 
-/// 动作映射定义
+/// 状态定义
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
-pub struct ActionInfo {
-    pub name: String,        // Action 名称
-    pub anima: String,       // 对应 AssetInfo 中的 name
+pub struct StateInfo {
+    pub name: String,             // 状态名称
+
+    pub persistent: bool,         // 是否为持久状态
+    pub anima: String,            // 对应 AssetInfo 中的 name
+    pub audio: String,            // 对应 AudioInfo 中的 name
+    pub text: String,             // 对应 TextInfo 中的 name
+    pub priority: u32,            // 优先级 (数值越大优先级越高)
+
+    pub date_start: String,       // 允许生效日期起始 (格式: "MM-DD")
+    pub date_end: String,         // 允许生效日期结束 (格式: "MM-DD")
+    pub time_start: String,       // 允许生效时间起始 (格式: "HH:MM")
+    pub time_end: String,         // 允许生效时间结束 (格式: "HH:MM")
+
+    pub next_state: String,       // 播放完成后自动切换到的状态
+    pub can_trigger_states: Vec<String>, // 可触发的子状态列表
+    pub trigger_time: f32,        // 触发间隔时间 (秒)
+    pub trigger_rate: f32,        // 触发概率 (0.0 - 1.0)
 }
 
-impl Default for ActionInfo {
+impl Default for StateInfo {
     fn default() -> Self {
         Self {
             name: default_name(),
+
+            persistent: false,
             anima: String::new(),
+            audio: String::new(),
+            text: String::new(),
+            priority: 0,
+
+            date_start: String::new(),
+            date_end: String::new(),
+            time_start: String::new(),
+            time_end: String::new(),
+
+            next_state: String::new(),
+            can_trigger_states: Vec::new(),
+            trigger_time: 0.0,
+            trigger_rate: 0.0,
         }
     }
 }
+
+// ========================================================================= //
+
+/// 触发器定义
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct TriggerInfo {
+    pub event: String,                   // 触发事件名称
+    pub can_trigger_states: Vec<String>, // 可触发的状态列表
+}
+
+impl Default for TriggerInfo {
+    fn default() -> Self {
+        Self {
+            event: String::new(),
+            can_trigger_states: Vec::new(),
+        }
+    }
+}
+
+// ========================================================================= //
 
 /// Mod 全局清单 (manifest.json)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct ModManifest {
-    pub id: String,          // Mod 唯一标识
-    pub version: String,     // Mod 版本
-    pub author: String,      // 作者
-    pub default_audio_lang_id: String, // 默认语音语言 ID
-    pub default_text_lang_id: String, // 默认语音文本 ID
+    pub id: String,                // Mod 唯一标识
+    pub version: String,           // Mod 版本
+    pub author: String,            // 作者
 
-    pub important_actions: HashMap<String, ActionInfo>, // 核心动作 (border, idle 等)
-    pub actions: Vec<ActionInfo>,           // 其他动作 
+    pub default_audio_lang_id: String, // 默认语音语言 ID
+    pub default_text_lang_id: String,  // 默认文本语言 ID
+    pub border_anima: String,      // 边框动画名称
+
+    pub important_states: HashMap<String, StateInfo>, // 核心状态 (idle 等)
+    pub states: Vec<StateInfo>,    // 其他状态
+    pub triggers: Vec<TriggerInfo>, // 触发器列表
 }
 
 impl Default for ModManifest {
     fn default() -> Self {
         Self {
-            id: String::new(),
+            id: default_name(),
             version: String::new(),
             author: String::new(),
+
             default_audio_lang_id: String::new(),
             default_text_lang_id: String::new(),
-            important_actions: HashMap::new(),
-            actions: Vec::new(),
+            border_anima: String::new(),
+
+            important_states: HashMap::new(),
+            states: Vec::new(),
+            triggers: Vec::new(),
         }
     }
 }
 
 impl ModManifest {
-    /// 根据名称查找动作映射 (如 "border", "idle")
-    pub fn get_action_by_name(&self, name: &str) -> Option<&ActionInfo> {
-        self.important_actions.get(name)
-            .or_else(|| self.actions.iter().find(|a| a.name == name))
+    /// 根据名称查找状态 (如 "idle", "morning")
+    pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
+        self.important_states.get(name)
+            .or_else(|| self.states.iter().find(|s| s.name == name))
+    }
+
+    /// 根据事件名称查找触发器
+    pub fn get_trigger_by_event(&self, event: &str) -> Option<&TriggerInfo> {
+        self.triggers.iter().find(|t| t.event == event)
     }
 }
 
@@ -171,20 +233,25 @@ impl ModManifest {
 /// 加载后的完整 Mod 信息
 #[derive(Debug, Serialize, Clone)]
 pub struct ModInfo {
-    pub path: PathBuf,       // Mod 根目录绝对路径
+    pub path: PathBuf,                               // Mod 根目录绝对路径
     pub manifest: ModManifest,
     
-    pub imgs: Vec<AssetInfo>,     // 静态/杂图资产
-    pub sequences: Vec<AssetInfo>,  // 动画资产
+    pub imgs: Vec<AssetInfo>,                        // 杂图资产
+    pub sequences: Vec<AssetInfo>,                   // 序列帧资产
     pub audios: HashMap<String, Vec<AudioInfo>>,     // 语言代码 -> 语音资产
-    pub speech: HashMap<String, Vec<TextInfo>>,      // 语言代码 -> 对话文本
+    pub texts: HashMap<String, Vec<TextInfo>>,      // 语言代码 -> 对话文本
     pub info: HashMap<String, CharacterInfo>,        // 语言代码 -> 基础信息
 }
 
 impl ModInfo {
-    /// 根据名称从 manifest 中查找核心动作映射
-    pub fn get_action_by_name(&self, name: &str) -> Option<&ActionInfo> {
-        self.manifest.get_action_by_name(name)
+    /// 根据名称从 manifest 中查找状态
+    pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
+        self.manifest.get_state_by_name(name)
+    }
+
+    /// 根据事件名称从 manifest 中查找触发器
+    pub fn get_trigger_by_event(&self, event: &str) -> Option<&TriggerInfo> {
+        self.manifest.get_trigger_by_event(event)
     }
 
     /// 根据名称查找资产信息 (优先查找静态图 imgs，找不到再查找序列帧 sequences)
@@ -203,36 +270,15 @@ impl ModInfo {
             })
     }
 
-    /// 根据语言代码和名称返回音频文件的完整路径 (带 fallback)
-    pub fn get_audio_path(&self, lang: &str, name: &str) -> Option<String> {
-        // 先尝试指定语言
-        if let Some(list) = self.audios.get(lang) {
-            if let Some(audio_info) = list.iter().find(|a| a.name == name) {
-                let path = self.path.join("audio").join(lang).join(&audio_info.audio);
-                return Some(path.to_string_lossy().to_string());
-            }
-        }
-        // Fallback 到默认语言
-        let default_lang = &self.manifest.default_audio_lang_id;
-        if let Some(list) = self.audios.get(default_lang) {
-            if let Some(audio_info) = list.iter().find(|a| a.name == name) {
-                let path = self.path.join("audio").join(default_lang).join(&audio_info.audio);
-                return Some(path.to_string_lossy().to_string());
-            }
-        }
-        None
-    }
-
-    /// 根据语言代码和名称查找对话文本
-    pub fn get_speech_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
-        self.speech.get(lang)
+    /// 根据语言代码和名称查找对话文本 (若找不到则尝试默认语言)
+    pub fn get_text_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
+        self.texts.get(lang)
             .and_then(|list| list.iter().find(|s| s.name == name))
             .or_else(|| {
-                self.speech.get(&self.manifest.default_text_lang_id)
+                self.texts.get(&self.manifest.default_text_lang_id)
                     .and_then(|list| list.iter().find(|s| s.name == name))
             })
     }
-
 
     /// 根据语言代码查找角色基础信息
     pub fn get_info_by_lang(&self, lang: &str) -> Option<&CharacterInfo> {
@@ -251,6 +297,14 @@ pub struct ResourceManager {
 impl ResourceManager {
     /// 初始化资源管理器
     pub fn new(app_handle: &tauri::AppHandle) -> Self {
+        Self {
+            current_mod: None,
+            search_paths: Self::get_mod_search_paths(app_handle),
+        }
+    }
+
+    /// 获取所有可能的 mods 搜索路径
+    fn get_mod_search_paths(app_handle: &tauri::AppHandle) -> Vec<PathBuf> {
         let mut search_paths = Vec::new();
 
         // 1. 默认路径：应用数据目录下的 mods 文件夹
@@ -258,15 +312,15 @@ impl ResourceManager {
             .path()
             .app_config_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
-            .join("mods");    
+            .join("mods");
         if let Ok(canonical) = dunce::canonicalize(&app_config_mods) {
             app_config_mods = canonical;
-        }   
+        }
         if app_config_mods.exists() && app_config_mods.is_dir() {
             search_paths.push(app_config_mods.clone());
         }
         println!("App config mods path: {:?}", app_config_mods);
-        
+
         // 2. 尝试从应用可执行文件所在目录查找 (针对安装后的应用)
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
@@ -295,10 +349,7 @@ impl ResourceManager {
             }
         }
 
-        Self {
-            current_mod: None,
-            search_paths
-        }
+        search_paths
     }
 
     /// 列出所有 search_paths 下的 mod 文件夹名 (去重)
@@ -365,7 +416,7 @@ impl ResourceManager {
 
         // 4. 解析多语言文本 (text/[lang]/info.json, text/[lang]/speech.json)
         let mut info = HashMap::new();
-        let mut speech = HashMap::new();
+        let mut texts = HashMap::new();
         let text_path = mod_path.join("text");
         if let Ok(entries) = fs::read_dir(&text_path) {
             for entry in entries.flatten() {
@@ -383,7 +434,7 @@ impl ResourceManager {
                     
                     // 加载 speech.json (对话内容列表)
                     let speech_list: Vec<TextInfo> = self.load_json_list(&entry.path().join("speech.json"));
-                    speech.insert(lang, speech_list);
+                    texts.insert(lang, speech_list);
                 }
             }
         }
@@ -395,16 +446,23 @@ impl ResourceManager {
             sequences,
             audios,
             info,
-            speech,
+            texts,
         };
 
         self.current_mod = Some(mod_info.clone());
         Ok(mod_info)
     }
 
-    /// 根据名称从 manifest 中查找核心动作映射
-    pub fn get_action_by_name(&self, name: &str) -> Option<&ActionInfo> {
-        self.current_mod.as_ref()?.get_action_by_name(name)
+    // ========================================================================= //
+
+    /// 根据名称从 manifest 中查找状态
+    pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
+        self.current_mod.as_ref()?.get_state_by_name(name)
+    }
+
+    /// 根据事件名称从 manifest 中查找触发器
+    pub fn get_trigger_by_event(&self, event: &str) -> Option<&TriggerInfo> {
+        self.current_mod.as_ref()?.get_trigger_by_event(event)
     }
 
     /// 根据名称从当前加载的 Mod 中查找资产信息
@@ -417,21 +475,17 @@ impl ResourceManager {
         self.current_mod.as_ref()?.get_audio_by_name(lang, name)
     }
 
-    /// 根据语言代码和名称返回音频文件的完整路径
-    pub fn get_audio_path(&self, lang: &str, name: &str) -> Option<String> {
-        let mod_info = self.current_mod.as_ref()?;
-        mod_info.get_audio_path(lang, name)
-    }
-
     /// 根据语言代码和名称从当前加载的 Mod 中查找对话文本
-    pub fn get_speech_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
-        self.current_mod.as_ref()?.get_speech_by_name(lang, name)
+    pub fn get_text_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
+        self.current_mod.as_ref()?.get_text_by_name(lang, name)
     }
 
     /// 根据语言代码从当前加载的 Mod 中查找角色基础信息
     pub fn get_info_by_lang(&self, lang: &str) -> Option<&CharacterInfo> {
         self.current_mod.as_ref()?.get_info_by_lang(lang)
     }
+
+    // ========================================================================= //
 
     fn load_json_list<T: serde::de::DeserializeOwned>(&self, path: &Path) -> Vec<T> {
         if path.exists() {
@@ -453,4 +507,7 @@ impl ResourceManager {
             None
         }
     }
+
+    // ========================================================================= //
+
 }
