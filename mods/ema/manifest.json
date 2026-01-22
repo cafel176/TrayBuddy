@@ -1,43 +1,168 @@
 {
-  "id": "com.traybuddy.ema",
+  "id": "ema",
   "version": "1.0.0",
-  "author": "TrayBuddy Team", 
+  "author": "Cafel", 
   "default_audio_lang_id" : "jp",
   "default_text_lang_id" : "zh",
-  "important_actions": {
-    "border": {
-      "name" : "border",
-      "anima" : "border"
-    },
+  "border_anima" : "border",
+  "important_states": {
     "idle": {
       "name" : "idle",
-      "anima" : "wink"
-    },
-    "music": {
-      "name" : "music",
-      "anima" : "wink"
-    },
-    "morning": {
-      "name" : "morning",
-      "anima" : "wave"
-    },
-    "noon": {
-      "name" : "noon",
-      "anima" : "wave"
-    },
-    "evening": {
-      "name" : "evening",
-      "anima" : "wave"
-    },
-    "night": {
-      "name" : "night",
-      "anima" : "wave"
+      "persistent" : true,
+      "anima" : "wink",
+      "audio" : "",
+      "text" : "",
+      "priority" : 0,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[        
+      ],
+      "trigger_time" : 0,
+      "trigger_rate" : 0.1
     }
   },
-  "actions": [
-
+  "states": [
+    {
+      "name" : "music",
+      "persistent" : true,
+      "anima" : "wink",
+      "audio" : "",
+      "text" : "",
+      "priority" : 0,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[        
+      ],
+      "trigger_time" : 0,
+      "trigger_rate" : 0.1
+    },
+    {
+      "name" : "music_start",
+      "persistent" : false,
+      "anima" : "",
+      "audio" : "",
+      "text" : "",
+      "priority" : 1,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "music",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0
+    },
+    {
+      "name" : "music_end",
+      "persistent" : false,
+      "anima" : "",
+      "audio" : "",
+      "text" : "",
+      "priority" : 1,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "idle",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0
+    },
+    {
+      "name" : "morning",
+      "persistent" : false,
+      "anima" : "wave",
+      "audio" : "",
+      "text" : "",
+      "priority" : 1,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0
+    },
+    {
+      "name" : "noon",
+      "persistent" : false,
+      "anima" : "wave",
+      "audio" : "",
+      "text" : "",
+      "priority" : 1,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0
+    },
+    {
+      "name" : "evening",
+      "persistent" : false,
+      "anima" : "wave",
+      "audio" : "",
+      "text" : "",
+      "priority" : 1,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0
+    },
+    {
+      "name" : "night",
+      "persistent" : false,
+      "anima" : "wave",
+      "audio" : "",
+      "text" : "",
+      "priority" : 1,
+      "date_start" : "",
+      "date_end" : "",
+      "time_start" : "",
+      "time_end" : "",
+      "next_state" : "",
+      "can_trigger_states" :[],
+      "trigger_time" : 0,
+      "trigger_rate" : 0
+    }
   ],
   "triggers": [
+    {
+      "event" : "click",
+      "can_trigger_states" :[
 
+      ] 
+    },
+    {
+      "event" : "login",
+      "can_trigger_states" :[
+        "morning", "noon", "evening", "night"
+      ] 
+    },
+    {
+      "event" : "music_start",
+      "can_trigger_states" :[
+        "music_start"
+      ] 
+    },
+    {
+      "event" : "music_end",
+      "can_trigger_states" :[
+        "music_end"
+      ] 
+    }
   ]
 }
