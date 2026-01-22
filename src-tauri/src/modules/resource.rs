@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
+use super::environment::get_current_datetime;
+use super::environment::get_current_datetime;
 
 // ========================================================================= //
 
@@ -157,6 +159,96 @@ impl Default for StateInfo {
             trigger_rate: 0.0,
         }
     }
+}
+
+impl StateInfo {
+    /// 判断当前时间是否在 time_start 和 time_end 之间
+    /// 时间格式: "HH:MM"
+    /// 如果 time_start 或 time_end 为空，则不做时间限制，返回 true
+    pub fn is_time_valid(&self) -> bool {
+        // 如果未设置时间限制，返回 true
+        if self.time_start.is_empty() || self.time_end.is_empty() {
+            return true;
+        }
+
+        let dt = get_current_datetime();
+        let current_minutes = dt.hour * 60 + dt.minute;
+
+        let start_minutes = self.parse_time(&self.time_start).unwrap_or(0);
+        let end_minutes = self.parse_time(&self.time_end).unwrap_or(24 * 60);
+
+        // 处理跨午夜的情况 (如 22:00 - 06:00)
+        if start_minutes <= end_minutes {
+            current_minutes >= start_minutes && current_minutes < end_minutes
+        } else {
+            current_minutes >= start_minutes || current_minutes < end_minutes
+        }
+    }
+
+    /// 判断当前日期是否在 date_start 和 date_end 之间
+    /// 日期格式: "MM-DD"
+    /// 如果 date_start 或 date_end 为空，则不做日期限制，返回 true
+    pub fn is_date_valid(&self) -> bool {
+        // 如果未设置日期限制，返回 true
+        if self.date_start.is_empty() || self.date_end.is_empty() {
+            return true;
+        }
+
+        let dt = get_current_datetime();
+        let current_day = dt.month * 100 + dt.day; // MMDD 格式
+
+        let start_day = self.parse_date(&self.date_start).unwrap_or(0);
+        let end_day = self.parse_date(&self.date_end).unwrap_or(1231);
+
+        // 处理跨年的情况 (如 12-01 - 01-31)
+        if start_day <= end_day {
+            current_day >= start_day && current_day <= end_day
+        } else {
+            current_day >= start_day || current_day <= end_day
+        }
+    }
+
+    /// 解析时间字符串 "HH:MM" 为分钟数
+    fn parse_time(&self, time_str: &str) -> Option<u32> {
+        if time_str.is_empty() {
+            return None;
+        }
+        
+        let parts: Vec<&str> = time_str.split(':').collect();
+        if parts.len() != 2 {
+            return None;
+        }
+
+        let hour: u32 = parts[0].parse().ok()?;
+        let minute: u32 = parts[1].parse().ok()?;
+
+        Some(hour * 60 + minute)
+    }
+
+    /// 解析日期字符串 "MM-DD" 为 MMDD 格式的数字
+    fn parse_date(&self, date_str: &str) -> Option<u32> {
+        if date_str.is_empty() {
+            return None;
+        }
+
+        let parts: Vec<&str> = date_str.split('-').collect();
+        if parts.len() != 2 {
+            return None;
+        }
+
+        let month: u32 = parts[0].parse().ok()?;
+        let day: u32 = parts[1].parse().ok()?;
+
+        Some(month * 100 + day)
+    }
+
+    // ========================================================================= //
+
+    /// 判断当前状态是否有效
+    pub fn is_enable(&self) -> bool {
+        self.is_date_valid() && self.is_time_valid()
+    }
+
 }
 
 // ========================================================================= //
