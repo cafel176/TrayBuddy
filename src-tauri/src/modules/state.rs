@@ -1,4 +1,10 @@
+//! 状态管理模块
+//! 负责管理角色状态的切换和事件通知
+
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use super::resource::StateInfo;
 
@@ -28,6 +34,8 @@ pub struct StateManager {
     app_handle: Option<AppHandle>,
     /// 状态锁定标志 (临时状态播放中时锁定，禁止切换)
     locked: bool,
+    /// 定时触发器开关（跨线程共享）
+    timer_enabled: Option<Arc<AtomicBool>>,
 }
 
 impl StateManager {
@@ -39,9 +47,12 @@ impl StateManager {
             persistent_state: None,
             app_handle: None,
             locked: false,
+            timer_enabled: None,
         }
     }
 
+    // ========================================================================= //
+    // 基础状态管理
     // ========================================================================= //
 
     /// 检查状态是否被锁定
@@ -59,13 +70,22 @@ impl StateManager {
     /// 智能切换状态（扩展版本）
     /// - force: 是否忽略优先级和锁定检查强制切换
     pub fn change_state_ex(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
-        if state.persistent {
-            self.set_persistent_state(state, force)
+        let result = if state.persistent {
+            self.set_persistent_state(state.clone(), force)
         } else {
-            self.set_current_state(state, force)
+            self.set_current_state(state.clone(), force)
+        };
+        
+        // 状态切换成功时，更新定时触发开关
+        if let Ok(true) = result {
+            self.set_timer_enabled(state.persistent);
         }
+        
+        result
     }
 
+    // ========================================================================= //
+    // 持久状态管理
     // ========================================================================= //
 
     /// 获取持久状态
@@ -120,6 +140,8 @@ impl StateManager {
     }
 
     // ========================================================================= //
+    // 当前状态管理
+    // ========================================================================= //
 
     /// 获取当前状态
     pub fn get_current_state(&self) -> Option<&StateInfo> {
@@ -162,6 +184,8 @@ impl StateManager {
     }
 
     // ========================================================================= //
+    // 状态完成处理
+    // ========================================================================= //
 
     /// 状态播放完毕后调用，解锁并切换到下一个状态或回到持久状态
     pub fn on_state_complete(&mut self) {
@@ -180,6 +204,164 @@ impl StateManager {
         }
     }
   
+    // ========================================================================= //
+    // 随机状态触发
+    // ========================================================================= //
+
+    /// 从状态列表中随机选择一个可用状态并切换
+    /// 1. 筛选出所有通过 is_enable() 检查的状态
+    /// 2. 随机选择一个
+    /// 3. 执行切换
+    pub fn trigger_random_state(&mut self, states: &[StateInfo]) -> Result<bool, String> {
+        // 筛选出所有通过 is_enable() 检查的状态
+        let enabled_states: Vec<&StateInfo> = states.iter()
+            .filter(|s| {
+                if s.is_enable() {
+                    true
+                } else {
+                    println!("[StateManager] 状态 '{}' 未通过时间/日期检查", s.name);
+                    false
+                }
+            })
+            .collect();
+
+        if enabled_states.is_empty() {
+            println!("[StateManager] 没有可用的状态");
+            return Ok(false);
+        }
+
+        // 随机选择一个状态
+        let selected_state = if enabled_states.len() == 1 {
+            enabled_states[0].clone()
+        } else {
+            let idx = Self::random_index(enabled_states.len());
+            enabled_states[idx].clone()
+        };
+
+        println!("[StateManager] 随机选择状态: '{}'", selected_state.name);
+
+        // 执行状态切换
+        self.change_state(selected_state)
+    }
+
+    /// 简单的随机索引生成（基于时间戳）
+    fn random_index(max: usize) -> usize {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos() as usize;
+        nanos % max
+    }
+
+    /// 生成 0.0 到 1.0 之间的随机数
+    fn random_float() -> f32 {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos();
+        (nanos % 10000) as f32 / 10000.0
+    }
+
+    // ========================================================================= //
+    // 定时触发功能
+    // ========================================================================= //
+
+    /// 设置定时触发开关
+    fn set_timer_enabled(&self, enabled: bool) {
+        if let Some(timer_enabled) = &self.timer_enabled {
+            if enabled {
+                println!("[StateManager] 启用定时触发");
+            } else {
+                println!("[StateManager] 禁用定时触发");
+            }
+            timer_enabled.store(enabled, Ordering::SeqCst);
+        }
+    }
+
+    /// 启动定时触发器线程
+    pub fn start_timer_loop(&mut self, app_handle: tauri::AppHandle) {
+        let timer_enabled = Arc::new(AtomicBool::new(false));
+        self.timer_enabled = Some(timer_enabled.clone());
+
+        std::thread::spawn(move || {
+            println!("[StateManager] 定时触发器线程启动");
+            
+            let mut last_trigger_time = SystemTime::now();
+            
+            loop {
+                // 每 1000ms 检查一次
+                std::thread::sleep(Duration::from_millis(1000));
+
+                // 检查是否启用
+                if !timer_enabled.load(Ordering::SeqCst) {
+                    last_trigger_time = SystemTime::now();
+                    continue;
+                }
+
+                // 从 AppState 获取持久状态信息
+                use tauri::Manager;
+                let state: tauri::State<crate::AppState> = app_handle.state();
+                
+                let persistent_state = {
+                    let sm = state.state_manager.lock().unwrap();
+                    sm.get_persistent_state().cloned()
+                };
+                
+                let persistent_state = match persistent_state {
+                    Some(s) => s,
+                    None => continue,
+                };
+
+                // 检查触发间隔
+                let trigger_time = persistent_state.trigger_time;
+                if trigger_time <= 0.0 {
+                    continue;
+                }
+
+                let elapsed = last_trigger_time.elapsed().unwrap_or_default();
+                if elapsed.as_secs_f32() < trigger_time {
+                    continue;
+                }
+
+                // 重置计时器
+                last_trigger_time = SystemTime::now();
+
+                // 检查触发概率
+                let trigger_rate = persistent_state.trigger_rate;
+                if trigger_rate <= 0.0 {
+                    continue;
+                }
+
+                let random_value = Self::random_float();
+                if random_value > trigger_rate {
+                    println!("[StateManager] 概率检查未通过 ({:.2} > {:.2})", random_value, trigger_rate);
+                    continue;
+                }
+
+                // 获取可触发的状态列表
+                let state_names = &persistent_state.can_trigger_states;
+                if state_names.is_empty() {
+                    continue;
+                }
+
+                println!("[StateManager] 触发随机状态，概率 {:.2} <= {:.2}", random_value, trigger_rate);
+
+                // 执行触发
+                let rm = state.resource_manager.lock().unwrap();
+                let mut sm = state.state_manager.lock().unwrap();
+                
+                // 从 ResourceManager 获取状态信息
+                let states: Vec<StateInfo> = state_names.iter()
+                    .filter_map(|name| rm.get_state_by_name(name).cloned())
+                    .collect();
+                
+                let _ = sm.trigger_random_state(&states);
+            }
+        });
+    }
+
+    // ========================================================================= //
+    // 初始化和事件
     // ========================================================================= //
 
     /// 设置 AppHandle，用于发送事件到前端

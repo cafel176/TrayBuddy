@@ -10,6 +10,7 @@ use modules::resource::{ResourceManager, StateInfo, TriggerInfo, AssetInfo, Audi
 use modules::state::StateManager;
 use modules::storage::{Storage, UserSettings, UserInfo};
 use modules::media_observer::{MediaObserver, MediaPlaybackStatus};
+use modules::trigger::TriggerManager;
 use std::sync::Mutex;
 use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition, Emitter};
 
@@ -18,11 +19,11 @@ use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, Logic
 // ========================================================================= //
 
 /// 应用全局状态，通过 Tauri 的状态管理器在各处共享
-struct AppState {
+pub struct AppState {
     /// 资源管理器：负责 Mod 的加载、卸载和资源查询
-    resource_manager: Mutex<ResourceManager>,
+    pub resource_manager: Mutex<ResourceManager>,
     /// 状态管理器：负责角色状态的切换和事件通知
-    state_manager: Mutex<StateManager>,
+    pub state_manager: Mutex<StateManager>,
     /// 存储管理器：负责用户设置和信息的持久化
     storage: Mutex<Storage>,
     /// 媒体监听器：监听系统媒体播放状态（仅保持引用，实际在独立线程运行）
@@ -234,7 +235,8 @@ fn force_change_state(name: String, state: State<'_, AppState>) -> Result<(), St
     drop(rm);
     
     let mut sm = state.state_manager.lock().unwrap();
-    let _ = sm.change_state_ex(state_info, true);
+    sm.change_state_ex(state_info, true)?;
+    
     Ok(())
 }
 
@@ -319,15 +321,16 @@ pub fn run() {
             let mut sm = StateManager::new();
             let mut storage = Storage::new(app.handle());
 
+            sm.start_timer_loop(app.handle().clone());
             sm.set_app_handle(app.handle().clone());
+
+            // ========== 启动媒体监听器（独立线程） ==========
+            start_media_observer(app.handle().clone());
 
             // ========== 记录登录时间 ==========
             let dt = get_current_datetime();
             storage.data.info.last_login = Some(dt.timestamp as i64);
             let _ = storage.save();
-
-            // ========== 启动媒体监听器（独立线程） ==========
-            start_media_observer(app.handle().clone());
 
             // ========== 自动加载上次使用的 Mod ==========
             let last_mod = &storage.data.info.current_mod;
@@ -383,6 +386,9 @@ pub fn run() {
             if let Some(idle_state) = rm.get_state_by_name(STATE_IDLE) {
                 let _ = sm.change_state(idle_state.clone());
             }
+
+            // ========== 触发 login 事件 ==========
+            let _ = TriggerManager::trigger_login(&rm, &mut sm);
 
             // ========== 注册全局状态 ==========
             app.manage(AppState {
@@ -457,33 +463,16 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
 
                 match event.status {
                     MediaPlaybackStatus::Playing => {
-                        // 检测到音乐播放，切换到 music 状态
+                        // 检测到音乐播放，触发 music_start 事件
                         let rm = state.resource_manager.lock().unwrap();
-                        if let Some(music_state) = rm.get_state_by_name("music") {
-                            let music_state = music_state.clone();
-                            drop(rm);
-                            let mut sm = state.state_manager.lock().unwrap();
-                            let _ = sm.change_state(music_state);
-                        }
+                        let mut sm = state.state_manager.lock().unwrap();
+                        let _ = TriggerManager::trigger_music_start(&rm, &mut sm);
                     }
                     MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
-                        // 音乐停止，如果当前是 music 状态则返回 idle
-                        let is_music = {
-                            let sm = state.state_manager.lock().unwrap();
-                            sm.get_persistent_state()
-                                .map(|s| s.name == "music")
-                                .unwrap_or(false)
-                        };
-                        
-                        if is_music {
-                            let rm = state.resource_manager.lock().unwrap();
-                            if let Some(idle_state) = rm.get_state_by_name(STATE_IDLE) {
-                                let idle_state = idle_state.clone();
-                                drop(rm);
-                                let mut sm = state.state_manager.lock().unwrap();
-                                let _ = sm.change_state(idle_state);
-                            }
-                        }
+                        // 音乐停止，触发 music_end 事件
+                        let rm = state.resource_manager.lock().unwrap();
+                        let mut sm = state.state_manager.lock().unwrap();
+                        let _ = TriggerManager::trigger_music_end(&rm, &mut sm);
                     }
                     _ => {}
                 }

@@ -24,3 +24,19 @@ pub const ANIMATION_BORDER: &str = "border";
 
 /// Idle 状态名称
 pub const STATE_IDLE: &str = "idle";
+
+// ========================================================================= //
+// 事件名称常量
+// ========================================================================= //
+
+/// 点击事件
+pub const EVENT_CLICK: &str = "click";
+
+/// 登录事件
+pub const EVENT_LOGIN: &str = "login";
+
+/// 音乐开始事件
+pub const EVENT_MUSIC_START: &str = "music_start";
+
+/// 音乐结束事件
+pub const EVENT_MUSIC_END: &str = "music_end";

@@ -4,3 +4,4 @@ pub mod resource;
 pub mod state;
 pub mod storage;
 pub mod media_observer;
+pub mod trigger;
