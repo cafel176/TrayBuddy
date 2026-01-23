@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprite Sheet 生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel h2 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #00d9ff;
+        }
+
+        .drop-zone {
+            border: 2px dashed rgba(0, 217, 255, 0.5);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .drop-zone p {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .frame-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .frame-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .frame-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .frame-list::-webkit-scrollbar-thumb {
+            background: #00d9ff;
+            border-radius: 3px;
+        }
+
+        .frame-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+
+        .frame-item img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            background: repeating-conic-gradient(#333 0% 25%, #444 0% 50%) 50% / 8px 8px;
+            border-radius: 4px;
+        }
+
+        .frame-item span {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .frame-item .remove-btn {
+            background: none;
+            border: none;
+            color: #ff4757;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0 5px;
+        }
+
+        .frame-item.invalid {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid rgba(255, 71, 87, 0.5);
+        }
+
+        .frame-item .size-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+        }
+
+        .frame-item.invalid .size-badge {
+            background: rgba(255, 71, 87, 0.3);
+            color: #ff4757;
+        }
+
+        .size-info {
+            background: rgba(0, 217, 255, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .size-info.show {
+            display: block;
+        }
+
+        .size-info .title {
+            font-size: 0.85rem;
+            color: #00d9ff;
+            margin-bottom: 5px;
+        }
+
+        .size-info .value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .size-warning {
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            display: none;
+            font-size: 0.85rem;
+            color: #ff4757;
+        }
+
+        .size-warning.show {
+            display: block;
+        }
+
+        .preview-area {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .preview-container {
+            flex: 1;
+            background: repeating-conic-gradient(#2a2a3a 0% 25%, #1a1a2e 0% 50%) 50% / 20px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .preview-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .preview-placeholder {
+            color: #666;
+            text-align: center;
+        }
+
+        .preview-placeholder .icon {
+            font-size: 64px;
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-item .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00d9ff;
+        }
+
+        .stat-item .label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #00d9ff;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Sprite Sheet 生成器</h1>
+        
+        <div class="main-content">
+            <div class="panel">
+                <h2>📁 导入帧图片</h2>
+                
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">📂</div>
+                    <p>拖拽PNG图片到这里<br>或点击选择文件</p>
+                </div>
+                <input type="file" id="fileInput" multiple accept="image/png">
+                
+                <div class="frame-list" id="frameList"></div>
+                
+                <div class="size-info" id="sizeInfo">
+                    <div class="title">📐 基准尺寸 (以第一张图为准)</div>
+                    <div class="value" id="baseSize">-</div>
+                </div>
+                
+                <div class="size-warning" id="sizeWarning">
+                    ⚠️ 部分图片尺寸不一致，已标红并将在生成时被忽略
+                </div>
+                
+                <button class="btn btn-secondary" id="clearBtn" style="display: none;">清空所有帧</button>
+                
+                <h2 style="margin-top: 30px;">⚙️ 设置</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>列数</label>
+                        <input type="number" id="columns" value="4" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>行数 (0=自动)</label>
+                        <input type="number" id="rows" value="0" min="0" max="100">
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="reverseOrder">
+                    <label for="reverseOrder">按名称倒序排列</label>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="customSize">
+                    <label for="customSize">自定义帧尺寸</label>
+                </div>
+                
+                <div class="form-row" id="sizeInputs" style="display: none;">
+                    <div class="form-group">
+                        <label>帧宽度 (px)</label>
+                        <input type="number" id="frameWidth" value="64" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>帧高度 (px)</label>
+                        <input type="number" id="frameHeight" value="64" min="1">
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" id="generateBtn" disabled>生成 Sprite Sheet</button>
+                <button class="btn btn-secondary" id="downloadBtn" style="display: none;">💾 下载 PNG</button>
+            </div>
+            
+            <div class="panel preview-area">
+                <h2>👁️ 预览</h2>
+                <div class="preview-container" id="previewContainer">
+                    <div class="preview-placeholder">
+                        <div class="icon">🖼️</div>
+                        <p>导入图片后生成预览</p>
+                    </div>
+                </div>
+                <div class="stats" id="stats" style="display: none;">
+                    <div class="stat-item">
+                        <div class="value" id="statFrames">0</div>
+                        <div class="label">帧数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value" id="statSize">0x0</div>
+                        <div class="label">输出尺寸</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value" id="statLayout">0x0</div>
+                        <div class="label">布局 (列x行)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const frameList = document.getElementById('frameList');
+        const clearBtn = document.getElementById('clearBtn');
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const previewContainer = document.getElementById('previewContainer');
+        const columnsInput = document.getElementById('columns');
+        const rowsInput = document.getElementById('rows');
+        const customSizeCheckbox = document.getElementById('customSize');
+        const sizeInputs = document.getElementById('sizeInputs');
+        const frameWidthInput = document.getElementById('frameWidth');
+        const frameHeightInput = document.getElementById('frameHeight');
+        const reverseOrderCheckbox = document.getElementById('reverseOrder');
+        const stats = document.getElementById('stats');
+        const sizeInfo = document.getElementById('sizeInfo');
+        const baseSize = document.getElementById('baseSize');
+        const sizeWarning = document.getElementById('sizeWarning');
+
+        let frames = [];
+        let generatedCanvas = null;
+        let baseDimensions = null; // 基准尺寸
+
+        // 自然排序
+        function naturalSort(a, b) {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        }
+
+        // 排序帧列表
+        function sortFrames() {
+            frames.sort((a, b) => {
+                const result = naturalSort(a, b);
+                return reverseOrderCheckbox.checked ? -result : result;
+            });
+        }
+
+        // 拖拽事件
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'image/png');
+            addFiles(files);
+        });
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            addFiles(files);
+            fileInput.value = '';
+        });
+
+        // 添加文件
+        async function addFiles(files) {
+            for (const file of files) {
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+                
+                await new Promise((resolve) => {
+                    img.onload = () => {
+                        frames.push({
+                            name: file.name,
+                            img: img,
+                            url: url,
+                            width: img.width,
+                            height: img.height
+                        });
+                        resolve();
+                    };
+                    img.src = url;
+                });
+            }
+            
+            frames.sort((a, b) => {
+                const result = naturalSort(a, b);
+                return reverseOrderCheckbox.checked ? -result : result;
+            });
+            
+            // 设置基准尺寸（以排序后的第一张图为准）
+            updateBaseDimensions();
+            updateFrameList();
+            updateUI();
+        }
+
+        // 更新基准尺寸
+        function updateBaseDimensions() {
+            if (frames.length > 0) {
+                baseDimensions = {
+                    width: frames[0].width,
+                    height: frames[0].height
+                };
+                sizeInfo.classList.add('show');
+                baseSize.textContent = `${baseDimensions.width} × ${baseDimensions.height} px`;
+            } else {
+                baseDimensions = null;
+                sizeInfo.classList.remove('show');
+                baseSize.textContent = '-';
+            }
+            checkSizeConsistency();
+        }
+
+        // 检查尺寸一致性
+        function checkSizeConsistency() {
+            if (!baseDimensions || frames.length <= 1) {
+                sizeWarning.classList.remove('show');
+                return;
+            }
+            
+            const hasInvalidFrames = frames.some(frame => 
+                frame.width !== baseDimensions.width || frame.height !== baseDimensions.height
+            );
+            
+            if (hasInvalidFrames) {
+                sizeWarning.classList.add('show');
+            } else {
+                sizeWarning.classList.remove('show');
+            }
+        }
+
+        // 判断帧是否有效（尺寸一致）
+        function isFrameValid(frame) {
+            if (!baseDimensions) return true;
+            return frame.width === baseDimensions.width && frame.height === baseDimensions.height;
+        }
+
+        // 获取有效帧列表
+        function getValidFrames() {
+            return frames.filter(frame => isFrameValid(frame));
+        }
+
+        // 更新帧列表
+        function updateFrameList() {
+            frameList.innerHTML = frames.map((frame, index) => {
+                const valid = isFrameValid(frame);
+                const invalidClass = valid ? '' : ' invalid';
+                const sizeText = `${frame.width}×${frame.height}`;
+                return `
+                    <div class="frame-item${invalidClass}">
+                        <img src="${frame.url}" alt="${frame.name}">
+                        <span>${frame.name}</span>
+                        <span class="size-badge">${sizeText}</span>
+                        <button class="remove-btn" onclick="removeFrame(${index})">×</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 移除帧
+        function removeFrame(index) {
+            URL.revokeObjectURL(frames[index].url);
+            frames.splice(index, 1);
+            // 如果删除的是第一张图，需要重新设置基准尺寸
+            updateBaseDimensions();
+            updateFrameList();
+            updateUI();
+        }
+
+        // 清空所有帧
+        clearBtn.addEventListener('click', () => {
+            frames.forEach(f => URL.revokeObjectURL(f.url));
+            frames = [];
+            baseDimensions = null;
+            sizeInfo.classList.remove('show');
+            sizeWarning.classList.remove('show');
+            baseSize.textContent = '-';
+            updateFrameList();
+            updateUI();
+            previewContainer.innerHTML = `
+                <div class="preview-placeholder">
+                    <div class="icon">🖼️</div>
+                    <p>导入图片后生成预览</p>
+                </div>
+            `;
+            stats.style.display = 'none';
+            downloadBtn.style.display = 'none';
+        });
+
+        // 更新UI状态
+        function updateUI() {
+            const validFrames = getValidFrames();
+            const hasValidFrames = validFrames.length > 0;
+            generateBtn.disabled = !hasValidFrames;
+            clearBtn.style.display = frames.length > 0 ? 'block' : 'none';
+        }
+
+        // 自定义尺寸复选框
+        customSizeCheckbox.addEventListener('change', () => {
+            sizeInputs.style.display = customSizeCheckbox.checked ? 'grid' : 'none';
+        });
+
+        // 生成Sprite Sheet
+        generateBtn.addEventListener('click', generateSpriteSheet);
+
+        function generateSpriteSheet() {
+            const validFrames = getValidFrames();
+            if (validFrames.length === 0) return;
+
+            const columns = parseInt(columnsInput.value) || 4;
+            let rows = parseInt(rowsInput.value) || 0;
+            
+            // 计算行数
+            if (rows === 0) {
+                rows = Math.ceil(validFrames.length / columns);
+            }
+
+            // 计算帧尺寸
+            let frameWidth, frameHeight;
+            if (customSizeCheckbox.checked) {
+                frameWidth = parseInt(frameWidthInput.value) || 64;
+                frameHeight = parseInt(frameHeightInput.value) || 64;
+            } else {
+                frameWidth = Math.max(...validFrames.map(f => f.width));
+                frameHeight = Math.max(...validFrames.map(f => f.height));
+            }
+
+            // 创建Canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = columns * frameWidth;
+            canvas.height = rows * frameHeight;
+            const ctx = canvas.getContext('2d');
+
+            // 清空画布（透明背景）
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制每一帧（只绘制有效帧）
+            validFrames.forEach((frame, index) => {
+                if (index >= columns * rows) return;
+                
+                const col = index % columns;
+                const row = Math.floor(index / columns);
+                
+                const x = col * frameWidth;
+                const y = row * frameHeight;
+                
+                // 居中绘制
+                const offsetX = (frameWidth - frame.width) / 2;
+                const offsetY = (frameHeight - frame.height) / 2;
+                
+                ctx.drawImage(frame.img, x + offsetX, y + offsetY);
+            });
+
+            generatedCanvas = canvas;
+
+            // 显示预览
+            previewContainer.innerHTML = '';
+            const previewImg = document.createElement('img');
+            previewImg.src = canvas.toDataURL('image/png');
+            previewContainer.appendChild(previewImg);
+
+            // 更新统计
+            stats.style.display = 'grid';
+            document.getElementById('statFrames').textContent = validFrames.length;
+            document.getElementById('statSize').textContent = `${canvas.width}x${canvas.height}`;
+            document.getElementById('statLayout').textContent = `${columns}x${rows}`;
+
+            downloadBtn.style.display = 'block';
+        }
+
+        // 下载
+        downloadBtn.addEventListener('click', () => {
+            if (!generatedCanvas) return;
+            
+            const link = document.createElement('a');
+            link.download = 'spritesheet.png';
+            link.href = generatedCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // 输入变化时自动重新生成
+        [columnsInput, rowsInput, frameWidthInput, frameHeightInput].forEach(input => {
+            input.addEventListener('change', () => {
+                if (frames.length > 0 && generatedCanvas) {
+                    generateSpriteSheet();
+                }
+            });
+        });
+
+        customSizeCheckbox.addEventListener('change', () => {
+            if (frames.length > 0 && generatedCanvas) {
+                generateSpriteSheet();
+            }
+        });
+
+        // 倒序开关变化时重新排序并生成
+        reverseOrderCheckbox.addEventListener('change', () => {
+            if (frames.length > 0) {
+                sortFrames();
+                // 重新排序后需要更新基准尺寸（第一张图可能变了）
+                updateBaseDimensions();
+                updateFrameList();
+                if (generatedCanvas) {
+                    generateSpriteSheet();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

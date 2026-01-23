@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrayBuddy Mod Editor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部工具栏 -->
+    <header class="toolbar">
+      <div class="toolbar-left">
+        <h1>🎨 TrayBuddy Mod Editor</h1>
+        <span class="mod-name" id="currentModName">未加载 Mod</span>
+      </div>
+      <div class="toolbar-right">
+        <a href="tutorial.html" class="btn btn-ghost" style="text-decoration: none;">📖 使用教程</a>
+        <button class="btn btn-secondary" onclick="loadModFolder()">📂 打开 Mod</button>
+        <button class="btn btn-primary" onclick="createNewMod()">➕ 新建 Mod</button>
+        <button class="btn btn-success" onclick="saveMod()" id="saveBtn" disabled>💾 保存</button>
+        <button class="btn btn-info" onclick="exportMod()" id="exportBtn" disabled>📦 导出</button>
+      </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 侧边导航 -->
+      <nav class="sidebar">
+        <ul class="nav-list">
+          <li class="nav-item active" data-tab="manifest">
+            <span class="nav-icon">📋</span>
+            <span class="nav-text">基本信息</span>
+          </li>
+          <li class="nav-item" data-tab="states">
+            <span class="nav-icon">🎭</span>
+            <span class="nav-text">状态管理</span>
+          </li>
+          <li class="nav-item" data-tab="triggers">
+            <span class="nav-icon">⚡</span>
+            <span class="nav-text">触发器</span>
+          </li>
+          <li class="nav-item" data-tab="assets">
+            <span class="nav-icon">🖼️</span>
+            <span class="nav-text">动画资源</span>
+          </li>
+          <li class="nav-item" data-tab="texts">
+            <span class="nav-icon">💬</span>
+            <span class="nav-text">文本管理</span>
+          </li>
+          <li class="nav-item" data-tab="audio">
+            <span class="nav-icon">🔊</span>
+            <span class="nav-text">音频管理</span>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- 内容面板 -->
+      <div class="content-panel">
+        <!-- 空状态 -->
+        <div class="tab-content active" id="tab-empty">
+          <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <h2>欢迎使用 Mod Editor</h2>
+            <p>点击「打开 Mod」加载现有 Mod 文件夹，或点击「新建 Mod」创建一个全新的 Mod</p>
+            <div class="empty-actions">
+              <button class="btn btn-large btn-secondary" onclick="loadModFolder()">📂 打开现有 Mod</button>
+              <button class="btn btn-large btn-primary" onclick="createNewMod()">➕ 创建新 Mod</button>
+            </div>
+            <p style="margin-top: 24px; color: #64748b;">
+              首次使用？查看 <a href="tutorial.html" style="color: #6366f1;">📖 使用教程</a>
+            </p>
+          </div>
+        </div>
+
+        <!-- 基本信息 Tab -->
+        <div class="tab-content" id="tab-manifest">
+          <div class="panel-header">
+            <h2>📋 基本信息</h2>
+            <p class="panel-desc">配置 Mod 的基本信息、角色和边框设置</p>
+          </div>
+          <div class="panel-body">
+            <!-- Mod 基础信息 -->
+            <section class="form-section">
+              <h3>Mod 信息</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="mod-id">Mod ID <span class="required">*</span></label>
+                  <input type="text" id="mod-id" placeholder="例如: ema" required>
+                  <small>唯一标识符，只允许英文和数字</small>
+                </div>
+                <div class="form-group">
+                  <label for="mod-version">版本号</label>
+                  <input type="text" id="mod-version" placeholder="例如: 1.0.0" value="1.0.0">
+                </div>
+                <div class="form-group">
+                  <label for="mod-author">作者</label>
+                  <input type="text" id="mod-author" placeholder="你的名字">
+                </div>
+              </div>
+            </section>
+
+            <!-- 语言设置 -->
+            <section class="form-section">
+              <h3>语言设置</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="default-audio-lang">默认音频语言</label>
+                  <input type="text" id="default-audio-lang" placeholder="例如: jp">
+                </div>
+                <div class="form-group">
+                  <label for="default-text-lang">默认文本语言</label>
+                  <input type="text" id="default-text-lang" placeholder="例如: zh">
+                </div>
+              </div>
+            </section>
+
+            <!-- 角色配置 -->
+            <section class="form-section">
+              <h3>角色配置</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="character-z-offset">Z轴偏移 (渲染层级)</label>
+                  <input type="number" id="character-z-offset" value="1" min="0">
+                </div>
+              </div>
+            </section>
+
+            <!-- 边框配置 -->
+            <section class="form-section">
+              <h3>边框配置</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="border-anima">边框动画名称</label>
+                  <select id="border-anima">
+                    <option value="">-- 选择动画 --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="border-enable">启用边框</label>
+                  <label class="switch">
+                    <input type="checkbox" id="border-enable" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label for="border-z-offset">Z轴偏移</label>
+                  <input type="number" id="border-z-offset" value="2" min="0">
+                </div>
+              </div>
+            </section>
+
+            <!-- 预览图 -->
+            <section class="form-section">
+              <h3>预览图</h3>
+              <div class="preview-upload">
+                <div class="preview-image" id="preview-image">
+                  <span class="preview-placeholder">点击上传预览图</span>
+                </div>
+                <input type="file" id="preview-file" accept="image/png" hidden>
+                <button class="btn btn-secondary" onclick="document.getElementById('preview-file').click()">选择图片</button>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- 状态管理 Tab -->
+        <div class="tab-content" id="tab-states">
+          <div class="panel-header">
+            <h2>🎭 状态管理</h2>
+            <p class="panel-desc">管理角色的各种状态和对话分支</p>
+          </div>
+          <div class="panel-body">
+            <!-- 重要状态 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>重要状态 (Idle)</h3>
+              </div>
+              <div class="state-card" id="idle-state-card">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+
+            <!-- 状态列表 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>状态列表</h3>
+                <button class="btn btn-sm btn-primary" onclick="addState()">➕ 添加状态</button>
+              </div>
+              <div class="state-list" id="state-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- 触发器 Tab -->
+        <div class="tab-content" id="tab-triggers">
+          <div class="panel-header">
+            <h2>⚡ 触发器</h2>
+            <p class="panel-desc">配置事件触发时可能切换的状态</p>
+          </div>
+          <div class="panel-body">
+            <section class="form-section">
+              <div class="section-header">
+                <h3>触发器列表</h3>
+                <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ 添加触发器</button>
+              </div>
+              <div class="trigger-list" id="trigger-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+            <section class="form-section">
+              <h3>预设事件说明</h3>
+              <div class="event-docs">
+                <div class="event-doc-item">
+                  <code>click</code>
+                  <span>用户点击角色时触发</span>
+                </div>
+                <div class="event-doc-item">
+                  <code>login</code>
+                  <span>程序启动/用户登录时触发</span>
+                </div>
+                <div class="event-doc-item">
+                  <code>music_start</code>
+                  <span>检测到音乐播放时触发</span>
+                </div>
+                <div class="event-doc-item">
+                  <code>music_end</code>
+                  <span>检测到音乐停止时触发</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- 动画资源 Tab -->
+        <div class="tab-content" id="tab-assets">
+          <div class="panel-header">
+            <h2>🖼️ 动画资源</h2>
+            <p class="panel-desc">管理序列帧动画和静态图片资源</p>
+          </div>
+          <div class="panel-body">
+            <!-- 序列帧动画 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>序列帧动画 (sequence.json)</h3>
+                <button class="btn btn-sm btn-primary" onclick="addAsset('sequence')">➕ 添加动画</button>
+              </div>
+              <div class="asset-list" id="sequence-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+
+            <!-- 杂图 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>杂图资源 (img.json)</h3>
+                <button class="btn btn-sm btn-primary" onclick="addAsset('img')">➕ 添加图片</button>
+              </div>
+              <div class="asset-list" id="img-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- 文本管理 Tab -->
+        <div class="tab-content" id="tab-texts">
+          <div class="panel-header">
+            <h2>💬 文本管理</h2>
+            <p class="panel-desc">管理多语言文本和角色信息</p>
+          </div>
+          <div class="panel-body">
+            <!-- 语言选择 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>语言</h3>
+                <button class="btn btn-sm btn-primary" onclick="addLanguage()">➕ 添加语言</button>
+              </div>
+              <div class="lang-tabs" id="text-lang-tabs">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+
+            <!-- 角色信息 -->
+            <section class="form-section">
+              <h3>角色信息 (info.json)</h3>
+              <div class="form-grid" id="text-info-form">
+                <div class="form-group">
+                  <label>语言ID</label>
+                  <input type="text" id="text-lang-id" placeholder="例如: zh">
+                </div>
+                <div class="form-group">
+                  <label>语言名称</label>
+                  <input type="text" id="text-lang-name" placeholder="例如: 简体中文">
+                </div>
+                <div class="form-group">
+                  <label>角色名称</label>
+                  <input type="text" id="text-char-name" placeholder="角色显示名">
+                </div>
+                <div class="form-group full-width">
+                  <label>角色描述</label>
+                  <textarea id="text-char-desc" rows="3" placeholder="角色描述..."></textarea>
+                </div>
+              </div>
+            </section>
+
+            <!-- 对话文本 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>对话文本 (speech.json)</h3>
+                <button class="btn btn-sm btn-primary" onclick="addSpeechText()">➕ 添加文本</button>
+              </div>
+              <div class="speech-list" id="speech-text-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- 音频管理 Tab -->
+        <div class="tab-content" id="tab-audio">
+          <div class="panel-header">
+            <h2>🔊 音频管理</h2>
+            <p class="panel-desc">管理多语言音频资源</p>
+          </div>
+          <div class="panel-body">
+            <!-- 语言选择 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>语言</h3>
+                <button class="btn btn-sm btn-primary" onclick="addAudioLanguage()">➕ 添加语言</button>
+              </div>
+              <div class="lang-tabs" id="audio-lang-tabs">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+
+            <!-- 音频列表 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>音频文件 (speech.json)</h3>
+                <button class="btn btn-sm btn-primary" onclick="addAudioEntry()">➕ 添加音频</button>
+              </div>
+              <div class="audio-list" id="audio-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 状态编辑弹窗 -->
+  <div class="modal" id="state-modal">
+    <div class="modal-overlay" onclick="closeStateModal()"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="state-modal-title">编辑状态</h3>
+        <button class="modal-close" onclick="closeStateModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>状态名称 <span class="required">*</span></label>
+            <input type="text" id="state-name" placeholder="例如: morning">
+          </div>
+          <div class="form-group">
+            <label>是否持久</label>
+            <label class="switch">
+              <input type="checkbox" id="state-persistent">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>关联动画</label>
+            <select id="state-anima">
+              <option value="">-- 选择动画 --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>关联音频</label>
+            <input type="text" id="state-audio" placeholder="音频名称">
+          </div>
+          <div class="form-group">
+            <label>关联文本</label>
+            <input type="text" id="state-text" placeholder="文本名称">
+          </div>
+          <div class="form-group">
+            <label>优先级</label>
+            <input type="number" id="state-priority" value="2" min="0">
+          </div>
+          <div class="form-group">
+            <label>开始日期 (MM-DD)</label>
+            <input type="text" id="state-date-start" placeholder="例如: 01-01">
+          </div>
+          <div class="form-group">
+            <label>结束日期 (MM-DD)</label>
+            <input type="text" id="state-date-end" placeholder="例如: 12-31">
+          </div>
+          <div class="form-group">
+            <label>开始时间 (HH:MM)</label>
+            <input type="text" id="state-time-start" placeholder="例如: 06:00">
+          </div>
+          <div class="form-group">
+            <label>结束时间 (HH:MM)</label>
+            <input type="text" id="state-time-end" placeholder="例如: 12:00">
+          </div>
+          <div class="form-group">
+            <label>下一状态</label>
+            <input type="text" id="state-next-state" placeholder="自动跳转的状态名">
+          </div>
+          <div class="form-group">
+            <label>触发间隔 (秒)</label>
+            <input type="number" id="state-trigger-time" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>触发概率 (0-1)</label>
+            <input type="number" id="state-trigger-rate" value="0" min="0" max="1" step="0.1">
+          </div>
+          <div class="form-group full-width">
+            <label>可触发子状态 (逗号分隔)</label>
+            <input type="text" id="state-can-trigger" placeholder="例如: state1, state2">
+          </div>
+        </div>
+        
+        <!-- 分支选项 -->
+        <div class="branch-section">
+          <div class="section-header">
+            <h4>对话分支</h4>
+            <button class="btn btn-sm btn-secondary" onclick="addBranch()">➕ 添加分支</button>
+          </div>
+          <div class="branch-list" id="branch-list">
+            <!-- 由 JS 动态填充 -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeStateModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveState()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 资源编辑弹窗 -->
+  <div class="modal" id="asset-modal">
+    <div class="modal-overlay" onclick="closeAssetModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="asset-modal-title">编辑动画资源</h3>
+        <button class="modal-close" onclick="closeAssetModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>名称 <span class="required">*</span></label>
+            <input type="text" id="asset-name" placeholder="例如: wink">
+          </div>
+          <div class="form-group">
+            <label>图片路径</label>
+            <input type="text" id="asset-img" placeholder="例如: sequence/wink.png">
+          </div>
+          <div class="form-group">
+            <label>是否序列帧</label>
+            <label class="switch">
+              <input type="checkbox" id="asset-sequence" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>原始反向</label>
+            <label class="switch">
+              <input type="checkbox" id="asset-origin-reverse">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>需要反向播放</label>
+            <label class="switch">
+              <input type="checkbox" id="asset-need-reverse" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>帧间隔 (秒)</label>
+            <input type="number" id="asset-frame-time" value="0.1" min="0.01" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>帧宽度 (px)</label>
+            <input type="number" id="asset-frame-size-x" value="260" min="1">
+          </div>
+          <div class="form-group">
+            <label>帧高度 (px)</label>
+            <input type="number" id="asset-frame-size-y" value="298" min="1">
+          </div>
+          <div class="form-group">
+            <label>横向帧数</label>
+            <input type="number" id="asset-frame-num-x" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label>纵向帧数</label>
+            <input type="number" id="asset-frame-num-y" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label>X偏移 (px)</label>
+            <input type="number" id="asset-offset-x" value="0">
+          </div>
+          <div class="form-group">
+            <label>Y偏移 (px)</label>
+            <input type="number" id="asset-offset-y" value="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAssetModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveAsset()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新建 Mod 弹窗 -->
+  <div class="modal" id="new-mod-modal">
+    <div class="modal-overlay" onclick="closeNewModModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>创建新 Mod</h3>
+        <button class="modal-close" onclick="closeNewModModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Mod ID <span class="required">*</span></label>
+          <input type="text" id="new-mod-id" placeholder="例如: my_character">
+          <small>唯一标识符，只允许英文、数字和下划线</small>
+        </div>
+        <div class="form-group">
+          <label>Mod 名称</label>
+          <input type="text" id="new-mod-name" placeholder="角色名称">
+        </div>
+        <div class="form-group">
+          <label>作者</label>
+          <input type="text" id="new-mod-author" placeholder="你的名字">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeNewModModal()">取消</button>
+        <button class="btn btn-primary" onclick="confirmCreateMod()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 通知 -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

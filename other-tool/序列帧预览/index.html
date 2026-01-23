@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Sprite 预览助手</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ Anime Sprite Previewer</h1>
+            <p>即时预览序列帧动态效果</p>
+        </header>
+
+        <main>
+            <div class="upload-section" id="drop-zone">
+                <input type="file" id="file-input" accept="image/*" hidden>
+                <div class="upload-content">
+                    <div class="icon">🖼️</div>
+                    <p>点击或拖拽 Sprite Sheet 到这里</p>
+                    <span class="hint">支持 PNG, JPG, WebP</span>
+                </div>
+            </div>
+
+            <div class="preview-layout" id="app-content" style="display: none;">
+                <div class="preview-card">
+                    <div id="sprite-view"></div>
+                </div>
+
+                <div class="controls-card">
+                    <div class="control-group">
+                        <label>网格设置 (行数 × 列数)</label>
+                        <div class="input-row">
+                            <input type="number" id="rows" value="1" min="1" placeholder="行数">
+                            <span>×</span>
+                            <input type="number" id="cols" value="5" min="1" placeholder="列数">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label>单帧尺寸 (宽 × 高)</label>
+                        <div class="input-row">
+                            <input type="number" id="frame-w" placeholder="宽度">
+                            <span>×</span>
+                            <input type="number" id="frame-h" placeholder="高度">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label>播放速度 (FPS: <span id="fps-val">10</span>)</label>
+                        <input type="range" id="fps" min="1" max="60" value="10">
+                    </div>
+
+                    <div class="control-group">
+                        <label>当前状态</label>
+                        <div class="status-info">
+                            帧大小: <span id="frame-size">260 x 300</span> px
+                        </div>
+                    </div>
+
+                    <button id="reset-btn" class="secondary-btn">更换图片</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

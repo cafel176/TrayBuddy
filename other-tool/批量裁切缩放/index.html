@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>批量裁切缩放工具</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div>
+        <h1>批量裁切缩放工具</h1>
+        <p class="subtitle">先四向裁切，后按百分比缩放。适用于一组大小相同的图片批量处理。</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>1) 选择图片</h2>
+      <div class="row">
+        <input id="fileInput" type="file" accept="image/*" multiple />
+        <button id="clearBtn" class="btn btn-ghost" type="button">清空</button>
+      </div>
+      <div class="hint">支持批量选择 PNG/JPG/WebP 等图片；处理完全在本地浏览器内完成。</div>
+      <div class="info-box" id="imageInfo">
+        <span>图片信息：</span>
+        <span id="imageCount">未选择</span>
+        <span id="imageSizeInfo"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2) 四向裁切设置（单位：像素）</h2>
+      <div class="crop-grid">
+        <div class="crop-top">
+          <label for="cropTop">上</label>
+          <input id="cropTop" type="number" min="0" step="1" value="0" />
+        </div>
+        <div class="crop-middle">
+          <div class="crop-left">
+            <label for="cropLeft">左</label>
+            <input id="cropLeft" type="number" min="0" step="1" value="0" />
+          </div>
+          <div class="crop-preview" id="cropPreview">
+            <div class="preview-box">
+              <div class="preview-inner" id="previewInner"></div>
+            </div>
+            <div class="preview-label" id="cropSizeLabel">裁切后：- × -</div>
+          </div>
+          <div class="crop-right">
+            <label for="cropRight">右</label>
+            <input id="cropRight" type="number" min="0" step="1" value="0" />
+          </div>
+        </div>
+        <div class="crop-bottom">
+          <label for="cropBottom">下</label>
+          <input id="cropBottom" type="number" min="0" step="1" value="0" />
+        </div>
+      </div>
+      <div class="hint">输入从各个方向裁切的像素数，裁切后的区域会在预览框中显示。</div>
+    </section>
+
+    <section class="card">
+      <h2>3) 缩放设置</h2>
+      <div class="grid">
+        <div class="field">
+          <label class="checkbox">
+            <input id="lockAspect" type="checkbox" checked />
+            保持长宽比
+          </label>
+          <div class="hint">勾选后，宽高按相同百分比缩放；取消勾选可分别设置宽高缩放比例。</div>
+        </div>
+
+        <div class="field" id="uniformScaleField">
+          <label for="scalePercent">缩放比例（%）</label>
+          <input id="scalePercent" type="number" min="1" max="1000" step="1" value="100" />
+          <div class="hint">100% 表示不缩放，50% 表示缩小一半，200% 表示放大一倍。</div>
+        </div>
+
+        <div class="field" id="separateScaleField" hidden>
+          <label>分别设置宽高缩放比例（%）</label>
+          <div class="row" style="gap:8px;margin-top:6px;">
+            <div style="flex:1">
+              <label for="scaleWidth" style="font-size:11px;color:var(--muted)">宽度缩放（%）</label>
+              <input id="scaleWidth" type="number" min="1" max="1000" step="1" value="100" />
+            </div>
+            <div style="flex:1">
+              <label for="scaleHeight" style="font-size:11px;color:var(--muted)">高度缩放（%）</label>
+              <input id="scaleHeight" type="number" min="1" max="1000" step="1" value="100" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>缩放后尺寸预览</label>
+          <div class="mono" id="scaleSizePreview">-</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4) 输出设置</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="outFormat">输出格式</label>
+          <select id="outFormat">
+            <option value="image/png" selected>PNG（推荐，清晰）</option>
+            <option value="image/jpeg">JPG（更小）</option>
+          </select>
+        </div>
+
+        <div class="field" id="jpegQualityField" hidden>
+          <label for="jpegQuality">JPG 质量（0.6 - 1.0）</label>
+          <input id="jpegQuality" type="number" min="0.6" max="1" step="0.05" value="0.92" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>5) 处理与导出</h2>
+      <div class="row">
+        <button id="processBtn" class="btn" type="button">开始处理并下载 ZIP</button>
+        <div id="status" class="status">未开始</div>
+      </div>
+
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>文件</th>
+              <th>原始尺寸</th>
+              <th>裁切后尺寸</th>
+              <th>缩放后尺寸</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody id="fileTableBody">
+            <tr><td colspan="5" class="empty">未选择图片</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="hint">离线本地工具：无需安装，无需上传服务器。</div>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
