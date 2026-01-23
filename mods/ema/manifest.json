@@ -25,10 +25,11 @@
       "time_start" : "",
       "time_end" : "",
       "next_state" : "",
-      "can_trigger_states" :[        
+      "can_trigger_states" :[
+        "hello1_1"        
       ],
-      "trigger_time" : 0,
-      "trigger_rate" : 0.1,
+      "trigger_time" : 300,
+      "trigger_rate" : 0.4,
       "branch" :[]
     }
   },

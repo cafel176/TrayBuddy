@@ -462,17 +462,16 @@ pub fn run() {
             // login 事件由前端触发
 
             sm.set_app_handle(app.handle().clone());
-
+            // 启动定时触发器和设置事件发送器
+            sm.start_timer_loop(app.handle().clone()); 
+            
             // 注册全局状态
             app.manage(AppState {
                 resource_manager: rm,
                 state_manager: Mutex::new(sm),
                 storage: Mutex::new(storage),
                 media_observer: Mutex::new(None),
-            });
-
-            // 启动定时触发器和设置事件发送器
-            //sm.start_timer_loop(app.handle().clone());           
+            });          
 
             // 启动媒体监听器
             start_media_observer(app.handle().clone());
