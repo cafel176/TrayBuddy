@@ -351,7 +351,7 @@ export class SpriteAnimator {
 
       // 4. 构建配置
       // 将 Windows 路径分隔符统一为正斜杠，然后通过 convertFileSrc 转换为可访问的 URL
-      const rawPath = `${modPath}/assets/${asset.img}`;
+      const rawPath = `${modPath}/asset/${asset.img}`;
       const normalizedPath = rawPath.replace(/\\/g, '/');
       const imgSrc = convertFileSrc(normalizedPath);
 
@@ -406,7 +406,7 @@ export class SpriteAnimator {
       }
 
       // 3. 构建配置
-      const rawPath = `${modPath}/assets/${asset.img}`;
+      const rawPath = `${modPath}/asset/${asset.img}`;
       const normalizedPath = rawPath.replace(/\\/g, '/');
       const imgSrc = convertFileSrc(normalizedPath);
 
@@ -486,7 +486,7 @@ export class SpriteAnimator {
       }
 
       // 4. 构建配置
-      const rawPath = `${modPath}/assets/${asset.img}`;
+      const rawPath = `${modPath}/asset/${asset.img}`;
       const normalizedPath = rawPath.replace(/\\/g, '/');
       const imgSrc = convertFileSrc(normalizedPath);
 
@@ -543,7 +543,7 @@ export class SpriteAnimator {
       }
 
       // 3. 构建配置
-      const rawPath = `${modPath}/assets/${asset.img}`;
+      const rawPath = `${modPath}/asset/${asset.img}`;
       const normalizedPath = rawPath.replace(/\\/g, '/');
       const imgSrc = convertFileSrc(normalizedPath);
 

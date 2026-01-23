@@ -466,7 +466,7 @@
           <div class="tab-content grid">
             {#each currentModInfo.imgs as img}
               <div class="asset-card">
-                <button class="link-btn asset-name" onclick={() => openAssetFile(`assets/${img.img}`)} title="打开文件">
+                <button class="link-btn asset-name" onclick={() => openAssetFile(`asset/${img.img}`)} title="打开文件">
                   {img.name}
                 </button>
                 <div class="asset-file">{img.img}</div>
@@ -485,7 +485,7 @@
           <div class="tab-content grid">
             {#each currentModInfo.sequences as seq}
               <div class="asset-card sequence">
-                <button class="link-btn asset-name" onclick={() => openAssetFile(`assets/${seq.img}`)} title="打开文件">
+                <button class="link-btn asset-name" onclick={() => openAssetFile(`asset/${seq.img}`)} title="打开文件">
                   {seq.name}
                 </button>
                 <div class="asset-file">{seq.img}</div>
