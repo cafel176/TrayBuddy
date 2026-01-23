@@ -4,7 +4,14 @@
   "author": "Cafel", 
   "default_audio_lang_id" : "jp",
   "default_text_lang_id" : "zh",
-  "border_anima" : "border",
+    "character" : {
+    "z_offset" : 1
+  },
+  "border" : {
+    "anima" : "border",
+    "enable" : true,
+    "z_offset" : 2
+  },
   "important_states": {
     "idle": {
       "name" : "idle",

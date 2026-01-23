@@ -157,11 +157,18 @@ fn get_mod_path(state: State<'_, AppState>) -> Option<String> {
     rm.current_mod.as_ref().map(|m| m.path.to_string_lossy().into_owned())
 }
 
-/// 获取边框动画资源名称
+/// 获取边框配置
 #[tauri::command]
-fn get_border_anima(state: State<'_, AppState>) -> Option<String> {
+fn get_border_config(state: State<'_, AppState>) -> Option<resource::BorderConfig> {
     let rm = state.resource_manager.lock().unwrap();
-    rm.current_mod.as_ref().map(|m| m.manifest.border_anima.clone())
+    rm.current_mod.as_ref().map(|m| m.manifest.border.clone())
+}
+
+/// 获取角色配置
+#[tauri::command]
+fn get_character_config(state: State<'_, AppState>) -> Option<resource::CharacterConfig> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.current_mod.as_ref().map(|m| m.manifest.character.clone())
 }
 
 /// 根据名称获取状态信息
@@ -472,7 +479,8 @@ pub fn run() {
             unload_mod,
             get_current_mod,
             get_mod_path,
-            get_border_anima,
+            get_border_config,
+            get_character_config,
             get_state_by_name,
             get_trigger_by_event,
             get_asset_by_name,

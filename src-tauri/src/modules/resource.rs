@@ -132,6 +132,8 @@ pub struct CharacterInfo {
     pub lang: String,
     /// 角色在该语言下的名字
     pub name: String,
+    /// 角色描述
+    pub description: String,
 }
 
 impl Default for CharacterInfo {
@@ -140,6 +142,7 @@ impl Default for CharacterInfo {
             id: default_name(),
             lang: default_name(),
             name: "Default".to_string(),
+            description: String::new(),
         }
     }
 }
@@ -332,6 +335,52 @@ impl Default for TriggerInfo {
 }
 
 // ========================================================================= //
+// 角色配置定义
+// ========================================================================= //
+
+/// 角色渲染配置
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct CharacterConfig {
+    /// Z轴偏移（渲染层级）
+    pub z_offset: i32,
+}
+
+impl Default for CharacterConfig {
+    fn default() -> Self {
+        Self {
+            z_offset: 1,
+        }
+    }
+}
+
+// ========================================================================= //
+// 边框配置定义
+// ========================================================================= //
+
+/// 边框配置
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct BorderConfig {
+    /// 边框动画资产名称
+    pub anima: String,
+    /// 是否启用边框
+    pub enable: bool,
+    /// Z轴偏移（渲染层级）
+    pub z_offset: i32,
+}
+
+impl Default for BorderConfig {
+    fn default() -> Self {
+        Self {
+            anima: String::new(),
+            enable: true,
+            z_offset: 2,
+        }
+    }
+}
+
+// ========================================================================= //
 // Mod 清单定义
 // ========================================================================= //
 
@@ -350,8 +399,11 @@ pub struct ModManifest {
     pub default_audio_lang_id: String,
     /// 默认文本语言 ID
     pub default_text_lang_id: String,
-    /// 边框动画资产名称
-    pub border_anima: String,
+    
+    /// 角色渲染配置
+    pub character: CharacterConfig,
+    /// 边框配置
+    pub border: BorderConfig,
 
     /// 核心状态（如 idle）
     pub important_states: HashMap<String, StateInfo>,
@@ -369,7 +421,8 @@ impl Default for ModManifest {
             author: String::new(),
             default_audio_lang_id: String::new(),
             default_text_lang_id: String::new(),
-            border_anima: String::new(),
+            character: CharacterConfig::default(),
+            border: BorderConfig::default(),
             important_states: HashMap::new(),
             states: Vec::new(),
             triggers: Vec::new(),

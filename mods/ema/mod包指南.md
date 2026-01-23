@@ -40,12 +40,27 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `author` | String | 作者名称 |
 | `default_audio_lang_id` | String | 找不到对应语言的语音文件时，会使用默认id语言的音频文件 |
 | `default_text_lang_id` | String | 找不到对应语言的文本时，会使用默认id语言的文本 |
-| `border_anima` | String | 边框动画名称 |
+| `character` | Object | 角色渲染配置 |
+| `border` | Object | 边框配置 |
 | `important_states` | Object | 关键状态映射 (如 `idle`) |
 | `states` | Array | 其他状态定义数组 |
 | `triggers` | Array | 事件触发定义数组 |
 
-#### 2.1.1 状态对象 (State Object)
+#### 2.1.1 角色配置对象 (Character Object)
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `z_offset` | Number | Z轴偏移（渲染层级） |
+
+#### 2.1.2 边框配置对象 (Border Object)
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `anima` | String | 边框动画名称 (对应 `asset/` 中的配置) |
+| `enable` | Boolean | 是否启用边框 |
+| `z_offset` | Number | Z轴偏移（渲染层级） |
+
+#### 2.1.3 状态对象 (State Object)
 用于 `important_states` 和 `states` 中的定义。
 
 | 字段 | 类型 | 说明 |
@@ -64,7 +79,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `trigger_rate` | Number | 随机触发的概率 (0.0 - 1.0) |
 | `branch` | Array | 分支选项数组，用于交互式对话 |
 
-#### 2.1.2 分支对象 (Branch Object)
+#### 2.1.4 分支对象 (Branch Object)
 用于状态对象的 `branch` 数组，实现交互式对话选项。
 
 | 字段 | 类型 | 说明 |
@@ -72,7 +87,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `text` | String | 选项按钮显示的文本 |
 | `next_state` | String | 点击该选项后跳转到的状态名称 |
 
-#### 2.1.3 触发器对象 (Trigger Object)
+#### 2.1.5 触发器对象 (Trigger Object)
 用于 `triggers` 数组。
 
 | 字段 | 类型 | 说明 |
@@ -130,6 +145,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `id` | String | 该语言的id |
 | `lang` | String | 该语言的显示名称 |
 | `name` | String | 角色在该语言下的显示名称 |
+| `description` | String | 角色描述 |
 
 ### 2.6 `text/[lang]/speech.json`
 定义对应事件触发时显示的文本。
