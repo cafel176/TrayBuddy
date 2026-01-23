@@ -116,6 +116,26 @@
             display: none;
         }
 
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #feca57;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
         .btn {
             width: 100%;
             padding: 14px 24px;
@@ -384,6 +404,11 @@
                     <input type="text" id="filePrefix" value="frame_" placeholder="frame_">
                 </div>
                 
+                <div class="checkbox-group">
+                    <input type="checkbox" id="reverseOrder">
+                    <label for="reverseOrder">反向排序输出（倒序编号）</label>
+                </div>
+                
                 <button class="btn btn-primary" id="splitBtn" disabled>切分图片</button>
                 <button class="btn btn-secondary" id="downloadAllBtn" style="display: none;">📦 打包下载 (ZIP)</button>
             </div>
@@ -426,6 +451,7 @@
         const columnsInput = document.getElementById('columns');
         const rowsInput = document.getElementById('rows');
         const filePrefixInput = document.getElementById('filePrefix');
+        const reverseOrderCheckbox = document.getElementById('reverseOrder');
         const stats = document.getElementById('stats');
         const imageInfo = document.getElementById('imageInfo');
         const imageSize = document.getElementById('imageSize');
@@ -663,6 +689,9 @@
             resultGrid.style.display = 'grid';
             resultGrid.innerHTML = '';
             
+            const isReversed = reverseOrderCheckbox.checked;
+            const totalFrames = splitFrames.length;
+            
             splitFrames.forEach((frame, index) => {
                 const item = document.createElement('div');
                 item.className = 'result-item';
@@ -671,16 +700,19 @@
                 img.src = frame.canvas.toDataURL('image/png');
                 item.appendChild(img);
                 
+                // 计算显示和导出的编号
+                const displayIndex = isReversed ? (totalFrames - 1 - index) : index;
+                
                 const number = document.createElement('span');
                 number.className = 'frame-number';
-                number.textContent = index;
+                number.textContent = displayIndex;
                 item.appendChild(number);
                 
                 // 点击单独下载
                 item.style.cursor = 'pointer';
                 item.title = '点击下载此帧';
                 item.addEventListener('click', () => {
-                    downloadSingleFrame(frame, index);
+                    downloadSingleFrame(frame, displayIndex);
                 });
                 
                 resultGrid.appendChild(item);
@@ -709,10 +741,14 @@
             try {
                 const zip = new JSZip();
                 const prefix = filePrefixInput.value || 'frame_';
+                const isReversed = reverseOrderCheckbox.checked;
+                const totalFrames = splitFrames.length;
                 
                 for (let i = 0; i < splitFrames.length; i++) {
                     const frame = splitFrames[i];
-                    const paddedIndex = String(i).padStart(4, '0');
+                    // 计算导出的编号
+                    const exportIndex = isReversed ? (totalFrames - 1 - i) : i;
+                    const paddedIndex = String(exportIndex).padStart(4, '0');
                     const filename = `${prefix}${paddedIndex}.png`;
                     
                     // 将canvas转换为blob
@@ -749,6 +785,13 @@
                     updatePreview();
                 }
             });
+        });
+
+        // 反向排序选项变化时刷新结果显示
+        reverseOrderCheckbox.addEventListener('change', () => {
+            if (splitFrames.length > 0) {
+                displayResults();
+            }
         });
     </script>
 </body>

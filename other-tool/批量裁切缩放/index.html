@@ -31,33 +31,62 @@
 
     <section class="card">
       <h2>2) 四向裁切设置（单位：像素）</h2>
-      <div class="crop-grid">
-        <div class="crop-top">
-          <label for="cropTop">上</label>
-          <input id="cropTop" type="number" min="0" step="1" value="0" />
-        </div>
-        <div class="crop-middle">
-          <div class="crop-left">
-            <label for="cropLeft">左</label>
-            <input id="cropLeft" type="number" min="0" step="1" value="0" />
+      
+      <!-- 可视化裁切预览区域 -->
+      <div class="crop-editor-container">
+        <div class="crop-editor-toolbar">
+          <div class="zoom-controls">
+            <button type="button" class="zoom-btn" id="zoomOutBtn" title="缩小">−</button>
+            <span class="zoom-label" id="zoomLabel">100%</span>
+            <button type="button" class="zoom-btn" id="zoomInBtn" title="放大">+</button>
+            <button type="button" class="zoom-btn" id="zoomFitBtn" title="适应">适应</button>
           </div>
-          <div class="crop-preview" id="cropPreview">
-            <div class="preview-box">
-              <div class="preview-inner" id="previewInner"></div>
+          <div class="crop-size-display" id="cropSizeLabel">裁切后：- × -</div>
+        </div>
+        
+        <div class="crop-editor-wrapper" id="cropEditorWrapper">
+          <div class="crop-editor centered" id="cropEditor">
+            <div class="crop-editor-inner" id="cropEditorInner">
+              <img id="previewImage" class="crop-source-image" />
+              <div class="crop-overlay crop-overlay-top" id="overlayTop"></div>
+              <div class="crop-overlay crop-overlay-bottom" id="overlayBottom"></div>
+              <div class="crop-overlay crop-overlay-left" id="overlayLeft"></div>
+              <div class="crop-overlay crop-overlay-right" id="overlayRight"></div>
+              <div class="crop-handle crop-handle-top" id="handleTop" title="拖动调整上边裁切"></div>
+              <div class="crop-handle crop-handle-bottom" id="handleBottom" title="拖动调整下边裁切"></div>
+              <div class="crop-handle crop-handle-left" id="handleLeft" title="拖动调整左边裁切"></div>
+              <div class="crop-handle crop-handle-right" id="handleRight" title="拖动调整右边裁切"></div>
             </div>
-            <div class="preview-label" id="cropSizeLabel">裁切后：- × -</div>
+            <div class="crop-placeholder" id="cropPlaceholder">请先选择图片</div>
           </div>
-          <div class="crop-right">
-            <label for="cropRight">右</label>
-            <input id="cropRight" type="number" min="0" step="1" value="0" />
-          </div>
-        </div>
-        <div class="crop-bottom">
-          <label for="cropBottom">下</label>
-          <input id="cropBottom" type="number" min="0" step="1" value="0" />
         </div>
       </div>
-      <div class="hint">输入从各个方向裁切的像素数，裁切后的区域会在预览框中显示。</div>
+
+      <!-- 数值输入区域 -->
+      <div class="crop-inputs">
+        <div class="crop-input-group">
+          <label for="cropTop">上</label>
+          <input id="cropTop" type="number" min="0" step="1" value="0" />
+          <span class="unit">px</span>
+        </div>
+        <div class="crop-input-group">
+          <label for="cropBottom">下</label>
+          <input id="cropBottom" type="number" min="0" step="1" value="0" />
+          <span class="unit">px</span>
+        </div>
+        <div class="crop-input-group">
+          <label for="cropLeft">左</label>
+          <input id="cropLeft" type="number" min="0" step="1" value="0" />
+          <span class="unit">px</span>
+        </div>
+        <div class="crop-input-group">
+          <label for="cropRight">右</label>
+          <input id="cropRight" type="number" min="0" step="1" value="0" />
+          <span class="unit">px</span>
+        </div>
+      </div>
+      
+      <div class="hint">拖动蓝色基准线可视化调整裁切区域，或直接输入数值。滚轮缩放预览。</div>
     </section>
 
     <section class="card">
@@ -87,6 +116,13 @@
             <div style="flex:1">
               <label for="scaleHeight" style="font-size:11px;color:var(--muted)">高度缩放（%）</label>
               <input id="scaleHeight" type="number" min="1" max="1000" step="1" value="100" />
+            </div>
+          </div>
+          <!-- 缩放预览 -->
+          <div class="scale-preview-container" id="scalePreviewContainer">
+            <div class="scale-preview-box">
+              <img id="scalePreviewImage" class="scale-preview-image" />
+              <div class="scale-preview-placeholder" id="scalePreviewPlaceholder">缩放预览</div>
             </div>
           </div>
         </div>

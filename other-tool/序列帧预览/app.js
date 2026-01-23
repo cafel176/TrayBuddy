@@ -15,6 +15,13 @@ let img = new Image();
 let currentFrame = 0;
 let animationId = null;
 let lastTimestamp = 0;
+let playMode = 'forward'; // forward, reverse, pingpong, pingpong-reverse
+let pingpongDirection = 1; // 乒乓模式当前方向: 1正向, -1反向
+
+const forwardBtn = document.getElementById('forward-btn');
+const reverseBtn = document.getElementById('reverse-btn');
+const pingpongBtn = document.getElementById('pingpong-btn');
+const pingpongReverseBtn = document.getElementById('pingpong-reverse-btn');
 
 // 上传处理
 dropZone.onclick = () => fileInput.click();
@@ -73,7 +80,31 @@ function animate(timestamp) {
     const totalFrames = rows * cols;
 
     if (timestamp - lastTimestamp > interval) {
-        currentFrame = (currentFrame + 1) % totalFrames;
+        if (playMode === 'forward') {
+            currentFrame = (currentFrame + 1) % totalFrames;
+        } else if (playMode === 'reverse') {
+            currentFrame = (currentFrame - 1 + totalFrames) % totalFrames;
+        } else if (playMode === 'pingpong') {
+            // 乒乓模式：正序开始
+            currentFrame += pingpongDirection;
+            if (currentFrame >= totalFrames - 1) {
+                currentFrame = totalFrames - 1;
+                pingpongDirection = -1;
+            } else if (currentFrame <= 0) {
+                currentFrame = 0;
+                pingpongDirection = 1;
+            }
+        } else if (playMode === 'pingpong-reverse') {
+            // 乒乓倒序模式：倒序开始
+            currentFrame += pingpongDirection;
+            if (currentFrame <= 0) {
+                currentFrame = 0;
+                pingpongDirection = 1;
+            } else if (currentFrame >= totalFrames - 1) {
+                currentFrame = totalFrames - 1;
+                pingpongDirection = -1;
+            }
+        }
         
         const col = currentFrame % cols;
         const row = Math.floor(currentFrame / cols);
@@ -116,3 +147,26 @@ fpsInput.oninput = () => {
 resetBtn.onclick = () => {
     location.reload();
 };
+
+// 播放模式控制
+function setPlayMode(mode) {
+    playMode = mode;
+    [forwardBtn, reverseBtn, pingpongBtn, pingpongReverseBtn].forEach(btn => btn.classList.remove('active'));
+    
+    if (mode === 'forward') {
+        forwardBtn.classList.add('active');
+    } else if (mode === 'reverse') {
+        reverseBtn.classList.add('active');
+    } else if (mode === 'pingpong') {
+        pingpongBtn.classList.add('active');
+        pingpongDirection = 1; // 正序开始
+    } else if (mode === 'pingpong-reverse') {
+        pingpongReverseBtn.classList.add('active');
+        pingpongDirection = -1; // 倒序开始
+    }
+}
+
+forwardBtn.onclick = () => setPlayMode('forward');
+reverseBtn.onclick = () => setPlayMode('reverse');
+pingpongBtn.onclick = () => setPlayMode('pingpong');
+pingpongReverseBtn.onclick = () => setPlayMode('pingpong-reverse');

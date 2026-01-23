@@ -18,7 +18,25 @@ const els = {
   cropLeft: $('#cropLeft'),
   cropRight: $('#cropRight'),
   cropSizeLabel: $('#cropSizeLabel'),
-  previewInner: $('#previewInner'),
+  
+  // 裁切编辑器元素
+  cropEditorWrapper: $('#cropEditorWrapper'),
+  cropEditor: $('#cropEditor'),
+  cropEditorInner: $('#cropEditorInner'),
+  previewImage: $('#previewImage'),
+  cropPlaceholder: $('#cropPlaceholder'),
+  overlayTop: $('#overlayTop'),
+  overlayBottom: $('#overlayBottom'),
+  overlayLeft: $('#overlayLeft'),
+  overlayRight: $('#overlayRight'),
+  handleTop: $('#handleTop'),
+  handleBottom: $('#handleBottom'),
+  handleLeft: $('#handleLeft'),
+  handleRight: $('#handleRight'),
+  zoomInBtn: $('#zoomInBtn'),
+  zoomOutBtn: $('#zoomOutBtn'),
+  zoomFitBtn: $('#zoomFitBtn'),
+  zoomLabel: $('#zoomLabel'),
 
   lockAspect: $('#lockAspect'),
   uniformScaleField: $('#uniformScaleField'),
@@ -27,6 +45,8 @@ const els = {
   scaleWidth: $('#scaleWidth'),
   scaleHeight: $('#scaleHeight'),
   scaleSizePreview: $('#scaleSizePreview'),
+  scalePreviewImage: $('#scalePreviewImage'),
+  scalePreviewPlaceholder: $('#scalePreviewPlaceholder'),
 
   outFormat: $('#outFormat'),
   jpegQualityField: $('#jpegQualityField'),
@@ -35,7 +55,21 @@ const els = {
 
 let selectedFiles = [];
 let firstImageInfo = null; // {w, h}
+let firstImageElement = null; // 保存第一张图片的 Image 对象用于预览
 let fileInfoMap = new Map(); // file -> {w, h, valid}  记录每个文件的尺寸和是否有效
+
+// 缩放相关状态
+let currentZoom = 1;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 5;
+const ZOOM_STEP = 0.25;
+
+// 拖拽相关状态
+let isDragging = false;
+let dragHandle = null;
+let dragStartY = 0;
+let dragStartX = 0;
+let dragStartValue = 0;
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -132,10 +166,11 @@ function getScaledSize(croppedW, croppedH) {
 }
 
 function updateCropPreview() {
-  if (!firstImageInfo) {
+  if (!firstImageInfo || !firstImageElement) {
     els.cropSizeLabel.textContent = '裁切后：- × -';
-    els.previewInner.style.width = '0';
-    els.previewInner.style.height = '0';
+    els.previewImage.style.display = 'none';
+    els.cropPlaceholder.style.display = 'block';
+    hideOverlaysAndHandles();
     return;
   }
 
@@ -145,30 +180,237 @@ function updateCropPreview() {
   // 验证裁切是否有效
   if (crop.left + crop.right >= origW || crop.top + crop.bottom >= origH) {
     els.cropSizeLabel.textContent = '裁切无效！';
-    els.previewInner.style.width = '0';
-    els.previewInner.style.height = '0';
     return;
   }
 
   els.cropSizeLabel.textContent = `裁切后：${croppedW} × ${croppedH}`;
 
-  // 更新预览框内部区域
-  const boxSize = 150;
-  const maxDim = Math.max(origW, origH);
-  const scale = (boxSize - 20) / maxDim;
+  // 更新遮罩层和基准线位置
+  updateOverlaysAndHandles();
+}
 
-  const previewOrigW = origW * scale;
-  const previewOrigH = origH * scale;
-  const previewCropW = croppedW * scale;
-  const previewCropH = croppedH * scale;
+function hideOverlaysAndHandles() {
+  els.overlayTop.style.display = 'none';
+  els.overlayBottom.style.display = 'none';
+  els.overlayLeft.style.display = 'none';
+  els.overlayRight.style.display = 'none';
+  els.handleTop.style.display = 'none';
+  els.handleBottom.style.display = 'none';
+  els.handleLeft.style.display = 'none';
+  els.handleRight.style.display = 'none';
+}
 
-  els.previewInner.style.width = `${previewCropW}px`;
-  els.previewInner.style.height = `${previewCropH}px`;
+function showOverlaysAndHandles() {
+  els.overlayTop.style.display = 'block';
+  els.overlayBottom.style.display = 'block';
+  els.overlayLeft.style.display = 'block';
+  els.overlayRight.style.display = 'block';
+  els.handleTop.style.display = 'block';
+  els.handleBottom.style.display = 'block';
+  els.handleLeft.style.display = 'block';
+  els.handleRight.style.display = 'block';
+}
+
+function updateOverlaysAndHandles() {
+  if (!firstImageInfo) return;
+
+  const { w: origW, h: origH } = firstImageInfo;
+  const crop = getCropValues();
+  
+  // 计算缩放后的像素位置
+  const scaledW = origW * currentZoom;
+  const scaledH = origH * currentZoom;
+  const cropTopPx = crop.top * currentZoom;
+  const cropBottomPx = crop.bottom * currentZoom;
+  const cropLeftPx = crop.left * currentZoom;
+  const cropRightPx = crop.right * currentZoom;
+
+  // 更新遮罩层
+  // 上遮罩
+  els.overlayTop.style.top = '0';
+  els.overlayTop.style.left = '0';
+  els.overlayTop.style.width = `${scaledW}px`;
+  els.overlayTop.style.height = `${cropTopPx}px`;
+
+  // 下遮罩
+  els.overlayBottom.style.bottom = '0';
+  els.overlayBottom.style.left = '0';
+  els.overlayBottom.style.width = `${scaledW}px`;
+  els.overlayBottom.style.height = `${cropBottomPx}px`;
+
+  // 左遮罩（在上下遮罩之间）
+  els.overlayLeft.style.top = `${cropTopPx}px`;
+  els.overlayLeft.style.left = '0';
+  els.overlayLeft.style.width = `${cropLeftPx}px`;
+  els.overlayLeft.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
+
+  // 右遮罩（在上下遮罩之间）
+  els.overlayRight.style.top = `${cropTopPx}px`;
+  els.overlayRight.style.right = '0';
+  els.overlayRight.style.width = `${cropRightPx}px`;
+  els.overlayRight.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
+
+  // 更新基准线位置
+  // 上基准线
+  els.handleTop.style.top = `${cropTopPx}px`;
+  els.handleTop.style.left = `${cropLeftPx}px`;
+  els.handleTop.style.width = `${scaledW - cropLeftPx - cropRightPx}px`;
+
+  // 下基准线
+  els.handleBottom.style.top = `${scaledH - cropBottomPx}px`;
+  els.handleBottom.style.left = `${cropLeftPx}px`;
+  els.handleBottom.style.width = `${scaledW - cropLeftPx - cropRightPx}px`;
+
+  // 左基准线
+  els.handleLeft.style.left = `${cropLeftPx}px`;
+  els.handleLeft.style.top = `${cropTopPx}px`;
+  els.handleLeft.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
+
+  // 右基准线
+  els.handleRight.style.left = `${scaledW - cropRightPx}px`;
+  els.handleRight.style.top = `${cropTopPx}px`;
+  els.handleRight.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
+
+  showOverlaysAndHandles();
+}
+
+// 缩放相关函数
+function setZoom(zoom) {
+  currentZoom = clamp(zoom, MIN_ZOOM, MAX_ZOOM);
+  els.zoomLabel.textContent = `${Math.round(currentZoom * 100)}%`;
+  
+  if (firstImageElement && firstImageInfo) {
+    const scaledW = firstImageInfo.w * currentZoom;
+    const scaledH = firstImageInfo.h * currentZoom;
+    
+    // 设置图片和内层容器尺寸
+    els.previewImage.style.width = `${scaledW}px`;
+    els.previewImage.style.height = `${scaledH}px`;
+    els.cropEditorInner.style.width = `${scaledW}px`;
+    els.cropEditorInner.style.height = `${scaledH}px`;
+    
+    // 判断是否需要居中（当图片小于容器时）
+    const wrapperRect = els.cropEditorWrapper.getBoundingClientRect();
+    const needCenter = scaledW <= wrapperRect.width && scaledH <= wrapperRect.height;
+    
+    if (needCenter) {
+      els.cropEditor.classList.add('centered');
+    } else {
+      els.cropEditor.classList.remove('centered');
+    }
+    
+    updateOverlaysAndHandles();
+  }
+}
+
+function zoomIn() {
+  setZoom(currentZoom + ZOOM_STEP);
+}
+
+function zoomOut() {
+  setZoom(currentZoom - ZOOM_STEP);
+}
+
+function zoomFit() {
+  if (!firstImageInfo) return;
+  
+  const wrapperRect = els.cropEditorWrapper.getBoundingClientRect();
+  const padding = 20;
+  const availableW = wrapperRect.width - padding * 2;
+  const availableH = wrapperRect.height - padding * 2;
+  
+  const scaleX = availableW / firstImageInfo.w;
+  const scaleY = availableH / firstImageInfo.h;
+  const fitZoom = Math.min(scaleX, scaleY, 1);
+  
+  setZoom(fitZoom);
+}
+
+// 拖拽相关函数
+function startDrag(e, handle) {
+  e.preventDefault();
+  isDragging = true;
+  dragHandle = handle;
+  
+  const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+  const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+  
+  dragStartX = clientX;
+  dragStartY = clientY;
+  
+  if (handle === 'top') {
+    dragStartValue = parseInt(els.cropTop.value) || 0;
+  } else if (handle === 'bottom') {
+    dragStartValue = parseInt(els.cropBottom.value) || 0;
+  } else if (handle === 'left') {
+    dragStartValue = parseInt(els.cropLeft.value) || 0;
+  } else if (handle === 'right') {
+    dragStartValue = parseInt(els.cropRight.value) || 0;
+  }
+  
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', stopDrag);
+  document.addEventListener('touchmove', onDrag);
+  document.addEventListener('touchend', stopDrag);
+}
+
+function onDrag(e) {
+  if (!isDragging || !firstImageInfo) return;
+  
+  const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+  const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+  
+  const { w: origW, h: origH } = firstImageInfo;
+  
+  if (dragHandle === 'top') {
+    const deltaY = clientY - dragStartY;
+    const deltaPx = Math.round(deltaY / currentZoom);
+    const newValue = clamp(dragStartValue + deltaPx, 0, origH - parseInt(els.cropBottom.value || 0) - 1);
+    els.cropTop.value = newValue;
+  } else if (dragHandle === 'bottom') {
+    const deltaY = dragStartY - clientY;
+    const deltaPx = Math.round(deltaY / currentZoom);
+    const newValue = clamp(dragStartValue + deltaPx, 0, origH - parseInt(els.cropTop.value || 0) - 1);
+    els.cropBottom.value = newValue;
+  } else if (dragHandle === 'left') {
+    const deltaX = clientX - dragStartX;
+    const deltaPx = Math.round(deltaX / currentZoom);
+    const newValue = clamp(dragStartValue + deltaPx, 0, origW - parseInt(els.cropRight.value || 0) - 1);
+    els.cropLeft.value = newValue;
+  } else if (dragHandle === 'right') {
+    const deltaX = dragStartX - clientX;
+    const deltaPx = Math.round(deltaX / currentZoom);
+    const newValue = clamp(dragStartValue + deltaPx, 0, origW - parseInt(els.cropLeft.value || 0) - 1);
+    els.cropRight.value = newValue;
+  }
+  
+  updateAllPreviews();
+}
+
+function stopDrag() {
+  isDragging = false;
+  dragHandle = null;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
+  document.removeEventListener('touchmove', onDrag);
+  document.removeEventListener('touchend', stopDrag);
+}
+
+// 滚轮缩放
+function onWheelZoom(e) {
+  if (!firstImageInfo) return;
+  e.preventDefault();
+  
+  const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+  setZoom(currentZoom + delta);
 }
 
 function updateScalePreview() {
+  const lockAspect = els.lockAspect.checked;
+  
   if (!firstImageInfo) {
     els.scaleSizePreview.textContent = '-';
+    hideScalePreviewImage();
     return;
   }
 
@@ -178,18 +420,58 @@ function updateScalePreview() {
   // 验证裁切是否有效
   if (crop.left + crop.right >= origW || crop.top + crop.bottom >= origH) {
     els.scaleSizePreview.textContent = '裁切无效，无法计算缩放';
+    hideScalePreviewImage();
     return;
   }
 
   const { w: scaledW, h: scaledH } = getScaledSize(croppedW, croppedH);
   const { scaleW, scaleH } = getScaleValues();
 
-  const lockAspect = els.lockAspect.checked;
   if (lockAspect) {
     els.scaleSizePreview.textContent = `${croppedW} × ${croppedH} → ${scaledW} × ${scaledH}（缩放 ${Math.round(scaleW * 100)}%）`;
+    hideScalePreviewImage();
   } else {
     els.scaleSizePreview.textContent = `${croppedW} × ${croppedH} → ${scaledW} × ${scaledH}（宽 ${Math.round(scaleW * 100)}%，高 ${Math.round(scaleH * 100)}%）`;
+    // 生成缩放后的预览图
+    updateScalePreviewImage(croppedW, croppedH, scaledW, scaledH, crop);
   }
+}
+
+function hideScalePreviewImage() {
+  els.scalePreviewImage.style.display = 'none';
+  els.scalePreviewPlaceholder.style.display = 'block';
+}
+
+function updateScalePreviewImage(croppedW, croppedH, scaledW, scaledH, crop) {
+  if (!firstImageElement) {
+    hideScalePreviewImage();
+    return;
+  }
+
+  // 先裁切
+  const croppedCanvas = document.createElement('canvas');
+  croppedCanvas.width = croppedW;
+  croppedCanvas.height = croppedH;
+  const cctx = croppedCanvas.getContext('2d');
+  cctx.drawImage(
+    firstImageElement,
+    crop.left, crop.top, croppedW, croppedH,
+    0, 0, croppedW, croppedH
+  );
+
+  // 再缩放（不等比例）
+  const scaledCanvas = document.createElement('canvas');
+  scaledCanvas.width = scaledW;
+  scaledCanvas.height = scaledH;
+  const sctx = scaledCanvas.getContext('2d');
+  sctx.imageSmoothingEnabled = true;
+  sctx.imageSmoothingQuality = 'high';
+  sctx.drawImage(croppedCanvas, 0, 0, croppedW, croppedH, 0, 0, scaledW, scaledH);
+
+  // 显示预览
+  els.scalePreviewImage.src = scaledCanvas.toDataURL('image/png');
+  els.scalePreviewImage.style.display = 'block';
+  els.scalePreviewPlaceholder.style.display = 'none';
 }
 
 function updateAllPreviews() {
@@ -243,6 +525,7 @@ async function refreshSelection() {
   const files = Array.from(els.fileInput.files || []);
   selectedFiles = files;
   firstImageInfo = null;
+  firstImageElement = null;
   fileInfoMap.clear();
 
   if (!files.length) {
@@ -266,13 +549,25 @@ async function refreshSelection() {
       const decoded = await decodeImage(f);
       const w = decoded.w;
       const h = decoded.h;
-      if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
 
-      // 第一张图作为基准
+      // 第一张图作为基准，并保存用于预览
       if (i === 0) {
         firstImageInfo = { w, h };
         els.imageSizeInfo.textContent = `基准尺寸：${w} × ${h}`;
+        
+        // 加载第一张图片用于预览
+        const url = URL.createObjectURL(f);
+        const img = new Image();
+        img.src = url;
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+        firstImageElement = img;
+        // 注意：保持 URL 有效，不在这里 revoke
       }
+
+      if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
 
       // 检查是否与第一张图尺寸一致
       const isValid = (w === firstImageInfo.w && h === firstImageInfo.h);
@@ -316,6 +611,14 @@ async function refreshSelection() {
 
   renderTable(rows);
   updateAllPreviews();
+  
+  // 初始化裁切编辑器
+  if (firstImageElement) {
+    els.previewImage.src = firstImageElement.src;
+    els.previewImage.style.display = 'block';
+    els.cropPlaceholder.style.display = 'none';
+    zoomFit();
+  }
 
   // 显示统计信息
   const validCount = files.length - mismatchCount;
@@ -567,9 +870,16 @@ function clearAll() {
   els.fileInput.value = '';
   selectedFiles = [];
   firstImageInfo = null;
+  firstImageElement = null;
   fileInfoMap.clear();
   els.imageCount.textContent = '未选择';
   els.imageSizeInfo.textContent = '';
+  els.previewImage.style.display = 'none';
+  els.cropPlaceholder.style.display = 'block';
+  els.cropPlaceholder.textContent = '请先选择图片';
+  hideOverlaysAndHandles();
+  currentZoom = 1;
+  els.zoomLabel.textContent = '100%';
   renderTable([]);
   updateAllPreviews();
   setStatus('未开始');
@@ -585,6 +895,25 @@ els.cropTop.addEventListener('input', updateAllPreviews);
 els.cropBottom.addEventListener('input', updateAllPreviews);
 els.cropLeft.addEventListener('input', updateAllPreviews);
 els.cropRight.addEventListener('input', updateAllPreviews);
+
+// 缩放按钮
+els.zoomInBtn.addEventListener('click', zoomIn);
+els.zoomOutBtn.addEventListener('click', zoomOut);
+els.zoomFitBtn.addEventListener('click', zoomFit);
+
+// 滚轮缩放
+els.cropEditorWrapper.addEventListener('wheel', onWheelZoom, { passive: false });
+
+// 拖拽基准线
+els.handleTop.addEventListener('mousedown', (e) => startDrag(e, 'top'));
+els.handleBottom.addEventListener('mousedown', (e) => startDrag(e, 'bottom'));
+els.handleLeft.addEventListener('mousedown', (e) => startDrag(e, 'left'));
+els.handleRight.addEventListener('mousedown', (e) => startDrag(e, 'right'));
+
+els.handleTop.addEventListener('touchstart', (e) => startDrag(e, 'top'));
+els.handleBottom.addEventListener('touchstart', (e) => startDrag(e, 'bottom'));
+els.handleLeft.addEventListener('touchstart', (e) => startDrag(e, 'left'));
+els.handleRight.addEventListener('touchstart', (e) => startDrag(e, 'right'));
 
 // 缩放输入变化
 els.lockAspect.addEventListener('change', () => {
@@ -604,3 +933,4 @@ updateJpegUI();
 updateAllPreviews();
 renderTable([]);
 setStatus('未开始');
+hideOverlaysAndHandles();

@@ -126,6 +126,32 @@ input[type="range"] {
     background: rgba(255,255,255,0.05);
 }
 
+.direction-btns {
+    display: flex;
+    gap: 10px;
+}
+
+.direction-btn {
+    flex: 1;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    color: #94a3b8;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.direction-btn:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.direction-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
