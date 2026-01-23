@@ -1,35 +1,120 @@
+<!--
+========================================================================= 
+状态管理调试组件 (StateDebugger.svelte)
+=========================================================================
+
+功能概述:
+- 显示和管理应用的状态系统
+- 展示当前状态、持久状态、下一状态的详细信息
+- 提供状态切换功能 (普通切换和强制切换)
+- 实时监听状态变化事件并记录日志
+
+核心概念:
+- 当前状态 (Current State): 正在播放的状态
+- 持久状态 (Persistent State): 默认/待机状态
+- 下一状态 (Next State): 队列中等待播放的状态
+- 状态锁定: 高优先级状态播放时会锁定，阻止低优先级切换
+=========================================================================
+-->
+
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
 
-  interface StateInfo {
-    name: string;
-    persistent: boolean;
-    action: string;
-    audio: string;
+  // ======================================================================= //
+  // 类型定义
+  // ======================================================================= //
+
+  /**
+   * 分支信息接口
+   * 用于对话分支选择
+   */
+  interface BranchInfo {
+    /** 分支显示文本 */
     text: string;
-    priority: number;
+    /** 选择后跳转的状态名 */
+    next_state: string;
   }
 
+  /**
+   * 状态信息接口
+   * 对应后端的 StateInfo 结构体
+   */
+  interface StateInfo {
+    /** 状态名称 (唯一标识) */
+    name: string;
+    /** 是否为持久状态 */
+    persistent: boolean;
+    /** 关联的动画资源名 */
+    anima: string;
+    /** 关联的音频资源名 */
+    audio: string;
+    /** 关联的文本资源名 */
+    text: string;
+    /** 优先级 (数值越大优先级越高) */
+    priority: number;
+    /** 定时触发间隔 (秒) */
+    trigger_time: number;
+    /** 定时触发概率 (0.0 - 1.0) */
+    trigger_rate: number;
+    /** 可触发的状态列表 */
+    can_trigger_states: string[];
+    /** 对话分支选项 */
+    branch: BranchInfo[];
+  }
+
+  /**
+   * 状态变化事件数据
+   */
   interface StateChangeEvent {
+    /** 新的状态信息 */
     state: StateInfo;
+    /** 是否只播放一次 */
     play_once: boolean;
   }
 
+  // ======================================================================= //
+  // 响应式状态
+  // ======================================================================= //
+
+  /** 所有预定义状态列表 */
   let allStates = $state<StateInfo[]>([]);
+  
+  /** 当前正在播放的状态 */
   let currentState = $state<StateInfo | null>(null);
+  
+  /** 当前的持久状态 (默认状态) */
   let persistentState = $state<StateInfo | null>(null);
+  
+  /** 队列中的下一个状态 */
+  let nextState = $state<StateInfo | null>(null);
+  
+  /** 状态是否被锁定 */
   let isLocked = $state(false);
+  
+  /** 状态消息 */
   let statusMsg = $state("正在加载...");
+  
+  /** 事件日志记录 (最新在前) */
   let eventLog = $state<string[]>([]);
+  
+  /** 状态变化事件的取消监听函数 */
   let unlisten: (() => void) | null = null;
 
+  // ======================================================================= //
+  // 数据加载函数
+  // ======================================================================= //
+
+  /**
+   * 从后端加载所有状态数据
+   */
   async function loadStates() {
     try {
       allStates = await invoke("get_all_states");
       currentState = await invoke("get_current_state");
       persistentState = await invoke("get_persistent_state");
+      nextState = await invoke("get_next_state");
       isLocked = await invoke("is_state_locked");
       statusMsg = "状态已加载";
     } catch (e) {
@@ -37,56 +122,69 @@
     }
   }
 
-  async function switchState(name: string) {
+  // ======================================================================= //
+  // 状态切换函数
+  // ======================================================================= //
+
+  /**
+   * 普通状态切换 (会检查优先级和锁定状态)
+   * @param name 目标状态名称
+   */
+  async function changeState(name: string) {
     try {
-      const success = await invoke("switch_state", { name });
+      const success = await invoke("change_state", { name });
       if (success) {
         statusMsg = `切换到状态: ${name}`;
-        addLog(`switch_state("${name}") -> 成功`);
+        addLog(`change_state("${name}") -> 成功`);
       } else {
         statusMsg = `切换失败: 优先级不足或状态锁定`;
-        addLog(`switch_state("${name}") -> 失败 (优先级不足或锁定)`);
+        addLog(`change_state("${name}") -> 失败 (优先级不足或锁定)`);
       }
       await loadStates();
     } catch (e) {
       statusMsg = `切换失败: ${e}`;
-      addLog(`switch_state("${name}") -> 错误: ${e}`);
+      addLog(`change_state("${name}") -> 错误: ${e}`);
     }
   }
 
-  async function forceSwitch(name: string) {
+  /**
+   * 强制状态切换 (忽略优先级和锁定)
+   * @param name 目标状态名称
+   */
+  async function forceChangeState(name: string) {
     try {
-      await invoke("force_switch_state", { name });
+      await invoke("force_change_state", { name });
       statusMsg = `强制切换到: ${name}`;
-      addLog(`force_switch_state("${name}") -> 成功`);
+      addLog(`force_change_state("${name}") -> 成功`);
       await loadStates();
     } catch (e) {
       statusMsg = `强制切换失败: ${e}`;
-      addLog(`force_switch_state("${name}") -> 错误: ${e}`);
+      addLog(`force_change_state("${name}") -> 错误: ${e}`);
     }
   }
 
-  async function setPersistent(name: string) {
-    try {
-      await invoke("set_persistent_state", { name });
-      statusMsg = `设置持久状态: ${name}`;
-      addLog(`set_persistent_state("${name}") -> 成功`);
-      await loadStates();
-    } catch (e) {
-      statusMsg = `设置失败: ${e}`;
-      addLog(`set_persistent_state("${name}") -> 错误: ${e}`);
-    }
-  }
+  // ======================================================================= //
+  // 日志函数
+  // ======================================================================= //
 
+  /**
+   * 添加日志条目
+   * @param msg 日志消息
+   */
   function addLog(msg: string) {
     const time = new Date().toLocaleTimeString();
+    // 保留最近 20 条日志
     eventLog = [`[${time}] ${msg}`, ...eventLog.slice(0, 19)];
   }
+
+  // ======================================================================= //
+  // 生命周期
+  // ======================================================================= //
 
   onMount(async () => {
     await loadStates();
     
-    // 监听状态变化事件
+    // 监听后端状态变化事件
     unlisten = await listen<StateChangeEvent>("state-change", (event) => {
       const { state, play_once } = event.payload;
       addLog(`事件: state-change -> ${state.name} (play_once: ${play_once})`);
@@ -99,10 +197,19 @@
   });
 </script>
 
+<!-- ======================================================================= -->
+<!-- 组件模板 -->
+<!-- ======================================================================= -->
+
 <div class="state-debugger">
   <h3>StateManager 调试面板</h3>
 
+  <!-- ================================================================= -->
+  <!-- 状态卡片区域 - 展示三个核心状态 -->
+  <!-- ================================================================= -->
+  
   <div class="state-cards">
+    <!-- 当前状态卡片 -->
     <div class="state-card current">
       <div class="card-header">当前状态</div>
       {#if currentState}
@@ -116,17 +223,42 @@
             <span class="badge locked">锁定中</span>
           {/if}
         </div>
+        <!-- 对话分支信息 (如果有) -->
+        {#if currentState.branch && currentState.branch.length > 0}
+          <div class="branch-info">
+            <span class="label">分支选项:</span>
+            {#each currentState.branch as b}
+              <span class="branch-item">{b.text} → {b.next_state}</span>
+            {/each}
+          </div>
+        {/if}
       {:else}
         <div class="empty">无</div>
       {/if}
     </div>
 
+    <!-- 持久状态卡片 -->
     <div class="state-card persistent">
       <div class="card-header">持久状态</div>
       {#if persistentState}
         <div class="state-name">{persistentState.name}</div>
         <div class="state-meta">
-          <span class="action">动画: {persistentState.action}</span>
+          <span class="anima">动画: {persistentState.anima}</span>
+        </div>
+      {:else}
+        <div class="empty">无</div>
+      {/if}
+    </div>
+
+    <!-- 下一状态卡片 -->
+    <div class="state-card next">
+      <div class="card-header">下一状态</div>
+      {#if nextState}
+        <div class="state-name">{nextState.name}</div>
+        <div class="state-meta">
+          <span class="badge" class:persistent={nextState.persistent}>
+            {nextState.persistent ? '持久' : '临时'}
+          </span>
         </div>
       {:else}
         <div class="empty">无</div>
@@ -134,16 +266,22 @@
     </div>
   </div>
 
+  <!-- ================================================================= -->
+  <!-- 状态列表表格 -->
+  <!-- ================================================================= -->
+  
   <div class="section">
     <h4>预定义状态列表</h4>
     <div class="states-table">
+      <!-- 表头 -->
       <div class="table-header">
         <span class="col-name">名称</span>
         <span class="col-type">类型</span>
-        <span class="col-action">动画</span>
+        <span class="col-anima">动画</span>
         <span class="col-priority">优先级</span>
         <span class="col-ops">操作</span>
       </div>
+      <!-- 状态行 -->
       {#each allStates as state}
         <div class="table-row" class:active={currentState?.name === state.name}>
           <span class="col-name">{state.name}</span>
@@ -152,26 +290,27 @@
               {state.persistent ? '持久' : '临时'}
             </span>
           </span>
-          <span class="col-action">{state.action}</span>
+          <span class="col-anima">{state.anima}</span>
           <span class="col-priority">{state.priority}</span>
           <span class="col-ops">
-            <button class="btn-small" onclick={() => switchState(state.name)} title="切换状态 (检查优先级)">
+            <!-- 普通切换按钮 -->
+            <button class="btn-small" onclick={() => changeState(state.name)} title="切换状态 (检查优先级)">
               切换
             </button>
-            <button class="btn-small force" onclick={() => forceSwitch(state.name)} title="强制切换 (忽略优先级)">
+            <!-- 强制切换按钮 -->
+            <button class="btn-small force" onclick={() => forceChangeState(state.name)} title="强制切换 (忽略优先级)">
               强制
             </button>
-            {#if state.persistent}
-              <button class="btn-small set-persistent" onclick={() => setPersistent(state.name)} title="设为持久状态">
-                设持久
-              </button>
-            {/if}
           </span>
         </div>
       {/each}
     </div>
   </div>
 
+  <!-- ================================================================= -->
+  <!-- 事件日志区域 -->
+  <!-- ================================================================= -->
+  
   <div class="section">
     <div class="section-header">
       <h4>事件日志</h4>
@@ -186,10 +325,15 @@
     </div>
   </div>
 
+  <!-- ================================================================= -->
+  <!-- 操作按钮 -->
+  <!-- ================================================================= -->
+  
   <div class="actions">
     <button class="refresh" onclick={loadStates}>刷新状态</button>
   </div>
 
+  <!-- 状态消息栏 -->
   <div class="status-bar" class:error={statusMsg.includes('失败')}>
     {statusMsg}
   </div>
@@ -223,7 +367,7 @@
 
   .state-cards {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 15px;
     margin-bottom: 20px;
   }
@@ -241,6 +385,30 @@
 
   .state-card.persistent {
     border-left-color: #27ae60;
+  }
+
+  .state-card.next {
+    border-left-color: #9b59b6;
+  }
+
+  .branch-info {
+    margin-top: 8px;
+    font-size: 0.75em;
+    color: #7f8c8d;
+  }
+
+  .branch-info .label {
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .branch-item {
+    display: inline-block;
+    background: #ecf0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin: 2px 4px 2px 0;
+    color: #2c3e50;
   }
 
   .card-header {
@@ -297,7 +465,7 @@
     font-size: 0.7em;
   }
 
-  .priority, .action {
+  .priority, .anima {
     color: #7f8c8d;
   }
 
@@ -369,14 +537,6 @@
 
   .btn-small.force:hover {
     background: #d35400;
-  }
-
-  .btn-small.set-persistent {
-    background: #27ae60;
-  }
-
-  .btn-small.set-persistent:hover {
-    background: #1e8449;
   }
 
   .btn-tiny {

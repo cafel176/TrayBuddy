@@ -1,18 +1,60 @@
+<!--
+========================================================================= 
+用户信息调试组件 (InfoDebugger.svelte)
+=========================================================================
+
+功能概述:
+- 显示用户运行时信息，包括登录时间、当前 Mod、窗口位置等
+- 提供只读视图，用于调试和查看应用状态
+
+数据来源:
+- 调用后端 get_user_info 命令获取 UserInfo 数据
+=========================================================================
+-->
+
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
 
+  // ======================================================================= //
+  // 类型定义
+  // ======================================================================= //
+
+  /**
+   * 用户信息接口
+   * 对应后端的 UserInfo 结构体
+   */
   interface UserInfo {
+    /** 上次登录时间戳 (毫秒) */
     last_login: number | null;
+    /** 当前加载的 Mod 名称 */
     current_mod: string;
+    /** 动画窗口 X 坐标 */
     animation_window_x: number | null;
+    /** 动画窗口 Y 坐标 */
     animation_window_y: number | null;
   }
 
+  // ======================================================================= //
+  // 响应式状态
+  // ======================================================================= //
+
+  /** 用户信息数据 */
   let info = $state<UserInfo | null>(null);
+  
+  /** 状态消息，用于显示加载/操作结果 */
   let statusMsg = $state("正在读取...");
+  
+  /** 保存操作进行中标记 (预留功能) */
   let saving = $state(false);
 
+  // ======================================================================= //
+  // 数据加载函数
+  // ======================================================================= //
+
+  /**
+   * 从后端加载用户信息
+   */
   async function loadInfo() {
     try {
       info = await invoke("get_user_info");
@@ -22,6 +64,9 @@
     }
   }
 
+  /**
+   * 保存用户信息到后端 (预留功能)
+   */
   async function saveInfo() {
     if (!info) return;
     saving = true;
@@ -35,28 +80,48 @@
     }
   }
 
+  // ======================================================================= //
+  // 工具函数
+  // ======================================================================= //
+
+  /**
+   * 格式化时间戳为本地时间字符串
+   * @param ts 时间戳 (毫秒)
+   * @returns 格式化的时间字符串或"从未登录"
+   */
   function formatTime(ts: number | null) {
     if (!ts) return "从未登录";
     return new Date(ts).toLocaleString();
   }
 
+  // ======================================================================= //
+  // 生命周期
+  // ======================================================================= //
+
   onMount(loadInfo);
 </script>
+
+<!-- ======================================================================= -->
+<!-- 组件模板 -->
+<!-- ======================================================================= -->
 
 <div class="info-debugger">
   <h4>UserInfo 调试器</h4>
 
   {#if info}
+    <!-- 最后登录时间 -->
     <div class="data-row">
       <span class="label">最后登录:</span>
       <span class="value">{formatTime(info.last_login)}</span>
     </div>
 
+    <!-- 当前加载的 Mod -->
     <div class="data-row">
       <span class="label">当前 Mod:</span>
       <span class="value">{info.current_mod || '未加载'}</span>
     </div>
 
+    <!-- 动画窗口位置 -->
     <div class="data-row">
       <span class="label">窗口位置:</span>
       <span class="value">
@@ -70,9 +135,11 @@
 
     <div class="hint">注：窗口位置在程序退出时自动保存。</div>
   {:else}
+    <!-- 加载中状态 -->
     <div class="loading">{statusMsg}</div>
   {/if}
 
+  <!-- 状态消息栏 -->
   <div class="mini-status" class:error={statusMsg.includes('失败')}>
     {statusMsg}
   </div>
@@ -113,20 +180,6 @@
     color: #212529;
   }
 
-  input {
-    flex: 1;
-    padding: 6px 10px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 0.9em;
-  }
-
-  input:focus {
-    border-color: #3498db;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
-  }
-
   .hint {
     font-size: 0.8em;
     color: #adb5bd;
@@ -153,11 +206,6 @@
     h4 { color: #ecf0f1; }
     .label { color: #bdc3c7; }
     .value { color: #ecf0f1; }
-    input {
-      background: #2c3e50;
-      border-color: #455a64;
-      color: white;
-    }
     .hint { color: #7f8c8d; }
   }
 </style>

@@ -1,25 +1,63 @@
+<!--
+========================================================================= 
+调试主页面 (+page.svelte)
+=========================================================================
+
+功能概述:
+- 应用的主调试页面，提供 Tab 导航界面
+- 集成多个调试组件：资源管理、状态管理、触发器、用户设置、运行状态
+- 使用 Svelte 5 的 $state 响应式状态管理 Tab 切换
+
+组件结构:
+├── ResourceManagerDebugger - 资源管理调试器
+├── StateDebugger          - 状态管理调试器
+├── TriggerDebugger        - 触发器调试器
+├── Settings               - 用户设置面板
+└── InfoDebugger           - 运行状态信息
+=========================================================================
+-->
+
 <script lang="ts">
+  // ======================================================================= //
+  // 组件导入
+  // ======================================================================= //
+  
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
   import StateDebugger from "$lib/components/StateDebugger.svelte";
+  import TriggerDebugger from "$lib/components/TriggerDebugger.svelte";
   import Settings from "$lib/components/Settings.svelte";
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
 
+  // ======================================================================= //
+  // 响应式状态
+  // ======================================================================= //
+
+  /** 当前激活的 Tab 页签标识 */
   let activeTab = $state("resource");
 </script>
 
+<!-- ======================================================================= -->
+<!-- 主容器布局 -->
+<!-- ======================================================================= -->
+
 <main class="container">
+  <!-- Tab 导航栏 -->
   <div class="tabs-nav">
     <button class:active={activeTab === 'resource'} onclick={() => activeTab = "resource"}>资源管理</button>
     <button class:active={activeTab === 'state'} onclick={() => activeTab = "state"}>状态管理</button>
+    <button class:active={activeTab === 'trigger'} onclick={() => activeTab = "trigger"}>触发器</button>
     <button class:active={activeTab === 'settings'} onclick={() => activeTab = "settings"}>用户设置</button>
     <button class:active={activeTab === 'info'} onclick={() => activeTab = "info"}>运行状态</button>
   </div>
 
+  <!-- Tab 内容区域 - 根据 activeTab 动态渲染对应组件 -->
   <div class="tab-content">
     {#if activeTab === 'resource'}
       <ResourceManagerDebugger/>
     {:else if activeTab === 'state'}
       <StateDebugger/>
+    {:else if activeTab === 'trigger'}
+      <TriggerDebugger/>
     {:else if activeTab === 'settings'}
       <Settings/>
     {:else if activeTab === 'info'}
@@ -28,7 +66,15 @@
   </div>
 </main>
 
+<!-- ======================================================================= -->
+<!-- 样式定义 -->
+<!-- ======================================================================= -->
+
 <style>
+  /* ----------------------------------------------------------------------- */
+  /* Tab 导航栏样式 */
+  /* ----------------------------------------------------------------------- */
+  
   .tabs-nav {
     display: flex;
     justify-content: center;
@@ -47,18 +93,15 @@
     transition: all 0.2s;
   }
 
+  /* 激活状态的 Tab 按钮 */
   .tabs-nav button.active {
     background: #3498db;
     color: white;
   }
 
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
+  /* ----------------------------------------------------------------------- */
+  /* 全局根样式 */
+  /* ----------------------------------------------------------------------- */
 
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
@@ -69,12 +112,17 @@
   color: #0f0f0f;
   background-color: #f6f6f6;
 
+  /* 字体渲染优化 */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 }
+
+  /* ----------------------------------------------------------------------- */
+  /* 容器布局 */
+  /* ----------------------------------------------------------------------- */
 
 .container {
   margin: 0;
@@ -85,88 +133,14 @@
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
+  /* ----------------------------------------------------------------------- */
+  /* 深色模式适配 */
+  /* ----------------------------------------------------------------------- */
 
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
     background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
   }
 }
 
