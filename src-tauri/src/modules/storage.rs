@@ -7,6 +7,11 @@
 //! - [`UserSettings`] - 用户个性化设置（语言、音量、显示选项等）
 //! - [`UserInfo`] - 用户基础信息（登录时间、当前 Mod、窗口位置等）
 //! - [`Storage`] - 存储管理器，负责数据的内存缓存与磁盘同步
+//!
+//! ## 性能说明
+//! - 数据在内存中缓存，避免频繁磁盘读取
+//! - 仅在数据变更时写入磁盘
+//! - 使用 `serde_json` 的 pretty print 便于调试
 
 use serde::{Deserialize, Serialize};
 use std::fs;

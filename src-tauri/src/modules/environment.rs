@@ -6,6 +6,11 @@
 //! - 天气信息 - 通过网络 API 获取（带缓存）
 //! - 季节判断 - 根据月份和半球确定
 //!
+//! # 性能优化
+//! - 地理位置使用静态缓存，程序运行期间只计算一次
+//! - 天气信息默认缓存 30 分钟
+//! - 便捷函数直接调用，避免创建管理器实例
+//!
 //! ## 示例
 //! ```ignore
 //! let mut manager = EnvironmentManager::new();
@@ -14,7 +19,11 @@
 //! ```
 
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// 全局地理位置缓存（程序运行期间只计算一次）
+static CACHED_LOCATION: OnceLock<GeoLocation> = OnceLock::new();
 
 // ========================================================================= //
 
@@ -83,8 +92,6 @@ pub struct WeatherInfo {
 /// - 时间、日期、地理位置：从系统本地获取
 /// - 天气：需要联网获取，使用长缓存减少请求次数
 pub struct EnvironmentManager {
-    /// 缓存的地理位置 (基于时区推断)
-    cached_location: Option<GeoLocation>,
     /// 缓存的天气信息 (需要联网获取)
     cached_weather: Option<WeatherInfo>,
     /// 天气缓存时间戳
@@ -96,7 +103,6 @@ pub struct EnvironmentManager {
 impl EnvironmentManager {
     pub fn new() -> Self {
         Self {
-            cached_location: None,
             cached_weather: None,
             weather_cache_time: 0,
             weather_cache_duration: 1800, // 30 分钟缓存，减少联网请求
@@ -107,97 +113,21 @@ impl EnvironmentManager {
 
     /// 获取当前日期时间信息 (从系统本地获取)
     pub fn get_datetime(&self) -> DateTimeInfo {
-        let now = SystemTime::now();
-        let timestamp = now
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        // 使用 Windows API 获取本地时间
-        #[cfg(windows)]
-        {
-            use std::mem::MaybeUninit;
-            
-            #[repr(C)]
-            struct SYSTEMTIME {
-                w_year: u16,
-                w_month: u16,
-                w_day_of_week: u16,
-                w_day: u16,
-                w_hour: u16,
-                w_minute: u16,
-                w_second: u16,
-                w_milliseconds: u16,
-            }
-
-            extern "system" {
-                fn GetLocalTime(lp_system_time: *mut SYSTEMTIME);
-            }
-
-            let mut st = MaybeUninit::<SYSTEMTIME>::uninit();
-            unsafe {
-                GetLocalTime(st.as_mut_ptr());
-                let st = st.assume_init();
-                
-                return DateTimeInfo {
-                    year: st.w_year as u32,
-                    month: st.w_month as u32,
-                    day: st.w_day as u32,
-                    hour: st.w_hour as u32,
-                    minute: st.w_minute as u32,
-                    second: st.w_second as u32,
-                    weekday: st.w_day_of_week as u32,
-                    timestamp,
-                };
-            }
-        }
-
-        #[cfg(not(windows))]
-        {
-            // 非 Windows 平台的简单实现
-            // 使用 Unix 时间戳计算 (UTC)
-            let secs = timestamp;
-            let days = secs / 86400;
-            let time_of_day = secs % 86400;
-            
-            let hour = (time_of_day / 3600) as u32;
-            let minute = ((time_of_day % 3600) / 60) as u32;
-            let second = (time_of_day % 60) as u32;
-            
-            // 简化的日期计算 (从 1970-01-01 开始)
-            let weekday = ((days + 4) % 7) as u32; // 1970-01-01 是周四
-            
-            // 简化处理，实际应使用专门的日期库
-            DateTimeInfo {
-                year: 1970 + (days / 365) as u32,
-                month: 1,
-                day: 1,
-                hour,
-                minute,
-                second,
-                weekday,
-                timestamp,
-            }
-        }
+        get_current_datetime_impl()
     }
 
     // ========================================================================= //
 
     /// 获取地理位置信息 (从系统时区推断)
-    /// 通过系统时区偏移量推断大致的经度和半球
+    /// 
+    /// 使用全局静态缓存，程序运行期间只计算一次
+    #[inline]
     pub fn get_location(&mut self) -> Option<GeoLocation> {
-        // 如果有缓存，直接返回
-        if let Some(ref loc) = self.cached_location {
-            return Some(loc.clone());
-        }
-
-        let location = self.infer_location_from_timezone();
-        self.cached_location = Some(location.clone());
-        Some(location)
+        Some(CACHED_LOCATION.get_or_init(Self::infer_location_from_timezone).clone())
     }
 
-    /// 从系统时区推断地理位置
-    fn infer_location_from_timezone(&self) -> GeoLocation {
+    /// 从系统时区推断地理位置（静态方法，用于全局缓存初始化）
+    fn infer_location_from_timezone() -> GeoLocation {
         #[cfg(windows)]
         {
             use std::mem::MaybeUninit;
@@ -285,9 +215,10 @@ impl EnvironmentManager {
         }
     }
 
-    /// 清除缓存
+    /// 清除天气缓存
+    /// 
+    /// 注意：地理位置缓存是全局静态的，无法清除
     pub fn clear_cache(&mut self) {
-        self.cached_location = None;
         self.cached_weather = None;
         self.weather_cache_time = 0;
     }
@@ -436,10 +367,89 @@ impl Default for EnvironmentManager {
 }
 
 // ========================================================================= //
+// 内部实现函数
+// ========================================================================= //
+
+/// 获取当前日期时间的内部实现
+fn get_current_datetime_impl() -> DateTimeInfo {
+    let now = SystemTime::now();
+    let timestamp = now
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    // 使用 Windows API 获取本地时间
+    #[cfg(windows)]
+    {
+        use std::mem::MaybeUninit;
+        
+        #[repr(C)]
+        struct SYSTEMTIME {
+            w_year: u16,
+            w_month: u16,
+            w_day_of_week: u16,
+            w_day: u16,
+            w_hour: u16,
+            w_minute: u16,
+            w_second: u16,
+            w_milliseconds: u16,
+        }
+
+        extern "system" {
+            fn GetLocalTime(lp_system_time: *mut SYSTEMTIME);
+        }
+
+        let mut st = MaybeUninit::<SYSTEMTIME>::uninit();
+        unsafe {
+            GetLocalTime(st.as_mut_ptr());
+            let st = st.assume_init();
+            
+            return DateTimeInfo {
+                year: st.w_year as u32,
+                month: st.w_month as u32,
+                day: st.w_day as u32,
+                hour: st.w_hour as u32,
+                minute: st.w_minute as u32,
+                second: st.w_second as u32,
+                weekday: st.w_day_of_week as u32,
+                timestamp,
+            };
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        // 非 Windows 平台的简单实现（UTC 时间）
+        let secs = timestamp;
+        let days = secs / 86400;
+        let time_of_day = secs % 86400;
+        
+        let hour = (time_of_day / 3600) as u32;
+        let minute = ((time_of_day % 3600) / 60) as u32;
+        let second = (time_of_day % 60) as u32;
+        let weekday = ((days + 4) % 7) as u32; // 1970-01-01 是周四
+        
+        DateTimeInfo {
+            year: 1970 + (days / 365) as u32,
+            month: 1,
+            day: 1,
+            hour,
+            minute,
+            second,
+            weekday,
+            timestamp,
+        }
+    }
+}
+
+// ========================================================================= //
+// 便捷函数
+// ========================================================================= //
 
 /// 便捷函数：获取当前日期时间
+#[inline]
 pub fn get_current_datetime() -> DateTimeInfo {
-    EnvironmentManager::new().get_datetime()
+    get_current_datetime_impl()
 }
 
 /// 便捷函数：判断当前是否是早晨 (6:00 - 12:00)

@@ -4,6 +4,11 @@
 //! - Mod 目录发现和枚举
 //! - manifest.json 解析
 //! - 资产、音频、文本资源的加载和查询
+//!
+//! # 性能优化
+//! - 使用 `Box<str>` 替代 `String` 存储不可变字符串，减少内存占用
+//! - 查询方法返回引用而非克隆，减少内存分配
+//! - 使用 `#[inline]` 提示编译器内联热点函数
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -628,6 +633,9 @@ impl ResourceManager {
     }
 
     /// 加载指定的 Mod
+    /// 
+    /// 加载成功后返回 Mod 信息的克隆（用于返回给前端）。
+    /// 内部会缓存原始数据，后续查询使用缓存避免重复克隆。
     pub fn load_mod(&mut self, mod_name: &str) -> Result<ModInfo, String> {
         // 查找 Mod 目录
         let mod_path = self.search_paths.iter()
@@ -642,8 +650,8 @@ impl ResourceManager {
         let manifest: ModManifest = serde_json::from_str(&manifest_content)
             .map_err(|e| format!("Failed to parse manifest: {}", e))?;
 
-        // 解析资产定义
-        let assets_path = mod_path.join("assets");
+        // 解析资产定义（使用 "asset" 目录而非 "assets"）
+        let assets_path = mod_path.join("asset");
         let imgs = Self::load_json_list(&assets_path.join("img.json"));
         let sequences = Self::load_json_list(&assets_path.join("sequence.json"));
 
@@ -652,28 +660,7 @@ impl ResourceManager {
 
         // 解析多语言文本和角色信息
         let text_path = mod_path.join("text");
-        let mut info = HashMap::new();
-        let mut texts = HashMap::new();
-        
-        if let Ok(entries) = fs::read_dir(&text_path) {
-            for entry in entries.flatten() {
-                if entry.path().is_dir() {
-                    let lang = entry.file_name().to_string_lossy().into_owned();
-                    
-                    // 加载角色信息
-                    if let Some(mut char_info) = Self::load_json_obj::<CharacterInfo>(&entry.path().join("info.json")) {
-                        if char_info.id.is_empty() || char_info.id == "ERROR" {
-                            char_info.id = lang.clone();
-                        }
-                        info.insert(lang.clone(), char_info);
-                    }
-                    
-                    // 加载对话文本
-                    let speech_list: Vec<TextInfo> = Self::load_json_list(&entry.path().join("speech.json"));
-                    texts.insert(lang, speech_list);
-                }
-            }
-        }
+        let (info, texts) = Self::load_text_resources(&text_path);
 
         let mod_info = ModInfo {
             path: mod_path,
@@ -689,15 +676,48 @@ impl ResourceManager {
         Ok(mod_info)
     }
 
+    /// 加载文本资源（角色信息 + 对话文本）
+    fn load_text_resources(text_path: &Path) -> (HashMap<String, CharacterInfo>, HashMap<String, Vec<TextInfo>>) {
+        let mut info = HashMap::new();
+        let mut texts = HashMap::new();
+        
+        if let Ok(entries) = fs::read_dir(text_path) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    let lang = entry.file_name().to_string_lossy().into_owned();
+                    
+                    // 加载角色信息
+                    if let Some(mut char_info) = Self::load_json_obj::<CharacterInfo>(&entry.path().join("info.json")) {
+                        if char_info.id.is_empty() || char_info.id == "ERROR" {
+                            char_info.id.clone_from(&lang);
+                        }
+                        info.insert(lang.clone(), char_info);
+                    }
+                    
+                    // 加载对话文本
+                    let speech_list: Vec<TextInfo> = Self::load_json_list(&entry.path().join("speech.json"));
+                    texts.insert(lang, speech_list);
+                }
+            }
+        }
+        
+        (info, texts)
+    }
+
     // ========================================================================= //
     // 资源查询（代理到 ModInfo）
     // ========================================================================= //
 
     /// 获取所有状态（important_states + states）
+    /// 
+    /// 注意：此方法会克隆所有状态，仅在需要完整列表时使用
     pub fn get_all_states(&self) -> Vec<StateInfo> {
         match &self.current_mod {
             Some(m) => {
-                let mut states: Vec<StateInfo> = m.manifest.important_states.values().cloned().collect();
+                // 预分配容量，避免多次扩容
+                let capacity = m.manifest.important_states.len() + m.manifest.states.len();
+                let mut states = Vec::with_capacity(capacity);
+                states.extend(m.manifest.important_states.values().cloned());
                 states.extend(m.manifest.states.iter().cloned());
                 states
             }
@@ -706,11 +726,13 @@ impl ResourceManager {
     }
 
     /// 获取所有触发器
+    /// 
+    /// 注意：此方法会克隆所有触发器，仅在需要完整列表时使用
+    #[inline]
     pub fn get_all_triggers(&self) -> Vec<TriggerInfo> {
-        match &self.current_mod {
-            Some(m) => m.manifest.triggers.clone(),
-            None => Vec::new(),
-        }
+        self.current_mod.as_ref()
+            .map(|m| m.manifest.triggers.clone())
+            .unwrap_or_default()
     }
 
     /// 根据名称查找状态

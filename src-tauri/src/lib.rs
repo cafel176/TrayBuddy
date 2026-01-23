@@ -5,6 +5,23 @@
 //! - 状态切换和动画播放
 //! - 系统媒体监听
 //! - 用户设置持久化
+//!
+//! # 模块架构
+//! 
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────┐
+//! │                      AppState (全局状态)                      │
+//! │  ┌─────────────────┬─────────────────┬─────────────────┐    │
+//! │  │ ResourceManager │  StateManager   │    Storage      │    │
+//! │  │   (资源管理)     │   (状态管理)    │  (持久化存储)   │    │
+//! │  └─────────────────┴─────────────────┴─────────────────┘    │
+//! │                              │                               │
+//! │  ┌─────────────────┬─────────┴───────┬─────────────────┐    │
+//! │  │ MediaObserver   │ TriggerManager  │  Environment    │    │
+//! │  │  (媒体监听)      │   (触发管理)    │   (环境信息)    │    │
+//! │  └─────────────────┴─────────────────┴─────────────────┘    │
+//! └─────────────────────────────────────────────────────────────┘
+//! ```
 
 mod modules;
 
@@ -14,7 +31,7 @@ use modules::constants::{
 };
 use modules::environment::get_current_datetime;
 use modules::resource::{
-    ResourceManager, StateInfo, TriggerInfo, AssetInfo, 
+    self, ResourceManager, StateInfo, TriggerInfo, AssetInfo, 
     AudioInfo, TextInfo, CharacterInfo, ModInfo
 };
 use modules::state::StateManager;
@@ -48,23 +65,29 @@ pub struct AppState {
 // ========================================================================= //
 
 /// 获取浮点型常量（窗口尺寸、缩放比例等）
+/// 
+/// 返回的常量包括：
+/// - `animation_window_width`: 动画窗口宽度
+/// - `animation_window_height`: 动画窗口高度
+/// - `animation_scale`: 缩放比例
 #[tauri::command]
 fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<String, f64> {
     let storage = state.storage.lock().unwrap();
     let scale = storage.data.settings.animation_scale as f64;
     
-    let mut map = std::collections::HashMap::new();
-    map.insert("animation_window_width".to_string(), ANIMATION_WINDOW_BASE_WIDTH * scale);
-    map.insert("animation_window_height".to_string(), ANIMATION_WINDOW_BASE_HEIGHT * scale);
-    map.insert("animation_scale".to_string(), scale);
+    // 预分配容量避免扩容
+    let mut map = std::collections::HashMap::with_capacity(3);
+    map.insert("animation_window_width".into(), ANIMATION_WINDOW_BASE_WIDTH * scale);
+    map.insert("animation_window_height".into(), ANIMATION_WINDOW_BASE_HEIGHT * scale);
+    map.insert("animation_scale".into(), scale);
     map
 }
 
 /// 获取字符串型常量
 #[tauri::command]
 fn get_const_text() -> std::collections::HashMap<String, String> {
-    let mut map = std::collections::HashMap::new();
-    map.insert(ANIMATION_BORDER.to_string(), ANIMATION_BORDER.to_string());
+    let mut map = std::collections::HashMap::with_capacity(1);
+    map.insert(ANIMATION_BORDER.into(), ANIMATION_BORDER.into());
     map
 }
 

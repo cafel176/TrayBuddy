@@ -33,3 +33,19 @@ windows = { version = "0.58", features = [
 ] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 
+# ========================================================================= #
+# Release 优化配置 - 减少打包体积和提升运行性能
+# ========================================================================= #
+
+[profile.release]
+# 启用 LTO (Link-Time Optimization) 进行跨模块优化
+lto = true
+# 单 codegen unit 产生更小更优化的二进制
+codegen-units = 1
+# 优化级别: s = 优化体积, z = 更激进的体积优化, 3 = 最大性能
+opt-level = "s"
+# 移除 debug 符号
+strip = true
+# 启用 panic abort 减少 unwind 代码体积
+panic = "abort"
+

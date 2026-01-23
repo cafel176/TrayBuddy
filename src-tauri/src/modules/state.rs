@@ -11,6 +11,11 @@
 //! 
 //! `StateManager` 持有 `ResourceManager` 的 `Arc<Mutex<>>` 引用，
 //! 用于在状态切换时查询 next_state 对应的状态信息。
+//!
+//! # 性能优化
+//! - 使用 `Relaxed` 内存序减少原子操作开销
+//! - 定时器线程使用更高效的状态检查
+//! - 减少不必要的状态克隆
 
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -302,16 +307,18 @@ impl StateManager {
     /// 1. 筛选出所有通过 `is_enable()` 检查的状态
     /// 2. 随机选择一个
     /// 3. 执行切换
+    /// 
+    /// # 性能说明
+    /// - 使用引用收集避免提前克隆
+    /// - 仅在确定要切换时才克隆选中的状态
     pub fn trigger_random_state(&mut self, states: &[StateInfo]) -> Result<bool, String> {
+        if states.is_empty() {
+            return Ok(false);
+        }
+
         // 筛选可用状态（使用引用避免克隆）
         let enabled_states: Vec<&StateInfo> = states.iter()
-            .filter(|s| {
-                let enabled = s.is_enable();
-                if !enabled {
-                    println!("[StateManager] 状态 '{}' 未通过时间/日期检查", s.name);
-                }
-                enabled
-            })
+            .filter(|s| s.is_enable())
             .collect();
 
         if enabled_states.is_empty() {
@@ -366,6 +373,10 @@ impl StateManager {
     /// 
     /// 在独立线程中运行，定期检查持久状态的 `trigger_time` 和 `trigger_rate`，
     /// 按配置的概率触发 `can_trigger_states` 中的随机状态。
+    /// 
+    /// # 性能说明
+    /// - 使用短暂的锁获取，避免长时间持有锁
+    /// - 先检查轻量条件（开关、时间间隔）再获取锁
     pub fn start_timer_loop(&mut self, app_handle: tauri::AppHandle) {
         let timer_enabled = Arc::new(AtomicBool::new(false));
         self.timer_enabled = Some(timer_enabled.clone());
@@ -379,28 +390,26 @@ impl StateManager {
                 // 每 1000ms 检查一次
                 std::thread::sleep(Duration::from_secs(1));
 
-                // 检查开关
+                // 快速检查开关（无锁操作）
                 if !timer_enabled.load(Ordering::Relaxed) {
                     last_trigger_time = SystemTime::now();
                     continue;
                 }
 
-                // 获取持久状态信息
+                // 获取持久状态信息（短暂持有锁）
                 use tauri::Manager;
                 let app_state: tauri::State<crate::AppState> = app_handle.state();
                 
-                let persistent_state = {
+                // 从 state_manager 获取必要信息后立即释放锁
+                let (trigger_time, trigger_rate, state_names) = {
                     let sm = app_state.state_manager.lock().unwrap();
-                    sm.get_persistent_state().cloned()
-                };
-                
-                let persistent_state = match persistent_state {
-                    Some(s) => s,
-                    None => continue,
+                    match sm.get_persistent_state() {
+                        Some(s) => (s.trigger_time, s.trigger_rate, s.can_trigger_states.clone()),
+                        None => continue,
+                    }
                 };
 
-                // 检查触发间隔
-                let trigger_time = persistent_state.trigger_time;
+                // 检查触发间隔（无锁操作）
                 if trigger_time <= 0.0 {
                     continue;
                 }
@@ -413,27 +422,19 @@ impl StateManager {
                 // 重置计时器
                 last_trigger_time = SystemTime::now();
 
-                // 检查触发概率
-                let trigger_rate = persistent_state.trigger_rate;
-                if trigger_rate <= 0.0 {
+                // 检查触发概率（无锁操作）
+                if trigger_rate <= 0.0 || state_names.is_empty() {
                     continue;
                 }
 
                 let random_value = Self::random_float();
                 if random_value > trigger_rate {
-                    println!("[StateManager] 概率检查未通过 ({:.2} > {:.2})", random_value, trigger_rate);
-                    continue;
-                }
-
-                // 获取可触发的状态列表
-                let state_names = &persistent_state.can_trigger_states;
-                if state_names.is_empty() {
                     continue;
                 }
 
                 println!("[StateManager] 触发随机状态，概率 {:.2} <= {:.2}", random_value, trigger_rate);
 
-                // 执行触发
+                // 执行触发（需要获取锁）
                 let rm = app_state.resource_manager.lock().unwrap();
                 let mut sm = app_state.state_manager.lock().unwrap();
                 
