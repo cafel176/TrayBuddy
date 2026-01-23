@@ -397,13 +397,6 @@ pub fn run() {
             let mut sm = StateManager::new(Arc::clone(&rm));
             let mut storage = Storage::new(app.handle());
 
-            // 启动定时触发器和设置事件发送器
-            sm.start_timer_loop(app.handle().clone());
-            sm.set_app_handle(app.handle().clone());
-
-            // 启动媒体监听器
-            start_media_observer(app.handle().clone());
-
             // 记录登录时间
             let dt = get_current_datetime();
             storage.data.info.last_login = Some(dt.timestamp as i64);
@@ -468,6 +461,8 @@ pub fn run() {
 
             // login 事件由前端触发
 
+            sm.set_app_handle(app.handle().clone());
+
             // 注册全局状态
             app.manage(AppState {
                 resource_manager: rm,
@@ -475,6 +470,12 @@ pub fn run() {
                 storage: Mutex::new(storage),
                 media_observer: Mutex::new(None),
             });
+
+            // 启动定时触发器和设置事件发送器
+            //sm.start_timer_loop(app.handle().clone());           
+
+            // 启动媒体监听器
+            //start_media_observer(app.handle().clone());
 
             Ok(())
         })

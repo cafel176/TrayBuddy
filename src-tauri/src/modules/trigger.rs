@@ -75,7 +75,8 @@ impl TriggerManager {
         }
 
         // 调用 StateManager 进行随机选择和切换
-        state_manager.trigger_random_state(&states)
+        // 传入 resource_manager 引用避免死锁（因为外层已持有锁）
+        state_manager.trigger_random_state_with_rm(&states, resource_manager)
     }
 
     // ========================================================================= //

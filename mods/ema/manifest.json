@@ -89,7 +89,7 @@
       "name" : "morning",
       "persistent" : false,
       "anima" : "wave",
-      "audio" : "",
+      "audio" : "morning",
       "text" : "",
       "priority" : 2,
       "date_start" : "",
@@ -106,7 +106,7 @@
       "name" : "noon",
       "persistent" : false,
       "anima" : "wave",
-      "audio" : "",
+      "audio" : "noon",
       "text" : "",
       "priority" : 2,
       "date_start" : "",
@@ -123,7 +123,7 @@
       "name" : "evening",
       "persistent" : false,
       "anima" : "wave",
-      "audio" : "",
+      "audio" : "evening",
       "text" : "",
       "priority" : 2,
       "date_start" : "",
@@ -140,7 +140,7 @@
       "name" : "night",
       "persistent" : false,
       "anima" : "wave",
-      "audio" : "",
+      "audio" : "night",
       "text" : "",
       "priority" : 2,
       "date_start" : "",
@@ -197,7 +197,7 @@
     {
       "event" : "click",
       "can_trigger_states" :[
-
+        "hello1_1"
       ] 
     },
     {

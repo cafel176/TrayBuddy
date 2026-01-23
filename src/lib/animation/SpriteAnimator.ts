@@ -574,6 +574,7 @@ export class SpriteAnimator {
    * 
    * 内部方法，处理实际的动画切换逻辑
    * 支持图片缓存，相同图片不会重复加载
+   * 无闪烁切换：保持旧画面直到新图片就绪
    * 
    * @param config 动画配置对象
    * @param playOnce 是否只播放一次
@@ -588,7 +589,19 @@ export class SpriteAnimator {
     // 检查是否需要加载新图片
     const needLoadImage = this.currentImgSrc !== config.imgSrc;
     
-    // 更新帧参数（立即生效）
+    // 如果需要加载新图片，先异步加载（保持旧画面显示）
+    if (needLoadImage) {
+      const loaded = await this.loadImage(config.imgSrc);
+      if (!loaded) {
+        return false;
+      }
+      this.currentImgSrc = config.imgSrc;
+    }
+    
+    // 图片就绪后，再更新所有参数并绘制第一帧
+    // 这样可以避免在加载期间出现空白
+    
+    // 更新帧参数
     this.frameCountX = config.frameCountX;
     this.frameCountY = config.frameCountY;
     this.frameWidth = config.frameWidth;
@@ -618,18 +631,12 @@ export class SpriteAnimator {
     this.isPlayOnce = playOnce;
     this.onCompleteCallback = onComplete || null;
     
-    // 更新画布尺寸
+    // 更新画布尺寸（这会清空 canvas，但紧接着就绘制第一帧）
     this.canvas.width = this.frameWidth;
     this.canvas.height = this.frameHeight;
     
-    if (needLoadImage) {
-      // 需要加载新图片
-      const loaded = await this.loadImage(config.imgSrc);
-      if (!loaded) {
-        return false;
-      }
-      this.currentImgSrc = config.imgSrc;
-    }
+    // 立即绘制第一帧（防止闪烁）
+    this.drawCurrentFrame();
     
     // 开始播放
     if (this.isSequence) {
@@ -640,8 +647,7 @@ export class SpriteAnimator {
       }
       // 如果已经在播放，循环会自动使用新参数
     } else {
-      // 静态图片
-      this.drawCurrentFrame();
+      // 静态图片（已在上面绘制）
       if (playOnce) {
         onComplete?.();
       }
@@ -698,13 +704,23 @@ export class SpriteAnimator {
    * 底层加载方法，被 loadByStateName 和 loadByAssetName 调用
    * 负责实际的图片加载和参数初始化
    * 使用全局图片缓存避免重复加载
+   * 无闪烁加载：先加载图片，再设置 canvas 并立即绘制第一帧
    * 
    * @param config 动画配置对象
    * @returns Promise，图片加载成功返回 true，失败返回 false
    */
   loadWithConfig(config: AnimationConfig): Promise<boolean> {
     return new Promise(async (resolve) => {
-      // 初始化帧参数
+      // 先加载图片（保持 canvas 当前状态，避免闪烁）
+      const loaded = await this.loadImage(config.imgSrc);
+      if (!loaded) {
+        resolve(false);
+        return;
+      }
+      
+      this.currentImgSrc = config.imgSrc;
+      
+      // 图片就绪后，设置所有参数
       this.frameCountX = config.frameCountX;
       this.frameCountY = config.frameCountY;
       this.frameWidth = config.frameWidth;
@@ -729,23 +745,10 @@ export class SpriteAnimator {
         this.isReversing = false;
       }
       
-      // 设置画布尺寸为单帧尺寸
+      // 设置画布尺寸并立即绘制第一帧（同步执行，无闪烁）
       this.canvas.width = this.frameWidth;
       this.canvas.height = this.frameHeight;
-
-      // 加载图片（使用缓存）
-      const loaded = await this.loadImage(config.imgSrc);
-      if (!loaded) {
-        resolve(false);
-        return;
-      }
-      
-      this.currentImgSrc = config.imgSrc;
-      
-      // 如果不是序列帧，直接绘制静态图片
-      if (!this.isSequence) {
-        this.drawCurrentFrame();
-      }
+      this.drawCurrentFrame();
       
       resolve(true);
     });

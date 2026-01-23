@@ -169,7 +169,7 @@
     /** 音频资源 (按语言分组) */
     audios: Record<string, { name: string, audio: string }[]>;
     /** 对话文本 (按语言分组) */
-    speech: Record<string, { name: string, text: string }[]>;
+    texts: Record<string, { name: string, text: string }[]>;
     /** 角色信息 (按语言分组) */
     info: Record<string, { name: string, lang: string, id: string }>;
   }
@@ -513,7 +513,7 @@
                 <h6>{lang}</h6>
                 <div class="tag-container">
                   {#each audios as audio}
-                    <button class="tag audio-tag link-btn" onclick={() => openAssetFile(`audio/${lang}/${audio.audio}`)} title="打开文件">
+                    <button class="tag audio-tag link-btn" onclick={() => openAssetFile(`audio/${audio.audio}`)} title="打开文件">
                       {audio.name}
                     </button>
                   {/each}
@@ -528,9 +528,9 @@
         <!-- ============================================================= -->
         
         <details>
-          <summary>对话文本 ({Object.values(currentModInfo.speech).flat().length})</summary>
+          <summary>对话文本 ({Object.values(currentModInfo.texts).flat().length})</summary>
           <div class="tab-content">
-            {#each Object.entries(currentModInfo.speech) as [lang, texts]}
+            {#each Object.entries(currentModInfo.texts) as [lang, texts]}
               <div class="lang-section">
                 <h6>{lang}</h6>
                 <div class="text-list">

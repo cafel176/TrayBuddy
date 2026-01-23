@@ -254,6 +254,7 @@
     } else {
       // 没有音频，直接标记完成
       audioComplete = true;
+      checkComplete();
     }
   }
 
@@ -263,27 +264,38 @@
    */
   function checkComplete() {
     if (isPlayOnce && animationComplete && audioComplete) {
-      invoke("on_animation_complete");
+      // 使用 setTimeout 延迟调用，避免在后端持有锁时同步调用导致死锁
+      setTimeout(() => {
+        invoke("on_animation_complete");
+      }, 0);
     }
   }
 
   /**
    * 播放指定动画
    * 
-   * 使用 switchToState 复用现有播放器实例，避免销毁重建
+   * 使用 switchToAsset 复用现有播放器实例，避免销毁重建
    * 
-   * @param animationName 动画资源名 (对应状态的 anima 字段)
+   * @param assetName 动画资产名 (对应状态的 anima 字段)
    * @param playOnce 是否只播放一次
    */
-  async function playAnimation(animationName: string, playOnce: boolean) {
+  async function playAnimation(assetName: string, playOnce: boolean) {
+    // 没有指定动画资产，直接标记完成
+    if (!assetName) {
+      animationComplete = true;
+      checkComplete();
+      return;
+    }
+
     // 如果还没有创建播放器，先创建一个
     if (!characterAnimator) {
       characterAnimator = new SpriteAnimator(characterCanvas);
     }
 
-    // 使用 switchToState 切换动画（复用实例，使用图片缓存）
-    const success = await characterAnimator.switchToState(
-      animationName,
+    // 使用 switchToAsset 切换动画（复用实例，使用图片缓存）
+    // 注意: 传入的是资产名 (anima)，而不是状态名
+    const success = await characterAnimator.switchToAsset(
+      assetName,
       playOnce,
       playOnce ? () => {
         // 单次播放完成回调
@@ -293,7 +305,7 @@
     );
 
     if (!success) {
-      console.error(`Failed to switch to animation '${animationName}'`);
+      console.error(`Failed to switch to animation '${assetName}'`);
       animationComplete = true;
       checkComplete();
       return;
