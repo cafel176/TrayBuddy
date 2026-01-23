@@ -475,7 +475,7 @@ pub fn run() {
             //sm.start_timer_loop(app.handle().clone());           
 
             // 启动媒体监听器
-            //start_media_observer(app.handle().clone());
+            start_media_observer(app.handle().clone());
 
             Ok(())
         })

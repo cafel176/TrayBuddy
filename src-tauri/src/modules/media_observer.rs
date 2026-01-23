@@ -102,25 +102,46 @@ impl MediaObserver {
 
         let mut last_status = MediaPlaybackStatus::Unknown;
         let mut last_app_id: Option<String> = None;
+        // 标记是否曾经检测到播放状态（只有播放过才会触发 music_end）
+        let mut has_played = false;
 
         println!("[MediaObserver] 媒体监听已启动 (仅监听音乐应用)");
 
         while running.load(std::sync::atomic::Ordering::SeqCst) {
             let current_event = Self::get_current_media_state(&manager);
 
-            // 只在状态变化或应用变化时发送事件
+            // 只在状态变化或应用变化时处理
             let app_changed = current_event.app_id != last_app_id;
             if current_event.status != last_status || app_changed {
                 println!(
                     "[MediaObserver] 媒体状态变化: {:?} -> {:?}, App: {:?}",
                     last_status, current_event.status, current_event.app_id
                 );
+                
+                // 判断是否应该发送事件
+                let should_send = match current_event.status {
+                    // Playing 状态总是发送
+                    MediaPlaybackStatus::Playing => {
+                        has_played = true;  // 标记已经播放过
+                        true
+                    }
+                    // Paused/Stopped 只在之前有播放过时才发送
+                    // 避免应用启动时因为没有音乐播放而触发 music_end
+                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
+                        has_played
+                    }
+                    // Unknown 状态不发送
+                    MediaPlaybackStatus::Unknown => false,
+                };
+                
                 last_status = current_event.status.clone();
                 last_app_id = current_event.app_id.clone();
 
-                if tx.send(current_event).is_err() {
-                    // 接收端已关闭，退出循环
-                    break;
+                if should_send {
+                    if tx.send(current_event).is_err() {
+                        // 接收端已关闭，退出循环
+                        break;
+                    }
                 }
             }
 
