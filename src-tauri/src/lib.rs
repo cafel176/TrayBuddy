@@ -458,16 +458,15 @@ pub fn run() {
                 let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
             }
 
-            // ========== 初始化状态 ==========
+            // ========== 初始化状态，便于前端获取并播放 ==========
             {
                 let rm_guard = rm.lock().unwrap();
                 if let Some(idle_state) = rm_guard.get_state_by_name(STATE_IDLE) {
                     let _ = sm.change_state(idle_state.clone());
                 }
-
-                // 触发 login 事件
-                let _ = TriggerManager::trigger_login(&rm_guard, &mut sm);
             }
+
+            // login 事件由前端触发
 
             // 注册全局状态
             app.manage(AppState {

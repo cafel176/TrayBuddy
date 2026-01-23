@@ -1,5 +1,15 @@
-// Tauri doesn't have a Node.js server to do proper SSR
-// so we will use adapter-static to prerender the app (SSG)
-// See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
+// ========================================================================= //
+// SvelteKit 布局配置
+// ========================================================================= //
+//
+// Tauri 应用不使用 Node.js 服务器进行服务端渲染 (SSR)，
+// 因此使用 adapter-static 进行静态预渲染 (SSG)。
+//
+// 参考文档: https://v2.tauri.app/start/frontend/sveltekit/
+// ========================================================================= //
+
+/** 启用预渲染 - 所有页面将在构建时生成静态 HTML */
 export const prerender = true;
+
+/** 禁用服务端渲染 - Tauri 应用在客户端运行，不需要 SSR */
 export const ssr = false;

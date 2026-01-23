@@ -82,15 +82,6 @@ impl TriggerManager {
     // 便捷触发方法
     // ========================================================================= //
 
-    /// 触发登录事件
-    #[inline]
-    pub fn trigger_login(
-        resource_manager: &ResourceManager,
-        state_manager: &mut StateManager,
-    ) -> Result<bool, String> {
-        Self::trigger_event(EVENT_LOGIN, resource_manager, state_manager)
-    }
-
     /// 触发音乐开始事件
     #[inline]
     pub fn trigger_music_start(
