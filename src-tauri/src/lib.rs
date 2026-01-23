@@ -546,6 +546,18 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
             while let Some(event) = rx.recv().await {
                 let app_state: State<AppState> = app_handle.state();
 
+                // 等待状态解锁
+                for _ in 0..60 {
+                    let is_locked = {
+                        let sm = app_state.state_manager.lock().unwrap();
+                        sm.is_locked()
+                    };
+                    if !is_locked {
+                        break;
+                    }
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                }
+
                 match event.status {
                     MediaPlaybackStatus::Playing => {
                         let rm = app_state.resource_manager.lock().unwrap();

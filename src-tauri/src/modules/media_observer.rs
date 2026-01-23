@@ -85,6 +85,12 @@ impl MediaObserver {
     ) {
         use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 
+        // 启动延迟：等待应用初始化和 login 事件完成
+        // 这确保 music_start 不会在 login 之前触发
+        const STARTUP_DELAY_SECS: u64 = 5;
+        println!("[MediaObserver] 等待 {} 秒后启动媒体监听...", STARTUP_DELAY_SECS);
+        tokio::time::sleep(tokio::time::Duration::from_secs(STARTUP_DELAY_SECS)).await;
+
         // 尝试获取媒体会话管理器
         let manager = match GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
             Ok(op) => match op.get() {
@@ -102,35 +108,46 @@ impl MediaObserver {
 
         let mut last_status = MediaPlaybackStatus::Unknown;
         let mut last_app_id: Option<String> = None;
-        // 标记是否曾经检测到播放状态（只有播放过才会触发 music_end）
         let mut has_played = false;
+        let mut pending_send_countdown: i32 = 0;
+        let mut pending_playing_event: Option<MediaStateEvent> = None;
 
-        println!("[MediaObserver] 媒体监听已启动 (仅监听音乐应用)");
+        println!("[MediaObserver] 媒体监听已启动");
 
         while running.load(std::sync::atomic::Ordering::SeqCst) {
+            // 处理延迟发送的事件
+            if pending_send_countdown > 0 {
+                pending_send_countdown -= 1;
+                if pending_send_countdown == 0 {
+                    if let Some(event) = pending_playing_event.take() {
+                        if tx.send(event).is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+
             let current_event = Self::get_current_media_state(&manager);
 
             // 只在状态变化或应用变化时处理
             let app_changed = current_event.app_id != last_app_id;
-            if current_event.status != last_status || app_changed {
-                println!(
-                    "[MediaObserver] 媒体状态变化: {:?} -> {:?}, App: {:?}",
-                    last_status, current_event.status, current_event.app_id
-                );
-                
-                // 判断是否应该发送事件
+            let status_changed = current_event.status != last_status;
+            
+            if status_changed || app_changed {
                 let should_send = match current_event.status {
-                    // Playing 状态总是发送
                     MediaPlaybackStatus::Playing => {
-                        has_played = true;  // 标记已经播放过
-                        true
+                        // 从 Unknown 变为 Playing 时延迟发送，让 login 事件先完成
+                        if last_status == MediaPlaybackStatus::Unknown {
+                            pending_playing_event = Some(current_event.clone());
+                            pending_send_countdown = 2;
+                            has_played = true;
+                            false
+                        } else {
+                            has_played = true;
+                            true
+                        }
                     }
-                    // Paused/Stopped 只在之前有播放过时才发送
-                    // 避免应用启动时因为没有音乐播放而触发 music_end
-                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
-                        has_played
-                    }
-                    // Unknown 状态不发送
+                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => has_played,
                     MediaPlaybackStatus::Unknown => false,
                 };
                 
@@ -139,13 +156,11 @@ impl MediaObserver {
 
                 if should_send {
                     if tx.send(current_event).is_err() {
-                        // 接收端已关闭，退出循环
                         break;
                     }
                 }
             }
 
-            // 轮询间隔 1 秒
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         }
 
