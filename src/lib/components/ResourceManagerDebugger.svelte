@@ -42,6 +42,8 @@
     img: string;
     /** 是否为序列帧动画 */
     sequence: boolean;
+    /** 原始帧序列是否已反向排列 */
+    origin_reverse: boolean;
     /** 是否需要反向播放 */
     need_reverse: boolean;
     /** 每帧时间 (秒) */

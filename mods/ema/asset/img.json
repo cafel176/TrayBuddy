@@ -3,6 +3,7 @@
     "name": "border",
     "img": "img/border.png",
     "sequence": true,
+    "origin_reverse": false,
     "need_reverse": false,
     "frame_time": 0.2,
     "frame_size_x": 265,

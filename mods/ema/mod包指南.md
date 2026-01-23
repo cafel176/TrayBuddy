@@ -103,6 +103,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `name` | String | 图像名称 |
 | `img` | String | 对应文件名 (相对 `asset/` 目录) |
 | `sequence` | Boolean | 是否为序列帧 (如果是设为 true，静态图设为 false) |
+| `origin_reverse` | Boolean | 原始帧序列是否已反向排列（从后向前） |
 | `need_reverse` | Boolean | 循环时是否需要后接反向播放 |
 | `frame_time` | Number | 每帧间隔时间 (单位：秒) |
 | `frame_size_x` | Number | 单帧的宽度 |
@@ -120,6 +121,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `name` | String | 动画名称 |
 | `img` | String | 对应文件名 (相对 `asset/` 目录) |
 | `sequence` | Boolean | 是否为序列帧 (如果是设为 true) |
+| `origin_reverse` | Boolean | 原始帧序列是否已反向排列（从后向前） |
 | `need_reverse` | Boolean | 播放完成后是否需要反向播放回起始帧 |
 | `frame_time` | Number | 每帧间隔时间 (秒) |
 | `frame_size_x` | Number | 单帧宽度 |

@@ -130,6 +130,8 @@ export interface AssetInfo {
 
   /** 是否为序列帧动画（false 表示静态图片） */
   sequence: boolean;
+  /** 原始帧序列是否已反向排列（从后向前） */
+  origin_reverse: boolean;
   /** 是否需要反向播放（乒乓动画效果） */
   need_reverse: boolean;
   /** 每帧持续时间（秒） */
@@ -180,6 +182,8 @@ export interface AnimationConfig {
   imgSrc: string;
   /** 是否为序列帧动画 */
   sequence: boolean;
+  /** 原始帧序列是否已反向排列（从后向前播放） */
+  originReverse: boolean;
   /** 是否需要反向播放（乒乓动画） */
   needReverse: boolean;
   /** 渲染时 X 轴偏移（像素） */
@@ -285,6 +289,8 @@ export class SpriteAnimator {
   private isPlaying = false;
   /** 是否为序列帧动画（false 则为静态图） */
   private isSequence = true;
+  /** 原始帧序列是否已反向排列（倒序播放） */
+  private originReverse = false;
   /** 是否需要反向播放（乒乓模式） */
   private needReverse = false;
   /** 当前是否处于反向播放阶段 */
@@ -357,6 +363,7 @@ export class SpriteAnimator {
         frameTime: (asset.frame_time || 0.1) * 1000,  // 秒 -> 毫秒
         imgSrc,
         sequence: asset.sequence !== false,           // 默认为 true
+        originReverse: asset.origin_reverse === true, // 默认为 false
         needReverse: asset.need_reverse === true,     // 默认为 false
         offsetX: asset.offset_x || 0,
         offsetY: asset.offset_y || 0
@@ -411,6 +418,7 @@ export class SpriteAnimator {
         frameTime: (asset.frame_time || 0.1) * 1000,
         imgSrc,
         sequence: asset.sequence !== false,
+        originReverse: asset.origin_reverse === true,
         needReverse: asset.need_reverse === true,
         offsetX: asset.offset_x || 0,
         offsetY: asset.offset_y || 0
@@ -490,6 +498,7 @@ export class SpriteAnimator {
         frameTime: (asset.frame_time || 0.1) * 1000,
         imgSrc,
         sequence: asset.sequence !== false,
+        originReverse: asset.origin_reverse === true,
         needReverse: asset.need_reverse === true,
         offsetX: asset.offset_x || 0,
         offsetY: asset.offset_y || 0
@@ -546,6 +555,7 @@ export class SpriteAnimator {
         frameTime: (asset.frame_time || 0.1) * 1000,
         imgSrc,
         sequence: asset.sequence !== false,
+        originReverse: asset.origin_reverse === true,
         needReverse: asset.need_reverse === true,
         offsetX: asset.offset_x || 0,
         offsetY: asset.offset_y || 0
@@ -585,14 +595,23 @@ export class SpriteAnimator {
     this.frameHeight = config.frameHeight;
     this.frameTime = config.frameTime;
     this.isSequence = config.sequence;
+    this.originReverse = config.originReverse;
     this.needReverse = config.needReverse;
     this.offsetX = config.offsetX || 0;
     this.offsetY = config.offsetY || 0;
     
-    // 重置帧状态
-    this.frameX = 0;
-    this.frameY = 0;
-    this.isReversing = false;
+    // 重置帧状态（根据 originReverse 决定起始位置）
+    if (this.originReverse) {
+      // 倒序播放：从最后一帧开始
+      this.frameX = this.frameCountX - 1;
+      this.frameY = this.frameCountY - 1;
+      this.isReversing = true;  // 标记为反向播放模式
+    } else {
+      // 正序播放：从第一帧开始
+      this.frameX = 0;
+      this.frameY = 0;
+      this.isReversing = false;
+    }
     this.lastTime = 0;
     
     // 更新播放模式
@@ -692,10 +711,23 @@ export class SpriteAnimator {
       this.frameHeight = config.frameHeight;
       this.frameTime = config.frameTime;
       this.isSequence = config.sequence;
+      this.originReverse = config.originReverse;
       this.needReverse = config.needReverse;
       this.offsetX = config.offsetX || 0;
       this.offsetY = config.offsetY || 0;
-      this.isReversing = false;
+      
+      // 根据 originReverse 决定起始位置
+      if (this.originReverse) {
+        // 倒序播放：从最后一帧开始
+        this.frameX = this.frameCountX - 1;
+        this.frameY = this.frameCountY - 1;
+        this.isReversing = true;
+      } else {
+        // 正序播放：从第一帧开始
+        this.frameX = 0;
+        this.frameY = 0;
+        this.isReversing = false;
+      }
       
       // 设置画布尺寸为单帧尺寸
       this.canvas.width = this.frameWidth;
@@ -783,16 +815,24 @@ export class SpriteAnimator {
   }
 
   /**
-   * 重置动画到第一帧
+   * 重置动画到起始帧
    * 
-   * 将帧索引归零并立即绘制第一帧
+   * 根据 originReverse 决定起始位置
    * 不影响播放状态
    */
   reset(): void {
-    this.frameX = 0;
-    this.frameY = 0;
+    if (this.originReverse) {
+      // 倒序播放：从最后一帧开始
+      this.frameX = this.frameCountX - 1;
+      this.frameY = this.frameCountY - 1;
+      this.isReversing = true;
+    } else {
+      // 正序播放：从第一帧开始
+      this.frameX = 0;
+      this.frameY = 0;
+      this.isReversing = false;
+    }
     this.lastTime = 0;
-    this.isReversing = false;
     this.drawCurrentFrame();
   }
 
@@ -889,73 +929,141 @@ export class SpriteAnimator {
    * 推进到下一帧
    * 
    * 处理帧索引的更新，支持以下模式：
-   * - 正向循环：到达最后一帧后回到第一帧
-   * - 乒乓模式：到达最后一帧后反向播放到第一帧
-   * - 单次播放：完成一轮后停止并触发回调
+   * - originReverse=false: 正向播放 (0 -> N)
+   * - originReverse=true: 反向播放 (N -> 0)
+   * - needReverse: 乒乓模式（播放完成后反向播放回起点）
+   * 
+   * 对于 originReverse + needReverse 的组合：
+   * - 主方向从后向前 (N -> 0)
+   * - 乒乓时从前向后 (0 -> N)
    * 
    * 帧遍历顺序：
    * - 先水平（X 方向）遍历一行
    * - 行末换到下一行继续
    */
   private advanceFrame(): void {
-    if (this.isReversing) {
-      // -----------------------------------------------------------------------
-      // 反向播放阶段
-      // -----------------------------------------------------------------------
-      this.frameX--;
-      if (this.frameX < 0) {
-        // 当前行播放完毕，切换到上一行
-        this.frameX = this.frameCountX - 1;
-        this.frameY--;
-        if (this.frameY < 0) {
-          // 反向播放完成，切换回正向
-          this.isReversing = false;
-          this.frameX = 0;
-          this.frameY = 0;
-          // 如果是单次播放模式，触发回调并停止
-          if (this.isPlayOnce) {
-            this.stop();
-            this.onCompleteCallback?.();
-            return;
+    if (this.originReverse) {
+      // =======================================================================
+      // originReverse = true: 主方向为反向播放 (N -> 0)
+      // =======================================================================
+      if (this.isReversing) {
+        // 反向播放阶段（即主方向：从后往前）
+        this.frameX--;
+        if (this.frameX < 0) {
+          this.frameX = this.frameCountX - 1;
+          this.frameY--;
+          if (this.frameY < 0) {
+            // 反向播放完成（到达第一帧）
+            if (this.needReverse) {
+              // 乒乓模式：切换到正向播放（倒序的倒序 = 正序）
+              this.isReversing = false;
+              // 从第二帧开始正向（避免第一帧重复）
+              this.frameX = 1;
+              this.frameY = 0;
+              if (this.frameX >= this.frameCountX) {
+                this.frameX = 0;
+                this.frameY = 1;
+                if (this.frameY >= this.frameCountY) {
+                  // 帧数太少，回到起点
+                  this.frameX = this.frameCountX - 1;
+                  this.frameY = this.frameCountY - 1;
+                  this.isReversing = true;
+                }
+              }
+            } else {
+              // 普通循环：回到最后一帧
+              this.frameX = this.frameCountX - 1;
+              this.frameY = this.frameCountY - 1;
+              if (this.isPlayOnce) {
+                this.stop();
+                this.onCompleteCallback?.();
+                return;
+              }
+            }
           }
         }
-      }
-    } else {
-      // -----------------------------------------------------------------------
-      // 正向播放阶段
-      // -----------------------------------------------------------------------
-      this.frameX++;
-      if (this.frameX >= this.frameCountX) {
-        // 当前行播放完毕，切换到下一行
-        this.frameX = 0;
-        this.frameY++;
-        if (this.frameY >= this.frameCountY) {
-          // 所有帧播放完毕
-          if (this.needReverse) {
-            // 乒乓模式：切换到反向播放
+      } else {
+        // 正向播放阶段（乒乓的额外播放：从前往后）
+        this.frameX++;
+        if (this.frameX >= this.frameCountX) {
+          this.frameX = 0;
+          this.frameY++;
+          if (this.frameY >= this.frameCountY) {
+            // 正向播放完成（到达最后一帧），切换回反向
             this.isReversing = true;
-            // 从倒数第二帧开始反向（避免最后一帧重复播放）
+            // 从倒数第二帧开始反向（避免最后一帧重复）
             this.frameX = this.frameCountX - 2;
             this.frameY = this.frameCountY - 1;
-            // 处理边界情况（帧数过少）
             if (this.frameX < 0) {
               this.frameX = this.frameCountX - 1;
               this.frameY--;
               if (this.frameY < 0) {
-                // 帧数太少，无法形成有效的乒乓动画
-                this.frameY = 0;
-                this.frameX = 0;
-                this.isReversing = false;
+                this.frameY = this.frameCountY - 1;
+                this.frameX = this.frameCountX - 1;
               }
             }
-          } else {
-            // 普通循环模式：回到第一帧
-            this.frameY = 0;
-            // 如果是单次播放模式，触发回调并停止
             if (this.isPlayOnce) {
               this.stop();
               this.onCompleteCallback?.();
               return;
+            }
+          }
+        }
+      }
+    } else {
+      // =======================================================================
+      // originReverse = false: 主方向为正向播放 (0 -> N)
+      // =======================================================================
+      if (this.isReversing) {
+        // 反向播放阶段（乒乓的额外播放）
+        this.frameX--;
+        if (this.frameX < 0) {
+          this.frameX = this.frameCountX - 1;
+          this.frameY--;
+          if (this.frameY < 0) {
+            // 反向播放完成，切换回正向
+            this.isReversing = false;
+            this.frameX = 0;
+            this.frameY = 0;
+            if (this.isPlayOnce) {
+              this.stop();
+              this.onCompleteCallback?.();
+              return;
+            }
+          }
+        }
+      } else {
+        // 正向播放阶段（主方向）
+        this.frameX++;
+        if (this.frameX >= this.frameCountX) {
+          this.frameX = 0;
+          this.frameY++;
+          if (this.frameY >= this.frameCountY) {
+            // 所有帧播放完毕
+            if (this.needReverse) {
+              // 乒乓模式：切换到反向播放
+              this.isReversing = true;
+              // 从倒数第二帧开始反向（避免最后一帧重复播放）
+              this.frameX = this.frameCountX - 2;
+              this.frameY = this.frameCountY - 1;
+              if (this.frameX < 0) {
+                this.frameX = this.frameCountX - 1;
+                this.frameY--;
+                if (this.frameY < 0) {
+                  // 帧数太少，无法形成有效的乒乓动画
+                  this.frameY = 0;
+                  this.frameX = 0;
+                  this.isReversing = false;
+                }
+              }
+            } else {
+              // 普通循环模式：回到第一帧
+              this.frameY = 0;
+              if (this.isPlayOnce) {
+                this.stop();
+                this.onCompleteCallback?.();
+                return;
+              }
             }
           }
         }

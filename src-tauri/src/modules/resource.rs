@@ -42,7 +42,9 @@ pub struct AssetInfo {
 
     /// 是否为序列帧动画
     pub sequence: bool,
-    /// 循环播放时是否需要反向播放
+    /// 原始帧序列是否已反向排列（从后向前）
+    pub origin_reverse: bool,
+    /// 循环播放时是否需要反向播放（往返循环）
     pub need_reverse: bool,
     /// 每帧播放间隔（秒）
     pub frame_time: f32,
@@ -69,6 +71,7 @@ impl Default for AssetInfo {
             name: default_name(),
             img: String::new(),
             sequence: false,
+            origin_reverse: false,
             need_reverse: false,
             frame_time: 0.3,
             frame_size_x: 0,
