@@ -1,103 +1,77 @@
-// ========================================================================= //
-// 触发器管理模块 (TriggerManager)
-// ========================================================================= //
-//
-// 功能概述:
-// - 前端触发器管理器，负责将用户交互事件发送到后端
-// - 提供事件有效性检查和触发接口
-// - 实际的触发逻辑（状态选择、概率判断等）由后端 TriggerManager 处理
-//
-// 支持的事件类型:
-// - click: 用户点击角色时触发
-// - login: 应用启动时触发
-//
-// 使用方式:
-// const triggerManager = getTriggerManager();
-// await triggerManager.trigger("click");
-// ========================================================================= //
+/**
+ * TriggerManager - 触发器管理模块
+ *
+ * 该模块负责前端事件触发，将用户交互转发给后端处理。
+ *
+ * ## 支持的事件
+ * - `click` - 点击桌面宠物
+ * - `login` - 应用启动（登录）
+ *
+ * ## 触发流程
+ * 1. 前端检测到用户交互（如点击）
+ * 2. 调用 `TriggerManager.trigger("click")`
+ * 3. TriggerManager 调用后端 `trigger_event` 命令
+ * 4. 后端根据 Mod 配置执行状态切换
+ *
+ * ## 使用示例
+ * ```typescript
+ * const triggerManager = getTriggerManager();
+ * await triggerManager.trigger("click");
+ * ```
+ */
 
 import { invoke } from "@tauri-apps/api/core";
 
-// ========================================================================= //
-// 类型定义
-// ========================================================================= //
-
-/**
- * 触发器事件类型
- * 定义所有可用的触发事件名称
- */
+/** 支持的触发事件类型 */
 export type TriggerEvent = "click" | "login";
 
-// ========================================================================= //
-// TriggerManager 类
-// ========================================================================= //
+/** 已支持的事件列表 */
+const SUPPORTED_EVENTS: readonly TriggerEvent[] = ["click", "login"];
 
 /**
- * 触发器管理器类
- * 
- * 提供前端事件触发的统一接口，将事件转发给后端处理。
- * 后端会根据当前状态、触发器配置和概率判断来决定是否切换状态。
+ * 触发器管理器
+ *
+ * 负责：
+ * - 验证事件名称的有效性
+ * - 调用后端触发命令
+ * - 提供事件列表查询
  */
 export class TriggerManager {
-  // ======================================================================= //
-  // 静态常量
-  // ======================================================================= //
-
-  /** 支持的事件名称列表 */
-  private static readonly EVENTS: TriggerEvent[] = [
-    "click",       // 点击角色
-    "login"       // 应用启动
-  ];
-
-  // ======================================================================= //
-  // 构造函数
-  // ======================================================================= //
-
-  constructor() {}
-
   /**
    * 检查事件是否受支持
+   * @param eventName - 事件名称
+   * @returns 是否为有效的触发事件
    */
   isEventSupported(eventName: string): eventName is TriggerEvent {
-    return TriggerManager.EVENTS.includes(eventName as TriggerEvent);
+    return SUPPORTED_EVENTS.includes(eventName as TriggerEvent);
   }
 
   /**
-   * 获取所有支持的事件
+   * 获取所有支持的事件列表
+   * @returns 事件名称数组
    */
   getSupportedEvents(): TriggerEvent[] {
-    return [...TriggerManager.EVENTS];
+    return [...SUPPORTED_EVENTS];
   }
 
   /**
    * 触发事件
-   * 
-   * 将事件发送到后端处理，后端会：
-   * 1. 查找对应的触发器配置
-   * 2. 筛选可用状态
-   * 3. 随机选择并切换状态
-   * 
-   * @param eventName 事件名称
-   * @returns 是否成功触发
+   *
+   * 将事件发送到后端，由后端根据 Mod 配置决定是否切换状态。
+   *
+   * @param eventName - 事件名称
+   * @returns 是否成功触发状态切换
    */
   async trigger(eventName: string): Promise<boolean> {
+    // 验证事件名称
     if (!this.isEventSupported(eventName)) {
       console.warn(`[TriggerManager] Unknown event: '${eventName}'`);
       return false;
     }
 
-    console.log(`[TriggerManager] Triggering event: '${eventName}'`);
-
     try {
-      const result: boolean = await invoke("trigger_event", { eventName });
-      
-      if (result) {
-        console.log(`[TriggerManager] Event '${eventName}' triggered successfully`);
-      } else {
-        console.log(`[TriggerManager] Event '${eventName}' not triggered (no trigger/states or blocked)`);
-      }
-      
-      return result;
+      // 调用后端触发命令
+      return await invoke("trigger_event", { eventName });
     } catch (e) {
       console.error(`[TriggerManager] Failed to trigger event '${eventName}':`, e);
       return false;
@@ -106,30 +80,22 @@ export class TriggerManager {
 
   /**
    * 销毁触发器管理器
+   * 目前无需清理资源，保留以备将来扩展
    */
-  destroy(): void {
-    // 目前无需清理
-  }
+  destroy(): void {}
 }
 
-// ========================================================================= //
+// ============================================================================
 // 单例管理
-// ========================================================================= //
+// ============================================================================
 
-/** TriggerManager 单例实例 */
+/** 全局单例实例 */
 let triggerManagerInstance: TriggerManager | null = null;
 
 /**
- * 获取或创建 TriggerManager 单例实例
- * 
- * 使用单例模式确保全局只有一个触发器管理器实例。
- * 与 AudioManager 不同，TriggerManager 不需要异步初始化。
- * 
- * @returns TriggerManager 实例
- * 
- * @example
- * const triggerManager = getTriggerManager();
- * await triggerManager.trigger("click");
+ * 获取触发器管理器单例
+ *
+ * @returns 触发器管理器实例
  */
 export function getTriggerManager(): TriggerManager {
   if (!triggerManagerInstance) {

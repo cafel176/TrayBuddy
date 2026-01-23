@@ -44,6 +44,8 @@
 //! - 定时器线程使用更高效的状态检查
 //! - 减少不必要的状态克隆
 
+#![allow(unused)]
+
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};

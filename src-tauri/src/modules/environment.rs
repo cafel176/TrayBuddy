@@ -18,6 +18,8 @@
 //! println!("当前时间: {}:{}", env.datetime.hour, env.datetime.minute);
 //! ```
 
+#![allow(unused)]
+
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};

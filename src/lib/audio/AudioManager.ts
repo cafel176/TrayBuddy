@@ -1,140 +1,110 @@
-// ========================================================================= //
-// 音频管理模块 (AudioManager)
-// ========================================================================= //
-//
-// 功能概述:
-// - 提供统一的音频播放接口
-// - 支持静音模式和音量控制
-// - 自动响应用户设置变更
-// - 单例模式确保全局唯一实例
-// - 支持音频 URL 缓存，减少重复查询
-//
-// 使用方式:
-// const audioManager = await getAudioManager();
-// await audioManager.play("greeting", () => console.log("播放完成"));
-// ========================================================================= //
+/**
+ * AudioManager - 音频管理模块
+ *
+ * 该模块负责桌面宠物的语音播放功能，支持：
+ * - 多语言语音资源加载和播放
+ * - 音量控制和静音模式
+ * - 用户设置实时同步（通过事件监听）
+ * - 音频 URL 缓存（减少重复查询）
+ *
+ * ## 数据流
+ * 1. 前端调用 `play(audioName)` 请求播放语音
+ * 2. AudioManager 向后端查询语音文件路径
+ * 3. 使用 HTML5 Audio API 播放语音
+ * 4. 播放完成后触发回调
+ *
+ * ## 使用示例
+ * ```typescript
+ * const audioManager = await getAudioManager();
+ * await audioManager.play("morning", () => {
+ *   console.log("语音播放完成");
+ * });
+ * ```
+ */
 
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { LRUCache } from "../utils/LRUCache";
+import { getModPath, clearModPathCache } from "../utils/modPath";
+import type { AudioInfo, UserSettings } from "../types/asset";
 
-// ========================================================================= //
-// 类型定义
-// ========================================================================= //
+// ============================================================================
+// 音频 URL 缓存
+// ============================================================================
 
 /**
- * 用户设置接口
- * 包含音频相关的用户配置项
+ * 音频 URL 缓存实例
+ * - 最大缓存 50 条记录
+ * - 缓存 key 格式: "语言:音频名"（如 "zh:morning"）
+ * - 缓存 value 为完整的音频文件 URL
  */
-interface UserSettings {
-  /** 是否启用静音模式 */
-  no_audio_mode: boolean;
-  /** 音量值 (0.0 - 1.0) */
-  volume: number;
-  /** 当前语言代码 (如 "zh", "en", "jp") */
-  lang: string;
-  /** 其他扩展设置 */
-  [key: string]: unknown;
-}
+const audioUrlCache = new LRUCache<string, string>(50);
 
 /**
- * 音频信息接口
- */
-interface AudioInfo {
-  name: string;
-  audio: string;
-}
-
-// ========================================================================= //
-// 模块级缓存
-// ========================================================================= //
-
-/** 缓存的 mod 路径 */
-let cachedModPath: string | null = null;
-
-/** 音频 URL 缓存 (key: `${lang}:${name}`) */
-const audioUrlCache: Map<string, string> = new Map();
-
-/** 最大音频 URL 缓存数量 */
-const AUDIO_CACHE_MAX_SIZE = 50;
-
-/**
- * 获取 mod 路径（带缓存）
- */
-async function getModPath(): Promise<string | null> {
-  if (cachedModPath === null) {
-    cachedModPath = await invoke("get_mod_path");
-  }
-  return cachedModPath;
-}
-
-/**
- * 清除 AudioManager 的缓存（Mod 切换时调用）
+ * 清除音频缓存
+ * 在 Mod 切换时调用，确保使用新 Mod 的音频资源
  */
 export function clearAudioCache(): void {
-  cachedModPath = null;
-  audioUrlCache.clear();
+  clearModPathCache();   // 清除 Mod 路径缓存
+  audioUrlCache.clear(); // 清除音频 URL 缓存
 }
 
-// ========================================================================= //
+// ============================================================================
 // AudioManager 类
-// ========================================================================= //
+// ============================================================================
 
 /**
- * 音频管理器类
- * 
- * 负责管理应用中的音频播放，包括:
- * - 加载和播放 Mod 中的音频文件
- * - 根据语言设置选择正确的音频版本
- * - 响应设置变更实时调整音量和静音状态
- * - 提供播放完成回调机制
+ * 音频管理器
+ *
+ * 管理桌面宠物的语音播放，特性：
+ * - 同一时间只播放一个语音（新语音会停止旧语音）
+ * - 自动响应用户设置变更（音量、静音、语言）
+ * - 支持播放完成回调
+ *
+ * ## 生命周期
+ * 1. 创建实例
+ * 2. 调用 `init()` 初始化（加载设置、注册事件监听）
+ * 3. 使用 `play()` 播放语音
+ * 4. 销毁时调用 `destroy()` 清理资源
  */
 export class AudioManager {
-  // ======================================================================= //
-  // 私有属性
-  // ======================================================================= //
-
-  /** 当前播放的 HTMLAudioElement 实例 */
+  /** 当前 Audio 元素（同一时间只有一个） */
   private audio: HTMLAudioElement | null = null;
-  
-  /** 静音状态标记 */
-  private muted: boolean = false;
-  
-  /** 当前音量 (0.0 - 1.0) */
-  private volume: number = 0.5;
-  
-  /** 当前语言代码，用于选择对应语言的音频 */
-  private lang: string = "zh";
-  
+  /** 是否静音 */
+  private muted = false;
+  /** 音量（0.0 - 1.0） */
+  private volume = 0.5;
+  /** 当前语言（用于查询对应语言的语音资源） */
+  private lang = "zh";
   /** 设置变更事件的取消监听函数 */
   private unlistenSettings: UnlistenFn | null = null;
-  
-  /** 音频播放结束后的回调函数 */
+  /** 播放完成回调 */
   private onEndCallback: (() => void) | null = null;
-
-  // ======================================================================= //
-  // 构造函数
-  // ======================================================================= //
 
   constructor() {}
 
   /**
    * 初始化音频管理器
+   *
+   * 执行操作：
+   * 1. 从后端加载用户设置（音量、静音、语言）
+   * 2. 注册 "settings-change" 事件监听，实时同步设置变更
    */
   async init(): Promise<void> {
-    // 获取初始设置
+    // 加载初始设置
     const settings: UserSettings = await invoke("get_settings");
     this.muted = settings.no_audio_mode;
     this.volume = settings.volume;
     this.lang = settings.lang;
 
-    // 监听设置变更
+    // 监听设置变更事件
     this.unlistenSettings = await listen<UserSettings>("settings-change", (event) => {
-      const settings = event.payload;
-      this.muted = settings.no_audio_mode;
-      this.volume = settings.volume;
-      this.lang = settings.lang;
+      const s = event.payload;
+      this.muted = s.no_audio_mode;
+      this.volume = s.volume;
+      this.lang = s.lang;
 
-      // 更新当前播放音频的音量
+      // 立即更新当前播放的音量
       if (this.audio) {
         this.audio.volume = this.muted ? 0 : this.volume;
       }
@@ -142,22 +112,26 @@ export class AudioManager {
   }
 
   /**
-   * 播放指定名称的音频
-   * 
-   * 使用 URL 缓存减少重复的后端查询
-   * 
-   * @param audioName 音频名称
-   * @param onEnd 播放结束回调
-   * @returns 是否成功开始播放
+   * 播放语音
+   *
+   * 播放流程：
+   * 1. 停止当前播放的语音（如果有）
+   * 2. 查询语音文件路径（优先使用缓存）
+   * 3. 创建 Audio 元素播放
+   * 4. 播放完成后触发回调
+   *
+   * @param audioName - 语音名称（如 "morning", "click"）
+   * @param onEnd - 播放完成回调
+   * @returns 成功返回 true
    */
   async play(audioName: string, onEnd?: () => void): Promise<boolean> {
-    // 空名称直接返回成功（无需播放）
+    // 空名称直接触发完成回调
     if (!audioName) {
       onEnd?.();
       return true;
     }
 
-    // 停止当前播放（注意：不触发之前的回调，因为我们要开始新的播放）
+    // 停止当前播放
     if (this.audio) {
       this.audio.pause();
       this.audio.src = "";
@@ -166,65 +140,52 @@ export class AudioManager {
     this.onEndCallback = null;
 
     try {
-      // 构建缓存键
+      // 构建缓存 key 并尝试从缓存获取 URL
       const cacheKey = `${this.lang}:${audioName}`;
       let audioUrl = audioUrlCache.get(cacheKey);
       
-      // 缓存未命中，查询后端
+      // 缓存未命中，从后端查询
       if (!audioUrl) {
-        // 获取音频信息 (后端会处理 fallback)
         const audioInfo: AudioInfo | null = await invoke("get_audio_by_name", {
           lang: this.lang,
           name: audioName,
         });
 
         if (!audioInfo) {
-          console.warn(`Audio '${audioName}' not found for lang '${this.lang}'`);
           onEnd?.();
           return false;
         }
 
-        // 获取 mod 路径并构建完整音频路径
+        // 构建完整的音频文件 URL
         const modPath = await getModPath();
         if (!modPath) {
-          console.warn("No mod loaded");
           onEnd?.();
           return false;
         }
 
-        const audioPath = `${modPath}/audio/${audioInfo.audio}`;
-        const normalizedPath = audioPath.replace(/\\/g, "/");
-        audioUrl = convertFileSrc(normalizedPath);
-        
-        // 添加到缓存（带 LRU 淘汰）
-        if (audioUrlCache.size >= AUDIO_CACHE_MAX_SIZE) {
-          const firstKey = audioUrlCache.keys().next().value;
-          if (firstKey) audioUrlCache.delete(firstKey);
-        }
-        audioUrlCache.set(cacheKey, audioUrl);
+        const audioPath = `${modPath}/audio/${audioInfo.audio}`.replace(/\\/g, "/");
+        audioUrl = convertFileSrc(audioPath);
+        audioUrlCache.set(cacheKey, audioUrl);  // 存入缓存
       }
       
-      // 创建音频元素
+      // 创建并播放 Audio
       this.audio = new Audio();
       this.audio.src = audioUrl;
       this.audio.volume = this.muted ? 0 : this.volume;
-      
       this.onEndCallback = onEnd || null;
 
-      // 监听播放结束
+      // 注册播放完成事件
       this.audio.onended = () => {
         this.onEndCallback?.();
         this.onEndCallback = null;
       };
 
-      // 监听错误
-      this.audio.onerror = (e) => {
-        console.error(`Failed to play audio '${audioName}':`, e, this.audio?.error);
+      // 注册播放错误事件
+      this.audio.onerror = () => {
         this.onEndCallback?.();
         this.onEndCallback = null;
       };
 
-      // 开始播放
       await this.audio.play();
       return true;
     } catch (e) {
@@ -236,6 +197,8 @@ export class AudioManager {
 
   /**
    * 停止当前播放
+   *
+   * 停止播放并立即触发完成回调
    */
   stop(): void {
     if (this.audio) {
@@ -243,7 +206,6 @@ export class AudioManager {
       this.audio.src = "";
       this.audio = null;
     }
-    // 触发回调（如果有）
     if (this.onEndCallback) {
       this.onEndCallback();
       this.onEndCallback = null;
@@ -251,7 +213,8 @@ export class AudioManager {
   }
 
   /**
-   * 设置静音状态
+   * 设置静音模式
+   * @param muted - 是否静音
    */
   setMuted(muted: boolean): void {
     this.muted = muted;
@@ -262,6 +225,7 @@ export class AudioManager {
 
   /**
    * 设置音量
+   * @param volume - 音量值（0.0 - 1.0）
    */
   setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
@@ -272,6 +236,7 @@ export class AudioManager {
 
   /**
    * 检查是否正在播放
+   * @returns 正在播放返回 true
    */
   isPlaying(): boolean {
     return this.audio !== null && !this.audio.paused;
@@ -279,6 +244,8 @@ export class AudioManager {
 
   /**
    * 销毁音频管理器
+   *
+   * 停止播放并取消事件监听
    */
   destroy(): void {
     this.stop();
@@ -287,24 +254,20 @@ export class AudioManager {
   }
 }
 
-// ========================================================================= //
+// ============================================================================
 // 单例管理
-// ========================================================================= //
+// ============================================================================
 
-/** AudioManager 单例实例 */
+/** 全局单例实例 */
 let audioManagerInstance: AudioManager | null = null;
 
 /**
- * 获取或创建 AudioManager 单例实例
- * 
- * 首次调用时会创建新实例并初始化，后续调用返回已存在的实例。
- * 使用单例模式确保全局只有一个音频管理器，避免多个实例同时播放音频。
- * 
- * @returns 初始化完成的 AudioManager 实例
- * 
- * @example
- * const audioManager = await getAudioManager();
- * await audioManager.play("greeting");
+ * 获取音频管理器单例
+ *
+ * 首次调用时创建并初始化实例，后续调用返回同一实例。
+ * 使用单例模式确保全局只有一个音频播放器，避免多个语音同时播放。
+ *
+ * @returns 初始化完成的音频管理器实例
  */
 export async function getAudioManager(): Promise<AudioManager> {
   if (!audioManagerInstance) {

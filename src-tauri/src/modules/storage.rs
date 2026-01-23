@@ -13,6 +13,8 @@
 //! - 仅在数据变更时写入磁盘
 //! - 使用 `serde_json` 的 pretty print 便于调试
 
+#![allow(unused)]
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;

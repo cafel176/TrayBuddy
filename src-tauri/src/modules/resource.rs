@@ -10,6 +10,8 @@
 //! - 查询方法返回引用而非克隆，减少内存分配
 //! - 使用 `#[inline]` 提示编译器内联热点函数
 
+#![allow(unused)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -475,50 +477,109 @@ pub struct ModInfo {
     pub texts: HashMap<String, Vec<TextInfo>>,
     /// 角色信息（语言代码 -> 角色信息）
     pub info: HashMap<String, CharacterInfo>,
+    
+    // --- 索引（用于 O(1) 查询，不序列化） ---
+    #[serde(skip)]
+    state_index: HashMap<String, usize>,
+    #[serde(skip)]
+    trigger_index: HashMap<String, usize>,
+    #[serde(skip)]
+    asset_index: HashMap<String, (bool, usize)>, // (is_sequence, index)
+    #[serde(skip)]
+    audio_index: HashMap<String, HashMap<String, usize>>, // lang -> name -> index
+    #[serde(skip)]
+    text_index: HashMap<String, HashMap<String, usize>>, // lang -> name -> index
 }
 
 impl ModInfo {
-    /// 根据名称查找状态
+    /// 构建查询索引（加载后调用）
+    fn build_indices(&mut self) {
+        // 状态索引
+        self.state_index = self.manifest.states.iter()
+            .enumerate()
+            .map(|(i, s)| (s.name.clone(), i))
+            .collect();
+        
+        // 触发器索引
+        self.trigger_index = self.manifest.triggers.iter()
+            .enumerate()
+            .map(|(i, t)| (t.event.clone(), i))
+            .collect();
+        
+        // 资产索引
+        self.asset_index = self.imgs.iter()
+            .enumerate()
+            .map(|(i, a)| (a.name.clone(), (false, i)))
+            .chain(self.sequences.iter().enumerate().map(|(i, a)| (a.name.clone(), (true, i))))
+            .collect();
+        
+        // 音频索引
+        for (lang, audios) in &self.audios {
+            let idx: HashMap<String, usize> = audios.iter()
+                .enumerate()
+                .map(|(i, a)| (a.name.clone(), i))
+                .collect();
+            self.audio_index.insert(lang.clone(), idx);
+        }
+        
+        // 文本索引
+        for (lang, texts) in &self.texts {
+            let idx: HashMap<String, usize> = texts.iter()
+                .enumerate()
+                .map(|(i, t)| (t.name.clone(), i))
+                .collect();
+            self.text_index.insert(lang.clone(), idx);
+        }
+    }
+    
+    /// 根据名称查找状态（O(1) 查询）
     #[inline]
     pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
-        self.manifest.get_state_by_name(name)
-    }
-
-    /// 根据事件名称查找触发器
-    #[inline]
-    pub fn get_trigger_by_event(&self, event: &str) -> Option<&TriggerInfo> {
-        self.manifest.get_trigger_by_event(event)
-    }
-
-    /// 根据名称查找资产
-    /// 
-    /// 优先查找静态图，其次查找序列帧
-    pub fn get_asset_by_name(&self, name: &str) -> Option<&AssetInfo> {
-        self.imgs.iter().find(|a| a.name == name)
-            .or_else(|| self.sequences.iter().find(|a| a.name == name))
-    }
-
-    /// 根据语言和名称查找语音
-    /// 
-    /// 如果指定语言找不到，会尝试使用默认语言
-    pub fn get_audio_by_name(&self, lang: &str, name: &str) -> Option<&AudioInfo> {
-        self.audios.get(lang)
-            .and_then(|list| list.iter().find(|a| a.name == name))
+        // 优先从 important_states 查找
+        self.manifest.important_states.get(name)
             .or_else(|| {
-                self.audios.get(&self.manifest.default_audio_lang_id)
-                    .and_then(|list| list.iter().find(|a| a.name == name))
+                self.state_index.get(name)
+                    .and_then(|&i| self.manifest.states.get(i))
             })
     }
 
-    /// 根据语言和名称查找文本
-    /// 
-    /// 如果指定语言找不到，会尝试使用默认语言
-    pub fn get_text_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
-        self.texts.get(lang)
-            .and_then(|list| list.iter().find(|s| s.name == name))
+    /// 根据事件名称查找触发器（O(1) 查询）
+    #[inline]
+    pub fn get_trigger_by_event(&self, event: &str) -> Option<&TriggerInfo> {
+        self.trigger_index.get(event)
+            .and_then(|&i| self.manifest.triggers.get(i))
+    }
+
+    /// 根据名称查找资产（O(1) 查询）
+    pub fn get_asset_by_name(&self, name: &str) -> Option<&AssetInfo> {
+        self.asset_index.get(name).and_then(|&(is_seq, i)| {
+            if is_seq { self.sequences.get(i) } else { self.imgs.get(i) }
+        })
+    }
+
+    /// 根据语言和名称查找语音（O(1) 查询）
+    pub fn get_audio_by_name(&self, lang: &str, name: &str) -> Option<&AudioInfo> {
+        self.audio_index.get(lang)
+            .and_then(|idx| idx.get(name))
+            .and_then(|&i| self.audios.get(lang)?.get(i))
             .or_else(|| {
-                self.texts.get(&self.manifest.default_text_lang_id)
-                    .and_then(|list| list.iter().find(|s| s.name == name))
+                let default_lang = &self.manifest.default_audio_lang_id;
+                self.audio_index.get(default_lang)
+                    .and_then(|idx| idx.get(name))
+                    .and_then(|&i| self.audios.get(default_lang)?.get(i))
+            })
+    }
+
+    /// 根据语言和名称查找文本（O(1) 查询）
+    pub fn get_text_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
+        self.text_index.get(lang)
+            .and_then(|idx| idx.get(name))
+            .and_then(|&i| self.texts.get(lang)?.get(i))
+            .or_else(|| {
+                let default_lang = &self.manifest.default_text_lang_id;
+                self.text_index.get(default_lang)
+                    .and_then(|idx| idx.get(name))
+                    .and_then(|&i| self.texts.get(default_lang)?.get(i))
             })
     }
 
@@ -665,7 +726,7 @@ impl ResourceManager {
         let text_path = mod_path.join("text");
         let (info, texts) = Self::load_text_resources(&text_path);
 
-        let mod_info = ModInfo {
+        let mut mod_info = ModInfo {
             path: mod_path,
             manifest,
             imgs,
@@ -673,7 +734,15 @@ impl ResourceManager {
             audios,
             info,
             texts,
+            state_index: HashMap::new(),
+            trigger_index: HashMap::new(),
+            asset_index: HashMap::new(),
+            audio_index: HashMap::new(),
+            text_index: HashMap::new(),
         };
+        
+        // 构建查询索引
+        mod_info.build_indices();
 
         self.current_mod = Some(mod_info.clone());
         Ok(mod_info)

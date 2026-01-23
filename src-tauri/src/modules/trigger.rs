@@ -5,6 +5,8 @@
 //! - 音乐播放事件 (music_start, music_end)
 //! - 点击事件 (click)
 
+#![allow(unused)]
+
 use super::constants::{EVENT_LOGIN, EVENT_MUSIC_START, EVENT_MUSIC_END};
 use super::resource::{ResourceManager, StateInfo};
 use super::state::StateManager;

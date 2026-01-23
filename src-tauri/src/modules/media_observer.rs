@@ -1,6 +1,8 @@
 //! 媒体状态监听模块
 //! 通过 Windows GSMTC (GlobalSystemMediaTransportControls) 监听系统音频播放状态
 
+#![allow(unused)]
+
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -75,6 +77,12 @@ impl MediaObserver {
         self.event_tx = None;
     }
 
+    /// 检查应用名称是否为音乐应用
+    fn is_music_app(app_id: &str) -> bool {
+        let app_lower = app_id.to_lowercase();
+        app_lower.contains("music") || app_id.contains("音乐")
+    }
+
     // ========================================================================= //
 
     /// 媒体状态轮询循环
@@ -120,9 +128,7 @@ impl MediaObserver {
                 pending_send_countdown -= 1;
                 if pending_send_countdown == 0 {
                     if let Some(event) = pending_playing_event.take() {
-                        if tx.send(event).is_err() {
-                            break;
-                        }
+                        if tx.send(event).is_err() { break; }
                     }
                 }
             }
@@ -154,10 +160,8 @@ impl MediaObserver {
                 last_status = current_event.status.clone();
                 last_app_id = current_event.app_id.clone();
 
-                if should_send {
-                    if tx.send(current_event).is_err() {
-                        break;
-                    }
+                if should_send && tx.send(current_event).is_err() {
+                    break;
                 }
             }
 
@@ -165,13 +169,6 @@ impl MediaObserver {
         }
 
         println!("[MediaObserver] 媒体监听已停止");
-    }
-
-    /// 检查应用名称是否为音乐应用
-    /// 匹配包含 "音乐"、"music"、"Music" 的应用
-    fn is_music_app(app_id: &str) -> bool {
-        let app_lower = app_id.to_lowercase();
-        app_lower.contains("music") || app_id.contains("音乐")
     }
 
     /// 获取当前媒体状态
@@ -197,15 +194,9 @@ impl MediaObserver {
                             if let Ok(playback_info) = session.GetPlaybackInfo() {
                                 let status = match playback_info.PlaybackStatus() {
                                     Ok(s) => match s {
-                                        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
-                                            MediaPlaybackStatus::Playing
-                                        }
-                                        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
-                                            MediaPlaybackStatus::Paused
-                                        }
-                                        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => {
-                                            MediaPlaybackStatus::Stopped
-                                        }
+                                        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => MediaPlaybackStatus::Playing,
+                                        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => MediaPlaybackStatus::Paused,
+                                        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => MediaPlaybackStatus::Stopped,
                                         _ => MediaPlaybackStatus::Unknown,
                                     },
                                     Err(_) => MediaPlaybackStatus::Unknown,
@@ -214,12 +205,7 @@ impl MediaObserver {
                                 // 如果是播放状态，返回这个会话的信息
                                 if status == MediaPlaybackStatus::Playing {
                                     let (title, artist) = Self::get_media_properties(&session);
-                                    return MediaStateEvent {
-                                        status,
-                                        title,
-                                        artist,
-                                        app_id,
-                                    };
+                                    return MediaStateEvent { status, title, artist, app_id };
                                 }
                             }
                         }
@@ -267,7 +253,5 @@ impl MediaObserver {
 }
 
 impl Default for MediaObserver {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }

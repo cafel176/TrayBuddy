@@ -1,511 +1,257 @@
-// ========================================================================= //
-// SpriteAnimator - 精灵动画播放器模块
-// ========================================================================= //
-//
-// 本模块提供桌面宠物的精灵动画播放功能，支持：
-// - 精灵图（Sprite Sheet）的帧动画播放
-// - 序列帧动画与静态图片的处理
-// - 正向播放与反向播放（乒乓动画）
-// - 单次播放与循环播放模式
-// - 渲染偏移量控制
-// - 动画热切换（复用同一播放器实例）
-// - 图片缓存（避免重复加载）
-//
-// 主要组件：
-// - AssetInfo: 资产信息接口（从后端获取）
-// - AnimationConfig: 动画配置接口
-// - SpriteAnimator: 精灵动画播放器类
-// - createAnimator: 便捷工厂函数
-//
-// 工作流程：
-// 1. 通过状态名或资产名从后端获取资产信息
-// 2. 构建动画配置并加载精灵图（优先使用缓存）
-// 3. 使用 requestAnimationFrame 进行帧动画播放
-// 4. 根据配置决定播放模式（循环/单次，正向/乒乓）
-// 5. 切换动画时复用播放器实例，无需销毁重建
-//
-// ========================================================================= //
+/**
+ * SpriteAnimator - 精灵动画播放器模块
+ *
+ * 该模块提供基于 Canvas 的序列帧动画播放功能，是桌面宠物显示的核心组件。
+ *
+ * ## 主要功能
+ * - 序列帧动画播放（支持正向、反向、往返循环）
+ * - 图片资源 LRU 缓存（减少重复加载）
+ * - 按状态名/资产名加载动画
+ * - 单次播放模式（playOnce）
+ * - 动画切换时保持播放状态
+ *
+ * ## 使用示例
+ * ```typescript
+ * const animator = new SpriteAnimator(canvasElement);
+ * await animator.loadByStateName("idle");
+ * animator.play();
+ * ```
+ *
+ * ## 性能优化
+ * - 使用 LRUCache 缓存已加载的图片，避免重复网络请求
+ * - 动画切换时复用 Canvas 上下文
+ * - 使用 requestAnimationFrame 实现流畅动画
+ */
 
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import { LRUCache } from "../utils/LRUCache";
+import { getModPath, clearModPathCache } from "../utils/modPath";
+import type { AssetInfo, AnimationConfig } from "../types/asset";
 
-// ========================================================================= //
-// 图片缓存
-// ========================================================================= //
-//
-// 全局图片缓存，避免重复加载相同的精灵图
-// 使用 imgSrc URL 作为缓存键
-// 支持 LRU 淘汰策略，防止内存无限增长
-//
-
-/** 最大缓存图片数量 */
-const IMAGE_CACHE_MAX_SIZE = 20;
-
-/** 全局图片缓存 Map */
-const imageCache: Map<string, HTMLImageElement> = new Map();
+// ============================================================================
+// 图片 LRU 缓存
+// ============================================================================
 
 /**
- * 添加图片到缓存（带 LRU 淘汰）
- * @param key 缓存键
- * @param img 图片元素
+ * 图片缓存实例
+ * - 最大缓存 20 张图片
+ * - 使用 LRU（最近最少使用）策略淘汰旧条目
+ * - 缓存 key 为图片的完整 URL
  */
-function addToImageCache(key: string, img: HTMLImageElement): void {
-  // 如果缓存已满，删除最早的条目（Map 保持插入顺序）
-  if (imageCache.size >= IMAGE_CACHE_MAX_SIZE) {
-    const firstKey = imageCache.keys().next().value;
-    if (firstKey) {
-      imageCache.delete(firstKey);
-    }
-  }
-  imageCache.set(key, img);
-}
+const imageCache = new LRUCache<string, HTMLImageElement>(20);
 
 /**
- * 从缓存获取图片（并更新访问顺序）
- * @param key 缓存键
- * @returns 缓存的图片或 undefined
- */
-function getFromImageCache(key: string): HTMLImageElement | undefined {
-  const img = imageCache.get(key);
-  if (img) {
-    // 移动到末尾（最近访问）
-    imageCache.delete(key);
-    imageCache.set(key, img);
-  }
-  return img;
-}
-
-// ========================================================================= //
-// ModPath 缓存
-// ========================================================================= //
-//
-// 缓存 mod 路径，避免每次加载动画都调用 invoke
-//
-
-/** 缓存的 mod 路径 */
-let cachedModPath: string | null = null;
-
-/**
- * 获取 mod 路径（带缓存）
- * @returns mod 路径
- */
-async function getModPath(): Promise<string | null> {
-  if (cachedModPath === null) {
-    cachedModPath = await invoke("get_mod_path");
-  }
-  return cachedModPath;
-}
-
-/**
- * 清除 mod 路径缓存（Mod 切换时调用）
- */
-export function clearModPathCache(): void {
-  cachedModPath = null;
-}
-
-/**
- * 清除图片缓存（Mod 切换时调用）
+ * 清除图片缓存
+ * 在 Mod 切换时调用，释放旧 Mod 的图片资源
  */
 export function clearImageCache(): void {
   imageCache.clear();
 }
 
-// ========================================================================= //
-// AssetInfo - 资产信息接口
-// ========================================================================= //
-// 
-// 该接口定义了从后端 Rust 层获取的资产元数据结构
-// 用于描述精灵图的帧布局、动画参数和渲染偏移
-//
+// 导出路径缓存清除函数和类型定义
+export { clearModPathCache };
+export type { AssetInfo, AnimationConfig };
+
+// ============================================================================
+// 辅助函数
+// ============================================================================
 
 /**
- * 资产信息接口
- * 
- * 与后端 Rust 的 AssetInfo 结构对应，包含精灵图的完整元数据
+ * 将后端资产信息转换为前端动画配置
+ *
+ * @param asset - 后端返回的资产信息（AssetInfo）
+ * @param modPath - 当前 Mod 的根目录路径
+ * @returns 前端播放器使用的动画配置对象
+ *
+ * 转换内容：
+ * - 构建完整的图片 URL（使用 Tauri 的 convertFileSrc 转换本地路径）
+ * - 将帧时间从秒转换为毫秒
+ * - 处理默认值（如未定义的帧数默认为 1）
  */
-export interface AssetInfo {
-  /** 资产唯一名称，用于索引和引用 */
-  name: string;
-  /** 精灵图文件路径（相对于 mod/assets 目录） */
-  img: string;
-
-  /** 是否为序列帧动画（false 表示静态图片） */
-  sequence: boolean;
-  /** 原始帧序列是否已反向排列（从后向前） */
-  origin_reverse: boolean;
-  /** 是否需要反向播放（乒乓动画效果） */
-  need_reverse: boolean;
-  /** 每帧持续时间（秒） */
-  frame_time: number;
-
-  /** 单帧宽度（像素） */
-  frame_size_x: number;
-  /** 单帧高度（像素） */
-  frame_size_y: number;
-
-  /** 精灵图水平方向帧数 */
-  frame_num_x: number;
-  /** 精灵图垂直方向帧数 */
-  frame_num_y: number;
-
-  /** 渲染时 X 轴偏移（像素） */
-  offset_x: number;
-  /** 渲染时 Y 轴偏移（像素） */
-  offset_y: number;
+function buildAnimationConfig(asset: AssetInfo, modPath: string): AnimationConfig {
+  // 构建资产文件的完整路径
+  const rawPath = `${modPath}/asset/${asset.img}`;
+  // 将本地文件路径转换为可在 WebView 中使用的 URL
+  const imgSrc = convertFileSrc(rawPath.replace(/\\/g, '/'));
+  
+  return {
+    frameCountX: asset.frame_num_x || 1,        // X 轴帧数（列数）
+    frameCountY: asset.frame_num_y || 1,        // Y 轴帧数（行数）
+    frameWidth: asset.frame_size_x,             // 单帧宽度（像素）
+    frameHeight: asset.frame_size_y,            // 单帧高度（像素）
+    frameTime: (asset.frame_time || 0.1) * 1000, // 帧间隔（毫秒）
+    imgSrc,                                     // 图片 URL
+    sequence: asset.sequence !== false,         // 是否为序列帧动画
+    originReverse: asset.origin_reverse === true, // 原始帧序是否反向
+    needReverse: asset.need_reverse === true,   // 是否需要往返播放
+    offsetX: asset.offset_x || 0,               // X 轴渲染偏移
+    offsetY: asset.offset_y || 0                // Y 轴渲染偏移
+  };
 }
 
-// ========================================================================= //
-// AnimationConfig - 动画配置接口
-// ========================================================================= //
-//
-// 前端使用的动画配置结构，由 AssetInfo 转换而来
-// 包含经过处理的参数（如帧时间从秒转换为毫秒）
-//
-
 /**
- * 动画配置接口
- * 
- * 用于初始化 SpriteAnimator 的配置参数
- * 从 AssetInfo 转换而来，适配前端播放需求
+ * 从后端获取资产信息
+ *
+ * @param assetName - 资产名称（如 "idle", "border"）
+ * @returns 资产信息对象，不存在时返回 null
  */
-export interface AnimationConfig {
-  /** 精灵图水平方向帧数 */
-  frameCountX: number;
-  /** 精灵图垂直方向帧数 */
-  frameCountY: number;
-  /** 单帧宽度（像素） */
-  frameWidth: number;
-  /** 单帧高度（像素） */
-  frameHeight: number;
-  /** 每帧持续时间（毫秒，已从秒转换） */
-  frameTime: number;
-  /** 精灵图完整 URL（通过 convertFileSrc 转换） */
-  imgSrc: string;
-  /** 是否为序列帧动画 */
-  sequence: boolean;
-  /** 原始帧序列是否已反向排列（从后向前播放） */
-  originReverse: boolean;
-  /** 是否需要反向播放（乒乓动画） */
-  needReverse: boolean;
-  /** 渲染时 X 轴偏移（像素） */
-  offsetX: number;
-  /** 渲染时 Y 轴偏移（像素） */
-  offsetY: number;
+async function fetchAssetInfo(assetName: string): Promise<AssetInfo | null> {
+  return invoke("get_asset_by_name", { name: assetName });
 }
 
-// ========================================================================= //
-// SpriteAnimator - 精灵动画播放器类
-// ========================================================================= //
-//
-// 核心动画播放器，负责：
-// - 加载精灵图并管理图片资源
-// - 根据配置切割精灵图帧
-// - 使用 requestAnimationFrame 实现流畅的帧动画
-// - 支持循环播放、单次播放、乒乓播放等多种模式
-// - 支持动画热切换（switchToState/switchToAsset）
-//
-// 播放模式说明：
-// - 普通循环：正向播放完毕后从头开始
-// - 乒乓循环：正向播放完毕后反向播放，如此往复
-// - 单次播放：播放一轮后停止并触发回调
-//
-// 帧索引计算：
-// - frameX: 当前帧在精灵图中的水平位置（0-based）
-// - frameY: 当前帧在精灵图中的垂直位置（0-based）
-// - 总帧数 = frameCountX * frameCountY
-//
-// 性能优化：
-// - 复用播放器实例，通过 switchToState/switchToAsset 切换动画
-// - 使用全局图片缓存，避免重复加载相同的精灵图
-// - 保持 requestAnimationFrame 循环运行，减少启停开销
-//
+// ============================================================================
+// SpriteAnimator 类
+// ============================================================================
 
 /**
- * 精灵动画播放器类
- * 
- * 用于在 Canvas 上播放精灵图动画，支持动画热切换
- * 
- * @example
- * ```typescript
- * // 创建并初始加载
- * const animator = new SpriteAnimator(canvas);
- * await animator.loadByStateName("idle");
- * animator.play();
- * 
- * // 切换到新动画（复用实例，无需销毁重建）
- * await animator.switchToState("walking", false);
+ * 精灵动画播放器
+ *
+ * 基于 Canvas 的序列帧动画播放器，支持：
+ * - 从精灵图（sprite sheet）中裁剪并播放帧动画
+ * - 正向播放、反向播放、往返循环
+ * - 单次播放模式（播放完成后回调）
+ * - 动画切换时保持播放状态
+ *
+ * ## 帧布局说明
+ * 精灵图按网格排列帧，从左上角开始，先横向后纵向：
+ * ```
+ * [0,0] [1,0] [2,0] ...
+ * [0,1] [1,1] [2,1] ...
+ * ...
  * ```
  */
 export class SpriteAnimator {
-  // -------------------------------------------------------------------------
-  // 私有属性 - Canvas 相关
-  // -------------------------------------------------------------------------
+  // --- Canvas 相关 ---
+  private canvas: HTMLCanvasElement;           // 目标 Canvas 元素
+  private ctx: CanvasRenderingContext2D | null = null; // 2D 渲染上下文
+  private img: HTMLImageElement | null = null; // 当前加载的精灵图
+  private currentImgSrc = "";                  // 当前图片 URL（用于判断是否需要重新加载）
   
-  /** 目标画布元素 */
-  private canvas: HTMLCanvasElement;
-  /** 2D 渲染上下文 */
-  private ctx: CanvasRenderingContext2D | null = null;
-  /** 精灵图图片对象 */
-  private img: HTMLImageElement | null = null;
-  /** 当前加载的图片 URL（用于缓存判断） */
-  private currentImgSrc: string = "";
+  // --- 帧布局参数 ---
+  private frameX = 0;              // 当前帧的 X 索引（列）
+  private frameY = 0;              // 当前帧的 Y 索引（行）
+  private frameCountX = 1;         // X 轴总帧数（列数）
+  private frameCountY = 1;         // Y 轴总帧数（行数）
+  private frameWidth = 0;          // 单帧宽度（像素）
+  private frameHeight = 0;         // 单帧高度（像素）
+  private frameTime = 100;         // 帧间隔时间（毫秒）
+  private lastTime = 0;            // 上一帧的时间戳
+  private offsetX = 0;             // 渲染时的 X 偏移
+  private offsetY = 0;             // 渲染时的 Y 偏移
   
-  // -------------------------------------------------------------------------
-  // 私有属性 - 帧状态
-  // -------------------------------------------------------------------------
-  
-  /** 当前帧 X 索引 */
-  private frameX = 0;
-  /** 当前帧 Y 索引 */
-  private frameY = 0;
-  /** 精灵图水平帧数 */
-  private frameCountX = 1;
-  /** 精灵图垂直帧数 */
-  private frameCountY = 1;
-  /** 单帧宽度（像素） */
-  private frameWidth = 0;
-  /** 单帧高度（像素） */
-  private frameHeight = 0;
-  /** 每帧持续时间（毫秒） */
-  private frameTime = 100;
-  /** 上次帧更新时间戳 */
-  private lastTime = 0;
-  
-  // -------------------------------------------------------------------------
-  // 私有属性 - 渲染偏移
-  // -------------------------------------------------------------------------
-  
-  /** 渲染偏移 X（像素） */
-  private offsetX = 0;
-  /** 渲染偏移 Y（像素） */
-  private offsetY = 0;
-  
-  // -------------------------------------------------------------------------
-  // 私有属性 - 播放控制
-  // -------------------------------------------------------------------------
-  
-  /** requestAnimationFrame 返回的 ID */
-  private animationId: number | null = null;
-  /** 当前是否正在播放 */
-  private isPlaying = false;
-  /** 是否为序列帧动画（false 则为静态图） */
-  private isSequence = true;
-  /** 原始帧序列是否已反向排列（倒序播放） */
-  private originReverse = false;
-  /** 是否需要反向播放（乒乓模式） */
-  private needReverse = false;
-  /** 当前是否处于反向播放阶段 */
-  private isReversing = false;
-  /** 是否为单次播放模式 */
-  private isPlayOnce = false;
-  /** 播放完成回调函数 */
-  private onCompleteCallback: (() => void) | null = null;
+  // --- 播放控制 ---
+  private animationId: number | null = null;   // requestAnimationFrame 返回的 ID
+  private isPlaying = false;       // 是否正在播放
+  private isSequence = true;       // 是否为序列帧（false 时为静态图）
+  private originReverse = false;   // 原始帧序是否为反向
+  private needReverse = false;     // 是否需要往返播放
+  private isReversing = false;     // 当前是否在反向播放阶段
+  private isPlayOnce = false;      // 是否为单次播放模式
+  private onCompleteCallback: (() => void) | null = null; // 播放完成回调
 
   /**
-   * 构造函数
-   * 
-   * @param canvas 目标画布元素，动画将渲染到此画布
+   * 创建动画播放器实例
+   * @param canvas - 目标 Canvas 元素
    */
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
   }
 
-  // =========================================================================
-  // 公共方法 - 按状态名加载
-  // =========================================================================
+  // ============================================================================
+  // 按状态名加载
+  // ============================================================================
 
   /**
-   * 根据状态名称加载动画资源
-   * 
-   * 工作流程：
-   * 1. 通过状态名从后端获取 StateInfo
-   * 2. 根据 StateInfo.anima 获取对应的 AssetInfo
-   * 3. 获取当前加载的 mod 路径
-   * 4. 构建 AnimationConfig 并加载图片
-   * 
-   * @param stateName 状态名称（如 "idle", "morning", "click"）
+   * 按状态名加载动画
+   *
+   * 加载流程：
+   * 1. 从后端获取状态信息（包含关联的动画资产名）
+   * 2. 根据资产名获取资产详情
+   * 3. 构建动画配置并加载
+   *
+   * @param stateName - 状态名称（如 "idle", "morning"）
    * @returns 加载成功返回 true，失败返回 false
    */
   async loadByStateName(stateName: string): Promise<boolean> {
     try {
-      // 1. 获取 StateInfo
-      const state: any = await invoke("get_state_by_name", { name: stateName });
-      if (!state) {
-        console.error(`State '${stateName}' not found`);
-        return false;
-      }
+      // 获取状态信息，提取关联的动画资产名
+      const state: { anima: string } | null = await invoke("get_state_by_name", { name: stateName });
+      if (!state) return false;
 
-      // 2. 获取 AssetInfo
-      const asset: AssetInfo | null = await invoke("get_asset_by_name", { name: state.anima });
-      if (!asset) {
-        console.error(`Asset '${state.anima}' not found for state '${stateName}'`);
-        return false;
-      }
+      // 获取动画资产详情
+      const asset = await fetchAssetInfo(state.anima);
+      if (!asset) return false;
 
-      // 3. 获取 mod 路径（使用缓存）
+      // 获取 Mod 路径用于构建资源 URL
       const modPath = await getModPath();
-      if (!modPath) {
-        console.error("No mod loaded");
-        return false;
-      }
+      if (!modPath) return false;
 
-      // 4. 构建配置
-      // 将 Windows 路径分隔符统一为正斜杠，然后通过 convertFileSrc 转换为可访问的 URL
-      const rawPath = `${modPath}/asset/${asset.img}`;
-      const normalizedPath = rawPath.replace(/\\/g, '/');
-      const imgSrc = convertFileSrc(normalizedPath);
-
-      const config: AnimationConfig = {
-        frameCountX: asset.frame_num_x || 1,
-        frameCountY: asset.frame_num_y || 1,
-        frameWidth: asset.frame_size_x,
-        frameHeight: asset.frame_size_y,
-        frameTime: (asset.frame_time || 0.1) * 1000,  // 秒 -> 毫秒
-        imgSrc,
-        sequence: asset.sequence !== false,           // 默认为 true
-        originReverse: asset.origin_reverse === true, // 默认为 false
-        needReverse: asset.need_reverse === true,     // 默认为 false
-        offsetX: asset.offset_x || 0,
-        offsetY: asset.offset_y || 0
-      };
-
-      return this.loadWithConfig(config);
+      // 构建配置并加载
+      return this.loadWithConfig(buildAnimationConfig(asset, modPath));
     } catch (e) {
       console.error(`Failed to load animation for state '${stateName}':`, e);
       return false;
     }
   }
 
-  // =========================================================================
-  // 公共方法 - 按资产名加载
-  // =========================================================================
+  // ============================================================================
+  // 按资产名加载
+  // ============================================================================
 
   /**
-   * 根据资产名称加载动画资源
-   * 
-   * 用于加载非状态关联的动画资源（如边框动画）
-   * 直接通过资产名获取 AssetInfo，跳过状态查询
-   * 
-   * @param assetName 资产名称（如 "border", "effect_sparkle"）
+   * 按资产名加载动画
+   *
+   * 直接使用资产名加载，跳过状态查询步骤。
+   * 适用于加载边框等非状态关联的动画。
+   *
+   * @param assetName - 资产名称（如 "border"）
    * @returns 加载成功返回 true，失败返回 false
    */
   async loadByAssetName(assetName: string): Promise<boolean> {
     try {
-      // 1. 获取 AssetInfo
-      const asset: AssetInfo | null = await invoke("get_asset_by_name", { name: assetName });
-      if (!asset) {
-        console.error(`Asset '${assetName}' not found`);
-        return false;
-      }
+      const asset = await fetchAssetInfo(assetName);
+      if (!asset) return false;
 
-      // 2. 获取 mod 路径（使用缓存）
       const modPath = await getModPath();
-      if (!modPath) {
-        console.error("No mod loaded");
-        return false;
-      }
+      if (!modPath) return false;
 
-      // 3. 构建配置
-      const rawPath = `${modPath}/asset/${asset.img}`;
-      const normalizedPath = rawPath.replace(/\\/g, '/');
-      const imgSrc = convertFileSrc(normalizedPath);
-
-      const config: AnimationConfig = {
-        frameCountX: asset.frame_num_x || 1,
-        frameCountY: asset.frame_num_y || 1,
-        frameWidth: asset.frame_size_x,
-        frameHeight: asset.frame_size_y,
-        frameTime: (asset.frame_time || 0.1) * 1000,
-        imgSrc,
-        sequence: asset.sequence !== false,
-        originReverse: asset.origin_reverse === true,
-        needReverse: asset.need_reverse === true,
-        offsetX: asset.offset_x || 0,
-        offsetY: asset.offset_y || 0
-      };
-
-      return this.loadWithConfig(config);
+      return this.loadWithConfig(buildAnimationConfig(asset, modPath));
     } catch (e) {
       console.error(`Failed to load animation for asset '${assetName}':`, e);
       return false;
     }
   }
 
-  // =========================================================================
-  // 公共方法 - 动画切换（推荐使用，避免销毁重建）
-  // =========================================================================
+  // ============================================================================
+  // 动画切换（推荐使用，复用实例）
+  // ============================================================================
 
   /**
-   * 切换到新的状态动画
-   * 
-   * 复用当前播放器实例，无需销毁重建
-   * 自动停止当前动画，加载新动画并开始播放
-   * 使用图片缓存避免重复加载相同的精灵图
-   * 
-   * @param stateName 状态名称（如 "idle", "walking"）
-   * @param playOnce 是否只播放一次
-   * @param onComplete 播放完成回调（仅 playOnce=true 时有效）
-   * @returns 切换成功返回 true，失败返回 false
-   * 
-   * @example
-   * ```typescript
-   * // 切换到循环动画
-   * await animator.switchToState("idle", false);
-   * 
-   * // 切换到单次动画
-   * await animator.switchToState("greeting", true, () => {
-   *   console.log("Greeting animation completed");
-   * });
-   * ```
+   * 切换到指定状态的动画
+   *
+   * 推荐使用此方法而非重新创建实例，因为：
+   * - 复用 Canvas 上下文，减少资源开销
+   * - 如果图片相同，跳过加载步骤
+   * - 保持播放状态的连续性
+   *
+   * @param stateName - 目标状态名
+   * @param playOnce - 是否单次播放（播放完成后触发回调）
+   * @param onComplete - 播放完成回调（仅 playOnce=true 时有效）
+   * @returns 切换成功返回 true
    */
-  async switchToState(
-    stateName: string,
-    playOnce: boolean,
-    onComplete?: () => void
-  ): Promise<boolean> {
+  async switchToState(stateName: string, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
     try {
-      // 1. 获取 StateInfo
-      const state: any = await invoke("get_state_by_name", { name: stateName });
-      if (!state) {
-        console.error(`State '${stateName}' not found`);
-        return false;
-      }
+      const state: { anima: string } | null = await invoke("get_state_by_name", { name: stateName });
+      if (!state) return false;
 
-      // 2. 获取 AssetInfo
-      const asset: AssetInfo | null = await invoke("get_asset_by_name", { name: state.anima });
-      if (!asset) {
-        console.error(`Asset '${state.anima}' not found for state '${stateName}'`);
-        return false;
-      }
+      const asset = await fetchAssetInfo(state.anima);
+      if (!asset) return false;
 
-      // 3. 获取 mod 路径（使用缓存）
       const modPath = await getModPath();
-      if (!modPath) {
-        console.error("No mod loaded");
-        return false;
-      }
+      if (!modPath) return false;
 
-      // 4. 构建配置
-      const rawPath = `${modPath}/asset/${asset.img}`;
-      const normalizedPath = rawPath.replace(/\\/g, '/');
-      const imgSrc = convertFileSrc(normalizedPath);
-
-      const config: AnimationConfig = {
-        frameCountX: asset.frame_num_x || 1,
-        frameCountY: asset.frame_num_y || 1,
-        frameWidth: asset.frame_size_x,
-        frameHeight: asset.frame_size_y,
-        frameTime: (asset.frame_time || 0.1) * 1000,
-        imgSrc,
-        sequence: asset.sequence !== false,
-        originReverse: asset.origin_reverse === true,
-        needReverse: asset.need_reverse === true,
-        offsetX: asset.offset_x || 0,
-        offsetY: asset.offset_y || 0
-      };
-
-      // 5. 执行切换
-      return this.switchWithConfig(config, playOnce, onComplete);
+      return this.switchWithConfig(buildAnimationConfig(asset, modPath), playOnce, onComplete);
     } catch (e) {
       console.error(`Failed to switch to state '${stateName}':`, e);
       return false;
@@ -513,56 +259,22 @@ export class SpriteAnimator {
   }
 
   /**
-   * 切换到新的资产动画
-   * 
-   * 用于切换非状态关联的动画资源（如边框动画）
-   * 
-   * @param assetName 资产名称
-   * @param playOnce 是否只播放一次
-   * @param onComplete 播放完成回调
-   * @returns 切换成功返回 true，失败返回 false
+   * 切换到指定资产的动画
+   *
+   * @param assetName - 目标资产名
+   * @param playOnce - 是否单次播放
+   * @param onComplete - 播放完成回调
+   * @returns 切换成功返回 true
    */
-  async switchToAsset(
-    assetName: string,
-    playOnce: boolean,
-    onComplete?: () => void
-  ): Promise<boolean> {
+  async switchToAsset(assetName: string, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
     try {
-      // 1. 获取 AssetInfo
-      const asset: AssetInfo | null = await invoke("get_asset_by_name", { name: assetName });
-      if (!asset) {
-        console.error(`Asset '${assetName}' not found`);
-        return false;
-      }
+      const asset = await fetchAssetInfo(assetName);
+      if (!asset) return false;
 
-      // 2. 获取 mod 路径（使用缓存）
       const modPath = await getModPath();
-      if (!modPath) {
-        console.error("No mod loaded");
-        return false;
-      }
+      if (!modPath) return false;
 
-      // 3. 构建配置
-      const rawPath = `${modPath}/asset/${asset.img}`;
-      const normalizedPath = rawPath.replace(/\\/g, '/');
-      const imgSrc = convertFileSrc(normalizedPath);
-
-      const config: AnimationConfig = {
-        frameCountX: asset.frame_num_x || 1,
-        frameCountY: asset.frame_num_y || 1,
-        frameWidth: asset.frame_size_x,
-        frameHeight: asset.frame_size_y,
-        frameTime: (asset.frame_time || 0.1) * 1000,
-        imgSrc,
-        sequence: asset.sequence !== false,
-        originReverse: asset.origin_reverse === true,
-        needReverse: asset.need_reverse === true,
-        offsetX: asset.offset_x || 0,
-        offsetY: asset.offset_y || 0
-      };
-
-      // 4. 执行切换
-      return this.switchWithConfig(config, playOnce, onComplete);
+      return this.switchWithConfig(buildAnimationConfig(asset, modPath), playOnce, onComplete);
     } catch (e) {
       console.error(`Failed to switch to asset '${assetName}':`, e);
       return false;
@@ -570,38 +282,89 @@ export class SpriteAnimator {
   }
 
   /**
-   * 使用配置对象切换动画
-   * 
-   * 内部方法，处理实际的动画切换逻辑
-   * 支持图片缓存，相同图片不会重复加载
-   * 无闪烁切换：保持旧画面直到新图片就绪
-   * 
-   * @param config 动画配置对象
-   * @param playOnce 是否只播放一次
-   * @param onComplete 播放完成回调
-   * @returns 切换成功返回 true，失败返回 false
+   * 使用配置切换动画
+   *
+   * 核心切换逻辑：
+   * 1. 检查图片是否需要重新加载（URL 变化时加载）
+   * 2. 应用新的帧布局配置
+   * 3. 设置播放模式（单次/循环）
+   * 4. 开始或继续播放
+   *
+   * @param config - 动画配置对象
+   * @param playOnce - 是否单次播放
+   * @param onComplete - 播放完成回调
+   * @returns 切换成功返回 true
    */
-  async switchWithConfig(
-    config: AnimationConfig,
-    playOnce: boolean,
-    onComplete?: () => void
-  ): Promise<boolean> {
-    // 检查是否需要加载新图片
-    const needLoadImage = this.currentImgSrc !== config.imgSrc;
-    
-    // 如果需要加载新图片，先异步加载（保持旧画面显示）
-    if (needLoadImage) {
+  async switchWithConfig(config: AnimationConfig, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
+    // 仅当图片 URL 变化时才重新加载
+    if (this.currentImgSrc !== config.imgSrc) {
       const loaded = await this.loadImage(config.imgSrc);
-      if (!loaded) {
-        return false;
-      }
+      if (!loaded) return false;
       this.currentImgSrc = config.imgSrc;
     }
     
-    // 图片就绪后，再更新所有参数并绘制第一帧
-    // 这样可以避免在加载期间出现空白
+    // 应用新配置
+    this.applyConfig(config);
+    this.isPlayOnce = playOnce;
+    this.onCompleteCallback = onComplete || null;
     
-    // 更新帧参数
+    // 调整 Canvas 尺寸以匹配帧大小
+    this.canvas.width = this.frameWidth;
+    this.canvas.height = this.frameHeight;
+    this.drawCurrentFrame();
+    
+    // 启动动画循环
+    if (this.isSequence) {
+      if (!this.isPlaying) {
+        this.isPlaying = true;
+        this.animate(0);
+      }
+    } else if (playOnce) {
+      // 静态图直接触发完成回调
+      onComplete?.();
+    }
+    
+    return true;
+  }
+
+  /**
+   * 加载图片（带缓存）
+   *
+   * 优先从 LRU 缓存获取，缓存未命中时创建新 Image 对象加载。
+   *
+   * @param imgSrc - 图片 URL
+   * @returns 加载成功返回 true
+   */
+  private loadImage(imgSrc: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      // 尝试从缓存获取
+      const cached = imageCache.get(imgSrc);
+      if (cached && cached.complete) {
+        this.img = cached;
+        resolve(true);
+        return;
+      }
+      
+      // 缓存未命中，创建新图片加载
+      const newImg = new Image();
+      newImg.onload = () => {
+        imageCache.set(imgSrc, newImg);  // 存入缓存
+        this.img = newImg;
+        resolve(true);
+      };
+      newImg.onerror = () => resolve(false);
+      newImg.src = imgSrc;
+    });
+  }
+
+  /**
+   * 应用动画配置
+   *
+   * 更新所有帧布局参数并重置帧位置到起始帧
+   *
+   * @param config - 动画配置对象
+   */
+  private applyConfig(config: AnimationConfig): void {
     this.frameCountX = config.frameCountX;
     this.frameCountY = config.frameCountY;
     this.frameWidth = config.frameWidth;
@@ -612,164 +375,71 @@ export class SpriteAnimator {
     this.needReverse = config.needReverse;
     this.offsetX = config.offsetX || 0;
     this.offsetY = config.offsetY || 0;
-    
-    // 重置帧状态（根据 originReverse 决定起始位置）
+    this.resetFramePosition();
+  }
+
+  /**
+   * 重置帧位置到起始帧
+   *
+   * 根据 originReverse 决定起始位置：
+   * - originReverse=false: 从 [0,0] 开始正向播放
+   * - originReverse=true: 从 [maxX,maxY] 开始反向播放
+   */
+  private resetFramePosition(): void {
     if (this.originReverse) {
-      // 倒序播放：从最后一帧开始
+      // 反向模式：从最后一帧开始
       this.frameX = this.frameCountX - 1;
       this.frameY = this.frameCountY - 1;
-      this.isReversing = true;  // 标记为反向播放模式
+      this.isReversing = true;
     } else {
-      // 正序播放：从第一帧开始
+      // 正向模式：从第一帧开始
       this.frameX = 0;
       this.frameY = 0;
       this.isReversing = false;
     }
     this.lastTime = 0;
+  }
+
+  // ============================================================================
+  // 使用配置加载
+  // ============================================================================
+
+  /**
+   * 使用配置加载动画（初始化专用）
+   *
+   * 与 switchWithConfig 的区别：
+   * - loadWithConfig 用于首次加载，不自动开始播放
+   * - switchWithConfig 用于运行时切换，会保持/恢复播放状态
+   *
+   * @param config - 动画配置对象
+   * @returns 加载成功返回 true
+   */
+  async loadWithConfig(config: AnimationConfig): Promise<boolean> {
+    const loaded = await this.loadImage(config.imgSrc);
+    if (!loaded) return false;
     
-    // 更新播放模式
-    this.isPlayOnce = playOnce;
-    this.onCompleteCallback = onComplete || null;
+    this.currentImgSrc = config.imgSrc;
+    this.applyConfig(config);
     
-    // 更新画布尺寸（这会清空 canvas，但紧接着就绘制第一帧）
+    // 设置 Canvas 尺寸并绘制首帧
     this.canvas.width = this.frameWidth;
     this.canvas.height = this.frameHeight;
-    
-    // 立即绘制第一帧（防止闪烁）
     this.drawCurrentFrame();
-    
-    // 开始播放
-    if (this.isSequence) {
-      // 序列帧动画
-      if (!this.isPlaying) {
-        this.isPlaying = true;
-        this.animate(0);
-      }
-      // 如果已经在播放，循环会自动使用新参数
-    } else {
-      // 静态图片（已在上面绘制）
-      if (playOnce) {
-        onComplete?.();
-      }
-    }
     
     return true;
   }
 
-  /**
-   * 加载图片（使用 LRU 缓存）
-   * 
-   * 优先从缓存获取，缓存未命中则加载并缓存
-   * 使用 LRU 淘汰策略防止内存无限增长
-   * 
-   * @param imgSrc 图片 URL
-   * @returns 加载成功返回 true，失败返回 false
-   */
-  private loadImage(imgSrc: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      // 检查缓存（使用 LRU 获取）
-      const cached = getFromImageCache(imgSrc);
-      if (cached && cached.complete) {
-        this.img = cached;
-        resolve(true);
-        return;
-      }
-      
-      // 创建新图片并加载
-      const newImg = new Image();
-      
-      newImg.onload = () => {
-        // 添加到缓存（使用 LRU 添加）
-        addToImageCache(imgSrc, newImg);
-        this.img = newImg;
-        resolve(true);
-      };
-      
-      newImg.onerror = (e) => {
-        console.error("Image failed to load:", e);
-        resolve(false);
-      };
-      
-      newImg.src = imgSrc;
-    });
-  }
-
-  // =========================================================================
-  // 公共方法 - 使用配置加载
-  // =========================================================================
-
-  /**
-   * 使用配置对象加载动画
-   * 
-   * 底层加载方法，被 loadByStateName 和 loadByAssetName 调用
-   * 负责实际的图片加载和参数初始化
-   * 使用全局图片缓存避免重复加载
-   * 无闪烁加载：先加载图片，再设置 canvas 并立即绘制第一帧
-   * 
-   * @param config 动画配置对象
-   * @returns Promise，图片加载成功返回 true，失败返回 false
-   */
-  loadWithConfig(config: AnimationConfig): Promise<boolean> {
-    return new Promise(async (resolve) => {
-      // 先加载图片（保持 canvas 当前状态，避免闪烁）
-      const loaded = await this.loadImage(config.imgSrc);
-      if (!loaded) {
-        resolve(false);
-        return;
-      }
-      
-      this.currentImgSrc = config.imgSrc;
-      
-      // 图片就绪后，设置所有参数
-      this.frameCountX = config.frameCountX;
-      this.frameCountY = config.frameCountY;
-      this.frameWidth = config.frameWidth;
-      this.frameHeight = config.frameHeight;
-      this.frameTime = config.frameTime;
-      this.isSequence = config.sequence;
-      this.originReverse = config.originReverse;
-      this.needReverse = config.needReverse;
-      this.offsetX = config.offsetX || 0;
-      this.offsetY = config.offsetY || 0;
-      
-      // 根据 originReverse 决定起始位置
-      if (this.originReverse) {
-        // 倒序播放：从最后一帧开始
-        this.frameX = this.frameCountX - 1;
-        this.frameY = this.frameCountY - 1;
-        this.isReversing = true;
-      } else {
-        // 正序播放：从第一帧开始
-        this.frameX = 0;
-        this.frameY = 0;
-        this.isReversing = false;
-      }
-      
-      // 设置画布尺寸并立即绘制第一帧（同步执行，无闪烁）
-      this.canvas.width = this.frameWidth;
-      this.canvas.height = this.frameHeight;
-      this.drawCurrentFrame();
-      
-      resolve(true);
-    });
-  }
-
-  // =========================================================================
-  // 公共方法 - 播放控制
-  // =========================================================================
+  // ============================================================================
+  // 播放控制
+  // ============================================================================
 
   /**
    * 开始循环播放动画
-   * 
-   * 从当前帧开始持续播放，直到调用 stop() 为止
-   * 非序列帧动画调用此方法无效
+   *
+   * 如果已在播放或非序列帧动画，调用无效
    */
   play(): void {
-    // 非序列帧不需要播放动画
-    if (!this.isSequence) return;
-    
-    // 防止重复启动
-    if (this.isPlaying) return;
+    if (!this.isSequence || this.isPlaying) return;
     this.isPlaying = true;
     this.isPlayOnce = false;
     this.onCompleteCallback = null;
@@ -778,36 +448,34 @@ export class SpriteAnimator {
   }
 
   /**
-   * 播放一次动画后停止
-   * 
-   * 从第一帧开始播放，完成一轮后自动停止并触发回调
-   * 非序列帧动画会直接绘制当前帧并触发回调
-   * 
-   * @param onComplete 播放完成后的回调函数（可选）
+   * 单次播放动画
+   *
+   * 从头开始播放一次，完成后触发回调。
+   * 静态图会立即触发回调。
+   *
+   * @param onComplete - 播放完成回调
    */
   playOnce(onComplete?: () => void): void {
-    // 非序列帧直接绘制并回调
+    // 静态图：直接绘制并触发回调
     if (!this.isSequence) {
       this.drawCurrentFrame();
       onComplete?.();
       return;
     }
     
-    // 防止重复启动
     if (this.isPlaying) return;
     this.isPlaying = true;
     this.isPlayOnce = true;
     this.onCompleteCallback = onComplete || null;
     this.lastTime = 0;
-    this.reset();  // 重置到第一帧
+    this.reset();  // 重置到起始帧
     this.animate(0);
   }
 
   /**
-   * 停止播放动画
-   * 
-   * 取消 requestAnimationFrame 并将播放状态置为停止
-   * 当前帧画面将保持在画布上
+   * 停止播放
+   *
+   * 取消动画循环，保持当前帧显示
    */
   stop(): void {
     this.isPlaying = false;
@@ -818,44 +486,25 @@ export class SpriteAnimator {
   }
 
   /**
-   * 重置动画到起始帧
-   * 
-   * 根据 originReverse 决定起始位置
-   * 不影响播放状态
+   * 重置到起始帧
    */
   reset(): void {
-    if (this.originReverse) {
-      // 倒序播放：从最后一帧开始
-      this.frameX = this.frameCountX - 1;
-      this.frameY = this.frameCountY - 1;
-      this.isReversing = true;
-    } else {
-      // 正序播放：从第一帧开始
-      this.frameX = 0;
-      this.frameY = 0;
-      this.isReversing = false;
-    }
-    this.lastTime = 0;
+    this.resetFramePosition();
     this.drawCurrentFrame();
   }
 
   /**
-   * 获取画布（单帧）尺寸
-   * 
-   * @returns 包含 width 和 height 的对象
+   * 获取当前帧尺寸
+   * @returns 帧的宽度和高度
    */
   getSize(): { width: number; height: number } {
-    return {
-      width: this.frameWidth,
-      height: this.frameHeight
-    };
+    return { width: this.frameWidth, height: this.frameHeight };
   }
 
   /**
-   * 销毁动画器，释放资源
-   * 
-   * 停止播放并清空图片和上下文引用
-   * 调用后此实例不应再被使用
+   * 销毁播放器
+   *
+   * 停止播放并释放资源引用
    */
   destroy(): void {
     this.stop();
@@ -863,29 +512,30 @@ export class SpriteAnimator {
     this.ctx = null;
   }
 
-  // =========================================================================
-  // 私有方法 - 动画循环
-  // =========================================================================
+  // ============================================================================
+  // 动画循环
+  // ============================================================================
 
   /**
    * 动画主循环
-   * 
-   * 使用 requestAnimationFrame 实现的动画循环
-   * 根据 frameTime 控制帧切换频率
-   * 
-   * @param time requestAnimationFrame 提供的时间戳
+   *
+   * 使用 requestAnimationFrame 实现流畅动画：
+   * - 检查播放状态和资源加载状态
+   * - 根据 frameTime 控制帧率
+   * - 绘制当前帧并推进到下一帧
+   *
+   * @param time - requestAnimationFrame 提供的高精度时间戳
    */
   private animate = (time: number): void => {
-    // 检查播放状态
     if (!this.isPlaying) return;
 
-    // 检查资源是否就绪
+    // 等待资源就绪
     if (!this.ctx || !this.img || !this.img.complete) {
       this.animationId = requestAnimationFrame(this.animate);
       return;
     }
 
-    // 根据帧时间间隔更新帧
+    // 检查是否到达帧切换时间
     if (time - this.lastTime > this.frameTime) {
       this.drawCurrentFrame();
       this.advanceFrame();
@@ -896,177 +546,140 @@ export class SpriteAnimator {
     this.animationId = requestAnimationFrame(this.animate);
   };
 
-  // =========================================================================
-  // 私有方法 - 帧绘制
-  // =========================================================================
-
   /**
    * 绘制当前帧
-   * 
-   * 从精灵图中切割出当前帧区域并绘制到画布
-   * 支持渲染偏移量
+   *
+   * 从精灵图中裁剪当前帧区域并绘制到 Canvas
    */
   private drawCurrentFrame(): void {
     if (!this.ctx || !this.img) return;
-
-    // 清空画布
+    
+    // 清除画布
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // 计算精灵图中当前帧的源坐标
+    // 计算源图像中的裁剪位置
     const sx = this.frameX * this.frameWidth;
     const sy = this.frameY * this.frameHeight;
-
-    // 应用偏移量绘制到画布
+    
+    // 绘制帧（支持偏移）
     this.ctx.drawImage(
       this.img,
-      sx, sy, this.frameWidth, this.frameHeight,        // 源区域
-      this.offsetX, this.offsetY, this.frameWidth, this.frameHeight  // 目标区域（含偏移）
+      sx, sy, this.frameWidth, this.frameHeight,    // 源区域
+      this.offsetX, this.offsetY, this.frameWidth, this.frameHeight  // 目标区域
     );
   }
 
-  // =========================================================================
-  // 私有方法 - 帧推进
-  // =========================================================================
-
   /**
    * 推进到下一帧
-   * 
-   * 处理帧索引的更新，支持以下模式：
-   * - originReverse=false: 正向播放 (0 -> N)
-   * - originReverse=true: 反向播放 (N -> 0)
-   * - needReverse: 乒乓模式（播放完成后反向播放回起点）
-   * 
-   * 对于 originReverse + needReverse 的组合：
-   * - 主方向从后向前 (N -> 0)
-   * - 乒乓时从前向后 (0 -> N)
-   * 
-   * 帧遍历顺序：
-   * - 先水平（X 方向）遍历一行
-   * - 行末换到下一行继续
+   *
+   * 根据 originReverse 选择正向或反向推进逻辑
    */
   private advanceFrame(): void {
     if (this.originReverse) {
-      // =======================================================================
-      // originReverse = true: 主方向为反向播放 (N -> 0)
-      // =======================================================================
-      if (this.isReversing) {
-        // 反向播放阶段（即主方向：从后往前）
-        this.frameX--;
-        if (this.frameX < 0) {
-          this.frameX = this.frameCountX - 1;
-          this.frameY--;
-          if (this.frameY < 0) {
-            // 反向播放完成（到达第一帧）
-            if (this.needReverse) {
-              // 乒乓模式：切换到正向播放（倒序的倒序 = 正序）
-              this.isReversing = false;
-              // 从第二帧开始正向（避免第一帧重复）
-              this.frameX = 1;
-              this.frameY = 0;
-              if (this.frameX >= this.frameCountX) {
-                this.frameX = 0;
-                this.frameY = 1;
-                if (this.frameY >= this.frameCountY) {
-                  // 帧数太少，回到起点
-                  this.frameX = this.frameCountX - 1;
-                  this.frameY = this.frameCountY - 1;
-                  this.isReversing = true;
-                }
-              }
-            } else {
-              // 普通循环：回到最后一帧
-              this.frameX = this.frameCountX - 1;
-              this.frameY = this.frameCountY - 1;
-              if (this.isPlayOnce) {
-                this.stop();
-                this.onCompleteCallback?.();
-                return;
-              }
-            }
-          }
-        }
-      } else {
-        // 正向播放阶段（乒乓的额外播放：从前往后）
-        this.frameX++;
-        if (this.frameX >= this.frameCountX) {
-          this.frameX = 0;
-          this.frameY++;
-          if (this.frameY >= this.frameCountY) {
-            // 正向播放完成（到达最后一帧），切换回反向
-            this.isReversing = true;
-            // 从倒数第二帧开始反向（避免最后一帧重复）
-            this.frameX = this.frameCountX - 2;
+      this.advanceFrameReverse();
+    } else {
+      this.advanceFrameForward();
+    }
+  }
+
+  /**
+   * 反向起始的帧推进逻辑
+   *
+   * 当 originReverse=true 时使用：
+   * - 起始于最后一帧，向前推进（帧索引递减）
+   * - 到达第一帧后，如果 needReverse=true 则反向播放回去
+   * - 否则循环回到最后一帧继续
+   */
+  private advanceFrameReverse(): void {
+    if (this.isReversing) {
+      // 反向阶段：帧索引递减
+      this.frameX--;
+      if (this.frameX < 0) {
+        this.frameX = this.frameCountX - 1;
+        this.frameY--;
+        if (this.frameY < 0) {
+          // 到达第一帧
+          if (this.needReverse) {
+            // 需要往返：切换到正向阶段
+            this.isReversing = false;
+            this.frameX = Math.min(1, this.frameCountX - 1);
+            this.frameY = 0;
+          } else {
+            // 不需要往返：循环回最后一帧
+            this.frameX = this.frameCountX - 1;
             this.frameY = this.frameCountY - 1;
-            if (this.frameX < 0) {
-              this.frameX = this.frameCountX - 1;
-              this.frameY--;
-              if (this.frameY < 0) {
-                this.frameY = this.frameCountY - 1;
-                this.frameX = this.frameCountX - 1;
-              }
-            }
             if (this.isPlayOnce) {
               this.stop();
               this.onCompleteCallback?.();
-              return;
             }
           }
         }
       }
     } else {
-      // =======================================================================
-      // originReverse = false: 主方向为正向播放 (0 -> N)
-      // =======================================================================
-      if (this.isReversing) {
-        // 反向播放阶段（乒乓的额外播放）
-        this.frameX--;
-        if (this.frameX < 0) {
-          this.frameX = this.frameCountX - 1;
-          this.frameY--;
-          if (this.frameY < 0) {
-            // 反向播放完成，切换回正向
-            this.isReversing = false;
-            this.frameX = 0;
+      // 正向阶段（往返播放的回程）：帧索引递增
+      this.frameX++;
+      if (this.frameX >= this.frameCountX) {
+        this.frameX = 0;
+        this.frameY++;
+        if (this.frameY >= this.frameCountY) {
+          // 到达最后一帧，切换回反向阶段
+          this.isReversing = true;
+          this.frameX = Math.max(0, this.frameCountX - 2);
+          this.frameY = this.frameCountY - 1;
+          if (this.isPlayOnce) {
+            this.stop();
+            this.onCompleteCallback?.();
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * 正向起始的帧推进逻辑
+   *
+   * 当 originReverse=false 时使用：
+   * - 起始于第一帧，向后推进（帧索引递增）
+   * - 到达最后一帧后，如果 needReverse=true 则反向播放回去
+   * - 否则循环回到第一帧继续
+   */
+  private advanceFrameForward(): void {
+    if (this.isReversing) {
+      // 反向阶段（往返播放的回程）：帧索引递减
+      this.frameX--;
+      if (this.frameX < 0) {
+        this.frameX = this.frameCountX - 1;
+        this.frameY--;
+        if (this.frameY < 0) {
+          // 到达第一帧，切换回正向阶段
+          this.isReversing = false;
+          this.frameX = 0;
+          this.frameY = 0;
+          if (this.isPlayOnce) {
+            this.stop();
+            this.onCompleteCallback?.();
+          }
+        }
+      }
+    } else {
+      // 正向阶段：帧索引递增
+      this.frameX++;
+      if (this.frameX >= this.frameCountX) {
+        this.frameX = 0;
+        this.frameY++;
+        if (this.frameY >= this.frameCountY) {
+          // 到达最后一帧
+          if (this.needReverse) {
+            // 需要往返：切换到反向阶段
+            this.isReversing = true;
+            this.frameX = Math.max(0, this.frameCountX - 2);
+            this.frameY = this.frameCountY - 1;
+          } else {
+            // 不需要往返：循环回第一帧
             this.frameY = 0;
             if (this.isPlayOnce) {
               this.stop();
               this.onCompleteCallback?.();
-              return;
-            }
-          }
-        }
-      } else {
-        // 正向播放阶段（主方向）
-        this.frameX++;
-        if (this.frameX >= this.frameCountX) {
-          this.frameX = 0;
-          this.frameY++;
-          if (this.frameY >= this.frameCountY) {
-            // 所有帧播放完毕
-            if (this.needReverse) {
-              // 乒乓模式：切换到反向播放
-              this.isReversing = true;
-              // 从倒数第二帧开始反向（避免最后一帧重复播放）
-              this.frameX = this.frameCountX - 2;
-              this.frameY = this.frameCountY - 1;
-              if (this.frameX < 0) {
-                this.frameX = this.frameCountX - 1;
-                this.frameY--;
-                if (this.frameY < 0) {
-                  // 帧数太少，无法形成有效的乒乓动画
-                  this.frameY = 0;
-                  this.frameX = 0;
-                  this.isReversing = false;
-                }
-              }
-            } else {
-              // 普通循环模式：回到第一帧
-              this.frameY = 0;
-              if (this.isPlayOnce) {
-                this.stop();
-                this.onCompleteCallback?.();
-                return;
-              }
             }
           }
         }
@@ -1075,33 +688,28 @@ export class SpriteAnimator {
   }
 }
 
-// ========================================================================= //
-// createAnimator - 便捷工厂函数
-// ========================================================================= //
-//
-// 提供一站式的动画器创建流程：
-// 1. 创建 SpriteAnimator 实例
-// 2. 加载指定状态的动画资源
-// 3. 可选自动开始播放
-//
-// 失败时会自动清理资源并返回 null
-//
+// ============================================================================
+// 工厂函数
+// ============================================================================
 
 /**
- * 创建并初始化精灵动画播放器
- * 
- * 便捷工厂函数，封装了创建、加载和播放的完整流程
- * 
- * @param canvas 目标画布元素
- * @param stateName 要加载的状态名称
- * @param autoPlay 是否自动开始播放，默认 true
- * @returns 成功返回 SpriteAnimator 实例，失败返回 null
- * 
+ * 创建并初始化动画播放器
+ *
+ * 便捷工厂函数，一步完成：
+ * 1. 创建 SpriteAnimator 实例
+ * 2. 按状态名加载动画
+ * 3. 可选自动开始播放
+ *
+ * @param canvas - 目标 Canvas 元素
+ * @param stateName - 状态名称
+ * @param autoPlay - 是否自动开始播放（默认 true）
+ * @returns 成功返回播放器实例，失败返回 null
+ *
  * @example
  * ```typescript
- * const animator = await createAnimator(canvas, "idle");
+ * const animator = await createAnimator(canvasEl, "idle");
  * if (animator) {
- *   // 动画已经开始播放
+ *   // 使用 animator...
  * }
  * ```
  */
@@ -1114,14 +722,10 @@ export async function createAnimator(
   const success = await animator.loadByStateName(stateName);
   
   if (!success) {
-    // 加载失败，清理资源
     animator.destroy();
     return null;
   }
 
-  if (autoPlay) {
-    animator.play();
-  }
-
+  if (autoPlay) animator.play();
   return animator;
 }
