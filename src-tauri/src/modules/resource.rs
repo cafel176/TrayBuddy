@@ -693,28 +693,42 @@ impl ResourceManager {
 
         // 2. 可执行文件所在目录的 mods
         if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                let mods_path = exe_dir.join("mods");
-                if let Ok(canonical) = dunce::canonicalize(&mods_path) {
-                    #[cfg(debug_assertions)]
-                    println!("[ResourceManager] 程序目录 mods: {:?}", canonical);
-                    if canonical.is_dir() && !paths.contains(&canonical) {
-                        paths.push(canonical);
+            // 尝试向上查找多级父目录中的 mods 文件夹（最多4级）
+            let mut current_dir = exe_path.parent();
+            for level in 1..=4 {
+                if let Some(dir) = current_dir {
+                    let mods_path = dir.join("mods");
+                    if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                        #[cfg(debug_assertions)]
+                        println!("[ResourceManager] 程序目录 mods (level {}): {:?}", level, canonical);
+                        if canonical.is_dir() && !paths.contains(&canonical) {
+                            paths.push(canonical);
+                        }
                     }
+                    current_dir = dir.parent();
+                } else {
+                    break;
                 }
             }
         }
 
         // 3. 开发环境：当前工作目录的父目录下的 mods
+        // 3. 开发环境：当前工作目录向上查找 mods（最多2级）
         if let Ok(cwd) = std::env::current_dir() {
-            if let Some(parent) = cwd.parent() {
-                let mods_path = parent.join("mods");
-                if let Ok(canonical) = dunce::canonicalize(&mods_path) {
-                    #[cfg(debug_assertions)]
-                    println!("[ResourceManager] 项目目录 mods: {:?}", canonical);
-                    if canonical.is_dir() && !paths.contains(&canonical) {
-                        paths.push(canonical);
+            let mut current_dir = Some(cwd.as_path());
+            for level in 1..=2 {
+                if let Some(dir) = current_dir {
+                    let mods_path = dir.join("mods");
+                    if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                        #[cfg(debug_assertions)]
+                        println!("[ResourceManager] 项目目录 mods (level {}): {:?}", level, canonical);
+                        if canonical.is_dir() && !paths.contains(&canonical) {
+                            paths.push(canonical);
+                        }
                     }
+                    current_dir = dir.parent();
+                } else {
+                    break;
                 }
             }
         }

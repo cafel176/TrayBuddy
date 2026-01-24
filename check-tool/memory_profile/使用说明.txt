@@ -1,0 +1,107 @@
+============================================================================
+TrayBuddy Memory Profiler - Usage Guide
+============================================================================
+
+Overview:
+  This tool analyzes memory consumption of TrayBuddy's Release version.
+  It automatically builds, launches, monitors memory, and generates reports.
+
+============================================================================
+Quick Start
+============================================================================
+
+Method 1: Double-click
+  Double-click run.bat for full check (build + monitor 60s)
+
+Method 2: Command line
+  cd <project_root>\check-tool\memory_profile
+  
+  # Full check (build + monitor 60s)
+  .\run.bat
+  
+  # Quick check (skip build, monitor 60s)
+  .\run.bat quick
+  
+  # Custom duration (skip build, monitor 30s)
+  .\run.bat quick 30
+
+Method 3: PowerShell direct
+  cd <project_root>\check-tool\memory_profile
+  
+  # Full check
+  powershell -ExecutionPolicy Bypass -File .\profiler.ps1
+  
+  # Skip build, monitor 120s
+  powershell -ExecutionPolicy Bypass -File .\profiler.ps1 -SkipBuild -Duration 120
+  
+  # Custom sample interval (every 5 seconds)
+  powershell -ExecutionPolicy Bypass -File .\profiler.ps1 -SampleInterval 5
+
+============================================================================
+Parameters
+============================================================================
+
+-Duration <seconds>    Monitoring duration, default 60 seconds
+-SampleInterval <sec>  Sampling interval, default 2 seconds
+-SkipBuild            Skip build step (use existing Release version)
+-Verbose              Show detailed output
+
+============================================================================
+Output Files
+============================================================================
+
+1. memory_report_yyyyMMdd_HHmmss.txt
+   Detailed text report including:
+   - Per-process memory statistics (avg/min/max)
+   - Summary statistics
+   - Memory growth trend
+   - Process type analysis
+   - Optimization suggestions
+
+2. memory_samples_yyyyMMdd_HHmmss.csv
+   Raw sampling data in CSV format, can be opened with Excel
+   Columns: Timestamp, ElapsedSec, ProcessName, PID, WorkingSetMB, PrivateMemMB, VirtualMemMB, Handles, Threads
+
+============================================================================
+Memory Metrics Explained
+============================================================================
+
+Working Set:
+  Physical memory currently used by the process, including shared memory.
+  This is the "Memory" value shown in Task Manager.
+
+Private Memory:
+  Memory exclusively used by the process, not shared with others.
+  More accurately reflects actual memory consumption.
+
+Virtual Memory:
+  Size of the process's virtual address space.
+
+Handles:
+  Number of system objects opened (files, registry, events, etc.)
+
+Threads:
+  Number of threads in the process.
+
+============================================================================
+Typical Output Example
+============================================================================
+
+Memory Distribution:
+  Main Process (TrayBuddy.exe):     73.71 MB (16.3%)
+  WebView2 Processes (GPU/Render):  379.52 MB (83.7%)
+
+Note: For Tauri apps, WebView2 typically consumes most memory.
+WebView2 includes multiple subprocesses: Browser, GPU, Renderer, Utility, etc.
+
+============================================================================
+Notes
+============================================================================
+
+1. First run requires building, may take several minutes
+2. Ensure no other TrayBuddy instances are running
+3. If build fails, run "pnpm tauri build" in project root to check issues
+4. Do not manually close the program during monitoring
+5. Due to Chinese path encoding issues, run from English path if needed
+
+============================================================================

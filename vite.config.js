@@ -22,9 +22,13 @@ export default defineConfig(async () => ({
     rollupOptions: {
       output: {
         // 手动分割代码块，优化加载
-        manualChunks: {
-          // Tauri API 单独打包
-          'tauri': ['@tauri-apps/api/core', '@tauri-apps/api/event', '@tauri-apps/api/window'],
+        // 注意：不要在 manualChunks 中包含 @tauri-apps/api，
+        // 因为 SvelteKit SSR 会将其标记为外部模块
+        manualChunks(id) {
+          // 避免处理 @tauri-apps/api（SSR 时为外部模块）
+          if (id.includes('@tauri-apps/api')) {
+            return undefined;
+          }
         },
       },
     },
