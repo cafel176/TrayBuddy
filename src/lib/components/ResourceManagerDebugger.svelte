@@ -113,6 +113,7 @@
     name: string;
     lang: string;
     id: string;
+    description: string;
   }
 
   interface ModInfo {
@@ -464,12 +465,15 @@
               {#each Object.entries(currentModInfo.info) as [lang, info]}
                 <div class="lang-card">
                   <span class="lang-code">{lang}</span>
-                  <div class="lang-details">
+                  <div class="lang-info">
                     <div class="char-name">{info.name}</div>
                     <div class="char-meta">
                       <span>语言: {info.lang}</span>
                       <span>ID: {info.id}</span>
                     </div>
+                    {#if info.description}
+                      <div class="char-desc">{info.description}</div>
+                    {/if}
                   </div>
                 </div>
               {/each}
@@ -776,7 +780,9 @@
           <div class="tab-content">
             <div class="asset-grid">
               {#each currentModInfo.imgs as img}
-                <div class="asset-card-with-thumb">
+                {@const totalFrames = img.frame_num_x * img.frame_num_y}
+                {@const isAnimated = img.sequence || totalFrames > 1}
+                <div class="asset-card-with-thumb" class:animated={isAnimated}>
                   <div class="thumb-container">
                     <button 
                       class="thumbnail-btn"
@@ -801,9 +807,28 @@
                     <div class="asset-name">{img.name}</div>
                     <div class="asset-file">{img.img}</div>
                     <div class="asset-meta">
-                      <span>{img.frame_size_x}x{img.frame_size_y}</span>
+                      <span title="单帧尺寸">{img.frame_size_x}×{img.frame_size_y}px</span>
+                      {#if totalFrames > 1}
+                        <span title="帧排列">{img.frame_num_x}×{img.frame_num_y} = {totalFrames}帧</span>
+                      {/if}
+                    </div>
+                    {#if isAnimated}
+                      <div class="asset-meta">
+                        <span title="帧间隔">{img.frame_time}s/帧</span>
+                      </div>
+                    {/if}
+                    <div class="asset-flags">
+                      {#if img.sequence}
+                        <span class="badge sequence-flag">序列</span>
+                      {/if}
+                      {#if img.origin_reverse}
+                        <span class="badge reverse">反向播放</span>
+                      {/if}
+                      {#if img.need_reverse}
+                        <span class="badge pingpong">乒乓模式</span>
+                      {/if}
                       {#if img.offset_x !== 0 || img.offset_y !== 0}
-                        <span>偏移: {img.offset_x},{img.offset_y}</span>
+                        <span class="badge offset">偏移: {img.offset_x},{img.offset_y}</span>
                       {/if}
                     </div>
                   </div>
@@ -819,6 +844,8 @@
           <div class="tab-content">
             <div class="asset-grid">
               {#each currentModInfo.sequences as seq}
+                {@const totalFrames = seq.frame_num_x * seq.frame_num_y}
+                {@const totalDuration = (totalFrames * seq.frame_time).toFixed(2)}
                 <div class="asset-card-with-thumb sequence">
                   <div class="thumb-container">
                     <button 
@@ -844,9 +871,12 @@
                     <div class="asset-name">{seq.name}</div>
                     <div class="asset-file">{seq.img}</div>
                     <div class="asset-meta">
-                      <span>{seq.frame_num_x}x{seq.frame_num_y} 帧</span>
-                      <span>{seq.frame_size_x}x{seq.frame_size_y}px</span>
-                      <span>{seq.frame_time}s/帧</span>
+                      <span title="帧排列">{seq.frame_num_x}×{seq.frame_num_y} = {totalFrames}帧</span>
+                      <span title="单帧尺寸">{seq.frame_size_x}×{seq.frame_size_y}px</span>
+                    </div>
+                    <div class="asset-meta">
+                      <span title="帧间隔">{seq.frame_time}s/帧</span>
+                      <span title="总时长">≈{totalDuration}s</span>
                     </div>
                     <div class="asset-flags">
                       {#if seq.origin_reverse}
@@ -1205,7 +1235,7 @@
     font-weight: bold;
   }
 
-  .lang-details {
+  .lang-info {
     flex: 1;
   }
 
@@ -1219,6 +1249,13 @@
     color: #7f8c8d;
     display: flex;
     gap: 10px;
+  }
+
+  .char-desc {
+    font-size: 0.8em;
+    color: #555;
+    margin-top: 4px;
+    font-style: italic;
   }
 
   /* 状态列表 */
@@ -1265,6 +1302,7 @@
   .badge.reverse { background: #e74c3c; color: white; }
   .badge.pingpong { background: #9b59b6; color: white; }
   .badge.offset { background: #3498db; color: white; }
+  .badge.sequence-flag { background: #f1c40f; color: #2c3e50; }
 
   .state-detail {
     display: flex;
@@ -1466,6 +1504,10 @@
 
   .asset-card-with-thumb.sequence {
     border-left: 4px solid #f1c40f;
+  }
+
+  .asset-card-with-thumb.animated {
+    border-left: 4px solid #e67e22;
   }
 
   .thumb-container {
@@ -1777,6 +1819,7 @@
     .info-row { background: #3e5871; }
     .lang-card { background: #3e5871; border-color: #455a64; }
     .char-name { color: #ecf0f1; }
+    .char-desc { color: #95a5a6; }
     
     .state-card, .trigger-card { background: #3e5871; border-color: #455a64; }
     .state-name { color: #ecf0f1; }
