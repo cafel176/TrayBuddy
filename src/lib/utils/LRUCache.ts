@@ -52,6 +52,17 @@ export class LRUCache<K, V> {
     return value;
   }
   
+  /** 淘汰回调函数（用于释放资源） */
+  private onEvict?: (key: K, value: V) => void;
+
+  /**
+   * 设置淘汰回调
+   * @param callback - 条目被淘汰时的回调函数
+   */
+  setOnEvict(callback: (key: K, value: V) => void): void {
+    this.onEvict = callback;
+  }
+
   /**
    * 设置缓存值
    *
@@ -67,7 +78,14 @@ export class LRUCache<K, V> {
     } else if (this.cache.size >= this.maxSize) {
       // LRU 淘汰：删除第一个条目（最久未使用）
       const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) this.cache.delete(firstKey);
+      if (firstKey !== undefined) {
+        const evictedValue = this.cache.get(firstKey);
+        this.cache.delete(firstKey);
+        // 触发淘汰回调，允许调用方释放资源
+        if (evictedValue !== undefined && this.onEvict) {
+          this.onEvict(firstKey, evictedValue);
+        }
+      }
     }
     this.cache.set(key, value);
   }

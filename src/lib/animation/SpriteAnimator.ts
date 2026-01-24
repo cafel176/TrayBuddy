@@ -42,6 +42,12 @@ import type { AssetInfo, AnimationConfig } from "../types/asset";
  */
 const imageCache = new LRUCache<string, HTMLImageElement>(8);
 
+// 设置淘汰回调，主动释放被淘汰图片的引用
+imageCache.setOnEvict((_url, img) => {
+  // 清空 src 有助于浏览器尽早释放图片资源
+  img.src = '';
+});
+
 /**
  * 清除图片缓存
  * 在 Mod 切换时调用，释放旧 Mod 的图片资源
