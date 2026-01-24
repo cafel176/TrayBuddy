@@ -28,9 +28,19 @@ getrandom = "0.2"
 # Windows 媒体监听和鼠标位置
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
+    # GSMTC (媒体会话控制)
     "Media_Control",
     "Foundation",
     "Foundation_Collections",
+    # Core Audio API (音频会话枚举)
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",  # IAudioMeterInformation
+    "Win32_System_Com",
+    "Win32_System_Ole",
+    # 进程信息
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    # 鼠标位置
     "Win32_UI_WindowsAndMessaging",
 ] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }

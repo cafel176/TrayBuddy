@@ -213,6 +213,7 @@ impl StateManager {
         if !force {
             let current_priority = self.persistent_state.as_ref().map_or(0, |s| s.priority);
             if state.priority < current_priority {
+                #[cfg(debug_assertions)]
                 println!("[StateManager] 状态优先级不够，禁止变更状态 '{}'", state.name);
                 return Ok(false);
             }
@@ -223,6 +224,7 @@ impl StateManager {
 
         // 被锁定时只更新数据，不切换当前状态
         if self.locked && !force {
+            #[cfg(debug_assertions)]
             println!("[StateManager] 状态锁定中，仅更新持久状态为 '{}'", state.name);
             return Ok(false);
         }
@@ -281,12 +283,14 @@ impl StateManager {
         // 非强制模式下的检查
         if !force {
             if self.locked {
+                #[cfg(debug_assertions)]
                 println!("[StateManager] 状态锁定中，禁止变更状态 '{}'", state.name);
                 return Ok(false);
             }
 
             let current_priority = self.current_state.as_ref().map_or(0, |s| s.priority);
             if state.priority < current_priority {
+                #[cfg(debug_assertions)]
                 println!("[StateManager] 状态优先级不够，禁止变更状态 '{}'", state.name);
                 return Ok(false);
             }
@@ -441,6 +445,7 @@ impl StateManager {
             .collect();
 
         if enabled_states.is_empty() {
+            #[cfg(debug_assertions)]
             println!("[StateManager] 没有可用的状态");
             return Ok(false);
         }
@@ -449,7 +454,7 @@ impl StateManager {
         let idx = if enabled_states.len() == 1 { 0 } else { Self::random_index(enabled_states.len()) };
         let selected = enabled_states[idx].clone();
 
-
+        #[cfg(debug_assertions)]
         println!("[StateManager] 随机选择状态: '{}'", selected.name);
         match rm {
             Some(rm) => self.change_state_with_rm(selected, rm),
@@ -496,6 +501,7 @@ impl StateManager {
     /// 设置定时触发开关
     fn set_timer_enabled(&self, enabled: bool) {
         if let Some(ref timer) = self.timer_enabled {
+            #[cfg(debug_assertions)]
             if enabled {
                 println!("[StateManager] 启用定时触发");
             } else {
@@ -518,13 +524,14 @@ impl StateManager {
         self.timer_enabled = Some(timer_enabled.clone());
 
         std::thread::spawn(move || {
+            #[cfg(debug_assertions)]
             println!("[StateManager] 定时触发器线程启动");
             
             let mut last_trigger_time = SystemTime::now();
             
             loop {
-                // 每 1000ms 检查一次
-                std::thread::sleep(Duration::from_secs(1));
+                // 定期检查
+                std::thread::sleep(Duration::from_secs(crate::modules::constants::TIMER_TRIGGER_CHECK_INTERVAL_SECS));
 
                 // 快速检查开关（无锁操作）
                 if !timer_enabled.load(Ordering::Relaxed) {

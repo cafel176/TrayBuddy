@@ -27,6 +27,7 @@
   import BranchOptions, { type BranchInfo } from './BranchOptions.svelte';
   import { calculateDisplayDuration } from './markdown';
   import { bubbleStyle, type BubbleStyleConfig } from './bubbleStyle';
+  import { BUBBLE_DEFAULT_AUTO_CLOSE_MS, BUBBLE_CLOSE_ANIMATION_MS } from '$lib/constants';
 
   // ======================================================================= //
   // Props
@@ -107,7 +108,7 @@
       // 设置自动关闭（有分支选项的气泡也会在持续时间后消失）
       const autoCloseDuration = duration > 0 
         ? duration 
-        : 2000; // 无文本时默认2秒后关闭
+        : BUBBLE_DEFAULT_AUTO_CLOSE_MS;
       startAutoClose(autoCloseDuration);
     }
   });
@@ -180,7 +181,7 @@
     // 动画完成后触发关闭事件
     setTimeout(() => {
       dispatch('close');
-    }, 200);
+    }, BUBBLE_CLOSE_ANIMATION_MS);
   }
 
   /**

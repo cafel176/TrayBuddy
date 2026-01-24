@@ -147,6 +147,7 @@ impl Storage {
             let _ = fs::create_dir_all(&storage_dir);
         }
 
+        #[cfg(debug_assertions)]
         println!("storage path: {:?}", storage_dir);
 
         storage_dir

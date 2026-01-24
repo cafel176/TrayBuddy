@@ -132,10 +132,11 @@ pub struct EnvironmentManager {
 
 impl EnvironmentManager {
     pub fn new() -> Self {
+        use crate::modules::constants::WEATHER_CACHE_DURATION_SECS;
         Self {
             cached_weather: None,
             weather_cache_time: 0,
-            weather_cache_duration: 1800, // 30 分钟缓存，减少联网请求
+            weather_cache_duration: WEATHER_CACHE_DURATION_SECS,
         }
     }
 
@@ -211,8 +212,8 @@ impl EnvironmentManager {
                 .args([
                     "-Command",
                     &format!(
-                        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec 5).Content",
-                        url
+                        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
+                        url, crate::modules::constants::LOCATION_API_TIMEOUT_SECS
                     )
                 ])
                 .output()
@@ -468,8 +469,8 @@ impl EnvironmentManager {
                 .args([
                     "-Command",
                     &format!(
-                        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec 15).Content",
-                        url
+                        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
+                        url, crate::modules::constants::WEATHER_API_TIMEOUT_SECS
                     )
                 ])
                 .output()
@@ -772,6 +773,7 @@ pub struct EnvironmentUpdateEvent {
 pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R>>) {
     use tauri::Emitter;
     
+    #[cfg(debug_assertions)]
     println!("[Environment] Initializing environment info...");
     
     // 初始化缓存结构
@@ -787,12 +789,14 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
     // 获取地理位置
     let mut manager = EnvironmentManager::new();
     if let Some(location) = manager.get_location() {
+        #[cfg(debug_assertions)]
         println!("[Environment] Location: {:?}, {:?}, {:?}", 
             location.city, location.region, location.country);
         location_result = Some(location.clone());
         
         // 获取天气并缓存到全局
         if let Some(weather) = manager.fetch_weather_for_init() {
+            #[cfg(debug_assertions)]
             println!("[Environment] Weather: {}°C, {}", 
                 weather.temperature, weather.condition);
             
@@ -808,6 +812,7 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
             weather_result = Some(weather);
         }
     } else {
+        #[cfg(debug_assertions)]
         println!("[Environment] Failed to get location");
     }
     
@@ -818,9 +823,11 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
             weather: weather_result,
         };
         let _ = handle.emit("environment-updated", event_data);
+        #[cfg(debug_assertions)]
         println!("[Environment] Event emitted to frontend");
     }
     
+    #[cfg(debug_assertions)]
     println!("[Environment] Initialization complete");
 }
 

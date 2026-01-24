@@ -53,6 +53,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import Bubble from './Bubble.svelte';
   import { loadBubbleStyle } from './bubbleStyle';
+  import { BUBBLE_SWITCH_DELAY_MS } from '$lib/constants';
 
   // ======================================================================= //
   // 状态
@@ -107,7 +108,7 @@
         currentConfig = config;
         isVisible = true;
         dispatch('show', config);
-      }, 250);
+      }, BUBBLE_SWITCH_DELAY_MS);
     } else {
       currentConfig = config;
       isVisible = true;

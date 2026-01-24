@@ -41,6 +41,7 @@
   import { getTriggerManager, type TriggerManager } from "$lib/trigger/TriggerManager";
   import type { StateInfo, UserSettings } from "$lib/types/asset";
   import BubbleManager, { type BubbleConfig } from "$lib/bubble/BubbleManager.svelte";
+  import { CURSOR_POLL_INTERVAL_MS } from "$lib/constants";
 
   // =========================================================================
   // DOM 引用
@@ -493,7 +494,7 @@
       } catch (e) {
         // 出错时保持当前状态
       }
-    }, 50); // 50ms 轮询间隔
+    }, CURSOR_POLL_INTERVAL_MS);
   }
 
   /**

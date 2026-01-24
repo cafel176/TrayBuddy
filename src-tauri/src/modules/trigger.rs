@@ -40,12 +40,14 @@ impl TriggerManager {
         resource_manager: &ResourceManager,
         state_manager: &mut StateManager,
     ) -> Result<bool, String> {
+        #[cfg(debug_assertions)]
         println!("[TriggerManager] 处理事件: '{}'", event_name);
 
         // 获取对应的 Trigger
         let trigger = match resource_manager.get_trigger_by_event(event_name) {
             Some(t) => t,
             None => {
+                #[cfg(debug_assertions)]
                 println!("[TriggerManager] 未找到事件 '{}' 的触发器", event_name);
                 return Ok(false);
             }
@@ -57,6 +59,7 @@ impl TriggerManager {
             .map(|s| s.name.as_str())
             .unwrap_or("");
 
+        #[cfg(debug_assertions)]
         println!("[TriggerManager] 当前持久状态: '{}'", current_persistent_name);
 
         // 根据当前持久状态筛选可触发的状态名列表
@@ -69,6 +72,7 @@ impl TriggerManager {
             .collect();
 
         if state_names.is_empty() {
+            #[cfg(debug_assertions)]
             println!("[TriggerManager] 触发器 '{}' 在当前持久状态 '{}' 下没有可触发状态", 
                      event_name, current_persistent_name);
             return Ok(false);
@@ -80,6 +84,7 @@ impl TriggerManager {
                 match resource_manager.get_state_by_name(name) {
                     Some(state) => Some(state.clone()),
                     None => {
+                        #[cfg(debug_assertions)]
                         println!("[TriggerManager] 未找到状态 '{}'", name);
                         None
                     }
@@ -88,6 +93,7 @@ impl TriggerManager {
             .collect();
 
         if states.is_empty() {
+            #[cfg(debug_assertions)]
             println!("[TriggerManager] 没有找到任何有效状态");
             return Ok(false);
         }

@@ -16,6 +16,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
+  import { DEBUG_TIMER_INTERVAL_MS } from "$lib/constants";
 
   // ======================================================================= //
   // 类型定义
@@ -209,7 +210,7 @@
     await loadBasicInfo();
     
     // 每秒更新时间
-    timerInterval = setInterval(loadBasicInfo, 1000);
+    timerInterval = setInterval(loadBasicInfo, DEBUG_TIMER_INTERVAL_MS);
 
     // 监听环境信息更新事件（启动时后台获取完成后推送）
     unlistenEnvUpdate = await listen<EnvironmentUpdateEvent>("environment-updated", (event) => {

@@ -649,6 +649,7 @@ impl ResourceManager {
         if let Ok(config_dir) = app_handle.path().app_config_dir() {
             let mods_path = config_dir.join("mods");
             if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                #[cfg(debug_assertions)]
                 println!("[ResourceManager] 配置目录 mods: {:?}", canonical);
                 if canonical.is_dir() {
                     paths.push(canonical);
@@ -661,6 +662,7 @@ impl ResourceManager {
             if let Some(exe_dir) = exe_path.parent() {
                 let mods_path = exe_dir.join("mods");
                 if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                    #[cfg(debug_assertions)]
                     println!("[ResourceManager] 程序目录 mods: {:?}", canonical);
                     if canonical.is_dir() && !paths.contains(&canonical) {
                         paths.push(canonical);
@@ -674,6 +676,7 @@ impl ResourceManager {
             if let Some(parent) = cwd.parent() {
                 let mods_path = parent.join("mods");
                 if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                    #[cfg(debug_assertions)]
                     println!("[ResourceManager] 项目目录 mods: {:?}", canonical);
                     if canonical.is_dir() && !paths.contains(&canonical) {
                         paths.push(canonical);

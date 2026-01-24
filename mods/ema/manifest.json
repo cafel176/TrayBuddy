@@ -28,7 +28,7 @@
       "can_trigger_states" :[
         "hello1_1"        
       ],
-      "trigger_time" : 60,
+      "trigger_time" : 600,
       "trigger_rate" : 0.3,
       "branch" :[]
     }

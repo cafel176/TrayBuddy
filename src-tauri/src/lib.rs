@@ -843,7 +843,8 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
                 let app_state: State<AppState> = app_handle.state();
 
                 // 等待状态解锁
-                for _ in 0..60 {
+                use crate::modules::constants::{STATE_LOCK_WAIT_INTERVAL_MS, STATE_LOCK_MAX_RETRIES};
+                for _ in 0..STATE_LOCK_MAX_RETRIES {
                     let is_locked = {
                         let sm = app_state.state_manager.lock().unwrap();
                         sm.is_locked()
@@ -851,7 +852,7 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
                     if !is_locked {
                         break;
                     }
-                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(STATE_LOCK_WAIT_INTERVAL_MS)).await;
                 }
 
                 match event.status {
