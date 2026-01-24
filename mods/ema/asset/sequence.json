@@ -1,6 +1,6 @@
 [
   {
-    "name": "wink",
+    "name": "idle",
     "img": "sequence/idle.webp",
     "sequence": true,
     "origin_reverse": false,

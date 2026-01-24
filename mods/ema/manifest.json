@@ -16,7 +16,7 @@
     "idle": {
       "name" : "idle",
       "persistent" : true,
-      "anima" : "wink",
+      "anima" : "idle",
       "audio" : "",
       "text" : "",
       "priority" : 1,
@@ -37,7 +37,7 @@
     {
       "name" : "music",
       "persistent" : true,
-      "anima" : "wink",
+      "anima" : "idle",
       "audio" : "",
       "text" : "",
       "priority" : 1,
