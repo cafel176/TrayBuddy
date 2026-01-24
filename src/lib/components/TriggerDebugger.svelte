@@ -17,12 +17,33 @@
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
+  import { listen, emit } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
 
   // ======================================================================= //
   // 类型定义
   // ======================================================================= //
+
+  /**
+   * 分支信息接口
+   */
+  interface BranchInfo {
+    /** 分支显示文本 */
+    text: string;
+    /** 选择后跳转的状态名 */
+    next_state: string;
+  }
+
+  /**
+   * 触发条件状态组
+   * 定义在特定持久状态下可触发的状态列表
+   */
+  interface TriggerStateGroup {
+    /** 持久状态名称，为空字符串时表示任意持久状态都可触发 */
+    persistent_state: string;
+    /** 可触发的状态名称列表 */
+    states: string[];
+  }
 
   /**
    * 触发器信息接口
@@ -31,33 +52,45 @@
   interface TriggerInfo {
     /** 触发事件名称 */
     event: string;
-    /** 可触发的状态列表 */
-    can_trigger_states: string[];
+    /** 可触发的状态组列表（按持久状态分组） */
+    can_trigger_states: TriggerStateGroup[];
   }
 
   /**
-   * 状态信息接口 (简化版)
-   * 用于显示定时触发器相关信息
+   * 状态信息接口
+   * 对应后端的 StateInfo 结构体
    */
   interface StateInfo {
-    /** 状态名称 */
+    /** 状态名称 (唯一标识) */
     name: string;
     /** 是否为持久状态 */
     persistent: boolean;
-    /** 动画资源名 */
+    /** 关联的动画资源名 */
     anima: string;
-    /** 音频资源名 */
+    /** 关联的音频资源名 */
     audio: string;
-    /** 文本资源名 */
+    /** 关联的文本资源名 */
     text: string;
-    /** 优先级 */
+    /** 优先级 (数值越大优先级越高) */
     priority: number;
+    /** 日期范围起始 (MM-DD) */
+    date_start: string;
+    /** 日期范围结束 (MM-DD) */
+    date_end: string;
+    /** 时间范围起始 (HH:MM) */
+    time_start: string;
+    /** 时间范围结束 (HH:MM) */
+    time_end: string;
+    /** 播放完成后跳转的状态名 */
+    next_state: string;
     /** 定时触发间隔 (秒) */
     trigger_time: number;
-    /** 定时触发概率 */
+    /** 定时触发概率 (0.0 - 1.0) */
     trigger_rate: number;
     /** 可触发的状态列表 */
     can_trigger_states: string[];
+    /** 对话分支选项 */
+    branch: BranchInfo[];
   }
 
   /**
@@ -77,8 +110,17 @@
   /** 所有触发器列表 */
   let triggers = $state<TriggerInfo[]>([]);
   
+  /** 当前正在播放的状态 */
+  let currentState = $state<StateInfo | null>(null);
+  
   /** 当前持久状态 (用于显示定时触发器配置) */
   let persistentState = $state<StateInfo | null>(null);
+  
+  /** 队列中的下一个状态 */
+  let nextState = $state<StateInfo | null>(null);
+  
+  /** 状态是否被锁定 */
+  let isLocked = $state(false);
   
   /** 状态消息 */
   let statusMsg = $state("正在加载...");
@@ -88,9 +130,28 @@
   
   /** 状态变化事件的取消监听函数 */
   let unlisten: (() => void) | null = null;
+  
+  /** 播放状态事件的取消监听函数 */
+  let unlistenPlayback: (() => void) | null = null;
+  
+  /** next_state变化事件的取消监听函数 */
+  let unlistenNextState: (() => void) | null = null;
 
   /** 手动触发的自定义事件名输入 */
   let customEvent = $state("");
+
+  // ======================================================================= //
+  // 前端播放状态 (来自 animation 窗口)
+  // ======================================================================= //
+  
+  /** 动画是否完成 */
+  let animationComplete = $state(false);
+  /** 音频是否完成 */
+  let audioComplete = $state(false);
+  /** 气泡是否完成 */
+  let bubbleComplete = $state(false);
+  /** 是否为单次播放模式 */
+  let isPlayOnce = $state(false);
 
   // ======================================================================= //
   // 数据加载函数
@@ -102,10 +163,25 @@
   async function loadData() {
     try {
       triggers = await invoke("get_all_triggers");
+      currentState = await invoke("get_current_state");
       persistentState = await invoke("get_persistent_state");
+      nextState = await invoke("get_next_state");
+      isLocked = await invoke("is_state_locked");
       statusMsg = `已加载 ${triggers.length} 个触发器`;
     } catch (e) {
       statusMsg = `加载失败: ${e}`;
+    }
+  }
+  
+  /**
+   * 仅刷新 nextState（用于 next-state-changed 事件）
+   */
+  async function refreshNextState() {
+    try {
+      nextState = await invoke("get_next_state");
+      addLog(`next_state 已更新: ${nextState?.name || '无'}`);
+    } catch (e) {
+      console.error('Failed to refresh next state:', e);
     }
   }
 
@@ -174,10 +250,34 @@
       addLog(`状态切换: ${state.name} (play_once: ${play_once})`);
       loadData();
     });
+    
+    // 监听前端播放状态事件
+    unlistenPlayback = await listen<{
+      animationComplete: boolean;
+      audioComplete: boolean;
+      bubbleComplete: boolean;
+      isPlayOnce: boolean;
+    }>("playback-status", (event) => {
+      animationComplete = event.payload.animationComplete;
+      audioComplete = event.payload.audioComplete;
+      bubbleComplete = event.payload.bubbleComplete;
+      isPlayOnce = event.payload.isPlayOnce;
+    });
+    
+    // 监听 next_state 变化事件（分支选择时触发）
+    unlistenNextState = await listen<{ name: string }>("next-state-changed", (event) => {
+      addLog(`事件: next-state-changed -> ${event.payload.name}`);
+      refreshNextState();
+    });
+    
+    // 请求当前播放状态
+    emit('request-playback-status');
   });
 
   onDestroy(() => {
     unlisten?.();
+    unlistenPlayback?.();
+    unlistenNextState?.();
   });
 </script>
 
@@ -187,6 +287,101 @@
 
 <div class="trigger-debugger">
   <h3>TriggerManager 调试面板</h3>
+
+  <!-- ================================================================= -->
+  <!-- 状态卡片区域 - 展示三个核心状态 -->
+  <!-- ================================================================= -->
+  
+  <div class="state-cards">
+    <!-- 当前状态卡片 -->
+    <div class="state-card current">
+      <div class="card-header">当前状态</div>
+      {#if currentState}
+        <div class="state-name">{currentState.name}</div>
+        <div class="state-meta">
+          <span class="badge" class:persistent={currentState.persistent}>
+            {currentState.persistent ? '持久' : '临时'}
+          </span>
+          <span class="priority">优先级: {currentState.priority}</span>
+          {#if isLocked}
+            <span class="badge locked">锁定中</span>
+          {/if}
+        </div>
+        <div class="state-detail">
+          {#if currentState.anima}<div class="detail-row"><span class="label">动画:</span> {currentState.anima}</div>{/if}
+          {#if currentState.audio}<div class="detail-row"><span class="label">音频:</span> {currentState.audio}</div>{/if}
+          {#if currentState.text}<div class="detail-row"><span class="label">文本:</span> {currentState.text}</div>{/if}
+          {#if currentState.next_state}<div class="detail-row"><span class="label">后续状态:</span> <span class="next-state-value">{currentState.next_state}</span></div>{/if}
+        </div>
+        <!-- 对话分支信息 (如果有) -->
+        {#if currentState.branch && currentState.branch.length > 0}
+          <div class="branch-info">
+            <span class="label">分支选项:</span>
+            {#each currentState.branch as b}
+              <span class="branch-item">{b.text} → {b.next_state}</span>
+            {/each}
+          </div>
+        {/if}
+      {:else}
+        <div class="empty">无</div>
+      {/if}
+    </div>
+
+    <!-- 持久状态卡片 -->
+    <div class="state-card persistent-card">
+      <div class="card-header">持久状态</div>
+      {#if persistentState}
+        <div class="state-name">{persistentState.name}</div>
+        <div class="state-meta">
+          <span class="anima">动画: {persistentState.anima}</span>
+        </div>
+      {:else}
+        <div class="empty">无</div>
+      {/if}
+    </div>
+
+    <!-- 下一状态卡片 (队列中的状态) -->
+    <div class="state-card next">
+      <div class="card-header">队列状态</div>
+      <div class="card-hint">当前状态播放完毕后切换</div>
+      {#if nextState}
+        <div class="state-name">{nextState.name}</div>
+        <div class="state-meta">
+          <span class="badge" class:persistent={nextState.persistent}>
+            {nextState.persistent ? '持久' : '临时'}
+          </span>
+        </div>
+      {:else}
+        <div class="empty">无 (将回到持久状态)</div>
+      {/if}
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- 前端播放状态区域 -->
+  <!-- ================================================================= -->
+  
+  <div class="section">
+    <h4>前端播放状态</h4>
+    <div class="playback-status">
+      <div class="status-item" class:complete={animationComplete}>
+        <span class="status-label">动画</span>
+        <span class="status-value">{animationComplete ? '完成' : '播放中'}</span>
+      </div>
+      <div class="status-item" class:complete={audioComplete}>
+        <span class="status-label">音频</span>
+        <span class="status-value">{audioComplete ? '完成' : '播放中'}</span>
+      </div>
+      <div class="status-item" class:complete={bubbleComplete}>
+        <span class="status-label">气泡</span>
+        <span class="status-value">{bubbleComplete ? '完成' : '显示中'}</span>
+      </div>
+      <div class="status-item mode">
+        <span class="status-label">模式</span>
+        <span class="status-value">{isPlayOnce ? '单次播放' : '循环播放'}</span>
+      </div>
+    </div>
+  </div>
 
   <!-- ================================================================= -->
   <!-- 定时触发器状态区域 -->
@@ -266,10 +461,23 @@
                 触发
               </button>
             </div>
-            <div class="trigger-states">
+            <div class="trigger-groups">
               {#if trigger.can_trigger_states.length > 0}
-                {#each trigger.can_trigger_states as stateName}
-                  <span class="tag state-tag">{stateName}</span>
+                {#each trigger.can_trigger_states as group}
+                  <div class="trigger-group">
+                    <span class="group-condition">
+                      {#if group.persistent_state}
+                        当 <span class="persistent-state-name">{group.persistent_state}</span> 时
+                      {:else}
+                        任意持久状态
+                      {/if}
+                    </span>
+                    <div class="group-states">
+                      {#each group.states as stateName}
+                        <span class="tag state-tag">{stateName}</span>
+                      {/each}
+                    </div>
+                  </div>
                 {/each}
               {:else}
                 <span class="no-states">(无可触发状态)</span>
@@ -364,6 +572,152 @@
     font-size: 0.95em;
   }
 
+  /* ================================================================= */
+  /* 状态卡片区域 */
+  /* ================================================================= */
+
+  .state-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  .state-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 4px solid #bdc3c7;
+  }
+
+  .state-card.current {
+    border-left-color: #3498db;
+  }
+
+  .state-card.persistent-card {
+    border-left-color: #27ae60;
+  }
+
+  .state-card.next {
+    border-left-color: #9b59b6;
+  }
+
+  .card-header {
+    font-size: 0.75em;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .card-hint {
+    font-size: 0.65em;
+    color: #95a5a6;
+    margin-bottom: 8px;
+  }
+
+  .state-name {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  .state-meta {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+    font-size: 0.8em;
+  }
+
+  .state-detail {
+    margin-top: 8px;
+    font-size: 0.75em;
+    color: #7f8c8d;
+  }
+
+  .detail-row {
+    margin-bottom: 2px;
+  }
+
+  .detail-row .label {
+    color: #95a5a6;
+  }
+
+  .next-state-value {
+    color: #9b59b6;
+    font-weight: bold;
+  }
+
+  .branch-info {
+    margin-top: 8px;
+    font-size: 0.75em;
+    color: #7f8c8d;
+  }
+
+  .branch-info .label {
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .branch-item {
+    display: inline-block;
+    background: #ecf0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin: 2px 4px 2px 0;
+    color: #2c3e50;
+  }
+
+  .priority, .anima {
+    color: #7f8c8d;
+  }
+
+  /* ================================================================= */
+  /* 前端播放状态区域 */
+  /* ================================================================= */
+
+  .playback-status {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .status-item {
+    background: #fee2e2;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    border: 2px solid #fca5a5;
+    transition: all 0.3s;
+  }
+
+  .status-item.complete {
+    background: #d1fae5;
+    border-color: #6ee7b7;
+  }
+
+  .status-item.mode {
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+  }
+
+  .status-label {
+    display: block;
+    font-size: 0.75em;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+
+  .status-value {
+    display: block;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #374151;
+  }
+
+  /* ================================================================= */
+  /* 通用区域 */
+  /* ================================================================= */
+
   .section {
     margin-bottom: 20px;
   }
@@ -403,8 +757,8 @@
     color: #2c3e50;
   }
 
-  .state-name {
-    font-weight: bold;
+  .timer-section .state-name {
+    font-size: 1em;
     color: #8e44ad;
   }
 
@@ -421,10 +775,26 @@
 
   .badge {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 2px 8px;
     border-radius: 4px;
-    font-size: 0.8em;
+    font-size: 0.75em;
     font-weight: bold;
+    background: #e74c3c;
+    color: white;
+  }
+
+  .badge.persistent {
+    background: #27ae60;
+  }
+
+  .badge.locked {
+    background: #e74c3c;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   .badge.active {
@@ -436,6 +806,10 @@
     background: #bdc3c7;
     color: #7f8c8d;
   }
+
+  /* ================================================================= */
+  /* 触发器列表 */
+  /* ================================================================= */
 
   .trigger-list {
     display: flex;
@@ -464,7 +838,32 @@
     font-size: 1em;
   }
 
-  .trigger-states {
+  .trigger-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .trigger-group {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 8px;
+  }
+
+  .group-condition {
+    font-size: 0.8em;
+    color: #7f8c8d;
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  .persistent-state-name {
+    font-weight: bold;
+    color: #27ae60;
+  }
+
+  .group-states {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
@@ -653,13 +1052,51 @@
       color: #bdc3c7;
     }
 
+    .state-card {
+      background: #34495e;
+    }
+
+    .state-name {
+      color: #ecf0f1;
+    }
+
+    .card-hint {
+      color: #7f8c8d;
+    }
+
+    .state-detail {
+      color: #95a5a6;
+    }
+
+    .next-state-value {
+      color: #bb8fce;
+    }
+
+    .branch-item {
+      background: #3d566e;
+      color: #ecf0f1;
+    }
+
     .timer-section {
       background: #34495e;
+    }
+
+    .timer-section .state-name {
+      color: #bb8fce;
     }
 
     .trigger-card {
       background: #34495e;
       border-color: #455a64;
+    }
+
+    .trigger-group {
+      background: #3d566e;
+      border-color: #455a64;
+    }
+
+    .persistent-state-name {
+      color: #2ecc71;
     }
 
     .manual-trigger input {
@@ -682,7 +1119,6 @@
     .status-bar.error {
       background: #5a3e3e;
     }
-
 
     .value {
       color: #ecf0f1;
