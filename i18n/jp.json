@@ -385,5 +385,21 @@
   },
   "bubble": {
     "dialogOptions": "ダイアログオプション"
+  },
+  "modWindow": {
+    "title": "Mod マネージャー",
+    "availableMods": "利用可能な Mod",
+    "searchPaths": "検索パス",
+    "selectMod": "Mod を選択してください",
+    "loadMod": "Mod を読み込む",
+    "current": "現在読み込み中",
+    "preview": "プレビュー",
+    "noPreview": "プレビューなし",
+    "author": "作者",
+    "version": "バージョン",
+    "description": "説明",
+    "loading": "読み込み中...",
+    "loadSuccess": "読み込み成功",
+    "loadFailed": "読み込み失敗"
   }
 }

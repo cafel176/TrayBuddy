@@ -857,8 +857,9 @@ pub fn run() {
                 // 2. 创建菜单
                 let settings_i =
                     MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+                let mod_i = MenuItem::with_id(app, "mod", "Mod", true, None::<&str>)?;
                 let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-                let menu = Menu::with_items(app, &[&settings_i, &quit_i])?;
+                let menu = Menu::with_items(app, &[&settings_i, &mod_i, &quit_i])?;
 
                 // 3. 创建托盘
                 let builder = TrayIconBuilder::new()
@@ -868,6 +869,24 @@ pub fn run() {
                     .on_menu_event(move |app, event| {
                         match event.id.as_ref() {
                             "quit" => app.exit(0),
+                            "mod" => {
+                                // 检查 Mod 窗口是否已存在
+                                if let Some(window) = app.get_webview_window("mods") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                } else {
+                                    // 创建新的 Mod 窗口
+                                    let _ = WebviewWindowBuilder::new(
+                                        app,
+                                        "mods",
+                                        WebviewUrl::App("mods".into()),
+                                    )
+                                    .title("Mod Manager")
+                                    .inner_size(800.0, 700.0)
+                                    .resizable(false)
+                                    .build();
+                                }
+                            }
                             "settings" => {
                                 // 检查设置窗口是否已存在
                                 if let Some(window) = app.get_webview_window("settings") {
@@ -895,7 +914,7 @@ pub fn run() {
                             ..
                         } = event
                         {
-                            let app = tray.app_handle();
+                            //let app = tray.app_handle();
                             // if let Some(window) = app.get_webview_window("main") {
                             //     let _ = window.show();
                             //     let _ = window.set_focus();
@@ -953,6 +972,7 @@ pub fn run() {
             get_user_info,
             update_user_info,
             // Mod 资源管理
+            get_mod_details,
             get_mod_search_paths,
             get_available_mods,
             load_mod,
@@ -1002,6 +1022,16 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// 获取指定 Mod 的详细信息 (不加载)
+#[tauri::command]
+fn get_mod_details(
+    state: State<'_, AppState>,
+    mod_name: String,
+) -> Result<modules::resource::ModInfo, String> {
+    let mgr = state.resource_manager.lock().unwrap();
+    mgr.read_mod_from_disk(&mod_name)
 }
 
 /// 获取系统观察器调试信息

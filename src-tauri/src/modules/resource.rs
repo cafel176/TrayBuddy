@@ -1,5 +1,5 @@
 //! 资源管理模块
-//! 
+//!
 //! 负责 Mod 的扫描、解析与内存映射，包括：
 //! - Mod 目录发现和枚举
 //! - manifest.json 解析
@@ -12,12 +12,12 @@
 
 #![allow(unused)]
 
+use super::environment::get_current_datetime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
-use super::environment::get_current_datetime;
 
 // ========================================================================= //
 // 辅助函数
@@ -25,8 +25,8 @@ use super::environment::get_current_datetime;
 
 /// 默认名称（用于反序列化失败时）
 #[inline]
-fn default_name() -> String { 
-    "ERROR".to_string() 
+fn default_name() -> String {
+    "ERROR".to_string()
 }
 
 // ========================================================================= //
@@ -165,7 +165,7 @@ impl Default for CharacterInfo {
 // ========================================================================= //
 
 /// 状态信息
-/// 
+///
 /// 定义角色的一个状态，包括动画、音频、触发条件等
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -198,7 +198,7 @@ pub struct StateInfo {
     /// 可触发的子状态列表
     pub can_trigger_states: Vec<String>,
     /// 触发间隔时间（秒），最小值为 300 秒（5 分钟）
-    /// 
+    ///
     /// - 设为 0 表示禁用定时触发
     /// - 设为 > 0 但 < 300 的值会被自动修正为 300
     pub trigger_time: f32,
@@ -232,7 +232,7 @@ impl Default for StateInfo {
 
 impl StateInfo {
     /// 检查当前时间是否在允许的时间范围内
-    /// 
+    ///
     /// 时间格式: "HH:MM"
     /// 如果未设置时间限制，返回 true
     pub fn is_time_valid(&self) -> bool {
@@ -255,7 +255,7 @@ impl StateInfo {
     }
 
     /// 检查当前日期是否在允许的日期范围内
-    /// 
+    ///
     /// 日期格式: "MM-DD"
     /// 如果未设置日期限制，返回 true
     pub fn is_date_valid(&self) -> bool {
@@ -305,7 +305,7 @@ impl StateInfo {
 // ========================================================================= //
 
 /// 对话分支选项
-/// 
+///
 /// 用于交互式对话，让用户选择不同的对话走向
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -330,7 +330,7 @@ impl Default for BranchInfo {
 // ========================================================================= //
 
 /// 触发条件状态组
-/// 
+///
 /// 定义在特定持久状态下可触发的状态列表
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -351,7 +351,7 @@ impl Default for TriggerStateGroup {
 }
 
 /// 触发器信息
-/// 
+///
 /// 定义事件与可触发状态的映射关系
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -385,9 +385,7 @@ pub struct CharacterConfig {
 
 impl Default for CharacterConfig {
     fn default() -> Self {
-        Self {
-            z_offset: 1,
-        }
+        Self { z_offset: 1 }
     }
 }
 
@@ -436,7 +434,7 @@ pub struct ModManifest {
     pub default_audio_lang_id: String,
     /// 默认文本语言 ID
     pub default_text_lang_id: String,
-    
+
     /// 角色渲染配置
     pub character: CharacterConfig,
     /// 边框配置
@@ -469,10 +467,11 @@ impl Default for ModManifest {
 
 impl ModManifest {
     /// 根据名称查找状态
-    /// 
+    ///
     /// 优先从 important_states 查找，其次从 states 列表查找
     pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
-        self.important_states.get(name)
+        self.important_states
+            .get(name)
             .or_else(|| self.states.iter().find(|s| s.name == name))
     }
 
@@ -493,7 +492,7 @@ pub struct ModInfo {
     pub path: PathBuf,
     /// Mod 清单
     pub manifest: ModManifest,
-    
+
     /// 静态图资产列表
     pub imgs: Vec<AssetInfo>,
     /// 序列帧资产列表
@@ -504,7 +503,7 @@ pub struct ModInfo {
     pub texts: HashMap<String, Vec<TextInfo>>,
     /// 角色信息（语言代码 -> 角色信息）
     pub info: HashMap<String, CharacterInfo>,
-    
+
     // --- 索引（用于 O(1) 查询，不序列化） ---
     #[serde(skip)]
     state_index: HashMap<String, usize>,
@@ -522,36 +521,51 @@ impl ModInfo {
     /// 构建查询索引（加载后调用）
     fn build_indices(&mut self) {
         // 状态索引
-        self.state_index = self.manifest.states.iter()
+        self.state_index = self
+            .manifest
+            .states
+            .iter()
             .enumerate()
             .map(|(i, s)| (s.name.clone(), i))
             .collect();
-        
+
         // 触发器索引
-        self.trigger_index = self.manifest.triggers.iter()
+        self.trigger_index = self
+            .manifest
+            .triggers
+            .iter()
             .enumerate()
             .map(|(i, t)| (t.event.clone(), i))
             .collect();
-        
+
         // 资产索引
-        self.asset_index = self.imgs.iter()
+        self.asset_index = self
+            .imgs
+            .iter()
             .enumerate()
             .map(|(i, a)| (a.name.clone(), (false, i)))
-            .chain(self.sequences.iter().enumerate().map(|(i, a)| (a.name.clone(), (true, i))))
+            .chain(
+                self.sequences
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| (a.name.clone(), (true, i))),
+            )
             .collect();
-        
+
         // 音频索引
         for (lang, audios) in &self.audios {
-            let idx: HashMap<String, usize> = audios.iter()
+            let idx: HashMap<String, usize> = audios
+                .iter()
                 .enumerate()
                 .map(|(i, a)| (a.name.clone(), i))
                 .collect();
             self.audio_index.insert(lang.clone(), idx);
         }
-        
+
         // 文本索引
         for (lang, texts) in &self.texts {
-            let idx: HashMap<String, usize> = texts.iter()
+            let idx: HashMap<String, usize> = texts
+                .iter()
                 .enumerate()
                 .map(|(i, t)| (t.name.clone(), i))
                 .collect();
@@ -560,7 +574,7 @@ impl ModInfo {
     }
 
     /// 验证并修正状态配置
-    /// 
+    ///
     /// 对所有状态的 trigger_time 进行检查：
     /// - 如果 trigger_time > 0 且 < MIN_TRIGGER_TIME_SECS，则修正为 MIN_TRIGGER_TIME_SECS
     /// - trigger_time = 0 表示禁用定时触发，不做修正
@@ -589,40 +603,47 @@ impl ModInfo {
             }
         }
     }
-    
+
     /// 根据名称查找状态（O(1) 查询）
     #[inline]
     pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
         // 优先从 important_states 查找
-        self.manifest.important_states.get(name)
-            .or_else(|| {
-                self.state_index.get(name)
-                    .and_then(|&i| self.manifest.states.get(i))
-            })
+        self.manifest.important_states.get(name).or_else(|| {
+            self.state_index
+                .get(name)
+                .and_then(|&i| self.manifest.states.get(i))
+        })
     }
 
     /// 根据事件名称查找触发器（O(1) 查询）
     #[inline]
     pub fn get_trigger_by_event(&self, event: &str) -> Option<&TriggerInfo> {
-        self.trigger_index.get(event)
+        self.trigger_index
+            .get(event)
             .and_then(|&i| self.manifest.triggers.get(i))
     }
 
     /// 根据名称查找资产（O(1) 查询）
     pub fn get_asset_by_name(&self, name: &str) -> Option<&AssetInfo> {
         self.asset_index.get(name).and_then(|&(is_seq, i)| {
-            if is_seq { self.sequences.get(i) } else { self.imgs.get(i) }
+            if is_seq {
+                self.sequences.get(i)
+            } else {
+                self.imgs.get(i)
+            }
         })
     }
 
     /// 根据语言和名称查找语音（O(1) 查询）
     pub fn get_audio_by_name(&self, lang: &str, name: &str) -> Option<&AudioInfo> {
-        self.audio_index.get(lang)
+        self.audio_index
+            .get(lang)
             .and_then(|idx| idx.get(name))
             .and_then(|&i| self.audios.get(lang)?.get(i))
             .or_else(|| {
                 let default_lang = &self.manifest.default_audio_lang_id;
-                self.audio_index.get(default_lang)
+                self.audio_index
+                    .get(default_lang)
                     .and_then(|idx| idx.get(name))
                     .and_then(|&i| self.audios.get(default_lang)?.get(i))
             })
@@ -630,12 +651,14 @@ impl ModInfo {
 
     /// 根据语言和名称查找文本（O(1) 查询）
     pub fn get_text_by_name(&self, lang: &str, name: &str) -> Option<&TextInfo> {
-        self.text_index.get(lang)
+        self.text_index
+            .get(lang)
             .and_then(|idx| idx.get(name))
             .and_then(|&i| self.texts.get(lang)?.get(i))
             .or_else(|| {
                 let default_lang = &self.manifest.default_text_lang_id;
-                self.text_index.get(default_lang)
+                self.text_index
+                    .get(default_lang)
                     .and_then(|idx| idx.get(name))
                     .and_then(|&i| self.texts.get(default_lang)?.get(i))
             })
@@ -653,7 +676,7 @@ impl ModInfo {
 // ========================================================================= //
 
 /// 资源管理器
-/// 
+///
 /// 负责 Mod 的扫描、解析与内存映射
 pub struct ResourceManager {
     /// 当前加载的 Mod
@@ -712,7 +735,10 @@ impl ResourceManager {
                     let mods_path = dir.join("mods");
                     if let Ok(canonical) = dunce::canonicalize(&mods_path) {
                         #[cfg(debug_assertions)]
-                        println!("[ResourceManager] 程序目录 mods (level {}): {:?}", level, canonical);
+                        println!(
+                            "[ResourceManager] 程序目录 mods (level {}): {:?}",
+                            level, canonical
+                        );
                         if canonical.is_dir() && !paths.contains(&canonical) {
                             paths.push(canonical);
                         }
@@ -732,7 +758,10 @@ impl ResourceManager {
                     let mods_path = dir.join("mods");
                     if let Ok(canonical) = dunce::canonicalize(&mods_path) {
                         #[cfg(debug_assertions)]
-                        println!("[ResourceManager] 项目目录 mods (level {}): {:?}", level, canonical);
+                        println!(
+                            "[ResourceManager] 项目目录 mods (level {}): {:?}",
+                            level, canonical
+                        );
                         if canonical.is_dir() && !paths.contains(&canonical) {
                             paths.push(canonical);
                         }
@@ -754,7 +783,7 @@ impl ResourceManager {
     /// 列出所有可用的 Mod（去重）
     pub fn list_mods(&self) -> Vec<String> {
         let mut mods = std::collections::HashSet::new();
-        
+
         for path in &self.search_paths {
             if let Ok(entries) = fs::read_dir(path) {
                 for entry in entries.flatten() {
@@ -766,7 +795,7 @@ impl ResourceManager {
                 }
             }
         }
-        
+
         let mut result: Vec<String> = mods.into_iter().collect();
         result.sort();
         result
@@ -783,12 +812,17 @@ impl ResourceManager {
     }
 
     /// 加载指定的 Mod
-    /// 
+    ///
     /// 加载成功后返回 Mod 信息的克隆（用于返回给前端）。
     /// 内部会缓存原始数据，后续查询使用缓存避免重复克隆。
-    pub fn load_mod(&mut self, mod_name: &str) -> Result<ModInfo, String> {
+    /// 从磁盘读取 Mod 信息（不加载到当前状态）
+    ///
+    /// 用于 Mod 预览或加载前的检查
+    pub fn read_mod_from_disk(&self, mod_name: &str) -> Result<ModInfo, String> {
         // 查找 Mod 目录
-        let mod_path = self.search_paths.iter()
+        let mod_path = self
+            .search_paths
+            .iter()
             .map(|p| p.join(mod_name))
             .find(|p| p.is_dir())
             .ok_or_else(|| format!("Mod '{}' not found", mod_name))?;
@@ -806,7 +840,8 @@ impl ResourceManager {
         let sequences = Self::load_json_list(&assets_path.join("sequence.json"));
 
         // 解析多语言语音
-        let audios = Self::load_multilang_resources::<AudioInfo>(&mod_path.join("audio"), "speech.json");
+        let audios =
+            Self::load_multilang_resources::<AudioInfo>(&mod_path.join("audio"), "speech.json");
 
         // 解析多语言文本和角色信息
         let text_path = mod_path.join("text");
@@ -826,42 +861,61 @@ impl ResourceManager {
             audio_index: HashMap::new(),
             text_index: HashMap::new(),
         };
-        
+
         // 验证并修正状态配置
         mod_info.validate_and_fix_states();
-        
+
         // 构建查询索引
         mod_info.build_indices();
 
-        self.current_mod = Some(mod_info.clone());
         Ok(mod_info)
     }
 
+    /// 加载指定的 Mod
+    ///
+    /// 加载成功后返回 Mod 信息的克隆（用于返回给前端）。
+    /// 内部会缓存原始数据，后续查询使用缓存避免重复克隆。
+    pub fn load_mod(&mut self, mod_name: &str) -> Result<ModInfo, String> {
+        let mod_info = self.read_mod_from_disk(mod_name)?;
+        let result = mod_info.clone();
+
+        self.current_mod = Some(mod_info);
+        Ok(result)
+    }
+
     /// 加载文本资源（角色信息 + 对话文本）
-    fn load_text_resources(text_path: &Path) -> (HashMap<String, CharacterInfo>, HashMap<String, Vec<TextInfo>>) {
+    fn load_text_resources(
+        text_path: &Path,
+    ) -> (
+        HashMap<String, CharacterInfo>,
+        HashMap<String, Vec<TextInfo>>,
+    ) {
         let mut info = HashMap::new();
         let mut texts = HashMap::new();
-        
+
         if let Ok(entries) = fs::read_dir(text_path) {
             for entry in entries.flatten() {
                 if entry.path().is_dir() {
                     let lang = entry.file_name().to_string_lossy().into_owned();
-                    
+
                     // 加载角色信息
-                    if let Some(mut char_info) = Self::load_json_obj::<CharacterInfo>(&entry.path().join("info.json")) {
+                    if let Some(mut char_info) =
+                        Self::load_json_obj::<CharacterInfo>(&entry.path().join("info.json"))
+                    {
                         if char_info.id.is_empty() || char_info.id == "ERROR" {
                             char_info.id.clone_from(&lang);
                         }
                         info.insert(lang.clone(), char_info);
                     }
-                    
+
                     // 加载对话文本
-                    let speech_list: Vec<TextInfo> = Self::load_json_list(&entry.path().join("speech.json"));
+                    let speech_list: Vec<TextInfo> =
+                        Self::load_json_list(&entry.path().join("speech.json"));
                     texts.insert(lang, speech_list);
                 }
             }
         }
-        
+
         (info, texts)
     }
 
@@ -870,7 +924,7 @@ impl ResourceManager {
     // ========================================================================= //
 
     /// 获取所有状态（important_states + states）
-    /// 
+    ///
     /// 注意：此方法会克隆所有状态，仅在需要完整列表时使用
     pub fn get_all_states(&self) -> Vec<StateInfo> {
         match &self.current_mod {
@@ -887,11 +941,12 @@ impl ResourceManager {
     }
 
     /// 获取所有触发器
-    /// 
+    ///
     /// 注意：此方法会克隆所有触发器，仅在需要完整列表时使用
     #[inline]
     pub fn get_all_triggers(&self) -> Vec<TriggerInfo> {
-        self.current_mod.as_ref()
+        self.current_mod
+            .as_ref()
             .map(|m| m.manifest.triggers.clone())
             .unwrap_or_default()
     }
@@ -941,7 +996,7 @@ impl ResourceManager {
         if !path.exists() {
             return Vec::new();
         }
-        
+
         fs::read_to_string(path)
             .ok()
             .and_then(|content| serde_json::from_str(&content).ok())
@@ -953,7 +1008,7 @@ impl ResourceManager {
         if !path.exists() {
             return None;
         }
-        
+
         fs::read_to_string(path)
             .ok()
             .and_then(|content| serde_json::from_str(&content).ok())
@@ -965,7 +1020,7 @@ impl ResourceManager {
         filename: &str,
     ) -> HashMap<String, Vec<T>> {
         let mut result = HashMap::new();
-        
+
         if let Ok(entries) = fs::read_dir(base_path) {
             for entry in entries.flatten() {
                 if entry.path().is_dir() {
@@ -975,21 +1030,21 @@ impl ResourceManager {
                 }
             }
         }
-        
+
         result
     }
 
     /// 获取气泡样式配置
-    /// 
+    ///
     /// 从当前 Mod 目录读取 bubble_style.json 文件
     pub fn get_bubble_style(&self) -> Option<serde_json::Value> {
         let mod_info = self.current_mod.as_ref()?;
         let style_path = mod_info.path.join("bubble_style.json");
-        
+
         if !style_path.exists() {
             return None;
         }
-        
+
         fs::read_to_string(&style_path)
             .ok()
             .and_then(|content| serde_json::from_str(&content).ok())

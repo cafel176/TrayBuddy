@@ -385,5 +385,21 @@
   },
   "bubble": {
     "dialogOptions": "Dialog options"
+  },
+  "modWindow": {
+    "title": "Mod Manager",
+    "availableMods": "Available Mods",
+    "searchPaths": "Search Paths",
+    "selectMod": "Select a Mod",
+    "loadMod": "Load Mod",
+    "current": "Currently Loaded",
+    "preview": "Preview",
+    "noPreview": "No Preview",
+    "author": "Author",
+    "version": "Version",
+    "description": "Description",
+    "loading": "Loading...",
+    "loadSuccess": "Load Success",
+    "loadFailed": "Load Failed"
   }
 }

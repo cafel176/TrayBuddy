@@ -385,5 +385,21 @@
   },
   "bubble": {
     "dialogOptions": "对话选项"
+  },
+  "modWindow": {
+    "title": "Mod 管理器",
+    "availableMods": "可用 Mod",
+    "searchPaths": "搜索路径",
+    "selectMod": "请选择一个 Mod",
+    "loadMod": "加载 Mod",
+    "current": "当前加载",
+    "preview": "预览",
+    "noPreview": "无预览图",
+    "author": "作者",
+    "version": "版本",
+    "description": "描述",
+    "loading": "加载中...",
+    "loadSuccess": "加载成功",
+    "loadFailed": "加载失败"
   }
 }
