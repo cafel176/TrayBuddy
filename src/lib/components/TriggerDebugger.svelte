@@ -19,89 +19,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
-
-  // ======================================================================= //
-  // 类型定义
-  // ======================================================================= //
-
-  /**
-   * 分支信息接口
-   */
-  interface BranchInfo {
-    /** 分支显示文本 */
-    text: string;
-    /** 选择后跳转的状态名 */
-    next_state: string;
-  }
-
-  /**
-   * 触发条件状态组
-   * 定义在特定持久状态下可触发的状态列表
-   */
-  interface TriggerStateGroup {
-    /** 持久状态名称，为空字符串时表示任意持久状态都可触发 */
-    persistent_state: string;
-    /** 可触发的状态名称列表 */
-    states: string[];
-  }
-
-  /**
-   * 触发器信息接口
-   * 对应后端的 TriggerInfo 结构体
-   */
-  interface TriggerInfo {
-    /** 触发事件名称 */
-    event: string;
-    /** 可触发的状态组列表（按持久状态分组） */
-    can_trigger_states: TriggerStateGroup[];
-  }
-
-  /**
-   * 状态信息接口
-   * 对应后端的 StateInfo 结构体
-   */
-  interface StateInfo {
-    /** 状态名称 (唯一标识) */
-    name: string;
-    /** 是否为持久状态 */
-    persistent: boolean;
-    /** 关联的动画资源名 */
-    anima: string;
-    /** 关联的音频资源名 */
-    audio: string;
-    /** 关联的文本资源名 */
-    text: string;
-    /** 优先级 (数值越大优先级越高) */
-    priority: number;
-    /** 日期范围起始 (MM-DD) */
-    date_start: string;
-    /** 日期范围结束 (MM-DD) */
-    date_end: string;
-    /** 时间范围起始 (HH:MM) */
-    time_start: string;
-    /** 时间范围结束 (HH:MM) */
-    time_end: string;
-    /** 播放完成后跳转的状态名 */
-    next_state: string;
-    /** 定时触发间隔 (秒) */
-    trigger_time: number;
-    /** 定时触发概率 (0.0 - 1.0) */
-    trigger_rate: number;
-    /** 可触发的状态列表 */
-    can_trigger_states: string[];
-    /** 对话分支选项 */
-    branch: BranchInfo[];
-  }
-
-  /**
-   * 状态变化事件数据
-   */
-  interface StateChangeEvent {
-    /** 新的状态信息 */
-    state: StateInfo;
-    /** 是否只播放一次 */
-    play_once: boolean;
-  }
+  import type { StateInfo, StateChangeEvent, TriggerInfo, TriggerStateGroup, BranchInfo } from "$lib/types/asset";
 
   // ======================================================================= //
   // 响应式状态
@@ -400,7 +318,7 @@
         <div class="info-row">
           <span class="label">触发间隔:</span>
           <span class="value">
-            {#if persistentState.trigger_time > 0}
+            {#if (persistentState.trigger_time ?? 0) > 0}
               {persistentState.trigger_time} 秒
             {:else}
               <span class="disabled">未启用</span>
@@ -411,8 +329,8 @@
         <div class="info-row">
           <span class="label">触发概率:</span>
           <span class="value">
-            {#if persistentState.trigger_rate > 0}
-              {(persistentState.trigger_rate * 100).toFixed(0)}%
+            {#if (persistentState.trigger_rate ?? 0) > 0}
+              {((persistentState.trigger_rate ?? 0) * 100).toFixed(0)}%
             {:else}
               <span class="disabled">未启用</span>
             {/if}
@@ -422,7 +340,7 @@
         <div class="info-row">
           <span class="label">可触发状态:</span>
           <div class="state-tags">
-            {#if persistentState.can_trigger_states.length > 0}
+            {#if persistentState.can_trigger_states && persistentState.can_trigger_states.length > 0}
               {#each persistentState.can_trigger_states as stateName}
                 <span class="tag state-tag">{stateName}</span>
               {/each}
@@ -433,7 +351,7 @@
         </div>
         <!-- 定时触发器启用状态 -->
         <div class="timer-status">
-          {#if persistentState.trigger_time > 0 && persistentState.trigger_rate > 0 && persistentState.can_trigger_states.length > 0}
+          {#if (persistentState.trigger_time ?? 0) > 0 && (persistentState.trigger_rate ?? 0) > 0 && (persistentState.can_trigger_states?.length ?? 0) > 0}
             <span class="badge active">定时触发已启用</span>
           {:else}
             <span class="badge inactive">定时触发未启用</span>

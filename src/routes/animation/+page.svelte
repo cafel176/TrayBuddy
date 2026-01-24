@@ -39,7 +39,7 @@
   import { SpriteAnimator } from "$lib/animation/SpriteAnimator";
   import { getAudioManager, type AudioManager } from "$lib/audio/AudioManager";
   import { getTriggerManager, type TriggerManager } from "$lib/trigger/TriggerManager";
-  import type { StateInfo, UserSettings } from "$lib/types/asset";
+  import type { StateInfo, StateChangeEvent, BranchInfo, CharacterConfig, BorderConfig, UserSettings } from "$lib/types/asset";
   import BubbleManager, { type BubbleConfig } from "$lib/bubble/BubbleManager.svelte";
   import { CURSOR_POLL_INTERVAL_MS } from "$lib/constants";
 
@@ -111,68 +111,6 @@
   let mouseDownPos = { x: 0, y: 0 };
   /** 判定为拖拽的移动阈值（像素） */
   const DRAG_THRESHOLD = 5;
-
-  // =========================================================================
-  // 本地类型定义
-  // =========================================================================
-
-  /** 后端发送的状态切换事件结构 */
-
-  /**
-   * 分支信息接口
-   */
-  interface BranchInfo {
-    /** 选项按钮显示的文本 */
-    text: string;
-    /** 点击后跳转到的状态名称 */
-    next_state: string;
-  }
-
-  /**
-   * 状态信息接口 (简化版)
-   */
-  interface StateInfo {
-    /** 状态名称 */
-    name: string;
-    /** 是否为持久状态 */
-    persistent: boolean;
-    /** 动画资源名 */
-    anima: string;
-    /** 音频资源名 */
-    audio: string;
-    /** 文本资源名 */
-    text: string;
-    /** 优先级 */
-    priority: number;
-    /** 分支选项 */
-    branch: BranchInfo[];
-  }
-
-  /**
-   * 状态变化事件数据
-   */
-  interface StateChangeEvent {
-    /** 切换到的状态信息 */
-    state: StateInfo;
-    /** 是否为单次播放模式 */
-    play_once: boolean;
-  }
-
-  /** 角色渲染配置 */
-  interface CharacterConfig {
-    /** z-index 偏移值 */
-    z_offset: number;
-  }
-
-  /** 边框配置 */
-  interface BorderConfig {
-    /** 边框动画资产名称 */
-    anima: string;
-    /** 是否启用边框 */
-    enable: boolean;
-    /** z-index 偏移值 */
-    z_offset: number;
-  }
 
   // =========================================================================
   // 初始化

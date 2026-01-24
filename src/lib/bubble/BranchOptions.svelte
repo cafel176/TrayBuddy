@@ -22,19 +22,15 @@
 -->
 
 <script lang="ts" context="module">
-  /** 分支信息 */
-  export interface BranchInfo {
-    /** 选项按钮显示的文本 */
-    text: string;
-    /** 点击后跳转到的状态名称 */
-    next_state: string;
-  }
+  // 从统一类型文件重新导出，保持向后兼容
+  export type { BranchInfo } from '$lib/types/asset';
 </script>
 
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { bubbleStyle, type BubbleStyleConfig } from './bubbleStyle';
+  import type { BranchInfo } from '$lib/types/asset';
 
   // ======================================================================= //
   // Props

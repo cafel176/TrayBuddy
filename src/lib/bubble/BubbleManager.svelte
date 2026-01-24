@@ -26,6 +26,8 @@
 -->
 
 <script lang="ts" context="module">
+  import type { BranchInfo } from '$lib/types/asset';
+  
   /** 气泡配置 */
   export interface BubbleConfig {
     /** 文本内容（支持简易 Markdown） */
@@ -39,14 +41,9 @@
     /** 打字速度（毫秒/字符） */
     typeSpeed?: number;
   }
-
-  /** 分支信息 */
-  export interface BranchInfo {
-    /** 选项按钮显示的文本 */
-    text: string;
-    /** 点击后跳转到的状态名称 */
-    next_state: string;
-  }
+  
+  // 重新导出 BranchInfo 保持向后兼容
+  export type { BranchInfo } from '$lib/types/asset';
 </script>
 
 <script lang="ts">

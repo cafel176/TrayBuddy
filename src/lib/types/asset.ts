@@ -94,9 +94,22 @@ export interface AudioInfo {
 // ============================================================================
 
 /**
+ * 分支信息接口
+ * 
+ * 对应后端 Rust 的 `BranchInfo` 结构体。
+ * 用于对话分支选择。
+ */
+export interface BranchInfo {
+  /** 分支显示文本 */
+  text: string;
+  /** 选择后跳转的状态名 */
+  next_state: string;
+}
+
+/**
  * 状态信息接口
  *
- * 对应后端 Rust 的 `StateInfo` 结构体（部分字段）。
+ * 对应后端 Rust 的 `StateInfo` 结构体。
  * 描述角色的一个状态及其关联资源。
  */
 export interface StateInfo {
@@ -112,6 +125,93 @@ export interface StateInfo {
   text: string;
   /** 状态优先级（数值越大优先级越高） */
   priority: number;
+  /** 日期范围起始 (MM-DD) */
+  date_start?: string;
+  /** 日期范围结束 (MM-DD) */
+  date_end?: string;
+  /** 时间范围起始 (HH:MM) */
+  time_start?: string;
+  /** 时间范围结束 (HH:MM) */
+  time_end?: string;
+  /** 播放完成后跳转的状态名 */
+  next_state?: string;
+  /** 定时触发间隔 (秒) */
+  trigger_time?: number;
+  /** 定时触发概率 (0.0 - 1.0) */
+  trigger_rate?: number;
+  /** 可触发的状态列表 */
+  can_trigger_states?: string[];
+  /** 对话分支选项 */
+  branch?: BranchInfo[];
+}
+
+/**
+ * 状态变化事件数据
+ * 
+ * 用于前端状态切换事件的载荷。
+ */
+export interface StateChangeEvent {
+  /** 新的状态信息 */
+  state: StateInfo;
+  /** 是否只播放一次 */
+  play_once: boolean;
+}
+
+// ============================================================================
+// 触发器相关接口
+// ============================================================================
+
+/**
+ * 触发条件状态组
+ * 
+ * 对应后端 Rust 的 `TriggerStateGroup` 结构体。
+ * 定义在特定持久状态下可触发的状态列表。
+ */
+export interface TriggerStateGroup {
+  /** 持久状态名称，为空字符串时表示任意持久状态都可触发 */
+  persistent_state: string;
+  /** 可触发的状态名称列表 */
+  states: string[];
+}
+
+/**
+ * 触发器信息接口
+ * 
+ * 对应后端 Rust 的 `TriggerInfo` 结构体。
+ */
+export interface TriggerInfo {
+  /** 触发事件名称 */
+  event: string;
+  /** 可触发的状态组列表（按持久状态分组） */
+  can_trigger_states: TriggerStateGroup[];
+}
+
+// ============================================================================
+// 角色/边框配置接口
+// ============================================================================
+
+/**
+ * 角色渲染配置
+ * 
+ * 对应后端 Rust 的 `CharacterConfig` 结构体。
+ */
+export interface CharacterConfig {
+  /** z-index 偏移值 */
+  z_offset: number;
+}
+
+/**
+ * 边框配置
+ * 
+ * 对应后端 Rust 的 `BorderConfig` 结构体。
+ */
+export interface BorderConfig {
+  /** 边框动画资产名称 */
+  anima: string;
+  /** 是否启用边框 */
+  enable: boolean;
+  /** z-index 偏移值 */
+  z_offset: number;
 }
 
 // ============================================================================

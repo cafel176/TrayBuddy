@@ -21,68 +21,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
-
-  // ======================================================================= //
-  // 类型定义
-  // ======================================================================= //
-
-  /**
-   * 分支信息接口
-   * 用于对话分支选择
-   */
-  interface BranchInfo {
-    /** 分支显示文本 */
-    text: string;
-    /** 选择后跳转的状态名 */
-    next_state: string;
-  }
-
-  /**
-   * 状态信息接口
-   * 对应后端的 StateInfo 结构体
-   */
-  interface StateInfo {
-    /** 状态名称 (唯一标识) */
-    name: string;
-    /** 是否为持久状态 */
-    persistent: boolean;
-    /** 关联的动画资源名 */
-    anima: string;
-    /** 关联的音频资源名 */
-    audio: string;
-    /** 关联的文本资源名 */
-    text: string;
-    /** 优先级 (数值越大优先级越高) */
-    priority: number;
-    /** 日期范围起始 (MM-DD) */
-    date_start: string;
-    /** 日期范围结束 (MM-DD) */
-    date_end: string;
-    /** 时间范围起始 (HH:MM) */
-    time_start: string;
-    /** 时间范围结束 (HH:MM) */
-    time_end: string;
-    /** 播放完成后跳转的状态名 */
-    next_state: string;
-    /** 定时触发间隔 (秒) */
-    trigger_time: number;
-    /** 定时触发概率 (0.0 - 1.0) */
-    trigger_rate: number;
-    /** 可触发的状态列表 */
-    can_trigger_states: string[];
-    /** 对话分支选项 */
-    branch: BranchInfo[];
-  }
-
-  /**
-   * 状态变化事件数据
-   */
-  interface StateChangeEvent {
-    /** 新的状态信息 */
-    state: StateInfo;
-    /** 是否只播放一次 */
-    play_once: boolean;
-  }
+  import type { StateInfo, StateChangeEvent, BranchInfo } from "$lib/types/asset";
 
   // ======================================================================= //
   // 响应式状态
@@ -399,8 +338,8 @@
             {#if state.next_state}
               <span class="extra-tag next" title="后续状态">→{state.next_state}</span>
             {/if}
-            {#if state.trigger_time > 0}
-              <span class="extra-tag timer" title="定时触发: 每{state.trigger_time}s, 概率{(state.trigger_rate * 100).toFixed(0)}%">⏱{state.trigger_time}s</span>
+            {#if (state.trigger_time ?? 0) > 0}
+              <span class="extra-tag timer" title="定时触发: 每{state.trigger_time}s, 概率{((state.trigger_rate ?? 0) * 100).toFixed(0)}%">⏱{state.trigger_time}s</span>
             {/if}
             {#if state.can_trigger_states && state.can_trigger_states.length > 0}
               <span class="extra-tag trigger" title="可触发: {state.can_trigger_states.join(', ')}">🎯{state.can_trigger_states.length}</span>

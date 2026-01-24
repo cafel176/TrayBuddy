@@ -117,6 +117,101 @@ pub struct WeatherInfo {
 }
 
 // ========================================================================= //
+// HTTP 请求工具函数
+// ========================================================================= //
+
+/// 执行 HTTP GET 请求并返回响应体
+/// 
+/// 优先使用 curl（Windows 10+ 自带，更可靠），失败时回退到 PowerShell
+/// 
+/// # Arguments
+/// * `url` - 请求 URL
+/// * `timeout_secs` - 超时时间（秒）
+/// * `content_check` - 可选的内容检查字符串，用于验证响应有效性
+/// 
+/// # Returns
+/// 成功时返回响应体字符串，失败时返回错误信息
+fn http_get(url: &str, timeout_secs: u64, content_check: Option<&str>) -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        
+        // 优先使用 curl（Windows 10+ 自带，UTF-8 输出正常）
+        let curl_result = Command::new("curl")
+            .args(["-s", "--max-time", &timeout_secs.to_string(), url])
+            .output();
+        
+        if let Ok(output) = curl_result {
+            if output.status.success() {
+                let body = String::from_utf8_lossy(&output.stdout).to_string();
+                // 检查内容有效性
+                if let Some(check) = content_check {
+                    if !body.is_empty() && body.contains(check) {
+                        return Ok(body);
+                    }
+                } else if !body.is_empty() {
+                    return Ok(body);
+                }
+            }
+        }
+        
+        // curl 失败时使用 PowerShell，并设置 UTF-8 编码
+        // 对于 HTTPS，需要设置 TLS 协议
+        let use_tls = url.starts_with("https");
+        let ps_command = if use_tls {
+            format!(
+                "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
+                 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+                 (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
+                url, timeout_secs
+            )
+        } else {
+            format!(
+                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+                 (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
+                url, timeout_secs
+            )
+        };
+        
+        let output = Command::new("powershell")
+            .args(["-Command", &ps_command])
+            .output()
+            .map_err(|e| format!("Failed to execute request: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("HTTP request failed: {}", stderr));
+        }
+
+        let body = String::from_utf8_lossy(&output.stdout).to_string();
+        if body.is_empty() {
+            return Err("Empty response".to_string());
+        }
+        Ok(body)
+    }
+
+    #[cfg(not(windows))]
+    {
+        use std::process::Command;
+        
+        let output = Command::new("curl")
+            .args(["-s", "--max-time", &timeout_secs.to_string(), url])
+            .output()
+            .map_err(|e| format!("Failed to execute request: {}", e))?;
+
+        if !output.status.success() {
+            return Err("HTTP request failed".to_string());
+        }
+
+        let body = String::from_utf8_lossy(&output.stdout).to_string();
+        if body.is_empty() {
+            return Err("Empty response".to_string());
+        }
+        Ok(body)
+    }
+}
+
+// ========================================================================= //
 
 /// 环境信息管理器
 /// - 时间、日期、地理位置：从系统本地获取
@@ -187,62 +282,11 @@ impl EnvironmentManager {
 
     /// 通过 ip-api.com 获取 IP 地理位置（免费，无需 API Key）
     fn fetch_ip_geolocation() -> Result<GeoLocation, String> {
+        use crate::modules::constants::LOCATION_API_TIMEOUT_SECS;
+        
         let url = "http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN";
-
-        #[cfg(windows)]
-        {
-            use std::process::Command;
-            
-            // 优先使用 curl（Windows 10+ 自带，UTF-8 输出正常）
-            let curl_result = Command::new("curl")
-                .args(["-s", "--max-time", "5", url])
-                .output();
-            
-            if let Ok(output) = curl_result {
-                if output.status.success() {
-                    let body = String::from_utf8_lossy(&output.stdout);
-                    if body.contains("\"status\"") {
-                        return Self::parse_ip_geo_response(&body);
-                    }
-                }
-            }
-            
-            // curl 失败时使用 PowerShell，并设置 UTF-8 编码
-            let output = Command::new("powershell")
-                .args([
-                    "-Command",
-                    &format!(
-                        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
-                        url, crate::modules::constants::LOCATION_API_TIMEOUT_SECS
-                    )
-                ])
-                .output()
-                .map_err(|e| format!("Failed to execute request: {}", e))?;
-
-            if !output.status.success() {
-                return Err("HTTP request failed".to_string());
-            }
-
-            let body = String::from_utf8_lossy(&output.stdout);
-            Self::parse_ip_geo_response(&body)
-        }
-
-        #[cfg(not(windows))]
-        {
-            use std::process::Command;
-            
-            let output = Command::new("curl")
-                .args(["-s", "--max-time", "5", url])
-                .output()
-                .map_err(|e| format!("Failed to execute request: {}", e))?;
-
-            if !output.status.success() {
-                return Err("HTTP request failed".to_string());
-            }
-
-            let body = String::from_utf8_lossy(&output.stdout);
-            Self::parse_ip_geo_response(&body)
-        }
+        let body = http_get(url, LOCATION_API_TIMEOUT_SECS, Some("\"status\""))?;
+        Self::parse_ip_geo_response(&body)
     }
 
     /// 解析 ip-api.com 响应
@@ -442,68 +486,14 @@ impl EnvironmentManager {
 
     /// 同步获取天气信息 (使用 wttr.in API)
     fn fetch_weather_sync(&self, query: &str) -> Result<WeatherInfo, String> {
+        use crate::modules::constants::WEATHER_API_TIMEOUT_SECS;
+        
         // 对查询参数进行 URL 编码处理
         let query_encoded = query.replace(' ', "%20");
         let url = format!("https://wttr.in/{}?format=j1", query_encoded);
-
-        #[cfg(windows)]
-        {
-            use std::process::Command;
-            
-            // 优先尝试 curl（Windows 10+ 自带，更可靠）
-            let curl_result = Command::new("curl")
-                .args(["-s", "--max-time", "15", &url])
-                .output();
-            
-            if let Ok(output) = curl_result {
-                if output.status.success() {
-                    let body = String::from_utf8_lossy(&output.stdout);
-                    if !body.is_empty() && body.contains("current_condition") {
-                        return self.parse_wttr_response(&body);
-                    }
-                }
-            }
-            
-            // curl 失败时使用 PowerShell 作为备选
-            let output = Command::new("powershell")
-                .args([
-                    "-Command",
-                    &format!(
-                        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
-                        url, crate::modules::constants::WEATHER_API_TIMEOUT_SECS
-                    )
-                ])
-                .output()
-                .map_err(|e| format!("Failed to execute request: {}", e))?;
-
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(format!("HTTP request failed: {}", stderr));
-            }
-
-            let body = String::from_utf8_lossy(&output.stdout);
-            if body.is_empty() {
-                return Err("Empty response from weather API".to_string());
-            }
-            self.parse_wttr_response(&body)
-        }
-
-        #[cfg(not(windows))]
-        {
-            use std::process::Command;
-            
-            let output = Command::new("curl")
-                .args(["-s", "--max-time", "15", &url])
-                .output()
-                .map_err(|e| format!("Failed to execute request: {}", e))?;
-
-            if !output.status.success() {
-                return Err("HTTP request failed".to_string());
-            }
-
-            let body = String::from_utf8_lossy(&output.stdout);
-            self.parse_wttr_response(&body)
-        }
+        
+        let body = http_get(&url, WEATHER_API_TIMEOUT_SECS, Some("current_condition"))?;
+        self.parse_wttr_response(&body)
     }
 
     /// 解析 wttr.in API 响应

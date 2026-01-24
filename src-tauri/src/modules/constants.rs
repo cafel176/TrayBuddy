@@ -89,6 +89,9 @@ pub const EVENT_MUSIC_END: &str = "music_end";
 /// 媒体监听启动延迟（秒），确保 music_start 不会在 login 之前触发
 pub const MEDIA_OBSERVER_STARTUP_DELAY_SECS: u64 = 5;
 
+/// Core Audio 轮询超时间隔（秒），GSMTC 有事件通知但 Core Audio 没有，需定期轮询
+pub const CORE_AUDIO_POLL_INTERVAL_SECS: u64 = 5;
+
 // ========================================================================= //
 // 环境信息常量
 // ========================================================================= //

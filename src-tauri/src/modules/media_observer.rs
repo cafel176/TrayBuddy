@@ -313,7 +313,7 @@ impl MediaObserver {
             // 等待 GSMTC 事件通知或超时（超时用于轮询 Core Audio）
             // Core Audio 没有事件通知，需要定期轮询
             let _ = tokio::time::timeout(
-                tokio::time::Duration::from_secs(2),
+                tokio::time::Duration::from_secs(crate::modules::constants::CORE_AUDIO_POLL_INTERVAL_SECS),
                 internal_rx.recv(),
             ).await;
 
@@ -329,19 +329,23 @@ impl MediaObserver {
             // 获取当前状态（混合 GSMTC + Core Audio）
             let (current_event, state_source) = Self::get_combined_media_state_with_source(gsmtc_manager.as_ref());
 
-            // 更新调试信息
-            Self::update_debug_info(
-                &running,
-                gsmtc_manager.as_ref(),
-                com_initialized,
-                &session_tokens,
-                &current_event,
-                &state_source,
-            );
-
             // 检查是否有变化
             let mut state_guard = state.lock().unwrap();
-            if state_guard.has_changed(&current_event) {
+            let has_changed = state_guard.has_changed(&current_event);
+            
+            // 只在状态变化时更新调试信息（减少内存分配）
+            if has_changed {
+                Self::update_debug_info(
+                    &running,
+                    gsmtc_manager.as_ref(),
+                    com_initialized,
+                    &session_tokens,
+                    &current_event,
+                    &state_source,
+                );
+            }
+
+            if has_changed {
                 let should_send = match current_event.status {
                     MediaPlaybackStatus::Playing => true,
                     MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => state_guard.has_played,
