@@ -1,303 +1,366 @@
 {
   "id": "ema",
   "version": "1.0.0",
-  "author": "Cafel", 
-  "default_audio_lang_id" : "jp",
-  "default_text_lang_id" : "zh",
-    "character" : {
-    "z_offset" : 1
+  "author": "Cafel",
+  "default_audio_lang_id": "jp",
+  "default_text_lang_id": "zh",
+  "character": {
+    "z_offset": 1
   },
-  "border" : {
-    "anima" : "border",
-    "enable" : true,
-    "z_offset" : 2
+  "border": {
+    "anima": "border",
+    "enable": true,
+    "z_offset": 2
   },
   "important_states": {
     "idle": {
-      "name" : "idle",
-      "persistent" : true,
-      "anima" : "idle",
-      "audio" : "",
-      "text" : "",
-      "priority" : 1,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "",
-      "can_trigger_states" :[
-        "hello1_1"        
+      "name": "idle",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [
+        "hello1_1"
       ],
-      "trigger_time" : 600,
-      "trigger_rate" : 0.3,
-      "branch" :[]
+      "trigger_time": 600,
+      "trigger_rate": 0.3,
+      "branch": []
+    },
+    "silence": {
+      "name": "silence",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 98,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     }
   },
   "states": [
     {
-      "name" : "music",
-      "persistent" : true,
-      "anima" : "idle",
-      "audio" : "",
-      "text" : "",
-      "priority" : 1,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "",
-      "can_trigger_states" :[        
-      ],
-      "trigger_time" : 0,
-      "trigger_rate" : 0.1,
-      "branch" :[]
+      "name": "silence_start",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 97,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "silence",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "music_start",
-      "persistent" : false,
-      "anima" : "",
-      "audio" : "",
-      "text" : "",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "music",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "silence_end",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 99,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "music_end",
-      "persistent" : false,
-      "anima" : "",
-      "audio" : "",
-      "text" : "",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "idle",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "music",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0.1,
+      "branch": []
     },
     {
-      "name" : "morning",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "morning",
-      "text" : "morning",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "06:00",
-      "time_end" : "12:00",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "music_start",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "music",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "noon",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "noon",
-      "text" : "noon",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "12:00",
-      "time_end" : "18:00",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "music_end",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "evening",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "evening",
-      "text" : "evening",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "18:00",
-      "time_end" : "22:00",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "morning",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "morning",
+      "text": "morning",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "06:00",
+      "time_end": "12:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "night",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "night",
-      "text" : "night",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "22:00",
-      "time_end" : "06:00",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "noon",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "noon",
+      "text": "noon",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "12:00",
+      "time_end": "18:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "hello1_1",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "hello1_1",
-      "text" : "hello1_1",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "hello1_3",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[
+      "name": "evening",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "evening",
+      "text": "evening",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "18:00",
+      "time_end": "22:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "night",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "night",
+      "text": "night",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "22:00",
+      "time_end": "06:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "hello1_1",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "hello1_1",
+      "text": "hello1_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "hello1_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [
         {
-          "text" : "好的好的好",
-          "next_state" : "hello1_2"
+          "text": "好的好的好",
+          "next_state": "hello1_2"
         },
         {
-          "text" : "好的好的好",
-          "next_state" : "hello1_2"
+          "text": "好的好的好",
+          "next_state": "hello1_2"
         }
       ]
     },
     {
-      "name" : "hello1_2",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "hello1_2",
-      "text" : "hello1_2",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "hello1_2",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "hello1_2",
+      "text": "hello1_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "hello1_3",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "hello1_3",
-      "text" : "hello1_3",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "hello1_3",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "hello1_3",
+      "text": "hello1_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     },
     {
-      "name" : "music_hello1_1",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "music_hello1_1",
-      "text" : "music_hello1_1",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[
+      "name": "music_hello1_1",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "music_hello1_1",
+      "text": "music_hello1_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [
         {
-          "text" : "好的好的好的好的好的好好的好的好好的好的好",
-          "next_state" : "music_hello1_2"
+          "text": "好的好的好的好的好的好好的好的好好的好的好",
+          "next_state": "music_hello1_2"
         },
         {
-          "text" : "好的好的好的好的好的好好的好的好好的好的好",
-          "next_state" : "music_hello1_2"
+          "text": "好的好的好的好的好的好好的好的好好的好的好",
+          "next_state": "music_hello1_2"
         }
       ]
     },
     {
-      "name" : "music_hello1_2",
-      "persistent" : false,
-      "anima" : "wave",
-      "audio" : "music_hello1_2",
-      "text" : "music_hello1_2",
-      "priority" : 2,
-      "date_start" : "",
-      "date_end" : "",
-      "time_start" : "",
-      "time_end" : "",
-      "next_state" : "",
-      "can_trigger_states" :[],
-      "trigger_time" : 0,
-      "trigger_rate" : 0,
-      "branch" :[]
+      "name": "music_hello1_2",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "music_hello1_2",
+      "text": "music_hello1_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
     }
   ],
   "triggers": [
     {
-      "event" : "click",
-      "can_trigger_states" :[
+      "event": "click",
+      "can_trigger_states": [
         {
-          "persistent_state" : "idle",
-          "states" : ["hello1_1"]
+          "persistent_state": "idle",
+          "states": [
+            "hello1_1"
+          ]
         },
         {
           "persistent_state": "music",
-          "states": ["music_hello1_1"]
+          "states": [
+            "music_hello1_1"
+          ]
         }
-      ] 
+      ]
     },
     {
-      "event" : "login",
-      "can_trigger_states" :[
+      "event": "login",
+      "can_trigger_states": [
         {
-          "persistent_state" : "idle",
-          "states" : ["morning", "noon", "evening", "night"]
-        }      
-      ] 
+          "persistent_state": "idle",
+          "states": [
+            "morning",
+            "noon",
+            "evening",
+            "night"
+          ]
+        }
+      ]
     },
     {
-      "event" : "music_start",
-      "can_trigger_states" :[
+      "event": "music_start",
+      "can_trigger_states": [
         {
-          "persistent_state" : "",
-          "states" : ["music_start"]
-        }       
-      ] 
+          "persistent_state": "",
+          "states": [
+            "music_start"
+          ]
+        }
+      ]
     },
     {
-      "event" : "music_end",
-      "can_trigger_states" :[
+      "event": "music_end",
+      "can_trigger_states": [
         {
-          "persistent_state" : "",
-          "states" : ["music_end"]
-        }  
-      ] 
+          "persistent_state": "",
+          "states": [
+            "music_end"
+          ]
+        }
+      ]
     }
   ]
 }

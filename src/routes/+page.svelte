@@ -23,7 +23,7 @@
   // ======================================================================= //
   // 组件导入
   // ======================================================================= //
-  
+
   import { onMount, onDestroy } from "svelte";
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
   import StateDebugger from "$lib/components/StateDebugger.svelte";
@@ -40,11 +40,11 @@
 
   /** 当前激活的 Tab 页签标识 */
   let activeTab = $state("resource");
-  
+
   /** i18n 响应式翻译函数 - 使用版本号触发更新 */
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
-  
+
   /** 响应式翻译函数 */
   function _(key: string, params?: Record<string, string | number>): string {
     // 依赖 _langVersion 使 Svelte 能追踪变化
@@ -57,8 +57,12 @@
   // ======================================================================= //
 
   onMount(async () => {
+    unsubLang = onLangChange(() => {
+      _langVersion++;
+    });
     await initI18n();
-    unsubLang = onLangChange(() => { _langVersion++; });
+    // 初始化完成后强制触发一次更新，确保标签页文本使用保存的语言
+    _langVersion++;
   });
 
   onDestroy(() => {
@@ -74,31 +78,53 @@
 <main class="container">
   <!-- Tab 导航栏 -->
   <div class="tabs-nav">
-    <button class:active={activeTab === 'resource'} onclick={() => activeTab = "resource"}>{_("tabs.resource")}</button>
-    <button class:active={activeTab === 'state'} onclick={() => activeTab = "state"}>{_("tabs.state")}</button>
-    <button class:active={activeTab === 'trigger'} onclick={() => activeTab = "trigger"}>{_("tabs.trigger")}</button>
-    <button class:active={activeTab === 'environment'} onclick={() => activeTab = "environment"}>{_("tabs.environment")}</button>
-    <button class:active={activeTab === 'media'} onclick={() => activeTab = "media"}>{_("tabs.media")}</button>
-    <button class:active={activeTab === 'settings'} onclick={() => activeTab = "settings"}>{_("tabs.settings")}</button>
-    <button class:active={activeTab === 'info'} onclick={() => activeTab = "info"}>{_("tabs.runtime")}</button>
+    <button
+      class:active={activeTab === "resource"}
+      onclick={() => (activeTab = "resource")}>{_("tabs.resource")}</button
+    >
+    <button
+      class:active={activeTab === "state"}
+      onclick={() => (activeTab = "state")}>{_("tabs.state")}</button
+    >
+    <button
+      class:active={activeTab === "trigger"}
+      onclick={() => (activeTab = "trigger")}>{_("tabs.trigger")}</button
+    >
+    <button
+      class:active={activeTab === "environment"}
+      onclick={() => (activeTab = "environment")}
+      >{_("tabs.environment")}</button
+    >
+    <button
+      class:active={activeTab === "media"}
+      onclick={() => (activeTab = "media")}>{_("tabs.media")}</button
+    >
+    <button
+      class:active={activeTab === "settings"}
+      onclick={() => (activeTab = "settings")}>{_("tabs.settings")}</button
+    >
+    <button
+      class:active={activeTab === "info"}
+      onclick={() => (activeTab = "info")}>{_("tabs.runtime")}</button
+    >
   </div>
 
   <!-- Tab 内容区域 - 根据 activeTab 动态渲染对应组件 -->
   <div class="tab-content">
-    {#if activeTab === 'resource'}
-      <ResourceManagerDebugger/>
-    {:else if activeTab === 'state'}
-      <StateDebugger/>
-    {:else if activeTab === 'trigger'}
-      <TriggerDebugger/>
-    {:else if activeTab === 'environment'}
-      <EnvironmentDebugger/>
-    {:else if activeTab === 'media'}
-      <MediaDebugger/>
-    {:else if activeTab === 'settings'}
-      <Settings/>
-    {:else if activeTab === 'info'}
-      <InfoDebugger/>
+    {#if activeTab === "resource"}
+      <ResourceManagerDebugger />
+    {:else if activeTab === "state"}
+      <StateDebugger />
+    {:else if activeTab === "trigger"}
+      <TriggerDebugger />
+    {:else if activeTab === "environment"}
+      <EnvironmentDebugger />
+    {:else if activeTab === "media"}
+      <MediaDebugger />
+    {:else if activeTab === "settings"}
+      <Settings />
+    {:else if activeTab === "info"}
+      <InfoDebugger />
     {/if}
   </div>
 </main>
@@ -111,7 +137,7 @@
   /* ----------------------------------------------------------------------- */
   /* Tab 导航栏样式 */
   /* ----------------------------------------------------------------------- */
-  
+
   .tabs-nav {
     display: flex;
     justify-content: center;
@@ -140,45 +166,44 @@
   /* 全局根样式 */
   /* ----------------------------------------------------------------------- */
 
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+  :root {
+    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+    color: #0f0f0f;
+    background-color: #f6f6f6;
 
-  /* 字体渲染优化 */
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
+    /* 字体渲染优化 */
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+  }
 
   /* ----------------------------------------------------------------------- */
   /* 容器布局 */
   /* ----------------------------------------------------------------------- */
 
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
+  .container {
+    margin: 0;
+    padding-top: 10vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
 
   /* ----------------------------------------------------------------------- */
   /* 深色模式适配 */
   /* ----------------------------------------------------------------------- */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color: #f6f6f6;
+      background-color: #2f2f2f;
+    }
   }
-}
-
 </style>
