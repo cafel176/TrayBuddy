@@ -6,10 +6,10 @@
     "origin_reverse": false,
     "need_reverse": false,
     "frame_time": 0.2,
-    "frame_size_x": 265,
-    "frame_size_y": 94,
-    "frame_num_x": 10,
-    "frame_num_y": 4,
+    "frame_size_x": 199,
+    "frame_size_y": 71,
+    "frame_num_x": 8,
+    "frame_num_y": 5,
     "offset_x": 0,
     "offset_y": 0
   }

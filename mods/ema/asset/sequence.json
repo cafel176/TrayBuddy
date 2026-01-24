@@ -1,13 +1,13 @@
 [
   {
     "name": "wink",
-    "img": "sequence/wink.webp",
+    "img": "sequence/idle.webp",
     "sequence": true,
     "origin_reverse": false,
     "need_reverse": true,
     "frame_time": 0.1,
-    "frame_size_x": 260,
-    "frame_size_y": 298,
+    "frame_size_x": 195,
+    "frame_size_y": 224,
     "frame_num_x": 11,
     "frame_num_y": 2,
     "offset_x": 0,
@@ -20,11 +20,11 @@
     "origin_reverse": false,
     "need_reverse": true,
     "frame_time": 0.1,
-    "frame_size_x": 400,
-    "frame_size_y": 298,
+    "frame_size_x": 308,
+    "frame_size_y": 229,
     "frame_num_x": 8,
     "frame_num_y": 4,
-    "offset_x": 0,
-    "offset_y": 4
+    "offset_x": 1,
+    "offset_y": 3
   }
 ]
