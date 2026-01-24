@@ -1,5 +1,5 @@
 //! TrayBuddy 应用主模块
-//! 
+//!
 //! 桌面虚拟伴侣应用，支持：
 //! - Mod 资源加载和管理
 //! - 状态切换和动画播放
@@ -7,7 +7,7 @@
 //! - 用户设置持久化
 //!
 //! # 模块架构
-//! 
+//!
 //! ```text
 //! ┌─────────────────────────────────────────────────────────────┐
 //! │                      AppState (全局状态)                      │
@@ -26,33 +26,35 @@
 mod modules;
 
 use modules::constants::{
-    ANIMATION_AREA_WIDTH,
-    ANIMATION_AREA_HEIGHT, BUBBLE_AREA_HEIGHT, BUBBLE_AREA_WIDTH,
-    ANIMATION_BORDER, STATE_IDLE,
-    SHORT_TEXT_THRESHOLD, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_LINE, MAX_CHARS_PER_BUTTON,
+    ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
+    BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
+    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_SILENCE, STATE_SILENCE_START,
 };
 use modules::environment::{
-    get_current_datetime, get_time_period, get_current_season, 
-    DateTimeInfo, GeoLocation, WeatherInfo, EnvironmentManager,
-    init_environment, get_cached_location, get_cached_weather,
+    get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
+    get_time_period, init_environment, DateTimeInfo, EnvironmentManager, GeoLocation, WeatherInfo,
+};
+use modules::media_observer::{
+    get_cached_debug_info, MediaDebugInfo, MediaObserver, MediaPlaybackStatus,
 };
 use modules::resource::{
-    self, ResourceManager, StateInfo, TriggerInfo, AssetInfo, 
-    AudioInfo, TextInfo, CharacterInfo, ModInfo
+    self, AssetInfo, AudioInfo, CharacterInfo, ModInfo, ResourceManager, StateInfo, TextInfo,
+    TriggerInfo,
 };
 use modules::state::StateManager;
-use modules::storage::{Storage, UserSettings, UserInfo};
-use modules::media_observer::{MediaObserver, MediaPlaybackStatus, MediaDebugInfo, get_cached_debug_info};
+use modules::storage::{Storage, UserInfo, UserSettings};
 use modules::trigger::TriggerManager;
 use std::sync::{Arc, Mutex};
-use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition, Emitter};
+use tauri::{
+    Emitter, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder,
+};
 
 // ========================================================================= //
 // 应用全局状态
 // ========================================================================= //
 
 /// 应用全局状态
-/// 
+///
 /// 通过 Tauri 的状态管理器在命令处理函数中共享访问
 pub struct AppState {
     /// 资源管理器：负责 Mod 的加载、卸载和资源查询
@@ -71,7 +73,7 @@ pub struct AppState {
 // ========================================================================= //
 
 /// 获取浮点型常量（窗口尺寸、缩放比例等）
-/// 
+///
 /// 返回的常量包括：
 /// - `animation_window_width`: 动画窗口宽度
 /// - `animation_window_height`: 动画窗口高度
@@ -83,7 +85,7 @@ pub struct AppState {
 fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<String, f64> {
     let storage = state.storage.lock().unwrap();
     let scale = storage.data.settings.animation_scale as f64;
-    
+
     // 预分配容量避免扩容
     let mut map = std::collections::HashMap::with_capacity(7);
     // 气泡区域固定尺寸，不随缩放变化
@@ -95,7 +97,7 @@ fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<Stri
     // 窗口尺寸：宽度取两者最大值，高度为气泡+动画
     let window_width = bubble_width.max(animation_width);
     let window_height = bubble_height + animation_height;
-    
+
     map.insert("animation_window_width".into(), window_width);
     map.insert("animation_window_height".into(), window_height);
     map.insert("animation_area_height".into(), animation_height);
@@ -115,7 +117,7 @@ fn get_const_text() -> std::collections::HashMap<String, String> {
 }
 
 /// 获取整数型常量（气泡文本相关）
-/// 
+///
 /// 返回的常量包括：
 /// - `short_text_threshold`: 按钮短文本阈值（字符数）
 /// - `max_buttons_per_row`: 单行最大按钮数量
@@ -150,7 +152,11 @@ fn get_settings(state: State<'_, AppState>) -> UserSettings {
 
 /// 更新用户设置
 #[tauri::command]
-fn update_settings(settings: UserSettings, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+fn update_settings(
+    settings: UserSettings,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let mut storage = state.storage.lock().unwrap();
     storage.update_settings(settings.clone())?;
     let _ = app.emit("settings-change", settings);
@@ -179,7 +185,8 @@ fn update_user_info(info: UserInfo, state: State<'_, AppState>) -> Result<(), St
 #[tauri::command]
 fn get_mod_search_paths(state: State<'_, AppState>) -> Vec<String> {
     let rm = state.resource_manager.lock().unwrap();
-    rm.search_paths.iter()
+    rm.search_paths
+        .iter()
         .map(|p| p.to_string_lossy().into_owned())
         .collect()
 }
@@ -196,12 +203,12 @@ fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
 fn load_mod(mod_name: String, state: State<'_, AppState>) -> Result<ModInfo, String> {
     let mut rm = state.resource_manager.lock().unwrap();
     let mod_info = rm.load_mod(&mod_name)?;
-    
+
     // 自动更新用户信息并持久化
     let mut storage = state.storage.lock().unwrap();
     storage.data.info.current_mod = mod_name;
     let _ = storage.save();
-    
+
     Ok(mod_info)
 }
 
@@ -223,7 +230,9 @@ fn get_current_mod(state: State<'_, AppState>) -> Option<ModInfo> {
 #[tauri::command]
 fn get_mod_path(state: State<'_, AppState>) -> Option<String> {
     let rm = state.resource_manager.lock().unwrap();
-    rm.current_mod.as_ref().map(|m| m.path.to_string_lossy().into_owned())
+    rm.current_mod
+        .as_ref()
+        .map(|m| m.path.to_string_lossy().into_owned())
 }
 
 /// 获取边框配置
@@ -237,7 +246,9 @@ fn get_border_config(state: State<'_, AppState>) -> Option<resource::BorderConfi
 #[tauri::command]
 fn get_character_config(state: State<'_, AppState>) -> Option<resource::CharacterConfig> {
     let rm = state.resource_manager.lock().unwrap();
-    rm.current_mod.as_ref().map(|m| m.manifest.character.clone())
+    rm.current_mod
+        .as_ref()
+        .map(|m| m.manifest.character.clone())
 }
 
 /// 根据名称获取状态信息
@@ -330,7 +341,7 @@ fn change_state(name: String, state: State<'_, AppState>) -> Result<bool, String
             .ok_or_else(|| format!("State '{}' not found", name))?
             .clone()
     };
-    
+
     let mut sm = state.state_manager.lock().unwrap();
     sm.change_state(state_info)
 }
@@ -344,7 +355,7 @@ fn force_change_state(name: String, state: State<'_, AppState>) -> Result<(), St
             .ok_or_else(|| format!("State '{}' not found", name))?
             .clone()
     };
-    
+
     let mut sm = state.state_manager.lock().unwrap();
     sm.change_state_ex(state_info, true)?;
     Ok(())
@@ -366,7 +377,7 @@ fn set_next_state(name: String, state: State<'_, AppState>) -> Result<(), String
             .ok_or_else(|| format!("State '{}' not found", name))?
             .clone()
     };
-    
+
     let mut sm = state.state_manager.lock().unwrap();
     sm.set_next_state(state_info);
     Ok(())
@@ -403,12 +414,13 @@ fn trigger_event(event_name: String, state: State<'_, AppState>) -> Result<bool,
 // ========================================================================= //
 
 /// 设置窗口鼠标穿透状态
-/// 
+///
 /// 当 ignore 为 true 时，窗口不响应鼠标事件，鼠标可穿透到下层
 #[tauri::command]
 fn set_ignore_cursor_events(ignore: bool, app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("animation") {
-        window.set_ignore_cursor_events(ignore)
+        window
+            .set_ignore_cursor_events(ignore)
             .map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -419,17 +431,16 @@ fn set_ignore_cursor_events(ignore: bool, app: tauri::AppHandle) -> Result<(), S
 fn get_cursor_position() -> Result<(i32, i32), String> {
     #[cfg(target_os = "windows")]
     {
-        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
         use windows::Win32::Foundation::POINT;
-        
+        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+
         let mut point = POINT { x: 0, y: 0 };
         unsafe {
-            GetCursorPos(&mut point)
-                .map_err(|e| format!("GetCursorPos failed: {:?}", e))?;
+            GetCursorPos(&mut point).map_err(|e| format!("GetCursorPos failed: {:?}", e))?;
         }
         Ok((point.x, point.y))
     }
-    
+
     #[cfg(not(target_os = "windows"))]
     {
         Err("get_cursor_position not implemented for this platform".to_string())
@@ -446,70 +457,75 @@ struct BubbleBounds {
 }
 
 /// 检查鼠标是否在交互区域内
-/// 
+///
 /// 交互区域包括：
 /// - 角色 Canvas 区域（始终需要交互）
 /// - 气泡实际区域（由前端传入实际边界）
-/// 
+///
 /// @param bubble_bounds 气泡的实际边界（相对于窗口），为 None 时表示气泡未显示
 /// @return true 表示鼠标在交互区域内，需要禁用穿透
 #[tauri::command]
-fn is_cursor_in_interact_area(bubble_bounds: Option<BubbleBounds>, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<bool, String> {
+fn is_cursor_in_interact_area(
+    bubble_bounds: Option<BubbleBounds>,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
     let storage = state.storage.lock().unwrap();
     let scale = storage.data.settings.animation_scale as f64;
     drop(storage);
-    
+
     // 获取窗口位置和尺寸
-    let window = app.get_webview_window("animation")
+    let window = app
+        .get_webview_window("animation")
         .ok_or("Animation window not found")?;
-    
-    let position = window.outer_position()
-        .map_err(|e| e.to_string())?;
+
+    let position = window.outer_position().map_err(|e| e.to_string())?;
     let scale_factor = window.scale_factor().unwrap_or(1.0);
-    
+
     // 窗口物理坐标转换为逻辑坐标
     let window_x = position.x as f64 / scale_factor;
     let window_y = position.y as f64 / scale_factor;
-    
+
     // 计算动画区域的高度（随缩放变化）
     let animation_height = ANIMATION_AREA_HEIGHT * scale;
     let animation_width = ANIMATION_AREA_WIDTH * scale;
-    
+
     // 窗口宽度取气泡和动画区域的最大值
     let window_width = BUBBLE_AREA_WIDTH.max(animation_width);
-    
+
     // 角色 Canvas 区域边界（在气泡区域下方的动画区域内）
     // Canvas 使用 CSS: left: 50%, top: 45%, transform: translate(-50%, -50%), height: 80%
     let animation_area_top = window_y + BUBBLE_AREA_HEIGHT;
     let canvas_height = animation_height * 0.8;
-    let canvas_width = canvas_height;  // 假设宽高比 1:1
+    let canvas_width = canvas_height; // 假设宽高比 1:1
     let canvas_center_x = window_x + window_width / 2.0;
     let canvas_center_y = animation_area_top + animation_height * 0.45;
     let canvas_left = canvas_center_x - canvas_width / 2.0;
     let canvas_right = canvas_center_x + canvas_width / 2.0;
     let canvas_top = canvas_center_y - canvas_height / 2.0;
     let canvas_bottom = canvas_center_y + canvas_height / 2.0;
-    
+
     // 获取鼠标位置
     #[cfg(target_os = "windows")]
     {
-        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
         use windows::Win32::Foundation::POINT;
-        
+        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+
         let mut point = POINT { x: 0, y: 0 };
         unsafe {
-            GetCursorPos(&mut point)
-                .map_err(|e| format!("GetCursorPos failed: {:?}", e))?;
+            GetCursorPos(&mut point).map_err(|e| format!("GetCursorPos failed: {:?}", e))?;
         }
-        
+
         // 鼠标逻辑坐标
         let cursor_x = point.x as f64 / scale_factor;
         let cursor_y = point.y as f64 / scale_factor;
-        
+
         // 检查鼠标是否在角色 Canvas 区域内（始终需要交互）
-        let in_canvas = cursor_x >= canvas_left && cursor_x <= canvas_right
-                     && cursor_y >= canvas_top && cursor_y <= canvas_bottom;
-        
+        let in_canvas = cursor_x >= canvas_left
+            && cursor_x <= canvas_right
+            && cursor_y >= canvas_top
+            && cursor_y <= canvas_bottom;
+
         // 检查鼠标是否在气泡实际区域内（前端传入实际边界）
         let in_bubble = if let Some(bounds) = bubble_bounds {
             // 将窗口相对坐标转换为屏幕坐标
@@ -517,16 +533,18 @@ fn is_cursor_in_interact_area(bubble_bounds: Option<BubbleBounds>, app: tauri::A
             let bubble_top = window_y + bounds.top;
             let bubble_right = window_x + bounds.right;
             let bubble_bottom = window_y + bounds.bottom;
-            
-            cursor_x >= bubble_left && cursor_x <= bubble_right
-                && cursor_y >= bubble_top && cursor_y <= bubble_bottom
+
+            cursor_x >= bubble_left
+                && cursor_x <= bubble_right
+                && cursor_y >= bubble_top
+                && cursor_y <= bubble_bottom
         } else {
             false
         };
-        
+
         Ok(in_canvas || in_bubble)
     }
-    
+
     #[cfg(not(target_os = "windows"))]
     {
         Ok(false)
@@ -535,16 +553,20 @@ fn is_cursor_in_interact_area(bubble_bounds: Option<BubbleBounds>, app: tauri::A
 
 /// 设置音量（实时生效）
 #[tauri::command]
-fn set_volume(volume: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+fn set_volume(
+    volume: f64,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let volume = volume.clamp(0.0, 1.0) as f32;
-    
+
     // 更新设置并保存
     {
         let mut storage = state.storage.lock().unwrap();
         storage.data.settings.volume = volume;
         storage.save()?;
     }
-    
+
     // 发送事件通知前端
     let _ = app.emit("volume-change", volume);
     Ok(())
@@ -559,7 +581,7 @@ fn set_mute(mute: bool, app: tauri::AppHandle, state: State<'_, AppState>) -> Re
         storage.data.settings.no_audio_mode = mute;
         storage.save()?;
     }
-    
+
     // 发送事件通知前端
     let _ = app.emit("mute-change", mute);
     Ok(())
@@ -567,28 +589,33 @@ fn set_mute(mute: bool, app: tauri::AppHandle, state: State<'_, AppState>) -> Re
 
 /// 设置动画缩放比例并调整窗口大小
 #[tauri::command]
-fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+fn set_animation_scale(
+    scale: f64,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let scale = scale.clamp(0.1, 2.0);
-    
+
     // 更新设置
     {
         let mut storage = state.storage.lock().unwrap();
         storage.data.settings.animation_scale = scale as f32;
         storage.save()?;
     }
-    
+
     // 调整窗口大小 - 气泡区域固定尺寸，只有动画区域缩放
     let animation_width = ANIMATION_AREA_WIDTH * scale;
     let animation_height = ANIMATION_AREA_HEIGHT * scale;
     // 窗口宽度取气泡宽度和动画宽度的最大值
     let new_width = BUBBLE_AREA_WIDTH.max(animation_width);
     let new_height = BUBBLE_AREA_HEIGHT + animation_height;
-    
+
     if let Some(window) = app.get_webview_window("animation") {
-        window.set_size(LogicalSize::new(new_width, new_height))
+        window
+            .set_size(LogicalSize::new(new_width, new_height))
             .map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
@@ -598,7 +625,7 @@ fn open_path(path: String) -> Result<(), String> {
     if !std::path::Path::new(&path).exists() {
         return Err(format!("Path does not exist: {}", path));
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
@@ -607,7 +634,7 @@ fn open_path(path: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    
+
     #[cfg(not(target_os = "windows"))]
     {
         opener::reveal(&path).map_err(|e| e.to_string())?;
@@ -708,10 +735,19 @@ pub fn run() {
             }
 
             // ========== 初始化状态 ==========
-            {
+            let is_silence = storage.data.settings.silence_mode;
+            if !is_silence {
                 let rm_guard = rm.lock().unwrap();
                 if let Some(idle_state) = rm_guard.get_state_by_name(STATE_IDLE) {
                     let _ = sm.change_state(idle_state.clone());
+                }
+            } else {
+                let rm_guard = rm.lock().unwrap();
+                if let Some(silence_state) = rm_guard.get_state_by_name(STATE_SILENCE) {
+                    let _ = sm.change_state(silence_state.clone());
+                    println!(
+                        "[TrayBuddy] Silence mode enabled on startup, entering silence_start state"
+                    );
                 }
             }
 
@@ -732,7 +768,10 @@ pub fn run() {
             let state: State<'_, AppState> = app.state();
             let storage_guard = state.storage.lock().unwrap();
             let scale = storage_guard.data.settings.animation_scale as f64;
-            let saved_position = (storage_guard.data.info.animation_window_x, storage_guard.data.info.animation_window_y);
+            let saved_position = (
+                storage_guard.data.info.animation_window_x,
+                storage_guard.data.info.animation_window_y,
+            );
             drop(storage_guard); // 释放锁
 
             // 气泡区域固定尺寸，动画区域随缩放变化
@@ -744,47 +783,46 @@ pub fn run() {
             let window_width = bubble_area_width.max(animation_area_width);
             let window_height = bubble_area_height + animation_area_height;
 
-            let animation_window = WebviewWindowBuilder::new(
-                app,
-                "animation",
-                WebviewUrl::App("animation".into())
-            )
-            .title("Animation")
-            .inner_size(window_width, window_height)
-            .transparent(true)
-            .decorations(false)
-            .always_on_top(true)
-            .resizable(false)
-            .shadow(false)
-            .skip_taskbar(true)
-            .build()
-            .map_err(|e| e.to_string())?;
+            let animation_window =
+                WebviewWindowBuilder::new(app, "animation", WebviewUrl::App("animation".into()))
+                    .title("Animation")
+                    .inner_size(window_width, window_height)
+                    .transparent(true)
+                    .decorations(false)
+                    .always_on_top(true)
+                    .resizable(false)
+                    .shadow(false)
+                    .skip_taskbar(true)
+                    .build()
+                    .map_err(|e| e.to_string())?;
 
             // 设置窗口位置
             // 注意：保存的 y 是动画区域顶部的位置，需要减去气泡区域高度得到窗口顶部位置
             if let (Some(x), Some(y)) = saved_position {
                 // y 是动画区域顶部，窗口顶部 = y - 气泡区域高度
                 let window_y = y - bubble_area_height;
-                let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+                let _ = animation_window
+                    .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
             } else if let Some(monitor) = animation_window.primary_monitor().ok().flatten() {
                 // 首次启动，定位到屏幕右下角（动画区域底部贴近任务栏上方）
                 let scale_factor = monitor.scale_factor();
                 let screen_size = monitor.size();
                 let screen_pos = monitor.position();
                 const TASKBAR_HEIGHT: f64 = 48.0;
-                
+
                 let screen_w = screen_size.width as f64 / scale_factor;
                 let screen_h = screen_size.height as f64 / scale_factor;
-                
+
                 let x = screen_pos.x as f64 + screen_w - window_width;
                 // 窗口顶部 y = 屏幕底部 - 任务栏 - 动画区域高度 - 气泡区域高度
                 let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
-                
-                let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+
+                let _ = animation_window
+                    .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
             }
 
             // 启动媒体监听器
-            start_media_observer(app.handle().clone());
+            start_media_observer(app.handle().clone(), is_silence);
 
             // 在后台线程初始化环境信息（地理位置和天气）
             let app_handle_env = app.handle().clone();
@@ -888,10 +926,10 @@ pub fn run() {
 // ========================================================================= //
 
 /// 启动媒体监听器（独立线程）
-fn start_media_observer(app_handle: tauri::AppHandle) {
+fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
     std::thread::spawn(move || {
         let mut observer = MediaObserver::new();
-        let rx = observer.start();
+        let rx = observer.start(skip_delay);
 
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async move {
@@ -899,8 +937,21 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
             while let Some(event) = rx.recv().await {
                 let app_state: State<AppState> = app_handle.state();
 
+                // 检查是否处于免打扰模式
+                let is_silence = {
+                    let storage = app_state.storage.lock().unwrap();
+                    storage.data.settings.silence_mode
+                };
+
+                if is_silence {
+                    // 免打扰模式下忽略媒体状态变化
+                    continue;
+                }
+
                 // 等待状态解锁
-                use crate::modules::constants::{STATE_LOCK_WAIT_INTERVAL_MS, STATE_LOCK_MAX_RETRIES};
+                use crate::modules::constants::{
+                    STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS,
+                };
                 for _ in 0..STATE_LOCK_MAX_RETRIES {
                     let is_locked = {
                         let sm = app_state.state_manager.lock().unwrap();
@@ -909,7 +960,10 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
                     if !is_locked {
                         break;
                     }
-                    tokio::time::sleep(tokio::time::Duration::from_millis(STATE_LOCK_WAIT_INTERVAL_MS)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(
+                        STATE_LOCK_WAIT_INTERVAL_MS,
+                    ))
+                    .await;
                 }
 
                 match event.status {
@@ -931,31 +985,31 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
 }
 
 /// 保存动画窗口位置
-/// 
+///
 /// 注意：保存的 y 是动画区域顶部的位置（窗口 y + 气泡区域高度），
 /// 这样当气泡区域高度变化时，动画区域位置保持不变
 fn save_animation_window_position(window: &tauri::Window) {
     let app = window.app_handle();
-    
+
     // 获取 animation 窗口
     let animation_window = app.get_webview_window("animation");
-    
+
     if let Some(anim_win) = animation_window {
         if let Ok(position) = anim_win.outer_position() {
             let app_state: State<AppState> = window.state();
             let mut storage = app_state.storage.lock().unwrap();
-            
+
             let scale_factor = anim_win.scale_factor().unwrap_or(1.0);
             // 气泡区域固定高度，不随缩放变化
             let bubble_area_height = BUBBLE_AREA_HEIGHT;
-            
+
             let window_x = position.x as f64 / scale_factor;
             let window_y = position.y as f64 / scale_factor;
-            
+
             // 保存动画区域顶部的 Y 位置（窗口 Y + 气泡区域高度）
             storage.data.info.animation_window_x = Some(window_x);
             storage.data.info.animation_window_y = Some(window_y + bubble_area_height);
-            
+
             if let Err(e) = storage.save() {
                 eprintln!("[TrayBuddy] 保存窗口位置失败: {}", e);
             }

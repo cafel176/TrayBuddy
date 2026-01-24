@@ -226,6 +226,36 @@
   }
 
   /**
+   * 处理免打扰模式切换
+   * 立即触发状态转换并保存设置
+   */
+  async function onDndToggle(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const isSilence = target.checked;
+
+    if (settings) {
+      settings.silence_mode = isSilence;
+    }
+
+    // 发送强制切换状态命令
+    const targetState = isSilence ? "silence_start" : "silence_end";
+    try {
+      await invoke("force_change_state", { name: targetState });
+      console.log(
+        `[Settings] DND toggled to ${isSilence}, force changed state to ${targetState}`,
+      );
+    } catch (err) {
+      console.error(
+        `[Settings] Failed to force change state to ${targetState}:`,
+        err,
+      );
+    }
+
+    // 保存设置
+    await saveSettings();
+  }
+
+  /**
    * 处理语言切换
    * 保存设置并立即更新 i18n
    */
@@ -400,8 +430,8 @@
       <label>
         <input
           type="checkbox"
-          bind:checked={settings.silence_mode}
-          onchange={onSettingChange}
+          checked={settings.silence_mode}
+          onchange={onDndToggle}
         />
         {_("settings.dndMode")}
       </label>

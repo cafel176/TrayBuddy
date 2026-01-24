@@ -27,10 +27,10 @@ pub const BUBBLE_AREA_HEIGHT: f64 = 300.0;
 pub const BUBBLE_AREA_WIDTH: f64 = 300.0;
 
 /// Animation 窗口基础宽度（取动画区域和气泡区域宽度的最大值）
-pub const ANIMATION_WINDOW_BASE_WIDTH: f64 = if ANIMATION_AREA_WIDTH > BUBBLE_AREA_WIDTH { 
-    ANIMATION_AREA_WIDTH 
-} else { 
-    BUBBLE_AREA_WIDTH 
+pub const ANIMATION_WINDOW_BASE_WIDTH: f64 = if ANIMATION_AREA_WIDTH > BUBBLE_AREA_WIDTH {
+    ANIMATION_AREA_WIDTH
+} else {
+    BUBBLE_AREA_WIDTH
 };
 
 /// Animation 窗口基础高度（动画区域 + 气泡区域）
@@ -65,6 +65,9 @@ pub const ANIMATION_BORDER: &str = "border";
 
 /// Idle 状态名称
 pub const STATE_IDLE: &str = "idle";
+pub const STATE_SILENCE: &str = "silence";
+pub const STATE_SILENCE_START: &str = "silence_start";
+pub const STATE_SILENCE_END: &str = "silence_end";
 
 // ========================================================================= //
 // 事件名称常量
