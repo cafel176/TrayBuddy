@@ -210,6 +210,7 @@
 
   $: buttonBaseStyle = style ? `
     padding: ${style.branch.button.padding};
+    ${style.branch.button.min_width ? `min-width: ${style.branch.button.min_width};` : ''}
     background: ${style.branch.button.background};
     border: ${style.branch.button.border};
     border-radius: ${style.branch.button.border_radius};

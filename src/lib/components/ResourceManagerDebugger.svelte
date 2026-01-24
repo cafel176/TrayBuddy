@@ -27,6 +27,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { convertFileSrc } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
+  import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
 
   // ======================================================================= //
   // 类型定义
@@ -182,6 +183,8 @@
       const info = await invoke("load_mod", { modName: selectedMod }) as ModInfo;
       currentModInfo = info;
       statusMsg = `加载成功: ${info.manifest.id} (v${info.manifest.version})`;
+      // 重新加载气泡样式
+      await loadBubbleStyle();
     } catch (e) {
       statusMsg = `加载失败: ${e}`;
       currentModInfo = null;

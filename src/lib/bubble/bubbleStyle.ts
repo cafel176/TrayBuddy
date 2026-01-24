@@ -64,6 +64,7 @@ export interface BranchContainerStyle {
 /** 分支按钮样式 */
 export interface BranchButtonStyle {
   padding: string;
+  min_width?: string;
   background: string;
   border: string;
   border_radius: string;
@@ -152,7 +153,8 @@ export const defaultStyle: BubbleStyleConfig = {
       border_top: '1px dashed rgba(255, 180, 200, 0.35)'
     },
     button: {
-      padding: '6px 12px 6px 26px',
+      padding: '6px 6px 6px 30px',
+      min_width: '100px',
       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 242, 248, 0.68) 100%)',
       border: '1px solid rgba(255, 185, 200, 0.35)',
       border_radius: '10px',
