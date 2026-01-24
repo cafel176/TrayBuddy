@@ -28,6 +28,7 @@
     "trigger": "触发器",
     "environment": "环境",
     "media": "媒体监听",
+    "system": "系统观察",
     "settings": "用户设置",
     "runtime": "运行状态"
   },
@@ -165,6 +166,26 @@
     "volumePeak": "音量峰值:",
     "nowPlaying": "正在播放",
     "noCoreAudioSession": "无 Core Audio 会话"
+  },
+  "system": {
+    "title": "系统观察器调试",
+    "statusReading": "正在读取状态...",
+    "statusWaiting": "等待初始化...",
+    "statusUpdated": "状态已更新",
+    "observerStatus": "观察器状态",
+    "runningStatus": "运行状态:",
+    "lastCheck": "最后检查时间:",
+    "autoDndSetting": "自动免打扰:",
+    "detectionResult": "检测结果",
+    "fullscreenState": "全屏/繁忙状态",
+    "fullscreenDetected": "已检测到全屏",
+    "normalMode": "正常模式",
+    "autoTrigger": "自动触发状态",
+    "active": "生效中 (已接管)",
+    "inactive": "未生效",
+    "currentDnd": "当前免打扰设置",
+    "dndOn": "开启",
+    "dndOff": "关闭"
   },
   "resource": {
     "title": "ResourceManager 调试面板",

@@ -28,7 +28,7 @@ mod modules;
 use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
-    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_SILENCE, STATE_SILENCE_START,
+    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_SILENCE,
 };
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
@@ -43,6 +43,7 @@ use modules::resource::{
 };
 use modules::state::StateManager;
 use modules::storage::{Storage, UserInfo, UserSettings};
+use modules::system_observer::{SystemDebugInfo, SystemObserver};
 use modules::trigger::TriggerManager;
 use std::sync::{Arc, Mutex};
 use tauri::{
@@ -824,6 +825,13 @@ pub fn run() {
             // 启动媒体监听器
             start_media_observer(app.handle().clone(), is_silence);
 
+            // 启动系统状态观察器（监听全屏）
+            #[cfg(target_os = "windows")]
+            {
+                let observer = SystemObserver::new();
+                observer.start(app.handle().clone());
+            }
+
             // 在后台线程初始化环境信息（地理位置和天气）
             let app_handle_env = app.handle().clone();
             std::thread::spawn(move || {
@@ -916,9 +924,16 @@ pub fn run() {
             get_weather_info,
             // 媒体调试
             get_media_debug_info,
+            get_system_debug_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// 获取系统观察器调试信息
+#[tauri::command]
+fn get_system_debug_info() -> Option<SystemDebugInfo> {
+    modules::system_observer::get_cached_debug_info()
 }
 
 // ========================================================================= //

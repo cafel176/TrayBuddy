@@ -28,6 +28,7 @@
     "trigger": "トリガー",
     "environment": "環境",
     "media": "メディア監視",
+    "system": "システム監視",
     "settings": "設定",
     "runtime": "実行状態"
   },
@@ -165,6 +166,26 @@
     "volumePeak": "音量ピーク:",
     "nowPlaying": "再生中",
     "noCoreAudioSession": "Core Audio セッションなし"
+  },
+  "system": {
+    "title": "システム監視デバッガー",
+    "statusReading": "状態読み込み中...",
+    "statusWaiting": "初期化待ち...",
+    "statusUpdated": "状態更新日時",
+    "observerStatus": "オブザーバー状態",
+    "runningStatus": "実行状態:",
+    "lastCheck": "最終チェック:",
+    "autoDndSetting": "自動おやすみ:",
+    "detectionResult": "検出結果",
+    "fullscreenState": "全画面/ビジー状態",
+    "fullscreenDetected": "検出あり",
+    "normalMode": "通常モード",
+    "autoTrigger": "自動トリガー状態",
+    "active": "有効 (制御中)",
+    "inactive": "無効",
+    "currentDnd": "現在のおやすみモード",
+    "dndOn": "オン",
+    "dndOff": "オフ"
   },
   "resource": {
     "title": "リソースマネージャー デバッグパネル",

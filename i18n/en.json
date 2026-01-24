@@ -28,6 +28,7 @@
     "trigger": "Triggers",
     "environment": "Environment",
     "media": "Media",
+    "system": "System",
     "settings": "Settings",
     "runtime": "Runtime"
   },
@@ -165,6 +166,26 @@
     "volumePeak": "Volume peak:",
     "nowPlaying": "Now Playing",
     "noCoreAudioSession": "No Core Audio sessions"
+  },
+  "system": {
+    "title": "System Observer Debugger",
+    "statusReading": "Reading status...",
+    "statusWaiting": "Waiting for init...",
+    "statusUpdated": "Status updated",
+    "observerStatus": "Observer Status",
+    "runningStatus": "Running status:",
+    "lastCheck": "Last check:",
+    "autoDndSetting": "Auto DND:",
+    "detectionResult": "Detection Result",
+    "fullscreenState": "Fullscreen/Busy",
+    "fullscreenDetected": "Fullscreen Detected",
+    "normalMode": "Normal Mode",
+    "autoTrigger": "Auto Trigger State",
+    "active": "Active (Taking over)",
+    "inactive": "Inactive",
+    "currentDnd": "Current DND",
+    "dndOn": "ON",
+    "dndOff": "OFF"
   },
   "resource": {
     "title": "ResourceManager Debug Panel",
