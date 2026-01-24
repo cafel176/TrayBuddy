@@ -34,11 +34,13 @@ import type { AssetInfo, AnimationConfig } from "../types/asset";
 
 /**
  * 图片缓存实例
- * - 最大缓存 20 张图片
+ * - 最大缓存 8 张图片（减少 GPU 显存占用）
  * - 使用 LRU（最近最少使用）策略淘汰旧条目
  * - 缓存 key 为图片的完整 URL
+ * 
+ * 注意：精灵图通常较大（2-4MB），过多缓存会占用大量 GPU 显存
  */
-const imageCache = new LRUCache<string, HTMLImageElement>(20);
+const imageCache = new LRUCache<string, HTMLImageElement>(8);
 
 /**
  * 清除图片缓存
@@ -149,13 +151,33 @@ export class SpriteAnimator {
   private isPlayOnce = false;      // 是否为单次播放模式
   private onCompleteCallback: (() => void) | null = null; // 播放完成回调
 
+  /** 窗口可见性状态 */
+  private isVisible = true;
+  /** 可见性变化监听器 */
+  private visibilityHandler: (() => void) | null = null;
+
   /**
    * 创建动画播放器实例
    * @param canvas - 目标 Canvas 元素
    */
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    // 优化 Canvas 上下文配置，减少 GPU 开销
+    this.ctx = canvas.getContext("2d", {
+      alpha: true,             // 需要透明背景
+      desynchronized: true,    // 降低延迟，减少与主线程同步
+      willReadFrequently: false // 不频繁读取像素数据
+    });
+    
+    // 监听窗口可见性变化，不可见时暂停动画
+    this.visibilityHandler = () => {
+      this.isVisible = document.visibilityState === 'visible';
+      if (this.isVisible && this.isPlaying && this.animationId === null) {
+        // 恢复可见时继续动画
+        this.animate(0);
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 
   // ============================================================================
@@ -508,6 +530,11 @@ export class SpriteAnimator {
    */
   destroy(): void {
     this.stop();
+    // 移除可见性监听器
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     this.img = null;
     this.ctx = null;
   }
@@ -521,6 +548,7 @@ export class SpriteAnimator {
    *
    * 使用 requestAnimationFrame 实现流畅动画：
    * - 检查播放状态和资源加载状态
+   * - 窗口不可见时暂停渲染（减少 GPU 占用）
    * - 根据 frameTime 控制帧率
    * - 绘制当前帧并推进到下一帧
    *
@@ -528,6 +556,12 @@ export class SpriteAnimator {
    */
   private animate = (time: number): void => {
     if (!this.isPlaying) return;
+    
+    // 窗口不可见时暂停动画循环，减少 GPU 占用
+    if (!this.isVisible) {
+      this.animationId = null;
+      return;
+    }
 
     // 等待资源就绪
     if (!this.ctx || !this.img || !this.img.complete) {

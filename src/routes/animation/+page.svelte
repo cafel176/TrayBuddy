@@ -72,6 +72,8 @@
   let unlistenState: (() => void) | null = null;
   /** 设置变化事件监听器取消函数 */
   let unlistenSettings: (() => void) | null = null;
+  /** 播放状态请求事件监听器取消函数 */
+  let unlistenPlaybackReq: (() => void) | null = null;
 
   // =========================================================================
   // 显示状态
@@ -170,7 +172,7 @@
       });
 
       // 注册播放状态请求事件监听
-      await listen("request-playback-status", () => {
+      unlistenPlaybackReq = await listen("request-playback-status", () => {
         emitPlaybackStatus();
       });
 
@@ -519,6 +521,7 @@
     triggerManager?.destroy();
     unlistenState?.();
     unlistenSettings?.();
+    unlistenPlaybackReq?.();
   });
 </script>
 
