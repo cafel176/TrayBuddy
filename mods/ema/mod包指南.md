@@ -93,7 +93,50 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `event` | String | 事件名称 (如 `click`, `login`, `music_start`, `music_end`) |
-| `can_trigger_states` | Array | 该事件触发时，从中随机选出的目标状态列表 |
+| `can_trigger_states` | Array | 触发条件状态组数组，定义在不同持久状态下可触发的状态列表 |
+
+#### 2.1.6 触发条件状态组对象 (TriggerStateGroup Object)
+用于触发器对象的 `can_trigger_states` 数组。
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `persistent_state` | String | 持久状态名称，只有处于该持久状态时才能触发。为空字符串时表示任意持久状态都可触发 |
+| `states` | Array | 可触发的状态名称列表 |
+
+**触发器配置示例：**
+
+```json
+{
+  "triggers": [
+    {
+      "event": "click",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": ["hello1_1"]
+        },
+        {
+          "persistent_state": "music",
+          "states": ["music_hello1_1"]
+        }
+      ]
+    },
+    {
+      "event": "music_start",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": ["music_start"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+在上述示例中：
+- `click` 事件在 `idle` 持久状态下可触发 `hello1_1`，在 `music` 持久状态下可触发 `music_hello1_1`
+- `music_start` 事件的 `persistent_state` 为空，表示在任意持久状态下都可触发 `music_start` 状态
 
 ### 2.2 `asset/img.json`
 定义如何解析对应的动画图像资源。
@@ -155,4 +198,65 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `name` | String | 文本的名称 |
-| `text` | String | 显示的对话内容 |
+| `text` | String | 显示的对话内容（支持简易 Markdown） |
+| `duration` | Number | 气泡持续时间（秒），默认 5 秒，文本显示完成后开始计时 |
+
+#### 2.6.1 简易 Markdown 语法
+气泡系统支持以下 Markdown 语法：
+
+| 语法 | 说明 | 示例 |
+| :--- | :--- | :--- |
+| `**文本**` | 加粗 | `**你好！**` → **你好！** |
+| `[文本](链接)` | 超链接 | `[点我](https://example.com)` |
+| `\n` | 换行 | `第一行\n第二行` |
+
+示例:
+```json
+{
+  "name": "greeting",
+  "text": "**你好呀！** 我是你的桌面伙伴～\n有什么可以帮助你的吗？",
+  "duration": 5
+}
+```
+
+---
+
+## 3. 对话分支系统
+
+对话分支允许用户通过点击选项来决定对话走向。
+
+### 3.1 配置示例
+
+在 `manifest.json` 中的状态定义：
+
+```json
+{
+  "name": "hello1_1",
+  "persistent": false,
+  "anima": "wave",
+  "audio": "",
+  "text": "hello1_1",
+  "priority": 2,
+  "branch": [
+    {
+      "text": "好的！",
+      "next_state": "hello1_2"
+    },
+    {
+      "text": "再说一次",
+      "next_state": "hello1_1"
+    }
+  ]
+}
+```
+
+### 3.2 分支流程
+
+1. 状态触发时，显示气泡并播放打字机效果
+2. 文本显示完成后，显示分支选项按钮，同时开始持续时间计时
+3. 用户点击选项后：
+   - 隐藏其他选项，仅显示已选中的选项（禁用状态）
+   - 设置 `next_state` 为下一个待切换状态
+   - 等待持续时间结束后气泡消失，状态自动切换
+4. 如果用户未点击任何选项，持续时间结束后气泡也会自动消失
+5. 如果没有分支选项，气泡会在持续时间结束后自动消失

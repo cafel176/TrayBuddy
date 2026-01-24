@@ -1,20 +1,32 @@
 [
   {
     "name": "morning",
-    "text": "早上好！"
+    "text": "**早上好！** 新的一天开始啦～",
+    "duration": 5
   },
   {
     "name": "noon",
-    "text": "おはよう！"
+    "text": "中午好！该吃饭啦～",
+    "duration": 5
   },
   {
     "name": "evening",
-    "text": "おはよう！"
+    "text": "傍晚好！今天辛苦了～",
+    "duration": 5
   },
   {
     "name": "night",
-    "text": "おはよう！"
+    "text": "晚上好！记得早点休息哦～",
+    "duration": 5
+  },
+  {
+    "name": "hello1_1",
+    "text": "你好呀！我是你的桌面伙伴！\n有什么可以帮助你的吗？",
+    "duration": 5
+  },
+  {
+    "name": "hello1_2",
+    "text": "好的！那我就在这里陪着你～\n有需要随时叫我哦！",
+    "duration": 5
   }
 ]
-
-

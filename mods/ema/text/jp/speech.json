@@ -1,18 +1,32 @@
 [
   {
     "name": "morning",
-    "text": "おはよう！"
+    "text": "おはよう！",
+    "duration": 5
   },
   {
     "name": "noon",
-    "text": "おはよう！"
+    "text": "おはよう！",
+    "duration": 5
   },
   {
     "name": "evening",
-    "text": "おはよう！"
+    "text": "おはよう！",
+    "duration": 5
   },
   {
     "name": "night",
-    "text": "おはよう！"
+    "text": "おはよう！",
+    "duration": 5
+  },
+  {
+    "name": "hello1_1",
+    "text": "おはよう！",
+    "duration": 5
+  },
+  {
+    "name": "hello1_2",
+    "text": "おはよう！",
+    "duration": 5
   }
 ]
