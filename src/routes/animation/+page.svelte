@@ -36,7 +36,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { SpriteAnimator } from "$lib/animation/SpriteAnimator";
+  import { SpriteAnimator, getMemoryLogs, exportMemoryLogsCSV, getCacheStats, initMemoryDebug } from "$lib/animation/SpriteAnimator";
   import { getAudioManager, type AudioManager } from "$lib/audio/AudioManager";
   import { getTriggerManager, type TriggerManager } from "$lib/trigger/TriggerManager";
   import type { StateInfo, StateChangeEvent, BranchInfo, CharacterConfig, BorderConfig, UserSettings } from "$lib/types/asset";
@@ -144,6 +144,18 @@
       // 初始化管理器
       audioManager = await getAudioManager();
       triggerManager = getTriggerManager();
+      
+      // 初始化内存调试模式（仅检测工具启动时生效）
+      const memoryDebugEnabled = await initMemoryDebug();
+      if (memoryDebugEnabled) {
+        // 仅在调试模式下暴露内存日志函数到全局 window 对象
+        // @ts-expect-error - 挂载调试函数到 window
+        window.__getMemoryLogs = getMemoryLogs;
+        // @ts-expect-error - 挂载调试函数到 window
+        window.__exportMemoryLogsCSV = exportMemoryLogsCSV;
+        // @ts-expect-error - 挂载调试函数到 window
+        window.__getCacheStats = getCacheStats;
+      }
 
       // 获取角色渲染配置
       const characterConfig: CharacterConfig | null = await invoke("get_character_config");

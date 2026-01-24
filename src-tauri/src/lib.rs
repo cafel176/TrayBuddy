@@ -131,6 +131,12 @@ fn get_const_int() -> std::collections::HashMap<String, u32> {
     map
 }
 
+/// 获取环境变量（用于检测调试模式等）
+#[tauri::command]
+fn get_env_var(name: String) -> Option<String> {
+    std::env::var(&name).ok()
+}
+
 // ========================================================================= //
 // 用户设置命令
 // ========================================================================= //
@@ -669,8 +675,34 @@ pub fn run() {
                 }
             }
 
+            // ========== 初始化状态 ==========
+            {
+                let rm_guard = rm.lock().unwrap();
+                if let Some(idle_state) = rm_guard.get_state_by_name(STATE_IDLE) {
+                    let _ = sm.change_state(idle_state.clone());
+                }
+            }
+
+            sm.set_app_handle(app.handle().clone());
+            // 启动定时触发器和设置事件发送器
+            sm.start_timer_loop(app.handle().clone());
+
+            // ========== 注册全局状态（必须在创建窗口之前） ==========
+            app.manage(AppState {
+                resource_manager: rm,
+                state_manager: Mutex::new(sm),
+                storage: Mutex::new(storage),
+                media_observer: Mutex::new(None),
+            });
+
             // ========== 创建动画窗口 ==========
-            let scale = storage.data.settings.animation_scale as f64;
+            // 重新获取 storage 引用（因为已经移入 AppState）
+            let state: State<'_, AppState> = app.state();
+            let storage_guard = state.storage.lock().unwrap();
+            let scale = storage_guard.data.settings.animation_scale as f64;
+            let saved_position = (storage_guard.data.info.animation_window_x, storage_guard.data.info.animation_window_y);
+            drop(storage_guard); // 释放锁
+
             // 气泡区域固定尺寸，动画区域随缩放变化
             let bubble_area_height = BUBBLE_AREA_HEIGHT;
             let bubble_area_width = BUBBLE_AREA_WIDTH;
@@ -679,7 +711,6 @@ pub fn run() {
             // 窗口宽度取两者最大值
             let window_width = bubble_area_width.max(animation_area_width);
             let window_height = bubble_area_height + animation_area_height;
-            let saved_position = (storage.data.info.animation_window_x, storage.data.info.animation_window_y);
 
             let animation_window = WebviewWindowBuilder::new(
                 app,
@@ -719,28 +750,6 @@ pub fn run() {
                 
                 let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
             }
-
-            // ========== 初始化状态，便于前端获取并播放 ==========
-            {
-                let rm_guard = rm.lock().unwrap();
-                if let Some(idle_state) = rm_guard.get_state_by_name(STATE_IDLE) {
-                    let _ = sm.change_state(idle_state.clone());
-                }
-            }
-
-            // login 事件由前端触发
-
-            sm.set_app_handle(app.handle().clone());
-            // 启动定时触发器和设置事件发送器
-            sm.start_timer_loop(app.handle().clone()); 
-            
-            // 注册全局状态
-            app.manage(AppState {
-                resource_manager: rm,
-                state_manager: Mutex::new(sm),
-                storage: Mutex::new(storage),
-                media_observer: Mutex::new(None),
-            });          
 
             // 启动媒体监听器
             start_media_observer(app.handle().clone());
@@ -784,6 +793,8 @@ pub fn run() {
             get_const_float,
             get_const_text,
             get_const_int,
+            // 系统工具
+            get_env_var,
             // 用户设置
             get_settings,
             update_settings,

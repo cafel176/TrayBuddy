@@ -60,7 +60,8 @@ Output Files
 
 2. memory_samples_yyyyMMdd_HHmmss.csv
    Raw sampling data in CSV format, can be opened with Excel
-   Columns: Timestamp, ElapsedSec, ProcessName, PID, WorkingSetMB, PrivateMemMB, VirtualMemMB, Handles, Threads
+   Columns: Timestamp, ElapsedSec, ProcessName, PID, WorkingSetMB, PrivateMemMB, 
+            VirtualMemMB, Handles, Threads, GDIObjects, USERObjects, DeltaMB, MemRateMB_s
 
 ============================================================================
 Memory Metrics Explained
@@ -82,6 +83,101 @@ Handles:
 
 Threads:
   Number of threads in the process.
+
+GDI Objects:
+  Graphics Device Interface objects (bitmaps, fonts, brushes, etc.)
+  High or continuously increasing count may indicate graphics resource leak.
+  Typical value: < 500. Warning threshold: > 1000.
+
+USER Objects:
+  User interface objects (windows, menus, cursors, etc.)
+  High count may indicate UI element leak.
+
+DeltaMB:
+  Memory change since last sample (in MB).
+  Positive = memory increased, Negative = memory decreased.
+
+MemRateMB_s:
+  Memory change rate per second (MB/s).
+  Helps identify sudden memory spikes vs gradual growth.
+
+============================================================================
+Memory Spike Detection
+============================================================================
+
+The tool automatically detects and reports memory spikes (> 30MB increase).
+These spikes are displayed:
+  1. In real-time during monitoring (yellow warning)
+  2. In the final report under "Memory Spike Events"
+
+Common causes of memory spikes:
+  - Loading large images/spritesheets
+  - Mod switching without proper cleanup
+  - Cache miss causing duplicate resource loading
+  - Canvas creation without destruction
+
+============================================================================
+Frontend Memory Event Logs
+============================================================================
+
+IMPORTANT: Memory debug features are ONLY enabled when launched by this tool!
+The profiler sets TRAYBUDDY_MEMORY_DEBUG=1 environment variable, which:
+  - Enables memory event logging
+  - Enables cache statistics tracking
+  - Exposes debug functions to window object
+
+Normal users will NOT see any of these debug features.
+
+The app records memory-related events in the frontend for detailed analysis.
+These logs track:
+  - Image cache hits/misses
+  - Image load events
+  - Animation/state switches
+  - Cache evictions and clears
+
+To retrieve the logs manually (when launched by profiler):
+
+1. Open DevTools in the animation window (F12 or right-click -> Inspect)
+2. Go to Console tab
+3. Run one of these commands:
+
+   // Get all memory logs as array
+   window.__getMemoryLogs()
+
+   // Export logs as CSV string
+   window.__exportMemoryLogsCSV()
+
+   // Copy CSV to clipboard for analysis
+   copy(window.__exportMemoryLogsCSV())
+
+   // Get cache statistics (hit rate, misses, evictions)
+   window.__getCacheStats()
+   // Returns: { hits: 10, misses: 3, evictions: 0, hitRate: "76.9%" }
+
+The logs show real-time events like:
+  [Memory] 0s | SWITCH_STATE [Cache: 0/8]  | 切换状态: idle, playOnce=false
+  [Memory] 0s | LOAD_IMAGE [Cache: 0/8] ✗MISS | 加载图片: img/idle.webp (命中率: 0.0%)
+  [Memory] 1s | IMAGE_LOADED [Cache: 1/8]  | 图片加载完成: img/idle.webp
+  [Memory] 5s | SWITCH_STATE [Cache: 1/8]  | 切换状态: morning, playOnce=true
+  [Memory] 5s | LOAD_IMAGE [Cache: 1/8] ✗MISS | 加载图片: img/wave.webp (命中率: 50.0%)
+  [Memory] 6s | IMAGE_LOADED [Cache: 2/8]  | 图片加载完成: img/wave.webp
+
+This helps correlate memory spikes with specific frontend operations.
+
+============================================================================
+Analyzing Cache Hit Rate
+============================================================================
+
+A low cache hit rate indicates inefficient resource usage:
+  - 0-30%: Poor - images are being reloaded frequently
+  - 30-60%: Fair - some reuse, but room for improvement
+  - 60-90%: Good - effective caching
+  - 90%+: Excellent - minimal redundant loads
+
+If hit rate is low, check:
+  1. Are animations switching too frequently?
+  2. Is the cache size (8) appropriate for the number of unique images?
+  3. Are URLs consistent (no query strings or cache busters)?
 
 ============================================================================
 Typical Output Example

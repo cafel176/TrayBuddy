@@ -35,6 +35,19 @@ function Get-ProcessMemoryInfo {
     if ($null -eq $Process -or $Process.HasExited) { return $null }
     try {
         $Process.Refresh()
+        
+        # 获取 GDI 和 USER 对象数（用于检测图形资源泄漏）
+        $gdiObjects = 0
+        $userObjects = 0
+        try {
+            Add-Type -MemberDefinition @"
+[DllImport("user32.dll")]
+public static extern int GetGuiResources(IntPtr hProcess, int uiFlags);
+"@ -Name "Win32" -Namespace "Native" -ErrorAction SilentlyContinue
+            $gdiObjects = [Native.Win32]::GetGuiResources($Process.Handle, 0)  # GDI_OBJECTS = 0
+            $userObjects = [Native.Win32]::GetGuiResources($Process.Handle, 1) # USER_OBJECTS = 1
+        } catch {}
+        
         return @{
             WorkingSet64 = $Process.WorkingSet64
             PrivateMemorySize64 = $Process.PrivateMemorySize64
@@ -44,6 +57,8 @@ function Get-ProcessMemoryInfo {
             PeakVirtualMemorySize64 = $Process.PeakVirtualMemorySize64
             HandleCount = $Process.HandleCount
             ThreadCount = $Process.Threads.Count
+            GDIObjects = $gdiObjects
+            USERObjects = $userObjects
         }
     } catch { return $null }
 }
@@ -94,8 +109,9 @@ if (!(Test-Path $ExePath)) {
 }
 Write-Log "Executable: $ExePath" "Green"
 
-# Step 3: Start program
-Write-Log "Starting program..." "Yellow"
+# Step 3: Start program with memory debug flag
+Write-Log "Starting program with memory debug enabled..." "Yellow"
+$env:TRAYBUDDY_MEMORY_DEBUG = "1"
 $mainProcess = Start-Process -FilePath $ExePath -PassThru
 Start-Sleep -Seconds 3
 
@@ -113,8 +129,13 @@ $endTime = $startTime.AddSeconds($Duration)
 Write-Log "Starting memory monitoring for $Duration seconds..." "Yellow"
 Write-Log "----------------------------------------"
 
-# CSV header
-"Timestamp,ElapsedSec,ProcessName,PID,WorkingSetMB,PrivateMemMB,VirtualMemMB,Handles,Threads" | Out-File -FilePath $CsvFile -Encoding UTF8
+# CSV header - 新增 GDI/USER 对象数和内存变化率
+"Timestamp,ElapsedSec,ProcessName,PID,WorkingSetMB,PrivateMemMB,VirtualMemMB,Handles,Threads,GDIObjects,USERObjects,DeltaMB,MemRateMB_s" | Out-File -FilePath $CsvFile -Encoding UTF8
+
+# 用于计算内存变化率
+$lastTotalMemory = @{}
+$lastSampleTime = @{}
+$memorySpikes = @()  # 记录内存突增事件
 
 $sampleCount = 0
 while ((Get-Date) -lt $endTime) {
@@ -176,7 +197,38 @@ while ((Get-Date) -lt $endTime) {
             $sampleData.TotalWorkingSet += $memInfo.WorkingSet64
             $sampleData.TotalPrivate += $memInfo.PrivateMemorySize64
             
-            $csvLine = "{0},{1},{2},{3},{4:N2},{5:N2},{6:N2},{7},{8}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $elapsed, $proc.ProcessName, $proc.Id, ($memInfo.WorkingSet64 / 1MB), ($memInfo.PrivateMemorySize64 / 1MB), ($memInfo.VirtualMemorySize64 / 1MB), $memInfo.HandleCount, $memInfo.ThreadCount
+            # 计算内存变化率
+            $procKey = "$($proc.ProcessName)_$($proc.Id)"
+            $deltaMB = 0
+            $memRateMB = 0
+            $currentMemMB = $memInfo.WorkingSet64 / 1MB
+            
+            if ($lastTotalMemory.ContainsKey($procKey)) {
+                $deltaMB = $currentMemMB - $lastTotalMemory[$procKey]
+                $timeDiff = ((Get-Date) - $lastSampleTime[$procKey]).TotalSeconds
+                if ($timeDiff -gt 0) {
+                    $memRateMB = $deltaMB / $timeDiff
+                }
+                
+                # 检测内存突增（单次增量 > 30MB）
+                if ($deltaMB -gt 30) {
+                    $memorySpikes += @{
+                        Timestamp = Get-Date
+                        Elapsed = $elapsed
+                        Process = $proc.ProcessName
+                        PID = $proc.Id
+                        DeltaMB = [math]::Round($deltaMB, 2)
+                        FromMB = [math]::Round($lastTotalMemory[$procKey], 2)
+                        ToMB = [math]::Round($currentMemMB, 2)
+                    }
+                    Write-Host ""
+                    Write-Log "⚠️ Memory Spike: $($proc.ProcessName) +$([math]::Round($deltaMB, 1)) MB" "Yellow"
+                }
+            }
+            $lastTotalMemory[$procKey] = $currentMemMB
+            $lastSampleTime[$procKey] = Get-Date
+            
+            $csvLine = "{0},{1},{2},{3},{4:N2},{5:N2},{6:N2},{7},{8},{9},{10},{11:N2},{12:N4}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $elapsed, $proc.ProcessName, $proc.Id, ($memInfo.WorkingSet64 / 1MB), ($memInfo.PrivateMemorySize64 / 1MB), ($memInfo.VirtualMemorySize64 / 1MB), $memInfo.HandleCount, $memInfo.ThreadCount, $memInfo.GDIObjects, $memInfo.USERObjects, $deltaMB, $memRateMB
             $csvLine | Out-File -FilePath $CsvFile -Append -Encoding UTF8
         }
     }
@@ -277,6 +329,20 @@ foreach ($key in $processStats.Keys | Sort-Object) {
     $report += "    Max: $(Format-Bytes $maxPrivate)"
     $report += "  Handles: avg $avgHandles"
     $report += "  Threads: avg $avgThreads"
+    
+    # 新增 GDI/USER 对象统计
+    $gdiCounts = $samples_mem | ForEach-Object { $_.GDIObjects } | Where-Object { $_ -gt 0 }
+    $userCounts = $samples_mem | ForEach-Object { $_.USERObjects } | Where-Object { $_ -gt 0 }
+    if ($gdiCounts.Count -gt 0) {
+        $avgGDI = [math]::Round(($gdiCounts | Measure-Object -Average).Average)
+        $maxGDI = ($gdiCounts | Measure-Object -Maximum).Maximum
+        $report += "  GDI Objects: avg $avgGDI, max $maxGDI"
+    }
+    if ($userCounts.Count -gt 0) {
+        $avgUSER = [math]::Round(($userCounts | Measure-Object -Average).Average)
+        $maxUSER = ($userCounts | Measure-Object -Maximum).Maximum
+        $report += "  USER Objects: avg $avgUSER, max $maxUSER"
+    }
     $report += ""
 }
 
@@ -358,10 +424,59 @@ if ($webviewCount -gt 0) {
     $report += ""
 }
 
+# 新增：内存突增事件报告
+$report += "============================================================================"
+$report += "Memory Spike Events (Delta > 30MB)"
+$report += "============================================================================"
+$report += ""
+
+if ($memorySpikes.Count -eq 0) {
+    $report += "No memory spikes detected during monitoring."
+    $report += ""
+} else {
+    $report += "Detected $($memorySpikes.Count) memory spike(s):"
+    $report += ""
+    foreach ($spike in $memorySpikes) {
+        $report += "  [$($spike.Elapsed)s] $($spike.Process) (PID: $($spike.PID))"
+        $report += "    Delta: +$($spike.DeltaMB) MB ($($spike.FromMB) MB -> $($spike.ToMB) MB)"
+        $report += ""
+    }
+}
+
 $report += "============================================================================"
 $report += "Optimization Suggestions"
 $report += "============================================================================"
 $report += ""
+
+# 新增：GDI 对象泄漏检测
+$gdiLeakDetected = $false
+foreach ($key in $processStats.Keys) {
+    $stat = $processStats[$key]
+    $validSamples = $stat.Samples | Where-Object { $_ -ne $null -and $_.GDIObjects -gt 0 }
+    if ($validSamples.Count -ge 2) {
+        $gdiValues = $validSamples | ForEach-Object { $_.GDIObjects }
+        $firstGDI = $gdiValues[0]
+        $lastGDI = $gdiValues[-1]
+        if ($lastGDI -gt $firstGDI * 1.5 -and ($lastGDI - $firstGDI) -gt 50) {
+            $report += "[!] GDI Object leak detected in $($stat.Name) (PID: $($stat.PID))"
+            $report += "    GDI Objects: $firstGDI -> $lastGDI (+$($lastGDI - $firstGDI))"
+            $report += "    This indicates unreleased graphics resources (images, canvas, textures)"
+            $report += ""
+            $gdiLeakDetected = $true
+        }
+    }
+}
+
+# 新增：内存突增分析
+if ($memorySpikes.Count -gt 0) {
+    $report += "[!] Memory spikes detected - $($memorySpikes.Count) event(s)"
+    $report += ""
+    $report += "Investigation suggestions:"
+    $report += "  1. Check what operation triggers the spike (mod switch, animation load, etc.)"
+    $report += "  2. Verify image cache is working correctly (LRU hit rate)"
+    $report += "  3. Check if old resources are released before loading new ones"
+    $report += ""
+}
 
 if ($webviewProcessMem -gt $mainProcessMem) {
     $report += "[!] WebView2 processes consume most memory (typical for Tauri apps)"

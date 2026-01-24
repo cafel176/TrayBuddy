@@ -29,23 +29,143 @@ import { getModPath, clearModPathCache } from "../utils/modPath";
 import type { AssetInfo, AnimationConfig } from "../types/asset";
 
 // ============================================================================
+// 内存诊断日志（用于追踪内存问题）
+// 仅在内存检测工具启动时生效（通过环境变量 TRAYBUDDY_MEMORY_DEBUG=1 启用）
+// ============================================================================
+
+/** 调试模式状态（延迟检测，由 initMemoryDebug 初始化） */
+let memoryDebugEnabled: boolean | null = null;
+
+/**
+ * 初始化内存调试模式
+ * 检测是否由内存检测工具启动（通过 Tauri 后端查询环境变量）
+ */
+export async function initMemoryDebug(): Promise<boolean> {
+  if (memoryDebugEnabled !== null) return memoryDebugEnabled;
+  
+  try {
+    // 通过 Tauri 命令查询环境变量
+    const debugFlag: string | null = await invoke("get_env_var", { name: "TRAYBUDDY_MEMORY_DEBUG" });
+    memoryDebugEnabled = debugFlag === "1";
+    
+    if (memoryDebugEnabled) {
+      console.log("[Memory Debug] 内存调试模式已启用（由检测工具启动）");
+    }
+  } catch {
+    // 查询失败时默认禁用
+    memoryDebugEnabled = false;
+  }
+  
+  return memoryDebugEnabled;
+}
+
+/** 检查调试模式是否启用（同步检查，未初始化则返回 false） */
+function isMemoryDebugEnabled(): boolean {
+  return memoryDebugEnabled === true;
+}
+
+/** 诊断日志记录 */
+interface MemoryLogEntry {
+  timestamp: number;      // 启动后秒数
+  event: string;          // 事件类型
+  details: string;        // 详细信息
+  cacheSize: number;      // 当前缓存大小
+  cacheHit?: boolean;     // 是否缓存命中
+  imageSrc?: string;      // 图片 URL（简化）
+}
+
+/** 日志存储 */
+const memoryLogs: MemoryLogEntry[] = [];
+const startTime = Date.now();
+
+/** 记录内存相关事件（仅调试模式下生效） */
+function logMemoryEvent(event: string, details: string, extra?: Partial<MemoryLogEntry>): void {
+  if (!isMemoryDebugEnabled()) return;
+  
+  const entry: MemoryLogEntry = {
+    timestamp: Math.round((Date.now() - startTime) / 1000),
+    event,
+    details,
+    cacheSize: imageCache.size,
+    ...extra
+  };
+  memoryLogs.push(entry);
+  
+  // 控制台输出（方便实时观察）
+  const cacheInfo = `[Cache: ${entry.cacheSize}/8]`;
+  const hitInfo = entry.cacheHit !== undefined ? (entry.cacheHit ? '✓HIT' : '✗MISS') : '';
+  console.log(`[Memory] ${entry.timestamp}s | ${event} ${cacheInfo} ${hitInfo} | ${details}`);
+}
+
+/** 导出日志获取函数（供外部工具使用） */
+export function getMemoryLogs(): MemoryLogEntry[] {
+  if (!isMemoryDebugEnabled()) return [];
+  return [...memoryLogs];
+}
+
+/** 导出日志为 CSV 格式 */
+export function exportMemoryLogsCSV(): string {
+  if (!isMemoryDebugEnabled()) return 'Memory debug mode not enabled';
+  const header = 'Timestamp,Event,Details,CacheSize,CacheHit,ImageSrc';
+  const rows = memoryLogs.map(log => 
+    `${log.timestamp},${log.event},"${log.details}",${log.cacheSize},${log.cacheHit ?? ''},${log.imageSrc ?? ''}`
+  );
+  return [header, ...rows].join('\n');
+}
+
+/** 缓存统计（仅调试模式下更新） */
+const cacheStats = {
+  hits: 0,
+  misses: 0,
+  evictions: 0,
+  loads: 0
+};
+
+/** 获取缓存统计信息 */
+export function getCacheStats(): { hits: number; misses: number; evictions: number; hitRate: string; debugEnabled: boolean } {
+  const total = cacheStats.hits + cacheStats.misses;
+  const hitRate = total > 0 ? ((cacheStats.hits / total) * 100).toFixed(1) + '%' : 'N/A';
+  return {
+    hits: cacheStats.hits,
+    misses: cacheStats.misses,
+    evictions: cacheStats.evictions,
+    hitRate,
+    debugEnabled: isMemoryDebugEnabled()
+  };
+}
+
+// ============================================================================
 // 图片 LRU 缓存
 // ============================================================================
 
 /**
  * 图片缓存实例
- * - 最大缓存 8 张图片（减少 GPU 显存占用）
+ * - 最大缓存 4 张图片（减少 GPU 显存占用）
  * - 使用 LRU（最近最少使用）策略淘汰旧条目
  * - 缓存 key 为图片的完整 URL
  * 
- * 注意：精灵图通常较大（2-4MB），过多缓存会占用大量 GPU 显存
+ * 注意：精灵图解压后很大（如 wave.webp 32帧 ≈ 90MB GPU 纹理）
+ *       过多缓存会占用大量 GPU 显存和系统内存
  */
-const imageCache = new LRUCache<string, HTMLImageElement>(8);
+const imageCache = new LRUCache<string, HTMLImageElement>(4);
 
 // 设置淘汰回调，主动释放被淘汰图片的引用
-imageCache.setOnEvict((_url, img) => {
-  // 清空 src 有助于浏览器尽早释放图片资源
-  img.src = '';
+imageCache.setOnEvict((url, img) => {
+  // 仅调试模式下记录统计
+  if (isMemoryDebugEnabled()) {
+    cacheStats.evictions++;
+    const shortUrl = url.split('/').slice(-2).join('/');
+    logMemoryEvent('EVICT', `淘汰图片: ${shortUrl}`, { imageSrc: shortUrl });
+  }
+  
+  // 彻底释放图片资源：
+  // 1. 清空事件处理器，避免内存泄漏
+  img.onload = null;
+  img.onerror = null;
+  // 2. 设置 src 为空数据 URI（比空字符串更彻底）
+  img.src = 'data:,';
+  // 3. 移除所有属性引用
+  img.removeAttribute('src');
 });
 
 /**
@@ -53,7 +173,16 @@ imageCache.setOnEvict((_url, img) => {
  * 在 Mod 切换时调用，释放旧 Mod 的图片资源
  */
 export function clearImageCache(): void {
+  logMemoryEvent('CLEAR_CACHE', `清除全部缓存，当前 ${imageCache.size} 张图片`);
   imageCache.clear();
+  // 提示浏览器进行垃圾回收（通过创建临时大对象触发）
+  // 注意：这不是强制 GC，只是提示
+  try {
+    // 创建并立即释放临时数组，提示 GC
+    const _ = new ArrayBuffer(1024 * 1024);
+  } catch {
+    // 忽略可能的内存分配失败
+  }
 }
 
 // 导出路径缓存清除函数和类型定义
@@ -161,6 +290,8 @@ export class SpriteAnimator {
   private isVisible = true;
   /** 可见性变化监听器 */
   private visibilityHandler: (() => void) | null = null;
+  /** 隐藏前保存的图片 URL（用于恢复） */
+  private hiddenImgSrc: string | null = null;
 
   /**
    * 创建动画播放器实例
@@ -175,12 +306,30 @@ export class SpriteAnimator {
       willReadFrequently: false // 不频繁读取像素数据
     });
     
-    // 监听窗口可见性变化，不可见时暂停动画
+    // 监听窗口可见性变化
     this.visibilityHandler = () => {
+      const wasVisible = this.isVisible;
       this.isVisible = document.visibilityState === 'visible';
-      if (this.isVisible && this.isPlaying && this.animationId === null) {
-        // 恢复可见时继续动画
-        this.animate(0);
+      
+      if (!this.isVisible && wasVisible) {
+        // 窗口变为不可见：释放当前图片引用以减少 GPU 纹理占用
+        // 保存 URL 以便恢复时重新加载
+        if (this.img) {
+          this.hiddenImgSrc = this.currentImgSrc;
+          this.img = null;
+        }
+      } else if (this.isVisible && !wasVisible) {
+        // 窗口恢复可见：重新加载图片并恢复动画
+        if (this.hiddenImgSrc) {
+          this.loadImage(this.hiddenImgSrc).then(() => {
+            this.hiddenImgSrc = null;
+            if (this.isPlaying && this.animationId === null) {
+              this.animate(0);
+            }
+          });
+        } else if (this.isPlaying && this.animationId === null) {
+          this.animate(0);
+        }
       }
     };
     document.addEventListener('visibilitychange', this.visibilityHandler);
@@ -269,6 +418,7 @@ export class SpriteAnimator {
    * @returns 切换成功返回 true
    */
   async switchToState(stateName: string, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
+    logMemoryEvent('SWITCH_STATE', `切换状态: ${stateName}, playOnce=${playOnce}`);
     try {
       const state: { anima: string } | null = await invoke("get_state_by_name", { name: stateName });
       if (!state) return false;
@@ -295,6 +445,7 @@ export class SpriteAnimator {
    * @returns 切换成功返回 true
    */
   async switchToAsset(assetName: string, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
+    logMemoryEvent('SWITCH_ASSET', `切换资产: ${assetName}, playOnce=${playOnce}`);
     try {
       const asset = await fetchAssetInfo(assetName);
       if (!asset) return false;
@@ -365,22 +516,42 @@ export class SpriteAnimator {
    */
   private loadImage(imgSrc: string): Promise<boolean> {
     return new Promise((resolve) => {
+      const shortUrl = imgSrc.split('/').slice(-2).join('/');
+      const debugMode = isMemoryDebugEnabled();
+      
       // 尝试从缓存获取
       const cached = imageCache.get(imgSrc);
       if (cached && cached.complete) {
+        if (debugMode) {
+          cacheStats.hits++;
+          logMemoryEvent('LOAD_IMAGE', `加载图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: true, imageSrc: shortUrl });
+        }
         this.img = cached;
         resolve(true);
         return;
       }
       
       // 缓存未命中，创建新图片加载
+      if (debugMode) {
+        cacheStats.misses++;
+        cacheStats.loads++;
+        logMemoryEvent('LOAD_IMAGE', `加载图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: false, imageSrc: shortUrl });
+      }
       const newImg = new Image();
       newImg.onload = () => {
         imageCache.set(imgSrc, newImg);  // 存入缓存
         this.img = newImg;
+        if (debugMode) {
+          logMemoryEvent('IMAGE_LOADED', `图片加载完成: ${shortUrl}`, { imageSrc: shortUrl });
+        }
         resolve(true);
       };
-      newImg.onerror = () => resolve(false);
+      newImg.onerror = () => {
+        if (debugMode) {
+          logMemoryEvent('IMAGE_ERROR', `图片加载失败: ${shortUrl}`, { imageSrc: shortUrl });
+        }
+        resolve(false);
+      };
       newImg.src = imgSrc;
     });
   }

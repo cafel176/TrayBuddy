@@ -110,8 +110,15 @@ export class LRUCache<K, V> {
   
   /**
    * 清空缓存
+   * 会对每个条目调用淘汰回调以释放资源
    */
   clear(): void {
+    // 遍历所有条目，调用淘汰回调释放资源
+    if (this.onEvict) {
+      for (const [key, value] of this.cache) {
+        this.onEvict(key, value);
+      }
+    }
     this.cache.clear();
   }
   

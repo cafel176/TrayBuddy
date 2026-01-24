@@ -22,12 +22,12 @@ echo TrayBuddy Memory Profiler
 echo ============================================
 echo.
 echo Usage:
-echo   run.bat           - Full check (build + monitor 60s)
-echo   run.bat quick     - Quick check (skip build, monitor 60s)
-echo   run.bat quick 30  - Quick check (skip build, monitor 30s)
+echo   run.bat           - Full check (build + monitor 4 min)
+echo   run.bat quick     - Quick check (skip build, monitor 4 min)
+echo   run.bat quick 120 - Quick check (skip build, monitor 120s)
 echo.
 
-set DURATION=60
+set DURATION=240
 set SKIP_BUILD=
 
 if "%1"=="quick" (
