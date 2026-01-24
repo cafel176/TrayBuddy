@@ -677,9 +677,9 @@ impl ResourceManager {
 
     /// 发现所有可能的 Mod 搜索路径
     fn discover_mod_paths(app_handle: &tauri::AppHandle) -> Vec<PathBuf> {
-        let mut paths = Vec::with_capacity(3);
+        let mut paths = Vec::with_capacity(4);
 
-        // 1. 应用配置目录下的 mods
+        // 1. 应用配置目录下的 mods（用户自定义 Mod）
         if let Ok(config_dir) = app_handle.path().app_config_dir() {
             let mods_path = config_dir.join("mods");
             if let Ok(canonical) = dunce::canonicalize(&mods_path) {
@@ -691,7 +691,19 @@ impl ResourceManager {
             }
         }
 
-        // 2. 可执行文件所在目录的 mods
+        // 2. 打包资源目录下的 mods（内置 Mod，Release 打包时包含）
+        if let Ok(resource_dir) = app_handle.path().resource_dir() {
+            let mods_path = resource_dir.join("mods");
+            if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                #[cfg(debug_assertions)]
+                println!("[ResourceManager] 资源目录 mods: {:?}", canonical);
+                if canonical.is_dir() && !paths.contains(&canonical) {
+                    paths.push(canonical);
+                }
+            }
+        }
+
+        // 3. 可执行文件所在目录的 mods
         if let Ok(exe_path) = std::env::current_exe() {
             // 尝试向上查找多级父目录中的 mods 文件夹（最多4级）
             let mut current_dir = exe_path.parent();
@@ -712,8 +724,7 @@ impl ResourceManager {
             }
         }
 
-        // 3. 开发环境：当前工作目录的父目录下的 mods
-        // 3. 开发环境：当前工作目录向上查找 mods（最多2级）
+        // 4. 开发环境：当前工作目录向上查找 mods（最多2级）
         if let Ok(cwd) = std::env::current_dir() {
             let mut current_dir = Some(cwd.as_path());
             for level in 1..=2 {

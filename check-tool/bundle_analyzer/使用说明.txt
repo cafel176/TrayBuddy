@@ -1,0 +1,103 @@
+============================================================================
+TrayBuddy Bundle Analyzer - 包体分析工具
+============================================================================
+
+功能说明
+--------
+该工具用于分析 TrayBuddy 的打包产物大小和构成，帮助优化包体体积。
+
+主要功能：
+  1. 触发完整的 Release 打包（pnpm tauri build）
+  2. 分析所有打包产物的大小
+  3. 按文件类型统计资源占用
+  4. 识别大文件并给出优化建议
+  5. 生成详细报告和 CSV 数据
+
+使用方法
+--------
+1. 完整分析（推荐）：
+   双击运行 run.bat
+   
+   这会：
+   - 执行完整的 Release 构建
+   - 分析所有产物
+   - 生成报告
+
+2. 快速分析（跳过构建）：
+   run.bat quick
+   
+   使用已有的构建产物进行分析，适合：
+   - 刚刚手动构建过
+   - 只想查看分析结果
+
+输出文件
+--------
+所有报告保存在 Logs 文件夹：
+
+  bundle_report_YYYYMMDD_HHMMSS.txt  - 详细文本报告
+  bundle_details_YYYYMMDD_HHMMSS.csv - CSV 格式数据（可用 Excel 打开）
+
+报告内容
+--------
+1. Main Executable
+   - TrayBuddy.exe 大小
+
+2. MSI Installer
+   - Windows Installer 包大小
+
+3. NSIS Installer
+   - NSIS 安装包大小
+
+4. Frontend Build
+   - 前端构建产物大小
+   - 按文件类型分类（.js, .css, .html 等）
+   - 最大文件列表
+
+5. Mods (Bundled Resources)
+   - 每个 Mod 的大小
+   - 按文件类型分类（.webp, .json, .wav 等）
+   - 最大文件列表
+
+6. Release Directory
+   - 发布目录关键文件
+   - resources 文件夹（打包的 mods）
+
+7. Summary
+   - 各组件大小汇总
+   - 可分发包大小
+
+8. Optimization Suggestions
+   - 大文件警告
+   - 优化建议
+
+优化建议参考
+------------
+常见的包体优化方向：
+
+1. 图片资源
+   - 使用 WebP 格式（已使用）
+   - 压缩图片质量
+   - 减小图片尺寸
+   - 减少精灵图帧数
+
+2. 音频资源
+   - 使用 OGG/MP3 替代 WAV
+   - 降低音频比特率
+   - 缩短音频时长
+
+3. 前端代码
+   - 启用代码分割
+   - Tree shaking 移除未使用代码
+   - 压缩 JS/CSS
+
+4. Rust 二进制
+   - 启用 LTO（Link-Time Optimization）
+   - Strip 符号表
+   - 优化 Cargo.toml 依赖
+
+5. 通用优化
+   - 移除未使用的资源
+   - 合并小文件
+   - 使用更高效的压缩算法
+
+============================================================================
