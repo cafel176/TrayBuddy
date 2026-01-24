@@ -9,9 +9,9 @@
 - 详细展示当前加载 Mod 的所有资源:
   - Manifest 配置信息
   - 角色信息 (多语言)
-  - 静态图片资源
-  - 序列动画资源
-  - 语音资源
+  - 静态图片资源（带缩略图预览和放大功能）
+  - 序列动画资源（带缩略图预览）
+  - 语音资源（带播放功能）
   - 对话文本资源
 
 数据流:
@@ -25,191 +25,135 @@
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { onMount } from "svelte";
+  import { convertFileSrc } from "@tauri-apps/api/core";
+  import { onMount, onDestroy } from "svelte";
 
   // ======================================================================= //
   // 类型定义
   // ======================================================================= //
 
-  /**
-   * 资产信息接口
-   * 描述图片或序列帧动画资源
-   */
   interface AssetInfo {
-    /** 资产名称 (唯一标识) */
     name: string;
-    /** 图片文件路径 */
     img: string;
-    /** 是否为序列帧动画 */
     sequence: boolean;
-    /** 原始帧序列是否已反向排列 */
     origin_reverse: boolean;
-    /** 是否需要反向播放 */
     need_reverse: boolean;
-    /** 每帧时间 (秒) */
     frame_time: number;
-    /** 单帧宽度 (像素) */
     frame_size_x: number;
-    /** 单帧高度 (像素) */
     frame_size_y: number;
-    /** 水平方向帧数 */
     frame_num_x: number;
-    /** 垂直方向帧数 */
     frame_num_y: number;
-    /** X 轴渲染偏移 */
     offset_x: number;
-    /** Y 轴渲染偏移 */
     offset_y: number;
   }
 
-  /**
-   * 状态信息接口
-   */
   interface StateInfo {
-    /** 状态名称 */
     name: string;
-    /** 是否为持久状态 */
     persistent: boolean;
-    /** 动画资源名 */
     anima: string;
-    /** 音频资源名 */
     audio: string;
-    /** 文本资源名 */
     text: string;
-    /** 优先级 */
     priority: number;
-    /** 日期范围开始 */
     date_start: string;
-    /** 日期范围结束 */
     date_end: string;
-    /** 时间范围开始 */
     time_start: string;
-    /** 时间范围结束 */
     time_end: string;
-    /** 后续状态名 */
     next_state: string;
-    /** 可触发的状态列表 */
     can_trigger_states: string[];
-    /** 定时触发间隔 */
     trigger_time: number;
-    /** 定时触发概率 */
     trigger_rate: number;
+    branch: { text: string; next_state: string }[];
   }
 
-  /**
-   * 触发器信息接口
-   */
+  interface TriggerStateGroup {
+    persistent_state: string;
+    states: string[];
+  }
+
   interface TriggerInfo {
-    /** 触发事件名 */
     event: string;
-    /** 可触发的状态列表 */
-    can_trigger_states: string[];
+    can_trigger_states: TriggerStateGroup[];
   }
 
-  /**
-   * 角色配置接口
-   */
   interface CharacterConfig {
-    /** Z 轴偏移 (层级) */
     z_offset: number;
   }
 
-  /**
-   * 边框配置接口
-   */
   interface BorderConfig {
-    /** 边框动画资源名 */
     anima: string;
-    /** 是否启用边框 */
     enable: boolean;
-    /** Z 轴偏移 (层级) */
     z_offset: number;
   }
 
-  /**
-   * Mod 清单接口
-   * 对应 manifest.json 的完整结构
-   */
   interface ModManifest {
-    /** Mod 唯一标识 */
     id: string;
-    /** Mod 版本 */
     version: string;
-    /** Mod 作者 */
     author: string;
-    /** 默认音频语言 */
     default_audio_lang_id: string;
-    /** 默认文本语言 */
     default_text_lang_id: string;
-    /** 角色配置 */
     character: CharacterConfig;
-    /** 边框配置 */
     border: BorderConfig;
-    /** 核心状态映射 (如 idle, morning 等) */
     important_states: Record<string, StateInfo>;
-    /** 其他状态列表 */
     states: StateInfo[];
-    /** 触发器列表 */
     triggers: TriggerInfo[];
   }
 
-  /**
-   * Mod 完整信息接口
-   * 包含 Mod 的所有资源数据
-   */
+  interface AudioInfo {
+    name: string;
+    audio: string;
+  }
+
+  interface TextInfo {
+    name: string;
+    text: string;
+    duration: number;
+  }
+
+  interface CharacterInfo {
+    name: string;
+    lang: string;
+    id: string;
+  }
+
   interface ModInfo {
-    /** Mod 绝对路径 */
     path: string;
-    /** Mod 清单 */
     manifest: ModManifest;
-    /** 静态图片列表 */
     imgs: AssetInfo[];
-    /** 序列动画列表 */
     sequences: AssetInfo[];
-    /** 音频资源 (按语言分组) */
-    audios: Record<string, { name: string, audio: string }[]>;
-    /** 对话文本 (按语言分组) */
-    texts: Record<string, { name: string, text: string }[]>;
-    /** 角色信息 (按语言分组) */
-    info: Record<string, { name: string, lang: string, id: string }>;
+    audios: Record<string, AudioInfo[]>;
+    texts: Record<string, TextInfo[]>;
+    info: Record<string, CharacterInfo>;
   }
 
   // ======================================================================= //
   // 响应式状态
   // ======================================================================= //
 
-  /** Mod 搜索路径列表 */
   let searchPaths: string[] = $state([]);
-  
-  /** 可用的 Mod 名称列表 */
   let mods: string[] = $state([]);
-  
-  /** 当前选中的 Mod 名称 */
   let selectedMod = $state("");
-
-  /** 状态消息 */
   let statusMsg = $state("等待操作...");
-  
-  /** 当前已加载的 Mod 详细信息 */
   let currentModInfo = $state<ModInfo | null>(null);
-  
-  /** 加载操作进行中标记 */
   let loading = $state(false);
+
+  // 图片查看器状态
+  let viewerVisible = $state(false);
+  let viewerImageSrc = $state("");
+  let viewerImageTitle = $state("");
+
+  // 音频播放状态
+  let currentAudio: HTMLAudioElement | null = null;
+  let playingAudioName = $state<string | null>(null);
 
   // ======================================================================= //
   // 数据操作函数
   // ======================================================================= //
 
-  /**
-   * 刷新 Mod 列表
-   * 获取搜索路径、可用 Mod 和当前加载的 Mod
-   */
   async function refreshMods() {
     try {
       searchPaths = await invoke("get_mod_search_paths");
       mods = await invoke("get_available_mods");
       
-      // 检查当前是否已经加载了 mod
       const info = await invoke("get_current_mod") as ModInfo | null;
       if (info) {
         currentModInfo = info;
@@ -217,20 +161,15 @@
         statusMsg = `当前已加载: ${info.manifest.id}`;
       } else {
         statusMsg = `已刷新 Mod 列表，共 ${mods.length} 个`;
-        // 默认选中第一个 Mod
         if (mods.length > 0 && !selectedMod) {
           selectedMod = mods[0];
         }
       }
-
     } catch (e) {
       statusMsg = `刷新失败: ${e}`;
     }
   }
 
-  /**
-   * 加载选中的 Mod
-   */
   async function loadSelectedMod() {
     if (!selectedMod) {
       statusMsg = "请先选择一个 Mod";
@@ -250,9 +189,6 @@
     }
   }
 
-  /**
-   * 卸载当前 Mod (预留功能)
-   */
   async function unloadMod() {
     try {
       const success = await invoke("unload_mod");
@@ -267,14 +203,9 @@
     }
   }
 
-  /**
-   * 在系统文件管理器中打开资源文件
-   * @param relativePath 相对于 Mod 根目录的路径
-   */
   async function openAssetFile(relativePath: string) {
     if (!currentModInfo) return;
     try {
-      // 构建完整路径并处理 Windows 路径分隔符
       const fullPath = `${currentModInfo.path}/${relativePath}`.replace(/\//g, '\\');
       await invoke("open_path", { path: fullPath });
     } catch (e) {
@@ -283,11 +214,119 @@
   }
 
   // ======================================================================= //
+  // 图片查看器
+  // ======================================================================= //
+
+  function getAssetSrc(relativePath: string): string {
+    if (!currentModInfo) return "";
+    const fullPath = `${currentModInfo.path}/${relativePath}`;
+    return convertFileSrc(fullPath);
+  }
+
+  function openImageViewer(src: string, title: string) {
+    viewerImageSrc = src;
+    viewerImageTitle = title;
+    viewerVisible = true;
+  }
+
+  function closeImageViewer() {
+    viewerVisible = false;
+  }
+
+  // ======================================================================= //
+  // 音频播放
+  // ======================================================================= //
+
+  function playAudio(audioPath: string, audioName: string) {
+    // 停止当前播放
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+
+    // 如果点击的是当前正在播放的，停止播放
+    if (playingAudioName === audioName) {
+      playingAudioName = null;
+      return;
+    }
+
+    if (!currentModInfo) return;
+
+    const fullPath = `${currentModInfo.path}/audio/${audioPath}`;
+    const src = convertFileSrc(fullPath);
+    
+    currentAudio = new Audio(src);
+    playingAudioName = audioName;
+    
+    currentAudio.onended = () => {
+      playingAudioName = null;
+      currentAudio = null;
+    };
+    
+    currentAudio.onerror = () => {
+      statusMsg = `播放失败: ${audioName}`;
+      playingAudioName = null;
+      currentAudio = null;
+    };
+    
+    currentAudio.play();
+  }
+
+  function stopAudio() {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+      playingAudioName = null;
+    }
+  }
+
+  // ======================================================================= //
+  // 统计
+  // ======================================================================= //
+
+  function getTotalStates(): number {
+    if (!currentModInfo) return 0;
+    return Object.keys(currentModInfo.manifest.important_states).length + 
+           currentModInfo.manifest.states.length;
+  }
+
+  function getTotalAudios(): number {
+    if (!currentModInfo) return 0;
+    return Object.values(currentModInfo.audios).flat().length;
+  }
+
+  function getTotalTexts(): number {
+    if (!currentModInfo) return 0;
+    return Object.values(currentModInfo.texts).flat().length;
+  }
+
+  // 分类状态为持久和非持久
+  function getImportantStatesByPersistence(): { persistent: [string, StateInfo][]; nonPersistent: [string, StateInfo][] } {
+    if (!currentModInfo) return { persistent: [], nonPersistent: [] };
+    const entries = Object.entries(currentModInfo.manifest.important_states);
+    return {
+      persistent: entries.filter(([_, s]) => s.persistent),
+      nonPersistent: entries.filter(([_, s]) => !s.persistent)
+    };
+  }
+
+  function getOtherStatesByPersistence(): { persistent: StateInfo[]; nonPersistent: StateInfo[] } {
+    if (!currentModInfo) return { persistent: [], nonPersistent: [] };
+    return {
+      persistent: currentModInfo.manifest.states.filter(s => s.persistent),
+      nonPersistent: currentModInfo.manifest.states.filter(s => !s.persistent)
+    };
+  }
+
+  // ======================================================================= //
   // 生命周期
   // ======================================================================= //
 
   onMount(refreshMods);
 
+  onDestroy(() => {
+    stopAudio();
+  });
 </script>
 
 <!-- ======================================================================= -->
@@ -297,10 +336,7 @@
 <div class="debug-panel">
   <h3>ResourceManager 调试面板</h3>
   
-  <!-- ================================================================= -->
   <!-- 搜索路径信息 -->
-  <!-- ================================================================= -->
-  
   <div class="path-info">
     <strong>搜索路径:</strong>
     {#each searchPaths as path}
@@ -308,13 +344,8 @@
     {/each}
   </div>
 
-
-  <!-- ================================================================= -->
   <!-- Mod 选择和操作控制区 -->
-  <!-- ================================================================= -->
-  
   <div class="controls">
-    <!-- Mod 选择下拉框 -->
     <div class="section">
       <label for="mod-select">可选 Mod 列表:</label>
       <select id="mod-select" bind:value={selectedMod}>
@@ -322,226 +353,578 @@
           <option value={mod}>{mod}</option>
         {/each}
       </select>
-
       <button onclick={refreshMods} disabled={loading}>刷新列表</button>
     </div>
 
-    <!-- 操作按钮 -->
     <div class="actions">
       <button class="primary" onclick={loadSelectedMod} disabled={loading || !selectedMod}>加载 Mod</button>
-      <!-- <button class="danger" onclick={unloadMod} disabled={loading}>卸载当前 Mod</button> -->
     </div>
-
   </div>
 
-  <!-- 状态消息栏 -->
   <div class="status-bar" class:error={statusMsg.includes('失败')}>
     {statusMsg}
   </div>
 
-  <!-- ================================================================= -->
-  <!-- Mod 详情面板 (仅在 Mod 加载后显示) -->
-  <!-- ================================================================= -->
-  
+  <!-- Mod 详情面板 -->
   {#if currentModInfo}
     <div class="info-panel">
-      <!-- 面板头部 -->
       <div class="info-header">
         <h4>当前 Mod 详情</h4>
         <div class="path-badge" title={currentModInfo.path}>{currentModInfo.path.split(/[\\/]/).pop()}</div>
       </div>
+
+      <!-- 统计概览 -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-value">{getTotalStates()}</span>
+          <span class="stat-label">状态</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{currentModInfo.manifest.triggers.length}</span>
+          <span class="stat-label">触发器</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{currentModInfo.imgs.length}</span>
+          <span class="stat-label">静态图</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{currentModInfo.sequences.length}</span>
+          <span class="stat-label">动画</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{getTotalAudios()}</span>
+          <span class="stat-label">音频</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{getTotalTexts()}</span>
+          <span class="stat-label">文本</span>
+        </div>
+      </div>
       
-      <!-- 可折叠的资源详情区域 -->
       <div class="tabs">
         
-        <!-- ============================================================= -->
         <!-- 基本信息 (Manifest) -->
-        <!-- ============================================================= -->
-        
         <details open>
           <summary>基本信息 (Manifest)</summary>
           <div class="tab-content">
-            <!-- Mod 元信息 -->
-            <ul>
-              <li><strong>ID:</strong> {currentModInfo.manifest.id}</li>
-              <li><strong>作者:</strong> {currentModInfo.manifest.author}</li>
-              <li><strong>版本:</strong> {currentModInfo.manifest.version}</li>
-              <li><strong>默认语音:</strong> {currentModInfo.manifest.default_audio_lang_id}</li>
-              <li><strong>默认文本:</strong> {currentModInfo.manifest.default_text_lang_id}</li>
-              <li><strong>角色 z_offset:</strong> {currentModInfo.manifest.character.z_offset}</li>
-              <li><strong>边框动画:</strong> {currentModInfo.manifest.border.anima || '(未设置)'}</li>
-              <li><strong>边框启用:</strong> {currentModInfo.manifest.border.enable ? '是' : '否'}</li>
-              <li><strong>边框 z_offset:</strong> {currentModInfo.manifest.border.z_offset}</li>
-            </ul>
+            <div class="info-grid">
+              <div class="info-row">
+                <span class="info-label">ID</span>
+                <span class="info-value">{currentModInfo.manifest.id}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">版本</span>
+                <span class="info-value">{currentModInfo.manifest.version}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">作者</span>
+                <span class="info-value">{currentModInfo.manifest.author}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">默认语音</span>
+                <span class="info-value">{currentModInfo.manifest.default_audio_lang_id}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">默认文本</span>
+                <span class="info-value">{currentModInfo.manifest.default_text_lang_id}</span>
+              </div>
+            </div>
 
-            <!-- 核心状态列表 -->
-            <h5>核心状态 (Important States):</h5>
-            <div class="state-list">
-              {#each Object.entries(currentModInfo.manifest.important_states) as [name, state]}
-                <div class="state-card" class:persistent={state.persistent}>
-                  <div class="state-header">
-                    <span class="state-name">{name}</span>
-                    {#if state.persistent}
-                      <span class="badge persistent">持久</span>
-                    {/if}
-                  </div>
-                  <div class="state-detail">
-                    {#if state.anima}<span>动画: {state.anima}</span>{/if}
-                    {#if state.audio}<span>音频: {state.audio}</span>{/if}
-                    {#if state.next_state}<span>后续: {state.next_state}</span>{/if}
-                    {#if state.priority > 0}<span>优先级: {state.priority}</span>{/if}
+            <h5>角色配置</h5>
+            <div class="info-grid compact">
+              <div class="info-row">
+                <span class="info-label">z_offset</span>
+                <span class="info-value">{currentModInfo.manifest.character.z_offset}</span>
+              </div>
+            </div>
+
+            <h5>边框配置</h5>
+            <div class="info-grid compact">
+              <div class="info-row">
+                <span class="info-label">启用</span>
+                <span class="info-value">{currentModInfo.manifest.border.enable ? '是' : '否'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">动画</span>
+                <span class="info-value">{currentModInfo.manifest.border.anima || '(未设置)'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">z_offset</span>
+                <span class="info-value">{currentModInfo.manifest.border.z_offset}</span>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 角色信息 (多语言) -->
+        <details>
+          <summary>角色信息 ({Object.keys(currentModInfo.info).length} 语言)</summary>
+          <div class="tab-content">
+            <div class="lang-cards">
+              {#each Object.entries(currentModInfo.info) as [lang, info]}
+                <div class="lang-card">
+                  <span class="lang-code">{lang}</span>
+                  <div class="lang-details">
+                    <div class="char-name">{info.name}</div>
+                    <div class="char-meta">
+                      <span>语言: {info.lang}</span>
+                      <span>ID: {info.id}</span>
+                    </div>
                   </div>
                 </div>
               {/each}
             </div>
-            
-            <!-- 其他状态列表 -->
-            {#if currentModInfo.manifest.states.length > 0}
-              <h5>其他状态 (States):</h5>
-              <div class="state-list">
-                {#each currentModInfo.manifest.states as state}
-                  <div class="state-card" class:persistent={state.persistent}>
-                    <div class="state-header">
-                      <span class="state-name">{state.name}</span>
-                      {#if state.persistent}
+          </div>
+        </details>
+
+        <!-- 核心状态 -->
+        <details>
+          <summary>核心状态 ({Object.keys(currentModInfo.manifest.important_states).length})</summary>
+          <div class="tab-content">
+            {#if getImportantStatesByPersistence().persistent.length > 0}
+              <details class="state-category" open>
+                <summary class="category-summary persistent-cat">
+                  持久状态 ({getImportantStatesByPersistence().persistent.length})
+                </summary>
+                <div class="state-list">
+                  {#each getImportantStatesByPersistence().persistent as [name, state]}
+                    <div class="state-card persistent">
+                      <div class="state-header">
+                        <span class="state-name">{name}</span>
                         <span class="badge persistent">持久</span>
-                      {/if}
+                        {#if state.priority > 0}
+                          <span class="badge priority">优先级 {state.priority}</span>
+                        {/if}
+                      </div>
+                      <div class="state-detail">
+                        {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
+                        {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
+                        {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
+                        {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                        {#if state.date_start || state.date_end}
+                          <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                        {/if}
+                        {#if state.time_start || state.time_end}
+                          <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                        {/if}
+                        {#if state.trigger_time > 0}
+                          <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                        {/if}
+                        {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">可触发:</span>
+                            <div class="tag-list">
+                              {#each state.can_trigger_states as s}
+                                <span class="tag state-tag">{s}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                        {#if state.branch && state.branch.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">分支:</span>
+                            <div class="branch-list">
+                              {#each state.branch as b}
+                                <div class="branch-item">
+                                  <span class="branch-text">{b.text}</span>
+                                  <span class="branch-arrow">→</span>
+                                  <span class="branch-next">{b.next_state}</span>
+                                </div>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                      </div>
                     </div>
-                    <div class="state-detail">
-                      {#if state.anima}<span>动画: {state.anima}</span>{/if}
-                      {#if state.audio}<span>音频: {state.audio}</span>{/if}
-                      {#if state.next_state}<span>后续: {state.next_state}</span>{/if}
-                      {#if state.priority > 0}<span>优先级: {state.priority}</span>{/if}
-                    </div>
-                  </div>
-                {/each}
-              </div>
+                  {/each}
+                </div>
+              </details>
             {/if}
-            
-            <!-- 触发器列表 -->
-            {#if currentModInfo.manifest.triggers.length > 0}
-              <h5>触发器 (Triggers):</h5>
+            {#if getImportantStatesByPersistence().nonPersistent.length > 0}
+              <details class="state-category" open>
+                <summary class="category-summary non-persistent-cat">
+                  非持久状态 ({getImportantStatesByPersistence().nonPersistent.length})
+                </summary>
+                <div class="state-list">
+                  {#each getImportantStatesByPersistence().nonPersistent as [name, state]}
+                    <div class="state-card">
+                      <div class="state-header">
+                        <span class="state-name">{name}</span>
+                        {#if state.priority > 0}
+                          <span class="badge priority">优先级 {state.priority}</span>
+                        {/if}
+                      </div>
+                      <div class="state-detail">
+                        {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
+                        {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
+                        {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
+                        {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                        {#if state.date_start || state.date_end}
+                          <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                        {/if}
+                        {#if state.time_start || state.time_end}
+                          <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                        {/if}
+                        {#if state.trigger_time > 0}
+                          <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                        {/if}
+                        {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">可触发:</span>
+                            <div class="tag-list">
+                              {#each state.can_trigger_states as s}
+                                <span class="tag state-tag">{s}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                        {#if state.branch && state.branch.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">分支:</span>
+                            <div class="branch-list">
+                              {#each state.branch as b}
+                                <div class="branch-item">
+                                  <span class="branch-text">{b.text}</span>
+                                  <span class="branch-arrow">→</span>
+                                  <span class="branch-next">{b.next_state}</span>
+                                </div>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </details>
+            {/if}
+          </div>
+        </details>
+
+        <!-- 其他状态 -->
+        {#if currentModInfo.manifest.states.length > 0}
+          <details>
+            <summary>其他状态 ({currentModInfo.manifest.states.length})</summary>
+            <div class="tab-content">
+              {#if getOtherStatesByPersistence().persistent.length > 0}
+                <details class="state-category" open>
+                  <summary class="category-summary persistent-cat">
+                    持久状态 ({getOtherStatesByPersistence().persistent.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each getOtherStatesByPersistence().persistent as state}
+                      <div class="state-card persistent">
+                        <div class="state-header">
+                          <span class="state-name">{state.name}</span>
+                          <span class="badge persistent">持久</span>
+                          {#if state.priority > 0}
+                            <span class="badge priority">优先级 {state.priority}</span>
+                          {/if}
+                        </div>
+                        <div class="state-detail">
+                          {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
+                          {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
+                          {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
+                          {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                          {#if state.date_start || state.date_end}
+                            <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                          {/if}
+                          {#if state.time_start || state.time_end}
+                            <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                          {/if}
+                          {#if state.trigger_time > 0}
+                            <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                          {/if}
+                          {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">可触发:</span>
+                              <div class="tag-list">
+                                {#each state.can_trigger_states as s}
+                                  <span class="tag state-tag">{s}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                          {#if state.branch && state.branch.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">分支:</span>
+                              <div class="branch-list">
+                                {#each state.branch as b}
+                                  <div class="branch-item">
+                                    <span class="branch-text">{b.text}</span>
+                                    <span class="branch-arrow">→</span>
+                                    <span class="branch-next">{b.next_state}</span>
+                                  </div>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+              {/if}
+              {#if getOtherStatesByPersistence().nonPersistent.length > 0}
+                <details class="state-category" open>
+                  <summary class="category-summary non-persistent-cat">
+                    非持久状态 ({getOtherStatesByPersistence().nonPersistent.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each getOtherStatesByPersistence().nonPersistent as state}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{state.name}</span>
+                          {#if state.priority > 0}
+                            <span class="badge priority">优先级 {state.priority}</span>
+                          {/if}
+                        </div>
+                        <div class="state-detail">
+                          {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
+                          {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
+                          {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
+                          {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                          {#if state.date_start || state.date_end}
+                            <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                          {/if}
+                          {#if state.time_start || state.time_end}
+                            <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                          {/if}
+                          {#if state.trigger_time > 0}
+                            <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                          {/if}
+                          {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">可触发:</span>
+                              <div class="tag-list">
+                                {#each state.can_trigger_states as s}
+                                  <span class="tag state-tag">{s}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                          {#if state.branch && state.branch.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">分支:</span>
+                              <div class="branch-list">
+                                {#each state.branch as b}
+                                  <div class="branch-item">
+                                    <span class="branch-text">{b.text}</span>
+                                    <span class="branch-arrow">→</span>
+                                    <span class="branch-next">{b.next_state}</span>
+                                  </div>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+              {/if}
+            </div>
+          </details>
+        {/if}
+
+        <!-- 触发器 -->
+        {#if currentModInfo.manifest.triggers.length > 0}
+          <details>
+            <summary>触发器 ({currentModInfo.manifest.triggers.length})</summary>
+            <div class="tab-content">
               <div class="trigger-list">
                 {#each currentModInfo.manifest.triggers as trigger}
                   <div class="trigger-card">
                     <span class="trigger-event">{trigger.event}</span>
                     {#if trigger.can_trigger_states.length > 0}
-                      <div class="trigger-states">
-                        {#each trigger.can_trigger_states as state}
-                          <span class="tag state-tag">{state}</span>
+                      <div class="trigger-groups">
+                        {#each trigger.can_trigger_states as group, idx}
+                          <div class="trigger-group">
+                            <div class="group-header">
+                              <span class="group-label">组 {idx + 1}</span>
+                              {#if group.persistent_state}
+                                <span class="persistent-badge">持久: {group.persistent_state}</span>
+                              {:else}
+                                <span class="persistent-badge any">任意持久状态</span>
+                              {/if}
+                            </div>
+                            {#if group.states.length > 0}
+                              <div class="trigger-states">
+                                {#each group.states as state}
+                                  <span class="tag state-tag">{state}</span>
+                                {/each}
+                              </div>
+                            {:else}
+                              <span class="no-states">(无可触发状态)</span>
+                            {/if}
+                          </div>
                         {/each}
                       </div>
                     {:else}
-                      <span class="no-states">(无可触发状态)</span>
+                      <span class="no-states">(无状态组)</span>
                     {/if}
                   </div>
                 {/each}
               </div>
-            {/if}
-          </div>
-        </details>
+            </div>
+          </details>
+        {/if}
 
-        <!-- ============================================================= -->
-        <!-- 角色信息 (多语言) -->
-        <!-- ============================================================= -->
-        
-        <details>
-          <summary>角色信息 ({Object.keys(currentModInfo.info).length})</summary>
-          <div class="tab-content">
-            {#each Object.entries(currentModInfo.info) as [lang, info]}
-              <div class="lang-item">
-                <span class="lang-code">{lang}</span>
-                <span class="char-name">{info.name} ({info.lang})</span>
-              </div>
-            {/each}
-          </div>
-        </details>
-
-        <!-- ============================================================= -->
         <!-- 静态图片资源 -->
-        <!-- ============================================================= -->
-        
         <details>
           <summary>静态图片 ({currentModInfo.imgs.length})</summary>
-          <div class="tab-content grid">
-            {#each currentModInfo.imgs as img}
-              <div class="asset-card">
-                <button class="link-btn asset-name" onclick={() => openAssetFile(`asset/${img.img}`)} title="打开文件">
-                  {img.name}
-                </button>
-                <div class="asset-file">{img.img}</div>
-                <div class="asset-dim">{img.frame_size_x}x{img.frame_size_y}</div>
-              </div>
-            {/each}
+          <div class="tab-content">
+            <div class="asset-grid">
+              {#each currentModInfo.imgs as img}
+                <div class="asset-card-with-thumb">
+                  <div class="thumb-container">
+                    <button 
+                      class="thumbnail-btn"
+                      onclick={() => openImageViewer(getAssetSrc(`asset/${img.img}`), img.name)}
+                      title="点击放大"
+                    >
+                      <img 
+                        src={getAssetSrc(`asset/${img.img}`)} 
+                        alt={img.name}
+                        class="thumbnail"
+                      />
+                    </button>
+                    <button 
+                      class="thumb-open-btn"
+                      onclick={() => openAssetFile(`asset/${img.img}`)}
+                      title="打开文件"
+                    >
+                      📂
+                    </button>
+                  </div>
+                  <div class="asset-info">
+                    <div class="asset-name">{img.name}</div>
+                    <div class="asset-file">{img.img}</div>
+                    <div class="asset-meta">
+                      <span>{img.frame_size_x}x{img.frame_size_y}</span>
+                      {#if img.offset_x !== 0 || img.offset_y !== 0}
+                        <span>偏移: {img.offset_x},{img.offset_y}</span>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
           </div>
         </details>
 
-        <!-- ============================================================= -->
         <!-- 序列动画资源 -->
-        <!-- ============================================================= -->
-        
         <details>
           <summary>序列动画 ({currentModInfo.sequences.length})</summary>
-          <div class="tab-content grid">
-            {#each currentModInfo.sequences as seq}
-              <div class="asset-card sequence">
-                <button class="link-btn asset-name" onclick={() => openAssetFile(`asset/${seq.img}`)} title="打开文件">
-                  {seq.name}
-                </button>
-                <div class="asset-file">{seq.img}</div>
-                <div class="asset-meta">
-                  <span>{seq.frame_num_x}x{seq.frame_num_y} 帧</span>
-                  <span>{seq.frame_time}s</span>
-                  {#if seq.need_reverse}
-                    <span class="badge reverse">反向</span>
-                  {/if}
+          <div class="tab-content">
+            <div class="asset-grid">
+              {#each currentModInfo.sequences as seq}
+                <div class="asset-card-with-thumb sequence">
+                  <div class="thumb-container">
+                    <button 
+                      class="thumbnail-btn"
+                      onclick={() => openImageViewer(getAssetSrc(`asset/${seq.img}`), seq.name)}
+                      title="点击放大"
+                    >
+                      <img 
+                        src={getAssetSrc(`asset/${seq.img}`)} 
+                        alt={seq.name}
+                        class="thumbnail sequence-thumb"
+                      />
+                    </button>
+                    <button 
+                      class="thumb-open-btn"
+                      onclick={() => openAssetFile(`asset/${seq.img}`)}
+                      title="打开文件"
+                    >
+                      📂
+                    </button>
+                  </div>
+                  <div class="asset-info">
+                    <div class="asset-name">{seq.name}</div>
+                    <div class="asset-file">{seq.img}</div>
+                    <div class="asset-meta">
+                      <span>{seq.frame_num_x}x{seq.frame_num_y} 帧</span>
+                      <span>{seq.frame_size_x}x{seq.frame_size_y}px</span>
+                      <span>{seq.frame_time}s/帧</span>
+                    </div>
+                    <div class="asset-flags">
+                      {#if seq.origin_reverse}
+                        <span class="badge reverse">反向播放</span>
+                      {/if}
+                      {#if seq.need_reverse}
+                        <span class="badge pingpong">乒乓模式</span>
+                      {/if}
+                      {#if seq.offset_x !== 0 || seq.offset_y !== 0}
+                        <span class="badge offset">偏移: {seq.offset_x},{seq.offset_y}</span>
+                      {/if}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+            </div>
           </div>
         </details>
 
-        <!-- ============================================================= -->
-        <!-- 语音资源 (按语言分组) -->
-        <!-- ============================================================= -->
-        
+        <!-- 语音资源 -->
         <details>
-          <summary>语音资源 ({Object.values(currentModInfo.audios).flat().length})</summary>
+          <summary>语音资源 ({getTotalAudios()})</summary>
           <div class="tab-content">
             {#each Object.entries(currentModInfo.audios) as [lang, audios]}
-              <div class="lang-section">
-                <h6>{lang}</h6>
-                <div class="tag-container">
+              <details class="lang-details" open>
+                <summary class="lang-summary">{lang} ({audios.length})</summary>
+                <div class="audio-grid">
                   {#each audios as audio}
-                    <button class="tag audio-tag link-btn" onclick={() => openAssetFile(`audio/${audio.audio}`)} title="打开文件">
-                      {audio.name}
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            {/each}
-          </div>
-        </details>
-
-        <!-- ============================================================= -->
-        <!-- 对话文本 (按语言分组) -->
-        <!-- ============================================================= -->
-        
-        <details>
-          <summary>对话文本 ({Object.values(currentModInfo.texts).flat().length})</summary>
-          <div class="tab-content">
-            {#each Object.entries(currentModInfo.texts) as [lang, texts]}
-              <div class="lang-section">
-                <h6>{lang}</h6>
-                <div class="text-list">
-                  {#each texts as text}
-                    <div class="text-item">
-                      <span class="text-name">{text.name}:</span>
-                      <span class="text-body">{text.text}</span>
+                    <div class="audio-card" class:playing={playingAudioName === `${lang}/${audio.name}`}>
+                      <button 
+                        class="play-btn"
+                        onclick={() => playAudio(audio.audio, `${lang}/${audio.name}`)}
+                        title={playingAudioName === `${lang}/${audio.name}` ? '停止' : '播放'}
+                      >
+                        {#if playingAudioName === `${lang}/${audio.name}`}
+                          <span class="icon">⏹</span>
+                        {:else}
+                          <span class="icon">▶</span>
+                        {/if}
+                      </button>
+                      <div class="audio-info">
+                        <div class="audio-name">{audio.name}</div>
+                        <div class="audio-file">{audio.audio}</div>
+                      </div>
+                      <button 
+                        class="open-btn"
+                        onclick={() => openAssetFile(`audio/${audio.audio}`)}
+                        title="打开文件"
+                      >
+                        📂
+                      </button>
                     </div>
                   {/each}
                 </div>
-              </div>
+              </details>
+            {/each}
+          </div>
+        </details>
+
+        <!-- 对话文本 -->
+        <details>
+          <summary>对话文本 ({getTotalTexts()})</summary>
+          <div class="tab-content">
+            {#each Object.entries(currentModInfo.texts) as [lang, texts]}
+              <details class="lang-details" open>
+                <summary class="lang-summary">{lang} ({texts.length})</summary>
+                <div class="text-list">
+                  {#each texts as text}
+                    <div class="text-card">
+                      <div class="text-header">
+                        <span class="text-name">{text.name}</span>
+                        <span class="text-duration">{text.duration}s</span>
+                      </div>
+                      <div class="text-body">{text.text}</div>
+                    </div>
+                  {/each}
+                </div>
+              </details>
             {/each}
           </div>
         </details>
@@ -550,13 +933,30 @@
   {/if}
 </div>
 
+<!-- 图片查看器弹窗 -->
+{#if viewerVisible}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="image-viewer-overlay" onclick={closeImageViewer}>
+    <div class="image-viewer-content" onclick={(e) => e.stopPropagation()}>
+      <div class="viewer-header">
+        <span class="viewer-title">{viewerImageTitle}</span>
+        <button class="viewer-close" onclick={closeImageViewer}>✕</button>
+      </div>
+      <div class="viewer-body">
+        <img src={viewerImageSrc} alt={viewerImageTitle} class="viewer-image" />
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .debug-panel {
     background: #ffffff;
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    width: 600px;
+    width: 700px;
     margin: 20px auto;
     color: #333;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -568,6 +968,11 @@
     border-bottom: 2px solid #eee;
     padding-bottom: 10px;
     margin-bottom: 5px;
+  }
+
+  h5 {
+    margin: 12px 0 6px 0;
+    color: #2c3e50;
   }
 
   .path-info {
@@ -613,13 +1018,17 @@
   }
 
   button {
-    flex: 1;
-    padding: 10px;
+    padding: 8px 12px;
     border-radius: 6px;
     border: none;
     cursor: pointer;
     font-weight: 600;
     transition: all 0.2s;
+    background: #ecf0f1;
+  }
+
+  button:hover:not(:disabled) {
+    background: #ddd;
   }
 
   button:disabled {
@@ -630,6 +1039,7 @@
   .primary {
     background: #3498db;
     color: white;
+    flex: 1;
   }
 
   .primary:hover:not(:disabled) {
@@ -656,7 +1066,7 @@
     background: #f8f9fa;
     border-radius: 8px;
     font-size: 0.85em;
-    max-height: 600px;
+    max-height: 650px;
     overflow-y: auto;
   }
 
@@ -667,6 +1077,10 @@
     border-bottom: 1px solid #ddd;
     margin-bottom: 10px;
     padding-bottom: 5px;
+  }
+
+  .info-header h4 {
+    margin: 0;
   }
 
   .path-badge {
@@ -680,143 +1094,146 @@
     white-space: nowrap;
   }
 
-  h4, h5, h6 {
-    margin: 10px 0 5px 0;
-    color: #2c3e50;
+  /* 统计概览 */
+  .stats-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
   }
 
-  details {
-    margin-bottom: 10px;
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: white;
+    padding: 8px 16px;
+    border-radius: 8px;
     border: 1px solid #eee;
-    border-radius: 4px;
+    min-width: 60px;
+  }
+
+  .stat-value {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #3498db;
+  }
+
+  .stat-label {
+    font-size: 0.75em;
+    color: #7f8c8d;
+  }
+
+  /* 详情折叠 */
+  details {
+    margin-bottom: 8px;
+    border: 1px solid #eee;
+    border-radius: 6px;
     background: white;
   }
 
   summary {
-    padding: 8px;
+    padding: 10px 12px;
     cursor: pointer;
     font-weight: bold;
-    background: #f1f1f1;
-    border-radius: 4px;
+    background: #f5f6f7;
+    border-radius: 6px;
+    user-select: none;
   }
 
   details[open] summary {
     border-bottom: 1px solid #eee;
-    border-radius: 4px 4px 0 0;
+    border-radius: 6px 6px 0 0;
   }
 
   .tab-content {
-    padding: 10px;
+    padding: 12px;
   }
 
-  .grid {
+  /* 信息网格 */
+  .info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
 
-  .asset-card {
-    background: #f9f9f9;
-    border: 1px solid #eee;
-    padding: 6px;
-    border-radius: 4px;
-    font-size: 0.8em;
+  .info-grid.compact {
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  .asset-name {
-    font-weight: bold;
-    color: #2980b9;
-    word-break: break-all;
-  }
-
-  .link-btn {
-    cursor: pointer;
-    text-align: left;
-    font-family: inherit;
-    font-size: inherit;
-    display: inline-block;
-    transition: all 0.2s;
-  }
-
-  button.link-btn:not(.tag) {
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .link-btn:not(.tag):hover {
-    color: #3498db;
-    text-decoration: underline;
-  }
-
-
-  .tag.link-btn:hover {
-    opacity: 0.8;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-
-
-
-  .asset-file {
-    color: #7f8c8d;
-    font-size: 0.9em;
-  }
-
-  .asset-dim, .asset-meta {
-    margin-top: 4px;
-    color: #95a5a6;
-    font-size: 0.85em;
-  }
-
-  .sequence {
-    border-left: 3px solid #f1c40f;
-  }
-
-  .badge {
-    display: inline-block;
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-size: 0.75em;
-    font-weight: bold;
-  }
-
-  .badge.reverse {
-    background: #e74c3c;
-    color: white;
-  }
-
-  .tag-container {
+  .info-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin: 5px 0;
+    flex-direction: column;
+    background: #f9f9f9;
+    padding: 6px 10px;
+    border-radius: 4px;
   }
 
-  .tag {
-    padding: 2px 6px;
+  .info-label {
+    font-size: 0.75em;
+    color: #7f8c8d;
+    margin-bottom: 2px;
+  }
+
+  .info-value {
+    font-weight: 500;
+  }
+
+  /* 语言卡片 */
+  .lang-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .lang-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+  }
+
+  .lang-code {
+    background: #34495e;
+    color: white;
+    padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.8em;
-    background: #ecf0f1;
-    border: 1px solid #bdc3c7;
+    font-weight: bold;
   }
 
-  .audio-tag { background: #d6eaf8; border-color: #3498db; }
+  .lang-details {
+    flex: 1;
+  }
 
+  .char-name {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  .char-meta {
+    font-size: 0.8em;
+    color: #7f8c8d;
+    display: flex;
+    gap: 10px;
+  }
+
+  /* 状态列表 */
   .state-list, .trigger-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin: 8px 0;
+    gap: 10px;
   }
 
   .state-card {
     background: #f9f9f9;
     border: 1px solid #eee;
-    border-left: 3px solid #95a5a6;
-    padding: 8px;
-    border-radius: 4px;
+    border-left: 4px solid #95a5a6;
+    padding: 10px;
+    border-radius: 6px;
   }
 
   .state-card.persistent {
@@ -827,7 +1244,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
 
   .state-name {
@@ -835,32 +1252,151 @@
     color: #2c3e50;
   }
 
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    font-weight: bold;
+  }
+
+  .badge.persistent { background: #27ae60; color: white; }
+  .badge.priority { background: #f39c12; color: white; }
+  .badge.reverse { background: #e74c3c; color: white; }
+  .badge.pingpong { background: #9b59b6; color: white; }
+  .badge.offset { background: #3498db; color: white; }
+
   .state-detail {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: 0.85em;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9em;
+  }
+
+  .detail-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .detail-label {
     color: #7f8c8d;
+    min-width: 50px;
   }
 
-  .badge.persistent {
-    background: #27ae60;
-    color: white;
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
   }
 
+  .tag {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    background: #ecf0f1;
+    border: 1px solid #bdc3c7;
+  }
+
+  .tag.state-tag { background: #e8f6f3; border-color: #1abc9c; color: #16a085; }
+
+  /* 状态分类折叠 */
+  .state-category {
+    margin-bottom: 10px;
+    border: none;
+    background: transparent;
+  }
+
+  .category-summary {
+    padding: 8px 12px;
+    font-weight: bold;
+    border-radius: 6px;
+    font-size: 0.9em;
+  }
+
+  .category-summary.persistent-cat {
+    background: #d5f5e3;
+    border-left: 4px solid #27ae60;
+  }
+
+  .category-summary.non-persistent-cat {
+    background: #eaecee;
+    border-left: 4px solid #95a5a6;
+  }
+
+  .state-category[open] .category-summary {
+    border-radius: 6px 6px 0 0;
+    margin-bottom: 8px;
+  }
+
+  /* 语言折叠 */
+  .lang-details {
+    margin-bottom: 10px;
+    border: none;
+    background: transparent;
+    border-left: 3px solid #3498db;
+    padding-left: 8px;
+  }
+
+  .lang-summary {
+    padding: 6px 10px;
+    font-weight: bold;
+    font-size: 0.9em;
+    background: #ebf5fb;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .lang-details[open] .lang-summary {
+    margin-bottom: 8px;
+  }
+
+  /* 分支列表 */
+  .branch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .branch-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #fef5e7;
+    border: 1px solid #f39c12;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.9em;
+  }
+
+  .branch-text {
+    color: #d68910;
+    font-weight: 500;
+  }
+
+  .branch-arrow {
+    color: #95a5a6;
+  }
+
+  .branch-next {
+    color: #16a085;
+    font-weight: 600;
+  }
+
+  /* 触发器 */
   .trigger-card {
     background: #f9f9f9;
     border: 1px solid #eee;
-    border-left: 3px solid #9b59b6;
-    padding: 8px;
-    border-radius: 4px;
+    border-left: 4px solid #9b59b6;
+    padding: 10px;
+    border-radius: 6px;
   }
 
   .trigger-event {
     font-weight: bold;
     color: #8e44ad;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
 
   .trigger-states {
@@ -869,63 +1405,359 @@
     gap: 4px;
   }
 
+  .trigger-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .trigger-group {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+    padding: 8px;
+    border: 1px solid #e0e0e0;
+  }
+
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .group-label {
+    font-size: 0.75em;
+    font-weight: bold;
+    color: #7f8c8d;
+  }
+
+  .persistent-badge {
+    font-size: 0.75em;
+    background: #27ae60;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .persistent-badge.any {
+    background: #95a5a6;
+  }
+
   .no-states {
     font-size: 0.85em;
     color: #95a5a6;
     font-style: italic;
   }
 
-  .lang-item {
+  /* 资源网格 */
+  .asset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .asset-card-with-thumb {
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .asset-card-with-thumb.sequence {
+    border-left: 4px solid #f1c40f;
+  }
+
+  .thumb-container {
+    position: relative;
+  }
+
+  .thumbnail-btn {
+    width: 100%;
+    padding: 0;
+    background: #e8e8e8;
+    border: none;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 5px;
+    justify-content: center;
+    height: 100px;
+    overflow: hidden;
   }
 
-  .lang-code {
-    background: #34495e;
-    color: white;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.8em;
+  .thumbnail-btn:hover {
+    background: #ddd;
   }
 
-  .lang-section {
-    margin-bottom: 15px;
-    border-left: 2px solid #3498db;
-    padding-left: 10px;
-  }
-
-  .text-list {
+  .thumb-open-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+
+  .thumb-open-btn:hover {
+    opacity: 1;
+    background: white;
+  }
+
+  .thumbnail {
+    max-width: 100%;
+    max-height: 100px;
+    object-fit: contain;
+  }
+
+  .sequence-thumb {
+    max-width: 150%;
+    object-fit: cover;
+    object-position: left top;
+  }
+
+  .asset-info {
+    padding: 8px;
+  }
+
+  .asset-name {
+    font-weight: bold;
+    color: #2980b9;
+    word-break: break-all;
+    margin-bottom: 2px;
+  }
+
+  .asset-file {
+    color: #7f8c8d;
+    font-size: 0.8em;
+    word-break: break-all;
+  }
+
+  .asset-meta {
+    margin-top: 4px;
+    color: #95a5a6;
+    font-size: 0.75em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .asset-flags {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
     gap: 4px;
   }
 
-  .text-item {
+  /* 音频网格 */
+  .audio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+  }
+
+  .audio-card {
     display: flex;
-    gap: 5px;
+    align-items: center;
+    gap: 8px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 8px;
+    transition: all 0.2s;
   }
 
-  .text-name { font-weight: bold; color: #7f8c8d; min-width: 60px; }
-  .text-body { color: #2c3e50; }
+  .audio-card.playing {
+    background: #e8f6f3;
+    border-color: #1abc9c;
+  }
 
-  ul {
-    list-style: none;
+  .play-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #3498db;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     padding: 0;
-    margin: 0;
   }
 
-  li {
-    margin-bottom: 4px;
+  .play-btn:hover {
+    background: #2980b9;
   }
 
+  .audio-card.playing .play-btn {
+    background: #e74c3c;
+  }
+
+  .audio-card.playing .play-btn:hover {
+    background: #c0392b;
+  }
+
+  .icon {
+    font-size: 14px;
+  }
+
+  .audio-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .audio-name {
+    font-weight: bold;
+    color: #2c3e50;
+    word-break: break-all;
+  }
+
+  .audio-file {
+    font-size: 0.75em;
+    color: #7f8c8d;
+    word-break: break-all;
+  }
+
+  .open-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .open-btn:hover {
+    background: #eee;
+  }
+
+  /* 文本列表 */
+  .text-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .text-card {
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 10px;
+  }
+
+  .text-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .text-name {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  .text-duration {
+    font-size: 0.75em;
+    color: #7f8c8d;
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .text-body {
+    color: #555;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  /* 图片查看器 */
+  .image-viewer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+
+  .image-viewer-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
+  }
+
+  .viewer-title {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  .viewer-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e74c3c;
+    color: white;
+    font-size: 16px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .viewer-close:hover {
+    background: #c0392b;
+  }
+
+  .viewer-body {
+    padding: 20px;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+  }
+
+  .viewer-image {
+    max-width: 100%;
+    max-height: 75vh;
+    object-fit: contain;
+  }
+
+  /* 暗色主题 */
   @media (prefers-color-scheme: dark) {
     .debug-panel {
       background: #2c3e50;
       color: #ecf0f1;
     }
-    h3, h4, h5, h6 { color: #ecf0f1; }
+    h3, h4, h5 { color: #ecf0f1; }
     h3 { border-bottom-color: #34495e; }
     
     select {
@@ -936,17 +1768,53 @@
     
     .status-bar { background: #34495e; }
     .info-panel { background: #34495e; }
+    .path-info { background: #34495e; color: #bdc3c7; }
     
-    details { background: #2c3e50; border-color: #34495e; }
+    details { background: #2c3e50; border-color: #455a64; }
     summary { background: #3e5871; color: #ecf0f1; }
-    .asset-card { background: #3e5871; border-color: #455a64; }
-    .asset-name { color: #3498db; }
-    .text-body { color: #bdc3c7; }
-    .path-badge { background: #455a64; color: #bdc3c7; }
-    .tag { background: #455a64; border-color: #546e7a; color: #ecf0f1; }
+    
+    .stat-item { background: #3e5871; border-color: #455a64; }
+    .info-row { background: #3e5871; }
+    .lang-card { background: #3e5871; border-color: #455a64; }
+    .char-name { color: #ecf0f1; }
     
     .state-card, .trigger-card { background: #3e5871; border-color: #455a64; }
     .state-name { color: #ecf0f1; }
     .trigger-event { color: #bb8fce; }
+    
+    .asset-card-with-thumb { background: #3e5871; border-color: #455a64; }
+    .thumbnail-btn { background: #2c3e50; }
+    .thumbnail-btn:hover { background: #34495e; }
+    .asset-name { color: #5dade2; }
+    
+    .audio-card { background: #3e5871; border-color: #455a64; }
+    .audio-card.playing { background: #1e4d3d; border-color: #1abc9c; }
+    .audio-name { color: #ecf0f1; }
+    
+    .text-card { background: #3e5871; border-color: #455a64; }
+    .text-name { color: #ecf0f1; }
+    .text-body { color: #bdc3c7; }
+    .text-duration { background: #2c3e50; }
+    
+    .path-badge { background: #455a64; color: #bdc3c7; }
+    .tag { background: #455a64; border-color: #546e7a; color: #ecf0f1; }
+    
+    .trigger-group { background: rgba(255, 255, 255, 0.05); border-color: #455a64; }
+    .branch-item { background: #4a3d1e; border-color: #d68910; }
+    .branch-text { color: #f1c40f; }
+    .branch-next { color: #2ecc71; }
+    
+    .category-summary.persistent-cat { background: #1e4d3d; }
+    .category-summary.non-persistent-cat { background: #3e5871; }
+    .lang-summary { background: #2e4a62; }
+    .lang-details { border-left-color: #5dade2; }
+    
+    .thumb-open-btn { background: rgba(60, 60, 60, 0.9); border-color: #555; color: white; }
+    .thumb-open-btn:hover { background: #444; }
+    
+    .image-viewer-content { background: #2c3e50; }
+    .viewer-header { background: #34495e; border-bottom-color: #455a64; }
+    .viewer-title { color: #ecf0f1; }
+    .viewer-body { background: #1a252f; }
   }
 </style>
