@@ -47,6 +47,9 @@ use modules::system_observer::{SystemDebugInfo, SystemObserver};
 use modules::trigger::TriggerManager;
 use std::sync::{Arc, Mutex};
 use tauri::{
+    image::Image,
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     Emitter, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder,
 };
 
@@ -830,6 +833,69 @@ pub fn run() {
             {
                 let observer = SystemObserver::new();
                 observer.start(app.handle().clone());
+            }
+
+            // ========== 系统托盘 (System Tray) ==========
+            {
+                // 1. 获取当前 Mod 的图标路径
+                let mod_id = {
+                    let state: State<AppState> = app.state();
+                    let storage = state.storage.lock().unwrap();
+                    storage.data.info.current_mod.clone()
+                };
+
+                // 尝试加载 Mod 图标，如果失败则使用应用默认图标
+                // 假设 mods 目录在当前工作目录下
+                let icon_path = std::path::Path::new("mods").join(&mod_id).join("icon.ico");
+                let icon = if icon_path.exists() {
+                    Image::from_path(&icon_path)
+                        .unwrap_or_else(|_| app.default_window_icon().unwrap().clone())
+                } else {
+                    app.default_window_icon().unwrap().clone()
+                };
+
+                // 2. 创建菜单
+                let settings_i =
+                    MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+                let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&settings_i, &quit_i])?;
+
+                // 3. 创建托盘
+                let builder = TrayIconBuilder::new()
+                    .icon(icon)
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(move |app, event| {
+                        match event.id.as_ref() {
+                            "quit" => app.exit(0),
+                            "settings" => {
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                } else {
+                                    // 如果主窗口被销毁了，可能需要重新创建（视需求而定）
+                                    // 目前简单实现为：如果存在则显示
+                                    println!("[Tray] Main window not found");
+                                }
+                            }
+                            _ => {}
+                        }
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            ..
+                        } = event
+                        {
+                            let app = tray.app_handle();
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    });
+
+                builder.build(app)?;
             }
 
             // 在后台线程初始化环境信息（地理位置和天气）
