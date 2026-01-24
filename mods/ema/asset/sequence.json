@@ -1,7 +1,7 @@
 [
   {
     "name": "wink",
-    "img": "sequence/wink.png",
+    "img": "sequence/wink.webp",
     "sequence": true,
     "origin_reverse": false,
     "need_reverse": true,
@@ -15,7 +15,7 @@
   },
   {
     "name": "wave",
-    "img": "sequence/wave.png",
+    "img": "sequence/wave.webp",
     "sequence": true,
     "origin_reverse": false,
     "need_reverse": true,

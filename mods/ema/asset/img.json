@@ -1,7 +1,7 @@
 [
   {
     "name": "border",
-    "img": "img/border.png",
+    "img": "img/border.webp",
     "sequence": true,
     "origin_reverse": false,
     "need_reverse": false,
