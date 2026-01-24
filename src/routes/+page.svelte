@@ -31,7 +31,6 @@
   import EnvironmentDebugger from "$lib/components/EnvironmentDebugger.svelte";
   import MediaDebugger from "$lib/components/MediaDebugger.svelte";
   import SystemDebugger from "$lib/components/SystemDebugger.svelte";
-  import Settings from "$lib/components/Settings.svelte";
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
   import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 
@@ -105,10 +104,6 @@
       onclick={() => (activeTab = "system")}>{_("tabs.system")}</button
     >
     <button
-      class:active={activeTab === "settings"}
-      onclick={() => (activeTab = "settings")}>{_("tabs.settings")}</button
-    >
-    <button
       class:active={activeTab === "info"}
       onclick={() => (activeTab = "info")}>{_("tabs.runtime")}</button
     >
@@ -128,8 +123,6 @@
       <MediaDebugger />
     {:else if activeTab === "system"}
       <SystemDebugger />
-    {:else if activeTab === "settings"}
-      <Settings />
     {:else if activeTab === "info"}
       <InfoDebugger />
     {/if}

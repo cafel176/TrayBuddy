@@ -869,13 +869,21 @@ pub fn run() {
                         match event.id.as_ref() {
                             "quit" => app.exit(0),
                             "settings" => {
-                                if let Some(window) = app.get_webview_window("main") {
+                                // 检查设置窗口是否已存在
+                                if let Some(window) = app.get_webview_window("settings") {
                                     let _ = window.show();
                                     let _ = window.set_focus();
                                 } else {
-                                    // 如果主窗口被销毁了，可能需要重新创建（视需求而定）
-                                    // 目前简单实现为：如果存在则显示
-                                    println!("[Tray] Main window not found");
+                                    // 创建新的设置窗口
+                                    let _ = WebviewWindowBuilder::new(
+                                        app,
+                                        "settings",
+                                        WebviewUrl::App("settings".into()),
+                                    )
+                                    .title("TrayBuddy Settings")
+                                    .inner_size(800.0, 700.0)
+                                    .resizable(false)
+                                    .build();
                                 }
                             }
                             _ => {}
@@ -888,10 +896,10 @@ pub fn run() {
                         } = event
                         {
                             let app = tray.app_handle();
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                            // if let Some(window) = app.get_webview_window("main") {
+                            //     let _ = window.show();
+                            //     let _ = window.set_focus();
+                            // }
                         }
                     });
 
