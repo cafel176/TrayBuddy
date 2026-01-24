@@ -106,8 +106,11 @@ pub const LOCATION_API_TIMEOUT_SECS: u64 = 10;
 // 定时触发器常量
 // ========================================================================= //
 
+/// 触发器最小触发间隔时间（秒），防止过于频繁的触发
+pub const MIN_TRIGGER_TIME_SECS: f32 = 300.0;
+
 /// 定时触发器检查间隔（秒）
-pub const TIMER_TRIGGER_CHECK_INTERVAL_SECS: u64 = 1;
+pub const TIMER_TRIGGER_CHECK_INTERVAL_SECS: u64 = MIN_TRIGGER_TIME_SECS as u64;
 
 // ========================================================================= //
 // 状态锁等待常量

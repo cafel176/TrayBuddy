@@ -197,7 +197,10 @@ pub struct StateInfo {
     pub next_state: String,
     /// 可触发的子状态列表
     pub can_trigger_states: Vec<String>,
-    /// 触发间隔时间（秒）
+    /// 触发间隔时间（秒），最小值为 300 秒（5 分钟）
+    /// 
+    /// - 设为 0 表示禁用定时触发
+    /// - 设为 > 0 但 < 300 的值会被自动修正为 300
     pub trigger_time: f32,
     /// 触发概率（0.0 - 1.0）
     pub trigger_rate: f32,
@@ -555,6 +558,37 @@ impl ModInfo {
             self.text_index.insert(lang.clone(), idx);
         }
     }
+
+    /// 验证并修正状态配置
+    /// 
+    /// 对所有状态的 trigger_time 进行检查：
+    /// - 如果 trigger_time > 0 且 < MIN_TRIGGER_TIME_SECS，则修正为 MIN_TRIGGER_TIME_SECS
+    /// - trigger_time = 0 表示禁用定时触发，不做修正
+    fn validate_and_fix_states(&mut self) {
+        use crate::modules::constants::MIN_TRIGGER_TIME_SECS;
+
+        // 修正 important_states 中的 trigger_time
+        for (name, state) in self.manifest.important_states.iter_mut() {
+            if state.trigger_time > 0.0 && state.trigger_time < MIN_TRIGGER_TIME_SECS {
+                eprintln!(
+                    "[ResourceManager] 警告: 状态 '{}' 的 trigger_time ({:.1}s) 小于最小值，已修正为 {:.0}s",
+                    name, state.trigger_time, MIN_TRIGGER_TIME_SECS
+                );
+                state.trigger_time = MIN_TRIGGER_TIME_SECS;
+            }
+        }
+
+        // 修正 states 中的 trigger_time
+        for state in self.manifest.states.iter_mut() {
+            if state.trigger_time > 0.0 && state.trigger_time < MIN_TRIGGER_TIME_SECS {
+                eprintln!(
+                    "[ResourceManager] 警告: 状态 '{}' 的 trigger_time ({:.1}s) 小于最小值，已修正为 {:.0}s",
+                    state.name, state.trigger_time, MIN_TRIGGER_TIME_SECS
+                );
+                state.trigger_time = MIN_TRIGGER_TIME_SECS;
+            }
+        }
+    }
     
     /// 根据名称查找状态（O(1) 查询）
     #[inline]
@@ -767,6 +801,9 @@ impl ResourceManager {
             audio_index: HashMap::new(),
             text_index: HashMap::new(),
         };
+        
+        // 验证并修正状态配置
+        mod_info.validate_and_fix_states();
         
         // 构建查询索引
         mod_info.build_indices();

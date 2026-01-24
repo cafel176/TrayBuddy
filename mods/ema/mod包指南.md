@@ -75,7 +75,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `time_start` / `time_end` | String | 有效时间区间 (格式：HH:MM，可选) |
 | `next_state` | String | 播放完成后自动跳转到的下一个状态名称 |
 | `can_trigger_states` | Array | 处于该状态下可能随机触发的子状态列表 |
-| `trigger_time` | Number | 随机触发的最小间隔时间 (秒) |
+| `trigger_time` | Number | 随机触发的最小间隔时间 (秒)，最小值为 300 秒，小于 300 会被自动修正为 300 |
 | `trigger_rate` | Number | 随机触发的概率 (0.0 - 1.0) |
 | `branch` | Array | 分支选项数组，用于交互式对话 |
 
