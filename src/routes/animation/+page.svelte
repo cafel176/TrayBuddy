@@ -190,6 +190,11 @@
    */
   async function init() {
     try {
+      // 默认启用窗口级鼠标穿透
+      await setClickThrough(true);
+      // 启动鼠标位置轮询
+      startCursorPolling();
+
       // 加载用户设置
       const settings: UserSettings = await invoke("get_settings");
       showCharacter = settings.show_character;
@@ -376,6 +381,7 @@
    * 处理气泡关闭事件
    */
   function handleBubbleClose() {
+    isBubbleVisible = false;
     bubbleComplete = true;
     checkComplete();
   }
@@ -418,8 +424,94 @@
   }
 
   // =========================================================================
-  // 鼠标交互
+  // 鼠标交互 & 窗口级穿透
   // =========================================================================
+
+  /** 气泡是否显示中 */
+  let isBubbleVisible = false;
+  
+  /** 当前穿透状态 */
+  let isClickThrough = true;
+  
+  /** 鼠标位置轮询定时器 */
+  let cursorPollTimer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * 设置窗口穿透状态
+   */
+  async function setClickThrough(ignore: boolean) {
+    if (isClickThrough === ignore) return;
+    try {
+      await invoke('set_ignore_cursor_events', { ignore });
+      isClickThrough = ignore;
+    } catch (e) {
+      console.error('[setClickThrough] Failed:', e);
+    }
+  }
+
+  /**
+   * 获取气泡的实际边界（相对于窗口）
+   * @returns 气泡边界 { left, top, right, bottom } 或 null
+   */
+  function getBubbleBounds(): { left: number; top: number; right: number; bottom: number } | null {
+    if (!isBubbleVisible) return null;
+    
+    // 查找气泡 wrapper 元素
+    const bubbleEl = document.querySelector('.bubble-wrapper');
+    if (!bubbleEl) return null;
+    
+    const rect = bubbleEl.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom
+    };
+  }
+
+  /**
+   * 启动鼠标位置轮询
+   * 定期检查鼠标是否在交互区域内：
+   * - 角色 Canvas 区域（始终需要交互）
+   * - 气泡实际区域（仅当气泡显示时，检测气泡的实际边界）
+   */
+  function startCursorPolling() {
+    stopCursorPolling();
+    cursorPollTimer = setInterval(async () => {
+      try {
+        // 获取气泡实际边界
+        const bubbleBounds = getBubbleBounds();
+        
+        // 检查鼠标是否在交互区域内
+        const inInteractArea = await invoke<boolean>('is_cursor_in_interact_area', { 
+          bubbleBounds: bubbleBounds
+        });
+        // 鼠标在交互区域内时禁用穿透，否则启用穿透
+        await setClickThrough(!inInteractArea);
+      } catch (e) {
+        // 出错时保持当前状态
+      }
+    }, 50); // 50ms 轮询间隔
+  }
+
+  /**
+   * 停止鼠标位置轮询
+   */
+  function stopCursorPolling() {
+    if (cursorPollTimer) {
+      clearInterval(cursorPollTimer);
+      cursorPollTimer = null;
+    }
+  }
+
+  /**
+   * 气泡显示事件处理
+   */
+  function handleBubbleShow() {
+    isBubbleVisible = true;
+    // 开始轮询
+    startCursorPolling();
+  }
 
   /**
    * 鼠标按下事件处理
@@ -479,6 +571,7 @@
 
   // 组件销毁时清理资源
   onDestroy(() => {
+    stopCursorPolling();
     characterAnimator?.destroy();
     borderAnimator?.destroy();
     audioManager?.destroy();
@@ -514,6 +607,7 @@
       bind:this={bubbleManager}
       on:branchSelect={handleBranchSelect}
       on:close={handleBubbleClose}
+      on:show={handleBubbleShow}
     />
   </div>
   
@@ -583,8 +677,8 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    pointer-events: none;  /* 允许点击穿透到下层 */
-    z-index: 0;  /* 最低层级，避免遮挡其他元素 */
+    pointer-events: none;  /* CSS 层面穿透（窗口级穿透由后端控制） */
+    z-index: 100;  /* 气泡层级高于 Canvas */
   }
 
   /* ----------------------------------------------------------------------- */

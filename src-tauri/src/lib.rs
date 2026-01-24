@@ -392,6 +392,137 @@ fn trigger_event(event_name: String, state: State<'_, AppState>) -> Result<bool,
 // 窗口和系统命令
 // ========================================================================= //
 
+/// 设置窗口鼠标穿透状态
+/// 
+/// 当 ignore 为 true 时，窗口不响应鼠标事件，鼠标可穿透到下层
+#[tauri::command]
+fn set_ignore_cursor_events(ignore: bool, app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("animation") {
+        window.set_ignore_cursor_events(ignore)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// 获取当前鼠标位置（屏幕坐标）
+#[tauri::command]
+fn get_cursor_position() -> Result<(i32, i32), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+        use windows::Win32::Foundation::POINT;
+        
+        let mut point = POINT { x: 0, y: 0 };
+        unsafe {
+            GetCursorPos(&mut point)
+                .map_err(|e| format!("GetCursorPos failed: {:?}", e))?;
+        }
+        Ok((point.x, point.y))
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("get_cursor_position not implemented for this platform".to_string())
+    }
+}
+
+/// 气泡边界（相对于窗口的坐标）
+#[derive(Debug, Clone, serde::Deserialize)]
+struct BubbleBounds {
+    left: f64,
+    top: f64,
+    right: f64,
+    bottom: f64,
+}
+
+/// 检查鼠标是否在交互区域内
+/// 
+/// 交互区域包括：
+/// - 角色 Canvas 区域（始终需要交互）
+/// - 气泡实际区域（由前端传入实际边界）
+/// 
+/// @param bubble_bounds 气泡的实际边界（相对于窗口），为 None 时表示气泡未显示
+/// @return true 表示鼠标在交互区域内，需要禁用穿透
+#[tauri::command]
+fn is_cursor_in_interact_area(bubble_bounds: Option<BubbleBounds>, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<bool, String> {
+    let storage = state.storage.lock().unwrap();
+    let scale = storage.data.settings.animation_scale as f64;
+    drop(storage);
+    
+    // 获取窗口位置和尺寸
+    let window = app.get_webview_window("animation")
+        .ok_or("Animation window not found")?;
+    
+    let position = window.outer_position()
+        .map_err(|e| e.to_string())?;
+    let scale_factor = window.scale_factor().unwrap_or(1.0);
+    
+    // 窗口物理坐标转换为逻辑坐标
+    let window_x = position.x as f64 / scale_factor;
+    let window_y = position.y as f64 / scale_factor;
+    
+    // 计算动画区域的高度（随缩放变化）
+    let animation_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_width = ANIMATION_AREA_WIDTH * scale;
+    
+    // 窗口宽度取气泡和动画区域的最大值
+    let window_width = BUBBLE_AREA_WIDTH.max(animation_width);
+    
+    // 角色 Canvas 区域边界（在气泡区域下方的动画区域内）
+    // Canvas 使用 CSS: left: 50%, top: 45%, transform: translate(-50%, -50%), height: 80%
+    let animation_area_top = window_y + BUBBLE_AREA_HEIGHT;
+    let canvas_height = animation_height * 0.8;
+    let canvas_width = canvas_height;  // 假设宽高比 1:1
+    let canvas_center_x = window_x + window_width / 2.0;
+    let canvas_center_y = animation_area_top + animation_height * 0.45;
+    let canvas_left = canvas_center_x - canvas_width / 2.0;
+    let canvas_right = canvas_center_x + canvas_width / 2.0;
+    let canvas_top = canvas_center_y - canvas_height / 2.0;
+    let canvas_bottom = canvas_center_y + canvas_height / 2.0;
+    
+    // 获取鼠标位置
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+        use windows::Win32::Foundation::POINT;
+        
+        let mut point = POINT { x: 0, y: 0 };
+        unsafe {
+            GetCursorPos(&mut point)
+                .map_err(|e| format!("GetCursorPos failed: {:?}", e))?;
+        }
+        
+        // 鼠标逻辑坐标
+        let cursor_x = point.x as f64 / scale_factor;
+        let cursor_y = point.y as f64 / scale_factor;
+        
+        // 检查鼠标是否在角色 Canvas 区域内（始终需要交互）
+        let in_canvas = cursor_x >= canvas_left && cursor_x <= canvas_right
+                     && cursor_y >= canvas_top && cursor_y <= canvas_bottom;
+        
+        // 检查鼠标是否在气泡实际区域内（前端传入实际边界）
+        let in_bubble = if let Some(bounds) = bubble_bounds {
+            // 将窗口相对坐标转换为屏幕坐标
+            let bubble_left = window_x + bounds.left;
+            let bubble_top = window_y + bounds.top;
+            let bubble_right = window_x + bounds.right;
+            let bubble_bottom = window_y + bounds.bottom;
+            
+            cursor_x >= bubble_left && cursor_x <= bubble_right
+                && cursor_y >= bubble_top && cursor_y <= bubble_bottom
+        } else {
+            false
+        };
+        
+        Ok(in_canvas || in_bubble)
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
 /// 设置动画缩放比例并调整窗口大小
 #[tauri::command]
 fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
@@ -616,6 +747,9 @@ pub fn run() {
             trigger_event,
             // 窗口和系统
             set_animation_scale,
+            set_ignore_cursor_events,
+            get_cursor_position,
+            is_cursor_in_interact_area,
             open_path,
         ])
         .run(tauri::generate_context!())
