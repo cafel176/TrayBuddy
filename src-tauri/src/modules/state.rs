@@ -459,21 +459,34 @@ impl StateManager {
 
     /// 基于时间戳的简单随机索引生成
     #[inline]
+    /// 生成 0 到 max-1 之间的真随机索引（使用系统 CSPRNG）
     fn random_index(max: usize) -> usize {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .subsec_nanos() as usize % max
+        let mut buf = [0u8; 8];
+        getrandom::getrandom(&mut buf).unwrap_or_else(|_| {
+            // 回退到时间戳（极少发生）
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos();
+            buf = nanos.to_le_bytes().repeat(2).try_into().unwrap_or([0; 8]);
+        });
+        usize::from_le_bytes(buf) % max
     }
 
-    /// 生成 0.0 到 1.0 之间的随机数
+    /// 生成 0.0 到 1.0 之间的真随机数（使用系统 CSPRNG）
     #[inline]
     fn random_float() -> f32 {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .subsec_nanos();
-        (nanos % 10000) as f32 / 10000.0
+        let mut buf = [0u8; 4];
+        getrandom::getrandom(&mut buf).unwrap_or_else(|_| {
+            // 回退到时间戳
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos();
+            buf = nanos.to_le_bytes();
+        });
+        let n = u32::from_le_bytes(buf);
+        (n % 10000) as f32 / 10000.0
     }
 
     // ========================================================================= //

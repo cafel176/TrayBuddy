@@ -31,7 +31,11 @@ use modules::constants::{
     ANIMATION_BORDER, STATE_IDLE,
     SHORT_TEXT_THRESHOLD, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_LINE, MAX_CHARS_PER_BUTTON,
 };
-use modules::environment::get_current_datetime;
+use modules::environment::{
+    get_current_datetime, get_time_period, get_current_season, 
+    DateTimeInfo, GeoLocation, WeatherInfo, EnvironmentManager,
+    init_environment, get_cached_location, get_cached_weather,
+};
 use modules::resource::{
     self, ResourceManager, StateInfo, TriggerInfo, AssetInfo, 
     AudioInfo, TextInfo, CharacterInfo, ModInfo
@@ -575,6 +579,59 @@ fn open_path(path: String) -> Result<(), String> {
 }
 
 // ========================================================================= //
+// 环境信息命令
+// ========================================================================= //
+
+/// 获取当前日期时间信息
+#[tauri::command]
+fn get_datetime_info() -> DateTimeInfo {
+    get_current_datetime()
+}
+
+/// 获取地理位置信息（优先使用全局缓存）
+#[tauri::command]
+fn get_location_info() -> Option<GeoLocation> {
+    // 优先返回全局缓存
+    if let Some(location) = get_cached_location() {
+        return Some(location);
+    }
+    // 如果缓存为空（初始化还未完成），触发获取
+    let mut manager = EnvironmentManager::new();
+    manager.get_location()
+}
+
+/// 刷新地理位置信息（强制重新从 API 获取）
+#[tauri::command]
+fn refresh_location_info() -> Option<GeoLocation> {
+    let mut manager = EnvironmentManager::new();
+    manager.refresh_location()
+}
+
+/// 获取当前季节
+#[tauri::command]
+fn get_season_info() -> String {
+    get_current_season().name().to_string()
+}
+
+/// 获取当前时间段
+#[tauri::command]
+fn get_time_period_info() -> String {
+    get_time_period().to_string()
+}
+
+/// 获取天气信息（优先使用全局缓存）
+#[tauri::command]
+fn get_weather_info() -> Option<WeatherInfo> {
+    // 优先返回全局缓存
+    if let Some(weather) = get_cached_weather() {
+        return Some(weather);
+    }
+    // 如果缓存为空，触发获取
+    let mut manager = EnvironmentManager::new();
+    manager.get_weather()
+}
+
+// ========================================================================= //
 // 应用入口
 // ========================================================================= //
 
@@ -678,6 +735,12 @@ pub fn run() {
             // 启动媒体监听器
             start_media_observer(app.handle().clone());
 
+            // 在后台线程初始化环境信息（地理位置和天气）
+            let app_handle_env = app.handle().clone();
+            std::thread::spawn(move || {
+                init_environment(Some(app_handle_env));
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -751,6 +814,13 @@ pub fn run() {
             get_cursor_position,
             is_cursor_in_interact_area,
             open_path,
+            // 环境信息
+            get_datetime_info,
+            get_location_info,
+            refresh_location_info,
+            get_season_info,
+            get_time_period_info,
+            get_weather_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
