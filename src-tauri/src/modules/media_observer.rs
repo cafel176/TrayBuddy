@@ -7,7 +7,9 @@
 #![allow(unused)]
 
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tokio::sync::mpsc;
+use serde::Serialize;
 
 // ========================================================================= //
 // 全局缓存
@@ -15,6 +17,12 @@ use tokio::sync::mpsc;
 
 /// 缓存的媒体状态
 static CACHED_MEDIA_STATE: Mutex<Option<MediaStateEvent>> = Mutex::new(None);
+
+/// 缓存的调试信息
+static CACHED_DEBUG_INFO: Mutex<Option<MediaDebugInfo>> = Mutex::new(None);
+
+/// 观察者启动时间
+static OBSERVER_START_TIME: Mutex<Option<Instant>> = Mutex::new(None);
 
 /// 获取缓存的媒体状态
 pub fn get_cached_media_state() -> Option<MediaStateEvent> {
@@ -28,10 +36,24 @@ fn update_cached_media_state(event: &MediaStateEvent) {
     }
 }
 
+/// 获取缓存的调试信息
+pub fn get_cached_debug_info() -> Option<MediaDebugInfo> {
+    CACHED_DEBUG_INFO.lock().ok().and_then(|guard| guard.clone())
+}
+
+/// 更新缓存的调试信息
+fn update_cached_debug_info(info: MediaDebugInfo) {
+    if let Ok(mut guard) = CACHED_DEBUG_INFO.lock() {
+        *guard = Some(info);
+    }
+}
+
+// ========================================================================= //
+// 类型定义
 // ========================================================================= //
 
 /// 媒体播放状态
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum MediaPlaybackStatus {
     /// 正在播放
     Playing,
@@ -44,13 +66,70 @@ pub enum MediaPlaybackStatus {
 }
 
 /// 媒体状态变更事件
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MediaStateEvent {
     pub status: MediaPlaybackStatus,
     pub title: Option<String>,
     pub artist: Option<String>,
     /// 播放应用的进程名/App ID
     pub app_id: Option<String>,
+}
+
+/// GSMTC 会话信息（调试用）
+#[derive(Debug, Clone, Serialize)]
+pub struct GsmtcSessionInfo {
+    /// 应用 ID
+    pub app_id: String,
+    /// 播放状态
+    pub status: String,
+    /// 标题
+    pub title: Option<String>,
+    /// 艺术家
+    pub artist: Option<String>,
+    /// 是否被识别为音乐应用
+    pub is_music_app: bool,
+}
+
+/// Core Audio 会话信息（调试用）
+#[derive(Debug, Clone, Serialize)]
+pub struct CoreAudioSessionInfo {
+    /// 进程 ID
+    pub pid: u32,
+    /// 进程名
+    pub process_name: String,
+    /// 会话状态
+    pub session_state: String,
+    /// 音量峰值
+    pub peak_value: f32,
+    /// 是否被识别为音乐应用
+    pub is_music_app: bool,
+    /// 是否正在播放（峰值 > 阈值）
+    pub is_playing: bool,
+}
+
+/// 媒体调试信息
+#[derive(Debug, Clone, Serialize)]
+pub struct MediaDebugInfo {
+    /// 观察者是否运行中
+    pub observer_running: bool,
+    /// 运行时间（秒）
+    pub uptime_secs: u64,
+    /// 最后检查时间
+    pub last_check_time: String,
+    /// GSMTC 是否可用
+    pub gsmtc_available: bool,
+    /// Core Audio 是否可用
+    pub core_audio_available: bool,
+    /// GSMTC 会话列表
+    pub gsmtc_sessions: Vec<GsmtcSessionInfo>,
+    /// Core Audio 会话列表
+    pub core_audio_sessions: Vec<CoreAudioSessionInfo>,
+    /// 当前综合状态
+    pub combined_state: MediaStateEvent,
+    /// 状态来源
+    pub state_source: String,
+    /// 已注册的 GSMTC 事件数量
+    pub registered_session_events: usize,
 }
 
 // ========================================================================= //
@@ -107,6 +186,7 @@ impl MediaObserver {
         let music_keywords = [
             "music",        // 通用：Apple Music, Windows Media Player 等
             "音乐",         // 中文音乐应用
+            "player",       // 通用播放器：PotPlayer, MPC-HC Player 等
             "spotify",      // Spotify
             "qqmusic",      // QQ音乐
             "kugou",        // 酷狗音乐
@@ -114,13 +194,15 @@ impl MediaObserver {
             "foobar",       // foobar2000
             "aimp",         // AIMP
             "winamp",       // Winamp
-            "potplayer",    // PotPlayer
             "vlc",          // VLC
             "musicbee",     // MusicBee
             "groove",       // Groove Music
             "itunes",       // iTunes
             "netease",      // 网易云音乐 (NetEase Cloud Music)
             "cloudmusic",   // 网易云音乐进程名
+            "mpv",          // mpv 播放器
+            "mpc-hc",       // Media Player Classic
+            "wmplayer",     // Windows Media Player
         ];
         
         // 检查关键字（支持带空格的名称如 "cloud music"）
@@ -151,11 +233,17 @@ impl MediaObserver {
             SessionsChangedEventArgs,
         };
 
+        // 记录启动时间
+        if let Ok(mut guard) = OBSERVER_START_TIME.lock() {
+            *guard = Some(Instant::now());
+        }
+
         // 启动延迟：等待应用初始化和 login 事件完成
         tokio::time::sleep(tokio::time::Duration::from_secs(MEDIA_OBSERVER_STARTUP_DELAY_SECS)).await;
 
         // 初始化 COM（Core Audio 需要）
-        if !Self::init_com() {
+        let com_initialized = Self::init_com();
+        if !com_initialized {
             eprintln!("[MediaObserver] COM 初始化失败");
             return;
         }
@@ -195,7 +283,18 @@ impl MediaObserver {
         }
 
         // 获取初始状态并发送
-        let initial_event = Self::get_combined_media_state(gsmtc_manager.as_ref());
+        let (initial_event, initial_source) = Self::get_combined_media_state_with_source(gsmtc_manager.as_ref());
+        
+        // 更新初始调试信息
+        Self::update_debug_info(
+            &running,
+            gsmtc_manager.as_ref(),
+            com_initialized,
+            &session_tokens,
+            &initial_event,
+            &initial_source,
+        );
+
         if initial_event.status == MediaPlaybackStatus::Playing {
             // 延迟发送初始 Playing 状态，让 login 事件先完成
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -228,7 +327,17 @@ impl MediaObserver {
             }
 
             // 获取当前状态（混合 GSMTC + Core Audio）
-            let current_event = Self::get_combined_media_state(gsmtc_manager.as_ref());
+            let (current_event, state_source) = Self::get_combined_media_state_with_source(gsmtc_manager.as_ref());
+
+            // 更新调试信息
+            Self::update_debug_info(
+                &running,
+                gsmtc_manager.as_ref(),
+                com_initialized,
+                &session_tokens,
+                &current_event,
+                &state_source,
+            );
 
             // 检查是否有变化
             let mut state_guard = state.lock().unwrap();
@@ -279,6 +388,14 @@ impl MediaObserver {
     fn get_combined_media_state(
         gsmtc_manager: Option<&windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager>,
     ) -> MediaStateEvent {
+        Self::get_combined_media_state_with_source(gsmtc_manager).0
+    }
+
+    /// 获取混合媒体状态，同时返回来源信息（调试用）
+    #[cfg(windows)]
+    fn get_combined_media_state_with_source(
+        gsmtc_manager: Option<&windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager>,
+    ) -> (MediaStateEvent, String) {
         // 从 GSMTC 获取状态（有元数据）
         let gsmtc_event = gsmtc_manager.map(Self::get_gsmtc_media_state);
         
@@ -294,7 +411,7 @@ impl MediaObserver {
         // 检查 GSMTC 播放状态
         if let Some(ref event) = gsmtc_event {
             if event.status == MediaPlaybackStatus::Playing {
-                return event.clone();
+                return (event.clone(), "GSMTC (Playing)".to_string());
             }
         }
 
@@ -304,22 +421,22 @@ impl MediaObserver {
                 // 尝试从 GSMTC 补充元数据
                 if let Some(ref gsmtc) = gsmtc_event {
                     if gsmtc.title.is_some() || gsmtc.artist.is_some() {
-                        return MediaStateEvent {
+                        return (MediaStateEvent {
                             status: MediaPlaybackStatus::Playing,
                             title: gsmtc.title.clone(),
                             artist: gsmtc.artist.clone(),
                             app_id: event.app_id.clone(),
-                        };
+                        }, "Core Audio + GSMTC metadata".to_string());
                     }
                 }
-                return event.clone();
+                return (event.clone(), "Core Audio".to_string());
             }
         }
 
         // 如果 GSMTC 检测到暂停状态，返回暂停
         if let Some(ref event) = gsmtc_event {
             if event.status == MediaPlaybackStatus::Paused {
-                return event.clone();
+                return (event.clone(), "GSMTC (Paused)".to_string());
             }
         }
 
@@ -329,12 +446,198 @@ impl MediaObserver {
             .and_then(|e| e.app_id.clone())
             .or_else(|| core_audio_event.as_ref().and_then(|e| e.app_id.clone()));
 
-        MediaStateEvent {
+        (MediaStateEvent {
             status: MediaPlaybackStatus::Stopped,
             title: None,
             artist: None,
             app_id: last_app_id,
+        }, "None (Stopped)".to_string())
+    }
+
+    /// 更新调试信息
+    #[cfg(windows)]
+    fn update_debug_info(
+        running: &Arc<std::sync::atomic::AtomicBool>,
+        gsmtc_manager: Option<&windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager>,
+        core_audio_available: bool,
+        session_tokens: &Arc<Mutex<Vec<SessionEventTokens>>>,
+        combined_state: &MediaStateEvent,
+        state_source: &str,
+    ) {
+        use std::sync::atomic::Ordering;
+        use chrono::Local;
+
+        let uptime_secs = OBSERVER_START_TIME.lock()
+            .ok()
+            .and_then(|guard| guard.as_ref().map(|t| t.elapsed().as_secs()))
+            .unwrap_or(0);
+
+        let registered_events = session_tokens.lock()
+            .map(|tokens| tokens.len())
+            .unwrap_or(0);
+
+        let gsmtc_sessions = gsmtc_manager
+            .map(Self::collect_gsmtc_sessions)
+            .unwrap_or_default();
+
+        let core_audio_sessions = Self::collect_core_audio_sessions();
+
+        let debug_info = MediaDebugInfo {
+            observer_running: running.load(Ordering::SeqCst),
+            uptime_secs,
+            last_check_time: Local::now().format("%H:%M:%S").to_string(),
+            gsmtc_available: gsmtc_manager.is_some(),
+            core_audio_available,
+            gsmtc_sessions,
+            core_audio_sessions,
+            combined_state: combined_state.clone(),
+            state_source: state_source.to_string(),
+            registered_session_events: registered_events,
+        };
+
+        update_cached_debug_info(debug_info);
+    }
+
+    /// 收集 GSMTC 会话信息（调试用）
+    #[cfg(windows)]
+    fn collect_gsmtc_sessions(
+        manager: &windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager,
+    ) -> Vec<GsmtcSessionInfo> {
+        use windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus;
+
+        let mut sessions = Vec::new();
+
+        if let Ok(session_list) = manager.GetSessions() {
+            for i in 0..session_list.Size().unwrap_or(0) {
+                if let Ok(session) = session_list.GetAt(i) {
+                    let app_id = session.SourceAppUserModelId()
+                        .ok()
+                        .map(|s| s.to_string_lossy())
+                        .unwrap_or_default();
+
+                    let status = if let Ok(playback_info) = session.GetPlaybackInfo() {
+                        match playback_info.PlaybackStatus() {
+                            Ok(s) => match s {
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => "Playing",
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => "Paused",
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => "Stopped",
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => "Closed",
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => "Opened",
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => "Changing",
+                                _ => "Unknown",
+                            },
+                            Err(_) => "Error",
+                        }
+                    } else {
+                        "NoInfo"
+                    };
+
+                    let (title, artist) = Self::get_media_properties(&session);
+                    let is_music_app = Self::is_music_app(&app_id);
+
+                    sessions.push(GsmtcSessionInfo {
+                        app_id,
+                        status: status.to_string(),
+                        title,
+                        artist,
+                        is_music_app,
+                    });
+                }
+            }
         }
+
+        sessions
+    }
+
+    /// 收集 Core Audio 会话信息（调试用）
+    #[cfg(windows)]
+    fn collect_core_audio_sessions() -> Vec<CoreAudioSessionInfo> {
+        use windows::Win32::Media::Audio::{
+            eRender, eMultimedia,
+            IMMDeviceEnumerator, MMDeviceEnumerator,
+            IAudioSessionManager2, IAudioSessionEnumerator,
+            AudioSessionStateActive, AudioSessionStateInactive, AudioSessionStateExpired,
+        };
+        use windows::Win32::Media::Audio::Endpoints::IAudioMeterInformation;
+        use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
+        use windows::core::Interface;
+
+        let mut sessions = Vec::new();
+
+        unsafe {
+            // 创建设备枚举器
+            let enumerator: Result<IMMDeviceEnumerator, _> = CoCreateInstance(
+                &MMDeviceEnumerator,
+                None,
+                CLSCTX_ALL,
+            );
+            let enumerator = match enumerator {
+                Ok(e) => e,
+                Err(_) => return sessions,
+            };
+
+            // 获取默认音频输出设备
+            let device = match enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia) {
+                Ok(d) => d,
+                Err(_) => return sessions,
+            };
+
+            // 获取音频会话管理器
+            let session_manager: Result<IAudioSessionManager2, _> = device.Activate(CLSCTX_ALL, None);
+            let session_manager = match session_manager {
+                Ok(m) => m,
+                Err(_) => return sessions,
+            };
+
+            // 获取会话枚举器
+            let session_enumerator: Result<IAudioSessionEnumerator, _> = session_manager.GetSessionEnumerator();
+            let session_enumerator = match session_enumerator {
+                Ok(e) => e,
+                Err(_) => return sessions,
+            };
+
+            let count = session_enumerator.GetCount().unwrap_or(0);
+
+            for i in 0..count {
+                if let Ok(session_control) = session_enumerator.GetSession(i) {
+                    let session_state = session_control.GetState()
+                        .map(|s| {
+                            if s == AudioSessionStateActive { "Active" }
+                            else if s == AudioSessionStateInactive { "Inactive" }
+                            else if s == AudioSessionStateExpired { "Expired" }
+                            else { "Unknown" }
+                        })
+                        .unwrap_or("Error");
+
+                    if let Ok(session_control2) = session_control.cast::<windows::Win32::Media::Audio::IAudioSessionControl2>() {
+                        let pid = session_control2.GetProcessId().unwrap_or(0);
+                        
+                        if pid > 0 {
+                            let process_name = Self::get_process_name(pid).unwrap_or_else(|| format!("PID:{}", pid));
+                            
+                            let peak_value = session_control.cast::<IAudioMeterInformation>()
+                                .ok()
+                                .and_then(|meter| meter.GetPeakValue().ok())
+                                .unwrap_or(0.0);
+
+                            let is_music_app = Self::is_music_app(&process_name);
+                            let is_playing = peak_value > 0.001;
+
+                            sessions.push(CoreAudioSessionInfo {
+                                pid,
+                                process_name,
+                                session_state: session_state.to_string(),
+                                peak_value,
+                                is_music_app,
+                                is_playing,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        sessions
     }
 
     /// 从 Core Audio API 获取正在播放音频的音乐应用

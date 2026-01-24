@@ -5,7 +5,7 @@
 
 功能概述:
 - 应用的主调试页面，提供 Tab 导航界面
-- 集成多个调试组件：资源管理、状态管理、触发器、环境信息、用户设置、运行状态
+- 集成多个调试组件：资源管理、状态管理、触发器、环境信息、媒体监听、用户设置、运行状态
 - 使用 Svelte 5 的 $state 响应式状态管理 Tab 切换
 
 组件结构:
@@ -13,6 +13,7 @@
 ├── StateDebugger          - 状态管理调试器
 ├── TriggerDebugger        - 触发器调试器
 ├── EnvironmentDebugger    - 环境信息调试器
+├── MediaDebugger          - 媒体监听调试器
 ├── Settings               - 用户设置面板
 └── InfoDebugger           - 运行状态信息
 =========================================================================
@@ -27,6 +28,7 @@
   import StateDebugger from "$lib/components/StateDebugger.svelte";
   import TriggerDebugger from "$lib/components/TriggerDebugger.svelte";
   import EnvironmentDebugger from "$lib/components/EnvironmentDebugger.svelte";
+  import MediaDebugger from "$lib/components/MediaDebugger.svelte";
   import Settings from "$lib/components/Settings.svelte";
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
 
@@ -49,6 +51,7 @@
     <button class:active={activeTab === 'state'} onclick={() => activeTab = "state"}>状态管理</button>
     <button class:active={activeTab === 'trigger'} onclick={() => activeTab = "trigger"}>触发器</button>
     <button class:active={activeTab === 'environment'} onclick={() => activeTab = "environment"}>环境</button>
+    <button class:active={activeTab === 'media'} onclick={() => activeTab = "media"}>媒体监听</button>
     <button class:active={activeTab === 'settings'} onclick={() => activeTab = "settings"}>用户设置</button>
     <button class:active={activeTab === 'info'} onclick={() => activeTab = "info"}>运行状态</button>
   </div>
@@ -63,6 +66,8 @@
       <TriggerDebugger/>
     {:else if activeTab === 'environment'}
       <EnvironmentDebugger/>
+    {:else if activeTab === 'media'}
+      <MediaDebugger/>
     {:else if activeTab === 'settings'}
       <Settings/>
     {:else if activeTab === 'info'}

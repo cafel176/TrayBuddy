@@ -42,7 +42,7 @@ use modules::resource::{
 };
 use modules::state::StateManager;
 use modules::storage::{Storage, UserSettings, UserInfo};
-use modules::media_observer::{MediaObserver, MediaPlaybackStatus};
+use modules::media_observer::{MediaObserver, MediaPlaybackStatus, MediaDebugInfo, get_cached_debug_info};
 use modules::trigger::TriggerManager;
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State, WebviewWindowBuilder, WebviewUrl, LogicalSize, LogicalPosition, Emitter};
@@ -632,6 +632,16 @@ fn get_weather_info() -> Option<WeatherInfo> {
 }
 
 // ========================================================================= //
+// 媒体调试命令
+// ========================================================================= //
+
+/// 获取媒体调试信息
+#[tauri::command]
+fn get_media_debug_info() -> Option<MediaDebugInfo> {
+    get_cached_debug_info()
+}
+
+// ========================================================================= //
 // 应用入口
 // ========================================================================= //
 
@@ -821,6 +831,8 @@ pub fn run() {
             get_season_info,
             get_time_period_info,
             get_weather_info,
+            // 媒体调试
+            get_media_debug_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
