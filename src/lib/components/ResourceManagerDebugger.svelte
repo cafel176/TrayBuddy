@@ -28,6 +28,7 @@
   import { convertFileSrc } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
   import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
+  import { t, onLangChange } from "$lib/i18n";
 
   // ======================================================================= //
   // 类型定义
@@ -134,9 +135,19 @@
   let searchPaths: string[] = $state([]);
   let mods: string[] = $state([]);
   let selectedMod = $state("");
-  let statusMsg = $state("等待操作...");
+  let statusMsg = $state(t("resource.statusWaiting"));
   let currentModInfo = $state<ModInfo | null>(null);
   let loading = $state(false);
+
+  // i18n 响应式版本号
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+
+  // 响应式翻译函数
+  function _(key: string, params?: Record<string, string | number>): string {
+    void _langVersion;
+    return t(key, params);
+  }
 
   // 图片查看器状态
   let viewerVisible = $state(false);
@@ -160,33 +171,33 @@
       if (info) {
         currentModInfo = info;
         selectedMod = info.path.split(/[\\/]/).pop() || "";
-        statusMsg = `当前已加载: ${info.manifest.id}`;
+        statusMsg = _("resource.statusCurrentLoaded") + " " + info.manifest.id;
       } else {
-        statusMsg = `已刷新 Mod 列表，共 ${mods.length} 个`;
+        statusMsg = _("resource.statusRefreshed", { count: mods.length });
         if (mods.length > 0 && !selectedMod) {
           selectedMod = mods[0];
         }
       }
     } catch (e) {
-      statusMsg = `刷新失败: ${e}`;
+      statusMsg = _("resource.statusRefreshFailed") + " " + e;
     }
   }
 
   async function loadSelectedMod() {
     if (!selectedMod) {
-      statusMsg = "请先选择一个 Mod";
+      statusMsg = _("resource.statusSelectMod");
       return;
     }
     loading = true;
-    statusMsg = `正在加载 ${selectedMod}...`;
+    statusMsg = _("resource.statusLoading");
     try {
       const info = await invoke("load_mod", { modName: selectedMod }) as ModInfo;
       currentModInfo = info;
-      statusMsg = `加载成功: ${info.manifest.id} (v${info.manifest.version})`;
+      statusMsg = _("resource.statusLoadSuccess") + " " + info.manifest.id + " (v" + info.manifest.version + ")";
       // 重新加载气泡样式
       await loadBubbleStyle();
     } catch (e) {
-      statusMsg = `加载失败: ${e}`;
+      statusMsg = _("resource.statusLoadFailed") + " " + e;
       currentModInfo = null;
     } finally {
       loading = false;
@@ -197,13 +208,13 @@
     try {
       const success = await invoke("unload_mod");
       if (success) {
-        statusMsg = "Mod 已卸载";
+        statusMsg = _("resource.statusUnloaded");
         currentModInfo = null;
       } else {
-        statusMsg = "当前没有加载的 Mod";
+        statusMsg = _("resource.statusNoMod");
       }
     } catch (e) {
-      statusMsg = `卸载失败: ${e}`;
+      statusMsg = _("resource.statusUnloadFailed") + " " + e;
     }
   }
 
@@ -213,7 +224,7 @@
       const fullPath = `${currentModInfo.path}/${relativePath}`.replace(/\//g, '\\');
       await invoke("open_path", { path: fullPath });
     } catch (e) {
-      statusMsg = `打开文件失败: ${e}`;
+      statusMsg = _("resource.statusOpenFailed") + " " + e;
     }
   }
 
@@ -268,7 +279,7 @@
     };
     
     currentAudio.onerror = () => {
-      statusMsg = `播放失败: ${audioName}`;
+      statusMsg = _("resource.statusPlayFailed") + " " + audioName;
       playingAudioName = null;
       currentAudio = null;
     };
@@ -326,10 +337,14 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(refreshMods);
+  onMount(() => {
+    refreshMods();
+    unsubLang = onLangChange(() => { _langVersion++; });
+  });
 
   onDestroy(() => {
     stopAudio();
+    unsubLang?.();
   });
 </script>
 
@@ -338,11 +353,11 @@
 <!-- ======================================================================= -->
 
 <div class="debug-panel">
-  <h3>ResourceManager 调试面板</h3>
+  <h3>{_("resource.title")}</h3>
   
   <!-- 搜索路径信息 -->
   <div class="path-info">
-    <strong>搜索路径:</strong>
+    <strong>{_("resource.searchPaths")}</strong>
     {#each searchPaths as path}
       <div class="path-item">{path}</div>
     {/each}
@@ -351,17 +366,17 @@
   <!-- Mod 选择和操作控制区 -->
   <div class="controls">
     <div class="section">
-      <label for="mod-select">可选 Mod 列表:</label>
+      <label for="mod-select">{_("resource.availableMods")}</label>
       <select id="mod-select" bind:value={selectedMod}>
         {#each mods as mod}
           <option value={mod}>{mod}</option>
         {/each}
       </select>
-      <button onclick={refreshMods} disabled={loading}>刷新列表</button>
+      <button onclick={refreshMods} disabled={loading}>{_("common.refresh")}</button>
     </div>
 
     <div class="actions">
-      <button class="primary" onclick={loadSelectedMod} disabled={loading || !selectedMod}>加载 Mod</button>
+      <button class="primary" onclick={loadSelectedMod} disabled={loading || !selectedMod}>{_("resource.loadMod")}</button>
     </div>
   </div>
 
@@ -381,27 +396,27 @@
       <div class="stats-bar">
         <div class="stat-item">
           <span class="stat-value">{getTotalStates()}</span>
-          <span class="stat-label">状态</span>
+          <span class="stat-label">{_("resource.statStates")}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value">{currentModInfo.manifest.triggers.length}</span>
-          <span class="stat-label">触发器</span>
+          <span class="stat-label">{_("resource.statTriggers")}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value">{currentModInfo.imgs.length}</span>
-          <span class="stat-label">静态图</span>
+          <span class="stat-label">{_("resource.statImages")}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value">{currentModInfo.sequences.length}</span>
-          <span class="stat-label">动画</span>
+          <span class="stat-label">{_("resource.statAnimations")}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value">{getTotalAudios()}</span>
-          <span class="stat-label">音频</span>
+          <span class="stat-label">{_("resource.statAudios")}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value">{getTotalTexts()}</span>
-          <span class="stat-label">文本</span>
+          <span class="stat-label">{_("resource.statTexts")}</span>
         </div>
       </div>
       
@@ -409,32 +424,32 @@
         
         <!-- 基本信息 (Manifest) -->
         <details open>
-          <summary>基本信息 (Manifest)</summary>
+          <summary>{_("resource.basicInfo")}</summary>
           <div class="tab-content">
             <div class="info-grid">
               <div class="info-row">
-                <span class="info-label">ID</span>
+                <span class="info-label">{_("resource.id")}</span>
                 <span class="info-value">{currentModInfo.manifest.id}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">版本</span>
+                <span class="info-label">{_("resource.version")}</span>
                 <span class="info-value">{currentModInfo.manifest.version}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">作者</span>
+                <span class="info-label">{_("resource.author")}</span>
                 <span class="info-value">{currentModInfo.manifest.author}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">默认语音</span>
+                <span class="info-label">{_("resource.defaultAudio")}</span>
                 <span class="info-value">{currentModInfo.manifest.default_audio_lang_id}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">默认文本</span>
+                <span class="info-label">{_("resource.defaultText")}</span>
                 <span class="info-value">{currentModInfo.manifest.default_text_lang_id}</span>
               </div>
             </div>
 
-            <h5>角色配置</h5>
+            <h5>{_("resource.characterConfig")}</h5>
             <div class="info-grid compact">
               <div class="info-row">
                 <span class="info-label">z_offset</span>
@@ -442,15 +457,15 @@
               </div>
             </div>
 
-            <h5>边框配置</h5>
+            <h5>{_("resource.borderConfig")}</h5>
             <div class="info-grid compact">
               <div class="info-row">
-                <span class="info-label">启用</span>
-                <span class="info-value">{currentModInfo.manifest.border.enable ? '是' : '否'}</span>
+                <span class="info-label">{_("resource.enable")}</span>
+                <span class="info-value">{currentModInfo.manifest.border.enable ? _("common.yes") : _("common.no")}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">动画</span>
-                <span class="info-value">{currentModInfo.manifest.border.anima || '(未设置)'}</span>
+                <span class="info-label">{_("resource.animation")}</span>
+                <span class="info-value">{currentModInfo.manifest.border.anima || _("resource.notSet")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">z_offset</span>
@@ -462,7 +477,7 @@
 
         <!-- 角色信息 (多语言) -->
         <details>
-          <summary>角色信息 ({Object.keys(currentModInfo.info).length} 语言)</summary>
+          <summary>{_("resource.characterInfo", { lang: Object.keys(currentModInfo.info).length })}</summary>
           <div class="tab-content">
             <div class="lang-cards">
               {#each Object.entries(currentModInfo.info) as [lang, info]}
@@ -471,7 +486,7 @@
                   <div class="lang-info">
                     <div class="char-name">{info.name}</div>
                     <div class="char-meta">
-                      <span>语言: {info.lang}</span>
+                      <span>{_("resource.langLabel")} {info.lang}</span>
                       <span>ID: {info.id}</span>
                     </div>
                     {#if info.description}
@@ -486,40 +501,40 @@
 
         <!-- 核心状态 -->
         <details>
-          <summary>核心状态 ({Object.keys(currentModInfo.manifest.important_states).length})</summary>
+          <summary>{_("resource.coreStates")} ({Object.keys(currentModInfo.manifest.important_states).length})</summary>
           <div class="tab-content">
             {#if getImportantStatesByPersistence().persistent.length > 0}
               <details class="state-category" open>
                 <summary class="category-summary persistent-cat">
-                  持久状态 ({getImportantStatesByPersistence().persistent.length})
+                  {_("resource.persistentStates")} ({getImportantStatesByPersistence().persistent.length})
                 </summary>
                 <div class="state-list">
                   {#each getImportantStatesByPersistence().persistent as [name, state]}
                     <div class="state-card persistent">
                       <div class="state-header">
                         <span class="state-name">{name}</span>
-                        <span class="badge persistent">持久</span>
+                        <span class="badge persistent">{_("resource.persistent")}</span>
                         {#if state.priority > 0}
-                          <span class="badge priority">优先级 {state.priority}</span>
+                          <span class="badge priority">{_("resource.priority")} {state.priority}</span>
                         {/if}
                       </div>
                       <div class="state-detail">
-                        {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
-                        {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
-                        {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
-                        {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                        {#if state.anima}<div class="detail-item"><span class="detail-label">{_("resource.animationLabel")}</span> {state.anima}</div>{/if}
+                        {#if state.audio}<div class="detail-item"><span class="detail-label">{_("resource.audioLabel")}</span> {state.audio}</div>{/if}
+                        {#if state.text}<div class="detail-item"><span class="detail-label">{_("resource.textLabel")}</span> {state.text}</div>{/if}
+                        {#if state.next_state}<div class="detail-item"><span class="detail-label">{_("resource.nextLabel")}</span> {state.next_state}</div>{/if}
                         {#if state.date_start || state.date_end}
-                          <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                          <div class="detail-item"><span class="detail-label">{_("resource.dateLabel")}</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
                         {/if}
                         {#if state.time_start || state.time_end}
-                          <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                          <div class="detail-item"><span class="detail-label">{_("resource.timeLabel")}</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
                         {/if}
                         {#if state.trigger_time > 0}
-                          <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                          <div class="detail-item"><span class="detail-label">{_("resource.timerLabel")}</span> {_("resource.timerDesc", { interval: state.trigger_time, chance: (state.trigger_rate * 100).toFixed(0) })}</div>
                         {/if}
                         {#if state.can_trigger_states && state.can_trigger_states.length > 0}
                           <div class="detail-item">
-                            <span class="detail-label">可触发:</span>
+                            <span class="detail-label">{_("resource.triggerable")}</span>
                             <div class="tag-list">
                               {#each state.can_trigger_states as s}
                                 <span class="tag state-tag">{s}</span>
@@ -529,7 +544,7 @@
                         {/if}
                         {#if state.branch && state.branch.length > 0}
                           <div class="detail-item">
-                            <span class="detail-label">分支:</span>
+                            <span class="detail-label">{_("resource.branchLabel")}</span>
                             <div class="branch-list">
                               {#each state.branch as b}
                                 <div class="branch-item">
@@ -550,7 +565,7 @@
             {#if getImportantStatesByPersistence().nonPersistent.length > 0}
               <details class="state-category" open>
                 <summary class="category-summary non-persistent-cat">
-                  非持久状态 ({getImportantStatesByPersistence().nonPersistent.length})
+                  {_("resource.nonPersistentStates")} ({getImportantStatesByPersistence().nonPersistent.length})
                 </summary>
                 <div class="state-list">
                   {#each getImportantStatesByPersistence().nonPersistent as [name, state]}
@@ -558,26 +573,26 @@
                       <div class="state-header">
                         <span class="state-name">{name}</span>
                         {#if state.priority > 0}
-                          <span class="badge priority">优先级 {state.priority}</span>
+                          <span class="badge priority">{_("resource.priority")} {state.priority}</span>
                         {/if}
                       </div>
                       <div class="state-detail">
-                        {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
-                        {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
-                        {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
-                        {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                        {#if state.anima}<div class="detail-item"><span class="detail-label">{_("resource.animationLabel")}</span> {state.anima}</div>{/if}
+                        {#if state.audio}<div class="detail-item"><span class="detail-label">{_("resource.audioLabel")}</span> {state.audio}</div>{/if}
+                        {#if state.text}<div class="detail-item"><span class="detail-label">{_("resource.textLabel")}</span> {state.text}</div>{/if}
+                        {#if state.next_state}<div class="detail-item"><span class="detail-label">{_("resource.nextLabel")}</span> {state.next_state}</div>{/if}
                         {#if state.date_start || state.date_end}
-                          <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                          <div class="detail-item"><span class="detail-label">{_("resource.dateLabel")}</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
                         {/if}
                         {#if state.time_start || state.time_end}
-                          <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                          <div class="detail-item"><span class="detail-label">{_("resource.timeLabel")}</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
                         {/if}
                         {#if state.trigger_time > 0}
-                          <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                          <div class="detail-item"><span class="detail-label">{_("resource.timerLabel")}</span> {_("resource.timerDesc", { interval: state.trigger_time, chance: (state.trigger_rate * 100).toFixed(0) })}</div>
                         {/if}
                         {#if state.can_trigger_states && state.can_trigger_states.length > 0}
                           <div class="detail-item">
-                            <span class="detail-label">可触发:</span>
+                            <span class="detail-label">{_("resource.triggerable")}</span>
                             <div class="tag-list">
                               {#each state.can_trigger_states as s}
                                 <span class="tag state-tag">{s}</span>
@@ -587,7 +602,7 @@
                         {/if}
                         {#if state.branch && state.branch.length > 0}
                           <div class="detail-item">
-                            <span class="detail-label">分支:</span>
+                            <span class="detail-label">{_("resource.branchLabel")}</span>
                             <div class="branch-list">
                               {#each state.branch as b}
                                 <div class="branch-item">
@@ -611,40 +626,40 @@
         <!-- 其他状态 -->
         {#if currentModInfo.manifest.states.length > 0}
           <details>
-            <summary>其他状态 ({currentModInfo.manifest.states.length})</summary>
+            <summary>{_("resource.otherStates")} ({currentModInfo.manifest.states.length})</summary>
             <div class="tab-content">
               {#if getOtherStatesByPersistence().persistent.length > 0}
                 <details class="state-category" open>
                   <summary class="category-summary persistent-cat">
-                    持久状态 ({getOtherStatesByPersistence().persistent.length})
+                    {_("resource.persistentStates")} ({getOtherStatesByPersistence().persistent.length})
                   </summary>
                   <div class="state-list">
                     {#each getOtherStatesByPersistence().persistent as state}
                       <div class="state-card persistent">
                         <div class="state-header">
                           <span class="state-name">{state.name}</span>
-                          <span class="badge persistent">持久</span>
+                          <span class="badge persistent">{_("resource.persistent")}</span>
                           {#if state.priority > 0}
-                            <span class="badge priority">优先级 {state.priority}</span>
+                            <span class="badge priority">{_("resource.priority")} {state.priority}</span>
                           {/if}
                         </div>
                         <div class="state-detail">
-                          {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
-                          {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
-                          {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
-                          {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                          {#if state.anima}<div class="detail-item"><span class="detail-label">{_("resource.animationLabel")}</span> {state.anima}</div>{/if}
+                          {#if state.audio}<div class="detail-item"><span class="detail-label">{_("resource.audioLabel")}</span> {state.audio}</div>{/if}
+                          {#if state.text}<div class="detail-item"><span class="detail-label">{_("resource.textLabel")}</span> {state.text}</div>{/if}
+                          {#if state.next_state}<div class="detail-item"><span class="detail-label">{_("resource.nextLabel")}</span> {state.next_state}</div>{/if}
                           {#if state.date_start || state.date_end}
-                            <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                            <div class="detail-item"><span class="detail-label">{_("resource.dateLabel")}</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
                           {/if}
                           {#if state.time_start || state.time_end}
-                            <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                            <div class="detail-item"><span class="detail-label">{_("resource.timeLabel")}</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
                           {/if}
                           {#if state.trigger_time > 0}
-                            <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                            <div class="detail-item"><span class="detail-label">{_("resource.timerLabel")}</span> {_("resource.timerDesc", { interval: state.trigger_time, chance: (state.trigger_rate * 100).toFixed(0) })}</div>
                           {/if}
                           {#if state.can_trigger_states && state.can_trigger_states.length > 0}
                             <div class="detail-item">
-                              <span class="detail-label">可触发:</span>
+                              <span class="detail-label">{_("resource.triggerable")}</span>
                               <div class="tag-list">
                                 {#each state.can_trigger_states as s}
                                   <span class="tag state-tag">{s}</span>
@@ -654,7 +669,7 @@
                           {/if}
                           {#if state.branch && state.branch.length > 0}
                             <div class="detail-item">
-                              <span class="detail-label">分支:</span>
+                              <span class="detail-label">{_("resource.branchLabel")}</span>
                               <div class="branch-list">
                                 {#each state.branch as b}
                                   <div class="branch-item">
@@ -675,7 +690,7 @@
               {#if getOtherStatesByPersistence().nonPersistent.length > 0}
                 <details class="state-category" open>
                   <summary class="category-summary non-persistent-cat">
-                    非持久状态 ({getOtherStatesByPersistence().nonPersistent.length})
+                    {_("resource.nonPersistentStates")} ({getOtherStatesByPersistence().nonPersistent.length})
                   </summary>
                   <div class="state-list">
                     {#each getOtherStatesByPersistence().nonPersistent as state}
@@ -683,26 +698,26 @@
                         <div class="state-header">
                           <span class="state-name">{state.name}</span>
                           {#if state.priority > 0}
-                            <span class="badge priority">优先级 {state.priority}</span>
+                            <span class="badge priority">{_("resource.priority")} {state.priority}</span>
                           {/if}
                         </div>
                         <div class="state-detail">
-                          {#if state.anima}<div class="detail-item"><span class="detail-label">动画:</span> {state.anima}</div>{/if}
-                          {#if state.audio}<div class="detail-item"><span class="detail-label">音频:</span> {state.audio}</div>{/if}
-                          {#if state.text}<div class="detail-item"><span class="detail-label">文本:</span> {state.text}</div>{/if}
-                          {#if state.next_state}<div class="detail-item"><span class="detail-label">后续:</span> {state.next_state}</div>{/if}
+                          {#if state.anima}<div class="detail-item"><span class="detail-label">{_("resource.animationLabel")}</span> {state.anima}</div>{/if}
+                          {#if state.audio}<div class="detail-item"><span class="detail-label">{_("resource.audioLabel")}</span> {state.audio}</div>{/if}
+                          {#if state.text}<div class="detail-item"><span class="detail-label">{_("resource.textLabel")}</span> {state.text}</div>{/if}
+                          {#if state.next_state}<div class="detail-item"><span class="detail-label">{_("resource.nextLabel")}</span> {state.next_state}</div>{/if}
                           {#if state.date_start || state.date_end}
-                            <div class="detail-item"><span class="detail-label">日期:</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
+                            <div class="detail-item"><span class="detail-label">{_("resource.dateLabel")}</span> {state.date_start || '*'} ~ {state.date_end || '*'}</div>
                           {/if}
                           {#if state.time_start || state.time_end}
-                            <div class="detail-item"><span class="detail-label">时间:</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
+                            <div class="detail-item"><span class="detail-label">{_("resource.timeLabel")}</span> {state.time_start || '*'} ~ {state.time_end || '*'}</div>
                           {/if}
                           {#if state.trigger_time > 0}
-                            <div class="detail-item"><span class="detail-label">定时:</span> 每 {state.trigger_time}s 检测, 概率 {(state.trigger_rate * 100).toFixed(0)}%</div>
+                            <div class="detail-item"><span class="detail-label">{_("resource.timerLabel")}</span> {_("resource.timerDesc", { interval: state.trigger_time, chance: (state.trigger_rate * 100).toFixed(0) })}</div>
                           {/if}
                           {#if state.can_trigger_states && state.can_trigger_states.length > 0}
                             <div class="detail-item">
-                              <span class="detail-label">可触发:</span>
+                              <span class="detail-label">{_("resource.triggerable")}</span>
                               <div class="tag-list">
                                 {#each state.can_trigger_states as s}
                                   <span class="tag state-tag">{s}</span>
@@ -712,7 +727,7 @@
                           {/if}
                           {#if state.branch && state.branch.length > 0}
                             <div class="detail-item">
-                              <span class="detail-label">分支:</span>
+                              <span class="detail-label">{_("resource.branchLabel")}</span>
                               <div class="branch-list">
                                 {#each state.branch as b}
                                   <div class="branch-item">
@@ -737,7 +752,7 @@
         <!-- 触发器 -->
         {#if currentModInfo.manifest.triggers.length > 0}
           <details>
-            <summary>触发器 ({currentModInfo.manifest.triggers.length})</summary>
+            <summary>{_("resource.triggers")} ({currentModInfo.manifest.triggers.length})</summary>
             <div class="tab-content">
               <div class="trigger-list">
                 {#each currentModInfo.manifest.triggers as trigger}
@@ -748,11 +763,11 @@
                         {#each trigger.can_trigger_states as group, idx}
                           <div class="trigger-group">
                             <div class="group-header">
-                              <span class="group-label">组 {idx + 1}</span>
+                              <span class="group-label">{_("resource.group", { num: idx + 1 })}</span>
                               {#if group.persistent_state}
-                                <span class="persistent-badge">持久: {group.persistent_state}</span>
+                                <span class="persistent-badge">{_("resource.persistentLabel")} {group.persistent_state}</span>
                               {:else}
-                                <span class="persistent-badge any">任意持久状态</span>
+                                <span class="persistent-badge any">{_("resource.anyPersistent")}</span>
                               {/if}
                             </div>
                             {#if group.states.length > 0}
@@ -762,13 +777,13 @@
                                 {/each}
                               </div>
                             {:else}
-                              <span class="no-states">(无可触发状态)</span>
+                              <span class="no-states">{_("resource.noTriggerableStates")}</span>
                             {/if}
                           </div>
                         {/each}
                       </div>
                     {:else}
-                      <span class="no-states">(无状态组)</span>
+                      <span class="no-states">{_("resource.noStateGroup")}</span>
                     {/if}
                   </div>
                 {/each}
@@ -779,7 +794,7 @@
 
         <!-- 静态图片资源 -->
         <details>
-          <summary>静态图片 ({currentModInfo.imgs.length})</summary>
+          <summary>{_("resource.staticImages")} ({currentModInfo.imgs.length})</summary>
           <div class="tab-content">
             <div class="asset-grid">
               {#each currentModInfo.imgs as img}
@@ -790,7 +805,7 @@
                     <button 
                       class="thumbnail-btn"
                       onclick={() => openImageViewer(getAssetSrc(`asset/${img.img}`), img.name)}
-                      title="点击放大"
+                      title={_("resource.clickToEnlarge")}
                     >
                       <img 
                         src={getAssetSrc(`asset/${img.img}`)} 
@@ -801,7 +816,7 @@
                     <button 
                       class="thumb-open-btn"
                       onclick={() => openAssetFile(`asset/${img.img}`)}
-                      title="打开文件"
+                      title={_("resource.openFile")}
                     >
                       📂
                     </button>
@@ -810,28 +825,28 @@
                     <div class="asset-name">{img.name}</div>
                     <div class="asset-file">{img.img}</div>
                     <div class="asset-meta">
-                      <span title="单帧尺寸">{img.frame_size_x}×{img.frame_size_y}px</span>
+                      <span title="{_("resource.frameSize")}">{img.frame_size_x}×{img.frame_size_y}px</span>
                       {#if totalFrames > 1}
-                        <span title="帧排列">{img.frame_num_x}×{img.frame_num_y} = {totalFrames}帧</span>
+                        <span title="{_("resource.frameLayout")}">{img.frame_num_x}×{img.frame_num_y} = {totalFrames}{_("resource.frames")}</span>
                       {/if}
                     </div>
                     {#if isAnimated}
                       <div class="asset-meta">
-                        <span title="帧间隔">{img.frame_time}s/帧</span>
+                        <span title="{_("resource.frameInterval")}">{img.frame_time}s{_("resource.perFrame")}</span>
                       </div>
                     {/if}
                     <div class="asset-flags">
                       {#if img.sequence}
-                        <span class="badge sequence-flag">序列</span>
+                        <span class="badge sequence-flag">{_("resource.sequence")}</span>
                       {/if}
                       {#if img.origin_reverse}
-                        <span class="badge reverse">反向播放</span>
+                        <span class="badge reverse">{_("resource.reversePlay")}</span>
                       {/if}
                       {#if img.need_reverse}
-                        <span class="badge pingpong">乒乓模式</span>
+                        <span class="badge pingpong">{_("resource.pingPongMode")}</span>
                       {/if}
                       {#if img.offset_x !== 0 || img.offset_y !== 0}
-                        <span class="badge offset">偏移: {img.offset_x},{img.offset_y}</span>
+                        <span class="badge offset">{_("resource.offset")} {img.offset_x},{img.offset_y}</span>
                       {/if}
                     </div>
                   </div>
@@ -843,7 +858,7 @@
 
         <!-- 序列动画资源 -->
         <details>
-          <summary>序列动画 ({currentModInfo.sequences.length})</summary>
+          <summary>{_("resource.sequenceAnimations")} ({currentModInfo.sequences.length})</summary>
           <div class="tab-content">
             <div class="asset-grid">
               {#each currentModInfo.sequences as seq}
@@ -854,7 +869,7 @@
                     <button 
                       class="thumbnail-btn"
                       onclick={() => openImageViewer(getAssetSrc(`asset/${seq.img}`), seq.name)}
-                      title="点击放大"
+                      title={_("resource.clickToEnlarge")}
                     >
                       <img 
                         src={getAssetSrc(`asset/${seq.img}`)} 
@@ -865,7 +880,7 @@
                     <button 
                       class="thumb-open-btn"
                       onclick={() => openAssetFile(`asset/${seq.img}`)}
-                      title="打开文件"
+                      title={_("resource.openFile")}
                     >
                       📂
                     </button>
@@ -874,22 +889,22 @@
                     <div class="asset-name">{seq.name}</div>
                     <div class="asset-file">{seq.img}</div>
                     <div class="asset-meta">
-                      <span title="帧排列">{seq.frame_num_x}×{seq.frame_num_y} = {totalFrames}帧</span>
-                      <span title="单帧尺寸">{seq.frame_size_x}×{seq.frame_size_y}px</span>
+                      <span title="{_("resource.frameLayout")}">{seq.frame_num_x}×{seq.frame_num_y} = {totalFrames}{_("resource.frames")}</span>
+                      <span title="{_("resource.frameSize")}">{seq.frame_size_x}×{seq.frame_size_y}px</span>
                     </div>
                     <div class="asset-meta">
-                      <span title="帧间隔">{seq.frame_time}s/帧</span>
-                      <span title="总时长">≈{totalDuration}s</span>
+                      <span title="{_("resource.frameInterval")}">{seq.frame_time}s{_("resource.perFrame")}</span>
+                      <span title="{_("resource.totalDuration")}">≈{totalDuration}s</span>
                     </div>
                     <div class="asset-flags">
                       {#if seq.origin_reverse}
-                        <span class="badge reverse">反向播放</span>
+                        <span class="badge reverse">{_("resource.reversePlay")}</span>
                       {/if}
                       {#if seq.need_reverse}
-                        <span class="badge pingpong">乒乓模式</span>
+                        <span class="badge pingpong">{_("resource.pingPongMode")}</span>
                       {/if}
                       {#if seq.offset_x !== 0 || seq.offset_y !== 0}
-                        <span class="badge offset">偏移: {seq.offset_x},{seq.offset_y}</span>
+                        <span class="badge offset">{_("resource.offset")} {seq.offset_x},{seq.offset_y}</span>
                       {/if}
                     </div>
                   </div>
@@ -901,7 +916,7 @@
 
         <!-- 语音资源 -->
         <details>
-          <summary>语音资源 ({getTotalAudios()})</summary>
+          <summary>{_("resource.audioResources")} ({getTotalAudios()})</summary>
           <div class="tab-content">
             {#each Object.entries(currentModInfo.audios) as [lang, audios]}
               <details class="lang-details" open>
@@ -912,7 +927,7 @@
                       <button 
                         class="play-btn"
                         onclick={() => playAudio(audio.audio, `${lang}/${audio.name}`)}
-                        title={playingAudioName === `${lang}/${audio.name}` ? '停止' : '播放'}
+                        title={playingAudioName === `${lang}/${audio.name}` ? _("common.stop") : _("common.play")}
                       >
                         {#if playingAudioName === `${lang}/${audio.name}`}
                           <span class="icon">⏹</span>
@@ -927,7 +942,7 @@
                       <button 
                         class="open-btn"
                         onclick={() => openAssetFile(`audio/${audio.audio}`)}
-                        title="打开文件"
+                        title={_("resource.openFile")}
                       >
                         📂
                       </button>
@@ -941,7 +956,7 @@
 
         <!-- 对话文本 -->
         <details>
-          <summary>对话文本 ({getTotalTexts()})</summary>
+          <summary>{_("resource.dialogTexts")} ({getTotalTexts()})</summary>
           <div class="tab-content">
             {#each Object.entries(currentModInfo.texts) as [lang, texts]}
               <details class="lang-details" open>

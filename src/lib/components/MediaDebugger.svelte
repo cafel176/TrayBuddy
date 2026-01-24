@@ -13,6 +13,19 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
+  import { t, onLangChange } from "$lib/i18n";
+
+  // ======================================================================= //
+  // i18n 响应式支持
+  // ======================================================================= //
+  
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+  
+  function _(key: string, params?: Record<string, string | number>): string {
+    void _langVersion;
+    return t(key, params);
+  }
 
   // ======================================================================= //
   // 类型定义
@@ -60,7 +73,7 @@
   // ======================================================================= //
 
   let debugInfo = $state<MediaDebugInfo | null>(null);
-  let statusMsg = $state("正在读取...");
+  let statusMsg = $state("");
   let autoRefresh = $state(true);
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -72,12 +85,12 @@
     try {
       debugInfo = await invoke("get_media_debug_info");
       if (debugInfo) {
-        statusMsg = `更新于 ${debugInfo.last_check_time}`;
+        statusMsg = `${_("media.statusUpdated")} ${debugInfo.last_check_time}`;
       } else {
-        statusMsg = "等待初始化...";
+        statusMsg = _("media.statusWaiting");
       }
     } catch (e) {
-      statusMsg = `加载失败: ${e}`;
+      statusMsg = `${_("common.loadFailed")} ${e}`;
     }
   }
 
@@ -129,6 +142,8 @@
   // ======================================================================= //
 
   onMount(() => {
+    unsubLang = onLangChange(() => { _langVersion++; });
+    statusMsg = _("media.statusReading");
     loadDebugInfo();
     if (autoRefresh) {
       startAutoRefresh();
@@ -136,6 +151,7 @@
   });
 
   onDestroy(() => {
+    unsubLang?.();
     stopAutoRefresh();
   });
 </script>
@@ -146,12 +162,12 @@
 
 <div class="media-debugger">
   <div class="header">
-    <h4>媒体监听调试器</h4>
+    <h4>{_("media.title")}</h4>
     <div class="controls">
-      <button class="refresh-btn" onclick={loadDebugInfo}>刷新</button>
+      <button class="refresh-btn" onclick={loadDebugInfo}>{_("common.refresh")}</button>
       <label class="auto-refresh">
         <input type="checkbox" checked={autoRefresh} onchange={toggleAutoRefresh} />
-        自动刷新
+        {_("media.autoRefresh")}
       </label>
     </div>
   </div>
@@ -159,32 +175,32 @@
   {#if debugInfo}
     <!-- 基础状态 -->
     <section class="section">
-      <h5>观察者状态</h5>
+      <h5>{_("media.observerStatus")}</h5>
       <div class="info-grid">
         <div class="info-item">
-          <span class="label">运行状态:</span>
+          <span class="label">{_("media.runningStatus")}</span>
           <span class="value" class:running={debugInfo.observer_running}>
-            {debugInfo.observer_running ? "运行中" : "已停止"}
+            {debugInfo.observer_running ? _("common.running") : _("common.stopped")}
           </span>
         </div>
         <div class="info-item">
-          <span class="label">运行时间:</span>
+          <span class="label">{_("media.runtime")}</span>
           <span class="value">{formatUptime(debugInfo.uptime_secs)}</span>
         </div>
         <div class="info-item">
-          <span class="label">GSMTC:</span>
+          <span class="label">{_("media.gsmtc")}</span>
           <span class="value" class:available={debugInfo.gsmtc_available}>
-            {debugInfo.gsmtc_available ? "可用" : "不可用"}
+            {debugInfo.gsmtc_available ? _("common.enabled") : _("common.disabled")}
           </span>
         </div>
         <div class="info-item">
-          <span class="label">Core Audio:</span>
+          <span class="label">{_("media.coreAudio")}</span>
           <span class="value" class:available={debugInfo.core_audio_available}>
-            {debugInfo.core_audio_available ? "可用" : "不可用"}
+            {debugInfo.core_audio_available ? _("common.enabled") : _("common.disabled")}
           </span>
         </div>
         <div class="info-item">
-          <span class="label">已注册事件:</span>
+          <span class="label">{_("media.registeredEvents")}</span>
           <span class="value">{debugInfo.registered_session_events}</span>
         </div>
       </div>
@@ -192,21 +208,21 @@
 
     <!-- 综合状态 -->
     <section class="section">
-      <h5>当前综合状态</h5>
+      <h5>{_("media.currentStatus")}</h5>
       <div class="combined-state">
         <div class="state-badge" style="background: {getStatusColor(debugInfo.combined_state.status)}">
           {debugInfo.combined_state.status}
         </div>
         <div class="state-details">
-          <div><strong>来源:</strong> {debugInfo.state_source}</div>
+          <div><strong>{_("media.source")}</strong> {debugInfo.state_source}</div>
           {#if debugInfo.combined_state.app_id}
-            <div><strong>应用:</strong> {debugInfo.combined_state.app_id}</div>
+            <div><strong>{_("media.app")}</strong> {debugInfo.combined_state.app_id}</div>
           {/if}
           {#if debugInfo.combined_state.title}
-            <div><strong>标题:</strong> {debugInfo.combined_state.title}</div>
+            <div><strong>{_("media.titleLabel")}</strong> {debugInfo.combined_state.title}</div>
           {/if}
           {#if debugInfo.combined_state.artist}
-            <div><strong>艺术家:</strong> {debugInfo.combined_state.artist}</div>
+            <div><strong>{_("media.artist")}</strong> {debugInfo.combined_state.artist}</div>
           {/if}
         </div>
       </div>
@@ -214,7 +230,7 @@
 
     <!-- GSMTC 会话 -->
     <section class="section">
-      <h5>GSMTC 会话 ({debugInfo.gsmtc_sessions.length})</h5>
+      <h5>{_("media.gsmtcSessions")} ({debugInfo.gsmtc_sessions.length})</h5>
       {#if debugInfo.gsmtc_sessions.length > 0}
         <div class="sessions-list">
           {#each debugInfo.gsmtc_sessions as session}
@@ -236,9 +252,9 @@
                 {/if}
                 <div class="tags">
                   {#if session.is_music_app}
-                    <span class="tag music">音乐应用</span>
+                    <span class="tag music">{_("media.musicApp")}</span>
                   {:else}
-                    <span class="tag other">其他应用</span>
+                    <span class="tag other">{_("media.otherApp")}</span>
                   {/if}
                 </div>
               </div>
@@ -246,13 +262,13 @@
           {/each}
         </div>
       {:else}
-        <div class="empty-state">无 GSMTC 会话</div>
+        <div class="empty-state">{_("media.noGsmtcSession")}</div>
       {/if}
     </section>
 
     <!-- Core Audio 会话 -->
     <section class="section">
-      <h5>Core Audio 会话 ({debugInfo.core_audio_sessions.length})</h5>
+      <h5>{_("media.coreAudioSessions")} ({debugInfo.core_audio_sessions.length})</h5>
       {#if debugInfo.core_audio_sessions.length > 0}
         <div class="sessions-list">
           {#each debugInfo.core_audio_sessions as session}
@@ -263,7 +279,7 @@
               </div>
               <div class="session-info">
                 <div class="audio-meter">
-                  <span class="label">音量峰值:</span>
+                  <span class="label">{_("media.volumePeak")}</span>
                   <div class="meter-bar">
                     <div 
                       class="meter-fill" 
@@ -278,10 +294,10 @@
                     {session.session_state}
                   </span>
                   {#if session.is_music_app}
-                    <span class="tag music">音乐应用</span>
+                    <span class="tag music">{_("media.musicApp")}</span>
                   {/if}
                   {#if session.is_playing}
-                    <span class="tag playing">正在播放</span>
+                    <span class="tag playing">{_("media.nowPlaying")}</span>
                   {/if}
                 </div>
               </div>
@@ -289,14 +305,14 @@
           {/each}
         </div>
       {:else}
-        <div class="empty-state">无 Core Audio 会话</div>
+        <div class="empty-state">{_("media.noCoreAudioSession")}</div>
       {/if}
     </section>
   {:else}
     <div class="loading">{statusMsg}</div>
   {/if}
 
-  <div class="mini-status" class:error={statusMsg.includes('失败')}>
+  <div class="mini-status" class:error={statusMsg.includes('失败') || statusMsg.includes('failed')}>
     {statusMsg}
   </div>
 </div>

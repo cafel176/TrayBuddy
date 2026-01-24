@@ -24,6 +24,7 @@
   // 组件导入
   // ======================================================================= //
   
+  import { onMount, onDestroy } from "svelte";
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
   import StateDebugger from "$lib/components/StateDebugger.svelte";
   import TriggerDebugger from "$lib/components/TriggerDebugger.svelte";
@@ -31,6 +32,7 @@
   import MediaDebugger from "$lib/components/MediaDebugger.svelte";
   import Settings from "$lib/components/Settings.svelte";
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
+  import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 
   // ======================================================================= //
   // 响应式状态
@@ -38,6 +40,31 @@
 
   /** 当前激活的 Tab 页签标识 */
   let activeTab = $state("resource");
+  
+  /** i18n 响应式翻译函数 - 使用版本号触发更新 */
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+  
+  /** 响应式翻译函数 */
+  function _(key: string, params?: Record<string, string | number>): string {
+    // 依赖 _langVersion 使 Svelte 能追踪变化
+    void _langVersion;
+    return t(key, params);
+  }
+
+  // ======================================================================= //
+  // 生命周期
+  // ======================================================================= //
+
+  onMount(async () => {
+    await initI18n();
+    unsubLang = onLangChange(() => { _langVersion++; });
+  });
+
+  onDestroy(() => {
+    unsubLang?.();
+    destroyI18n();
+  });
 </script>
 
 <!-- ======================================================================= -->
@@ -47,13 +74,13 @@
 <main class="container">
   <!-- Tab 导航栏 -->
   <div class="tabs-nav">
-    <button class:active={activeTab === 'resource'} onclick={() => activeTab = "resource"}>资源管理</button>
-    <button class:active={activeTab === 'state'} onclick={() => activeTab = "state"}>状态管理</button>
-    <button class:active={activeTab === 'trigger'} onclick={() => activeTab = "trigger"}>触发器</button>
-    <button class:active={activeTab === 'environment'} onclick={() => activeTab = "environment"}>环境</button>
-    <button class:active={activeTab === 'media'} onclick={() => activeTab = "media"}>媒体监听</button>
-    <button class:active={activeTab === 'settings'} onclick={() => activeTab = "settings"}>用户设置</button>
-    <button class:active={activeTab === 'info'} onclick={() => activeTab = "info"}>运行状态</button>
+    <button class:active={activeTab === 'resource'} onclick={() => activeTab = "resource"}>{_("tabs.resource")}</button>
+    <button class:active={activeTab === 'state'} onclick={() => activeTab = "state"}>{_("tabs.state")}</button>
+    <button class:active={activeTab === 'trigger'} onclick={() => activeTab = "trigger"}>{_("tabs.trigger")}</button>
+    <button class:active={activeTab === 'environment'} onclick={() => activeTab = "environment"}>{_("tabs.environment")}</button>
+    <button class:active={activeTab === 'media'} onclick={() => activeTab = "media"}>{_("tabs.media")}</button>
+    <button class:active={activeTab === 'settings'} onclick={() => activeTab = "settings"}>{_("tabs.settings")}</button>
+    <button class:active={activeTab === 'info'} onclick={() => activeTab = "info"}>{_("tabs.runtime")}</button>
   </div>
 
   <!-- Tab 内容区域 - 根据 activeTab 动态渲染对应组件 -->

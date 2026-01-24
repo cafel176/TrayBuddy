@@ -66,5 +66,9 @@ export default defineConfig(async () => ({
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+    fs: {
+      // 允许访问项目根目录下的 i18n 文件夹
+      allow: ['..'],
+    },
   },
 }));

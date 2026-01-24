@@ -17,6 +17,24 @@
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
   import { DEBUG_TIMER_INTERVAL_MS } from "$lib/constants";
+  import { t, onLangChange, tArray } from "$lib/i18n";
+
+  // ======================================================================= //
+  // i18n 响应式支持
+  // ======================================================================= //
+  
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+  
+  function _(key: string, params?: Record<string, string | number>): string {
+    void _langVersion;
+    return t(key, params);
+  }
+  
+  function _arr(key: string): string[] {
+    void _langVersion;
+    return tArray(key);
+  }
 
   // ======================================================================= //
   // 类型定义
@@ -82,7 +100,7 @@
   let timePeriod = $state<string>("");
   
   /** 状态消息 */
-  let statusMsg = $state("正在加载...");
+  let statusMsg = $state("");
   
   /** 是否正在加载天气 */
   let loadingWeather = $state(false);
@@ -102,30 +120,18 @@
 
   /** 获取星期几名称 */
   function getWeekdayName(weekday: number): string {
-    const names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-    return names[weekday] || "未知";
+    const names = _arr("environment.weekdays");
+    return names[weekday] || _("common.unknown");
   }
 
   /** 获取季节中文名 */
   function getSeasonName(s: string): string {
-    const map: Record<string, string> = {
-      spring: "春季 🌸",
-      summer: "夏季 ☀️",
-      autumn: "秋季 🍂",
-      winter: "冬季 ❄️",
-    };
-    return map[s] || s;
+    return _(`environment.seasons.${s}`) || s;
   }
 
   /** 获取时间段中文名 */
   function getTimePeriodName(p: string): string {
-    const map: Record<string, string> = {
-      morning: "早晨 🌅",
-      noon: "下午 🌞",
-      evening: "傍晚 🌇",
-      night: "夜间 🌙",
-    };
-    return map[p] || p;
+    return _(`environment.timePeriods.${p}`) || p;
   }
 
   /** 格式化时间 */
@@ -136,7 +142,7 @@
 
   /** 格式化日期 */
   function formatDate(dt: DateTimeInfo): string {
-    return `${dt.year}年${dt.month}月${dt.day}日`;
+    return _("environment.dateFormat", { year: dt.year, month: dt.month, day: dt.day });
   }
 
   // ======================================================================= //
@@ -157,24 +163,24 @@
         location,
         weather: weather || envInfo?.weather || null,
       };
-      statusMsg = "环境信息已加载";
+      statusMsg = _("environment.statusLoaded");
     } catch (e) {
-      statusMsg = `加载失败: ${e}`;
+      statusMsg = `${_("common.loadFailed")} ${e}`;
     }
   }
 
   /** 刷新地理位置（强制重新获取） */
   async function refreshLocation() {
     loadingLocation = true;
-    statusMsg = "正在刷新地理位置...";
+    statusMsg = _("environment.statusRefreshingLocation");
     try {
       const location: GeoLocation | null = await invoke("refresh_location_info");
       if (envInfo) {
         envInfo = { ...envInfo, location };
       }
-      statusMsg = location ? "地理位置已刷新" : "无法获取地理位置";
+      statusMsg = location ? _("environment.statusLocationRefreshed") : _("environment.statusLocationFailed");
     } catch (e) {
-      statusMsg = `刷新失败: ${e}`;
+      statusMsg = `${_("environment.statusRefreshFailed")} ${e}`;
     } finally {
       loadingLocation = false;
     }
@@ -183,15 +189,15 @@
   /** 加载天气信息（需要联网） */
   async function loadWeather() {
     loadingWeather = true;
-    statusMsg = "正在获取天气信息...";
+    statusMsg = _("environment.statusFetchingWeather");
     try {
       const weather: WeatherInfo | null = await invoke("get_weather_info");
       if (envInfo) {
         envInfo = { ...envInfo, weather };
       }
-      statusMsg = weather ? "天气信息已更新" : "无法获取天气信息";
+      statusMsg = weather ? _("environment.statusWeatherUpdated") : _("environment.statusWeatherFailed");
     } catch (e) {
-      statusMsg = `获取天气失败: ${e}`;
+      statusMsg = `${_("environment.statusWeatherError")} ${e}`;
     } finally {
       loadingWeather = false;
     }
@@ -207,6 +213,8 @@
   // ======================================================================= //
 
   onMount(async () => {
+    unsubLang = onLangChange(() => { _langVersion++; });
+    statusMsg = _("common.loading");
     await loadBasicInfo();
     
     // 每秒更新时间
@@ -223,11 +231,12 @@
           weather: weather || envInfo.weather,
         };
       }
-      statusMsg = "环境信息已从后台更新";
+      statusMsg = _("environment.statusBackgroundUpdate");
     });
   });
 
   onDestroy(() => {
+    unsubLang?.();
     if (timerInterval) {
       clearInterval(timerInterval);
     }
@@ -242,7 +251,7 @@
 <!-- ======================================================================= -->
 
 <div class="env-debugger">
-  <h3>Environment 调试面板</h3>
+  <h3>{_("environment.title")}</h3>
 
   {#if envInfo}
     <!-- ================================================================= -->
@@ -250,7 +259,7 @@
     <!-- ================================================================= -->
     
     <div class="section datetime-section">
-      <h4>📅 日期时间</h4>
+      <h4>📅 {_("environment.datetime")}</h4>
       <div class="datetime-display">
         <div class="time-large">{formatTime(envInfo.datetime)}</div>
         <div class="date-info">
@@ -260,15 +269,15 @@
       </div>
       <div class="datetime-meta">
         <div class="meta-item">
-          <span class="label">季节:</span>
+          <span class="label">{_("environment.season")}</span>
           <span class="value">{getSeasonName(season)}</span>
         </div>
         <div class="meta-item">
-          <span class="label">时段:</span>
+          <span class="label">{_("environment.timePeriod")}</span>
           <span class="value">{getTimePeriodName(timePeriod)}</span>
         </div>
         <div class="meta-item">
-          <span class="label">时间戳:</span>
+          <span class="label">{_("environment.timestamp")}</span>
           <span class="value mono">{envInfo.datetime.timestamp}</span>
         </div>
       </div>
@@ -280,9 +289,9 @@
     
     <div class="section location-section">
       <div class="section-header">
-        <h4>🌍 地理位置 (IP API)</h4>
+        <h4>🌍 {_("environment.location")}</h4>
         <button class="btn-small" onclick={refreshLocation} disabled={loadingLocation}>
-          {loadingLocation ? "刷新中..." : "刷新"}
+          {loadingLocation ? _("common.refreshing") : _("common.refresh")}
         </button>
       </div>
       {#if envInfo.location}
@@ -302,26 +311,26 @@
         
         <div class="location-info">
           <div class="info-row">
-            <span class="label">时区:</span>
-            <span class="value">{envInfo.location.timezone || "未知"}</span>
+            <span class="label">{_("environment.timezone")}</span>
+            <span class="value">{envInfo.location.timezone || _("common.unknown")}</span>
           </div>
           <div class="info-row">
-            <span class="label">经度:</span>
+            <span class="label">{_("environment.longitude")}</span>
             <span class="value">{envInfo.location.longitude.toFixed(4)}°</span>
           </div>
           <div class="info-row">
-            <span class="label">纬度:</span>
+            <span class="label">{_("environment.latitude")}</span>
             <span class="value">{envInfo.location.latitude.toFixed(4)}°</span>
           </div>
           <div class="info-row">
-            <span class="label">半球:</span>
+            <span class="label">{_("environment.hemisphere")}</span>
             <span class="value badge" class:northern={envInfo.location.is_northern_hemisphere}>
-              {envInfo.location.is_northern_hemisphere ? "北半球" : "南半球"}
+              {envInfo.location.is_northern_hemisphere ? _("environment.hemisphereNorth") : _("environment.hemisphereSouth")}
             </span>
           </div>
         </div>
       {:else}
-        <div class="empty">无法获取位置信息</div>
+        <div class="empty">{_("environment.locationUnavailable")}</div>
       {/if}
     </div>
 
@@ -331,9 +340,9 @@
     
     <div class="section weather-section">
       <div class="section-header">
-        <h4>🌤️ 天气信息</h4>
+        <h4>🌤️ {_("environment.weather")}</h4>
         <button class="btn-small" onclick={loadWeather} disabled={loadingWeather}>
-          {loadingWeather ? "加载中..." : "获取天气"}
+          {loadingWeather ? _("common.loading") : _("environment.getWeather")}
         </button>
       </div>
       {#if envInfo.weather}
@@ -345,19 +354,19 @@
           <div class="weather-details">
             {#if envInfo.weather.feels_like !== null}
               <div class="detail-item">
-                <span class="label">体感:</span>
+                <span class="label">{_("environment.feelsLike")}</span>
                 <span class="value">{envInfo.weather.feels_like.toFixed(1)}°C</span>
               </div>
             {/if}
             {#if envInfo.weather.humidity !== null}
               <div class="detail-item">
-                <span class="label">湿度:</span>
+                <span class="label">{_("environment.humidity")}</span>
                 <span class="value">{envInfo.weather.humidity}%</span>
               </div>
             {/if}
             {#if envInfo.weather.wind_speed !== null}
               <div class="detail-item">
-                <span class="label">风速:</span>
+                <span class="label">{_("environment.windSpeed")}</span>
                 <span class="value">{envInfo.weather.wind_speed.toFixed(1)} km/h</span>
               </div>
             {/if}
@@ -365,8 +374,8 @@
         </div>
       {:else}
         <div class="empty">
-          点击"获取天气"按钮加载天气信息
-          <br><small>(需要联网)</small>
+          {_("environment.weatherHint")}
+          <br><small>{_("environment.weatherHintOnline")}</small>
         </div>
       {/if}
     </div>
@@ -376,80 +385,80 @@
     <!-- ================================================================= -->
     
     <div class="section api-section">
-      <h4>🔗 API 信息</h4>
+      <h4>🔗 {_("environment.apiInfo")}</h4>
       
       <!-- IP 地理位置 API -->
       <div class="api-group">
-        <div class="api-group-title">📍 IP 地理位置 API</div>
+        <div class="api-group-title">📍 {_("environment.ipLocationApi")}</div>
         <div class="api-info">
           <div class="api-item">
-            <span class="label">服务商:</span>
+            <span class="label">{_("environment.provider")}</span>
             <span class="value">ip-api.com</span>
           </div>
           <div class="api-item">
-            <span class="label">端点:</span>
+            <span class="label">{_("environment.endpoint")}</span>
             <span class="value mono">http://ip-api.com/json/</span>
           </div>
           <div class="api-item">
-            <span class="label">参数:</span>
+            <span class="label">{_("environment.params")}</span>
             <span class="value mono">fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN</span>
           </div>
           <div class="api-item">
-            <span class="label">缓存:</span>
-            <span class="value">程序运行期间 (静态缓存)</span>
+            <span class="label">{_("environment.cache")}</span>
+            <span class="value">{_("environment.cacheRuntime")}</span>
           </div>
           <div class="api-item">
-            <span class="label">费用:</span>
-            <span class="value highlight">免费 / 无需 API Key</span>
+            <span class="label">{_("environment.cost")}</span>
+            <span class="value highlight">{_("environment.costFree")}</span>
           </div>
           <div class="api-item">
-            <span class="label">限制:</span>
-            <span class="value">45 请求/分钟</span>
+            <span class="label">{_("environment.limit")}</span>
+            <span class="value">45 {_("environment.response")}/{_("environment.minutes")}</span>
           </div>
         </div>
         <div class="api-links">
-          <a href="http://ip-api.com/docs/api:json" target="_blank" rel="noopener">API 文档</a>
+          <a href="http://ip-api.com/docs/api:json" target="_blank" rel="noopener">{_("environment.apiDocs")}</a>
           <span class="separator">|</span>
-          <a href="http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN" target="_blank" rel="noopener">测试请求</a>
+          <a href="http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN" target="_blank" rel="noopener">{_("environment.testRequest")}</a>
         </div>
       </div>
 
       <!-- 天气 API -->
       <div class="api-group">
-        <div class="api-group-title">🌤️ 天气 API</div>
+        <div class="api-group-title">🌤️ {_("environment.weatherApi")}</div>
         <div class="api-info">
           <div class="api-item">
-            <span class="label">服务商:</span>
+            <span class="label">{_("environment.provider")}</span>
             <span class="value">wttr.in</span>
           </div>
           <div class="api-item">
-            <span class="label">端点:</span>
+            <span class="label">{_("environment.endpoint")}</span>
             <span class="value mono">https://wttr.in/{"{city}"}?format=j1</span>
           </div>
           <div class="api-item">
-            <span class="label">响应:</span>
-            <span class="value">JSON (含中文天气描述 lang_zh)</span>
+            <span class="label">{_("environment.response")}</span>
+            <span class="value">JSON (lang_zh)</span>
           </div>
           <div class="api-item">
-            <span class="label">缓存:</span>
-            <span class="value">30 分钟</span>
+            <span class="label">{_("environment.cache")}</span>
+            <span class="value">30 {_("environment.minutes")}</span>
           </div>
           <div class="api-item">
-            <span class="label">费用:</span>
-            <span class="value highlight">免费 / 无需 API Key</span>
+            <span class="label">{_("environment.cost")}</span>
+            <span class="value highlight">{_("environment.costFree")}</span>
           </div>
         </div>
         <div class="api-links">
-          <a href="https://wttr.in/:help" target="_blank" rel="noopener">帮助文档</a>
+          <a href="https://wttr.in/:help" target="_blank" rel="noopener">{_("environment.helpDocs")}</a>
           <span class="separator">|</span>
-          <a href="https://wttr.in/Beijing?format=j1" target="_blank" rel="noopener">示例请求</a>
+          <a href="https://wttr.in/Beijing?format=j1" target="_blank" rel="noopener">{_("environment.exampleRequest")}</a>
           <span class="separator">|</span>
           <a href="https://github.com/chubin/wttr.in" target="_blank" rel="noopener">GitHub</a>
         </div>
       </div>
     </div>
   {:else}
-    <div class="loading">加载中...</div>
+    <div class="loading">{_("common.loading")}</div>
   {/if}
 
   <!-- ================================================================= -->
@@ -457,11 +466,11 @@
   <!-- ================================================================= -->
   
   <div class="actions">
-    <button class="refresh" onclick={refresh}>刷新数据</button>
+    <button class="refresh" onclick={refresh}>{_("environment.refreshData")}</button>
   </div>
 
   <!-- 状态消息栏 -->
-  <div class="status-bar" class:error={statusMsg.includes('失败')}>
+  <div class="status-bar" class:error={statusMsg.includes(_('environment.failed')) || statusMsg.includes('failed')}>
     {statusMsg}
   </div>
 </div>

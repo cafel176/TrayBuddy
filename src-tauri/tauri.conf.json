@@ -36,7 +36,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../mods": "mods"
+      "../mods": "mods",
+      "../i18n": "i18n"
     }
   }
 }

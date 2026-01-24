@@ -533,6 +533,38 @@ fn is_cursor_in_interact_area(bubble_bounds: Option<BubbleBounds>, app: tauri::A
     }
 }
 
+/// 设置音量（实时生效）
+#[tauri::command]
+fn set_volume(volume: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let volume = volume.clamp(0.0, 1.0) as f32;
+    
+    // 更新设置并保存
+    {
+        let mut storage = state.storage.lock().unwrap();
+        storage.data.settings.volume = volume;
+        storage.save()?;
+    }
+    
+    // 发送事件通知前端
+    let _ = app.emit("volume-change", volume);
+    Ok(())
+}
+
+/// 设置静音模式（实时生效）
+#[tauri::command]
+fn set_mute(mute: bool, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    // 更新设置并保存
+    {
+        let mut storage = state.storage.lock().unwrap();
+        storage.data.settings.no_audio_mode = mute;
+        storage.save()?;
+    }
+    
+    // 发送事件通知前端
+    let _ = app.emit("mute-change", mute);
+    Ok(())
+}
+
 /// 设置动画缩放比例并调整窗口大小
 #[tauri::command]
 fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
@@ -830,6 +862,8 @@ pub fn run() {
             get_all_triggers,
             trigger_event,
             // 窗口和系统
+            set_volume,
+            set_mute,
             set_animation_scale,
             set_ignore_cursor_events,
             get_cursor_position,

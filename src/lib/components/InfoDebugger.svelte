@@ -16,6 +16,19 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
+  import { t, onLangChange } from "$lib/i18n";
+
+  // ======================================================================= //
+  // i18n 响应式支持
+  // ======================================================================= //
+  
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+  
+  function _(key: string, params?: Record<string, string | number>): string {
+    void _langVersion;
+    return t(key, params);
+  }
 
   // ======================================================================= //
   // 类型定义
@@ -44,7 +57,7 @@
   let info = $state<UserInfo | null>(null);
   
   /** 状态消息，用于显示加载/操作结果 */
-  let statusMsg = $state("正在读取...");
+  let statusMsg = $state("");
   
   /** 保存操作进行中标记 (预留功能) */
   let saving = $state(false);
@@ -62,9 +75,9 @@
   async function loadInfo() {
     try {
       info = await invoke("get_user_info");
-      statusMsg = "信息已加载";
+      statusMsg = _("info.statusLoaded");
     } catch (e) {
-      statusMsg = `加载失败: ${e}`;
+      statusMsg = `${_("common.loadFailed")} ${e}`;
     }
   }
 
@@ -76,9 +89,9 @@
     saving = true;
     try {
       await invoke("update_user_info", { info });
-      statusMsg = "已更新";
+      statusMsg = _("info.statusUpdated");
     } catch (e) {
-      statusMsg = `更新失败: ${e}`;
+      statusMsg = `${_("info.statusUpdateFailed")} ${e}`;
     } finally {
       saving = false;
     }
@@ -94,7 +107,7 @@
    * @returns 格式化的时间字符串或"从未登录"
    */
   function formatTime(ts: number | null) {
-    if (!ts) return "从未登录";
+    if (!ts) return _("info.neverLoggedIn");
     return new Date(ts).toLocaleString();
   }
 
@@ -103,6 +116,8 @@
   // ======================================================================= //
 
   onMount(async () => {
+    unsubLang = onLangChange(() => { _langVersion++; });
+    statusMsg = _("info.statusReading");
     await loadInfo();
     
     // 监听窗口位置变化事件
@@ -116,6 +131,7 @@
   });
 
   onDestroy(() => {
+    unsubLang?.();
     unlistenPosition?.();
   });
 </script>
@@ -125,29 +141,29 @@
 <!-- ======================================================================= -->
 
 <div class="info-debugger">
-  <h4>UserInfo 调试器</h4>
+  <h4>{_("info.title")}</h4>
 
   {#if info}
     <!-- 最后登录时间 -->
     <div class="data-row">
-      <span class="label">最后登录:</span>
+      <span class="label">{_("info.lastLogin")}</span>
       <span class="value">{formatTime(info.last_login)}</span>
     </div>
 
     <!-- 当前加载的 Mod -->
     <div class="data-row">
-      <span class="label">当前 Mod:</span>
-      <span class="value">{info.current_mod || '未加载'}</span>
+      <span class="label">{_("info.currentMod")}</span>
+      <span class="value">{info.current_mod || _("info.notLoaded")}</span>
     </div>
 
     <!-- 动画窗口位置 -->
     <div class="data-row">
-      <span class="label">窗口位置:</span>
+      <span class="label">{_("info.windowPosition")}</span>
       <span class="value">
         {#if info.animation_window_x !== null && info.animation_window_y !== null}
           ({Math.round(info.animation_window_x)}, {Math.round(info.animation_window_y)})
         {:else}
-          未保存
+          {_("info.notSaved")}
         {/if}
       </span>
     </div>
@@ -155,18 +171,18 @@
     <!-- 保存按钮 -->
     <div class="actions">
       <button class="save-btn" onclick={saveInfo} disabled={saving}>
-        {saving ? '保存中...' : '保存'}
+        {saving ? _("common.saving") : _("common.save")}
       </button>
     </div>
 
-    <div class="hint">注：窗口位置在移动时会自动保存。</div>
+    <div class="hint">{_("info.positionNote")}</div>
   {:else}
     <!-- 加载中状态 -->
     <div class="loading">{statusMsg}</div>
   {/if}
 
   <!-- 状态消息栏 -->
-  <div class="mini-status" class:error={statusMsg.includes('失败')}>
+  <div class="mini-status" class:error={statusMsg.includes('失败') || statusMsg.includes('failed')}>
     {statusMsg}
   </div>
 </div>

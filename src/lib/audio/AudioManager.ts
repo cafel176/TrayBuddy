@@ -78,6 +78,10 @@ export class AudioManager {
   private lang = "zh";
   /** 设置变更事件的取消监听函数 */
   private unlistenSettings: UnlistenFn | null = null;
+  /** 音量变更事件的取消监听函数 */
+  private unlistenVolume: UnlistenFn | null = null;
+  /** 静音变更事件的取消监听函数 */
+  private unlistenMute: UnlistenFn | null = null;
   /** 播放完成回调 */
   private onEndCallback: (() => void) | null = null;
 
@@ -88,7 +92,7 @@ export class AudioManager {
    *
    * 执行操作：
    * 1. 从后端加载用户设置（音量、静音、语言）
-   * 2. 注册 "settings-change" 事件监听，实时同步设置变更
+   * 2. 注册事件监听，实时同步设置变更
    */
   async init(): Promise<void> {
     // 加载初始设置
@@ -97,7 +101,7 @@ export class AudioManager {
     this.volume = settings.volume;
     this.lang = settings.lang;
 
-    // 监听设置变更事件
+    // 监听完整设置变更事件（保存按钮触发）
     this.unlistenSettings = await listen<UserSettings>("settings-change", (event) => {
       const s = event.payload;
       this.muted = s.no_audio_mode;
@@ -105,6 +109,22 @@ export class AudioManager {
       this.lang = s.lang;
 
       // 立即更新当前播放的音量
+      if (this.audio) {
+        this.audio.volume = this.muted ? 0 : this.volume;
+      }
+    });
+
+    // 监听实时音量变更事件
+    this.unlistenVolume = await listen<number>("volume-change", (event) => {
+      this.volume = event.payload;
+      if (this.audio && !this.muted) {
+        this.audio.volume = this.volume;
+      }
+    });
+
+    // 监听实时静音变更事件
+    this.unlistenMute = await listen<boolean>("mute-change", (event) => {
+      this.muted = event.payload;
       if (this.audio) {
         this.audio.volume = this.muted ? 0 : this.volume;
       }
@@ -251,6 +271,10 @@ export class AudioManager {
     this.stop();
     this.unlistenSettings?.();
     this.unlistenSettings = null;
+    this.unlistenVolume?.();
+    this.unlistenVolume = null;
+    this.unlistenMute?.();
+    this.unlistenMute = null;
   }
 }
 

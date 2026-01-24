@@ -21,7 +21,12 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
-  import type { StateInfo, StateChangeEvent, BranchInfo } from "$lib/types/asset";
+  import type {
+    StateInfo,
+    StateChangeEvent,
+    BranchInfo,
+  } from "$lib/types/asset";
+  import { t, onLangChange } from "$lib/i18n";
 
   // ======================================================================= //
   // 响应式状态
@@ -29,38 +34,48 @@
 
   /** 所有预定义状态列表 */
   let allStates = $state<StateInfo[]>([]);
-  
+
   /** 当前正在播放的状态 */
   let currentState = $state<StateInfo | null>(null);
-  
+
   /** 当前的持久状态 (默认状态) */
   let persistentState = $state<StateInfo | null>(null);
-  
+
   /** 队列中的下一个状态 */
   let nextState = $state<StateInfo | null>(null);
-  
+
   /** 状态是否被锁定 */
   let isLocked = $state(false);
-  
+
   /** 状态消息 */
-  let statusMsg = $state("正在加载...");
-  
+  let statusMsg = $state(t("state.statusLoading"));
+
   /** 事件日志记录 (最新在前) */
   let eventLog = $state<string[]>([]);
-  
+
   /** 状态变化事件的取消监听函数 */
   let unlisten: (() => void) | null = null;
-  
+
   /** 播放状态事件的取消监听函数 */
   let unlistenPlayback: (() => void) | null = null;
-  
+
   /** next_state变化事件的取消监听函数 */
   let unlistenNextState: (() => void) | null = null;
+
+  // i18n 响应式版本号
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+
+  // 响应式翻译函数
+  function _(key: string, params?: Record<string, string | number>): string {
+    void _langVersion;
+    return t(key, params);
+  }
 
   // ======================================================================= //
   // 前端播放状态 (来自 animation 窗口)
   // ======================================================================= //
-  
+
   /** 动画是否完成 */
   let animationComplete = $state(false);
   /** 音频是否完成 */
@@ -84,21 +99,23 @@
       persistentState = await invoke("get_persistent_state");
       nextState = await invoke("get_next_state");
       isLocked = await invoke("is_state_locked");
-      statusMsg = "状态已加载";
+      statusMsg = _("state.statusLoaded");
     } catch (e) {
-      statusMsg = `加载失败: ${e}`;
+      statusMsg = _("common.loadFailed") + " " + e;
     }
   }
-  
+
   /**
    * 仅刷新 nextState（用于 next-state-changed 事件）
    */
   async function refreshNextState() {
     try {
       nextState = await invoke("get_next_state");
-      addLog(`next_state 已更新: ${nextState?.name || '无'}`);
+      addLog(
+        _("state.logNextUpdate") + " " + (nextState?.name || _("common.none")),
+      );
     } catch (e) {
-      console.error('Failed to refresh next state:', e);
+      console.error("Failed to refresh next state:", e);
     }
   }
 
@@ -114,16 +131,16 @@
     try {
       const success = await invoke("change_state", { name });
       if (success) {
-        statusMsg = `切换到状态: ${name}`;
-        addLog(`change_state("${name}") -> 成功`);
+        statusMsg = _("state.statusSwitchTo") + " " + name;
+        addLog(_("state.logChangeSuccess", { name }));
       } else {
-        statusMsg = `切换失败: 优先级不足或状态锁定`;
-        addLog(`change_state("${name}") -> 失败 (优先级不足或锁定)`);
+        statusMsg = _("state.statusSwitchFailed");
+        addLog(_("state.logChangeFailed", { name }));
       }
       await loadStates();
     } catch (e) {
-      statusMsg = `切换失败: ${e}`;
-      addLog(`change_state("${name}") -> 错误: ${e}`);
+      statusMsg = _("state.statusSwitchError") + " " + e;
+      addLog(_("state.logChangeError", { name }) + " " + e);
     }
   }
 
@@ -134,12 +151,12 @@
   async function forceChangeState(name: string) {
     try {
       await invoke("force_change_state", { name });
-      statusMsg = `强制切换到: ${name}`;
-      addLog(`force_change_state("${name}") -> 成功`);
+      statusMsg = _("state.statusForceSwitchTo") + " " + name;
+      addLog(_("state.logForceSuccess", { name }));
       await loadStates();
     } catch (e) {
-      statusMsg = `强制切换失败: ${e}`;
-      addLog(`force_change_state("${name}") -> 错误: ${e}`);
+      statusMsg = _("state.statusForceSwitchError") + " " + e;
+      addLog(_("state.logForceError", { name }) + " " + e);
     }
   }
 
@@ -163,14 +180,19 @@
 
   onMount(async () => {
     await loadStates();
-    
+    unsubLang = onLangChange(() => {
+      _langVersion++;
+    });
+
     // 监听后端状态变化事件
     unlisten = await listen<StateChangeEvent>("state-change", (event) => {
       const { state, play_once } = event.payload;
-      addLog(`事件: state-change -> ${state.name} (play_once: ${play_once})`);
+      addLog(
+        _("state.logStateChange") + ` ${state.name} (play_once: ${play_once})`,
+      );
       loadStates();
     });
-    
+
     // 监听前端播放状态事件
     unlistenPlayback = await listen<{
       animationComplete: boolean;
@@ -183,21 +205,25 @@
       bubbleComplete = event.payload.bubbleComplete;
       isPlayOnce = event.payload.isPlayOnce;
     });
-    
+
     // 监听 next_state 变化事件（分支选择时触发）
-    unlistenNextState = await listen<{ name: string }>("next-state-changed", (event) => {
-      addLog(`事件: next-state-changed -> ${event.payload.name}`);
-      refreshNextState();
-    });
-    
+    unlistenNextState = await listen<{ name: string }>(
+      "next-state-changed",
+      (event) => {
+        addLog(_("state.logNextStateEvent") + ` ${event.payload.name}`);
+        refreshNextState();
+      },
+    );
+
     // 请求当前播放状态
-    emit('request-playback-status');
+    emit("request-playback-status");
   });
 
   onDestroy(() => {
     unlisten?.();
     unlistenPlayback?.();
     unlistenNextState?.();
+    unsubLang?.();
   });
 </script>
 
@@ -206,73 +232,93 @@
 <!-- ======================================================================= -->
 
 <div class="state-debugger">
-  <h3>StateManager 调试面板</h3>
+  <h3>{_("state.title")}</h3>
 
   <!-- ================================================================= -->
   <!-- 状态卡片区域 - 展示三个核心状态 -->
   <!-- ================================================================= -->
-  
+
   <div class="state-cards">
     <!-- 当前状态卡片 -->
     <div class="state-card current">
-      <div class="card-header">当前状态</div>
+      <div class="card-header">{_("state.currentState")}</div>
       {#if currentState}
         <div class="state-name">{currentState.name}</div>
         <div class="state-meta">
           <span class="badge" class:persistent={currentState.persistent}>
-            {currentState.persistent ? '持久' : '临时'}
+            {currentState.persistent
+              ? _("state.persistentTag")
+              : _("state.temporaryTag")}
           </span>
-          <span class="priority">优先级: {currentState.priority}</span>
+          <span class="priority"
+            >{_("state.priorityLabel")} {currentState.priority}</span
+          >
           {#if isLocked}
-            <span class="badge locked">锁定中</span>
+            <span class="badge locked">{_("state.lockedTag")}</span>
           {/if}
         </div>
         <div class="state-detail">
-          {#if currentState.anima}<div class="detail-row"><span class="label">动画:</span> {currentState.anima}</div>{/if}
-          {#if currentState.audio}<div class="detail-row"><span class="label">音频:</span> {currentState.audio}</div>{/if}
-          {#if currentState.text}<div class="detail-row"><span class="label">文本:</span> {currentState.text}</div>{/if}
-          {#if currentState.next_state}<div class="detail-row"><span class="label">后续状态:</span> <span class="next-state-value">{currentState.next_state}</span></div>{/if}
+          {#if currentState.anima}<div class="detail-row">
+              <span class="label">{_("state.animationLabel")}</span>
+              {currentState.anima}
+            </div>{/if}
+          {#if currentState.audio}<div class="detail-row">
+              <span class="label">{_("state.audioLabel")}</span>
+              {currentState.audio}
+            </div>{/if}
+          {#if currentState.text}<div class="detail-row">
+              <span class="label">{_("state.textLabel")}</span>
+              {currentState.text}
+            </div>{/if}
+          {#if currentState.next_state}<div class="detail-row">
+              <span class="label">{_("state.nextStateLabel")}</span>
+              <span class="next-state-value">{currentState.next_state}</span>
+            </div>{/if}
         </div>
         <!-- 对话分支信息 (如果有) -->
         {#if currentState.branch && currentState.branch.length > 0}
           <div class="branch-info">
-            <span class="label">分支选项:</span>
+            <span class="label">{_("state.branchOptionsLabel")}</span>
             {#each currentState.branch as b}
               <span class="branch-item">{b.text} → {b.next_state}</span>
             {/each}
           </div>
         {/if}
       {:else}
-        <div class="empty">无</div>
+        <div class="empty">{_("common.none")}</div>
       {/if}
     </div>
 
     <!-- 持久状态卡片 -->
     <div class="state-card persistent">
-      <div class="card-header">持久状态</div>
+      <div class="card-header">{_("state.persistentState")}</div>
       {#if persistentState}
         <div class="state-name">{persistentState.name}</div>
         <div class="state-meta">
-          <span class="anima">动画: {persistentState.anima}</span>
+          <span class="anima"
+            >{_("state.animationLabel")} {persistentState.anima}</span
+          >
         </div>
       {:else}
-        <div class="empty">无</div>
+        <div class="empty">{_("common.none")}</div>
       {/if}
     </div>
 
     <!-- 下一状态卡片 (队列中的状态) -->
     <div class="state-card next">
-      <div class="card-header">队列状态</div>
-      <div class="card-hint">当前状态播放完毕后切换</div>
+      <div class="card-header">{_("state.queuedState")}</div>
+      <div class="card-hint">{_("state.queuedHint")}</div>
       {#if nextState}
         <div class="state-name">{nextState.name}</div>
         <div class="state-meta">
           <span class="badge" class:persistent={nextState.persistent}>
-            {nextState.persistent ? '持久' : '临时'}
+            {nextState.persistent
+              ? _("state.persistentTag")
+              : _("state.temporaryTag")}
           </span>
         </div>
       {:else}
-        <div class="empty">无 (将回到持久状态)</div>
+        <div class="empty">{_("state.noNext")}</div>
       {/if}
     </div>
   </div>
@@ -280,25 +326,35 @@
   <!-- ================================================================= -->
   <!-- 前端播放状态区域 -->
   <!-- ================================================================= -->
-  
+
   <div class="section">
-    <h4>前端播放状态</h4>
+    <h4>{_("state.frontendStatus")}</h4>
     <div class="playback-status">
       <div class="status-item" class:complete={animationComplete}>
-        <span class="status-label">动画</span>
-        <span class="status-value">{animationComplete ? '完成' : '播放中'}</span>
+        <span class="status-label">{_("state.animationStatus")}</span>
+        <span class="status-value"
+          >{animationComplete
+            ? _("common.complete")
+            : _("common.playing")}</span
+        >
       </div>
       <div class="status-item" class:complete={audioComplete}>
-        <span class="status-label">音频</span>
-        <span class="status-value">{audioComplete ? '完成' : '播放中'}</span>
+        <span class="status-label">{_("state.audioStatus")}</span>
+        <span class="status-value"
+          >{audioComplete ? _("common.complete") : _("common.playing")}</span
+        >
       </div>
       <div class="status-item" class:complete={bubbleComplete}>
-        <span class="status-label">气泡</span>
-        <span class="status-value">{bubbleComplete ? '完成' : '显示中'}</span>
+        <span class="status-label">{_("state.bubbleStatus")}</span>
+        <span class="status-value"
+          >{bubbleComplete ? _("common.complete") : _("common.showing")}</span
+        >
       </div>
       <div class="status-item mode">
-        <span class="status-label">模式</span>
-        <span class="status-value">{isPlayOnce ? '单次播放' : '循环播放'}</span>
+        <span class="status-label">{_("state.modeStatus")}</span>
+        <span class="status-value"
+          >{isPlayOnce ? _("state.playOnce") : _("state.loopPlay")}</span
+        >
       </div>
     </div>
   </div>
@@ -306,18 +362,18 @@
   <!-- ================================================================= -->
   <!-- 状态列表表格 -->
   <!-- ================================================================= -->
-  
+
   <div class="section">
-    <h4>预定义状态列表</h4>
+    <h4>{_("state.stateList")}</h4>
     <div class="states-table">
       <!-- 表头 -->
       <div class="table-header">
-        <span class="col-name">名称</span>
-        <span class="col-type">类型</span>
-        <span class="col-priority">优先级</span>
-        <span class="col-resources">资源</span>
-        <span class="col-extra">附加信息</span>
-        <span class="col-ops">操作</span>
+        <span class="col-name">{_("state.colName")}</span>
+        <span class="col-type">{_("state.colType")}</span>
+        <span class="col-priority">{_("state.colPriority")}</span>
+        <span class="col-resources">{_("state.colResource")}</span>
+        <span class="col-extra">{_("state.colExtra")}</span>
+        <span class="col-ops">{_("state.colAction")}</span>
       </div>
       <!-- 状态行 -->
       {#each allStates as state}
@@ -325,43 +381,94 @@
           <span class="col-name">{state.name}</span>
           <span class="col-type">
             <span class="badge small" class:persistent={state.persistent}>
-              {state.persistent ? '持久' : '临时'}
+              {state.persistent
+                ? _("state.persistentTag")
+                : _("state.temporaryTag")}
             </span>
           </span>
           <span class="col-priority">{state.priority}</span>
           <span class="col-resources">
-            {#if state.anima}<span class="resource-tag anima" title="动画">🎬{state.anima}</span>{/if}
-            {#if state.audio}<span class="resource-tag audio" title="音频">🔊{state.audio}</span>{/if}
-            {#if state.text}<span class="resource-tag text" title="文本">💬{state.text}</span>{/if}
+            {#if state.anima}<span
+                class="resource-tag anima"
+                title={_("state.animationLabel")}>🎬{state.anima}</span
+              >{/if}
+            {#if state.audio}<span
+                class="resource-tag audio"
+                title={_("state.audioLabel")}>🔊{state.audio}</span
+              >{/if}
+            {#if state.text}<span
+                class="resource-tag text"
+                title={_("state.textLabel")}>💬{state.text}</span
+              >{/if}
           </span>
           <span class="col-extra">
             {#if state.next_state}
-              <span class="extra-tag next" title="后续状态">→{state.next_state}</span>
+              <span class="extra-tag next" title={_("state.nextTooltip")}
+                >→{state.next_state}</span
+              >
             {/if}
             {#if (state.trigger_time ?? 0) > 0}
-              <span class="extra-tag timer" title="定时触发: 每{state.trigger_time}s, 概率{((state.trigger_rate ?? 0) * 100).toFixed(0)}%">⏱{state.trigger_time}s</span>
+              <span
+                class="extra-tag timer"
+                title={_("state.timerTooltip", {
+                  interval: state.trigger_time ?? 0,
+                  chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
+                })}>⏱{state.trigger_time}s</span
+              >
             {/if}
             {#if state.can_trigger_states && state.can_trigger_states.length > 0}
-              <span class="extra-tag trigger" title="可触发: {state.can_trigger_states.join(', ')}">🎯{state.can_trigger_states.length}</span>
+              <span
+                class="extra-tag trigger"
+                title={_("state.triggerableTooltip", {
+                  states: state.can_trigger_states.join(", "),
+                })}>🎯{state.can_trigger_states.length}</span
+              >
             {/if}
             {#if state.branch && state.branch.length > 0}
-              <span class="extra-tag branch" title="分支选项:\n{state.branch.map(b => `${b.text} → ${b.next_state}`).join('\n')}">🔀{state.branch.length}</span>
+              <span
+                class="extra-tag branch"
+                title={_("state.branchTooltip") +
+                  ":\n" +
+                  state.branch
+                    .map((b) => `${b.text} → ${b.next_state}`)
+                    .join("\n")}>🔀{state.branch.length}</span
+              >
             {/if}
             {#if state.date_start || state.date_end}
-              <span class="extra-tag date" title="日期: {state.date_start || '*'} ~ {state.date_end || '*'}">📅</span>
+              <span
+                class="extra-tag date"
+                title={_("state.dateTooltip", {
+                  start: state.date_start || "*",
+                  end: state.date_end || "*",
+                })}>📅</span
+              >
             {/if}
             {#if state.time_start || state.time_end}
-              <span class="extra-tag time" title="时间: {state.time_start || '*'} ~ {state.time_end || '*'}">🕐</span>
+              <span
+                class="extra-tag time"
+                title={_("state.timeTooltip", {
+                  start: state.time_start || "*",
+                  end: state.time_end || "*",
+                })}>🕐</span
+              >
             {/if}
           </span>
           <span class="col-ops">
             <!-- 普通切换按钮 -->
-            <button class="btn-small" onclick={() => changeState(state.name)} title="切换状态 (检查优先级)">
-              切换
+            <button
+              class="btn-small"
+              onclick={() => changeState(state.name)}
+              title={_("state.switchHint")}
+            >
+              {_("state.switchBtn")}
             </button>
             <!-- 强制切换按钮 -->
-            <button class="btn-small force" onclick={() => forceChangeState(state.name)} title="强制切换 (忽略优先级)">
-              强制
+            <button
+              class="btn-small force"
+              onclick={() => forceChangeState(state.name)}
+              title={_("state.forceHint")}
+            >
+              {_("state.forceBtn")}
             </button>
           </span>
         </div>
@@ -372,17 +479,19 @@
   <!-- ================================================================= -->
   <!-- 事件日志区域 -->
   <!-- ================================================================= -->
-  
+
   <div class="section">
     <div class="section-header">
-      <h4>事件日志</h4>
-      <button class="btn-tiny" onclick={() => eventLog = []}>清空</button>
+      <h4>{_("state.eventLog")}</h4>
+      <button class="btn-tiny" onclick={() => (eventLog = [])}
+        >{_("common.clear")}</button
+      >
     </div>
     <div class="event-log">
       {#each eventLog as log}
         <div class="log-item">{log}</div>
       {:else}
-        <div class="log-empty">暂无事件</div>
+        <div class="log-empty">{_("state.noEvents")}</div>
       {/each}
     </div>
   </div>
@@ -390,13 +499,15 @@
   <!-- ================================================================= -->
   <!-- 操作按钮 -->
   <!-- ================================================================= -->
-  
+
   <div class="actions">
-    <button class="refresh" onclick={loadStates}>刷新状态</button>
+    <button class="refresh" onclick={loadStates}
+      >{_("state.refreshState")}</button
+    >
   </div>
 
   <!-- 状态消息栏 -->
-  <div class="status-bar" class:error={statusMsg.includes('失败')}>
+  <div class="status-bar" class:error={statusMsg.includes("失败")}>
     {statusMsg}
   </div>
 </div>
@@ -410,7 +521,7 @@
     max-width: 600px;
     margin: 20px auto;
     color: #333;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   }
 
   h3 {
@@ -543,8 +654,13 @@
   }
 
   @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
   }
 
   .badge.small {
@@ -552,7 +668,8 @@
     font-size: 0.7em;
   }
 
-  .priority, .anima {
+  .priority,
+  .anima {
     color: #7f8c8d;
   }
 
@@ -644,7 +761,8 @@
     word-break: break-all;
   }
 
-  .col-resources, .col-extra {
+  .col-resources,
+  .col-extra {
     display: flex;
     flex-wrap: wrap;
     gap: 3px;
@@ -660,9 +778,18 @@
     white-space: nowrap;
   }
 
-  .resource-tag.anima { background: #fef5e7; color: #d68910; }
-  .resource-tag.audio { background: #e8f6f3; color: #16a085; }
-  .resource-tag.text { background: #ebf5fb; color: #2980b9; }
+  .resource-tag.anima {
+    background: #fef5e7;
+    color: #d68910;
+  }
+  .resource-tag.audio {
+    background: #e8f6f3;
+    color: #16a085;
+  }
+  .resource-tag.text {
+    background: #ebf5fb;
+    color: #2980b9;
+  }
 
   .extra-tag {
     display: inline-block;
@@ -674,12 +801,30 @@
     cursor: help;
   }
 
-  .extra-tag.next { background: #f5eef8; color: #8e44ad; }
-  .extra-tag.timer { background: #fef9e7; color: #b7950b; }
-  .extra-tag.trigger { background: #eafaf1; color: #1e8449; }
-  .extra-tag.branch { background: #fdf2e9; color: #d35400; }
-  .extra-tag.date { background: #ebedef; color: #566573; }
-  .extra-tag.time { background: #ebedef; color: #566573; }
+  .extra-tag.next {
+    background: #f5eef8;
+    color: #8e44ad;
+  }
+  .extra-tag.timer {
+    background: #fef9e7;
+    color: #b7950b;
+  }
+  .extra-tag.trigger {
+    background: #eafaf1;
+    color: #1e8449;
+  }
+  .extra-tag.branch {
+    background: #fdf2e9;
+    color: #d35400;
+  }
+  .extra-tag.date {
+    background: #ebedef;
+    color: #566573;
+  }
+  .extra-tag.time {
+    background: #ebedef;
+    color: #566573;
+  }
 
   .col-ops {
     display: flex;
@@ -730,7 +875,7 @@
     padding: 10px;
     max-height: 150px;
     overflow-y: auto;
-    font-family: 'Consolas', monospace;
+    font-family: "Consolas", monospace;
     font-size: 0.75em;
   }
 
@@ -837,19 +982,40 @@
       color: #bdc3c7;
     }
 
-    .resource-tag.anima { background: #4a3d1e; color: #f1c40f; }
-    .resource-tag.audio { background: #1e4d3d; color: #2ecc71; }
-    .resource-tag.text { background: #2e4a62; color: #5dade2; }
+    .resource-tag.anima {
+      background: #4a3d1e;
+      color: #f1c40f;
+    }
+    .resource-tag.audio {
+      background: #1e4d3d;
+      color: #2ecc71;
+    }
+    .resource-tag.text {
+      background: #2e4a62;
+      color: #5dade2;
+    }
 
     .extra-tag {
       background: #3d566e;
       color: #bdc3c7;
     }
 
-    .extra-tag.next { background: #4a3d5a; color: #bb8fce; }
-    .extra-tag.timer { background: #4a4a1e; color: #f1c40f; }
-    .extra-tag.trigger { background: #1e4a3d; color: #2ecc71; }
-    .extra-tag.branch { background: #4a3d2e; color: #e67e22; }
+    .extra-tag.next {
+      background: #4a3d5a;
+      color: #bb8fce;
+    }
+    .extra-tag.timer {
+      background: #4a4a1e;
+      color: #f1c40f;
+    }
+    .extra-tag.trigger {
+      background: #1e4a3d;
+      color: #2ecc71;
+    }
+    .extra-tag.branch {
+      background: #4a3d2e;
+      color: #e67e22;
+    }
 
     .status-bar {
       background: #34495e;
