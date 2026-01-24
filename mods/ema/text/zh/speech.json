@@ -28,5 +28,15 @@
     "name": "hello1_2",
     "text": "好的！那我就在这里陪着你～\n有需要随时叫我哦！",
     "duration": 5
+  },
+  {
+    "name": "music_hello1_1",
+    "text": "你好呀！我是你的桌面伙伴！有什么可以帮助你的吗？",
+    "duration": 5
+  },
+  {
+    "name": "music_hello1_2",
+    "text": "好的！那我就在这里陪着你～有需要随时叫我哦！",
+    "duration": 5
   }
 ]

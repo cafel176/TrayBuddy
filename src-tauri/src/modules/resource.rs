@@ -121,6 +121,8 @@ pub struct TextInfo {
     pub name: String,
     /// 显示的文本内容
     pub text: String,
+    /// 文本显示持续时间（秒），默认10秒
+    pub duration: u32,
 }
 
 impl Default for TextInfo {
@@ -128,6 +130,7 @@ impl Default for TextInfo {
         Self {
             name: default_name(),
             text: String::new(),
+            duration: 5,
         }
     }
 }
@@ -323,6 +326,27 @@ impl Default for BranchInfo {
 // 触发器定义
 // ========================================================================= //
 
+/// 触发条件状态组
+/// 
+/// 定义在特定持久状态下可触发的状态列表
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct TriggerStateGroup {
+    /// 持久状态名称，为空字符串时表示任意持久状态都可触发
+    pub persistent_state: String,
+    /// 可触发的状态名称列表
+    pub states: Vec<String>,
+}
+
+impl Default for TriggerStateGroup {
+    fn default() -> Self {
+        Self {
+            persistent_state: String::new(),
+            states: Vec::new(),
+        }
+    }
+}
+
 /// 触发器信息
 /// 
 /// 定义事件与可触发状态的映射关系
@@ -331,8 +355,8 @@ impl Default for BranchInfo {
 pub struct TriggerInfo {
     /// 触发事件名称（如 "login", "music_start"）
     pub event: String,
-    /// 可触发的状态名称列表
-    pub can_trigger_states: Vec<String>,
+    /// 可触发的状态组列表（按持久状态分组）
+    pub can_trigger_states: Vec<TriggerStateGroup>,
 }
 
 impl Default for TriggerInfo {
@@ -888,5 +912,21 @@ impl ResourceManager {
         }
         
         result
+    }
+
+    /// 获取气泡样式配置
+    /// 
+    /// 从当前 Mod 目录读取 bubble_style.json 文件
+    pub fn get_bubble_style(&self) -> Option<serde_json::Value> {
+        let mod_info = self.current_mod.as_ref()?;
+        let style_path = mod_info.path.join("bubble_style.json");
+        
+        if !style_path.exists() {
+            return None;
+        }
+        
+        fs::read_to_string(&style_path)
+            .ok()
+            .and_then(|content| serde_json::from_str(&content).ok())
     }
 }

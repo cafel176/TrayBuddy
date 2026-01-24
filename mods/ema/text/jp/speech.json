@@ -28,5 +28,15 @@
     "name": "hello1_2",
     "text": "おはよう！",
     "duration": 5
+  },
+  {
+    "name": "music_hello1_1",
+    "text": "おはよう！",
+    "duration": 5
+  },
+  {
+    "name": "music_hello1_2",
+    "text": "おはよう！",
+    "duration": 5
   }
 ]

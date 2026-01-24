@@ -26,8 +26,10 @@
 mod modules;
 
 use modules::constants::{
-    ANIMATION_WINDOW_BASE_WIDTH, ANIMATION_WINDOW_BASE_HEIGHT,
+    ANIMATION_AREA_WIDTH,
+    ANIMATION_AREA_HEIGHT, BUBBLE_AREA_HEIGHT, BUBBLE_AREA_WIDTH,
     ANIMATION_BORDER, STATE_IDLE,
+    SHORT_TEXT_THRESHOLD, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_LINE, MAX_CHARS_PER_BUTTON,
 };
 use modules::environment::get_current_datetime;
 use modules::resource::{
@@ -69,6 +71,9 @@ pub struct AppState {
 /// 返回的常量包括：
 /// - `animation_window_width`: 动画窗口宽度
 /// - `animation_window_height`: 动画窗口高度
+/// - `animation_area_height`: 动画区域高度（角色显示区域，已缩放）
+/// - `bubble_area_height`: 气泡区域高度（固定不缩放）
+/// - `bubble_area_width`: 气泡区域宽度（固定不缩放）
 /// - `animation_scale`: 缩放比例
 #[tauri::command]
 fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<String, f64> {
@@ -76,9 +81,23 @@ fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<Stri
     let scale = storage.data.settings.animation_scale as f64;
     
     // 预分配容量避免扩容
-    let mut map = std::collections::HashMap::with_capacity(3);
-    map.insert("animation_window_width".into(), ANIMATION_WINDOW_BASE_WIDTH * scale);
-    map.insert("animation_window_height".into(), ANIMATION_WINDOW_BASE_HEIGHT * scale);
+    let mut map = std::collections::HashMap::with_capacity(7);
+    // 气泡区域固定尺寸，不随缩放变化
+    let bubble_height = BUBBLE_AREA_HEIGHT;
+    let bubble_width = BUBBLE_AREA_WIDTH;
+    // 动画区域按比例缩放
+    let animation_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_width = ANIMATION_AREA_WIDTH * scale;
+    // 窗口尺寸：宽度取两者最大值，高度为气泡+动画
+    let window_width = bubble_width.max(animation_width);
+    let window_height = bubble_height + animation_height;
+    
+    map.insert("animation_window_width".into(), window_width);
+    map.insert("animation_window_height".into(), window_height);
+    map.insert("animation_area_height".into(), animation_height);
+    map.insert("animation_area_width".into(), animation_width);
+    map.insert("bubble_area_height".into(), bubble_height);
+    map.insert("bubble_area_width".into(), bubble_width);
     map.insert("animation_scale".into(), scale);
     map
 }
@@ -88,6 +107,23 @@ fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<Stri
 fn get_const_text() -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::with_capacity(1);
     map.insert(ANIMATION_BORDER.into(), ANIMATION_BORDER.into());
+    map
+}
+
+/// 获取整数型常量（气泡文本相关）
+/// 
+/// 返回的常量包括：
+/// - `short_text_threshold`: 按钮短文本阈值（字符数）
+/// - `max_buttons_per_row`: 单行最大按钮数量
+/// - `max_chars_per_line`: 单行最大字符数
+/// - `max_chars_per_button`: 按钮文本最大字符数
+#[tauri::command]
+fn get_const_int() -> std::collections::HashMap<String, u32> {
+    let mut map = std::collections::HashMap::with_capacity(4);
+    map.insert("short_text_threshold".into(), SHORT_TEXT_THRESHOLD);
+    map.insert("max_buttons_per_row".into(), MAX_BUTTONS_PER_ROW);
+    map.insert("max_chars_per_line".into(), MAX_CHARS_PER_LINE);
+    map.insert("max_chars_per_button".into(), MAX_CHARS_PER_BUTTON);
     map
 }
 
@@ -236,6 +272,13 @@ fn get_info_by_lang(lang: String, state: State<'_, AppState>) -> Option<Characte
     rm.get_info_by_lang(&lang).cloned()
 }
 
+/// 获取气泡样式配置
+#[tauri::command]
+fn get_bubble_style(state: State<'_, AppState>) -> Option<serde_json::Value> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_bubble_style()
+}
+
 // ========================================================================= //
 // 状态管理命令
 // ========================================================================= //
@@ -304,6 +347,21 @@ fn on_animation_complete(state: State<'_, AppState>) {
     sm.on_state_complete();
 }
 
+/// 设置下一个待切换状态
+#[tauri::command]
+fn set_next_state(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let state_info = {
+        let rm = state.resource_manager.lock().unwrap();
+        rm.get_state_by_name(&name)
+            .ok_or_else(|| format!("State '{}' not found", name))?
+            .clone()
+    };
+    
+    let mut sm = state.state_manager.lock().unwrap();
+    sm.set_next_state(state_info);
+    Ok(())
+}
+
 /// 检查状态是否被锁定
 #[tauri::command]
 fn is_state_locked(state: State<'_, AppState>) -> bool {
@@ -346,9 +404,12 @@ fn set_animation_scale(scale: f64, app: tauri::AppHandle, state: State<'_, AppSt
         storage.save()?;
     }
     
-    // 调整窗口大小
-    let new_width = ANIMATION_WINDOW_BASE_WIDTH * scale;
-    let new_height = ANIMATION_WINDOW_BASE_HEIGHT * scale;
+    // 调整窗口大小 - 气泡区域固定尺寸，只有动画区域缩放
+    let animation_width = ANIMATION_AREA_WIDTH * scale;
+    let animation_height = ANIMATION_AREA_HEIGHT * scale;
+    // 窗口宽度取气泡宽度和动画宽度的最大值
+    let new_width = BUBBLE_AREA_WIDTH.max(animation_width);
+    let new_height = BUBBLE_AREA_HEIGHT + animation_height;
     
     if let Some(window) = app.get_webview_window("animation") {
         window.set_size(LogicalSize::new(new_width, new_height))
@@ -412,8 +473,14 @@ pub fn run() {
 
             // ========== 创建动画窗口 ==========
             let scale = storage.data.settings.animation_scale as f64;
-            let window_width = ANIMATION_WINDOW_BASE_WIDTH * scale;
-            let window_height = ANIMATION_WINDOW_BASE_HEIGHT * scale;
+            // 气泡区域固定尺寸，动画区域随缩放变化
+            let bubble_area_height = BUBBLE_AREA_HEIGHT;
+            let bubble_area_width = BUBBLE_AREA_WIDTH;
+            let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+            let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+            // 窗口宽度取两者最大值
+            let window_width = bubble_area_width.max(animation_area_width);
+            let window_height = bubble_area_height + animation_area_height;
             let saved_position = (storage.data.info.animation_window_x, storage.data.info.animation_window_y);
 
             let animation_window = WebviewWindowBuilder::new(
@@ -433,10 +500,13 @@ pub fn run() {
             .map_err(|e| e.to_string())?;
 
             // 设置窗口位置
+            // 注意：保存的 y 是动画区域顶部的位置，需要减去气泡区域高度得到窗口顶部位置
             if let (Some(x), Some(y)) = saved_position {
-                let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+                // y 是动画区域顶部，窗口顶部 = y - 气泡区域高度
+                let window_y = y - bubble_area_height;
+                let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
             } else if let Some(monitor) = animation_window.primary_monitor().ok().flatten() {
-                // 首次启动，定位到屏幕右下角
+                // 首次启动，定位到屏幕右下角（动画区域底部贴近任务栏上方）
                 let scale_factor = monitor.scale_factor();
                 let screen_size = monitor.size();
                 let screen_pos = monitor.position();
@@ -446,6 +516,7 @@ pub fn run() {
                 let screen_h = screen_size.height as f64 / scale_factor;
                 
                 let x = screen_pos.x as f64 + screen_w - window_width;
+                // 窗口顶部 y = 屏幕底部 - 任务栏 - 动画区域高度 - 气泡区域高度
                 let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
                 
                 let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
@@ -479,16 +550,36 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if window.label() == "main" {
-                    save_animation_window_position(window);
+            match event {
+                tauri::WindowEvent::CloseRequested { .. } => {
+                    // main 窗口或 animation 窗口关闭时都保存位置
+                    if window.label() == "main" || window.label() == "animation" {
+                        save_animation_window_position(window);
+                    }
                 }
+                tauri::WindowEvent::Moved(_) => {
+                    if window.label() == "animation" {
+                        // 发送窗口位置更新事件（发送动画区域顶部位置，与保存一致）
+                        if let Ok(position) = window.outer_position() {
+                            let scale_factor = window.scale_factor().unwrap_or(1.0);
+                            let x = position.x as f64 / scale_factor;
+                            let y = position.y as f64 / scale_factor;
+                            // 动画区域顶部 Y = 窗口 Y + 气泡区域高度
+                            let animation_area_y = y + BUBBLE_AREA_HEIGHT;
+                            let _ = window.emit("window-position-changed", (x, animation_area_y));
+                        }
+                        // 实时保存窗口位置（防止异常退出丢失）
+                        save_animation_window_position(window);
+                    }
+                }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
             // 常量查询
             get_const_float,
             get_const_text,
+            get_const_int,
             // 用户设置
             get_settings,
             update_settings,
@@ -509,6 +600,7 @@ pub fn run() {
             get_audio_by_name,
             get_text_by_name,
             get_info_by_lang,
+            get_bubble_style,
             // 状态管理
             get_all_states,
             get_current_state,
@@ -516,6 +608,7 @@ pub fn run() {
             get_next_state,
             change_state,
             force_change_state,
+            set_next_state,
             on_animation_complete,
             is_state_locked,
             // 触发器
@@ -576,19 +669,34 @@ fn start_media_observer(app_handle: tauri::AppHandle) {
 }
 
 /// 保存动画窗口位置
+/// 
+/// 注意：保存的 y 是动画区域顶部的位置（窗口 y + 气泡区域高度），
+/// 这样当气泡区域高度变化时，动画区域位置保持不变
 fn save_animation_window_position(window: &tauri::Window) {
     let app = window.app_handle();
     
-    if let Some(animation_window) = app.get_webview_window("animation") {
-        if let Ok(position) = animation_window.outer_position() {
+    // 获取 animation 窗口
+    let animation_window = app.get_webview_window("animation");
+    
+    if let Some(anim_win) = animation_window {
+        if let Ok(position) = anim_win.outer_position() {
             let app_state: State<AppState> = window.state();
             let mut storage = app_state.storage.lock().unwrap();
             
-            let scale_factor = animation_window.scale_factor().unwrap_or(1.0);
-            storage.data.info.animation_window_x = Some(position.x as f64 / scale_factor);
-            storage.data.info.animation_window_y = Some(position.y as f64 / scale_factor);
+            let scale_factor = anim_win.scale_factor().unwrap_or(1.0);
+            // 气泡区域固定高度，不随缩放变化
+            let bubble_area_height = BUBBLE_AREA_HEIGHT;
             
-            let _ = storage.save();
+            let window_x = position.x as f64 / scale_factor;
+            let window_y = position.y as f64 / scale_factor;
+            
+            // 保存动画区域顶部的 Y 位置（窗口 Y + 气泡区域高度）
+            storage.data.info.animation_window_x = Some(window_x);
+            storage.data.info.animation_window_y = Some(window_y + bubble_area_height);
+            
+            if let Err(e) = storage.save() {
+                eprintln!("[TrayBuddy] 保存窗口位置失败: {}", e);
+            }
         }
     }
 }

@@ -62,7 +62,7 @@ impl Default for UserSettings {
 
             show_character: true,
             show_border: true,
-            animation_scale: 0.5,
+            animation_scale: 0.4,
         }
     }
 }

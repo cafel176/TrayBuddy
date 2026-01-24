@@ -19,7 +19,7 @@
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
+  import { listen, emit } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
 
   // ======================================================================= //
@@ -101,6 +101,22 @@
   
   /** 状态变化事件的取消监听函数 */
   let unlisten: (() => void) | null = null;
+  
+  /** 播放状态事件的取消监听函数 */
+  let unlistenPlayback: (() => void) | null = null;
+
+  // ======================================================================= //
+  // 前端播放状态 (来自 animation 窗口)
+  // ======================================================================= //
+  
+  /** 动画是否完成 */
+  let animationComplete = $state(false);
+  /** 音频是否完成 */
+  let audioComplete = $state(false);
+  /** 气泡是否完成 */
+  let bubbleComplete = $state(false);
+  /** 是否为单次播放模式 */
+  let isPlayOnce = $state(false);
 
   // ======================================================================= //
   // 数据加载函数
@@ -190,10 +206,27 @@
       addLog(`事件: state-change -> ${state.name} (play_once: ${play_once})`);
       loadStates();
     });
+    
+    // 监听前端播放状态事件
+    unlistenPlayback = await listen<{
+      animationComplete: boolean;
+      audioComplete: boolean;
+      bubbleComplete: boolean;
+      isPlayOnce: boolean;
+    }>("playback-status", (event) => {
+      animationComplete = event.payload.animationComplete;
+      audioComplete = event.payload.audioComplete;
+      bubbleComplete = event.payload.bubbleComplete;
+      isPlayOnce = event.payload.isPlayOnce;
+    });
+    
+    // 请求当前播放状态
+    emit('request-playback-status');
   });
 
   onDestroy(() => {
     unlisten?.();
+    unlistenPlayback?.();
   });
 </script>
 
@@ -263,6 +296,32 @@
       {:else}
         <div class="empty">无</div>
       {/if}
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- 前端播放状态区域 -->
+  <!-- ================================================================= -->
+  
+  <div class="section">
+    <h4>前端播放状态</h4>
+    <div class="playback-status">
+      <div class="status-item" class:complete={animationComplete}>
+        <span class="status-label">动画</span>
+        <span class="status-value">{animationComplete ? '完成' : '播放中'}</span>
+      </div>
+      <div class="status-item" class:complete={audioComplete}>
+        <span class="status-label">音频</span>
+        <span class="status-value">{audioComplete ? '完成' : '播放中'}</span>
+      </div>
+      <div class="status-item" class:complete={bubbleComplete}>
+        <span class="status-label">气泡</span>
+        <span class="status-value">{bubbleComplete ? '完成' : '显示中'}</span>
+      </div>
+      <div class="status-item mode">
+        <span class="status-label">模式</span>
+        <span class="status-value">{isPlayOnce ? '单次播放' : '循环播放'}</span>
+      </div>
     </div>
   </div>
 
@@ -479,6 +538,45 @@
     align-items: center;
   }
 
+  .playback-status {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .status-item {
+    background: #fee2e2;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    border: 2px solid #fca5a5;
+    transition: all 0.3s;
+  }
+
+  .status-item.complete {
+    background: #d1fae5;
+    border-color: #6ee7b7;
+  }
+
+  .status-item.mode {
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+  }
+
+  .status-label {
+    display: block;
+    font-size: 0.75em;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+
+  .status-value {
+    display: block;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #374151;
+  }
+
   .states-table {
     border: 1px solid #eee;
     border-radius: 6px;
@@ -656,6 +754,29 @@
 
     .status-bar.error {
       background: #5a3e3e;
+    }
+
+    .status-item {
+      background: #5a3e3e;
+      border-color: #7f5a5a;
+    }
+
+    .status-item.complete {
+      background: #2d5a4a;
+      border-color: #4a8a6a;
+    }
+
+    .status-item.mode {
+      background: #3d4a6a;
+      border-color: #5a6a8a;
+    }
+
+    .status-label {
+      color: #9ca3af;
+    }
+
+    .status-value {
+      color: #ecf0f1;
     }
   }
 </style>

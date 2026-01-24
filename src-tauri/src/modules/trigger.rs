@@ -19,7 +19,7 @@ use super::state::StateManager;
 /// 
 /// 负责处理事件触发并执行对应的状态切换：
 /// 1. 从 ResourceManager 获取事件对应的 Trigger 配置
-/// 2. 解析 `can_trigger_states` 状态名列表
+/// 2. 根据当前持久状态筛选匹配的 `can_trigger_states` 状态组
 /// 3. 将状态信息传递给 StateManager 进行随机选择和切换
 pub struct TriggerManager;
 
@@ -51,10 +51,26 @@ impl TriggerManager {
             }
         };
 
-        // 获取可触发的状态名列表
-        let state_names = &trigger.can_trigger_states;
+        // 获取当前持久状态名称
+        let current_persistent_name = state_manager
+            .get_persistent_state()
+            .map(|s| s.name.as_str())
+            .unwrap_or("");
+
+        println!("[TriggerManager] 当前持久状态: '{}'", current_persistent_name);
+
+        // 根据当前持久状态筛选可触发的状态名列表
+        let state_names: Vec<&String> = trigger.can_trigger_states.iter()
+            .filter(|group| {
+                // persistent_state 为空表示任意持久状态都可触发
+                group.persistent_state.is_empty() || group.persistent_state == current_persistent_name
+            })
+            .flat_map(|group| group.states.iter())
+            .collect();
+
         if state_names.is_empty() {
-            println!("[TriggerManager] 触发器 '{}' 没有配置可触发状态", event_name);
+            println!("[TriggerManager] 触发器 '{}' 在当前持久状态 '{}' 下没有可触发状态", 
+                     event_name, current_persistent_name);
             return Ok(false);
         }
 

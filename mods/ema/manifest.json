@@ -171,7 +171,11 @@
       "trigger_rate" : 0,
       "branch" :[
         {
-          "text" : "好的！",
+          "text" : "好的好的好",
+          "next_state" : "hello1_2"
+        },
+        {
+          "text" : "好的好的好",
           "next_state" : "hello1_2"
         }
       ]
@@ -210,7 +214,11 @@
       "trigger_rate" : 0,
       "branch" :[
         {
-          "text" : "好的！",
+          "text" : "好的好的好的好的好的好好的好的好好的好的好",
+          "next_state" : "music_hello1_2"
+        },
+        {
+          "text" : "好的好的好的好的好的好好的好的好好的好的好",
           "next_state" : "music_hello1_2"
         }
       ]

@@ -34,12 +34,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
+  import { listen, emit } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { SpriteAnimator } from "$lib/animation/SpriteAnimator";
   import { getAudioManager, type AudioManager } from "$lib/audio/AudioManager";
   import { getTriggerManager, type TriggerManager } from "$lib/trigger/TriggerManager";
   import type { StateInfo, UserSettings } from "$lib/types/asset";
+  import BubbleManager, { type BubbleConfig } from "$lib/bubble/BubbleManager.svelte";
 
   // =========================================================================
   // DOM 引用
@@ -62,6 +63,10 @@
   let audioManager: AudioManager | null = null;
   /** 触发器管理器 */
   let triggerManager: TriggerManager | null = null;
+  
+  /** 气泡管理器 */
+  let bubbleManager: BubbleManager;
+  
   /** 状态变化事件监听器取消函数 */
   let unlistenState: (() => void) | null = null;
   /** 设置变化事件监听器取消函数 */
@@ -88,6 +93,8 @@
   let animationComplete = false;
   /** 音频是否播放完成 */
   let audioComplete = false;
+  /** 气泡是否显示完成（关闭或无气泡） */
+  let bubbleComplete = false;
   /** 当前是否为单次播放模式（临时状态） */
   let isPlayOnce = false;
 
@@ -109,6 +116,40 @@
   // =========================================================================
 
   /** 后端发送的状态切换事件结构 */
+
+  /**
+   * 分支信息接口
+   */
+  interface BranchInfo {
+    /** 选项按钮显示的文本 */
+    text: string;
+    /** 点击后跳转到的状态名称 */
+    next_state: string;
+  }
+
+  /**
+   * 状态信息接口 (简化版)
+   */
+  interface StateInfo {
+    /** 状态名称 */
+    name: string;
+    /** 是否为持久状态 */
+    persistent: boolean;
+    /** 动画资源名 */
+    anima: string;
+    /** 音频资源名 */
+    audio: string;
+    /** 文本资源名 */
+    text: string;
+    /** 优先级 */
+    priority: number;
+    /** 分支选项 */
+    branch: BranchInfo[];
+  }
+
+  /**
+   * 状态变化事件数据
+   */
   interface StateChangeEvent {
     /** 切换到的状态信息 */
     state: StateInfo;
@@ -184,6 +225,11 @@
         showBorder = event.payload.show_border;
       });
 
+      // 注册播放状态请求事件监听
+      await listen("request-playback-status", () => {
+        emitPlaybackStatus();
+      });
+
       // 播放初始持久状态
       const currentState: StateInfo | null = await invoke("get_persistent_state");
       if (currentState) await playState(currentState, false);
@@ -216,6 +262,7 @@
     isPlayOnce = playOnce;
     animationComplete = false;
     audioComplete = false;
+    bubbleComplete = false;
 
     // 开始播放动画
     await playAnimation(state.anima, playOnce);
@@ -231,20 +278,106 @@
       audioComplete = true;
       checkComplete();
     }
+
+    // 显示气泡 (如果有文本或分支)
+    if (state.text || (state.branch && state.branch.length > 0)) {
+      await showBubble(state);
+    } else {
+      // 无气泡，直接标记完成
+      bubbleComplete = true;
+      checkComplete();
+    }
   }
 
   /**
-   * 检查动画和音频是否都完成
+   * 显示气泡
+   * @param state 状态信息
+   */
+  async function showBubble(state: StateInfo) {
+    try {
+      // 获取文本内容
+      let textContent = '';
+      let textDuration = 0; // 默认0表示使用自动计算
+      if (state.text) {
+        const settings = await invoke<{ lang: string }>('get_settings');
+        const textInfo = await invoke<{ text: string; duration?: number } | null>('get_text_by_name', {
+          lang: settings.lang || 'zh',
+          name: state.text
+        });
+        if (textInfo) {
+          textContent = textInfo.text;
+          // 使用配置的duration（秒），转换为毫秒，如果未配置则默认10秒
+          textDuration = (textInfo.duration ?? 10) * 1000;
+        }
+      }
+
+      // 构建气泡配置
+      const bubbleConfig: BubbleConfig = {
+        text: textContent,
+        branches: state.branch || [],
+        position: 'top',
+        typeSpeed: 50,
+        duration: textDuration
+      };
+
+      // 显示气泡
+      bubbleManager?.show(bubbleConfig);
+    } catch (e) {
+      console.error('[showBubble] Failed to show bubble:', e);
+    }
+  }
+
+  /**
+   * 处理分支选择
+   * @param branch 选择的分支
+   */
+  async function handleBranchSelect(e: CustomEvent<BranchInfo>) {
+    const branch = e.detail;
+    console.log('[handleBranchSelect] Selected branch:', branch.text, '-> next_state:', branch.next_state);
+    
+    try {
+      // 设置下一个待切换状态（当前状态播放完毕后自动切换）
+      await invoke('set_next_state', { name: branch.next_state });
+    } catch (error) {
+      console.error('[handleBranchSelect] Failed to set next state:', error);
+    }
+  }
+
+  /**
+   * 检查动画、音频和气泡是否都完成
    *
    * 仅在 playOnce 模式下有效：
-   * - 两者都完成后通知后端
+   * - 三者都完成后通知后端
    * - 后端会切换到 next_state 或 persistent_state
    */
   function checkComplete() {
-    if (isPlayOnce && animationComplete && audioComplete) {
+    // 发送调试事件
+    emitPlaybackStatus();
+    
+    if (isPlayOnce && animationComplete && audioComplete && bubbleComplete) {
       // 使用 setTimeout 避免在回调中直接调用后端
       setTimeout(() => invoke("on_animation_complete"), 0);
     }
+  }
+
+  /**
+   * 发送播放状态到调试面板
+   */
+  function emitPlaybackStatus() {
+    emit('playback-status', {
+      animationComplete,
+      audioComplete,
+      bubbleComplete,
+      isPlayOnce
+    });
+  }
+
+  /**
+   * 处理气泡关闭事件
+   */
+  function handleBubbleClose() {
+    bubbleComplete = true;
+    checkComplete();
   }
 
   /**
@@ -360,41 +493,51 @@
      =========================================================================
      
      布局说明:
-     - 外层 container 占满整个窗口
-     - 两个 Canvas 使用绝对定位叠加
-     - 角色 Canvas 居中显示
-     - 边框 Canvas 位于底部居中
+     - 外层 container 占满整个窗口（500x700）
+     - 上方为气泡区域（高度 200px）
+     - 下方为动画区域（高度 500px，包含角色和边框 Canvas）
+     - 两个 Canvas 使用绝对定位叠加在动画区域内
      
      显示控制:
      - hidden 类控制可见性（visibility: hidden 保持占位）
      - z-index 通过内联 style 动态设置
      
      交互:
-     - 整个 container 响应鼠标事件
+     - 动画区域响应鼠标事件
      - 使用 grab/grabbing 光标提示可拖拽
 ========================================================================= -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div 
-  class="container" 
-  on:mousedown={handleMouseDown}
-  on:mousemove={handleMouseMove}
-  on:mouseup={handleMouseUp}
->
-  <!-- 角色动画 Canvas -->
-  <canvas 
-    class="character-canvas" 
-    class:hidden={!showCharacter}
-    style="z-index: {characterZOffset};"
-    bind:this={characterCanvas}
-  ></canvas>
+<div class="container">
+  <!-- 气泡区域 - 位于顶部 -->
+  <div class="bubble-area">
+    <BubbleManager 
+      bind:this={bubbleManager}
+      on:branchSelect={handleBranchSelect}
+      on:close={handleBubbleClose}
+    />
+  </div>
   
-  <!-- 边框动画 Canvas -->
-  <canvas 
-    class="border-canvas" 
-    class:hidden={!showCharacter || !showBorder}
-    style="z-index: {borderZOffset};"
-    bind:this={borderCanvas}
-  ></canvas>
+  <!-- 动画区域 - 位于底部 -->
+  <div class="animation-area">
+    <!-- 角色动画 Canvas -->
+    <canvas 
+      class="character-canvas" 
+      class:hidden={!showCharacter}
+      style="z-index: {characterZOffset};"
+      bind:this={characterCanvas}
+      on:mousedown={handleMouseDown}
+      on:mousemove={handleMouseMove}
+      on:mouseup={handleMouseUp}
+    ></canvas>
+    
+    <!-- 边框动画 Canvas -->
+    <canvas 
+      class="border-canvas" 
+      class:hidden={!showCharacter || !showBorder}
+      style="z-index: {borderZOffset};"
+      bind:this={borderCanvas}
+    ></canvas>
+  </div>
 </div>
 
 <!-- =========================================================================
@@ -403,8 +546,9 @@
      
      关键样式说明:
      - 透明背景：实现窗口透明效果
-     - 绝对定位：Canvas 叠加显示
-     - transform 居中：响应式居中定位
+     - 容器使用 flex 布局：上方气泡区域(固定600px) + 下方动画区域(占用剩余空间)
+     - 气泡区域固定高度，不随animation_scale缩放
+     - 动画区域随animation_scale缩放
      - grab 光标：提示用户可拖拽
 ========================================================================= -->
 <style>
@@ -418,17 +562,39 @@
     height: 100%;
   }
   
-  /* 主容器 - 占满窗口 */
+  /* 主容器 - 使用 flex 布局分为上下两部分 */
   .container {
-    position: relative;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
-    cursor: grab;  /* 提示可拖拽 */
   }
+
+  /* ----------------------------------------------------------------------- */
+  /* 气泡区域 - 位于顶部，固定尺寸（不随缩放变化） */
+  /* ----------------------------------------------------------------------- */
+
+  .bubble-area {
+    flex: 0 0 300px;  /* 固定高度 300px */
+    width: 500px;     /* 固定宽度 500px */
+    min-width: 500px;
+    align-self: center;  /* 水平居中 */
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none;  /* 允许点击穿透到下层 */
+    z-index: 0;  /* 最低层级，避免遮挡其他元素 */
+  }
+
+  /* ----------------------------------------------------------------------- */
+  /* 动画区域 - 位于底部，占用剩余空间（随缩放变化） */
+  /* ----------------------------------------------------------------------- */
   
-  /* 拖拽中的光标 */
-  .container:active {
-    cursor: grabbing;
+  .animation-area {
+    flex: 1 1 auto;  /* 占用剩余空间 */
+    position: relative;
+    pointer-events: none;  /* 区域本身鼠标穿透 */
   }
   
   /* 角色 Canvas - 居中显示 */
@@ -436,9 +602,15 @@
     display: block;
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: 45%;
     transform: translate(-50%, -50%);  /* 完美居中 */
-    height: 80%;  /* 高度占窗口 80% */
+    height: 80%;  /* 高度占动画区域 80% */
+    pointer-events: auto;  /* Canvas 接收鼠标事件 */
+    cursor: grab;  /* 提示可拖拽 */
+  }
+
+  .character-canvas:active {
+    cursor: grabbing;
   }
   
   /* 边框 Canvas - 底部居中 */
@@ -446,9 +618,10 @@
     display: block;
     position: absolute;
     left: 50%;
-    top: 85%;  /* 位于窗口底部 */
+    top: 80%;  /* 位于动画区域底部 */
     transform: translate(-50%, -50%);
-    width: 100%;  /* 宽度占满 */
+    height: 35%;  /* 宽度占满 */
+    pointer-events: none;  /* 边框不接收鼠标事件 */
   }
   
   /* 隐藏状态 - 使用 visibility 保持占位 */

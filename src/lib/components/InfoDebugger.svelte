@@ -14,7 +14,8 @@
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { onMount } from "svelte";
+  import { listen } from "@tauri-apps/api/event";
+  import { onMount, onDestroy } from "svelte";
 
   // ======================================================================= //
   // 类型定义
@@ -47,6 +48,9 @@
   
   /** 保存操作进行中标记 (预留功能) */
   let saving = $state(false);
+
+  /** 事件监听器取消函数 */
+  let unlistenPosition: (() => void) | null = null;
 
   // ======================================================================= //
   // 数据加载函数
@@ -98,7 +102,22 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(loadInfo);
+  onMount(async () => {
+    await loadInfo();
+    
+    // 监听窗口位置变化事件
+    unlistenPosition = await listen<[number, number]>("window-position-changed", (event) => {
+      if (info) {
+        const [x, y] = event.payload;
+        info.animation_window_x = x;
+        info.animation_window_y = y;
+      }
+    });
+  });
+
+  onDestroy(() => {
+    unlistenPosition?.();
+  });
 </script>
 
 <!-- ======================================================================= -->
@@ -133,7 +152,14 @@
       </span>
     </div>
 
-    <div class="hint">注：窗口位置在程序退出时自动保存。</div>
+    <!-- 保存按钮 -->
+    <div class="actions">
+      <button class="save-btn" onclick={saveInfo} disabled={saving}>
+        {saving ? '保存中...' : '保存'}
+      </button>
+    </div>
+
+    <div class="hint">注：窗口位置在移动时会自动保存。</div>
   {:else}
     <!-- 加载中状态 -->
     <div class="loading">{statusMsg}</div>
@@ -185,6 +211,32 @@
     color: #adb5bd;
     margin-top: 10px;
     font-style: italic;
+  }
+
+  .actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .save-btn {
+    padding: 8px 20px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.2s;
+  }
+
+  .save-btn:hover:not(:disabled) {
+    background: #2980b9;
+  }
+
+  .save-btn:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
   }
 
   .mini-status {
