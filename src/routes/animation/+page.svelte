@@ -343,6 +343,8 @@
     try {
       // 设置下一个待切换状态（当前状态播放完毕后自动切换）
       await invoke('set_next_state', { name: branch.next_state });
+      // 通知调试面板 next_state 已更新
+      emit('next-state-changed', { name: branch.next_state });
     } catch (error) {
       console.error('[handleBranchSelect] Failed to set next state:', error);
     }

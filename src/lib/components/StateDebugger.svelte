@@ -54,6 +54,16 @@
     text: string;
     /** 优先级 (数值越大优先级越高) */
     priority: number;
+    /** 日期范围起始 (MM-DD) */
+    date_start: string;
+    /** 日期范围结束 (MM-DD) */
+    date_end: string;
+    /** 时间范围起始 (HH:MM) */
+    time_start: string;
+    /** 时间范围结束 (HH:MM) */
+    time_end: string;
+    /** 播放完成后跳转的状态名 */
+    next_state: string;
     /** 定时触发间隔 (秒) */
     trigger_time: number;
     /** 定时触发概率 (0.0 - 1.0) */
@@ -104,6 +114,9 @@
   
   /** 播放状态事件的取消监听函数 */
   let unlistenPlayback: (() => void) | null = null;
+  
+  /** next_state变化事件的取消监听函数 */
+  let unlistenNextState: (() => void) | null = null;
 
   // ======================================================================= //
   // 前端播放状态 (来自 animation 窗口)
@@ -135,6 +148,18 @@
       statusMsg = "状态已加载";
     } catch (e) {
       statusMsg = `加载失败: ${e}`;
+    }
+  }
+  
+  /**
+   * 仅刷新 nextState（用于 next-state-changed 事件）
+   */
+  async function refreshNextState() {
+    try {
+      nextState = await invoke("get_next_state");
+      addLog(`next_state 已更新: ${nextState?.name || '无'}`);
+    } catch (e) {
+      console.error('Failed to refresh next state:', e);
     }
   }
 
@@ -220,6 +245,12 @@
       isPlayOnce = event.payload.isPlayOnce;
     });
     
+    // 监听 next_state 变化事件（分支选择时触发）
+    unlistenNextState = await listen<{ name: string }>("next-state-changed", (event) => {
+      addLog(`事件: next-state-changed -> ${event.payload.name}`);
+      refreshNextState();
+    });
+    
     // 请求当前播放状态
     emit('request-playback-status');
   });
@@ -227,6 +258,7 @@
   onDestroy(() => {
     unlisten?.();
     unlistenPlayback?.();
+    unlistenNextState?.();
   });
 </script>
 
@@ -256,6 +288,12 @@
             <span class="badge locked">锁定中</span>
           {/if}
         </div>
+        <div class="state-detail">
+          {#if currentState.anima}<div class="detail-row"><span class="label">动画:</span> {currentState.anima}</div>{/if}
+          {#if currentState.audio}<div class="detail-row"><span class="label">音频:</span> {currentState.audio}</div>{/if}
+          {#if currentState.text}<div class="detail-row"><span class="label">文本:</span> {currentState.text}</div>{/if}
+          {#if currentState.next_state}<div class="detail-row"><span class="label">后续状态:</span> <span class="next-state-value">{currentState.next_state}</span></div>{/if}
+        </div>
         <!-- 对话分支信息 (如果有) -->
         {#if currentState.branch && currentState.branch.length > 0}
           <div class="branch-info">
@@ -283,9 +321,10 @@
       {/if}
     </div>
 
-    <!-- 下一状态卡片 -->
+    <!-- 下一状态卡片 (队列中的状态) -->
     <div class="state-card next">
-      <div class="card-header">下一状态</div>
+      <div class="card-header">队列状态</div>
+      <div class="card-hint">当前状态播放完毕后切换</div>
       {#if nextState}
         <div class="state-name">{nextState.name}</div>
         <div class="state-meta">
@@ -294,7 +333,7 @@
           </span>
         </div>
       {:else}
-        <div class="empty">无</div>
+        <div class="empty">无 (将回到持久状态)</div>
       {/if}
     </div>
   </div>
@@ -336,8 +375,9 @@
       <div class="table-header">
         <span class="col-name">名称</span>
         <span class="col-type">类型</span>
-        <span class="col-anima">动画</span>
         <span class="col-priority">优先级</span>
+        <span class="col-resources">资源</span>
+        <span class="col-extra">附加信息</span>
         <span class="col-ops">操作</span>
       </div>
       <!-- 状态行 -->
@@ -349,8 +389,32 @@
               {state.persistent ? '持久' : '临时'}
             </span>
           </span>
-          <span class="col-anima">{state.anima}</span>
           <span class="col-priority">{state.priority}</span>
+          <span class="col-resources">
+            {#if state.anima}<span class="resource-tag anima" title="动画">🎬{state.anima}</span>{/if}
+            {#if state.audio}<span class="resource-tag audio" title="音频">🔊{state.audio}</span>{/if}
+            {#if state.text}<span class="resource-tag text" title="文本">💬{state.text}</span>{/if}
+          </span>
+          <span class="col-extra">
+            {#if state.next_state}
+              <span class="extra-tag next" title="后续状态">→{state.next_state}</span>
+            {/if}
+            {#if state.trigger_time > 0}
+              <span class="extra-tag timer" title="定时触发: 每{state.trigger_time}s, 概率{(state.trigger_rate * 100).toFixed(0)}%">⏱{state.trigger_time}s</span>
+            {/if}
+            {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+              <span class="extra-tag trigger" title="可触发: {state.can_trigger_states.join(', ')}">🎯{state.can_trigger_states.length}</span>
+            {/if}
+            {#if state.branch && state.branch.length > 0}
+              <span class="extra-tag branch" title="分支选项:\n{state.branch.map(b => `${b.text} → ${b.next_state}`).join('\n')}">🔀{state.branch.length}</span>
+            {/if}
+            {#if state.date_start || state.date_end}
+              <span class="extra-tag date" title="日期: {state.date_start || '*'} ~ {state.date_end || '*'}">📅</span>
+            {/if}
+            {#if state.time_start || state.time_end}
+              <span class="extra-tag time" title="时间: {state.time_start || '*'} ~ {state.time_end || '*'}">🕐</span>
+            {/if}
+          </span>
           <span class="col-ops">
             <!-- 普通切换按钮 -->
             <button class="btn-small" onclick={() => changeState(state.name)} title="切换状态 (检查优先级)">
@@ -477,6 +541,12 @@
     margin-bottom: 5px;
   }
 
+  .card-hint {
+    font-size: 0.65em;
+    color: #95a5a6;
+    margin-bottom: 8px;
+  }
+
   .state-name {
     font-size: 1.2em;
     font-weight: bold;
@@ -488,6 +558,25 @@
     gap: 10px;
     margin-top: 5px;
     font-size: 0.8em;
+  }
+
+  .state-detail {
+    margin-top: 8px;
+    font-size: 0.75em;
+    color: #7f8c8d;
+  }
+
+  .detail-row {
+    margin-bottom: 2px;
+  }
+
+  .detail-row .label {
+    color: #95a5a6;
+  }
+
+  .next-state-value {
+    color: #9b59b6;
+    font-weight: bold;
   }
 
   .empty {
@@ -581,32 +670,77 @@
     border: 1px solid #eee;
     border-radius: 6px;
     overflow: hidden;
+    overflow-x: auto;
   }
 
   .table-header {
     display: grid;
-    grid-template-columns: 80px 60px 80px 60px 1fr;
-    gap: 10px;
+    grid-template-columns: 80px 50px 45px 1fr 1fr 90px;
+    gap: 8px;
     padding: 8px 10px;
     background: #f1f2f6;
     font-weight: bold;
-    font-size: 0.8em;
+    font-size: 0.75em;
     color: #666;
+    min-width: 550px;
   }
 
   .table-row {
     display: grid;
-    grid-template-columns: 80px 60px 80px 60px 1fr;
-    gap: 10px;
+    grid-template-columns: 80px 50px 45px 1fr 1fr 90px;
+    gap: 8px;
     padding: 8px 10px;
     border-top: 1px solid #eee;
-    font-size: 0.85em;
+    font-size: 0.8em;
     align-items: center;
+    min-width: 550px;
   }
 
   .table-row.active {
     background: #e8f4fd;
   }
+
+  .col-name {
+    font-weight: 600;
+    word-break: break-all;
+  }
+
+  .col-resources, .col-extra {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  .resource-tag {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #ecf0f1;
+    color: #7f8c8d;
+    white-space: nowrap;
+  }
+
+  .resource-tag.anima { background: #fef5e7; color: #d68910; }
+  .resource-tag.audio { background: #e8f6f3; color: #16a085; }
+  .resource-tag.text { background: #ebf5fb; color: #2980b9; }
+
+  .extra-tag {
+    display: inline-block;
+    font-size: 0.7em;
+    padding: 1px 3px;
+    border-radius: 3px;
+    background: #f5f6fa;
+    color: #7f8c8d;
+    cursor: help;
+  }
+
+  .extra-tag.next { background: #f5eef8; color: #8e44ad; }
+  .extra-tag.timer { background: #fef9e7; color: #b7950b; }
+  .extra-tag.trigger { background: #eafaf1; color: #1e8449; }
+  .extra-tag.branch { background: #fdf2e9; color: #d35400; }
+  .extra-tag.date { background: #ebedef; color: #566573; }
+  .extra-tag.time { background: #ebedef; color: #566573; }
 
   .col-ops {
     display: flex;
@@ -730,6 +864,18 @@
       color: #ecf0f1;
     }
 
+    .card-hint {
+      color: #7f8c8d;
+    }
+
+    .state-detail {
+      color: #95a5a6;
+    }
+
+    .next-state-value {
+      color: #bb8fce;
+    }
+
     .states-table {
       border-color: #34495e;
     }
@@ -746,6 +892,25 @@
     .table-row.active {
       background: #3d566e;
     }
+
+    .resource-tag {
+      background: #3d566e;
+      color: #bdc3c7;
+    }
+
+    .resource-tag.anima { background: #4a3d1e; color: #f1c40f; }
+    .resource-tag.audio { background: #1e4d3d; color: #2ecc71; }
+    .resource-tag.text { background: #2e4a62; color: #5dade2; }
+
+    .extra-tag {
+      background: #3d566e;
+      color: #bdc3c7;
+    }
+
+    .extra-tag.next { background: #4a3d5a; color: #bb8fce; }
+    .extra-tag.timer { background: #4a4a1e; color: #f1c40f; }
+    .extra-tag.trigger { background: #1e4a3d; color: #2ecc71; }
+    .extra-tag.branch { background: #4a3d2e; color: #e67e22; }
 
     .status-bar {
       background: #34495e;
