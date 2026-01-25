@@ -132,6 +132,9 @@
   /** 用户昵称（用于气泡占位符替换） */
   let userNickname = $state("User");
 
+  /** 是否未加载任何 Mod */
+  let noMod = $state(false);
+
   // =========================================================================
   // 播放同步控制
   // =========================================================================
@@ -337,8 +340,13 @@
           triggerManager?.trigger("login");
         }
       }
+
+      // 检查当前是否加载了 Mod
+      const currentMod = await invoke("get_current_mod");
+      noMod = !currentMod;
     } catch (e) {
       console.error("Failed to init:", e);
+      noMod = true;
     }
   }
 
@@ -855,6 +863,13 @@
       style="z-index: {borderZOffset};"
       bind:this={borderCanvas}
     ></canvas>
+
+    <!-- 空 Mod 提示 -->
+    {#if noMod}
+      <div class="no-mod-hint">
+        {_("common.noModHint")}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -946,5 +961,26 @@
   /* 隐藏状态 - 使用 visibility 保持占位 */
   .hidden {
     visibility: hidden;
+  }
+
+  /* 空 Mod 提示样式 */
+  .no-mod-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    text-align: center;
+    max-width: 280px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 200;
+    pointer-events: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    line-height: 1.5;
   }
 </style>

@@ -20,7 +20,13 @@
   import { listen, emit } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
   import { t, onLangChange } from "$lib/i18n";
-  import type { StateInfo, StateChangeEvent, TriggerInfo, TriggerStateGroup, BranchInfo } from "$lib/types/asset";
+  import type {
+    StateInfo,
+    StateChangeEvent,
+    TriggerInfo,
+    TriggerStateGroup,
+    BranchInfo,
+  } from "$lib/types/asset";
 
   // ======================================================================= //
   // 响应式翻译函数
@@ -36,7 +42,11 @@
 
   /** 检查状态消息是否包含错误信息 */
   function isError(msg: string): boolean {
-    return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+    return (
+      msg.includes(_("common.failed")) ||
+      msg.includes("failed") ||
+      msg.includes("失败")
+    );
   }
 
   // ======================================================================= //
@@ -45,31 +55,31 @@
 
   /** 所有触发器列表 */
   let triggers = $state<TriggerInfo[]>([]);
-  
+
   /** 当前正在播放的状态 */
   let currentState = $state<StateInfo | null>(null);
-  
+
   /** 当前持久状态 (用于显示定时触发器配置) */
   let persistentState = $state<StateInfo | null>(null);
-  
+
   /** 队列中的下一个状态 */
   let nextState = $state<StateInfo | null>(null);
-  
+
   /** 状态是否被锁定 */
   let isLocked = $state(false);
-  
+
   /** 状态消息 */
   let statusMsg = $state(t("trigger.statusLoading"));
-  
+
   /** 事件日志记录 */
   let eventLog = $state<string[]>([]);
-  
+
   /** 状态变化事件的取消监听函数 */
   let unlisten: (() => void) | null = null;
-  
+
   /** 播放状态事件的取消监听函数 */
   let unlistenPlayback: (() => void) | null = null;
-  
+
   /** next_state变化事件的取消监听函数 */
   let unlistenNextState: (() => void) | null = null;
 
@@ -79,7 +89,7 @@
   // ======================================================================= //
   // 前端播放状态 (来自 animation 窗口)
   // ======================================================================= //
-  
+
   /** 动画是否完成 */
   let animationComplete = $state(false);
   /** 音频是否完成 */
@@ -108,16 +118,20 @@
       statusMsg = _("trigger.statusLoadFailed") + " " + e;
     }
   }
-  
+
   /**
    * 仅刷新 nextState（用于 next-state-changed 事件）
    */
   async function refreshNextState() {
     try {
       nextState = await invoke("get_next_state");
-      addLog(_("trigger.logNextUpdate") + " " + (nextState?.name || _('trigger.none')));
+      addLog(
+        _("trigger.logNextUpdate") +
+          " " +
+          (nextState?.name || _("trigger.none")),
+      );
     } catch (e) {
-      console.error('Failed to refresh next state:', e);
+      console.error("Failed to refresh next state:", e);
     }
   }
 
@@ -179,19 +193,26 @@
 
   onMount(async () => {
     await loadData();
-    
+
     // 监听语言变化
     unsubLang = onLangChange(() => {
       _langVersion++;
     });
-    
+
     // 监听后端状态变化事件
     unlisten = await listen<StateChangeEvent>("state-change", (event) => {
       const { state, play_once } = event.payload;
-      addLog(_("trigger.logStateChange") + " " + state.name + " (play_once: " + play_once + ")");
+      addLog(
+        _("trigger.logStateChange") +
+          " " +
+          state.name +
+          " (play_once: " +
+          play_once +
+          ")",
+      );
       loadData();
     });
-    
+
     // 监听前端播放状态事件
     unlistenPlayback = await listen<{
       animationComplete: boolean;
@@ -204,15 +225,18 @@
       bubbleComplete = event.payload.bubbleComplete;
       isPlayOnce = event.payload.isPlayOnce;
     });
-    
+
     // 监听 next_state 变化事件（分支选择时触发）
-    unlistenNextState = await listen<{ name: string }>("next-state-changed", (event) => {
-      addLog(_("trigger.logNextStateEvent") + " " + event.payload.name);
-      refreshNextState();
-    });
-    
+    unlistenNextState = await listen<{ name: string }>(
+      "next-state-changed",
+      (event) => {
+        addLog(_("trigger.logNextStateEvent") + " " + event.payload.name);
+        refreshNextState();
+      },
+    );
+
     // 请求当前播放状态
-    emit('request-playback-status');
+    emit("request-playback-status");
   });
 
   onDestroy(() => {
@@ -233,68 +257,88 @@
   <!-- ================================================================= -->
   <!-- 状态卡片区域 - 展示三个核心状态 -->
   <!-- ================================================================= -->
-  
+
   <div class="state-cards">
     <!-- 当前状态卡片 -->
     <div class="state-card current">
-      <div class="card-header">{_("trigger.currentState")}</div>
+      <div class="card-header">{_("state.currentState")}</div>
       {#if currentState}
         <div class="state-name">{currentState.name}</div>
         <div class="state-meta">
           <span class="badge" class:persistent={currentState.persistent}>
-            {currentState.persistent ? _('trigger.persistentTag') : _('trigger.temporaryTag')}
+            {currentState.persistent
+              ? _("state.persistentTag")
+              : _("state.temporaryTag")}
           </span>
-          <span class="priority">{_("trigger.priorityLabel")} {currentState.priority}</span>
+          <span class="priority"
+            >{_("state.priorityLabel")} {currentState.priority}</span
+          >
           {#if isLocked}
-            <span class="badge locked">{_("trigger.lockedTag")}</span>
+            <span class="badge locked">{_("state.lockedTag")}</span>
           {/if}
         </div>
         <div class="state-detail">
-          {#if currentState.anima}<div class="detail-row"><span class="label">{_("trigger.animationLabel")}</span> {currentState.anima}</div>{/if}
-          {#if currentState.audio}<div class="detail-row"><span class="label">{_("trigger.audioLabel")}</span> {currentState.audio}</div>{/if}
-          {#if currentState.text}<div class="detail-row"><span class="label">{_("trigger.textLabel")}</span> {currentState.text}</div>{/if}
-          {#if currentState.next_state}<div class="detail-row"><span class="label">{_("trigger.nextStateLabel")}</span> <span class="next-state-value">{currentState.next_state}</span></div>{/if}
+          {#if currentState.anima}<div class="detail-row">
+              <span class="label">{_("state.animationLabel")}</span>
+              {currentState.anima}
+            </div>{/if}
+          {#if currentState.audio}<div class="detail-row">
+              <span class="label">{_("state.audioLabel")}</span>
+              {currentState.audio}
+            </div>{/if}
+          {#if currentState.text}<div class="detail-row">
+              <span class="label">{_("state.textLabel")}</span>
+              {currentState.text}
+            </div>{/if}
+          {#if currentState.next_state}<div class="detail-row">
+              <span class="label">{_("state.nextStateLabel")}</span>
+              <span class="next-state-value">{currentState.next_state}</span>
+            </div>{/if}
         </div>
         <!-- 对话分支信息 (如果有) -->
         {#if currentState.branch && currentState.branch.length > 0}
           <div class="branch-info">
-            <span class="label">{_("trigger.branchOptionsLabel")}</span>
+            <span class="label">{_("state.branchOptionsLabel")}</span>
             {#each currentState.branch as b}
               <span class="branch-item">{b.text} → {b.next_state}</span>
             {/each}
           </div>
         {/if}
       {:else}
-        <div class="empty">{_("trigger.none")}</div>
+        <div class="empty">{_("common.none")}</div>
       {/if}
     </div>
 
     <!-- 持久状态卡片 -->
-    <div class="state-card persistent-card">
-      <div class="card-header">{_("trigger.persistentState")}</div>
+    <div class="state-card persistent">
+      <div class="card-header">{_("state.persistentState")}</div>
       {#if persistentState}
         <div class="state-name">{persistentState.name}</div>
         <div class="state-meta">
-          <span class="anima">动画: {persistentState.anima}</span>
+          <span class="anima"
+            >{_("state.animationLabel")} {persistentState.anima}</span
+          >
         </div>
       {:else}
-        <div class="empty">{_("trigger.none")}</div>
+        <div class="empty">{_("common.none")}</div>
       {/if}
     </div>
 
     <!-- 下一状态卡片 (队列中的状态) -->
     <div class="state-card next">
-      <div class="card-header">{_("trigger.queuedState")}</div>
-      <div class="card-hint">{_("trigger.queuedHint")}</div>
+      <div class="card-header">{_("state.queuedState")}</div>
+      <div class="card-hint">{_("state.queuedHint")}</div>
       {#if nextState}
         <div class="state-name">{nextState.name}</div>
         <div class="state-meta">
           <span class="badge" class:persistent={nextState.persistent}>
-            {nextState.persistent ? _('bubble.persistent') : _('bubble.temporary')}
+            {nextState.persistent
+              ? _("state.persistentTag")
+              : _("state.temporaryTag")}
           </span>
         </div>
       {:else}
-        <div class="empty">{_("trigger.noNext")}</div>
+        <div class="empty">{_("state.noNext")}</div>
       {/if}
     </div>
   </div>
@@ -302,25 +346,35 @@
   <!-- ================================================================= -->
   <!-- 前端播放状态区域 -->
   <!-- ================================================================= -->
-  
+
   <div class="section">
-    <h4>{_("trigger.frontendStatus")}</h4>
+    <h4>{_("state.frontendStatus")}</h4>
     <div class="playback-status">
       <div class="status-item" class:complete={animationComplete}>
-        <span class="status-label">{_("trigger.animationStatus")}</span>
-        <span class="status-value">{animationComplete ? _('trigger.completed') : _('trigger.playing')}</span>
+        <span class="status-label">{_("state.animationStatus")}</span>
+        <span class="status-value"
+          >{animationComplete
+            ? _("common.complete")
+            : _("common.playing")}</span
+        >
       </div>
       <div class="status-item" class:complete={audioComplete}>
-        <span class="status-label">{_("trigger.audioStatus")}</span>
-        <span class="status-value">{audioComplete ? _('trigger.completed') : _('trigger.playing')}</span>
+        <span class="status-label">{_("state.audioStatus")}</span>
+        <span class="status-value"
+          >{audioComplete ? _("common.complete") : _("common.playing")}</span
+        >
       </div>
       <div class="status-item" class:complete={bubbleComplete}>
-        <span class="status-label">{_("trigger.bubbleStatus")}</span>
-        <span class="status-value">{bubbleComplete ? _('trigger.completed') : _('trigger.showing')}</span>
+        <span class="status-label">{_("state.bubbleStatus")}</span>
+        <span class="status-value"
+          >{bubbleComplete ? _("common.complete") : _("common.showing")}</span
+        >
       </div>
       <div class="status-item mode">
-        <span class="status-label">{_("trigger.modeStatus")}</span>
-        <span class="status-value">{isPlayOnce ? _('trigger.playOnce') : _('trigger.loopPlay')}</span>
+        <span class="status-label">{_("state.modeStatus")}</span>
+        <span class="status-value"
+          >{isPlayOnce ? _("state.playOnce") : _("state.loopPlay")}</span
+        >
       </div>
     </div>
   </div>
@@ -328,7 +382,7 @@
   <!-- ================================================================= -->
   <!-- 定时触发器状态区域 -->
   <!-- ================================================================= -->
-  
+
   <div class="section timer-section">
     <h4>{_("trigger.timerStatus")}</h4>
     {#if persistentState}
@@ -390,7 +444,7 @@
   <!-- ================================================================= -->
   <!-- 事件触发器列表 -->
   <!-- ================================================================= -->
-  
+
   <div class="section">
     <h4>{_("trigger.eventTriggers")}</h4>
     {#if triggers.length > 0}
@@ -399,7 +453,10 @@
           <div class="trigger-card">
             <div class="trigger-header">
               <span class="trigger-event">{trigger.event}</span>
-              <button class="btn-trigger" onclick={() => triggerEvent(trigger.event)}>
+              <button
+                class="btn-trigger"
+                onclick={() => triggerEvent(trigger.event)}
+              >
                 {_("trigger.triggerBtn")}
               </button>
             </div>
@@ -409,7 +466,9 @@
                   <div class="trigger-group">
                     <span class="group-condition">
                       {#if group.persistent_state}
-                        {_("trigger.whenCondition", { state: group.persistent_state })}
+                        {_("trigger.whenCondition", {
+                          state: group.persistent_state,
+                        })}
                       {:else}
                         {_("trigger.anyPersistent")}
                       {/if}
@@ -422,7 +481,8 @@
                   </div>
                 {/each}
               {:else}
-                <span class="no-states">{_("trigger.noTriggerableStates")}</span>
+                <span class="no-states">{_("trigger.noTriggerableStates")}</span
+                >
               {/if}
             </div>
           </div>
@@ -436,34 +496,42 @@
   <!-- ================================================================= -->
   <!-- 手动触发区域 -->
   <!-- ================================================================= -->
-  
+
   <div class="section">
     <h4>{_("trigger.manualTrigger")}</h4>
     <!-- 自定义事件输入 -->
     <div class="manual-trigger">
-      <input 
-        type="text" 
-        placeholder={_("trigger.inputPlaceholder")} 
+      <input
+        type="text"
+        placeholder={_("trigger.inputPlaceholder")}
         bind:value={customEvent}
-        onkeydown={(e) => e.key === 'Enter' && triggerCustomEvent()}
+        onkeydown={(e) => e.key === "Enter" && triggerCustomEvent()}
       />
-      <button class="btn-primary" onclick={triggerCustomEvent}>{_("trigger.triggerBtn")}</button>
+      <button class="btn-primary" onclick={triggerCustomEvent}
+        >{_("trigger.triggerBtn")}</button
+      >
     </div>
     <!-- 快捷触发按钮 -->
     <div class="quick-triggers">
-      <button class="btn-quick" onclick={() => triggerEvent("click")}>click</button>
-      <button class="btn-quick" onclick={() => triggerEvent("login")}>login</button>
+      <button class="btn-quick" onclick={() => triggerEvent("click")}
+        >click</button
+      >
+      <button class="btn-quick" onclick={() => triggerEvent("login")}
+        >login</button
+      >
     </div>
   </div>
 
   <!-- ================================================================= -->
   <!-- 事件日志区域 -->
   <!-- ================================================================= -->
-  
+
   <div class="section">
     <div class="section-header">
       <h4>{_("trigger.eventLog")}</h4>
-      <button class="btn-tiny" onclick={() => eventLog = []}>{_("trigger.clear")}</button>
+      <button class="btn-tiny" onclick={() => (eventLog = [])}
+        >{_("trigger.clear")}</button
+      >
     </div>
     <div class="event-log">
       {#each eventLog as log}
@@ -477,9 +545,11 @@
   <!-- ================================================================= -->
   <!-- 操作按钮 -->
   <!-- ================================================================= -->
-  
+
   <div class="actions">
-    <button class="refresh" onclick={loadData}>{_("trigger.refreshData")}</button>
+    <button class="refresh" onclick={loadData}
+      >{_("trigger.refreshData")}</button
+    >
   </div>
 
   <!-- 状态消息栏 -->
@@ -497,7 +567,7 @@
     max-width: 600px;
     margin: 20px auto;
     color: #333;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   }
 
   h3 {
@@ -536,7 +606,7 @@
     border-left-color: #3498db;
   }
 
-  .state-card.persistent-card {
+  .state-card.persistent {
     border-left-color: #27ae60;
   }
 
@@ -609,7 +679,8 @@
     color: #2c3e50;
   }
 
-  .priority, .anima {
+  .priority,
+  .anima {
     color: #7f8c8d;
   }
 
@@ -735,8 +806,13 @@
   }
 
   @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
   }
 
   .badge.active {
@@ -787,7 +863,7 @@
   }
 
   .trigger-group {
-    background: #fff;
+    background: #f8f9fa;
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     padding: 8px;
@@ -800,9 +876,11 @@
     display: block;
   }
 
-  .persistent-state-name {
-    font-weight: bold;
-    color: #27ae60;
+  .group-condition {
+    font-size: 0.8em;
+    color: #7f8c8d;
+    margin-bottom: 5px;
+    display: block;
   }
 
   .group-states {
@@ -929,7 +1007,7 @@
     padding: 10px;
     max-height: 150px;
     overflow-y: auto;
-    font-family: 'Consolas', monospace;
+    font-family: "Consolas", monospace;
     font-size: 0.75em;
   }
 
@@ -1037,10 +1115,6 @@
       border-color: #455a64;
     }
 
-    .persistent-state-name {
-      color: #2ecc71;
-    }
-
     .manual-trigger input {
       background: #34495e;
       border-color: #455a64;
@@ -1062,12 +1136,63 @@
       background: #5a3e3e;
     }
 
-    .value {
+    .label {
+      color: #95a5a6;
+    }
+
+    .empty {
+      color: #7f8c8d;
+    }
+
+    .status-item {
+      background: #5a3e3e;
+      border-color: #7f5a5a;
+    }
+
+    .status-item.complete {
+      background: #2d5a4a;
+      border-color: #4a8a6a;
+    }
+
+    .status-item.mode {
+      background: #3d4a6a;
+      border-color: #5a6a8a;
+    }
+
+    .status-label {
+      color: #9ca3af;
+    }
+
+    .status-value {
       color: #ecf0f1;
     }
 
-    .label {
-      color: #95a5a6;
+    /* 同步 Resource 和 Extra 标签样式 (虽 Trigger 界面可能用不到，但保持样式库一致) */
+    .resource-tag {
+      background: #3d566e;
+      color: #bdc3c7;
+    }
+
+    .extra-tag {
+      background: #3d566e;
+      color: #bdc3c7;
+    }
+
+    .extra-tag.next {
+      background: #4a3d5a;
+      color: #bb8fce;
+    }
+    .extra-tag.timer {
+      background: #4a4a1e;
+      color: #f1c40f;
+    }
+    .extra-tag.trigger {
+      background: #1e4a3d;
+      color: #2ecc71;
+    }
+    .extra-tag.branch {
+      background: #4a3d2e;
+      color: #e67e22;
     }
   }
 </style>

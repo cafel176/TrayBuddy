@@ -25,7 +25,8 @@
     "animationTitle": "TrayBuddy Animation",
     "modsTitle": "TrayBuddy Mod Manager",
     "settingsTitle": "TrayBuddy Settings",
-    "failed": "failed"
+    "failed": "failed",
+    "noModHint": "No character loaded or Mod is invalid. Please load a Mod via the context menu."
   },
   "tabs": {
     "resource": "Resources",

@@ -28,21 +28,21 @@ use tauri::Manager;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct UserSettings {
-    pub nickname: String,            // 用户昵称
-    pub birthday: Option<String>,    // 用户生日 (格式: "MM-DD")
-    
-    pub lang: String,                // 界面语言
-    pub auto_start: bool,            // 是否随开机自启动
+    pub nickname: String,         // 用户昵称
+    pub birthday: Option<String>, // 用户生日 (格式: "MM-DD")
 
-    pub no_audio_mode: bool,         // 静音模式
-    pub volume: f32,                 // 全局音量 (0.0 到 1.0)
+    pub lang: String,     // 界面语言
+    pub auto_start: bool, // 是否随开机自启动
 
-    pub silence_mode: bool,          // 免打扰模式
+    pub no_audio_mode: bool, // 静音模式
+    pub volume: f32,         // 全局音量 (0.0 到 1.0)
+
+    pub silence_mode: bool,                 // 免打扰模式
     pub auto_silence_when_fullscreen: bool, // 开启全屏应用自动进入免打扰模式
 
-    pub show_character: bool,        // 显示桌面挂件
-    pub show_border: bool,           // 显示桌面挂件边框
-    pub animation_scale: f32,        // 动画窗口缩放比例 (0.5 到 2.0, 默认 1.0 即 100%)
+    pub show_character: bool, // 显示桌面挂件
+    pub show_border: bool,    // 显示桌面挂件边框
+    pub animation_scale: f32, // 动画窗口缩放比例 (0.5 到 2.0, 默认 1.0 即 100%)
 }
 
 impl Default for UserSettings {
@@ -73,16 +73,16 @@ impl Default for UserSettings {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct UserInfo {
-    pub first_login: Option<i64>,        // 第一次启动的时间戳
-    pub last_login: Option<i64>,         // 最后一次启动的时间戳
-    pub current_mod: String,             // 上次关闭前加载的 Mod ID
+    pub first_login: Option<i64>, // 第一次启动的时间戳
+    pub last_login: Option<i64>,  // 最后一次启动的时间戳
+    pub current_mod: String,      // 上次关闭前加载的 Mod ID
 
     pub animation_window_x: Option<f64>, // animation 窗口上次关闭时的 X 坐标
     pub animation_window_y: Option<f64>, // animation 窗口上次关闭时的 Y 坐标
 
-    pub launch_count: i32,              // 总启动次数
-    pub total_usage_seconds: i64,        // 累计使用时长（秒）
-    pub total_click_count: i64,          // 总点击次数
+    pub launch_count: i32,        // 总启动次数
+    pub total_usage_seconds: i64, // 累计使用时长（秒）
+    pub total_click_count: i64,   // 总点击次数
 }
 
 impl Default for UserInfo {
@@ -90,7 +90,7 @@ impl Default for UserInfo {
         Self {
             first_login: None,
             last_login: None,
-            current_mod: "ema".to_string(),
+            current_mod: "tutorial".to_string(),
 
             animation_window_x: None,
             animation_window_y: None,
@@ -125,8 +125,8 @@ impl Default for AppStorageData {
 
 /// 存储管理器：负责数据的内存缓存与磁盘同步
 pub struct Storage {
-    pub data: AppStorageData,    // 内存中的数据缓存
-    storage_path: PathBuf,       // storage.json 的物理存储路径
+    pub data: AppStorageData,               // 内存中的数据缓存
+    storage_path: PathBuf,                  // storage.json 的物理存储路径
     session_start_time: std::time::Instant, // 应用启动时间（用于计算使用时长）
 }
 
@@ -142,7 +142,11 @@ impl Storage {
         // 记录应用启动时间，用于计算使用时长
         let session_start_time = std::time::Instant::now();
 
-        Self { data, storage_path, session_start_time }
+        Self {
+            data,
+            storage_path,
+            session_start_time,
+        }
     }
 
     // ========================================================================= //
@@ -153,7 +157,7 @@ impl Storage {
             .path()
             .app_config_dir()
             .unwrap_or_else(|_| PathBuf::from("."));
-        
+
         // 确保目录存在
         if !storage_dir.exists() {
             let _ = fs::create_dir_all(&storage_dir);
@@ -189,8 +193,7 @@ impl Storage {
 
         let content = serde_json::to_string_pretty(&self.data)
             .map_err(|e| format!("序列化存储数据失败: {}", e))?;
-        fs::write(&self.storage_path, content)
-            .map_err(|e| format!("写入存储文件失败: {}", e))?;
+        fs::write(&self.storage_path, content).map_err(|e| format!("写入存储文件失败: {}", e))?;
         Ok(())
     }
 
@@ -206,4 +209,3 @@ impl Storage {
         self.save()
     }
 }
-

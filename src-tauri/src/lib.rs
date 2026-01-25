@@ -210,14 +210,48 @@ fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
 
 /// 加载指定 Mod
 #[tauri::command]
-fn load_mod(mod_name: String, state: State<'_, AppState>) -> Result<ModInfo, String> {
-    let mut rm = state.resource_manager.lock().unwrap();
-    let mod_info = rm.load_mod(&mod_name)?;
+async fn load_mod(
+    mod_name: String,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<ModInfo, String> {
+    // 0. 关闭除了 mods 以外的所有窗口
+    let windows = app.webview_windows();
+    for (label, window) in windows {
+        if label != "mods" {
+            let _ = window.close();
+        }
+    }
+    // 给一点时间让窗口关闭（特别是 animation 窗口，防止标签冲突）
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
 
-    // 自动更新用户信息并持久化
-    let mut storage = state.storage.lock().unwrap();
-    storage.data.info.current_mod = mod_name;
-    let _ = storage.save();
+    // 1. 加载资源
+    let mod_info = {
+        let mut rm = state.resource_manager.lock().unwrap();
+        rm.load_mod(&mod_name)?
+    };
+
+    // 2. 更新用户信息并持久化
+    {
+        let mut storage = state.storage.lock().unwrap();
+        storage.data.info.current_mod = mod_name.clone();
+        let _ = storage.save();
+    }
+
+    // 3. 重置状态管理器为新 Mod 的 Idle 状态
+    {
+        let rm = state.resource_manager.lock().unwrap();
+        let initial_state = rm
+            .get_state_by_name(STATE_IDLE)
+            .ok_or_else(|| "New mod does not have an 'idle' state".to_string())?
+            .clone();
+        let mut sm = state.state_manager.lock().unwrap();
+        // 强制切换到新 Mod 的初始状态
+        let _ = sm.change_state_ex(initial_state, true);
+    }
+
+    // 4. 重建窗口以应用新资源
+    recreate_animation_window(app).await?;
 
     Ok(mod_info)
 }
@@ -793,70 +827,7 @@ pub fn run() {
             }
 
             // ========== 创建动画窗口 ==========
-            // 重新获取 storage 引用（因为已经移入 AppState）
-            let state: State<'_, AppState> = app.state();
-            let storage_guard = state.storage.lock().unwrap();
-            let scale = storage_guard.data.settings.animation_scale as f64;
-            let saved_position = (
-                storage_guard.data.info.animation_window_x,
-                storage_guard.data.info.animation_window_y,
-            );
-            drop(storage_guard); // 释放锁
-
-            // 气泡区域固定尺寸，动画区域随缩放变化
-            let bubble_area_height = BUBBLE_AREA_HEIGHT;
-            let bubble_area_width = BUBBLE_AREA_WIDTH;
-            let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
-            let animation_area_width = ANIMATION_AREA_WIDTH * scale;
-            // 窗口宽度取两者最大值
-            let window_width = bubble_area_width.max(animation_area_width);
-            let window_height = bubble_area_height + animation_area_height;
-
-            let animation_window =
-                WebviewWindowBuilder::new(app, "animation", WebviewUrl::App("animation".into()))
-                    .title(get_i18n_text(app.handle(), "common.animationTitle"))
-                    .inner_size(window_width, window_height)
-                    .transparent(true)
-                    .decorations(false)
-                    .always_on_top(true)
-                    .resizable(false)
-                    .shadow(false)
-                    .skip_taskbar(true)
-                    .build()
-                    .map_err(|e| e.to_string())?;
-
-            #[cfg(debug_assertions)]
-            animation_window.open_devtools();
-
-            // 初始鼠标穿透：免打扰模式下启动则设为穿透
-            if is_silence {
-                let _ = animation_window.set_ignore_cursor_events(true);
-            }
-
-            // 设置窗口位置
-            // 注意：保存的 y 是动画区域顶部的位置，需要减去气泡区域高度得到窗口顶部位置
-            if let (Some(x), Some(y)) = saved_position {
-                // y 是动画区域顶部，窗口顶部 = y - 气泡区域高度
-                let window_y = y - bubble_area_height;
-                let _ = animation_window
-                    .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
-            } else if let Some(monitor) = animation_window.primary_monitor().ok().flatten() {
-                // 首次启动，定位到屏幕右下角（动画区域底部贴近任务栏上方）
-                let scale_factor = monitor.scale_factor();
-                let screen_size = monitor.size();
-                let screen_pos = monitor.position();
-                const TASKBAR_HEIGHT: f64 = 48.0;
-
-                let screen_w = screen_size.width as f64 / scale_factor;
-                let screen_h = screen_size.height as f64 / scale_factor;
-
-                let x = screen_pos.x as f64 + screen_w - window_width;
-                // 窗口顶部 y = 屏幕底部 - 任务栏 - 动画区域高度 - 气泡区域高度
-                let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
-
-                let _ = animation_window
-                    .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
-            }
+            inner_create_animation_window(app.handle())?;
 
             // 启动媒体监听器
             start_media_observer(app.handle().clone(), is_silence);
@@ -997,6 +968,7 @@ pub fn run() {
             get_cursor_position,
             is_cursor_in_interact_area,
             open_path,
+            recreate_animation_window,
             // 环境信息
             get_datetime_info,
             get_location_info,
@@ -1044,6 +1016,91 @@ fn get_media_status() -> bool {
         Some(event) => event.status == MediaPlaybackStatus::Playing,
         None => false,
     }
+}
+
+/// 重新创建动画窗口
+///
+/// 用于在 Mod 加载或比例调整后刷新窗口资源
+#[tauri::command]
+async fn recreate_animation_window(app: tauri::AppHandle) -> Result<(), String> {
+    // 1. 关闭现有窗口
+    if let Some(window) = app.get_webview_window("animation") {
+        let _ = window.close();
+
+        // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
+        // 如果立即创建，会报错 "already exists"
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+
+    // 2. 创建新窗口
+    inner_create_animation_window(&app)
+}
+
+/// 内部函数：创建动画窗口
+fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
+    let state: State<'_, AppState> = app.state();
+
+    // 1. 获取缩放和位置设置
+    let (scale, saved_position, is_silence) = {
+        let storage = state.storage.lock().unwrap();
+        (
+            storage.data.settings.animation_scale as f64,
+            (
+                storage.data.info.animation_window_x,
+                storage.data.info.animation_window_y,
+            ),
+            storage.data.settings.silence_mode,
+        )
+    };
+
+    // 2. 计算窗口尺寸
+    let bubble_area_height = BUBBLE_AREA_HEIGHT;
+    let bubble_area_width = BUBBLE_AREA_WIDTH;
+    let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+    let window_width = bubble_area_width.max(animation_area_width);
+    let window_height = bubble_area_height + animation_area_height;
+
+    // 3. 构建并创建窗口
+    let animation_window =
+        WebviewWindowBuilder::new(app, "animation", WebviewUrl::App("animation".into()))
+            .title(get_i18n_text(app, "common.animationTitle"))
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(true)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+    // 4. 初始鼠标穿透
+    if is_silence {
+        let _ = animation_window.set_ignore_cursor_events(true);
+    }
+
+    // 5. 设置窗口位置
+    if let (Some(x), Some(y)) = saved_position {
+        let window_y = y - bubble_area_height;
+        let _ = animation_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+    } else if let Some(monitor) = animation_window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+    }
+
+    Ok(())
 }
 
 /// 打开存储目录（包含 storage.json 文件）

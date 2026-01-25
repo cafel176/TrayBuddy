@@ -25,7 +25,8 @@
     "animationTitle": "TrayBuddy アニメーション",
     "modsTitle": "TrayBuddy Mod マネージャー",
     "settingsTitle": "TrayBuddy 設定",
-    "failed": "失敗"
+    "failed": "失敗",
+    "noModHint": "キャラクターが読み込まれていないか、Modが無効です。右クリックメニューからModを読み込んでください。"
   },
   "tabs": {
     "resource": "リソース管理",
