@@ -1,17 +1,24 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import Settings from "$lib/components/Settings.svelte";
-    import { initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+    import { getCurrentWindow } from "@tauri-apps/api/window";
+    import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 
     let _langVersion = $state(0);
     let unsubLang: (() => void) | null = null;
+    function _(key: string, params?: Record<string, string | number>): string {
+        void _langVersion;
+        return t(key, params);
+    }
 
     onMount(async () => {
         unsubLang = onLangChange(() => {
             _langVersion++;
+            getCurrentWindow().setTitle(_("common.settingsTitle"));
         });
         await initI18n();
         _langVersion++;
+        getCurrentWindow().setTitle(_("common.settingsTitle"));
     });
 
     onDestroy(() => {

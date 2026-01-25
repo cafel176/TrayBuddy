@@ -1,6 +1,7 @@
 <script lang="ts">
     import { invoke, convertFileSrc } from "@tauri-apps/api/core";
     import { onMount, onDestroy } from "svelte";
+    import { getCurrentWindow } from "@tauri-apps/api/window";
     import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 
     // ======================================================================= //
@@ -104,9 +105,11 @@
     onMount(async () => {
         unsubLang = onLangChange(() => {
             _langVersion++;
+            getCurrentWindow().setTitle(_("common.modsTitle"));
         });
         await initI18n();
         _langVersion++;
+        getCurrentWindow().setTitle(_("common.modsTitle"));
         loadModList();
     });
 

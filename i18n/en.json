@@ -20,7 +20,11 @@
     "stopped": "Stopped",
     "complete": "Complete",
     "playing": "Playing",
-    "showing": "Showing"
+    "showing": "Showing",
+    "appTitle": "TrayBuddy Debugger",
+    "animationTitle": "TrayBuddy Animation",
+    "modsTitle": "TrayBuddy Mod Manager",
+    "settingsTitle": "TrayBuddy Settings"
   },
   "tabs": {
     "resource": "Resources",

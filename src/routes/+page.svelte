@@ -25,6 +25,7 @@
   // ======================================================================= //
 
   import { onMount, onDestroy } from "svelte";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
   import StateDebugger from "$lib/components/StateDebugger.svelte";
   import TriggerDebugger from "$lib/components/TriggerDebugger.svelte";
@@ -59,10 +60,12 @@
   onMount(async () => {
     unsubLang = onLangChange(() => {
       _langVersion++;
+      getCurrentWindow().setTitle(_("common.appTitle"));
     });
     await initI18n();
     // 初始化完成后强制触发一次更新，确保标签页文本使用保存的语言
     _langVersion++;
+    getCurrentWindow().setTitle(_("common.appTitle"));
   });
 
   onDestroy(() => {

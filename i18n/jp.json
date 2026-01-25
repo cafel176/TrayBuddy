@@ -20,7 +20,11 @@
     "stopped": "停止中",
     "complete": "完了",
     "playing": "再生中",
-    "showing": "表示中"
+    "showing": "表示中",
+    "appTitle": "TrayBuddy デバッガー",
+    "animationTitle": "TrayBuddy アニメーション",
+    "modsTitle": "TrayBuddy Mod マネージャー",
+    "settingsTitle": "TrayBuddy 設定"
   },
   "tabs": {
     "resource": "リソース管理",

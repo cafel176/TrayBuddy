@@ -20,7 +20,11 @@
     "stopped": "已停止",
     "complete": "完成",
     "playing": "播放中",
-    "showing": "显示中"
+    "showing": "显示中",
+    "appTitle": "TrayBuddy 调试器",
+    "animationTitle": "TrayBuddy 动画",
+    "modsTitle": "TrayBuddy Mod 管理器",
+    "settingsTitle": "TrayBuddy 用户设置"
   },
   "tabs": {
     "resource": "资源管理",

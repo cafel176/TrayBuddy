@@ -33,14 +33,33 @@
 
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { SpriteAnimator, getMemoryLogs, exportMemoryLogsCSV, getCacheStats, initMemoryDebug } from "$lib/animation/SpriteAnimator";
+  import {
+    SpriteAnimator,
+    getMemoryLogs,
+    exportMemoryLogsCSV,
+    getCacheStats,
+    initMemoryDebug,
+  } from "$lib/animation/SpriteAnimator";
   import { getAudioManager, type AudioManager } from "$lib/audio/AudioManager";
-  import { getTriggerManager, type TriggerManager } from "$lib/trigger/TriggerManager";
-  import type { StateInfo, StateChangeEvent, BranchInfo, CharacterConfig, BorderConfig, UserSettings } from "$lib/types/asset";
-  import BubbleManager, { type BubbleConfig } from "$lib/bubble/BubbleManager.svelte";
+  import {
+    getTriggerManager,
+    type TriggerManager,
+  } from "$lib/trigger/TriggerManager";
+  import type {
+    StateInfo,
+    StateChangeEvent,
+    BranchInfo,
+    CharacterConfig,
+    BorderConfig,
+    UserSettings,
+  } from "$lib/types/asset";
+  import BubbleManager, {
+    type BubbleConfig,
+  } from "$lib/bubble/BubbleManager.svelte";
   import { CURSOR_POLL_INTERVAL_MS } from "$lib/constants";
 
   // =========================================================================
@@ -51,11 +70,11 @@
   let characterCanvas: HTMLCanvasElement;
   /** 边框动画 Canvas 元素引用 */
   let borderCanvas: HTMLCanvasElement;
-  
+
   // =========================================================================
   // 核心管理器
   // =========================================================================
-  
+
   /** 角色动画播放器 */
   let characterAnimator: SpriteAnimator | null = null;
   /** 边框动画播放器 */
@@ -64,16 +83,26 @@
   let audioManager: AudioManager | null = null;
   /** 触发器管理器 */
   let triggerManager: TriggerManager | null = null;
-  
+
   /** 气泡管理器 */
   let bubbleManager: BubbleManager;
-  
+
   /** 状态变化事件监听器取消函数 */
   let unlistenState: (() => void) | null = null;
   /** 设置变化事件监听器取消函数 */
   let unlistenSettings: (() => void) | null = null;
   /** 播放状态请求事件监听器取消函数 */
   let unlistenPlaybackReq: (() => void) | null = null;
+  /** i18n 响应式翻译函数 - 使用版本号触发更新 */
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+
+  /** 响应式翻译函数 */
+  function _(key: string, params?: Record<string, string | number>): string {
+    // 依赖 _langVersion 使 Svelte 能追踪变化
+    void _langVersion;
+    return t(key, params);
+  }
 
   // =========================================================================
   // 显示状态
@@ -136,6 +165,15 @@
       // 启动鼠标位置轮询
       startCursorPolling();
 
+      // 注册语言变更监听
+      unsubLang = onLangChange(() => {
+        _langVersion++;
+        getCurrentWindow().setTitle(_("common.animationTitle"));
+      });
+      await initI18n();
+      _langVersion++;
+      getCurrentWindow().setTitle(_("common.animationTitle"));
+
       // 加载用户设置
       const settings: UserSettings = await invoke("get_settings");
       showCharacter = settings.show_character;
@@ -144,7 +182,7 @@
       // 初始化管理器
       audioManager = await getAudioManager();
       triggerManager = getTriggerManager();
-      
+
       // 初始化内存调试模式（仅检测工具启动时生效）
       const memoryDebugEnabled = await initMemoryDebug();
       if (memoryDebugEnabled) {
@@ -158,30 +196,41 @@
       }
 
       // 获取角色渲染配置
-      const characterConfig: CharacterConfig | null = await invoke("get_character_config");
+      const characterConfig: CharacterConfig | null = await invoke(
+        "get_character_config",
+      );
       if (characterConfig) {
         characterZOffset = characterConfig.z_offset ?? 1;
       }
 
       // 获取边框配置并初始化边框动画
-      const borderConfig: BorderConfig | null = await invoke("get_border_config");
+      const borderConfig: BorderConfig | null =
+        await invoke("get_border_config");
       if (borderConfig && borderConfig.enable && borderConfig.anima) {
         borderZOffset = borderConfig.z_offset ?? 2;
         borderAnimator = new SpriteAnimator(borderCanvas);
-        const success = await borderAnimator.loadByAssetName(borderConfig.anima);
+        const success = await borderAnimator.loadByAssetName(
+          borderConfig.anima,
+        );
         if (success) borderAnimator.play();
       }
 
       // 注册状态变化事件监听
-      unlistenState = await listen<StateChangeEvent>("state-change", async (event) => {
-        await playState(event.payload.state, event.payload.play_once);
-      });
+      unlistenState = await listen<StateChangeEvent>(
+        "state-change",
+        async (event) => {
+          await playState(event.payload.state, event.payload.play_once);
+        },
+      );
 
       // 注册设置变化事件监听
-      unlistenSettings = await listen<UserSettings>("settings-change", (event) => {
-        showCharacter = event.payload.show_character;
-        showBorder = event.payload.show_border;
-      });
+      unlistenSettings = await listen<UserSettings>(
+        "settings-change",
+        (event) => {
+          showCharacter = event.payload.show_character;
+          showBorder = event.payload.show_border;
+        },
+      );
 
       // 注册播放状态请求事件监听
       unlistenPlaybackReq = await listen("request-playback-status", () => {
@@ -189,7 +238,9 @@
       });
 
       // 播放初始持久状态
-      const currentState: StateInfo | null = await invoke("get_persistent_state");
+      const currentState: StateInfo | null = await invoke(
+        "get_persistent_state",
+      );
       if (currentState) await playState(currentState, false);
 
       // 触发 login 事件（可能切换到欢迎动画）
@@ -254,13 +305,16 @@
   async function showBubble(state: StateInfo) {
     try {
       // 获取文本内容
-      let textContent = '';
+      let textContent = "";
       let textDuration = 0; // 默认0表示使用自动计算
       if (state.text) {
-        const settings = await invoke<{ lang: string }>('get_settings');
-        const textInfo = await invoke<{ text: string; duration?: number } | null>('get_text_by_name', {
-          lang: settings.lang || 'zh',
-          name: state.text
+        const settings = await invoke<{ lang: string }>("get_settings");
+        const textInfo = await invoke<{
+          text: string;
+          duration?: number;
+        } | null>("get_text_by_name", {
+          lang: settings.lang || "zh",
+          name: state.text,
         });
         if (textInfo) {
           textContent = textInfo.text;
@@ -273,15 +327,15 @@
       const bubbleConfig: BubbleConfig = {
         text: textContent,
         branches: state.branch || [],
-        position: 'top',
+        position: "top",
         typeSpeed: 50,
-        duration: textDuration
+        duration: textDuration,
       };
 
       // 显示气泡
       bubbleManager?.show(bubbleConfig);
     } catch (e) {
-      console.error('[showBubble] Failed to show bubble:', e);
+      console.error("[showBubble] Failed to show bubble:", e);
     }
   }
 
@@ -291,15 +345,20 @@
    */
   async function handleBranchSelect(e: CustomEvent<BranchInfo>) {
     const branch = e.detail;
-    console.log('[handleBranchSelect] Selected branch:', branch.text, '-> next_state:', branch.next_state);
-    
+    console.log(
+      "[handleBranchSelect] Selected branch:",
+      branch.text,
+      "-> next_state:",
+      branch.next_state,
+    );
+
     try {
       // 设置下一个待切换状态（当前状态播放完毕后自动切换）
-      await invoke('set_next_state', { name: branch.next_state });
+      await invoke("set_next_state", { name: branch.next_state });
       // 通知调试面板 next_state 已更新
-      emit('next-state-changed', { name: branch.next_state });
+      emit("next-state-changed", { name: branch.next_state });
     } catch (error) {
-      console.error('[handleBranchSelect] Failed to set next state:', error);
+      console.error("[handleBranchSelect] Failed to set next state:", error);
     }
   }
 
@@ -313,7 +372,7 @@
   function checkComplete() {
     // 发送调试事件
     emitPlaybackStatus();
-    
+
     if (isPlayOnce && animationComplete && audioComplete && bubbleComplete) {
       // 使用 setTimeout 避免在回调中直接调用后端
       setTimeout(() => invoke("on_animation_complete"), 0);
@@ -324,11 +383,11 @@
    * 发送播放状态到调试面板
    */
   function emitPlaybackStatus() {
-    emit('playback-status', {
+    emit("playback-status", {
       animationComplete,
       audioComplete,
       bubbleComplete,
-      isPlayOnce
+      isPlayOnce,
     });
   }
 
@@ -364,7 +423,12 @@
     const success = await characterAnimator.switchToAsset(
       assetName,
       playOnce,
-      playOnce ? () => { animationComplete = true; checkComplete(); } : undefined
+      playOnce
+        ? () => {
+            animationComplete = true;
+            checkComplete();
+          }
+        : undefined,
     );
 
     // 加载失败，标记完成
@@ -384,10 +448,10 @@
 
   /** 气泡是否显示中 */
   let isBubbleVisible = false;
-  
+
   /** 当前穿透状态 */
   let isClickThrough = true;
-  
+
   /** 鼠标位置轮询定时器 */
   let cursorPollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -397,10 +461,10 @@
   async function setClickThrough(ignore: boolean) {
     if (isClickThrough === ignore) return;
     try {
-      await invoke('set_ignore_cursor_events', { ignore });
+      await invoke("set_ignore_cursor_events", { ignore });
       isClickThrough = ignore;
     } catch (e) {
-      console.error('[setClickThrough] Failed:', e);
+      console.error("[setClickThrough] Failed:", e);
     }
   }
 
@@ -408,19 +472,24 @@
    * 获取气泡的实际边界（相对于窗口）
    * @returns 气泡边界 { left, top, right, bottom } 或 null
    */
-  function getBubbleBounds(): { left: number; top: number; right: number; bottom: number } | null {
+  function getBubbleBounds(): {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  } | null {
     if (!isBubbleVisible) return null;
-    
+
     // 查找气泡 wrapper 元素
-    const bubbleEl = document.querySelector('.bubble-wrapper');
+    const bubbleEl = document.querySelector(".bubble-wrapper");
     if (!bubbleEl) return null;
-    
+
     const rect = bubbleEl.getBoundingClientRect();
     return {
       left: rect.left,
       top: rect.top,
       right: rect.right,
-      bottom: rect.bottom
+      bottom: rect.bottom,
     };
   }
 
@@ -436,11 +505,14 @@
       try {
         // 获取气泡实际边界
         const bubbleBounds = getBubbleBounds();
-        
+
         // 检查鼠标是否在交互区域内
-        const inInteractArea = await invoke<boolean>('is_cursor_in_interact_area', { 
-          bubbleBounds: bubbleBounds
-        });
+        const inInteractArea = await invoke<boolean>(
+          "is_cursor_in_interact_area",
+          {
+            bubbleBounds: bubbleBounds,
+          },
+        );
         // 鼠标在交互区域内时禁用穿透，否则启用穿透
         await setClickThrough(!inInteractArea);
       } catch (e) {
@@ -474,7 +546,8 @@
    * 记录按下位置，用于后续判断是拖拽还是点击
    */
   function handleMouseDown(e: MouseEvent) {
-    if (e.button === 0) {  // 仅处理左键
+    if (e.button === 0) {
+      // 仅处理左键
       isDragging = false;
       isMouseDown = true;
       mouseDownPos = { x: e.screenX, y: e.screenY };
@@ -534,6 +607,8 @@
     unlistenState?.();
     unlistenSettings?.();
     unlistenPlaybackReq?.();
+    unsubLang?.();
+    destroyI18n();
   });
 </script>
 
@@ -559,19 +634,19 @@
 <div class="container">
   <!-- 气泡区域 - 位于顶部 -->
   <div class="bubble-area">
-    <BubbleManager 
+    <BubbleManager
       bind:this={bubbleManager}
       on:branchSelect={handleBranchSelect}
       on:close={handleBubbleClose}
       on:show={handleBubbleShow}
     />
   </div>
-  
+
   <!-- 动画区域 - 位于底部 -->
   <div class="animation-area">
     <!-- 角色动画 Canvas -->
-    <canvas 
-      class="character-canvas" 
+    <canvas
+      class="character-canvas"
       class:hidden={!showCharacter}
       style="z-index: {characterZOffset};"
       bind:this={characterCanvas}
@@ -579,10 +654,10 @@
       on:mousemove={handleMouseMove}
       on:mouseup={handleMouseUp}
     ></canvas>
-    
+
     <!-- 边框动画 Canvas -->
-    <canvas 
-      class="border-canvas" 
+    <canvas
+      class="border-canvas"
       class:hidden={!showCharacter || !showBorder}
       style="z-index: {borderZOffset};"
       bind:this={borderCanvas}
@@ -603,15 +678,16 @@
 ========================================================================= -->
 <style>
   /* 全局样式重置 - 透明背景实现窗口穿透 */
-  :global(html), :global(body) {
+  :global(html),
+  :global(body) {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background-color: transparent;  /* 透明背景 */
+    background-color: transparent; /* 透明背景 */
     width: 100%;
     height: 100%;
   }
-  
+
   /* 主容器 - 使用 flex 布局分为上下两部分 */
   .container {
     display: flex;
@@ -625,55 +701,55 @@
   /* ----------------------------------------------------------------------- */
 
   .bubble-area {
-    flex: 0 0 300px;  /* 固定高度 300px */
-    width: 500px;     /* 固定宽度 500px */
+    flex: 0 0 300px; /* 固定高度 300px */
+    width: 500px; /* 固定宽度 500px */
     min-width: 500px;
-    align-self: center;  /* 水平居中 */
+    align-self: center; /* 水平居中 */
     position: relative;
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    pointer-events: none;  /* CSS 层面穿透（窗口级穿透由后端控制） */
-    z-index: 100;  /* 气泡层级高于 Canvas */
+    pointer-events: none; /* CSS 层面穿透（窗口级穿透由后端控制） */
+    z-index: 100; /* 气泡层级高于 Canvas */
   }
 
   /* ----------------------------------------------------------------------- */
   /* 动画区域 - 位于底部，占用剩余空间（随缩放变化） */
   /* ----------------------------------------------------------------------- */
-  
+
   .animation-area {
-    flex: 1 1 auto;  /* 占用剩余空间 */
+    flex: 1 1 auto; /* 占用剩余空间 */
     position: relative;
-    pointer-events: none;  /* 区域本身鼠标穿透 */
+    pointer-events: none; /* 区域本身鼠标穿透 */
   }
-  
+
   /* 角色 Canvas - 居中显示 */
   .character-canvas {
     display: block;
     position: absolute;
     left: 50%;
     top: 45%;
-    transform: translate(-50%, -50%);  /* 完美居中 */
-    height: 80%;  /* 高度占动画区域 80% */
-    pointer-events: auto;  /* Canvas 接收鼠标事件 */
-    cursor: grab;  /* 提示可拖拽 */
+    transform: translate(-50%, -50%); /* 完美居中 */
+    height: 80%; /* 高度占动画区域 80% */
+    pointer-events: auto; /* Canvas 接收鼠标事件 */
+    cursor: grab; /* 提示可拖拽 */
   }
 
   .character-canvas:active {
     cursor: grabbing;
   }
-  
+
   /* 边框 Canvas - 底部居中 */
   .border-canvas {
     display: block;
     position: absolute;
     left: 50%;
-    top: 80%;  /* 位于动画区域底部 */
+    top: 80%; /* 位于动画区域底部 */
     transform: translate(-50%, -50%);
-    height: 35%;  /* 宽度占满 */
-    pointer-events: none;  /* 边框不接收鼠标事件 */
+    height: 35%; /* 宽度占满 */
+    pointer-events: none; /* 边框不接收鼠标事件 */
   }
-  
+
   /* 隐藏状态 - 使用 visibility 保持占位 */
   .hidden {
     visibility: hidden;

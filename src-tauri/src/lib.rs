@@ -767,6 +767,12 @@ pub fn run() {
                 media_observer: Mutex::new(None),
             });
 
+            // ========== 初始化主窗口标题 ==========
+            if let Some(main_window) = app.get_webview_window("main") {
+                let title = get_i18n_text(app.handle(), "common.appTitle");
+                let _ = main_window.set_title(&title);
+            }
+
             // ========== 创建动画窗口 ==========
             // 重新获取 storage 引用（因为已经移入 AppState）
             let state: State<'_, AppState> = app.state();
@@ -789,7 +795,7 @@ pub fn run() {
 
             let animation_window =
                 WebviewWindowBuilder::new(app, "animation", WebviewUrl::App("animation".into()))
-                    .title("Animation")
+                    .title(get_i18n_text(app.handle(), "common.animationTitle"))
                     .inner_size(window_width, window_height)
                     .transparent(true)
                     .decorations(false)
@@ -881,7 +887,7 @@ pub fn run() {
                                         "mods",
                                         WebviewUrl::App("mods".into()),
                                     )
-                                    .title("Mod Manager")
+                                    .title(get_i18n_text(app, "common.modsTitle"))
                                     .inner_size(800.0, 700.0)
                                     .resizable(false)
                                     .build();
@@ -899,7 +905,7 @@ pub fn run() {
                                         "settings",
                                         WebviewUrl::App("settings".into()),
                                     )
-                                    .title("TrayBuddy Settings")
+                                    .title(get_i18n_text(app, "common.settingsTitle"))
                                     .inner_size(800.0, 700.0)
                                     .resizable(false)
                                     .build();
@@ -1134,4 +1140,50 @@ fn save_animation_window_position(window: &tauri::Window) {
             }
         }
     }
+}
+
+/// 获取国际化文本 (用于后端窗口标题同步)
+fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
+    let app_state: State<AppState> = app.state();
+
+    // 1. 获取当前语言
+    let lang = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.lang.clone()
+    };
+
+    // 2. 加载 i18n 资源文件
+    // 虽然 Svelte 打包包含了资源，但后端需要直接从资源目录读取
+    let i18n_path = app
+        .path()
+        .resource_dir()
+        .unwrap_or_default()
+        .join("i18n")
+        .join(format!("{}.json", lang));
+
+    // 如果资源目录下不存在（可能是开发模式），则尝试从当前工作目录下的 i18n 目录读取
+    let i18n_path = if !i18n_path.exists() {
+        std::path::PathBuf::from("i18n").join(format!("{}.json", lang))
+    } else {
+        i18n_path
+    };
+
+    if let Ok(content) = std::fs::read_to_string(i18n_path) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            let keys: Vec<&str> = key.split('.').collect();
+            let mut current = &json;
+            for k in keys {
+                if let Some(val) = current.get(k) {
+                    current = val;
+                } else {
+                    return key.to_string();
+                }
+            }
+            if let Some(s) = current.as_str() {
+                return s.to_string();
+            }
+        }
+    }
+
+    key.to_string()
 }
