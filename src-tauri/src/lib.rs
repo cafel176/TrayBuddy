@@ -991,6 +991,7 @@ pub fn run() {
             get_media_debug_info,
             get_system_debug_info,
             get_media_status,
+            open_storage_dir,
             show_context_menu,
             get_tray_position,
             get_saved_window_position,
@@ -1025,6 +1026,33 @@ fn get_media_status() -> bool {
         Some(event) => event.status == MediaPlaybackStatus::Playing,
         None => false,
     }
+}
+
+/// 打开存储目录（包含 storage.json 文件）
+#[tauri::command]
+fn open_storage_dir(app_handle: tauri::AppHandle) -> Result<(), String> {
+    let storage_dir = app_handle
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?;
+
+    let dir_path = storage_dir.to_string_lossy().to_string();
+
+    // 使用 open_path 逻辑打开目录
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&dir_path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        opener::reveal(&dir_path).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 // ========================================================================= //

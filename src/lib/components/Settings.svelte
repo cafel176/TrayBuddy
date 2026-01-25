@@ -147,6 +147,19 @@
   }
 
   /**
+   * 打开存储目录
+   */
+  async function openStorageDir() {
+    try {
+      await invoke("open_storage_dir");
+      statusMsg = "已打开存储目录";
+    } catch (err) {
+      console.error("Failed to open storage directory:", err);
+      statusMsg = "打开存储目录失败";
+    }
+  }
+
+  /**
    * 从后端加载用户设置
    */
   async function loadSettings() {
@@ -482,6 +495,20 @@
         {_("settings.dndFullscreen")}
       </label>
     </div>
+
+    <!-- ================================================================= -->
+    <!-- 高级选项 -->
+    <!-- ================================================================= -->
+
+    <div class="divider">高级选项</div>
+
+    <button
+      type="button"
+      class="secondary-button"
+      onclick={openStorageDir}
+    >
+      打开存储目录
+    </button>
   {:else}
     <!-- 加载中状态 -->
     <div class="loading">{statusMsg}</div>
@@ -586,6 +613,27 @@
   input[type="range"] {
     width: 100%;
     cursor: pointer;
+  }
+
+  .secondary-button {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+    margin-bottom: 15px;
+  }
+
+  .secondary-button:hover {
+    background: #e9ecef;
+    border-color: #ced4da;
+  }
+
+  .secondary-button:active {
+    background: #dee2e6;
   }
 
   .status-bar {
