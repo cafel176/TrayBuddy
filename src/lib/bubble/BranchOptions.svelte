@@ -29,6 +29,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { t } from '$lib/i18n';
   import { bubbleStyle, type BubbleStyleConfig } from './bubbleStyle';
   import type { BranchInfo } from '$lib/types/asset';
 
@@ -252,7 +253,7 @@
     bind:this={containerRef}
     tabindex="0"
     role="listbox"
-    aria-label="对话选项"
+    aria-label={t("bubble.dialogOptions")}
   >
     {#each wrappedBranches as branch, index}
       <button

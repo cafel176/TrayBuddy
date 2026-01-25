@@ -24,7 +24,8 @@
     "appTitle": "TrayBuddy 调试器",
     "animationTitle": "TrayBuddy 动画",
     "modsTitle": "TrayBuddy Mod 管理器",
-    "settingsTitle": "TrayBuddy 用户设置"
+    "settingsTitle": "TrayBuddy 用户设置",
+    "failed": "失败"
   },
   "tabs": {
     "resource": "资源管理",
@@ -392,7 +393,9 @@
     "loading": "加载中"
   },
   "bubble": {
-    "dialogOptions": "对话选项"
+    "dialogOptions": "对话选项",
+    "persistent": "持久",
+    "temporary": "临时"
   },
   "modWindow": {
     "title": "Mod 管理器",

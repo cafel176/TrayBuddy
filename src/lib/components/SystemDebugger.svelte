@@ -27,6 +27,11 @@
         return t(key, params);
     }
 
+    /** 检查状态消息是否包含错误信息 */
+    function isError(msg: string): boolean {
+        return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+    }
+
     // ======================================================================= //
     // 类型定义
     // ======================================================================= //
@@ -228,7 +233,7 @@
 
     <div
         class="mini-status"
-        class:error={statusMsg.includes("失败") || statusMsg.includes("failed")}
+        class:error={isError(statusMsg)}
     >
         {statusMsg}
     </div>

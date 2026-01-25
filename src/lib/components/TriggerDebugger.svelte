@@ -34,6 +34,11 @@
     return t(key, params);
   }
 
+  /** 检查状态消息是否包含错误信息 */
+  function isError(msg: string): boolean {
+    return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+  }
+
   // ======================================================================= //
   // 响应式状态
   // ======================================================================= //
@@ -285,7 +290,7 @@
         <div class="state-name">{nextState.name}</div>
         <div class="state-meta">
           <span class="badge" class:persistent={nextState.persistent}>
-            {nextState.persistent ? '持久' : '临时'}
+            {nextState.persistent ? _('bubble.persistent') : _('bubble.temporary')}
           </span>
         </div>
       {:else}
@@ -478,7 +483,7 @@
   </div>
 
   <!-- 状态消息栏 -->
-  <div class="status-bar" class:error={statusMsg.includes('失败')}>
+  <div class="status-bar" class:error={isError(statusMsg)}>
     {statusMsg}
   </div>
 </div>

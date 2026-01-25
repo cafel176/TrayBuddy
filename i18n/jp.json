@@ -24,7 +24,8 @@
     "appTitle": "TrayBuddy デバッガー",
     "animationTitle": "TrayBuddy アニメーション",
     "modsTitle": "TrayBuddy Mod マネージャー",
-    "settingsTitle": "TrayBuddy 設定"
+    "settingsTitle": "TrayBuddy 設定",
+    "failed": "失敗"
   },
   "tabs": {
     "resource": "リソース管理",
@@ -392,7 +393,9 @@
     "loading": "読み込み中"
   },
   "bubble": {
-    "dialogOptions": "ダイアログオプション"
+    "dialogOptions": "ダイアログオプション",
+    "persistent": "永続",
+    "temporary": "一時"
   },
   "modWindow": {
     "title": "Mod マネージャー",

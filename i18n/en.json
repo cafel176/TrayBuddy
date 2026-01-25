@@ -24,7 +24,8 @@
     "appTitle": "TrayBuddy Debugger",
     "animationTitle": "TrayBuddy Animation",
     "modsTitle": "TrayBuddy Mod Manager",
-    "settingsTitle": "TrayBuddy Settings"
+    "settingsTitle": "TrayBuddy Settings",
+    "failed": "failed"
   },
   "tabs": {
     "resource": "Resources",
@@ -392,7 +393,9 @@
     "loading": "Loading"
   },
   "bubble": {
-    "dialogOptions": "Dialog options"
+    "dialogOptions": "Dialog options",
+    "persistent": "Persistent",
+    "temporary": "Temporary"
   },
   "modWindow": {
     "title": "Mod Manager",

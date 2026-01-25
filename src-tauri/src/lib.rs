@@ -1320,7 +1320,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             } else {
                 let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("about".into()))
                     .title(get_i18n_text(app, "menu.about"))
-                    .inner_size(400.0, 300.0)
+                    .inner_size(450.0, 420.0)
                     .resizable(false)
                     .center()
                     .build();
