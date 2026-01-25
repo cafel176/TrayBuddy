@@ -116,6 +116,8 @@
   let characterZOffset = 1;
   /** 边框 Canvas 的 z-index */
   let borderZOffset = 2;
+  /** 是否开启免打扰模式 */
+  let silenceMode = false;
 
   // =========================================================================
   // 播放同步控制
@@ -178,6 +180,7 @@
       const settings: UserSettings = await invoke("get_settings");
       showCharacter = settings.show_character;
       showBorder = settings.show_border;
+      silenceMode = settings.silence_mode;
 
       // 初始化管理器
       audioManager = await getAudioManager();
@@ -229,6 +232,7 @@
         (event) => {
           showCharacter = event.payload.show_character;
           showBorder = event.payload.show_border;
+          silenceMode = event.payload.silence_mode;
         },
       );
 
@@ -503,6 +507,12 @@
     stopCursorPolling();
     cursorPollTimer = setInterval(async () => {
       try {
+        // 免打扰模式下直接启用窗口全穿透
+        if (silenceMode) {
+          await setClickThrough(true);
+          return;
+        }
+
         // 获取气泡实际边界
         const bubbleBounds = getBubbleBounds();
 
