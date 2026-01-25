@@ -46,12 +46,12 @@
   },
   {
     "name": "birthday",
-    "text": "生日快乐！",
+    "text": "生日快乐！{nickname}",
     "duration": 3
   },
   {
     "name": "firstday",
-    "text": "首次登录纪念日！",
+    "text": "首次登录纪念日！{nickname}",
     "duration": 3
   }
 ]

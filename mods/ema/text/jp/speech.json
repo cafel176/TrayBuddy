@@ -46,12 +46,12 @@
   },
   {
     "name": "birthday",
-    "text": "誕生日 feliz！",
+    "text": "誕生日 feliz！{nickname}",
     "duration": 3
   },
   {
     "name": "firstday",
-    "text": "初めてのログイン記念日！",
+    "text": "初めてのログイン記念日！{nickname}",
     "duration": 3
   }
 ]

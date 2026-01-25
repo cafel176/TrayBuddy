@@ -129,6 +129,8 @@
   let silenceMode = $state(false);
   /** 动画区域缩放比例 */
   let animationScale = $state(0.4);
+  /** 用户昵称（用于气泡占位符替换） */
+  let userNickname = $state("User");
 
   // =========================================================================
   // 播放同步控制
@@ -190,6 +192,7 @@
       showBorder = settings.show_border;
       animationScale = settings.animation_scale;
       silenceMode = settings.silence_mode;
+      userNickname = settings.nickname || "User";
 
       // 实时同步初始鼠标穿透状态（不修改逻辑，仅保持之前状态）
       if (silenceMode) {
@@ -251,6 +254,7 @@
           showBorder = event.payload.show_border;
           silenceMode = event.payload.silence_mode;
           animationScale = event.payload.animation_scale;
+          userNickname = event.payload.nickname || "User";
 
           // 动态加载边框 (如果之前未加载且现在启用了)
           if (showBorder && !borderAnimator && borderCanvas) {
@@ -463,6 +467,9 @@
         });
         if (textInfo) {
           textContent = textInfo.text;
+          // 替换昵称占位符 {nickname}
+          textContent = textContent.replace(/\{nickname\}/g, userNickname);
+
           // 使用配置的duration（秒），转换为毫秒，如果未配置则默认10秒
           textDuration = (textInfo.duration ?? 10) * 1000;
         }
