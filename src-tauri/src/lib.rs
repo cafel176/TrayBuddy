@@ -992,6 +992,7 @@ pub fn run() {
             get_system_debug_info,
             get_media_status,
             open_storage_dir,
+            open_dir,
             show_context_menu,
             get_tray_position,
             get_saved_window_position,
@@ -1037,6 +1038,32 @@ fn open_storage_dir(app_handle: tauri::AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let dir_path = storage_dir.to_string_lossy().to_string();
+
+    // 使用 open_path 逻辑打开目录
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&dir_path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        opener::reveal(&dir_path).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+/// 打开指定目录
+#[tauri::command]
+fn open_dir(path: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+
+    let dir_path = path;
 
     // 使用 open_path 逻辑打开目录
     #[cfg(target_os = "windows")]

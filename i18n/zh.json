@@ -411,7 +411,10 @@
     "description": "描述",
     "loading": "加载中...",
     "loadSuccess": "加载成功",
-    "loadFailed": "加载失败"
+    "loadFailed": "加载失败",
+    "openModDir": "打开 Mod 目录",
+    "modDirOpened": "已打开 Mod 目录",
+    "modDirOpenFailed": "打开 Mod 目录失败"
   },
   "menu": {
     "about": "关于本程序",

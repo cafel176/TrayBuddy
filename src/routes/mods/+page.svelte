@@ -99,6 +99,20 @@
         }
     }
 
+    async function openModDir() {
+        if (!selectedModInfo) {
+            statusMsg = "No mod selected";
+            return;
+        }
+        try {
+            await invoke("open_dir", { path: selectedModInfo.path });
+            statusMsg = _("modWindow.modDirOpened");
+        } catch (e) {
+            console.error("Failed to open mod directory:", e);
+            statusMsg = _("modWindow.modDirOpenFailed");
+        }
+    }
+
     // ======================================================================= //
     // Lifecycle
     // ======================================================================= //
@@ -194,9 +208,16 @@
 
             <div class="actions">
                 <div class="status">{statusMsg}</div>
-                <button class="load-btn" disabled={loading} onclick={loadMod}>
-                    {loading ? _("common.loading") : _("modWindow.loadMod")}
-                </button>
+                <div class="buttons">
+                    <button class="load-btn" disabled={loading} onclick={loadMod}>
+                        {loading ? _("common.loading") : _("modWindow.loadMod")}
+                    </button>
+                    {#if selectedModInfo}
+                        <button class="secondary-btn" onclick={openModDir}>
+                            {_("modWindow.openModDir")}
+                        </button>
+                    {/if}
+                </div>
             </div>
         {:else}
             <div class="empty-state">
@@ -373,6 +394,33 @@
         gap: 20px;
     }
 
+    .buttons {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .secondary-btn {
+        padding: 10px 20px;
+        background: #f0f0f5;
+        color: #333;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 0.95em;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .secondary-btn:hover {
+        background: #e9ecef;
+        border-color: #ced4da;
+    }
+
+    .secondary-btn:active {
+        background: #dee2e6;
+    }
+
     .status {
         font-size: 0.9em;
         color: #666;
@@ -468,6 +516,14 @@
         .load-btn:disabled {
             background: #555;
             color: #888;
+        }
+        .secondary-btn {
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border-color: #455a64;
+        }
+        .secondary-btn:hover {
+            background: #444;
         }
     }
 </style>

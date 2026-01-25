@@ -411,7 +411,10 @@
     "description": "Description",
     "loading": "Loading...",
     "loadSuccess": "Load Success",
-    "loadFailed": "Load Failed"
+    "loadFailed": "Load Failed",
+    "openModDir": "Open Mod Directory",
+    "modDirOpened": "Mod directory opened",
+    "modDirOpenFailed": "Failed to open mod directory"
   },
   "menu": {
     "about": "About",
