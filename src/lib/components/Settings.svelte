@@ -19,6 +19,7 @@
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
   import {
     t,
@@ -80,6 +81,7 @@
   /** i18n 响应式翻译函数 - 使用版本号触发更新 */
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
+  let unlistenSettings: UnlistenFn | null = null;
 
   /** 响应式翻译函数 */
   function _(key: string, params?: Record<string, string | number>): string {
@@ -199,60 +201,58 @@
   }
 
   /**
-   * 处理静音模式切换
-   * 实时更新后端静音状态
-   * @param e 输入事件
+   * 统一开关处理入口：更新状态、执行副作用并保存
+   * @param key 设置项键名
+   * @param value 新值
    */
-  async function onMuteChange(e: Event) {
-    const target = e.target as HTMLInputElement;
-    const mute = target.checked;
-    if (settings) {
-      settings.no_audio_mode = mute;
-    }
-    try {
-      await invoke("set_mute", { mute });
-      await saveSettings();
-    } catch (err) {
-      console.error("Failed to set mute:", err);
-    }
-  }
+  async function handleToggle(key: keyof UserSettings, value: boolean) {
+    if (!settings) return;
 
-  /**
-   * 通用设置变更处理
-   * 触发自动保存
-   */
-  async function onSettingChange() {
+    // 1. 更新本地响应式对象 (Svelte 5 $state 直接触发局部刷新)
+    (settings as any)[key] = value;
+
+    // 2. 执行副作用
+    switch (key) {
+      case "no_audio_mode":
+        await applyNoAudioEffect(value);
+        break;
+      case "silence_mode":
+        await applySilenceEffect(value);
+        break;
+      // show_character 和 show_border 主要通过设置广播同步，此处可扩展
+    }
+
+    // 3. 保存并广播变更 (触发其他窗口同步)
     await saveSettings();
   }
 
   /**
-   * 处理免打扰模式切换
-   * 立即触发状态转换并保存设置
+   * 应用静音副作用
    */
-  async function onDndToggle(e: Event) {
-    const target = e.target as HTMLInputElement;
-    const isSilence = target.checked;
-
-    if (settings) {
-      settings.silence_mode = isSilence;
+  async function applyNoAudioEffect(mute: boolean) {
+    try {
+      await invoke("set_mute", { mute });
+    } catch (err) {
+      console.error("Failed to apply mute effect:", err);
     }
+  }
 
-    // 发送强制切换状态命令
+  /**
+   * 应用免打扰副作用
+   */
+  async function applySilenceEffect(isSilence: boolean) {
     const targetState = isSilence ? "silence_start" : "silence_end";
     try {
       await invoke("force_change_state", { name: targetState });
       console.log(
-        `[Settings] DND toggled to ${isSilence}, force changed state to ${targetState}`,
+        `[Settings] DND effect applied: force changed state to ${targetState}`,
       );
     } catch (err) {
       console.error(
-        `[Settings] Failed to force change state to ${targetState}:`,
+        `[Settings] Failed to apply DND effect (${targetState}):`,
         err,
       );
     }
-
-    // 保存设置
-    await saveSettings();
   }
 
   /**
@@ -277,11 +277,25 @@
     unsubLang = onLangChange(() => {
       _langVersion++;
     });
+
+    // 监听外部设置变更 (如托盘菜单触发) 以同步 UI
+    unlistenSettings = await listen<UserSettings>(
+      "settings-change",
+      (event) => {
+        if (settings) {
+          // 直接更新响应式对象
+          Object.assign(settings, event.payload);
+          birthdayDate = mmddToDate(settings.birthday);
+        }
+      },
+    );
+
     await loadSettings();
   });
 
   onDestroy(() => {
     unsubLang?.();
+    unlistenSettings?.();
   });
 </script>
 
@@ -304,7 +318,7 @@
         id="nickname"
         type="text"
         bind:value={settings.nickname}
-        onchange={onSettingChange}
+        onchange={saveSettings}
       />
     </div>
 
@@ -340,8 +354,8 @@
       <label>
         <input
           type="checkbox"
-          bind:checked={settings.auto_start}
-          onchange={onSettingChange}
+          checked={settings.auto_start}
+          onchange={(e) => handleToggle("auto_start", e.currentTarget.checked)}
         />
         {_("settings.autoStart")}
       </label>
@@ -349,8 +363,9 @@
       <label>
         <input
           type="checkbox"
-          bind:checked={settings.show_character}
-          onchange={onSettingChange}
+          checked={settings.show_character}
+          onchange={(e) =>
+            handleToggle("show_character", e.currentTarget.checked)}
         />
         {_("settings.showCharacter")}
       </label>
@@ -358,9 +373,9 @@
       <label>
         <input
           type="checkbox"
-          bind:checked={settings.show_border}
+          checked={settings.show_border}
           disabled={!settings.show_character}
-          onchange={onSettingChange}
+          onchange={(e) => handleToggle("show_border", e.currentTarget.checked)}
         />
         {_("settings.showBorder")}
       </label>
@@ -396,7 +411,8 @@
         <input
           type="checkbox"
           checked={settings.no_audio_mode}
-          onchange={onMuteChange}
+          onchange={(e) =>
+            handleToggle("no_audio_mode", e.currentTarget.checked)}
         />
         {_("settings.muteMode")}
       </label>
@@ -431,7 +447,8 @@
         <input
           type="checkbox"
           checked={settings.silence_mode}
-          onchange={onDndToggle}
+          onchange={(e) =>
+            handleToggle("silence_mode", e.currentTarget.checked)}
         />
         {_("settings.dndMode")}
       </label>
@@ -439,8 +456,12 @@
       <label>
         <input
           type="checkbox"
-          bind:checked={settings.auto_silence_when_fullscreen}
-          onchange={onSettingChange}
+          checked={settings.auto_silence_when_fullscreen}
+          onchange={(e) =>
+            handleToggle(
+              "auto_silence_when_fullscreen",
+              e.currentTarget.checked,
+            )}
         />
         {_("settings.dndFullscreen")}
       </label>

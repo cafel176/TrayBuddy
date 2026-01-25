@@ -410,6 +410,9 @@
     "settings": "Settings",
     "mods": "Mods",
     "debugger": "Debugger",
+    "mute": "Mute Mode",
+    "silence": "Silence Mode",
+    "showCharacter": "Show Character",
     "quit": "Quit"
   }
 }

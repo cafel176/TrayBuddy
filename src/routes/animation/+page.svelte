@@ -109,37 +109,37 @@
   // =========================================================================
 
   /** 是否显示角色 */
-  let showCharacter = true;
+  let showCharacter = $state(true);
   /** 是否显示边框 */
-  let showBorder = true;
+  let showBorder = $state(true);
   /** 角色 Canvas 的 z-index */
-  let characterZOffset = 1;
+  let characterZOffset = $state(1);
   /** 边框 Canvas 的 z-index */
-  let borderZOffset = 2;
+  let borderZOffset = $state(2);
   /** 是否开启免打扰模式 */
-  let silenceMode = false;
+  let silenceMode = $state(false);
 
   // =========================================================================
   // 播放同步控制
   // =========================================================================
 
   /** 动画是否播放完成 */
-  let animationComplete = false;
+  let animationComplete = $state(false);
   /** 音频是否播放完成 */
-  let audioComplete = false;
+  let audioComplete = $state(false);
   /** 气泡是否显示完成（关闭或无气泡） */
-  let bubbleComplete = false;
+  let bubbleComplete = $state(false);
   /** 当前是否为单次播放模式（临时状态） */
-  let isPlayOnce = false;
+  let isPlayOnce = $state(false);
 
   // =========================================================================
   // 拖拽检测
   // =========================================================================
 
   /** 是否正在拖拽 */
-  let isDragging = false;
+  let isDragging = $state(false);
   /** 鼠标是否按下 */
-  let isMouseDown = false;
+  let isMouseDown = $state(false);
   /** 鼠标按下时的位置 */
   let mouseDownPos = { x: 0, y: 0 };
   /** 判定为拖拽的移动阈值（像素） */
@@ -229,10 +229,24 @@
       // 注册设置变化事件监听
       unlistenSettings = await listen<UserSettings>(
         "settings-change",
-        (event) => {
+        async (event) => {
           showCharacter = event.payload.show_character;
           showBorder = event.payload.show_border;
           silenceMode = event.payload.silence_mode;
+
+          // 动态加载边框 (如果之前未加载且现在启用了)
+          if (showBorder && !borderAnimator && borderCanvas) {
+            const borderConfig: BorderConfig | null =
+              await invoke("get_border_config");
+            if (borderConfig && borderConfig.enable && borderConfig.anima) {
+              borderZOffset = borderConfig.z_offset ?? 2;
+              borderAnimator = new SpriteAnimator(borderCanvas);
+              const success = await borderAnimator.loadByAssetName(
+                borderConfig.anima,
+              );
+              if (success) borderAnimator.play();
+            }
+          }
         },
       );
 
@@ -451,7 +465,7 @@
   // =========================================================================
 
   /** 气泡是否显示中 */
-  let isBubbleVisible = false;
+  let isBubbleVisible = $state(false);
 
   /** 当前穿透状态 */
   let isClickThrough = true;

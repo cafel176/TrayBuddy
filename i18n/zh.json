@@ -410,6 +410,9 @@
     "settings": "设置",
     "mods": "Mod 管理",
     "debugger": "调试器",
+    "mute": "静音模式",
+    "silence": "免打扰模式",
+    "showCharacter": "显示桌面挂件",
     "quit": "退出"
   }
 }

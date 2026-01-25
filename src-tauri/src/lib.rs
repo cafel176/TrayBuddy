@@ -23,12 +23,14 @@
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 
+#![allow(unused)]
+
 mod modules;
 
 use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
-    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_SILENCE,
+    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START,
 };
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
@@ -48,7 +50,7 @@ use modules::trigger::TriggerManager;
 use std::sync::{Arc, Mutex};
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     Emitter, Listener, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
@@ -1153,6 +1155,12 @@ fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
 
 /// 内部函数：构建国际化托盘菜单
 fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let app_state: State<AppState> = app.state();
+    let settings = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.clone()
+    };
+
     let settings_i = MenuItem::with_id(
         app,
         "settings",
@@ -1174,6 +1182,36 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         true,
         None::<&str>,
     )?;
+
+    let sep1 = PredefinedMenuItem::separator(app)?;
+
+    let mute_i = CheckMenuItem::with_id(
+        app,
+        "toggle_mute",
+        get_i18n_text(app, "menu.mute"),
+        true,
+        settings.no_audio_mode,
+        None::<&str>,
+    )?;
+    let silence_i = CheckMenuItem::with_id(
+        app,
+        "toggle_silence",
+        get_i18n_text(app, "menu.silence"),
+        true,
+        settings.silence_mode,
+        None::<&str>,
+    )?;
+    let show_widget_i = CheckMenuItem::with_id(
+        app,
+        "toggle_show_widget",
+        get_i18n_text(app, "menu.showCharacter"),
+        true,
+        settings.show_character,
+        None::<&str>,
+    )?;
+
+    let sep2 = PredefinedMenuItem::separator(app)?;
+
     let quit_i = MenuItem::with_id(
         app,
         "quit",
@@ -1182,7 +1220,20 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         None::<&str>,
     )?;
 
-    Menu::with_items(app, &[&settings_i, &mod_i, &debugger_i, &quit_i])
+    Menu::with_items(
+        app,
+        &[
+            &settings_i,
+            &mod_i,
+            &debugger_i,
+            &sep1,
+            &mute_i,
+            &silence_i,
+            &show_widget_i,
+            &sep2,
+            &quit_i,
+        ],
+    )
 }
 
 /// 弹出上下文菜单命令 (供前端右键调用)
@@ -1232,6 +1283,57 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                         .inner_size(800.0, 700.0)
                         .resizable(false)
                         .build();
+            }
+        }
+        "toggle_mute" | "toggle_silence" | "toggle_show_widget" => {
+            let settings = {
+                let app_state: State<AppState> = app.state();
+                let mut storage = app_state.storage.lock().unwrap();
+                match id {
+                    "toggle_mute" => {
+                        storage.data.settings.no_audio_mode = !storage.data.settings.no_audio_mode
+                    }
+                    "toggle_silence" => {
+                        storage.data.settings.silence_mode = !storage.data.settings.silence_mode
+                    }
+                    "toggle_show_widget" => {
+                        storage.data.settings.show_character = !storage.data.settings.show_character
+                    }
+                    _ => {}
+                }
+                let _ = storage.save();
+                storage.data.settings.clone()
+            };
+
+            // 广播设置变更 (供所有窗口 UI 同步)
+            let _ = app.emit("settings-change", settings.clone());
+
+            // --- 执行副作用 ---
+
+            // 1. 静音模式副作用
+            if id == "toggle_mute" {
+                let _ = app.emit("mute-change", settings.no_audio_mode);
+            }
+
+            // 2. 免打扰模式副作用 (修复死锁：提前释放锁)
+            if id == "toggle_silence" {
+                let target_state = if settings.silence_mode {
+                    STATE_SILENCE_START
+                } else {
+                    STATE_SILENCE_END
+                };
+
+                let state_info = {
+                    let app_state: State<AppState> = app.state();
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    rm.get_state_by_name(target_state).cloned()
+                }; // 锁在此处释放
+
+                if let Some(state_info) = state_info {
+                    let app_state: State<AppState> = app.state();
+                    let mut sm = app_state.state_manager.lock().unwrap();
+                    let _ = sm.change_state_ex(state_info, true);
+                }
             }
         }
         _ => {}

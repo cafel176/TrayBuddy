@@ -410,6 +410,9 @@
     "settings": "設定",
     "mods": "Mod 管理",
     "debugger": "デバッガー",
+    "mute": "ミュートモード",
+    "silence": "集中モード",
+    "showCharacter": "キャラクターを表示",
     "quit": "終了"
   }
 }
