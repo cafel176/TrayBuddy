@@ -434,6 +434,7 @@
     "searchPaths": "搜索路径",
     "selectMod": "请选择一个 Mod",
     "loadMod": "加载 Mod",
+    "reloadMod": "重新加载",
     "current": "当前加载",
     "preview": "预览",
     "noPreview": "无预览图",

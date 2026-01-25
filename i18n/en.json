@@ -434,6 +434,7 @@
     "searchPaths": "Search Paths",
     "selectMod": "Select a Mod",
     "loadMod": "Load Mod",
+    "reloadMod": "Reload Mod",
     "current": "Currently Loaded",
     "preview": "Preview",
     "noPreview": "No Preview",

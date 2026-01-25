@@ -395,27 +395,6 @@
     {/each}
   </div>
 
-  <!-- Mod 选择和操作控制区 -->
-  <!-- <div class="controls">
-    <div class="section">
-      <label for="mod-select">{_("resource.availableMods")}</label>
-      <select id="mod-select" bind:value={selectedMod}>
-        {#each mods as mod}
-          <option value={mod}>{mod}</option>
-        {/each}
-      </select>
-      <button onclick={refreshMods} disabled={loading}>{_("common.refresh")}</button>
-    </div>
-
-    <div class="actions">
-      <button class="primary" onclick={loadSelectedMod} disabled={loading || !selectedMod}>{_("resource.loadMod")}</button>
-    </div>
-  </div>
-
-  <div class="status-bar" class:error={isError(statusMsg)}>
-    {statusMsg}
-  </div> -->
-
   <!-- Mod 详情面板 -->
   {#if currentModInfo}
     <div class="info-panel">
@@ -1366,74 +1345,6 @@
     border-radius: 2px;
   }
 
-  .controls {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin: 15px 0;
-  }
-
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  select {
-    padding: 8px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    background: #f9f9f9;
-  }
-
-  .actions {
-    display: flex;
-    gap: 10px;
-  }
-
-  button {
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
-    background: #ecf0f1;
-  }
-
-  button:hover:not(:disabled) {
-    background: #ddd;
-  }
-
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .primary {
-    background: #3498db;
-    color: white;
-    flex: 1;
-  }
-
-  .primary:hover:not(:disabled) {
-    background: #2980b9;
-  }
-
-  .status-bar {
-    background: #f1f2f6;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 0.9em;
-    margin-top: 10px;
-    border-left: 4px solid #3498db;
-  }
-
-  .status-bar.error {
-    border-left-color: #e74c3c;
-    color: #c0392b;
-  }
-
   .info-panel {
     margin-top: 20px;
     padding: 15px;
@@ -2175,15 +2086,6 @@
       border-bottom-color: #34495e;
     }
 
-    select {
-      background: #34495e;
-      color: white;
-      border-color: #455a64;
-    }
-
-    .status-bar {
-      background: #34495e;
-    }
     .info-panel {
       background: #34495e;
     }

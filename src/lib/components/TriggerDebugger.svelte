@@ -1166,33 +1166,5 @@
     .status-value {
       color: #ecf0f1;
     }
-
-    /* 同步 Resource 和 Extra 标签样式 (虽 Trigger 界面可能用不到，但保持样式库一致) */
-    .resource-tag {
-      background: #3d566e;
-      color: #bdc3c7;
-    }
-
-    .extra-tag {
-      background: #3d566e;
-      color: #bdc3c7;
-    }
-
-    .extra-tag.next {
-      background: #4a3d5a;
-      color: #bb8fce;
-    }
-    .extra-tag.timer {
-      background: #4a4a1e;
-      color: #f1c40f;
-    }
-    .extra-tag.trigger {
-      background: #1e4a3d;
-      color: #2ecc71;
-    }
-    .extra-tag.branch {
-      background: #4a3d2e;
-      color: #e67e22;
-    }
   }
 </style>

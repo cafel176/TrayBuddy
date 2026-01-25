@@ -434,6 +434,7 @@
     "searchPaths": "検索パス",
     "selectMod": "Mod を選択してください",
     "loadMod": "Mod を読み込む",
+    "reloadMod": "再読み込み",
     "current": "現在読み込み中",
     "preview": "プレビュー",
     "noPreview": "プレビューなし",
