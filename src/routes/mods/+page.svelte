@@ -2,7 +2,9 @@
     import { invoke, convertFileSrc } from "@tauri-apps/api/core";
     import { onMount, onDestroy } from "svelte";
     import { getCurrentWindow } from "@tauri-apps/api/window";
+    import { listen } from "@tauri-apps/api/event";
     import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+    import { message } from "@tauri-apps/plugin-dialog";
 
     // ======================================================================= //
     // i18n
@@ -47,6 +49,7 @@
     let statusMsg = $state("");
     let previewSrc = $state("");
     let currentModName = $state("");
+    let unsubRefresh: (() => void) | null = null;
 
     // ======================================================================= //
     // Logic
@@ -135,6 +138,35 @@
         }
     }
 
+    async function importMod() {
+        try {
+            const modName = (await invoke("import_mod")) as string;
+            await message(_("modWindow.importSuccess"), {
+                title: "TrayBuddy",
+                kind: "info",
+            });
+            // 此时后台会 emit refresh-mods，由 listener 处理刷新，这里不需要手动 loadModList 了
+            if (modName) {
+                // 如果后端返回了 modName，可以尝试直接选中
+                // 注意：如果 refresh-mods 的 listener 还没执行完，选中可能会失败（mods 还没更新）
+                // 所以我们让 listener 负责刷新，如果已经选中了就不管了，或者稍微延迟一下
+                setTimeout(() => selectMod(modName), 100);
+            }
+        } catch (e) {
+            if (e === "Canceled") return;
+
+            let errorMsg = e as string;
+            if (errorMsg.includes("Invalid .tbuddy file")) {
+                errorMsg = _("modWindow.unrecognizedFile");
+            }
+
+            await message(`${_("modWindow.importFailed")}: ${errorMsg}`, {
+                title: "TrayBuddy",
+                kind: "error",
+            });
+        }
+    }
+
     // ======================================================================= //
     // Lifecycle
     // ======================================================================= //
@@ -147,10 +179,16 @@
         _langVersion++;
         getCurrentWindow().setTitle(_("common.modsTitle"));
         loadModList();
+
+        unsubRefresh = await listen("refresh-mods", (event) => {
+            console.log("Mods refreshed via event:", event.payload);
+            loadModList();
+        });
     });
 
     onDestroy(() => {
         unsubLang?.();
+        unsubRefresh?.();
         destroyI18n();
     });
 </script>
@@ -158,7 +196,12 @@
 <div class="mod-window">
     <!-- Sidebar: List -->
     <div class="sidebar">
-        <h3>{_("modWindow.availableMods")}</h3>
+        <div class="sidebar-header">
+            <h3>{_("modWindow.availableMods")}</h3>
+            <button class="import-btn" onclick={importMod} title={_("modWindow.importMod")}>
+                +
+            </button>
+        </div>
         <div class="mod-list">
             {#each mods as mod}
                 <button
@@ -284,6 +327,34 @@
         display: flex;
         flex-direction: column;
         padding: 15px;
+    }
+
+    .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .import-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        border: 1px solid #e0e0e0;
+        background: #f8f9fa;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: #666;
+        transition: all 0.2s;
+    }
+
+    .import-btn:hover {
+        background: #e9ecef;
+        border-color: #dee2e6;
+        color: #1890ff;
     }
 
     h3,
@@ -567,6 +638,15 @@
         }
         .secondary-btn:hover {
             background: #444;
+        }
+        .import-btn {
+            background: #444;
+            border-color: #555;
+            color: #ccc;
+        }
+        .import-btn:hover {
+            background: #555;
+            color: #177ddc;
         }
     }
 </style>

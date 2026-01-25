@@ -759,6 +759,7 @@ fn get_media_debug_info() -> Option<MediaDebugInfo> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // ========== 初始化核心管理器 ==========
             let rm = Arc::new(Mutex::new(ResourceManager::new(app.handle())));
@@ -978,6 +979,7 @@ pub fn run() {
             get_cursor_position,
             is_cursor_in_interact_area,
             open_path,
+            import_mod,
             recreate_animation_window,
             // 环境信息
             get_datetime_info,
@@ -1008,6 +1010,115 @@ fn get_mod_details(
 ) -> Result<modules::resource::ModInfo, String> {
     let mgr = state.resource_manager.lock().unwrap();
     mgr.read_mod_from_disk(&mod_name)
+}
+
+/// 导入 Mod (.tbuddy 文件)
+///
+/// 1. 弹出文件选择框
+/// 2. 验证是否为有效的压缩包
+/// 3. 拷贝到应用的 mods 文件夹
+/// 4. 解压并清理
+#[tauri::command]
+async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
+    use std::fs;
+    use std::io;
+    use std::path::Path;
+    use tauri_plugin_dialog::DialogExt;
+
+    // 1. 弹出文件选择框
+    let file_path = app
+        .dialog()
+        .file()
+        .add_filter("TrayBuddy Mod", &["tbuddy"])
+        .blocking_pick_file();
+
+    let selected_path = match file_path {
+        Some(path) => match path {
+            tauri_plugin_dialog::FilePath::Path(p) => p,
+            _ => return Err("Unsupported file path".into()),
+        },
+        None => return Err("Canceled".into()),
+    };
+
+    // 2. 准备目标路径
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get config dir: {}", e))?;
+    let mods_dir = config_dir.join("mods");
+
+    if !mods_dir.exists() {
+        fs::create_dir_all(&mods_dir)
+            .map_err(|e| format!("Failed to create mods directory: {}", e))?;
+    }
+
+    let file_name = selected_path.file_name().ok_or("Invalid file name")?;
+    let target_file_path = mods_dir.join(file_name);
+
+    // 3. 拷贝文件到 mods 目录
+    fs::copy(&selected_path, &target_file_path)
+        .map_err(|e| format!("Failed to copy file: {}", e))?;
+
+    // 4. 验证并解压
+    let result = (|| -> Result<String, String> {
+        let file = fs::File::open(&target_file_path).map_err(|e| e.to_string())?;
+        let mut archive = match zip::ZipArchive::new(file) {
+            Ok(a) => a,
+            Err(_) => return Err("Invalid .tbuddy file (not a valid zip)".into()),
+        };
+
+        // 确定解压目标文件夹名称 (移除 .tbuddy 后缀)
+        let mod_folder_name = selected_path
+            .file_stem()
+            .ok_or("Invalid file name stem")?
+            .to_string_lossy();
+        //let extract_path = mods_dir.join(mod_folder_name.as_ref());
+        let extract_path = mods_dir;
+
+        if !extract_path.exists() {
+            fs::create_dir_all(&extract_path).map_err(|e| e.to_string())?;
+        }
+
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+            let outpath = match file.enclosed_name() {
+                Some(path) => extract_path.join(path),
+                None => continue,
+            };
+
+            if file.name().ends_with('/') {
+                fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
+            } else {
+                if let Some(p) = outpath.parent() {
+                    if !p.exists() {
+                        fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                    }
+                }
+                let mut outfile = fs::File::create(&outpath).map_err(|e| e.to_string())?;
+                io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+            }
+
+            // 在 Unix 上设置权限 (可选，TrayBuddy 主要是 Windows)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Some(mode) = file.unix_mode() {
+                    fs::set_permissions(&outpath, fs::Permissions::from_mode(mode))
+                        .map_err(|e| e.to_string())?;
+                }
+            }
+        }
+        Ok(mod_folder_name.into_owned())
+    })();
+
+    // 5. 无论成功失败，删除拷贝的临时文件
+    let _ = fs::remove_file(&target_file_path);
+
+    if let Ok(ref mod_name) = result {
+        let _ = app.emit("refresh-mods", mod_name);
+    }
+
+    result
 }
 
 /// 获取系统观察器调试信息

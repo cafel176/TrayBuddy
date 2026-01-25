@@ -446,7 +446,11 @@
     "loadFailed": "Load Failed",
     "openModDir": "Open Mod Directory",
     "modDirOpened": "Mod directory opened",
-    "modDirOpenFailed": "Failed to open mod directory"
+    "modDirOpenFailed": "Failed to open mod directory",
+    "importMod": "Import Mod",
+    "importSuccess": "Import success",
+    "importFailed": "Import failed",
+    "unrecognizedFile": "Unrecognized file (not a valid .tbuddy archive)"
   },
   "menu": {
     "about": "About",

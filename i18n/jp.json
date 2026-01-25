@@ -446,7 +446,11 @@
     "loadFailed": "読み込み失敗",
     "openModDir": "Mod ディレクトリを開く",
     "modDirOpened": "Mod ディレクトリを開きました",
-    "modDirOpenFailed": "Mod ディレクトリを開くことができませんでした"
+    "modDirOpenFailed": "Mod ディレクトリを開くことができませんでした",
+    "importMod": "Modをインポート",
+    "importSuccess": "インポート成功",
+    "importFailed": "インポート失敗",
+    "unrecognizedFile": "認識できないファイル (.tbuddy 形式ではありません)"
   },
   "menu": {
     "about": "このアプリについて",
