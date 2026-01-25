@@ -152,10 +152,10 @@
   async function openStorageDir() {
     try {
       await invoke("open_storage_dir");
-      statusMsg = "已打开存储目录";
+      statusMsg = _("settings.storageDirOpened");
     } catch (err) {
       console.error("Failed to open storage directory:", err);
-      statusMsg = "打开存储目录失败";
+      statusMsg = _("settings.storageDirOpenFailed");
     }
   }
 
@@ -500,14 +500,14 @@
     <!-- 高级选项 -->
     <!-- ================================================================= -->
 
-    <div class="divider">高级选项</div>
+    <div class="divider">{_("settings.advancedOptions")}</div>
 
     <button
       type="button"
       class="secondary-button"
       onclick={openStorageDir}
     >
-      打开存储目录
+      {_("settings.openStorageDir")}
     </button>
   {:else}
     <!-- 加载中状态 -->

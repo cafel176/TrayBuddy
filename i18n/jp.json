@@ -56,7 +56,11 @@
     "statusLoading": "設定を読み込み中...",
     "statusLoaded": "設定を読み込みました",
     "statusSaving": "保存中...",
-    "statusSaved": "設定を保存しました"
+    "statusSaved": "設定を保存しました",
+    "advancedOptions": "高度なオプション",
+    "openStorageDir": "ストレージディレクトリを開く",
+    "storageDirOpened": "ストレージディレクトリを開きました",
+    "storageDirOpenFailed": "ストレージディレクトリを開くことができませんでした"
   },
   "environment": {
     "title": "環境デバッグパネル",
@@ -407,6 +411,7 @@
     "loadFailed": "読み込み失敗"
   },
   "menu": {
+    "about": "このアプリについて",
     "settings": "設定",
     "mods": "Mod 管理",
     "debugger": "デバッガー",
@@ -414,5 +419,16 @@
     "silence": "集中モード",
     "showCharacter": "キャラクターを表示",
     "quit": "終了"
+  },
+  "about": {
+    "title": "このアプリについて",
+    "appName": "TrayBuddy",
+    "appDescription": "かわいいデスクトップコンパニオンアプリ",
+    "appVersion": "バージョン: 1.0.0",
+    "featureCuteCharacter": "✨ かわいいデスクトップキャラクター",
+    "featureMediaInteraction": "🎵 メディア監視とインタラクション",
+    "featureRichState": "🔔 豊富な状態システム",
+    "featureCustomizable": "🎨 高度にカスタマイズ可能なMod",
+    "close": "閉じる"
   }
 }

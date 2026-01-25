@@ -56,7 +56,11 @@
     "statusLoading": "正在加载设置...",
     "statusLoaded": "设置已加载",
     "statusSaving": "正在保存...",
-    "statusSaved": "设置已保存"
+    "statusSaved": "设置已保存",
+    "advancedOptions": "高级选项",
+    "openStorageDir": "打开存储目录",
+    "storageDirOpened": "已打开存储目录",
+    "storageDirOpenFailed": "打开存储目录失败"
   },
   "environment": {
     "title": "Environment 调试面板",
@@ -407,6 +411,7 @@
     "loadFailed": "加载失败"
   },
   "menu": {
+    "about": "关于本程序",
     "settings": "设置",
     "mods": "Mod 管理",
     "debugger": "调试器",
@@ -414,5 +419,16 @@
     "silence": "免打扰模式",
     "showCharacter": "显示桌面挂件",
     "quit": "退出"
+  },
+  "about": {
+    "title": "关于本程序",
+    "appName": "TrayBuddy",
+    "appDescription": "一个可爱的桌面伙伴应用",
+    "appVersion": "版本: 1.0.0",
+    "featureCuteCharacter": "✨ 可爱的桌面角色",
+    "featureMediaInteraction": "🎵 媒体监听与互动",
+    "featureRichState": "🔔 丰富的状态系统",
+    "featureCustomizable": "🎨 高度可定制的 Mod",
+    "close": "关闭"
   }
 }

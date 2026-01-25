@@ -6,7 +6,8 @@
     "main",
     "animation",
     "mods",
-    "settings"
+    "settings",
+    "about"
   ],
   "permissions": [
     "core:default",

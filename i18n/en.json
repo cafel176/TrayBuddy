@@ -56,7 +56,11 @@
     "statusLoading": "Loading settings...",
     "statusLoaded": "Settings loaded",
     "statusSaving": "Saving...",
-    "statusSaved": "Settings saved"
+    "statusSaved": "Settings saved",
+    "advancedOptions": "Advanced Options",
+    "openStorageDir": "Open Storage Directory",
+    "storageDirOpened": "Storage directory opened",
+    "storageDirOpenFailed": "Failed to open storage directory"
   },
   "environment": {
     "title": "Environment Debug Panel",
@@ -407,6 +411,7 @@
     "loadFailed": "Load Failed"
   },
   "menu": {
+    "about": "About",
     "settings": "Settings",
     "mods": "Mods",
     "debugger": "Debugger",
@@ -414,5 +419,16 @@
     "silence": "Silence Mode",
     "showCharacter": "Show Character",
     "quit": "Quit"
+  },
+  "about": {
+    "title": "About",
+    "appName": "TrayBuddy",
+    "appDescription": "A cute desktop companion app",
+    "appVersion": "Version: 1.0.0",
+    "featureCuteCharacter": "✨ Cute Desktop Character",
+    "featureMediaInteraction": "🎵 Media Listening & Interaction",
+    "featureRichState": "🔔 Rich State System",
+    "featureCustomizable": "🎨 Highly Customizable Mods",
+    "close": "Close"
   }
 }

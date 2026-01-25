@@ -1216,6 +1216,13 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         storage.data.settings.clone()
     };
 
+    let about_i = MenuItem::with_id(
+        app,
+        "about",
+        get_i18n_text(app, "menu.about"),
+        true,
+        None::<&str>,
+    )?;
     let settings_i = MenuItem::with_id(
         app,
         "settings",
@@ -1275,17 +1282,21 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         None::<&str>,
     )?;
 
+    let sep3 = PredefinedMenuItem::separator(app)?;
+
     Menu::with_items(
         app,
         &[
-            &settings_i,
-            &mod_i,
+            &about_i,
+            &sep3,
             &debugger_i,
-            &sep1,
+            &mod_i,
+            &settings_i,
+            &sep2,
+            &show_widget_i,
             &mute_i,
             &silence_i,
-            &show_widget_i,
-            &sep2,
+            &sep1,
             &quit_i,
         ],
     )
@@ -1302,6 +1313,19 @@ fn show_context_menu(app: tauri::AppHandle, window: WebviewWindow) -> Result<(),
 /// 统一渲染/托盘菜单事件处理
 fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
     match id {
+        "about" => {
+            if let Some(window) = app.get_webview_window("about") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("about".into()))
+                    .title(get_i18n_text(app, "menu.about"))
+                    .inner_size(400.0, 300.0)
+                    .resizable(false)
+                    .center()
+                    .build();
+            }
+        }
         "quit" => app.exit(0),
         "debugger" => {
             if let Some(window) = app.get_webview_window("main") {
