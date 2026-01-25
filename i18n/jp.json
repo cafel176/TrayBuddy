@@ -405,5 +405,11 @@
     "loading": "読み込み中...",
     "loadSuccess": "読み込み成功",
     "loadFailed": "読み込み失敗"
+  },
+  "menu": {
+    "settings": "設定",
+    "mods": "Mod 管理",
+    "debugger": "デバッガー",
+    "quit": "終了"
   }
 }

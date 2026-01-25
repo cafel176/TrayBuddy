@@ -405,5 +405,11 @@
     "loading": "加载中...",
     "loadSuccess": "加载成功",
     "loadFailed": "加载失败"
+  },
+  "menu": {
+    "settings": "设置",
+    "mods": "Mod 管理",
+    "debugger": "调试器",
+    "quit": "退出"
   }
 }

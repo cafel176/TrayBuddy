@@ -50,7 +50,8 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Emitter, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder,
+    Emitter, Listener, LogicalPosition, LogicalSize, Manager, State, WebviewUrl,
+    WebviewWindowBuilder,
 };
 
 // ========================================================================= //
@@ -161,8 +162,11 @@ fn update_settings(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let mut storage = state.storage.lock().unwrap();
-    storage.update_settings(settings.clone())?;
+    {
+        let mut storage = state.storage.lock().unwrap();
+        storage.update_settings(settings.clone())?;
+    } // 此时锁已释放，防止下方触发的事件回调再次尝试获取锁时产生死锁
+
     let _ = app.emit("settings-change", settings);
     Ok(())
 }
@@ -767,10 +771,16 @@ pub fn run() {
                 media_observer: Mutex::new(None),
             });
 
-            // ========== 初始化主窗口标题 ==========
-            if let Some(main_window) = app.get_webview_window("main") {
-                let title = get_i18n_text(app.handle(), "common.appTitle");
-                let _ = main_window.set_title(&title);
+            // ========== 监听设置变更以实时刷新托盘菜单 ==========
+            {
+                let app_handle = app.handle().clone();
+                app.listen("settings-change", move |_| {
+                    if let Some(tray) = app_handle.tray_by_id("main") {
+                        if let Ok(menu) = inner_build_tray_menu(&app_handle) {
+                            let _ = tray.set_menu(Some(menu));
+                        }
+                    }
+                });
             }
 
             // ========== 创建动画窗口 ==========
@@ -850,8 +860,7 @@ pub fn run() {
                     storage.data.info.current_mod.clone()
                 };
 
-                // 尝试加载 Mod 图标，如果失败则使用应用默认图标
-                // 假设 mods 目录在当前工作目录下
+                // 尝试加载 Mod 图标
                 let icon_path = std::path::Path::new("mods").join(&mod_id).join("icon.ico");
                 let icon = if icon_path.exists() {
                     Image::from_path(&icon_path)
@@ -860,21 +869,32 @@ pub fn run() {
                     app.default_window_icon().unwrap().clone()
                 };
 
-                // 2. 创建菜单
-                let settings_i =
-                    MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-                let mod_i = MenuItem::with_id(app, "mod", "Mod", true, None::<&str>)?;
-                let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-                let menu = Menu::with_items(app, &[&settings_i, &mod_i, &quit_i])?;
+                // 2. 创建菜单 (使用辅助函数支持国际化)
+                let menu = inner_build_tray_menu(app.handle())?;
 
                 // 3. 创建托盘
-                let builder = TrayIconBuilder::new()
+                let builder = TrayIconBuilder::with_id("main")
                     .icon(icon)
                     .menu(&menu)
                     .show_menu_on_left_click(false)
                     .on_menu_event(move |app, event| {
                         match event.id.as_ref() {
                             "quit" => app.exit(0),
+                            "debugger" => {
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                } else {
+                                    let _ = WebviewWindowBuilder::new(
+                                        app,
+                                        "main",
+                                        WebviewUrl::App("index.html".into()), // 主页路径
+                                    )
+                                    .title(get_i18n_text(app, "common.appTitle"))
+                                    .inner_size(800.0, 600.0)
+                                    .build();
+                                }
+                            }
                             "mod" => {
                                 // 检查 Mod 窗口是否已存在
                                 if let Some(window) = app.get_webview_window("mods") {
@@ -920,11 +940,7 @@ pub fn run() {
                             ..
                         } = event
                         {
-                            //let app = tray.app_handle();
-                            // if let Some(window) = app.get_webview_window("main") {
-                            //     let _ = window.show();
-                            //     let _ = window.set_focus();
-                            // }
+                            // 左键双击等逻辑可以在此添加
                         }
                     });
 
@@ -1186,4 +1202,38 @@ fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
     }
 
     key.to_string()
+}
+
+/// 内部函数：构建国际化托盘菜单
+fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let settings_i = MenuItem::with_id(
+        app,
+        "settings",
+        get_i18n_text(app, "menu.settings"),
+        true,
+        None::<&str>,
+    )?;
+    let mod_i = MenuItem::with_id(
+        app,
+        "mod",
+        get_i18n_text(app, "menu.mods"),
+        true,
+        None::<&str>,
+    )?;
+    let debugger_i = MenuItem::with_id(
+        app,
+        "debugger",
+        get_i18n_text(app, "menu.debugger"),
+        true,
+        None::<&str>,
+    )?;
+    let quit_i = MenuItem::with_id(
+        app,
+        "quit",
+        get_i18n_text(app, "menu.quit"),
+        true,
+        None::<&str>,
+    )?;
+
+    Menu::with_items(app, &[&settings_i, &mod_i, &debugger_i, &quit_i])
 }

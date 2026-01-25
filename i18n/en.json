@@ -405,5 +405,11 @@
     "loading": "Loading...",
     "loadSuccess": "Load Success",
     "loadFailed": "Load Failed"
+  },
+  "menu": {
+    "settings": "Settings",
+    "mods": "Mods",
+    "debugger": "Debugger",
+    "quit": "Quit"
   }
 }
