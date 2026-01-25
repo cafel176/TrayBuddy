@@ -36,7 +36,11 @@
   import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
-  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import {
+    getCurrentWindow,
+    LogicalPosition,
+    LogicalSize,
+  } from "@tauri-apps/api/window";
   import {
     SpriteAnimator,
     getMemoryLogs,
@@ -60,7 +64,10 @@
   import BubbleManager, {
     type BubbleConfig,
   } from "$lib/bubble/BubbleManager.svelte";
-  import { CURSOR_POLL_INTERVAL_MS } from "$lib/constants";
+  import {
+    CURSOR_POLL_INTERVAL_MS,
+    TRAY_ADAPTIVE_OFFSET_Y,
+  } from "$lib/constants";
 
   // =========================================================================
   // DOM 引用
@@ -118,6 +125,8 @@
   let borderZOffset = $state(2);
   /** 是否开启免打扰模式 */
   let silenceMode = $state(false);
+  /** 动画区域缩放比例 */
+  let animationScale = $state(0.4);
 
   // =========================================================================
   // 播放同步控制
@@ -170,22 +179,23 @@
       // 注册语言变更监听
       unsubLang = onLangChange(() => {
         _langVersion++;
-        getCurrentWindow().setTitle(_("common.animationTitle"));
       });
       await initI18n();
-      _langVersion++;
-      getCurrentWindow().setTitle(_("common.animationTitle"));
 
       // 加载用户设置
       const settings: UserSettings = await invoke("get_settings");
       showCharacter = settings.show_character;
       showBorder = settings.show_border;
+      animationScale = settings.animation_scale;
       silenceMode = settings.silence_mode;
 
-      // 实时同步初始鼠标穿透状态 (以免打扰模式时立即穿透)
+      // 实时同步初始鼠标穿透状态（不修改逻辑，仅保持之前状态）
       if (silenceMode) {
         await setClickThrough(true);
       }
+
+      // 触发初始布局与位置同步
+      await syncDisplayMode(showCharacter);
 
       // 初始化管理器
       audioManager = await getAudioManager();
@@ -238,6 +248,7 @@
           showCharacter = event.payload.show_character;
           showBorder = event.payload.show_border;
           silenceMode = event.payload.silence_mode;
+          animationScale = event.payload.animation_scale;
 
           // 动态加载边框 (如果之前未加载且现在启用了)
           if (showBorder && !borderAnimator && borderCanvas) {
@@ -252,6 +263,8 @@
               if (success) borderAnimator.play();
             }
           }
+          // 重新显示时恢复位置
+          await syncDisplayMode(showCharacter);
         },
       );
 
@@ -274,6 +287,52 @@
       }
     } catch (e) {
       console.error("Failed to init:", e);
+    }
+  }
+
+  /**
+   * 核心显示与位置同步逻辑
+   * @param show 是否显示挂件
+   */
+  async function syncDisplayMode(show: boolean) {
+    const currentWindow = getCurrentWindow();
+    if (!show) {
+      // 【隐藏模式】：移动到托盘上方默认位置备用（气泡弹出时会精确修正）
+      try {
+        const [physX, physY] =
+          await invoke<[number, number]>("get_tray_position");
+        const scale = await currentWindow.scaleFactor();
+        const { width } = await currentWindow.innerSize();
+
+        // 目标 X 对齐中轴线：(物理中心 - 物理宽度 / 2) / 比例
+        const logicalX = (physX - width / 2) / scale;
+        const logicalY = physY / scale - 300 - TRAY_ADAPTIVE_OFFSET_Y;
+
+        await currentWindow.setPosition(
+          new LogicalPosition(logicalX, logicalY),
+        );
+        // console.log(
+        //   `[Layout] Sunk to tray centered via API: (${logicalX}, ${logicalY})`,
+        // );
+      } catch (err) {
+        console.warn("[Layout] Failed to move to tray:", err);
+      }
+    } else {
+      // 【显示模式】：将窗口恢复到用户保存的桌面位置
+      try {
+        const [savedX, savedY] = await invoke<[number | null, number | null]>(
+          "get_saved_window_position",
+        );
+        if (savedX !== null && savedY !== null) {
+          // savedY 在存储中是动画区域顶部坐标，窗口顶部 = savedY - 300
+          await currentWindow.setPosition(
+            new LogicalPosition(savedX, savedY - 300),
+          );
+          // console.log(`[Layout] Restored to saved: (${savedX}, ${savedY})`);
+        }
+      } catch (err) {
+        console.warn("[Layout] Failed to restore saved position:", err);
+      }
     }
   }
 
@@ -331,6 +390,11 @@
    */
   async function showBubble(state: StateInfo) {
     try {
+      // 每次播放气泡时，若悬浮挂件隐藏，则尝试定位托盘并移动
+      if (!showCharacter) {
+        await syncDisplayMode(false);
+      }
+
       // 获取文本内容
       let textContent = "";
       let textDuration = 0; // 默认0表示使用自动计算
@@ -690,7 +754,14 @@
   </div>
 
   <!-- 动画区域 - 位于底部 -->
-  <div class="animation-area">
+  <div
+    class="animation-area"
+    style="height: {showCharacter
+      ? 500 * animationScale + 'px'
+      : '0px'}; flex: 0 0 {showCharacter
+      ? 500 * animationScale + 'px'
+      : '0px'}; overflow: hidden;"
+  >
     <!-- 角色动画 Canvas -->
     <canvas
       class="character-canvas"

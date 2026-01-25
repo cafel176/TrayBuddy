@@ -990,6 +990,8 @@ pub fn run() {
             get_media_debug_info,
             get_system_debug_info,
             show_context_menu,
+            get_tray_position,
+            get_saved_window_position,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1080,6 +1082,17 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
 /// 这样当气泡区域高度变化时，动画区域位置保持不变
 fn save_animation_window_position(window: &tauri::Window) {
     let app = window.app_handle();
+
+    // 检查 show_character 设置，如果关闭了则不保存位置
+    let should_save = {
+        let app_state: State<AppState> = window.state();
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.show_character
+    };
+
+    if !should_save {
+        return;
+    }
 
     // 获取 animation 窗口
     let animation_window = app.get_webview_window("animation");
@@ -1338,4 +1351,67 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
         }
         _ => {}
     }
+}
+
+/// 获取系统托盘位置（用于隐藏模式下的吸附）
+#[tauri::command]
+fn get_tray_position(app: tauri::AppHandle) -> (f64, f64) {
+    // 使用 Tauri v2 官方提供的 TrayIcon::rect 接口
+    if let Some(tray) = app.tray_by_id("main") {
+        if let Ok(Some(rect)) = tray.rect() {
+            // Position 和 Size 是枚举，需要模式匹配来获取数值
+            let x_val = match rect.position {
+                tauri::Position::Physical(p) => p.x as f64,
+                tauri::Position::Logical(l) => l.x,
+            };
+            let width_val = match rect.size {
+                tauri::Size::Physical(s) => s.width as f64,
+                tauri::Size::Logical(s) => s.width,
+            };
+            let y_val = match rect.position {
+                tauri::Position::Physical(p) => p.y as f64,
+                tauri::Position::Logical(l) => l.y,
+            };
+
+            let target_x = x_val + width_val / 2.0;
+            let target_y = y_val;
+
+            //println!("[Tray Logic] Found tray icon rect via API: {:?}", rect);
+            return (target_x, target_y);
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::core::PCWSTR;
+        use windows::Win32::Foundation::RECT;
+        use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetWindowRect};
+
+        // 寻找任务栏 (Shell_TrayWnd)
+        let class_name: Vec<u16> = "Shell_TrayWnd"
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
+        let tray_hwnd = unsafe {
+            FindWindowW(PCWSTR::from_raw(class_name.as_ptr()), PCWSTR::null()).unwrap_or_default()
+        };
+
+        let mut rect = RECT::default();
+        if !tray_hwnd.0.is_null() && unsafe { GetWindowRect(tray_hwnd, &mut rect).is_ok() } {
+            // 兜底：返回任务栏右侧大致位置
+            return (rect.right as f64 - 150.0, rect.top as f64);
+        }
+    }
+    // 最终降级方案
+    (1700.0, 1030.0)
+}
+
+/// 获取保存的窗口位置
+#[tauri::command]
+fn get_saved_window_position(state: State<'_, AppState>) -> (Option<f64>, Option<f64>) {
+    let storage = state.storage.lock().unwrap();
+    (
+        storage.data.info.animation_window_x,
+        storage.data.info.animation_window_y,
+    )
 }
