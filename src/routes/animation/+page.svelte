@@ -590,6 +590,20 @@
     }
   }
 
+  /**
+   * 右键菜单事件处理
+   *
+   * 阻止浏览器默认菜单，并调用 Tauri 命令弹出与托盘一致的原生菜单
+   */
+  async function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    try {
+      await invoke("show_context_menu");
+    } catch (err) {
+      console.error("Failed to show context menu:", err);
+    }
+  }
+
   // =========================================================================
   // 生命周期
   // =========================================================================
@@ -631,7 +645,7 @@
      - 使用 grab/grabbing 光标提示可拖拽
 ========================================================================= -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="container">
+<div class="container" oncontextmenu={handleContextMenu}>
   <!-- 气泡区域 - 位于顶部 -->
   <div class="bubble-area">
     <BubbleManager
@@ -650,9 +664,9 @@
       class:hidden={!showCharacter}
       style="z-index: {characterZOffset};"
       bind:this={characterCanvas}
-      on:mousedown={handleMouseDown}
-      on:mousemove={handleMouseMove}
-      on:mouseup={handleMouseUp}
+      onmousedown={handleMouseDown}
+      onmousemove={handleMouseMove}
+      onmouseup={handleMouseUp}
     ></canvas>
 
     <!-- 边框动画 Canvas -->

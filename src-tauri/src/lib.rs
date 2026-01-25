@@ -50,7 +50,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Emitter, Listener, LogicalPosition, LogicalSize, Manager, State, WebviewUrl,
+    Emitter, Listener, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
 
@@ -878,61 +878,7 @@ pub fn run() {
                     .menu(&menu)
                     .show_menu_on_left_click(false)
                     .on_menu_event(move |app, event| {
-                        match event.id.as_ref() {
-                            "quit" => app.exit(0),
-                            "debugger" => {
-                                if let Some(window) = app.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                } else {
-                                    let _ = WebviewWindowBuilder::new(
-                                        app,
-                                        "main",
-                                        WebviewUrl::App("index.html".into()), // 主页路径
-                                    )
-                                    .title(get_i18n_text(app, "common.appTitle"))
-                                    .inner_size(800.0, 600.0)
-                                    .build();
-                                }
-                            }
-                            "mod" => {
-                                // 检查 Mod 窗口是否已存在
-                                if let Some(window) = app.get_webview_window("mods") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                } else {
-                                    // 创建新的 Mod 窗口
-                                    let _ = WebviewWindowBuilder::new(
-                                        app,
-                                        "mods",
-                                        WebviewUrl::App("mods".into()),
-                                    )
-                                    .title(get_i18n_text(app, "common.modsTitle"))
-                                    .inner_size(800.0, 700.0)
-                                    .resizable(false)
-                                    .build();
-                                }
-                            }
-                            "settings" => {
-                                // 检查设置窗口是否已存在
-                                if let Some(window) = app.get_webview_window("settings") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                } else {
-                                    // 创建新的设置窗口
-                                    let _ = WebviewWindowBuilder::new(
-                                        app,
-                                        "settings",
-                                        WebviewUrl::App("settings".into()),
-                                    )
-                                    .title(get_i18n_text(app, "common.settingsTitle"))
-                                    .inner_size(800.0, 700.0)
-                                    .resizable(false)
-                                    .build();
-                                }
-                            }
-                            _ => {}
-                        }
+                        handle_menu_event(app, &event.id.as_ref());
                     })
                     .on_tray_icon_event(|tray, event| {
                         if let TrayIconEvent::Click {
@@ -1041,6 +987,7 @@ pub fn run() {
             // 媒体调试
             get_media_debug_info,
             get_system_debug_info,
+            show_context_menu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1236,4 +1183,57 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
     )?;
 
     Menu::with_items(app, &[&settings_i, &mod_i, &debugger_i, &quit_i])
+}
+
+/// 弹出上下文菜单命令 (供前端右键调用)
+#[tauri::command]
+fn show_context_menu(app: tauri::AppHandle, window: WebviewWindow) -> Result<(), String> {
+    let menu = inner_build_tray_menu(&app).map_err(|e| e.to_string())?;
+    window.popup_menu(&menu).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 统一渲染/托盘菜单事件处理
+fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
+    match id {
+        "quit" => app.exit(0),
+        "debugger" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                let _ =
+                    WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                        .title(get_i18n_text(app, "common.appTitle"))
+                        .inner_size(800.0, 600.0)
+                        .build();
+            }
+        }
+        "mod" => {
+            if let Some(window) = app.get_webview_window("mods") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                let _ = WebviewWindowBuilder::new(app, "mods", WebviewUrl::App("mods".into()))
+                    .title(get_i18n_text(app, "common.modsTitle"))
+                    .inner_size(800.0, 700.0)
+                    .resizable(false)
+                    .build();
+            }
+        }
+        "settings" => {
+            if let Some(window) = app.get_webview_window("settings") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                let _ =
+                    WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings".into()))
+                        .title(get_i18n_text(app, "common.settingsTitle"))
+                        .inner_size(800.0, 700.0)
+                        .resizable(false)
+                        .build();
+            }
+        }
+        _ => {}
+    }
 }
