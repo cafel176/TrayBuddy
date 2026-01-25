@@ -292,21 +292,68 @@ impl SystemObserver {
         }
     }
 
-    /// 使用 SHQueryUserNotificationState 检测全屏/繁忙状态
+    /// 使用 SHQueryUserNotificationState 和窗口边界检测全屏/繁忙状态
     unsafe fn is_fullscreen_busy() -> bool {
+        use windows::Win32::Foundation::RECT;
+        use windows::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+        };
         use windows::Win32::UI::Shell::{
             SHQueryUserNotificationState, QUNS_ACCEPTS_NOTIFICATIONS, QUNS_BUSY, QUNS_NOT_PRESENT,
             QUNS_PRESENTATION_MODE, QUNS_QUIET_TIME, QUNS_RUNNING_D3D_FULL_SCREEN,
         };
+        use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
 
-        if let Ok(state) = SHQueryUserNotificationState() {
+        let state_ok = if let Ok(state) = SHQueryUserNotificationState() {
             match state {
                 QUNS_RUNNING_D3D_FULL_SCREEN | QUNS_PRESENTATION_MODE | QUNS_BUSY => true,
                 _ => false,
             }
         } else {
             false
+        };
+
+        // 如果 Shell 状态认为不忙，直接返回 false
+        if !state_ok {
+            return false;
         }
+
+        // 进一步验证：检查前景窗口是否真的占满了整个显示器（覆盖任务栏）
+        let hwnd = GetForegroundWindow();
+        if hwnd.0.is_null() {
+            return false;
+        }
+
+        let mut window_rect = RECT::default();
+        if GetWindowRect(hwnd, &mut window_rect).is_err() {
+            return false;
+        }
+
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if monitor.0.is_null() {
+            return false;
+        }
+
+        let mut monitor_info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+
+        if GetMonitorInfoW(monitor, &mut monitor_info).into() {
+            let m_rect = monitor_info.rcMonitor;
+
+            // 判定标准：窗口边界是否包含或等于显示器边界
+            // 注意：某些全屏窗口（如 Chrome F11）可能会有 1px 的偏移或缩进，这里允许微小误差
+            let threshold = 2;
+            let is_covering_monitor = window_rect.left <= m_rect.left + threshold
+                && window_rect.top <= m_rect.top + threshold
+                && window_rect.right >= m_rect.right - threshold
+                && window_rect.bottom >= m_rect.bottom - threshold;
+
+            return is_covering_monitor;
+        }
+
+        false
     }
 
     /// 更新免打扰设置
