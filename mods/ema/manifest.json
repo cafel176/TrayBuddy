@@ -341,6 +341,17 @@
       ]
     },
     {
+      "event": "login_silence",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            "silence_start"
+          ]
+        }
+      ]
+    },
+    {
       "event": "music_start",
       "can_trigger_states": [
         {

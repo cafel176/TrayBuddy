@@ -182,6 +182,11 @@
       showBorder = settings.show_border;
       silenceMode = settings.silence_mode;
 
+      // 实时同步初始鼠标穿透状态 (以免打扰模式时立即穿透)
+      if (silenceMode) {
+        await setClickThrough(true);
+      }
+
       // 初始化管理器
       audioManager = await getAudioManager();
       triggerManager = getTriggerManager();
@@ -262,7 +267,11 @@
       if (currentState) await playState(currentState, false);
 
       // 触发 login 事件（可能切换到欢迎动画）
-      triggerManager?.trigger("login");
+      if (silenceMode) {
+        triggerManager?.trigger("login_silence");
+      } else {
+        triggerManager?.trigger("login");
+      }
     } catch (e) {
       console.error("Failed to init:", e);
     }
@@ -521,7 +530,7 @@
     stopCursorPolling();
     cursorPollTimer = setInterval(async () => {
       try {
-        // 免打扰模式下直接启用窗口全穿透
+        // 免打扰模式下，直接启用窗口全穿透
         if (silenceMode) {
           await setClickThrough(true);
           return;

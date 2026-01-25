@@ -23,10 +23,10 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /** 支持的触发事件类型 */
-export type TriggerEvent = "click" | "login";
+export type TriggerEvent = "click" | "login" | "login_silence";
 
 /** 已支持的事件列表 */
-const SUPPORTED_EVENTS: readonly TriggerEvent[] = ["click", "login"];
+const SUPPORTED_EVENTS: readonly TriggerEvent[] = ["click", "login", "login_silence"];
 
 /**
  * 触发器管理器
@@ -82,7 +82,7 @@ export class TriggerManager {
    * 销毁触发器管理器
    * 目前无需清理资源，保留以备将来扩展
    */
-  destroy(): void {}
+  destroy(): void { }
 }
 
 // ============================================================================

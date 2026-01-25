@@ -746,19 +746,14 @@ pub fn run() {
 
             // ========== 初始化状态 ==========
             let is_silence = storage.data.settings.silence_mode;
-            if !is_silence {
+
+            let initial_state = {
                 let rm_guard = rm.lock().unwrap();
-                if let Some(idle_state) = rm_guard.get_state_by_name(STATE_IDLE) {
-                    let _ = sm.change_state(idle_state.clone());
-                }
-            } else {
-                let rm_guard = rm.lock().unwrap();
-                if let Some(silence_state) = rm_guard.get_state_by_name(STATE_SILENCE) {
-                    let _ = sm.change_state(silence_state.clone());
-                    println!(
-                        "[TrayBuddy] Silence mode enabled on startup, entering silence_start state"
-                    );
-                }
+                rm_guard.get_state_by_name(STATE_IDLE).cloned()
+            }; // 锁在此处释放
+
+            if let Some(state) = initial_state {
+                let _ = sm.change_state(state);
             }
 
             sm.set_app_handle(app.handle().clone());
@@ -817,6 +812,11 @@ pub fn run() {
                     .skip_taskbar(true)
                     .build()
                     .map_err(|e| e.to_string())?;
+
+            // 初始鼠标穿透：免打扰模式下启动则设为穿透
+            if is_silence {
+                let _ = animation_window.set_ignore_cursor_events(true);
+            }
 
             // 设置窗口位置
             // 注意：保存的 y 是动画区域顶部的位置，需要减去气泡区域高度得到窗口顶部位置
