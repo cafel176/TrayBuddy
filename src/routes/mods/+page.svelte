@@ -48,6 +48,7 @@
     let loading = $state(false);
     let statusMsg = $state("");
     let previewSrc = $state("");
+    let imageLoadError = $state(false);
     let currentModName = $state("");
     let unsubRefresh: (() => void) | null = null;
 
@@ -69,6 +70,7 @@
         selectedMod = modName;
         selectedModInfo = null;
         previewSrc = "";
+        imageLoadError = false;
         statusMsg = _("common.loading");
 
         try {
@@ -150,20 +152,23 @@
     // ======================================================================= //
     // Lifecycle
     // ======================================================================= //
-    onMount(async () => {
-        unsubLang = onLangChange(() => {
+    onMount(() => {
+        const init = async () => {
+            unsubLang = onLangChange(() => {
+                _langVersion++;
+                getCurrentWindow().setTitle(_("common.modsTitle"));
+            });
+            await initI18n();
             _langVersion++;
             getCurrentWindow().setTitle(_("common.modsTitle"));
-        });
-        await initI18n();
-        _langVersion++;
-        getCurrentWindow().setTitle(_("common.modsTitle"));
-        loadModList();
-
-        unsubRefresh = await listen("refresh-mods", (event) => {
-            console.log("Mods refreshed via event:", event.payload);
             loadModList();
-        });
+
+            unsubRefresh = await listen("refresh-mods", (event) => {
+                console.log("Mods refreshed via event:", event.payload);
+                loadModList();
+            });
+        };
+        init().catch(console.error);
     });
 
     onDestroy(() => {
@@ -215,15 +220,14 @@
             </div>
 
             <div class="preview-area">
-                {#if previewSrc}
+                {#if previewSrc && !imageLoadError}
                     <img
                         src={previewSrc}
                         alt="Preview"
                         class="preview-img"
-                        onerror={(e) =>
-                            ((e.currentTarget as HTMLElement).style.display =
-                                "none")}
+                        onerror={() => (imageLoadError = true)}
                     />
+                {:else}
                     <div class="no-preview">{_("modWindow.noPreview")}</div>
                 {/if}
             </div>

@@ -191,52 +191,56 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(async () => {
-    await loadData();
+  onMount(() => {
+    const init = async () => {
+      await loadData();
 
-    // 监听语言变化
-    unsubLang = onLangChange(() => {
-      _langVersion++;
-    });
+      // 监听语言变化
+      unsubLang = onLangChange(() => {
+        _langVersion++;
+      });
 
-    // 监听后端状态变化事件
-    unlisten = await listen<StateChangeEvent>("state-change", (event) => {
-      const { state, play_once } = event.payload;
-      addLog(
-        _("trigger.logStateChange") +
-          " " +
-          state.name +
-          " (play_once: " +
-          play_once +
-          ")",
+      // 监听后端状态变化事件
+      unlisten = await listen<StateChangeEvent>("state-change", (event) => {
+        const { state, play_once } = event.payload;
+        addLog(
+          _("trigger.logStateChange") +
+            " " +
+            state.name +
+            " (play_once: " +
+            play_once +
+            ")",
+        );
+        loadData();
+      });
+
+      // 监听前端播放状态事件
+      unlistenPlayback = await listen<{
+        animationComplete: boolean;
+        audioComplete: boolean;
+        bubbleComplete: boolean;
+        isPlayOnce: boolean;
+      }>("playback-status", (event) => {
+        animationComplete = event.payload.animationComplete;
+        audioComplete = event.payload.audioComplete;
+        bubbleComplete = event.payload.bubbleComplete;
+        isPlayOnce = event.payload.isPlayOnce;
+      });
+
+      // 监听 next_state 变化事件（分支选择时触发）
+      unlistenNextState = await listen<{ name: string }>(
+        "next-state-changed",
+        (event) => {
+          addLog(_("trigger.logNextStateEvent") + " " + event.payload.name);
+          refreshNextState();
+        },
       );
-      loadData();
-    });
 
-    // 监听前端播放状态事件
-    unlistenPlayback = await listen<{
-      animationComplete: boolean;
-      audioComplete: boolean;
-      bubbleComplete: boolean;
-      isPlayOnce: boolean;
-    }>("playback-status", (event) => {
-      animationComplete = event.payload.animationComplete;
-      audioComplete = event.payload.audioComplete;
-      bubbleComplete = event.payload.bubbleComplete;
-      isPlayOnce = event.payload.isPlayOnce;
-    });
+      // 请求当前播放状态
+      emit("request-playback-status");
+    };
 
-    // 监听 next_state 变化事件（分支选择时触发）
-    unlistenNextState = await listen<{ name: string }>(
-      "next-state-changed",
-      (event) => {
-        addLog(_("trigger.logNextStateEvent") + " " + event.payload.name);
-        refreshNextState();
-      },
-    );
-
-    // 请求当前播放状态
-    emit("request-playback-status");
+    init().catch((e) => console.error("TriggerDebugger init failed:", e));
   });
 
   onDestroy(() => {

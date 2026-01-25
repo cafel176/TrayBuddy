@@ -13,15 +13,16 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
+  import { listen } from "@tauri-apps/api/event";
   import { t, onLangChange } from "$lib/i18n";
 
   // ======================================================================= //
   // i18n 响应式支持
   // ======================================================================= //
-  
+
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
-  
+
   function _(key: string, params?: Record<string, string | number>): string {
     void _langVersion;
     return t(key, params);
@@ -29,7 +30,11 @@
 
   /** 检查状态消息是否包含错误信息 */
   function isError(msg: string): boolean {
-    return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+    return (
+      msg.includes(_("common.failed")) ||
+      msg.includes("failed") ||
+      msg.includes("失败")
+    );
   }
 
   // ======================================================================= //
@@ -79,8 +84,6 @@
 
   let debugInfo = $state<MediaDebugInfo | null>(null);
   let statusMsg = $state("");
-  let autoRefresh = $state(true);
-  let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
   // ======================================================================= //
   // 数据加载
@@ -99,25 +102,20 @@
     }
   }
 
-  function toggleAutoRefresh() {
-    autoRefresh = !autoRefresh;
-    if (autoRefresh) {
-      startAutoRefresh();
-    } else {
-      stopAutoRefresh();
-    }
-  }
+  async function init() {
+    statusMsg = _("media.statusReading");
+    await loadDebugInfo();
 
-  function startAutoRefresh() {
-    if (refreshInterval) clearInterval(refreshInterval);
-    refreshInterval = setInterval(loadDebugInfo, 1000);
-  }
+    // 监听后端推送的更新事件
+    const unlisten = await listen<MediaDebugInfo>(
+      "media-debug-update",
+      (event) => {
+        debugInfo = event.payload;
+        statusMsg = `${_("media.statusUpdated")} ${debugInfo.last_check_time}`;
+      },
+    );
 
-  function stopAutoRefresh() {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-      refreshInterval = null;
-    }
+    return unlisten;
   }
 
   function formatUptime(secs: number): string {
@@ -134,11 +132,16 @@
 
   function getStatusColor(status: string): string {
     switch (status) {
-      case "Playing": return "#2ecc71";
-      case "Paused": return "#f39c12";
-      case "Stopped": return "#95a5a6";
-      case "Active": return "#3498db";
-      default: return "#7f8c8d";
+      case "Playing":
+        return "#2ecc71";
+      case "Paused":
+        return "#f39c12";
+      case "Stopped":
+        return "#95a5a6";
+      case "Active":
+        return "#3498db";
+      default:
+        return "#7f8c8d";
     }
   }
 
@@ -147,17 +150,23 @@
   // ======================================================================= //
 
   onMount(() => {
-    unsubLang = onLangChange(() => { _langVersion++; });
-    statusMsg = _("media.statusReading");
-    loadDebugInfo();
-    if (autoRefresh) {
-      startAutoRefresh();
-    }
-  });
+    unsubLang = onLangChange(() => {
+      _langVersion++;
+    });
 
-  onDestroy(() => {
-    unsubLang?.();
-    stopAutoRefresh();
+    let unlisten: (() => void) | undefined;
+
+    init()
+      .then((u) => (unlisten = u))
+      .catch((err) => {
+        console.error("MediaDebugger init error:", err);
+        statusMsg = `${_("common.failed")} ${err}`;
+      });
+
+    return () => {
+      if (unlisten) unlisten();
+      unsubLang?.();
+    };
   });
 </script>
 
@@ -169,11 +178,10 @@
   <div class="header">
     <h4>{_("media.title")}</h4>
     <div class="controls">
-      <button class="refresh-btn" onclick={loadDebugInfo}>{_("common.refresh")}</button>
-      <label class="auto-refresh">
-        <input type="checkbox" checked={autoRefresh} onchange={toggleAutoRefresh} />
-        {_("media.autoRefresh")}
-      </label>
+      <button class="refresh-btn" onclick={loadDebugInfo}
+        >{_("common.refresh")}</button
+      >
+      <span class="auto-refresh-badge">{_("media.autoUpdate")}</span>
     </div>
   </div>
 
@@ -185,7 +193,9 @@
         <div class="info-item">
           <span class="label">{_("media.runningStatus")}</span>
           <span class="value" class:running={debugInfo.observer_running}>
-            {debugInfo.observer_running ? _("common.running") : _("common.stopped")}
+            {debugInfo.observer_running
+              ? _("common.running")
+              : _("common.stopped")}
           </span>
         </div>
         <div class="info-item">
@@ -195,13 +205,17 @@
         <div class="info-item">
           <span class="label">{_("media.gsmtc")}</span>
           <span class="value" class:available={debugInfo.gsmtc_available}>
-            {debugInfo.gsmtc_available ? _("common.enabled") : _("common.disabled")}
+            {debugInfo.gsmtc_available
+              ? _("common.enabled")
+              : _("common.disabled")}
           </span>
         </div>
         <div class="info-item">
           <span class="label">{_("media.coreAudio")}</span>
           <span class="value" class:available={debugInfo.core_audio_available}>
-            {debugInfo.core_audio_available ? _("common.enabled") : _("common.disabled")}
+            {debugInfo.core_audio_available
+              ? _("common.enabled")
+              : _("common.disabled")}
           </span>
         </div>
         <div class="info-item">
@@ -215,19 +229,34 @@
     <section class="section">
       <h5>{_("media.currentStatus")}</h5>
       <div class="combined-state">
-        <div class="state-badge" style="background: {getStatusColor(debugInfo.combined_state.status)}">
+        <div
+          class="state-badge"
+          style="background: {getStatusColor(debugInfo.combined_state.status)}"
+        >
           {debugInfo.combined_state.status}
         </div>
         <div class="state-details">
-          <div><strong>{_("media.source")}</strong> {debugInfo.state_source}</div>
+          <div>
+            <strong>{_("media.source")}</strong>
+            {debugInfo.state_source}
+          </div>
           {#if debugInfo.combined_state.app_id}
-            <div><strong>{_("media.app")}</strong> {debugInfo.combined_state.app_id}</div>
+            <div>
+              <strong>{_("media.app")}</strong>
+              {debugInfo.combined_state.app_id}
+            </div>
           {/if}
           {#if debugInfo.combined_state.title}
-            <div><strong>{_("media.titleLabel")}</strong> {debugInfo.combined_state.title}</div>
+            <div>
+              <strong>{_("media.titleLabel")}</strong>
+              {debugInfo.combined_state.title}
+            </div>
           {/if}
           {#if debugInfo.combined_state.artist}
-            <div><strong>{_("media.artist")}</strong> {debugInfo.combined_state.artist}</div>
+            <div>
+              <strong>{_("media.artist")}</strong>
+              {debugInfo.combined_state.artist}
+            </div>
           {/if}
         </div>
       </div>
@@ -242,9 +271,14 @@
             <div class="session-card" class:music-app={session.is_music_app}>
               <div class="session-header">
                 <span class="app-id" title={session.app_id}>
-                  {session.app_id.length > 40 ? session.app_id.slice(0, 40) + "..." : session.app_id}
+                  {session.app_id.length > 40
+                    ? session.app_id.slice(0, 40) + "..."
+                    : session.app_id}
                 </span>
-                <span class="status-badge" style="background: {getStatusColor(session.status)}">
+                <span
+                  class="status-badge"
+                  style="background: {getStatusColor(session.status)}"
+                >
                   {session.status}
                 </span>
               </div>
@@ -273,11 +307,17 @@
 
     <!-- Core Audio 会话 -->
     <section class="section">
-      <h5>{_("media.coreAudioSessions")} ({debugInfo.core_audio_sessions.length})</h5>
+      <h5>
+        {_("media.coreAudioSessions")} ({debugInfo.core_audio_sessions.length})
+      </h5>
       {#if debugInfo.core_audio_sessions.length > 0}
         <div class="sessions-list">
           {#each debugInfo.core_audio_sessions as session}
-            <div class="session-card" class:music-app={session.is_music_app} class:playing={session.is_playing}>
+            <div
+              class="session-card"
+              class:music-app={session.is_music_app}
+              class:playing={session.is_playing}
+            >
               <div class="session-header">
                 <span class="process-name">{session.process_name}</span>
                 <span class="pid">PID: {session.pid}</span>
@@ -286,16 +326,21 @@
                 <div class="audio-meter">
                   <span class="label">{_("media.volumePeak")}</span>
                   <div class="meter-bar">
-                    <div 
-                      class="meter-fill" 
+                    <div
+                      class="meter-fill"
                       style="width: {Math.min(session.peak_value * 100, 100)}%"
                       class:active={session.is_playing}
                     ></div>
                   </div>
-                  <span class="value">{(session.peak_value * 100).toFixed(2)}%</span>
+                  <span class="value"
+                    >{(session.peak_value * 100).toFixed(2)}%</span
+                  >
                 </div>
                 <div class="tags">
-                  <span class="tag" style="background: {getStatusColor(session.session_state)}">
+                  <span
+                    class="tag"
+                    style="background: {getStatusColor(session.session_state)}"
+                  >
                     {session.session_state}
                   </span>
                   {#if session.is_music_app}
@@ -373,12 +418,13 @@
     background: #8e44ad;
   }
 
-  .auto-refresh {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+  .auto-refresh-badge {
     font-size: 0.85em;
-    color: #6c757d;
+    color: #27ae60;
+    background: #e8f8f5;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #27ae60;
   }
 
   .section {
@@ -467,7 +513,8 @@
     margin-bottom: 6px;
   }
 
-  .app-id, .process-name {
+  .app-id,
+  .process-name {
     font-weight: 600;
     color: #343a40;
     font-size: 0.9em;
@@ -592,15 +639,22 @@
       border-color: #455a64;
     }
 
-    h4, h5 { color: #ecf0f1; }
+    h4,
+    h5 {
+      color: #ecf0f1;
+    }
 
     .section {
       background: #2c3e50;
       border-color: #455a64;
     }
 
-    .info-item .label { color: #95a5a6; }
-    .info-item .value { color: #ecf0f1; }
+    .info-item .label {
+      color: #95a5a6;
+    }
+    .info-item .value {
+      color: #ecf0f1;
+    }
 
     .session-card {
       background: #3d5a6c;
@@ -615,13 +669,28 @@
       background: #1e4620;
     }
 
-    .app-id, .process-name { color: #ecf0f1; }
-    .meta { color: #bdc3c7; }
-    .state-details { color: #bdc3c7; }
+    .app-id,
+    .process-name {
+      color: #ecf0f1;
+    }
+    .meta {
+      color: #bdc3c7;
+    }
+    .state-details {
+      color: #bdc3c7;
+    }
 
-    .meter-bar { background: #455a64; }
-    .tag { background: #455a64; color: #bdc3c7; }
+    .meter-bar {
+      background: #455a64;
+    }
+    .tag {
+      background: #455a64;
+      color: #bdc3c7;
+    }
 
-    .empty-state, .loading { color: #7f8c8d; }
+    .empty-state,
+    .loading {
+      color: #7f8c8d;
+    }
   }
 </style>

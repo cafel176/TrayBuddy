@@ -18,16 +18,19 @@
   // ======================================================================= //
   // Lifecycle
   // ======================================================================= //
-  onMount(async () => {
-    unsubLang = onLangChange(() => {
+  onMount(() => {
+    const init = async () => {
+      unsubLang = onLangChange(() => {
+        _langVersion++;
+        window.setTitle(_("about.title"));
+      });
+      await initI18n();
       _langVersion++;
       window.setTitle(_("about.title"));
-    });
-    await initI18n();
-    _langVersion++;
-    window.setTitle(_("about.title"));
-    // 禁止窗口大小调整
-    window.setResizable(false);
+      // 禁止窗口大小调整
+      window.setResizable(false);
+    };
+    init().catch(console.error);
   });
 
   onDestroy(() => {

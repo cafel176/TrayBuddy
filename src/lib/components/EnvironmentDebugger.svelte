@@ -16,21 +16,24 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
-  import { DEBUG_TIMER_INTERVAL_MS } from "$lib/constants";
+  import {
+    DEBUG_CLOCK_UPDATE_INTERVAL_MS,
+    DEBUG_TIMER_INTERVAL_MS,
+  } from "$lib/constants";
   import { t, onLangChange, tArray } from "$lib/i18n";
 
   // ======================================================================= //
   // i18n 响应式支持
   // ======================================================================= //
-  
+
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
-  
+
   function _(key: string, params?: Record<string, string | number>): string {
     void _langVersion;
     return t(key, params);
   }
-  
+
   function _arr(key: string): string[] {
     void _langVersion;
     return tArray(key);
@@ -92,22 +95,22 @@
 
   /** 环境信息 */
   let envInfo = $state<EnvironmentInfo | null>(null);
-  
+
   /** 当前季节 */
   let season = $state<string>("");
-  
+
   /** 当前时间段 */
   let timePeriod = $state<string>("");
-  
+
   /** 状态消息 */
   let statusMsg = $state("");
-  
+
   /** 是否正在加载天气 */
   let loadingWeather = $state(false);
 
   /** 是否正在刷新地理位置 */
   let loadingLocation = $state(false);
-  
+
   /** 定时器ID */
   let timerInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -142,22 +145,56 @@
 
   /** 格式化日期 */
   function formatDate(dt: DateTimeInfo): string {
-    return _("environment.dateFormat", { year: dt.year, month: dt.month, day: dt.day });
+    return _("environment.dateFormat", {
+      year: dt.year,
+      month: dt.month,
+      day: dt.day,
+    });
   }
 
   // ======================================================================= //
   // 数据加载函数
   // ======================================================================= //
 
-  /** 加载环境信息（不含天气） */
+  /** 更新时间（本地 JS 实现，零 IPC） */
+  function updateTime() {
+    if (!envInfo) return;
+
+    const now = new Date();
+    envInfo.datetime = {
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      day: now.getDate(),
+      hour: now.getHours(),
+      minute: now.getMinutes(),
+      second: now.getSeconds(),
+      weekday: now.getDay(), // 0-6 matches backend (0=Sun)
+      timestamp: Math.floor(now.getTime() / 1000),
+    };
+  }
+
+  /** 加载完整环境信息 */
   async function loadBasicInfo() {
     try {
-      const datetime: DateTimeInfo = await invoke("get_datetime_info");
-      const location: GeoLocation | null = await invoke("get_location_info");
-      const weather: WeatherInfo | null = await invoke("get_weather_info");
-      season = await invoke("get_season_info");
-      timePeriod = await invoke("get_time_period_info");
-      
+      // 并行请求数据以加快加载速度
+      const [datetime, location, weather, seasonRes, timePeriodRes] =
+        await Promise.all([
+          invoke<DateTimeInfo>("get_datetime_info"),
+          invoke<GeoLocation | null>("get_location_info").catch((e) => {
+            console.warn("Failed to get location:", e);
+            return null;
+          }),
+          invoke<WeatherInfo | null>("get_weather_info").catch((e) => {
+            console.warn("Failed to get weather:", e);
+            return null;
+          }),
+          invoke<string>("get_season_info"),
+          invoke<string>("get_time_period_info"),
+        ]);
+
+      season = seasonRes;
+      timePeriod = timePeriodRes;
+
       envInfo = {
         datetime,
         location,
@@ -166,6 +203,7 @@
       statusMsg = _("environment.statusLoaded");
     } catch (e) {
       statusMsg = `${_("common.loadFailed")} ${e}`;
+      console.error("loadBasicInfo failed:", e);
     }
   }
 
@@ -174,11 +212,15 @@
     loadingLocation = true;
     statusMsg = _("environment.statusRefreshingLocation");
     try {
-      const location: GeoLocation | null = await invoke("refresh_location_info");
+      const location: GeoLocation | null = await invoke(
+        "refresh_location_info",
+      );
       if (envInfo) {
         envInfo = { ...envInfo, location };
       }
-      statusMsg = location ? _("environment.statusLocationRefreshed") : _("environment.statusLocationFailed");
+      statusMsg = location
+        ? _("environment.statusLocationRefreshed")
+        : _("environment.statusLocationFailed");
     } catch (e) {
       statusMsg = `${_("environment.statusRefreshFailed")} ${e}`;
     } finally {
@@ -195,7 +237,9 @@
       if (envInfo) {
         envInfo = { ...envInfo, weather };
       }
-      statusMsg = weather ? _("environment.statusWeatherUpdated") : _("environment.statusWeatherFailed");
+      statusMsg = weather
+        ? _("environment.statusWeatherUpdated")
+        : _("environment.statusWeatherFailed");
     } catch (e) {
       statusMsg = `${_("environment.statusWeatherError")} ${e}`;
     } finally {
@@ -212,17 +256,26 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(async () => {
-    unsubLang = onLangChange(() => { _langVersion++; });
+  onMount(() => {
+    unsubLang = onLangChange(() => {
+      _langVersion++;
+    });
     statusMsg = _("common.loading");
-    await loadBasicInfo();
-    
-    // 每秒更新时间
-    timerInterval = setInterval(loadBasicInfo, DEBUG_TIMER_INTERVAL_MS);
+
+    // 异步加载数据，不阻塞组件挂载
+    loadBasicInfo();
+
+    // 每秒只更新时间，不重新请求所有数据
+    timerInterval = setInterval(updateTime, DEBUG_CLOCK_UPDATE_INTERVAL_MS);
 
     // 监听环境信息更新事件（启动时后台获取完成后推送）
-    unlistenEnvUpdate = await listen<EnvironmentUpdateEvent>("environment-updated", (event) => {
-      console.log("[EnvironmentDebugger] Received environment update:", event.payload);
+    let unlistenReceived: UnlistenFn | undefined;
+
+    listen<EnvironmentUpdateEvent>("environment-updated", (event) => {
+      console.log(
+        "[EnvironmentDebugger] Received environment update:",
+        event.payload,
+      );
       const { location, weather } = event.payload;
       if (envInfo) {
         envInfo = {
@@ -232,7 +285,13 @@
         };
       }
       statusMsg = _("environment.statusBackgroundUpdate");
-    });
+    })
+      .then((u) => (unlistenReceived = u))
+      .catch((e) => console.error("Failed to listen environment-updated:", e));
+
+    unlistenEnvUpdate = () => {
+      if (unlistenReceived) unlistenReceived();
+    };
   });
 
   onDestroy(() => {
@@ -257,14 +316,15 @@
     <!-- ================================================================= -->
     <!-- 日期时间区域 -->
     <!-- ================================================================= -->
-    
+
     <div class="section datetime-section">
       <h4>📅 {_("environment.datetime")}</h4>
       <div class="datetime-display">
         <div class="time-large">{formatTime(envInfo.datetime)}</div>
         <div class="date-info">
           <span class="date">{formatDate(envInfo.datetime)}</span>
-          <span class="weekday">{getWeekdayName(envInfo.datetime.weekday)}</span>
+          <span class="weekday">{getWeekdayName(envInfo.datetime.weekday)}</span
+          >
         </div>
       </div>
       <div class="datetime-meta">
@@ -286,11 +346,15 @@
     <!-- ================================================================= -->
     <!-- 地理位置区域 -->
     <!-- ================================================================= -->
-    
+
     <div class="section location-section">
       <div class="section-header">
         <h4>🌍 {_("environment.location")}</h4>
-        <button class="btn-small" onclick={refreshLocation} disabled={loadingLocation}>
+        <button
+          class="btn-small"
+          onclick={refreshLocation}
+          disabled={loadingLocation}
+        >
           {loadingLocation ? _("common.refreshing") : _("common.refresh")}
         </button>
       </div>
@@ -302,17 +366,21 @@
               <span class="city">{envInfo.location.city}</span>
             {/if}
             {#if envInfo.location.region && envInfo.location.country}
-              <span class="region">{envInfo.location.region}, {envInfo.location.country}</span>
+              <span class="region"
+                >{envInfo.location.region}, {envInfo.location.country}</span
+              >
             {:else if envInfo.location.country}
               <span class="region">{envInfo.location.country}</span>
             {/if}
           </div>
         {/if}
-        
+
         <div class="location-info">
           <div class="info-row">
             <span class="label">{_("environment.timezone")}</span>
-            <span class="value">{envInfo.location.timezone || _("common.unknown")}</span>
+            <span class="value"
+              >{envInfo.location.timezone || _("common.unknown")}</span
+            >
           </div>
           <div class="info-row">
             <span class="label">{_("environment.longitude")}</span>
@@ -324,8 +392,13 @@
           </div>
           <div class="info-row">
             <span class="label">{_("environment.hemisphere")}</span>
-            <span class="value badge" class:northern={envInfo.location.is_northern_hemisphere}>
-              {envInfo.location.is_northern_hemisphere ? _("environment.hemisphereNorth") : _("environment.hemisphereSouth")}
+            <span
+              class="value badge"
+              class:northern={envInfo.location.is_northern_hemisphere}
+            >
+              {envInfo.location.is_northern_hemisphere
+                ? _("environment.hemisphereNorth")
+                : _("environment.hemisphereSouth")}
             </span>
           </div>
         </div>
@@ -337,11 +410,15 @@
     <!-- ================================================================= -->
     <!-- 天气区域 -->
     <!-- ================================================================= -->
-    
+
     <div class="section weather-section">
       <div class="section-header">
         <h4>🌤️ {_("environment.weather")}</h4>
-        <button class="btn-small" onclick={loadWeather} disabled={loadingWeather}>
+        <button
+          class="btn-small"
+          onclick={loadWeather}
+          disabled={loadingWeather}
+        >
           {loadingWeather ? _("common.loading") : _("environment.getWeather")}
         </button>
       </div>
@@ -355,7 +432,9 @@
             {#if envInfo.weather.feels_like !== null}
               <div class="detail-item">
                 <span class="label">{_("environment.feelsLike")}</span>
-                <span class="value">{envInfo.weather.feels_like.toFixed(1)}°C</span>
+                <span class="value"
+                  >{envInfo.weather.feels_like.toFixed(1)}°C</span
+                >
               </div>
             {/if}
             {#if envInfo.weather.humidity !== null}
@@ -367,7 +446,9 @@
             {#if envInfo.weather.wind_speed !== null}
               <div class="detail-item">
                 <span class="label">{_("environment.windSpeed")}</span>
-                <span class="value">{envInfo.weather.wind_speed.toFixed(1)} km/h</span>
+                <span class="value"
+                  >{envInfo.weather.wind_speed.toFixed(1)} km/h</span
+                >
               </div>
             {/if}
           </div>
@@ -375,7 +456,7 @@
       {:else}
         <div class="empty">
           {_("environment.weatherHint")}
-          <br><small>{_("environment.weatherHintOnline")}</small>
+          <br /><small>{_("environment.weatherHintOnline")}</small>
         </div>
       {/if}
     </div>
@@ -383,10 +464,10 @@
     <!-- ================================================================= -->
     <!-- API 信息区域 -->
     <!-- ================================================================= -->
-    
+
     <div class="section api-section">
       <h4>🔗 {_("environment.apiInfo")}</h4>
-      
+
       <!-- IP 地理位置 API -->
       <div class="api-group">
         <div class="api-group-title">📍 {_("environment.ipLocationApi")}</div>
@@ -401,7 +482,9 @@
           </div>
           <div class="api-item">
             <span class="label">{_("environment.params")}</span>
-            <span class="value mono">fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN</span>
+            <span class="value mono"
+              >fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN</span
+            >
           </div>
           <div class="api-item">
             <span class="label">{_("environment.cache")}</span>
@@ -413,13 +496,23 @@
           </div>
           <div class="api-item">
             <span class="label">{_("environment.limit")}</span>
-            <span class="value">45 {_("environment.response")}/{_("environment.minutes")}</span>
+            <span class="value"
+              >45 {_("environment.response")}/{_("environment.minutes")}</span
+            >
           </div>
         </div>
         <div class="api-links">
-          <a href="http://ip-api.com/docs/api:json" target="_blank" rel="noopener">{_("environment.apiDocs")}</a>
+          <a
+            href="http://ip-api.com/docs/api:json"
+            target="_blank"
+            rel="noopener">{_("environment.apiDocs")}</a
+          >
           <span class="separator">|</span>
-          <a href="http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN" target="_blank" rel="noopener">{_("environment.testRequest")}</a>
+          <a
+            href="http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN"
+            target="_blank"
+            rel="noopener">{_("environment.testRequest")}</a
+          >
         </div>
       </div>
 
@@ -449,11 +542,21 @@
           </div>
         </div>
         <div class="api-links">
-          <a href="https://wttr.in/:help" target="_blank" rel="noopener">{_("environment.helpDocs")}</a>
+          <a href="https://wttr.in/:help" target="_blank" rel="noopener"
+            >{_("environment.helpDocs")}</a
+          >
           <span class="separator">|</span>
-          <a href="https://wttr.in/Beijing?format=j1" target="_blank" rel="noopener">{_("environment.exampleRequest")}</a>
+          <a
+            href="https://wttr.in/Beijing?format=j1"
+            target="_blank"
+            rel="noopener">{_("environment.exampleRequest")}</a
+          >
           <span class="separator">|</span>
-          <a href="https://github.com/chubin/wttr.in" target="_blank" rel="noopener">GitHub</a>
+          <a
+            href="https://github.com/chubin/wttr.in"
+            target="_blank"
+            rel="noopener">GitHub</a
+          >
         </div>
       </div>
     </div>
@@ -464,13 +567,19 @@
   <!-- ================================================================= -->
   <!-- 操作按钮 -->
   <!-- ================================================================= -->
-  
+
   <div class="actions">
-    <button class="refresh" onclick={refresh}>{_("environment.refreshData")}</button>
+    <button class="refresh" onclick={refresh}
+      >{_("environment.refreshData")}</button
+    >
   </div>
 
   <!-- 状态消息栏 -->
-  <div class="status-bar" class:error={statusMsg.includes(_('environment.failed')) || statusMsg.includes('failed')}>
+  <div
+    class="status-bar"
+    class:error={statusMsg.includes(_("environment.failed")) ||
+      statusMsg.includes("failed")}
+  >
     {statusMsg}
   </div>
 </div>
@@ -484,7 +593,7 @@
     max-width: 700px;
     margin: 20px auto;
     color: #333;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     text-align: left;
   }
 
@@ -541,7 +650,7 @@
   .time-large {
     font-size: 2.5em;
     font-weight: bold;
-    font-family: 'Consolas', monospace;
+    font-family: "Consolas", monospace;
     letter-spacing: 2px;
   }
 
@@ -581,7 +690,7 @@
   }
 
   .datetime-meta .value.mono {
-    font-family: 'Consolas', monospace;
+    font-family: "Consolas", monospace;
     font-size: 0.85em;
   }
 
@@ -768,7 +877,7 @@
   }
 
   .api-item .value.mono {
-    font-family: 'Consolas', monospace;
+    font-family: "Consolas", monospace;
     font-size: 0.8em;
     background: #e8e8e8;
     padding: 2px 6px;

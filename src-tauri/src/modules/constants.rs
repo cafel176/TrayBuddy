@@ -111,10 +111,10 @@ pub const CORE_AUDIO_POLL_INTERVAL_SECS: u64 = 5;
 pub const WEATHER_CACHE_DURATION_SECS: u64 = 1800;
 
 /// 天气 API 请求超时（秒）
-pub const WEATHER_API_TIMEOUT_SECS: u64 = 10;
+pub const WEATHER_API_TIMEOUT_SECS: u64 = 30;
 
 /// 地理位置 API 请求超时（秒）
-pub const LOCATION_API_TIMEOUT_SECS: u64 = 10;
+pub const LOCATION_API_TIMEOUT_SECS: u64 = 30;
 
 // ========================================================================= //
 // 定时触发器常量
@@ -135,3 +135,17 @@ pub const STATE_LOCK_WAIT_INTERVAL_MS: u64 = 500;
 
 /// 等待状态解锁的最大重试次数
 pub const STATE_LOCK_MAX_RETRIES: u32 = 60;
+
+// ========================================================================= //
+// 系统观察者常量
+// ========================================================================= //
+
+/// 系统观察者轮询间隔（秒）
+pub const SYSTEM_OBSERVER_POLL_INTERVAL_SECS: u64 = 1;
+
+// ========================================================================= //
+// 窗口操作常量
+// ========================================================================= //
+
+/// 重建动画窗口时的延迟时间（毫秒），用于等待旧窗口销毁
+pub const WINDOW_RESIZE_DELAY_MS: u64 = 300;

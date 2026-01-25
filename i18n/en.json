@@ -207,7 +207,8 @@
     "coreAudioSessions": "Core Audio Sessions",
     "volumePeak": "Volume peak:",
     "nowPlaying": "Now Playing",
-    "noCoreAudioSession": "No Core Audio sessions"
+    "noCoreAudioSession": "No Core Audio sessions",
+    "autoUpdate": "Auto Update"
   },
   "system": {
     "title": "System Observer Debugger",
@@ -218,6 +219,7 @@
     "runningStatus": "Running status:",
     "lastCheck": "Last check:",
     "autoDndSetting": "Auto DND:",
+    "autoUpdate": "Auto Update",
     "detectionResult": "Detection Result",
     "fullscreenState": "Fullscreen/Busy",
     "fullscreenDetected": "Fullscreen Detected",

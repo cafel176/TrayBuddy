@@ -92,7 +92,11 @@
 
   /** 检查状态消息是否包含错误信息 */
   function isError(msg: string): boolean {
-    return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+    return (
+      msg.includes(_("common.failed")) ||
+      msg.includes("failed") ||
+      msg.includes("失败")
+    );
   }
 
   // ======================================================================= //
@@ -275,7 +279,11 @@
   async function applySilenceEffect(isSilence: boolean) {
     // 检查媒体播放状态
     const isPlaying = await checkMediaStatus();
-    const targetState = isSilence ? "silence_start" : (isPlaying ? "music_start" : "silence_end");
+    const targetState = isSilence
+      ? "silence_start"
+      : isPlaying
+        ? "music_start"
+        : "silence_end";
     try {
       await invoke("force_change_state", { name: targetState });
       console.log(
@@ -306,25 +314,30 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(async () => {
+  onMount(() => {
     availableLangs = getAvailableLangs();
     unsubLang = onLangChange(() => {
       _langVersion++;
     });
 
-    // 监听外部设置变更 (如托盘菜单触发) 以同步 UI
-    unlistenSettings = await listen<UserSettings>(
-      "settings-change",
-      (event) => {
-        if (settings) {
-          // 直接更新响应式对象
-          Object.assign(settings, event.payload);
-          birthdayDate = mmddToDate(settings.birthday);
-        }
-      },
-    );
+    // Async initialization
+    const init = async () => {
+      // 监听外部设置变更 (如托盘菜单触发) 以同步 UI
+      unlistenSettings = await listen<UserSettings>(
+        "settings-change",
+        (event) => {
+          if (settings) {
+            // 直接更新响应式对象
+            Object.assign(settings, event.payload);
+            birthdayDate = mmddToDate(settings.birthday);
+          }
+        },
+      );
 
-    await loadSettings();
+      await loadSettings();
+    };
+
+    init().catch((e) => console.error("Settings init failed:", e));
   });
 
   onDestroy(() => {
@@ -507,11 +520,7 @@
 
     <div class="divider">{_("settings.advancedOptions")}</div>
 
-    <button
-      type="button"
-      class="secondary-button"
-      onclick={openStorageDir}
-    >
+    <button type="button" class="secondary-button" onclick={openStorageDir}>
       {_("settings.openStorageDir")}
     </button>
   {:else}
@@ -520,10 +529,7 @@
   {/if}
 
   <!-- 状态消息栏 -->
-  <div
-    class="status-bar"
-    class:error={isError(statusMsg)}
-  >
+  <div class="status-bar" class:error={isError(statusMsg)}>
     {statusMsg}
   </div>
 </div>

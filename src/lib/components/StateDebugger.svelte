@@ -74,7 +74,11 @@
 
   /** 检查状态消息是否包含错误信息 */
   function isError(msg: string): boolean {
-    return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+    return (
+      msg.includes(_("common.failed")) ||
+      msg.includes("failed") ||
+      msg.includes("失败")
+    );
   }
 
   // ======================================================================= //
@@ -183,45 +187,51 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(async () => {
-    await loadStates();
-    unsubLang = onLangChange(() => {
-      _langVersion++;
-    });
+  onMount(() => {
+    // Async initialization
+    const init = async () => {
+      await loadStates();
+      unsubLang = onLangChange(() => {
+        _langVersion++;
+      });
 
-    // 监听后端状态变化事件
-    unlisten = await listen<StateChangeEvent>("state-change", (event) => {
-      const { state, play_once } = event.payload;
-      addLog(
-        _("state.logStateChange") + ` ${state.name} (play_once: ${play_once})`,
+      // 监听后端状态变化事件
+      unlisten = await listen<StateChangeEvent>("state-change", (event) => {
+        const { state, play_once } = event.payload;
+        addLog(
+          _("state.logStateChange") +
+            ` ${state.name} (play_once: ${play_once})`,
+        );
+        loadStates();
+      });
+
+      // 监听前端播放状态事件
+      unlistenPlayback = await listen<{
+        animationComplete: boolean;
+        audioComplete: boolean;
+        bubbleComplete: boolean;
+        isPlayOnce: boolean;
+      }>("playback-status", (event) => {
+        animationComplete = event.payload.animationComplete;
+        audioComplete = event.payload.audioComplete;
+        bubbleComplete = event.payload.bubbleComplete;
+        isPlayOnce = event.payload.isPlayOnce;
+      });
+
+      // 监听 next_state 变化事件（分支选择时触发）
+      unlistenNextState = await listen<{ name: string }>(
+        "next-state-changed",
+        (event) => {
+          addLog(_("state.logNextStateEvent") + ` ${event.payload.name}`);
+          refreshNextState();
+        },
       );
-      loadStates();
-    });
 
-    // 监听前端播放状态事件
-    unlistenPlayback = await listen<{
-      animationComplete: boolean;
-      audioComplete: boolean;
-      bubbleComplete: boolean;
-      isPlayOnce: boolean;
-    }>("playback-status", (event) => {
-      animationComplete = event.payload.animationComplete;
-      audioComplete = event.payload.audioComplete;
-      bubbleComplete = event.payload.bubbleComplete;
-      isPlayOnce = event.payload.isPlayOnce;
-    });
+      // 请求当前播放状态
+      emit("request-playback-status");
+    };
 
-    // 监听 next_state 变化事件（分支选择时触发）
-    unlistenNextState = await listen<{ name: string }>(
-      "next-state-changed",
-      (event) => {
-        addLog(_("state.logNextStateEvent") + ` ${event.payload.name}`);
-        refreshNextState();
-      },
-    );
-
-    // 请求当前播放状态
-    emit("request-playback-status");
+    init().catch((e) => console.error("StateDebugger init failed:", e));
   });
 
   onDestroy(() => {

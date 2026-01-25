@@ -13,6 +13,7 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
     import { onMount, onDestroy } from "svelte";
+    import { listen } from "@tauri-apps/api/event";
     import { t, onLangChange } from "$lib/i18n";
 
     // ======================================================================= //
@@ -29,7 +30,11 @@
 
     /** 检查状态消息是否包含错误信息 */
     function isError(msg: string): boolean {
-        return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+        return (
+            msg.includes(_("common.failed")) ||
+            msg.includes("failed") ||
+            msg.includes("失败")
+        );
     }
 
     // ======================================================================= //
@@ -51,8 +56,6 @@
 
     let debugInfo = $state<SystemDebugInfo | null>(null);
     let statusMsg = $state("");
-    let autoRefresh = $state(true);
-    let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
     // ======================================================================= //
     // 数据加载
@@ -71,25 +74,20 @@
         }
     }
 
-    function toggleAutoRefresh() {
-        autoRefresh = !autoRefresh;
-        if (autoRefresh) {
-            startAutoRefresh();
-        } else {
-            stopAutoRefresh();
-        }
-    }
+    async function init() {
+        statusMsg = _("system.statusReading");
+        await loadDebugInfo();
 
-    function startAutoRefresh() {
-        if (refreshInterval) clearInterval(refreshInterval);
-        refreshInterval = setInterval(loadDebugInfo, 1000);
-    }
+        // 监听后端推送的更新事件
+        const unlisten = await listen<SystemDebugInfo>(
+            "system-debug-update",
+            (event) => {
+                debugInfo = event.payload;
+                statusMsg = `${_("system.statusUpdated")} ${debugInfo.last_check_time}`;
+            },
+        );
 
-    function stopAutoRefresh() {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-            refreshInterval = null;
-        }
+        return unlisten;
     }
 
     // ======================================================================= //
@@ -100,16 +98,20 @@
         unsubLang = onLangChange(() => {
             _langVersion++;
         });
-        statusMsg = _("system.statusReading");
-        loadDebugInfo();
-        if (autoRefresh) {
-            startAutoRefresh();
-        }
-    });
 
-    onDestroy(() => {
-        unsubLang?.();
-        stopAutoRefresh();
+        let unlisten: (() => void) | undefined;
+
+        init()
+            .then((u) => (unlisten = u))
+            .catch((err) => {
+                console.error("SystemDebugger init error:", err);
+                statusMsg = `${_("common.failed")} ${err}`;
+            });
+
+        return () => {
+            if (unlisten) unlisten();
+            unsubLang?.();
+        };
     });
 </script>
 
@@ -124,14 +126,7 @@
             <button class="refresh-btn" onclick={loadDebugInfo}
                 >{_("common.refresh")}</button
             >
-            <label class="auto-refresh">
-                <input
-                    type="checkbox"
-                    checked={autoRefresh}
-                    onchange={toggleAutoRefresh}
-                />
-                {_("media.autoRefresh")}
-            </label>
+            <span class="auto-refresh-badge">{_("system.autoUpdate")}</span>
         </div>
     </div>
 
@@ -231,10 +226,7 @@
         <div class="loading">{statusMsg}</div>
     {/if}
 
-    <div
-        class="mini-status"
-        class:error={isError(statusMsg)}
-    >
+    <div class="mini-status" class:error={isError(statusMsg)}>
         {statusMsg}
     </div>
 </div>
@@ -290,12 +282,13 @@
         background: #2980b9;
     }
 
-    .auto-refresh {
-        display: flex;
-        align-items: center;
-        gap: 5px;
+    .auto-refresh-badge {
         font-size: 0.85em;
-        color: #6c757d;
+        color: #27ae60;
+        background: #e8f8f5;
+        padding: 2px 8px;
+        border-radius: 12px;
+        border: 1px solid #27ae60;
     }
 
     .section {

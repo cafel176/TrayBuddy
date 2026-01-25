@@ -208,10 +208,12 @@ impl SystemObserver {
             Self::check_and_update_state(&app_handle, &mut we_enabled_dnd);
 
             while running.load(std::sync::atomic::Ordering::SeqCst) {
-                // 等待信号，或者每 5 秒自动检查一次（保底）
+                // 等待信号，或者每 N 秒自动检查一次（保底）
                 let _ = tokio::select! {
                     _ = rx.recv() => {},
-                    _ = tokio::time::sleep(Duration::from_secs(5)) => {},
+                    _ = tokio::time::sleep(Duration::from_secs(
+                        crate::modules::constants::SYSTEM_OBSERVER_POLL_INTERVAL_SECS,
+                    )) => {},
                 };
 
                 // 去抖动：等待 500ms，让窗口动效完成
@@ -241,21 +243,40 @@ impl SystemObserver {
         // 如果未开启自动检测功能且我们没有处于自动开启状态，我们仍然通过 check_loop 更新调试信息
         // 但不执行后续的切换逻辑
 
+        // Debug: Log settings
+        /* (Reducing noise, only log on impactful events or if needed specifically)
+        if cfg!(debug_assertions) {
+            // println!("[SystemObserver] Check: auto_silence={}, is_silence_mode={}", auto_silence, is_silence_mode);
+        }
+        */
+
         // 2. 检测是否全屏/繁忙
         let is_fullscreen = unsafe { Self::is_fullscreen_busy() };
 
         // 更新调试信息
-        update_cached_debug_info(SystemDebugInfo {
+        let debug_info = SystemDebugInfo {
             observer_running: true,
             last_check_time: chrono::Local::now().format("%H:%M:%S").to_string(),
             is_fullscreen_busy: is_fullscreen,
             auto_dnd_enabled: auto_silence,
             is_auto_dnd_active: *we_enabled_dnd,
             current_silence_mode: is_silence_mode,
-        });
+        };
+        update_cached_debug_info(debug_info.clone());
+
+        // 发送调试事件通知前端
+        let _ = app_handle.emit("system-debug-update", debug_info);
 
         // 确定目标状态：仅当开启自动免打扰且处于全屏时，才应自动进入 DND
         let should_be_dnd = auto_silence && is_fullscreen;
+
+        #[cfg(debug_assertions)]
+        if is_fullscreen {
+            println!(
+                "[SystemObserver] Fullscreen detected. Auto-DND enabled: {}, Should enter DND: {}",
+                auto_silence, should_be_dnd
+            );
+        }
 
         if should_be_dnd {
             // 目标：开启 DND
@@ -364,10 +385,21 @@ impl SystemObserver {
         storage.data.settings.silence_mode = enable;
         storage.save()?;
 
+        // Clone settings needed for emit
+        let settings = storage.data.settings.clone();
+
+        // Drops the lock explicitly before emitting event to avoid deadlock
+        // (Listener inner_build_tray_menu needs to lock storage)
+        drop(storage);
+
+        #[cfg(debug_assertions)]
+        println!(
+            "[SystemObserver] set_dnd_mode called with enable={}",
+            enable
+        );
+
         // 发送设置变更事件到前端
-        let _ = app_handle
-            .clone()
-            .emit("settings-change", storage.data.settings.clone());
+        let _ = app_handle.clone().emit("settings-change", settings);
         Ok(())
     }
 
@@ -383,8 +415,17 @@ impl SystemObserver {
             let app_handle_clone = app_handle.clone();
             return Some(Box::new(move || {
                 let app_state: tauri::State<AppState> = app_handle_clone.state();
+                // 关键修复：确保锁的获取顺序与主线程一致 (Resource -> State)
+                // 主线程 (如 trigger_event) 是先锁 Resource 后锁 State
+                // 这里如果只锁 State，内部 change_state_ex 可能会再次尝试锁 Resource，导致死锁
+
+                // 1. 先获取 ResourceManager 锁
+                let rm = app_state.resource_manager.lock().unwrap();
+                // 2. 再获取 StateManager 锁
                 let mut sm = app_state.state_manager.lock().unwrap();
-                sm.change_state_ex(state_info.clone(), true)?;
+
+                // 3. 使用 _with_rm 变体传入已持有的锁引用，避免死锁
+                sm.change_state_ex_with_rm(state_info.clone(), true, &rm)?;
                 Ok(())
             }));
         }

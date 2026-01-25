@@ -207,7 +207,8 @@
     "coreAudioSessions": "Core Audio 会话",
     "volumePeak": "音量峰值:",
     "nowPlaying": "正在播放",
-    "noCoreAudioSession": "无 Core Audio 会话"
+    "noCoreAudioSession": "无 Core Audio 会话",
+    "autoUpdate": "自动更新"
   },
   "system": {
     "title": "系统观察器调试",
@@ -218,6 +219,7 @@
     "runningStatus": "运行状态:",
     "lastCheck": "最后检查时间:",
     "autoDndSetting": "自动免打扰:",
+    "autoUpdate": "自动更新",
     "detectionResult": "检测结果",
     "fullscreenState": "全屏/繁忙状态",
     "fullscreenDetected": "已检测到全屏",

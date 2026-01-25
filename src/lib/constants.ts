@@ -39,6 +39,9 @@ export const TRAY_ADAPTIVE_OFFSET_Y = 20;
 /** 调试面板时间更新间隔（毫秒） */
 export const DEBUG_TIMER_INTERVAL_MS = 1000;
 
+/** 调试面板时钟更新间隔（毫秒） - 针对 EnvironmentDebugger 本地时钟 */
+export const DEBUG_CLOCK_UPDATE_INTERVAL_MS = 1000;
+
 // ========================================================================= //
 // 日志工具
 // ========================================================================= //

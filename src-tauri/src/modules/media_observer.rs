@@ -9,6 +9,7 @@
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use tauri::{Emitter, Manager};
 use tokio::sync::mpsc;
 
 // ========================================================================= //
@@ -160,7 +161,11 @@ impl MediaObserver {
     // ========================================================================= //
 
     /// 启动媒体监听（返回事件接收通道）
-    pub fn start(&mut self, skip_delay: bool) -> mpsc::UnboundedReceiver<MediaStateEvent> {
+    pub fn start<R: tauri::Runtime>(
+        &mut self,
+        app_handle: tauri::AppHandle<R>,
+        skip_delay: bool,
+    ) -> mpsc::UnboundedReceiver<MediaStateEvent> {
         let (tx, rx) = mpsc::unbounded_channel();
         self.event_tx = Some(tx.clone());
         self.running
@@ -172,7 +177,7 @@ impl MediaObserver {
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
             rt.block_on(async move {
-                Self::media_event_loop(tx, running, skip_delay).await;
+                Self::media_event_loop(tx, running, app_handle, skip_delay).await;
             });
         });
 
@@ -227,9 +232,10 @@ impl MediaObserver {
 
     /// 媒体事件监听循环（混合 GSMTC + Core Audio）
     #[cfg(windows)]
-    async fn media_event_loop(
+    async fn media_event_loop<R: tauri::Runtime>(
         tx: mpsc::UnboundedSender<MediaStateEvent>,
         running: Arc<std::sync::atomic::AtomicBool>,
+        app_handle: tauri::AppHandle<R>,
         skip_delay: bool,
     ) {
         use crate::modules::constants::MEDIA_OBSERVER_STARTUP_DELAY_SECS;
@@ -301,6 +307,7 @@ impl MediaObserver {
 
         // 更新初始调试信息
         Self::update_debug_info(
+            &app_handle,
             &running,
             gsmtc_manager.as_ref(),
             com_initialized,
@@ -356,6 +363,7 @@ impl MediaObserver {
             // 只在状态变化时更新调试信息（减少内存分配）
             if has_changed {
                 Self::update_debug_info(
+                    &app_handle,
                     &running,
                     gsmtc_manager.as_ref(),
                     com_initialized,
@@ -493,7 +501,8 @@ impl MediaObserver {
 
     /// 更新调试信息
     #[cfg(windows)]
-    fn update_debug_info(
+    fn update_debug_info<R: tauri::Runtime>(
+        app_handle: &tauri::AppHandle<R>,
         running: &Arc<std::sync::atomic::AtomicBool>,
         gsmtc_manager: Option<
             &windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager,
@@ -535,6 +544,9 @@ impl MediaObserver {
             state_source: state_source.to_string(),
             registered_session_events: registered_events,
         };
+
+        // 发送更新事件
+        let _ = app_handle.emit("media-debug-update", debug_info.clone());
 
         update_cached_debug_info(debug_info);
     }

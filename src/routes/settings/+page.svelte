@@ -11,14 +11,17 @@
         return t(key, params);
     }
 
-    onMount(async () => {
-        unsubLang = onLangChange(() => {
+    onMount(() => {
+        const init = async () => {
+            unsubLang = onLangChange(() => {
+                _langVersion++;
+                getCurrentWindow().setTitle(_("common.settingsTitle"));
+            });
+            await initI18n();
             _langVersion++;
             getCurrentWindow().setTitle(_("common.settingsTitle"));
-        });
-        await initI18n();
-        _langVersion++;
-        getCurrentWindow().setTitle(_("common.settingsTitle"));
+        };
+        init().catch(console.error);
     });
 
     onDestroy(() => {

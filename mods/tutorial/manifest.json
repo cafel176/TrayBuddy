@@ -1,0 +1,40 @@
+{
+  "id": "tutorial",
+  "version": "1.0.0",
+  "author": "Cafel",
+  "default_audio_lang_id": "zh",
+  "default_text_lang_id": "zh",
+  "character": {
+    "z_offset": 1
+  },
+  "border": {
+    "anima": "border",
+    "enable": true,
+    "z_offset": 2
+  },
+  "important_states": {
+    "idle": {
+      "name": "idle",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [
+        "hello1_1"
+      ],
+      "trigger_time": 600,
+      "trigger_rate": 0.3,
+      "branch": []
+    }
+  },
+  "states": [
+  ],
+  "triggers": [
+  ]
+}

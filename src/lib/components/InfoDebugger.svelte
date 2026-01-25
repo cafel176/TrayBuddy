@@ -21,10 +21,10 @@
   // ======================================================================= //
   // i18n 响应式支持
   // ======================================================================= //
-  
+
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
-  
+
   function _(key: string, params?: Record<string, string | number>): string {
     void _langVersion;
     return t(key, params);
@@ -32,7 +32,11 @@
 
   /** 检查状态消息是否包含错误信息 */
   function isError(msg: string): boolean {
-    return msg.includes(_("common.failed")) || msg.includes("failed") || msg.includes("失败");
+    return (
+      msg.includes(_("common.failed")) ||
+      msg.includes("failed") ||
+      msg.includes("失败")
+    );
   }
 
   // ======================================================================= //
@@ -68,10 +72,10 @@
 
   /** 用户信息数据 */
   let info = $state<UserInfo | null>(null);
-  
+
   /** 状态消息，用于显示加载/操作结果 */
   let statusMsg = $state("");
-  
+
   /** 保存操作进行中标记 (预留功能) */
   let saving = $state(false);
 
@@ -142,7 +146,7 @@
       }
       return _("info.durationMinutesAndSeconds", {
         minutes,
-        seconds: remainingSeconds
+        seconds: remainingSeconds,
       });
     }
     const hours = Math.floor(seconds / 3600);
@@ -152,12 +156,15 @@
       return _("info.durationHours", { count: hours });
     }
     if (remainingSeconds === 0) {
-      return _("info.durationHoursAndMinutes", { hours, minutes: remainingMinutes });
+      return _("info.durationHoursAndMinutes", {
+        hours,
+        minutes: remainingMinutes,
+      });
     }
     return _("info.durationHoursMinutesAndSeconds", {
       hours,
       minutes: remainingMinutes,
-      seconds: remainingSeconds
+      seconds: remainingSeconds,
     });
   }
 
@@ -165,19 +172,30 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(async () => {
-    unsubLang = onLangChange(() => { _langVersion++; });
+  onMount(() => {
+    unsubLang = onLangChange(() => {
+      _langVersion++;
+    });
     statusMsg = _("info.statusReading");
-    await loadInfo();
-    
-    // 监听窗口位置变化事件
-    unlistenPosition = await listen<[number, number]>("window-position-changed", (event) => {
+
+    // Async load
+    loadInfo().catch((e) => console.error("InfoDebugger load failed:", e));
+
+    // Listen for window position changes
+    let unlistenPos: (() => void) | undefined;
+    listen<[number, number]>("window-position-changed", (event) => {
       if (info) {
         const [x, y] = event.payload;
         info.animation_window_x = x;
         info.animation_window_y = y;
       }
-    });
+    })
+      .then((u) => (unlistenPos = u))
+      .catch(console.error);
+
+    unlistenPosition = () => {
+      if (unlistenPos) unlistenPos();
+    };
   });
 
   onDestroy(() => {
@@ -205,7 +223,9 @@
       <span class="label">{_("info.windowPosition")}</span>
       <span class="value">
         {#if info.animation_window_x !== null && info.animation_window_y !== null}
-          ({Math.round(info.animation_window_x)}, {Math.round(info.animation_window_y)})
+          ({Math.round(info.animation_window_x)}, {Math.round(
+            info.animation_window_y,
+          )})
         {:else}
           {_("info.notSaved")}
         {/if}
@@ -358,9 +378,17 @@
       background: #34495e;
       border-color: #455a64;
     }
-    h4 { color: #ecf0f1; }
-    .label { color: #bdc3c7; }
-    .value { color: #ecf0f1; }
-    .hint { color: #7f8c8d; }
+    h4 {
+      color: #ecf0f1;
+    }
+    .label {
+      color: #bdc3c7;
+    }
+    .value {
+      color: #ecf0f1;
+    }
+    .hint {
+      color: #7f8c8d;
+    }
   }
 </style>

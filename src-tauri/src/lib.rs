@@ -247,7 +247,7 @@ async fn load_mod(
             .clone();
         let mut sm = state.state_manager.lock().unwrap();
         // 强制切换到新 Mod 的初始状态
-        let _ = sm.change_state_ex(initial_state, true);
+        let _ = sm.change_state_ex_with_rm(initial_state, true, &rm);
     }
 
     // 4. 重建窗口以应用新资源
@@ -379,48 +379,53 @@ fn get_next_state(state: State<'_, AppState>) -> Option<StateInfo> {
 /// 切换状态（自动选择持久/临时模式）
 #[tauri::command]
 fn change_state(name: String, state: State<'_, AppState>) -> Result<bool, String> {
-    let state_info = {
-        let rm = state.resource_manager.lock().unwrap();
-        rm.get_state_by_name(&name)
-            .ok_or_else(|| format!("State '{}' not found", name))?
-            .clone()
-    };
+    // 强制锁顺序：Resource -> State
+    let rm = state.resource_manager.lock().unwrap();
+    let state_info = rm
+        .get_state_by_name(&name)
+        .ok_or_else(|| format!("State '{}' not found", name))?
+        .clone();
 
     let mut sm = state.state_manager.lock().unwrap();
-    sm.change_state(state_info)
+    // 使用传入锁的方法
+    sm.change_state_with_rm(state_info, &rm)
 }
 
 /// 强制切换状态（忽略优先级和锁定检查）
 #[tauri::command]
 fn force_change_state(name: String, state: State<'_, AppState>) -> Result<(), String> {
-    let state_info = {
-        let rm = state.resource_manager.lock().unwrap();
-        rm.get_state_by_name(&name)
-            .ok_or_else(|| format!("State '{}' not found", name))?
-            .clone()
-    };
+    // 强制锁顺序：Resource -> State
+    let rm = state.resource_manager.lock().unwrap();
+    let state_info = rm
+        .get_state_by_name(&name)
+        .ok_or_else(|| format!("State '{}' not found", name))?
+        .clone();
 
     let mut sm = state.state_manager.lock().unwrap();
-    sm.change_state_ex(state_info, true)?;
+    // 使用传入锁的方法
+    sm.change_state_ex_with_rm(state_info, true, &rm)?;
     Ok(())
 }
 
 /// 动画播放完成回调
 #[tauri::command]
 fn on_animation_complete(state: State<'_, AppState>) {
+    // 强制锁顺序：Resource -> State
+    // 即使这里看似只需 State，但 on_state_complete 可能会触发 change_state，进而需要 Resource 锁
+    let rm = state.resource_manager.lock().unwrap();
     let mut sm = state.state_manager.lock().unwrap();
-    sm.on_state_complete();
+    sm.on_state_complete_with_rm(&rm);
 }
 
 /// 设置下一个待切换状态
 #[tauri::command]
 fn set_next_state(name: String, state: State<'_, AppState>) -> Result<(), String> {
-    let state_info = {
-        let rm = state.resource_manager.lock().unwrap();
-        rm.get_state_by_name(&name)
-            .ok_or_else(|| format!("State '{}' not found", name))?
-            .clone()
-    };
+    // 强制锁顺序：Resource -> State
+    let rm = state.resource_manager.lock().unwrap();
+    let state_info = rm
+        .get_state_by_name(&name)
+        .ok_or_else(|| format!("State '{}' not found", name))?
+        .clone();
 
     let mut sm = state.state_manager.lock().unwrap();
     sm.set_next_state(state_info);
@@ -1150,7 +1155,10 @@ async fn recreate_animation_window(app: tauri::AppHandle) -> Result<(), String> 
 
         // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
         // 如果立即创建，会报错 "already exists"
-        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(
+            modules::constants::WINDOW_RESIZE_DELAY_MS,
+        ))
+        .await;
     }
 
     // 2. 创建新窗口
@@ -1285,7 +1293,7 @@ fn open_dir(path: String) -> Result<(), String> {
 fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
     std::thread::spawn(move || {
         let mut observer = MediaObserver::new();
-        let rx = observer.start(skip_delay);
+        let rx = observer.start(app_handle.clone(), skip_delay);
 
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async move {

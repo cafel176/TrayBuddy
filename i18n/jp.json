@@ -207,7 +207,8 @@
     "coreAudioSessions": "Core Audio セッション",
     "volumePeak": "音量ピーク:",
     "nowPlaying": "再生中",
-    "noCoreAudioSession": "Core Audio セッションなし"
+    "noCoreAudioSession": "Core Audio セッションなし",
+    "autoUpdate": "自動更新"
   },
   "system": {
     "title": "システム監視デバッガー",
@@ -218,6 +219,7 @@
     "runningStatus": "実行状態:",
     "lastCheck": "最終チェック:",
     "autoDndSetting": "自動おやすみ:",
+    "autoUpdate": "自動更新",
     "detectionResult": "検出結果",
     "fullscreenState": "全画面/ビジー状態",
     "fullscreenDetected": "検出あり",
