@@ -127,7 +127,7 @@
         <div class="control-card">
             <div class="control-info">
                 <span class="label">{_("layout.enableBorders")}</span>
-                <p class="hint">给角色、边框及容器添加随机颜色的高亮边框</p>
+                <p class="hint">{_("layout.enableBordersHint")}</p>
             </div>
             <button
                 class="toggle-btn"

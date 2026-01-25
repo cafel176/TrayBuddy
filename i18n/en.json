@@ -44,6 +44,7 @@
     "canvasInfo": "Canvas Detailed Info",
     "debugBorders": "Visual Debugging",
     "enableBorders": "Enable Random Color Borders",
+    "enableBordersHint": "Add random color highlight borders to character, border, and containers",
     "refreshInfo": "Refresh Layout Info",
     "canvasName": "Name",
     "canvasSize": "Native Size",
@@ -153,7 +154,8 @@
     "exampleRequest": "Example Request",
     "refreshData": "Refresh Data",
     "dateFormat": "{year}-{month}-{day}",
-    "failed": "failed"
+    "failed": "failed",
+    "noModSelected": "No mod selected"
   },
   "info": {
     "title": "UserInfo Debugger",
@@ -432,7 +434,7 @@
     "title": "Mod Manager",
     "availableMods": "Available Mods",
     "searchPaths": "Search Paths",
-    "selectMod": "Select a Mod",
+    "selectToView": "Select a mod to view details",
     "loadMod": "Load Mod",
     "reloadMod": "Reload Mod",
     "current": "Currently Loaded",
@@ -450,7 +452,9 @@
     "importMod": "Import Mod",
     "importSuccess": "Import success",
     "importFailed": "Import failed",
-    "unrecognizedFile": "Unrecognized file (not a valid .tbuddy archive)"
+    "unrecognizedFile": "Unrecognized file (not a valid .tbuddy archive)",
+    "loadListFailed": "Failed to load mod list:",
+    "loadDetailsFailed": "Failed to load details:"
   },
   "menu": {
     "about": "About",

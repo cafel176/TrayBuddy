@@ -59,29 +59,9 @@
         try {
             searchPaths = await invoke("get_mod_search_paths");
             mods = await invoke("get_available_mods");
-
-            // 获取当前加载的 Mod
-            const current = (await invoke("get_current_mod")) as ModInfo | null;
-            if (current) {
-                currentModName = current.manifest.id;
-                // 如果还没有选中，默认选中当前的
-                if (!selectedMod) {
-                    // 我们需要根据 id 找到对应的目录名（mods 数组里存的是目录名）
-                    // 但 get_current_mod 返回的是 manifest 里的 id
-                    // 最好还是直接用 path 来判断
-                    const dirName = current.path.split(/[\\/]/).pop() || "";
-                    selectedMod = dirName;
-                }
-            }
-
-            if (mods.length > 0 && !selectedMod) {
-                selectMod(mods[0]);
-            } else if (selectedMod) {
-                // 如果已经有选中的（比如是从 search 结果来的或者初始化已设置），手动触发详情加载
-                selectMod(selectedMod);
-            }
+            statusMsg = "";
         } catch (e) {
-            statusMsg = `Failed to load mod list: ${e}`;
+            statusMsg = `${_("modWindow.loadListFailed")} ${e}`;
         }
     }
 
@@ -126,7 +106,7 @@
 
     async function openModDir() {
         if (!selectedModInfo) {
-            statusMsg = "No mod selected";
+            statusMsg = _("environment.noModSelected");
             return;
         }
         try {
@@ -198,7 +178,11 @@
     <div class="sidebar">
         <div class="sidebar-header">
             <h3>{_("modWindow.availableMods")}</h3>
-            <button class="import-btn" onclick={importMod} title={_("modWindow.importMod")}>
+            <button
+                class="import-btn"
+                onclick={importMod}
+                title={_("modWindow.importMod")}
+            >
                 +
             </button>
         </div>
@@ -240,8 +224,7 @@
                             ((e.currentTarget as HTMLElement).style.display =
                                 "none")}
                     />
-                {:else}
-                    <div class="no-preview">No Preview</div>
+                    <div class="no-preview">{_("modWindow.noPreview")}</div>
                 {/if}
             </div>
 
@@ -298,7 +281,7 @@
             </div>
         {:else}
             <div class="empty-state">
-                {statusMsg || "Select a mod to view details"}
+                {statusMsg || _("modWindow.selectToView")}
             </div>
         {/if}
     </div>

@@ -399,7 +399,7 @@
   {#if currentModInfo}
     <div class="info-panel">
       <div class="info-header">
-        <h4>当前 Mod 详情</h4>
+        <h4>{_("resource.modDetails")}</h4>
         <div class="path-badge" title={currentModInfo.path}>
           {currentModInfo.path.split(/[\\/]/).pop()}
         </div>

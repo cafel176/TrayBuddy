@@ -44,6 +44,7 @@
     "canvasInfo": "画布详细信息",
     "debugBorders": "可视化调试",
     "enableBorders": "开启随机颜色边框",
+    "enableBordersHint": "给角色、边框及容器添加随机颜色的高亮边框",
     "refreshInfo": "刷新布局信息",
     "canvasName": "名称",
     "canvasSize": "原始尺寸",
@@ -153,7 +154,8 @@
     "exampleRequest": "示例请求",
     "refreshData": "刷新数据",
     "dateFormat": "{year}年{month}月{day}日",
-    "failed": "失败"
+    "failed": "失败",
+    "noModSelected": "未选择 Mod"
   },
   "info": {
     "title": "UserInfo 调试器",
@@ -432,12 +434,12 @@
     "title": "Mod 管理器",
     "availableMods": "可用 Mod",
     "searchPaths": "搜索路径",
-    "selectMod": "请选择一个 Mod",
+    "selectToView": "请选择一个 Mod 以查看详情",
     "loadMod": "加载 Mod",
     "reloadMod": "重新加载",
     "current": "当前加载",
     "preview": "预览",
-    "noPreview": "无预览图",
+    "noPreview": "暂无预览图",
     "author": "作者",
     "version": "版本",
     "description": "描述",
@@ -450,7 +452,9 @@
     "importMod": "导入 Mod",
     "importSuccess": "导入成功",
     "importFailed": "导入失败",
-    "unrecognizedFile": "无法识别的文件 (不是有效的 .tbuddy 压缩包)"
+    "unrecognizedFile": "无法识别的文件 (不是有效的 .tbuddy 压缩包)",
+    "loadListFailed": "加载 Mod 列表失败:",
+    "loadDetailsFailed": "加载详情失败:"
   },
   "menu": {
     "about": "关于本程序",
