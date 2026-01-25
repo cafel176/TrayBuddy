@@ -428,6 +428,17 @@
           ]
         }
       ]
+    },
+    {
+      "event": "keydown:Space",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            "hello1_1"
+          ]
+        }
+      ]
     }
   ]
 }

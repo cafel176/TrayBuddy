@@ -42,8 +42,11 @@ export class TriggerManager {
    * @param eventName - 事件名称
    * @returns 是否为有效的触发事件
    */
-  isEventSupported(eventName: string): eventName is TriggerEvent {
-    return SUPPORTED_EVENTS.includes(eventName as TriggerEvent);
+  isEventSupported(eventName: string): boolean {
+    return (
+      SUPPORTED_EVENTS.includes(eventName as TriggerEvent) ||
+      eventName.startsWith("keydown:")
+    );
   }
 
   /**

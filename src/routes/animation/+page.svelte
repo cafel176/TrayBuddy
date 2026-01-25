@@ -180,6 +180,14 @@
       // 启动鼠标位置轮询
       startCursorPolling();
 
+      // 注册全局键盘监听器（仅在窗口聚焦时生效）
+      window.addEventListener("keydown", (e) => {
+        // 使用 e.code 以获得物理按键名称（如 Space, KeyE, Digit1）
+        // 这样可以避免空格被识别为 " " 的问题
+        const keyCode = e.code;
+        triggerManager?.trigger(`keydown:${keyCode}`);
+      });
+
       // 注册语言变更监听
       unsubLang = onLangChange(() => {
         _langVersion++;
