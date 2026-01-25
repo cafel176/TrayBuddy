@@ -148,7 +148,19 @@
     "neverLoggedIn": "Never logged in",
     "notLoaded": "Not loaded",
     "notSaved": "Not saved",
-    "positionNote": "Note: Window position is auto-saved on move."
+    "positionNote": "Note: Window position is auto-saved on move.",
+    "usageStats": "Usage Statistics",
+    "firstLogin": "First login:",
+    "launchCount": "Launch count:",
+    "totalUsage": "Total usage:",
+    "totalClicks": "Total clicks:",
+    "times": "times",
+    "durationSeconds": "{count} seconds",
+    "durationMinutes": "{count} minutes",
+    "durationMinutesAndSeconds": "{minutes} minutes {seconds} seconds",
+    "durationHours": "{count} hours",
+    "durationHoursAndMinutes": "{hours} hours {minutes} minutes",
+    "durationHoursMinutesAndSeconds": "{hours} hours {minutes} minutes {seconds} seconds"
   },
   "media": {
     "title": "Media Monitor Debugger",

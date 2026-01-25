@@ -148,7 +148,19 @@
     "neverLoggedIn": "未ログイン",
     "notLoaded": "未読み込み",
     "notSaved": "未保存",
-    "positionNote": "※ウィンドウ位置は移動時に自動保存されます。"
+    "positionNote": "※ウィンドウ位置は移動時に自動保存されます。",
+    "usageStats": "使用統計",
+    "firstLogin": "初回ログイン:",
+    "launchCount": "起動回数:",
+    "totalUsage": "累計使用時間:",
+    "totalClicks": "総クリック数:",
+    "times": "回",
+    "durationSeconds": "{count} 秒",
+    "durationMinutes": "{count} 分",
+    "durationMinutesAndSeconds": "{minutes} 分 {seconds} 秒",
+    "durationHours": "{count} 時間",
+    "durationHoursAndMinutes": "{hours} 時間 {minutes} 分",
+    "durationHoursMinutesAndSeconds": "{hours} 時間 {minutes} 分 {seconds} 秒"
   },
   "media": {
     "title": "メディア監視デバッガー",

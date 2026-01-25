@@ -72,7 +72,6 @@ pub struct AppState {
     /// 存储管理器：负责用户设置和信息的持久化
     storage: Mutex<Storage>,
     /// 媒体监听器引用（实际在独立线程运行）
-    #[allow(dead_code)]
     media_observer: Mutex<Option<MediaObserver>>,
 }
 
@@ -732,9 +731,21 @@ pub fn run() {
             let mut sm = StateManager::new(Arc::clone(&rm));
             let mut storage = Storage::new(app.handle());
 
-            // 记录登录时间
+            // 记录登录时间和启动次数
             let dt = get_current_datetime();
-            storage.data.info.last_login = Some(dt.timestamp as i64);
+            let current_time = dt.timestamp as i64;
+
+            // 如果是首次启动，记录首次登录时间
+            if storage.data.info.first_login.is_none() {
+                storage.data.info.first_login = Some(current_time);
+            }
+
+            // 更新最后登录时间
+            storage.data.info.last_login = Some(current_time);
+
+            // 增加启动次数
+            storage.data.info.launch_count += 1;
+
             let _ = storage.save();
 
             // 自动加载上次使用的 Mod
@@ -907,9 +918,11 @@ pub fn run() {
         .on_window_event(|window, event| {
             match event {
                 tauri::WindowEvent::CloseRequested { .. } => {
-                    // main 窗口或 animation 窗口关闭时都保存位置
-                    if window.label() == "main" || window.label() == "animation" {
-                        save_animation_window_position(window);
+                    // animation 窗口无法触发这个
+                    if window.label() == "main" || window.label() == "settings" {
+                        let app_state: State<AppState> = window.state();
+                        let mut storage = app_state.storage.lock().unwrap();
+                        storage.save();
                     }
                 }
                 tauri::WindowEvent::Moved(_) => {
@@ -942,6 +955,7 @@ pub fn run() {
             update_settings,
             get_user_info,
             update_user_info,
+            record_click_event,
             // Mod 资源管理
             get_mod_details,
             get_mod_search_paths,
@@ -1152,9 +1166,11 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
 fn save_animation_window_position(window: &tauri::Window) {
     let app = window.app_handle();
 
+    // 获取 app_state 以便访问 storage
+    let app_state: State<AppState> = window.state();
+
     // 检查 show_character 设置，如果关闭了则不保存位置
     let should_save = {
-        let app_state: State<AppState> = window.state();
         let storage = app_state.storage.lock().unwrap();
         storage.data.settings.show_character
     };
@@ -1168,7 +1184,6 @@ fn save_animation_window_position(window: &tauri::Window) {
 
     if let Some(anim_win) = animation_window {
         if let Ok(position) = anim_win.outer_position() {
-            let app_state: State<AppState> = window.state();
             let mut storage = app_state.storage.lock().unwrap();
 
             let scale_factor = anim_win.scale_factor().unwrap_or(1.0);
@@ -1353,7 +1368,13 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                     .build();
             }
         }
-        "quit" => app.exit(0),
+        "quit" => {
+            let app_state: State<AppState> = app.state();
+            let mut storage = app_state.storage.lock().unwrap();
+            storage.save();
+
+            app.exit(0)
+        },
         "debugger" => {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -1499,6 +1520,16 @@ fn get_tray_position(app: tauri::AppHandle) -> (f64, f64) {
     }
     // 最终降级方案
     (1700.0, 1030.0)
+}
+
+/// 记录用户点击事件
+///
+/// 前端在每次用户触发点击事件时调用此命令，用于统计用户交互行为
+#[tauri::command]
+fn record_click_event(state: State<'_, AppState>) {
+    let mut storage = state.storage.lock().unwrap();
+    storage.data.info.total_click_count += 1;
+    let _ = storage.save();
 }
 
 /// 获取保存的窗口位置

@@ -676,11 +676,17 @@
    * - 未移动过阈值 → 触发点击事件
    * - 已开始拖拽 → 拖拽结束，无操作
    */
-  function handleMouseUp(e: MouseEvent) {
+  async function handleMouseUp(e: MouseEvent) {
     if (e.button === 0) {
       if (isMouseDown && !isDragging) {
         // 点击事件：触发 click 触发器
         triggerManager?.trigger("click");
+        // 记录点击事件到统计
+        try {
+          await invoke("record_click_event");
+        } catch (err) {
+          console.error("Failed to record click event:", err);
+        }
       }
       isMouseDown = false;
       isDragging = false;

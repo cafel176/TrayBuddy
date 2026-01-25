@@ -79,6 +79,10 @@ pub struct UserInfo {
 
     pub animation_window_x: Option<f64>, // animation 窗口上次关闭时的 X 坐标
     pub animation_window_y: Option<f64>, // animation 窗口上次关闭时的 Y 坐标
+
+    pub launch_count: i32,              // 总启动次数
+    pub total_usage_seconds: i64,        // 累计使用时长（秒）
+    pub total_click_count: i64,          // 总点击次数
 }
 
 impl Default for UserInfo {
@@ -90,6 +94,10 @@ impl Default for UserInfo {
 
             animation_window_x: None,
             animation_window_y: None,
+
+            launch_count: 0,
+            total_usage_seconds: 0,
+            total_click_count: 0,
         }
     }
 }
@@ -119,6 +127,7 @@ impl Default for AppStorageData {
 pub struct Storage {
     pub data: AppStorageData,    // 内存中的数据缓存
     storage_path: PathBuf,       // storage.json 的物理存储路径
+    session_start_time: std::time::Instant, // 应用启动时间（用于计算使用时长）
 }
 
 impl Storage {
@@ -130,7 +139,10 @@ impl Storage {
         let storage_path = storage_dir.join("storage.json");
         let data = Self::load(&storage_path);
 
-        Self { data, storage_path }
+        // 记录应用启动时间，用于计算使用时长
+        let session_start_time = std::time::Instant::now();
+
+        Self { data, storage_path, session_start_time }
     }
 
     // ========================================================================= //
@@ -166,7 +178,15 @@ impl Storage {
     }
 
     /// 将当前内存中的数据序列化并保存到磁盘文件
-    pub fn save(&self) -> Result<(), String> {
+    ///
+    /// 在保存前会自动计算并累加本次使用时长到 total_usage_seconds
+    pub fn save(&mut self) -> Result<(), String> {
+        // 计算并累加本次使用时长
+        let elapsed = self.session_start_time.elapsed().as_secs() as i64;
+        self.data.info.total_usage_seconds += elapsed;
+        // 更新 session_start_time 为当前时间，避免重复计算
+        self.session_start_time = std::time::Instant::now();
+
         let content = serde_json::to_string_pretty(&self.data)
             .map_err(|e| format!("序列化存储数据失败: {}", e))?;
         fs::write(&self.storage_path, content)

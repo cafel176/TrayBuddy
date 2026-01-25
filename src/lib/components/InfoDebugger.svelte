@@ -44,7 +44,9 @@
    * 对应后端的 UserInfo 结构体
    */
   interface UserInfo {
-    /** 上次登录时间戳 (毫秒) */
+    /** 首次登录时间戳（秒） */
+    first_login: number | null;
+    /** 上次登录时间戳（秒） */
     last_login: number | null;
     /** 当前加载的 Mod 名称 */
     current_mod: string;
@@ -52,6 +54,12 @@
     animation_window_x: number | null;
     /** 动画窗口 Y 坐标 */
     animation_window_y: number | null;
+    /** 总启动次数 */
+    launch_count: number;
+    /** 累计使用时长（秒） */
+    total_usage_seconds: number;
+    /** 总点击次数 */
+    total_click_count: number;
   }
 
   // ======================================================================= //
@@ -108,12 +116,49 @@
 
   /**
    * 格式化时间戳为本地时间字符串
-   * @param ts 时间戳 (毫秒)
+   * @param ts 时间戳（秒）
    * @returns 格式化的时间字符串或"从未登录"
    */
   function formatTime(ts: number | null) {
     if (!ts) return _("info.neverLoggedIn");
-    return new Date(ts).toLocaleString();
+    // 后端传递的是秒级时间戳，转换为毫秒
+    return new Date(ts * 1000).toLocaleString();
+  }
+
+  /**
+   * 格式化使用时长
+   * @param seconds 使用时长（秒）
+   * @returns 格式化的时长字符串（如：2小时30分钟15秒）
+   */
+  function formatDuration(seconds: number): string {
+    if (seconds < 60) {
+      return _("info.durationSeconds", { count: seconds });
+    }
+    if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      if (remainingSeconds === 0) {
+        return _("info.durationMinutes", { count: minutes });
+      }
+      return _("info.durationMinutesAndSeconds", {
+        minutes,
+        seconds: remainingSeconds
+      });
+    }
+    const hours = Math.floor(seconds / 3600);
+    const remainingMinutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    if (remainingMinutes === 0 && remainingSeconds === 0) {
+      return _("info.durationHours", { count: hours });
+    }
+    if (remainingSeconds === 0) {
+      return _("info.durationHoursAndMinutes", { hours, minutes: remainingMinutes });
+    }
+    return _("info.durationHoursMinutesAndSeconds", {
+      hours,
+      minutes: remainingMinutes,
+      seconds: remainingSeconds
+    });
   }
 
   // ======================================================================= //
@@ -149,12 +194,6 @@
   <h4>{_("info.title")}</h4>
 
   {#if info}
-    <!-- 最后登录时间 -->
-    <div class="data-row">
-      <span class="label">{_("info.lastLogin")}</span>
-      <span class="value">{formatTime(info.last_login)}</span>
-    </div>
-
     <!-- 当前加载的 Mod -->
     <div class="data-row">
       <span class="label">{_("info.currentMod")}</span>
@@ -171,6 +210,39 @@
           {_("info.notSaved")}
         {/if}
       </span>
+    </div>
+
+    <!-- 使用统计部分 -->
+    <div class="divider">{_("info.usageStats")}</div>
+
+    <!-- 首次登录时间 -->
+    <div class="data-row">
+      <span class="label">{_("info.firstLogin")}</span>
+      <span class="value">{formatTime(info.first_login)}</span>
+    </div>
+
+    <!-- 最后登录时间 -->
+    <div class="data-row">
+      <span class="label">{_("info.lastLogin")}</span>
+      <span class="value">{formatTime(info.last_login)}</span>
+    </div>
+
+    <!-- 启动次数 -->
+    <div class="data-row">
+      <span class="label">{_("info.launchCount")}</span>
+      <span class="value">{info.launch_count} {_("info.times")}</span>
+    </div>
+
+    <!-- 累计使用时长 -->
+    <div class="data-row">
+      <span class="label">{_("info.totalUsage")}</span>
+      <span class="value">{formatDuration(info.total_usage_seconds)}</span>
+    </div>
+
+    <!-- 总点击次数 -->
+    <div class="data-row">
+      <span class="label">{_("info.totalClicks")}</span>
+      <span class="value">{info.total_click_count} {_("info.times")}</span>
     </div>
 
     <!-- 保存按钮 -->
@@ -215,6 +287,16 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 12px;
+  }
+
+  .divider {
+    font-size: 0.75em;
+    font-weight: bold;
+    color: #95a5a6;
+    text-transform: uppercase;
+    margin: 15px 0 10px 0;
+    padding-top: 10px;
+    border-top: 1px solid #dee2e6;
   }
 
   .label {

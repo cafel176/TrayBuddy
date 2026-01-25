@@ -148,7 +148,19 @@
     "neverLoggedIn": "从未登录",
     "notLoaded": "未加载",
     "notSaved": "未保存",
-    "positionNote": "注：窗口位置在移动时会自动保存。"
+    "positionNote": "注：窗口位置在移动时会自动保存。",
+    "usageStats": "使用统计",
+    "firstLogin": "首次登录:",
+    "launchCount": "启动次数:",
+    "totalUsage": "累计使用:",
+    "totalClicks": "点击次数:",
+    "times": "次",
+    "durationSeconds": "{count} 秒",
+    "durationMinutes": "{count} 分钟",
+    "durationMinutesAndSeconds": "{minutes} 分钟 {seconds} 秒",
+    "durationHours": "{count} 小时",
+    "durationHoursAndMinutes": "{hours} 小时 {minutes} 分钟",
+    "durationHoursMinutesAndSeconds": "{hours} 小时 {minutes} 分钟 {seconds} 秒"
   },
   "media": {
     "title": "媒体监听调试器",
