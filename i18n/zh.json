@@ -36,7 +36,25 @@
     "media": "媒体监听",
     "system": "系统观察",
     "settings": "用户设置",
-    "runtime": "运行状态"
+    "runtime": "运行状态",
+    "layout": "布局渲染"
+  },
+  "layout": {
+    "title": "动画窗口布局调试",
+    "canvasInfo": "画布详细信息",
+    "debugBorders": "可视化调试",
+    "enableBorders": "开启随机颜色边框",
+    "refreshInfo": "刷新布局信息",
+    "canvasName": "名称",
+    "canvasSize": "原始尺寸",
+    "canvasDisplay": "显示尺寸",
+    "canvasZIndex": "层级",
+    "characterCanvas": "角色画布",
+    "borderCanvas": "边框画布",
+    "bubbleArea": "气泡区域",
+    "bubbleCanvas": "气泡内容",
+    "noAnimationWindow": "未检测到动画窗口",
+    "waitingInfo": "正在请求布局数据..."
   },
   "settings": {
     "title": "用户设置",

@@ -899,6 +899,16 @@ pub fn run() {
                         storage.save();
                     }
                 }
+                tauri::WindowEvent::Destroyed => {
+                    if window.label() == "main" {
+                        // 主窗口销毁时，强制关闭所有可能开启的局部调试状态
+                        let _ = window.app_handle().emit("layout-debugger-status", false);
+                    } else if window.label() == "animation" {
+                        let app_state: State<AppState> = window.state();
+                        let mut storage = app_state.storage.lock().unwrap();
+                        storage.save();
+                    }
+                }
                 tauri::WindowEvent::Moved(_) => {
                     if window.label() == "animation" {
                         // 发送窗口位置更新事件（发送动画区域顶部位置，与保存一致）

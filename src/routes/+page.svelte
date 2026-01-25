@@ -26,6 +26,7 @@
 
   import { onMount, onDestroy } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { emit } from "@tauri-apps/api/event";
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
   import StateDebugger from "$lib/components/StateDebugger.svelte";
   import TriggerDebugger from "$lib/components/TriggerDebugger.svelte";
@@ -33,6 +34,7 @@
   import MediaDebugger from "$lib/components/MediaDebugger.svelte";
   import SystemDebugger from "$lib/components/SystemDebugger.svelte";
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
+  import LayoutDebugger from "$lib/components/LayoutDebugger.svelte";
   import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 
   // ======================================================================= //
@@ -57,20 +59,27 @@
   // 生命周期
   // ======================================================================= //
 
-  onMount(async () => {
-    unsubLang = onLangChange(() => {
+  onMount(() => {
+    const init = async () => {
+      unsubLang = onLangChange(() => {
+        _langVersion++;
+        getCurrentWindow().setTitle(_("common.appTitle"));
+      });
+      await initI18n();
       _langVersion++;
       getCurrentWindow().setTitle(_("common.appTitle"));
-    });
-    await initI18n();
-    // 初始化完成后强制触发一次更新，确保标签页文本使用保存的语言
-    _langVersion++;
-    getCurrentWindow().setTitle(_("common.appTitle"));
+    };
+
+    init();
+
+    return () => {
+      unsubLang?.();
+      destroyI18n();
+    };
   });
 
   onDestroy(() => {
-    unsubLang?.();
-    destroyI18n();
+    // 基础清理 logic 在 onMount return 中
   });
 </script>
 
@@ -110,6 +119,10 @@
       class:active={activeTab === "info"}
       onclick={() => (activeTab = "info")}>{_("tabs.runtime")}</button
     >
+    <button
+      class:active={activeTab === "layout"}
+      onclick={() => (activeTab = "layout")}>{_("tabs.layout")}</button
+    >
   </div>
 
   <!-- Tab 内容区域 - 根据 activeTab 动态渲染对应组件 -->
@@ -128,6 +141,8 @@
       <SystemDebugger />
     {:else if activeTab === "info"}
       <InfoDebugger />
+    {:else if activeTab === "layout"}
+      <LayoutDebugger />
     {/if}
   </div>
 </main>

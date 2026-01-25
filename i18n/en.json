@@ -36,7 +36,25 @@
     "media": "Media",
     "system": "System",
     "settings": "Settings",
-    "runtime": "Runtime"
+    "runtime": "Runtime",
+    "layout": "Layout"
+  },
+  "layout": {
+    "title": "Animation Window Layout Debugger",
+    "canvasInfo": "Canvas Detailed Info",
+    "debugBorders": "Visual Debugging",
+    "enableBorders": "Enable Random Color Borders",
+    "refreshInfo": "Refresh Layout Info",
+    "canvasName": "Name",
+    "canvasSize": "Native Size",
+    "canvasDisplay": "Display Size",
+    "canvasZIndex": "Z-Index",
+    "characterCanvas": "Character Canvas",
+    "borderCanvas": "Border Canvas",
+    "bubbleArea": "Bubble Area",
+    "bubbleCanvas": "Bubble Content",
+    "noAnimationWindow": "Animation window not detected",
+    "waitingInfo": "Requesting layout data..."
   },
   "settings": {
     "title": "User Settings",

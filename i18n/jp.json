@@ -36,7 +36,25 @@
     "media": "メディア監視",
     "system": "システム監視",
     "settings": "設定",
-    "runtime": "実行状態"
+    "runtime": "実行状态",
+    "layout": "レイアウト"
+  },
+  "layout": {
+    "title": "アニメーションウィンドウレイアウトデバッガー",
+    "canvasInfo": "キャンバス詳細情報",
+    "debugBorders": "ビジュアルデバッグ",
+    "enableBorders": "ランダムカラー枠を表示",
+    "refreshInfo": "情報を更新",
+    "canvasName": "名称",
+    "canvasSize": "基本サイズ",
+    "canvasDisplay": "表示サイズ",
+    "canvasZIndex": "レイヤー",
+    "characterCanvas": "キャラクターキャンバス",
+    "borderCanvas": "ボーダーキャンバス",
+    "bubbleArea": "フキダシエリア",
+    "bubbleCanvas": "フキダシ内容",
+    "noAnimationWindow": "アニメーションウィンドウが見つかりません",
+    "waitingInfo": "データを取得中..."
   },
   "settings": {
     "title": "ユーザー設定",

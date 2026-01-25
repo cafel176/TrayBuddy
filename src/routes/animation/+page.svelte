@@ -135,6 +135,16 @@
   /** 是否未加载任何 Mod */
   let noMod = $state(false);
 
+  /** 布局调试边框启用状态 */
+  let debugBordersEnabled = $state(false);
+  /** 布局调试边框颜色 */
+  let debugColors = $state({
+    bubble: "transparent",
+    animation: "transparent",
+    character: "transparent",
+    border: "transparent",
+  });
+
   // =========================================================================
   // 播放同步控制
   // =========================================================================
@@ -344,6 +354,71 @@
       // 检查当前是否加载了 Mod
       const currentMod = await invoke("get_current_mod");
       noMod = !currentMod;
+
+      // ---------------------------------------------------------------------
+      // 布局调试监听
+      // ---------------------------------------------------------------------
+
+      // 响应布局信息请求
+      await listen("request-layout-info", () => {
+        const info = [];
+        const getInfo = (el: HTMLElement | HTMLCanvasElement, name: string) => {
+          if (!el) return null;
+          const style = window.getComputedStyle(el);
+          return {
+            name,
+            width: (el as HTMLCanvasElement).width || el.offsetWidth,
+            height: (el as HTMLCanvasElement).height || el.offsetHeight,
+            displayWidth: el.clientWidth,
+            displayHeight: el.clientHeight,
+            zIndex: style.zIndex,
+            visibility: style.visibility,
+            opacity: style.opacity,
+          };
+        };
+
+        const charInfo = getInfo(characterCanvas, "character");
+        if (charInfo) info.push(charInfo);
+
+        const borderInfo = getInfo(borderCanvas, "border");
+        if (borderInfo) info.push(borderInfo);
+
+        // 获取气泡区域信息
+        const bubbleAreaEl = document.querySelector(
+          ".bubble-area",
+        ) as HTMLElement;
+        const bubbleAreaInfo = getInfo(bubbleAreaEl, "bubbleArea");
+        if (bubbleAreaInfo) info.push(bubbleAreaInfo);
+
+        // 获取具体气泡内容信息 (尝试查找 .bubble 元素)
+        const bubbleEl = document.querySelector(".bubble") as HTMLElement;
+        const bubbleInfo = getInfo(bubbleEl, "bubbleCanvas");
+        if (bubbleInfo) info.push(bubbleInfo);
+
+        emit("layout-info", info);
+      });
+
+      // 响应调试边框切换
+      await listen<boolean>("toggle-debug-borders", (event) => {
+        debugBordersEnabled = event.payload;
+        if (debugBordersEnabled) {
+          const rc = () => `hsl(${Math.random() * 360}, 100%, 50%)`;
+          debugColors = {
+            bubble: rc(),
+            animation: rc(),
+            character: rc(),
+            border: rc(),
+          };
+        }
+      });
+
+      // 响应调试页签状态，非调试状态下强制关闭边框显示
+      await listen<boolean>("layout-debugger-status", (event) => {
+        const isTabActive = event.payload;
+        if (!isTabActive) {
+          debugBordersEnabled = false;
+        }
+      });
     } catch (e) {
       console.error("Failed to init:", e);
       noMod = true;
@@ -825,9 +900,21 @@
      - 使用 grab/grabbing 光标提示可拖拽
 ========================================================================= -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="container" oncontextmenu={handleContextMenu}>
+<div
+  class="container"
+  class:debug-border-active={debugBordersEnabled}
+  oncontextmenu={handleContextMenu}
+  style="outline: {debugBordersEnabled
+    ? '1px dashed ' + debugColors.bubble
+    : 'none'}; outline-offset: -1px; --debug-color-bubble: {debugColors.bubble};"
+>
   <!-- 气泡区域 - 位于顶部 -->
-  <div class="bubble-area">
+  <div
+    class="bubble-area"
+    style="outline: {debugBordersEnabled
+      ? '1px solid ' + debugColors.bubble
+      : 'none'}; outline-offset: -1px;"
+  >
     <BubbleManager
       bind:this={bubbleManager}
       on:branchSelect={handleBranchSelect}
@@ -843,13 +930,17 @@
       ? 500 * animationScale + 'px'
       : '0px'}; flex: 0 0 {showCharacter
       ? 500 * animationScale + 'px'
-      : '0px'}; overflow: hidden;"
+      : '0px'}; overflow: hidden; outline: {debugBordersEnabled
+      ? '1px solid ' + debugColors.animation
+      : 'none'}; outline-offset: -2px;"
   >
     <!-- 角色动画 Canvas -->
     <canvas
       class="character-canvas"
       class:hidden={!showCharacter}
-      style="z-index: {characterZOffset};"
+      style="z-index: {characterZOffset}; outline: {debugBordersEnabled
+        ? '2px solid ' + debugColors.character
+        : 'none'}; outline-offset: -2px;"
       bind:this={characterCanvas}
       onmousedown={handleMouseDown}
       onmousemove={handleMouseMove}
@@ -860,7 +951,9 @@
     <canvas
       class="border-canvas"
       class:hidden={!showCharacter || !showBorder}
-      style="z-index: {borderZOffset};"
+      style="z-index: {borderZOffset}; outline: {debugBordersEnabled
+        ? '2px solid ' + debugColors.border
+        : 'none'}; outline-offset: -2px;"
       bind:this={borderCanvas}
     ></canvas>
 
@@ -982,5 +1075,13 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(4px);
     line-height: 1.5;
+  }
+
+  /* ----------------------------------------------------------------------- */
+  /* 动态布局调试辅助样式 (Global) */
+  /* ----------------------------------------------------------------------- */
+  :global(.debug-border-active .bubble) {
+    outline: 2px solid var(--debug-color-bubble, magenta) !important;
+    outline-offset: -2px !important;
   }
 </style>
