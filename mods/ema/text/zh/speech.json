@@ -43,5 +43,15 @@
     "name": "music_hello1_2",
     "text": "好的！那我就在这里陪着你～有需要随时叫我哦！",
     "duration": 3
+  },
+  {
+    "name": "birthday",
+    "text": "生日快乐！",
+    "duration": 3
+  },
+  {
+    "name": "firstday",
+    "text": "首次登录纪念日！",
+    "duration": 3
   }
 ]

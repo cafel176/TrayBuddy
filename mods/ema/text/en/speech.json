@@ -43,5 +43,15 @@
     "name": "music_hello1_2",
     "text": "music_hello1_2",
     "duration": 3
+  },
+  {
+    "name": "birthday",
+    "text": "birthday",
+    "duration": 3
+  },
+  {
+    "name": "firstday",
+    "text": "firstday",
+    "duration": 3
   }
 ]

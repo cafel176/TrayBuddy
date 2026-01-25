@@ -60,6 +60,8 @@
     CharacterConfig,
     BorderConfig,
     UserSettings,
+    UserInfo,
+    DateTimeInfo,
   } from "$lib/types/asset";
   import BubbleManager, {
     type BubbleConfig,
@@ -283,7 +285,45 @@
       if (silenceMode) {
         triggerManager?.trigger("login_silence");
       } else {
-        triggerManager?.trigger("login");
+        // 获取日期信息和用户信息进行特殊日期触发判断
+        const dt: DateTimeInfo = await invoke("get_datetime_info");
+        const userInfo: UserInfo = await invoke("get_user_info");
+
+        const todayMMDD = `${String(dt.month).padStart(2, "0")}-${String(
+          dt.day,
+        ).padStart(2, "0")}`;
+
+        let customTriggered = false;
+
+        // 生日判断
+        if (settings.birthday && settings.birthday === todayMMDD) {
+          triggerManager?.trigger("birthday");
+          customTriggered = true;
+        }
+
+        // 首次登录纪念日判断 (判断月和日)
+        if (!customTriggered && userInfo.first_login) {
+          const firstLoginDate = new Date(userInfo.first_login * 1000);
+          const firstLoginMMDD = `${String(
+            firstLoginDate.getMonth() + 1,
+          ).padStart(2, "0")}-${String(firstLoginDate.getDate()).padStart(
+            2,
+            "0",
+          )}`;
+
+          // 仅在年份大于首次登录年份且月日相符时触发
+          if (
+            dt.year > firstLoginDate.getFullYear() &&
+            todayMMDD === firstLoginMMDD
+          ) {
+            triggerManager?.trigger("firstday");
+            customTriggered = true;
+          }
+        }
+
+        if (!customTriggered) {
+          triggerManager?.trigger("login");
+        }
       }
     } catch (e) {
       console.error("Failed to init:", e);

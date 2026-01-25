@@ -248,3 +248,43 @@ export interface UserSettings {
   /** 动画窗口缩放比例（0.5 - 2.0） */
   animation_scale: number;
 }
+
+/**
+ * 用户基础信息
+ * 
+ * 对应后端 Rust 的 `UserInfo` 结构体。
+ */
+export interface UserInfo {
+  /** 第一次启动的时间戳 */
+  first_login: number | null;
+  /** 最后一次启动的时间戳 */
+  last_login: number | null;
+  /** 上次关闭前加载的 Mod ID */
+  current_mod: string;
+  /** 总启动次数 */
+  launch_count: number;
+}
+
+/**
+ * 日期时间信息
+ * 
+ * 对应后端 Rust 的 `DateTimeInfo` 结构体。
+ */
+export interface DateTimeInfo {
+  /** 年 */
+  year: number;
+  /** 月 (1-12) */
+  month: number;
+  /** 日 (1-31) */
+  day: number;
+  /** 时 (0-23) */
+  hour: number;
+  /** 分 (0-59) */
+  minute: number;
+  /** 秒 (0-59) */
+  second: number;
+  /** 星期几 (0=周日, 1=周一, ..., 6=周六) */
+  weekday: number;
+  /** Unix 时间戳 (秒) */
+  timestamp: number;
+}

@@ -30,8 +30,8 @@ mod modules;
 use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
-    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START,
-    STATE_MUSIC_START, STATE_MUSIC_END
+    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END, STATE_MUSIC_START, STATE_SILENCE,
+    STATE_SILENCE_END, STATE_SILENCE_START,
 };
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
@@ -1374,7 +1374,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             storage.save();
 
             app.exit(0)
-        },
+        }
         "debugger" => {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();

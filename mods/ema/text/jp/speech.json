@@ -43,5 +43,15 @@
     "name": "music_hello1_2",
     "text": "おはよう！",
     "duration": 3
+  },
+  {
+    "name": "birthday",
+    "text": "誕生日 feliz！",
+    "duration": 3
+  },
+  {
+    "name": "firstday",
+    "text": "初めてのログイン記念日！",
+    "duration": 3
   }
 ]

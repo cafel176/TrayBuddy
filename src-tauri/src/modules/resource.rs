@@ -503,6 +503,12 @@ pub struct ModInfo {
     pub texts: HashMap<String, Vec<TextInfo>>,
     /// 角色信息（语言代码 -> 角色信息）
     pub info: HashMap<String, CharacterInfo>,
+    /// 气泡样式配置（从 bubble_style.json 加载）
+    pub bubble_style: Option<serde_json::Value>,
+    /// 图标路径（相对路径，如 "icon.ico"）
+    pub icon_path: Option<String>,
+    /// 预览图路径（相对路径，如 "preview.png"）
+    pub preview_path: Option<String>,
 
     // --- 索引（用于 O(1) 查询，不序列化） ---
     #[serde(skip)]
@@ -847,6 +853,30 @@ impl ResourceManager {
         let text_path = mod_path.join("text");
         let (info, texts) = Self::load_text_resources(&text_path);
 
+        // 解析气泡样式
+        let bubble_style =
+            Self::load_json_obj::<serde_json::Value>(&mod_path.join("bubble_style.json"));
+
+        // 探测预览图和图标
+        let mut icon_path = None;
+        let mut preview_path = None;
+
+        for ext in ["ico", "png"] {
+            let p = mod_path.join(format!("icon.{}", ext));
+            if p.exists() {
+                icon_path = Some(format!("icon.{}", ext));
+                break;
+            }
+        }
+
+        for ext in ["png", "jpg", "jpeg", "webp"] {
+            let p = mod_path.join(format!("preview.{}", ext));
+            if p.exists() {
+                preview_path = Some(format!("preview.{}", ext));
+                break;
+            }
+        }
+
         let mut mod_info = ModInfo {
             path: mod_path,
             manifest,
@@ -855,6 +885,9 @@ impl ResourceManager {
             audios,
             info,
             texts,
+            bubble_style,
+            icon_path,
+            preview_path,
             state_index: HashMap::new(),
             trigger_index: HashMap::new(),
             asset_index: HashMap::new(),
@@ -1036,17 +1069,9 @@ impl ResourceManager {
 
     /// 获取气泡样式配置
     ///
-    /// 从当前 Mod 目录读取 bubble_style.json 文件
+    /// 从当前加载的 Mod 缓存中获取
     pub fn get_bubble_style(&self) -> Option<serde_json::Value> {
         let mod_info = self.current_mod.as_ref()?;
-        let style_path = mod_info.path.join("bubble_style.json");
-
-        if !style_path.exists() {
-            return None;
-        }
-
-        fs::read_to_string(&style_path)
-            .ok()
-            .and_then(|content| serde_json::from_str(&content).ok())
+        mod_info.bubble_style.clone()
     }
 }

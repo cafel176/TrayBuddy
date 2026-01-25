@@ -82,10 +82,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": []
-    }
-  },
-  "states": [
-    {
+    },
+    "music": {
       "name": "music",
       "persistent": true,
       "anima": "idle",
@@ -102,7 +100,7 @@
       "trigger_rate": 0.1,
       "branch": []
     },
-    {
+    "music_start": {
       "name": "music_start",
       "persistent": false,
       "anima": "",
@@ -119,7 +117,7 @@
       "trigger_rate": 0,
       "branch": []
     },
-    {
+    "music_end": {
       "name": "music_end",
       "persistent": false,
       "anima": "",
@@ -136,6 +134,42 @@
       "trigger_rate": 0,
       "branch": []
     },
+    "birthday": {
+      "name": "birthday",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "birthday",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    "firstday": {
+      "name": "firstday",
+      "persistent": false,
+      "anima": "",
+      "audio": "morning",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    }
+  },
+  "states": [
     {
       "name": "morning",
       "persistent": false,
@@ -336,6 +370,28 @@
             "noon",
             "evening",
             "night"
+          ]
+        }
+      ]
+    },
+    {
+      "event": "birthday",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            "birthday"
+          ]
+        }
+      ]
+    },
+    {
+      "event": "firstday",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            "firstday"
           ]
         }
       ]
