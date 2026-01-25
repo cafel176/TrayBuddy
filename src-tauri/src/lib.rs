@@ -825,6 +825,9 @@ pub fn run() {
                     .build()
                     .map_err(|e| e.to_string())?;
 
+            #[cfg(debug_assertions)]
+            animation_window.open_devtools();
+
             // 初始鼠标穿透：免打扰模式下启动则设为穿透
             if is_silence {
                 let _ = animation_window.set_ignore_cursor_events(true);

@@ -85,7 +85,7 @@ export class AudioManager {
   /** 播放完成回调 */
   private onEndCallback: (() => void) | null = null;
 
-  constructor() {}
+  constructor() { }
 
   /**
    * 初始化音频管理器
@@ -142,9 +142,10 @@ export class AudioManager {
    *
    * @param audioName - 语音名称（如 "morning", "click"）
    * @param onEnd - 播放完成回调
+   * @param loop - 是否循环播放
    * @returns 成功返回 true
    */
-  async play(audioName: string, onEnd?: () => void): Promise<boolean> {
+  async play(audioName: string, onEnd?: () => void, loop: boolean = false): Promise<boolean> {
     // 空名称直接触发完成回调
     if (!audioName) {
       onEnd?.();
@@ -163,7 +164,7 @@ export class AudioManager {
       // 构建缓存 key 并尝试从缓存获取 URL
       const cacheKey = `${this.lang}:${audioName}`;
       let audioUrl = audioUrlCache.get(cacheKey);
-      
+
       // 缓存未命中，从后端查询
       if (!audioUrl) {
         const audioInfo: AudioInfo | null = await invoke("get_audio_by_name", {
@@ -187,12 +188,13 @@ export class AudioManager {
         audioUrl = convertFileSrc(audioPath);
         audioUrlCache.set(cacheKey, audioUrl);  // 存入缓存
       }
-      
+
       // 创建并播放 Audio
       this.audio = new Audio();
       this.audio.src = audioUrl;
       this.audio.volume = this.muted ? 0 : this.volume;
-      this.onEndCallback = onEnd || null;
+      this.audio.loop = loop;
+      this.onEndCallback = loop ? null : (onEnd || null);
 
       // 注册播放完成事件
       this.audio.onended = () => {
@@ -202,7 +204,7 @@ export class AudioManager {
 
       // 注册播放错误事件
       this.audio.onerror = () => {
-        this.onEndCallback?.();
+        console.error(`Exception playing audio '${audioName}'`);
         this.onEndCallback = null;
       };
 
@@ -210,7 +212,6 @@ export class AudioManager {
       return true;
     } catch (e) {
       console.error(`Exception playing audio '${audioName}':`, e);
-      onEnd?.();
       return false;
     }
   }

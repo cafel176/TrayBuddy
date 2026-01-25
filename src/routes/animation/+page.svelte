@@ -404,10 +404,24 @@
 
     // 开始播放音频
     if (audioManager && state.audio) {
-      audioManager.play(state.audio, () => {
-        audioComplete = true;
-        checkComplete();
-      });
+      if (!playOnce) {
+        // 循环播放模式：立即标记音频完成，不等待
+        const success = await audioManager.play(state.audio, undefined, true);
+        if (success) {
+          audioComplete = true;
+          checkComplete();
+        } else {
+          console.warn(
+            `[playState] Failed to start looping audio: ${state.audio}`,
+          );
+        }
+      } else {
+        // 单次播放模式：等待播放完成
+        audioManager.play(state.audio, () => {
+          audioComplete = true;
+          checkComplete();
+        });
+      }
     } else {
       // 无音频，直接标记完成
       audioComplete = true;
