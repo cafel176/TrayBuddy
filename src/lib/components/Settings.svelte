@@ -133,6 +133,20 @@
   // ======================================================================= //
 
   /**
+   * 检查当前媒体播放状态
+   * @returns true 表示正在播放音乐，false 表示未播放或无法获取状态
+   */
+  async function checkMediaStatus(): Promise<boolean> {
+    try {
+      const isPlaying = await invoke<boolean>("get_media_status");
+      return isPlaying;
+    } catch (err) {
+      console.error("Failed to check media status:", err);
+      return false;
+    }
+  }
+
+  /**
    * 从后端加载用户设置
    */
   async function loadSettings() {
@@ -241,7 +255,9 @@
    * 应用免打扰副作用
    */
   async function applySilenceEffect(isSilence: boolean) {
-    const targetState = isSilence ? "silence_start" : "silence_end";
+    // 检查媒体播放状态
+    const isPlaying = await checkMediaStatus();
+    const targetState = isSilence ? "silence_start" : (isPlaying ? "music_start" : "silence_end");
     try {
       await invoke("force_change_state", { name: targetState });
       console.log(

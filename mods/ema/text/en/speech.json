@@ -2,46 +2,46 @@
   {
     "name": "morning",
     "text": "morning",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "noon",
     "text": "noon",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "evening",
     "text": "evening",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "night",
     "text": "night",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "hello1_1",
     "text": "hello1_1",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "hello1_2",
     "text": "hello1_2",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "hello1_3",
     "text": "AAAAAAAAAAAAAA",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "music_hello1_1",
     "text": "music_hello1_1",
-    "duration": 5
+    "duration": 3
   },
   {
     "name": "music_hello1_2",
     "text": "music_hello1_2",
-    "duration": 5
+    "duration": 3
   }
 ]

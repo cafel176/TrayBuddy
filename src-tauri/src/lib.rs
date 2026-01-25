@@ -31,6 +31,7 @@ use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
     SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START,
+    STATE_MUSIC_START, STATE_MUSIC_END
 };
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
@@ -989,6 +990,7 @@ pub fn run() {
             // 媒体调试
             get_media_debug_info,
             get_system_debug_info,
+            get_media_status,
             show_context_menu,
             get_tray_position,
             get_saved_window_position,
@@ -1011,6 +1013,18 @@ fn get_mod_details(
 #[tauri::command]
 fn get_system_debug_info() -> Option<SystemDebugInfo> {
     modules::system_observer::get_cached_debug_info()
+}
+
+/// 获取媒体状态（是否正在播放）
+///
+/// 调用 media_observer 获取缓存的媒体状态。
+#[tauri::command]
+fn get_media_status() -> bool {
+    use modules::media_observer::{get_cached_media_state, MediaPlaybackStatus};
+    match get_cached_media_state() {
+        Some(event) => event.status == MediaPlaybackStatus::Playing,
+        None => false,
+    }
 }
 
 // ========================================================================= //
@@ -1332,6 +1346,8 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             if id == "toggle_silence" {
                 let target_state = if settings.silence_mode {
                     STATE_SILENCE_START
+                } else if get_media_status() {
+                    STATE_MUSIC_START
                 } else {
                     STATE_SILENCE_END
                 };

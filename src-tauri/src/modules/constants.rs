@@ -68,6 +68,8 @@ pub const STATE_IDLE: &str = "idle";
 pub const STATE_SILENCE: &str = "silence";
 pub const STATE_SILENCE_START: &str = "silence_start";
 pub const STATE_SILENCE_END: &str = "silence_end";
+pub const STATE_MUSIC_START: &str = "music_start";
+pub const STATE_MUSIC_END: &str = "music_end";
 
 // ========================================================================= //
 // 事件名称常量
