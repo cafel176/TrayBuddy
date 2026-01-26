@@ -217,7 +217,10 @@ impl SystemObserver {
                 };
 
                 // 去抖动：等待 500ms，让窗口动效完成
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(
+                    crate::modules::constants::SYSTEM_OBSERVER_DEBOUNCE_MS,
+                ))
+                .await;
                 // 清空期间积压的信号
                 while rx.try_recv().is_ok() {}
 

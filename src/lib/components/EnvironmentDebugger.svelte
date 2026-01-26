@@ -18,7 +18,6 @@
   import { onMount, onDestroy } from "svelte";
   import {
     DEBUG_CLOCK_UPDATE_INTERVAL_MS,
-    DEBUG_TIMER_INTERVAL_MS,
   } from "$lib/constants";
   import { t, onLangChange, tArray } from "$lib/i18n";
 

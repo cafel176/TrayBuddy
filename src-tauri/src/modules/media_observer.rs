@@ -238,7 +238,7 @@ impl MediaObserver {
         app_handle: tauri::AppHandle<R>,
         skip_delay: bool,
     ) {
-        use crate::modules::constants::MEDIA_OBSERVER_STARTUP_DELAY_SECS;
+        use crate::modules::constants::MEDIA_EVENT_STARTUP_DELAY_SECS;
         use std::sync::atomic::Ordering;
         use tokio::sync::mpsc as tokio_mpsc;
         use windows::Foundation::TypedEventHandler;
@@ -255,7 +255,7 @@ impl MediaObserver {
         // 启动延迟：等待应用初始化和 login 事件完成
         if !skip_delay {
             tokio::time::sleep(tokio::time::Duration::from_secs(
-                MEDIA_OBSERVER_STARTUP_DELAY_SECS,
+                MEDIA_EVENT_STARTUP_DELAY_SECS,
             ))
             .await;
         }
@@ -316,19 +316,11 @@ impl MediaObserver {
             &initial_source,
         );
 
-        if initial_event.status == MediaPlaybackStatus::Playing {
-            // 延迟发送初始 Playing 状态，让 login 事件先完成
-            if !skip_delay {
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            }
-            if running.load(Ordering::SeqCst) {
-                update_cached_media_state(&initial_event);
-                state.lock().unwrap().update(&initial_event);
-                let _ = tx.send(initial_event);
-            }
-        } else {
+        // 更新初始状态（启动延迟已在前面执行，确保 login 事件先完成）
+        if running.load(Ordering::SeqCst) {
             update_cached_media_state(&initial_event);
             state.lock().unwrap().update(&initial_event);
+            let _ = tx.send(initial_event);
         }
 
         // 主事件循环

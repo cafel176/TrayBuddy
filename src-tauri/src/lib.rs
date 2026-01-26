@@ -223,7 +223,10 @@ async fn load_mod(
         }
     }
     // 给一点时间让窗口关闭（特别是 animation 窗口，防止标签冲突）
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(
+        crate::modules::constants::MOD_SWITCH_WINDOW_DELAY_MS,
+    ))
+    .await;
 
     // 1. 加载资源
     let mod_info = {

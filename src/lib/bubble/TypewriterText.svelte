@@ -22,6 +22,7 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { parseMarkdown } from './markdown';
+  import { TYPEWRITER_DEFAULT_SPEED_MS } from '$lib/constants';
 
   // ======================================================================= //
   // Props
@@ -29,9 +30,9 @@
 
   /** 要显示的文本内容（支持简易 Markdown） */
   export let text: string = '';
-  
-  /** 每个字符的显示间隔（毫秒），默认 50ms */
-  export let speed: number = 50;
+
+  /** 每个字符的显示间隔（毫秒），默认使用 TYPEWRITER_DEFAULT_SPEED_MS */
+  export let speed: number = TYPEWRITER_DEFAULT_SPEED_MS;
   
   /** 是否立即显示全部内容（跳过动画） */
   export let instant: boolean = false;
