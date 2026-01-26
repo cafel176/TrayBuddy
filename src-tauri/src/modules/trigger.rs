@@ -1,5 +1,5 @@
 //! 触发器管理模块
-//! 
+//!
 //! 处理各种事件触发和状态切换，包括：
 //! - 登录事件 (login)
 //! - 音乐播放事件 (music_start, music_end)
@@ -7,7 +7,7 @@
 
 #![allow(unused)]
 
-use super::constants::{EVENT_LOGIN, EVENT_MUSIC_START, EVENT_MUSIC_END};
+use super::constants::{EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START};
 use super::resource::{ResourceManager, StateInfo};
 use super::state::StateManager;
 
@@ -16,7 +16,7 @@ use super::state::StateManager;
 // ========================================================================= //
 
 /// 触发器管理器
-/// 
+///
 /// 负责处理事件触发并执行对应的状态切换：
 /// 1. 从 ResourceManager 获取事件对应的 Trigger 配置
 /// 2. 根据当前持久状态筛选匹配的 `can_trigger_states` 状态组
@@ -25,12 +25,12 @@ pub struct TriggerManager;
 
 impl TriggerManager {
     /// 处理事件触发
-    /// 
+    ///
     /// # 参数
     /// - `event_name`: 事件名称（如 "login", "music_start"）
     /// - `resource_manager`: 资源管理器引用
     /// - `state_manager`: 状态管理器可变引用
-    /// 
+    ///
     /// # 返回
     /// - `Ok(true)`: 成功触发状态切换
     /// - `Ok(false)`: 未触发（无对应触发器或无可用状态）
@@ -60,34 +60,41 @@ impl TriggerManager {
             .unwrap_or("");
 
         #[cfg(debug_assertions)]
-        println!("[TriggerManager] 当前持久状态: '{}'", current_persistent_name);
+        println!(
+            "[TriggerManager] 当前持久状态: '{}'",
+            current_persistent_name
+        );
 
         // 根据当前持久状态筛选可触发的状态名列表
-        let state_names: Vec<&String> = trigger.can_trigger_states.iter()
+        let state_names: Vec<&String> = trigger
+            .can_trigger_states
+            .iter()
             .filter(|group| {
                 // persistent_state 为空表示任意持久状态都可触发
-                group.persistent_state.is_empty() || group.persistent_state == current_persistent_name
+                group.persistent_state.is_empty()
+                    || group.persistent_state == current_persistent_name
             })
             .flat_map(|group| group.states.iter())
             .collect();
 
         if state_names.is_empty() {
             #[cfg(debug_assertions)]
-            println!("[TriggerManager] 触发器 '{}' 在当前持久状态 '{}' 下没有可触发状态", 
-                     event_name, current_persistent_name);
+            println!(
+                "[TriggerManager] 触发器 '{}' 在当前持久状态 '{}' 下没有可触发状态",
+                event_name, current_persistent_name
+            );
             return Ok(false);
         }
 
         // 从 ResourceManager 获取状态信息
-        let states: Vec<StateInfo> = state_names.iter()
-            .filter_map(|name| {
-                match resource_manager.get_state_by_name(name) {
-                    Some(state) => Some(state.clone()),
-                    None => {
-                        #[cfg(debug_assertions)]
-                        println!("[TriggerManager] 未找到状态 '{}'", name);
-                        None
-                    }
+        let states: Vec<StateInfo> = state_names
+            .iter()
+            .filter_map(|name| match resource_manager.get_state_by_name(name) {
+                Some(state) => Some(state.clone()),
+                None => {
+                    #[cfg(debug_assertions)]
+                    println!("[TriggerManager] 未找到状态 '{}'", name);
+                    None
                 }
             })
             .collect();
@@ -100,7 +107,7 @@ impl TriggerManager {
 
         // 调用 StateManager 进行随机选择和切换
         // 传入 resource_manager 引用避免死锁（因为外层已持有锁）
-        state_manager.trigger_random_state_with_rm(&states, resource_manager)
+        state_manager.trigger_random_state(&states, resource_manager)
     }
 
     // ========================================================================= //

@@ -425,7 +425,7 @@ impl SystemObserver {
                 let mut sm = app_state.state_manager.lock().unwrap();
 
                 // 3. 使用 _with_rm 变体传入已持有的锁引用，避免死锁
-                sm.change_state_ex_with_rm(state_info.clone(), true, &rm)?;
+                sm.change_state_ex(state_info.clone(), true, &rm)?;
                 Ok(())
             }));
         }

@@ -247,7 +247,7 @@ async fn load_mod(
             .clone();
         let mut sm = state.state_manager.lock().unwrap();
         // 强制切换到新 Mod 的初始状态
-        let _ = sm.change_state_ex_with_rm(initial_state, true, &rm);
+        let _ = sm.change_state_ex(initial_state, true, &rm);
     }
 
     // 4. 重建窗口以应用新资源
@@ -388,7 +388,7 @@ fn change_state(name: String, state: State<'_, AppState>) -> Result<bool, String
 
     let mut sm = state.state_manager.lock().unwrap();
     // 使用传入锁的方法
-    sm.change_state_with_rm(state_info, &rm)
+    sm.change_state(state_info, &rm)
 }
 
 /// 强制切换状态（忽略优先级和锁定检查）
@@ -403,7 +403,7 @@ fn force_change_state(name: String, state: State<'_, AppState>) -> Result<(), St
 
     let mut sm = state.state_manager.lock().unwrap();
     // 使用传入锁的方法
-    sm.change_state_ex_with_rm(state_info, true, &rm)?;
+    sm.change_state_ex(state_info, true, &rm)?;
     Ok(())
 }
 
@@ -414,7 +414,7 @@ fn on_animation_complete(state: State<'_, AppState>) {
     // 即使这里看似只需 State，但 on_state_complete 可能会触发 change_state，进而需要 Resource 锁
     let rm = state.resource_manager.lock().unwrap();
     let mut sm = state.state_manager.lock().unwrap();
-    sm.on_state_complete_with_rm(&rm);
+    sm.on_state_complete(&rm);
 }
 
 /// 设置下一个待切换状态
@@ -768,7 +768,7 @@ pub fn run() {
         .setup(|app| {
             // ========== 初始化核心管理器 ==========
             let rm = Arc::new(Mutex::new(ResourceManager::new(app.handle())));
-            let mut sm = StateManager::new(Arc::clone(&rm));
+            let mut sm = StateManager::new();
             let mut storage = Storage::new(app.handle());
 
             // 记录登录时间和启动次数
@@ -805,7 +805,9 @@ pub fn run() {
             }; // 锁在此处释放
 
             if let Some(state) = initial_state {
-                let _ = sm.change_state(state);
+                // 重新获取锁来调用 change_state
+                let rm_guard = rm.lock().unwrap();
+                let _ = sm.change_state(state, &rm_guard);
             }
 
             sm.set_app_handle(app.handle().clone());

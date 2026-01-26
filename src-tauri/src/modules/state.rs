@@ -49,7 +49,7 @@
 use super::resource::{ResourceManager, StateInfo};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
@@ -78,8 +78,6 @@ pub struct StateChangeEvent {
 /// - **状态锁定**: 临时状态播放期间锁定，防止被打断
 /// - **优先级机制**: 高优先级状态可以打断低优先级状态
 pub struct StateManager {
-    /// 资源管理器引用
-    resource_manager: Arc<Mutex<ResourceManager>>,
     /// 当前正在播放的状态
     current_state: Option<StateInfo>,
     /// 下一个待切换的状态（当前状态播放完毕后切换）
@@ -96,9 +94,8 @@ pub struct StateManager {
 
 impl StateManager {
     /// 创建新的状态管理器
-    pub fn new(resource_manager: Arc<Mutex<ResourceManager>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            resource_manager,
             current_state: None,
             next_state: None,
             persistent_state: None,
@@ -118,19 +115,23 @@ impl StateManager {
         self.locked
     }
 
-    /// 智能切换状态（推荐使用）
+    /// 智能切换状态
     ///
     /// 根据状态的 `persistent` 属性自动选择切换方式：
     /// - 持久状态 → 调用 `set_persistent_state`
     /// - 临时状态 → 调用 `set_current_state`
+    ///
+    /// # 参数
+    /// - `state`: 目标状态
+    /// - `rm`: ResourceManager 引用，用于查询 next_state（**调用者必须在调用前锁定 ResourceManager**）
     ///
     /// # 返回
     /// - `Ok(true)`: 切换成功
     /// - `Ok(false)`: 切换被跳过（锁定、优先级不足等）
     /// - `Err`: 参数错误
     #[inline]
-    pub fn change_state(&mut self, state: StateInfo) -> Result<bool, String> {
-        self.change_state_internal(state, false, None)
+    pub fn change_state(&mut self, state: StateInfo, rm: &ResourceManager) -> Result<bool, String> {
+        self.change_state_internal(state, false, rm)
     }
 
     /// 智能切换状态（强制模式）
@@ -138,40 +139,15 @@ impl StateManager {
     /// # 参数
     /// - `state`: 目标状态
     /// - `force`: true 时忽略优先级和锁定检查
-    pub fn change_state_ex(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
-        self.change_state_internal(state, force, None)
-    }
-
-    // ========================================================================= //
-    // 基础状态管理 - 模块内 API（避免死锁）
-    // ========================================================================= //
-
-    /// 智能切换状态（外部已持有 ResourceManager 锁时使用）
-    ///
-    /// 仅供 `TriggerManager` 等模块内部使用，避免重复加锁导致死锁。
-    /// 智能切换状态（外部已持有 ResourceManager 锁时使用）
-    ///
-    /// 仅供 `TriggerManager` 等模块内部使用，避免重复加锁导致死锁。
+    /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
     #[inline]
-    pub(crate) fn change_state_with_rm(
-        &mut self,
-        state: StateInfo,
-        rm: &ResourceManager,
-    ) -> Result<bool, String> {
-        self.change_state_internal(state, false, Some(rm))
-    }
-
-    /// 智能切换状态（强制模式，外部已持有 ResourceManager 锁时使用）
-    ///
-    /// 仅供 `SystemObserver` 等模块内部使用，避免重复加锁导致死锁。
-    #[inline]
-    pub(crate) fn change_state_ex_with_rm(
+    pub fn change_state_ex(
         &mut self,
         state: StateInfo,
         force: bool,
         rm: &ResourceManager,
     ) -> Result<bool, String> {
-        self.change_state_internal(state, force, Some(rm))
+        self.change_state_internal(state, force, rm)
     }
 
     // ========================================================================= //
@@ -183,7 +159,7 @@ impl StateManager {
         &mut self,
         state: StateInfo,
         force: bool,
-        rm: Option<&ResourceManager>,
+        rm: &ResourceManager,
     ) -> Result<bool, String> {
         #[cfg(debug_assertions)]
         println!(
@@ -193,7 +169,7 @@ impl StateManager {
 
         let is_persistent = state.persistent;
         let result = if is_persistent {
-            self.set_persistent_state(state, force)
+            self.set_persistent_state(state, force, rm)
         } else {
             self.set_current_state_internal(state, force, rm)
         };
@@ -225,7 +201,12 @@ impl StateManager {
     /// # 参数
     /// - `state`: 目标持久状态
     /// - `force`: 是否强制切换（忽略优先级和锁定）
-    pub fn set_persistent_state(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
+    pub fn set_persistent_state(
+        &mut self,
+        state: StateInfo,
+        force: bool,
+        rm: &ResourceManager,
+    ) -> Result<bool, String> {
         if !state.persistent {
             return Err(format!("State '{}' is not a persistent state", state.name));
         }
@@ -291,7 +272,7 @@ impl StateManager {
         self.current_state.as_ref()
     }
 
-    /// 设置临时状态（公共 API）
+    /// 设置临时状态
     ///
     /// 临时状态播放完毕后会自动回到持久状态。
     /// 切换时会锁定状态，防止被低优先级状态打断。
@@ -299,20 +280,22 @@ impl StateManager {
     /// # 参数
     /// - `state`: 目标临时状态（`persistent` 必须为 `false`）
     /// - `force`: true 时忽略优先级和锁定检查
-    pub fn set_current_state(&mut self, state: StateInfo, force: bool) -> Result<bool, String> {
-        self.set_current_state_internal(state, force, None)
+    /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
+    pub fn set_current_state(
+        &mut self,
+        state: StateInfo,
+        force: bool,
+        rm: &ResourceManager,
+    ) -> Result<bool, String> {
+        self.set_current_state_internal(state, force, rm)
     }
 
     /// 内部临时状态设置实现（所有临时状态切换的统一入口）
-    ///
-    /// # 参数
-    /// - `rm`: 可选的 ResourceManager 引用，用于查询 next_state。
-    ///         当外部已持有锁时传入可避免死锁。
     fn set_current_state_internal(
         &mut self,
         state: StateInfo,
         force: bool,
-        rm: Option<&ResourceManager>,
+        rm: &ResourceManager,
     ) -> Result<bool, String> {
         if state.persistent {
             return Err(format!(
@@ -347,7 +330,7 @@ impl StateManager {
 
         // 预设下一个状态
         self.clear_next_state();
-        self.prepare_next_state_with_rm(rm);
+        self.prepare_next_state(rm);
 
         #[cfg(debug_assertions)]
         println!(
@@ -367,33 +350,18 @@ impl StateManager {
     /// 从 ResourceManager 获取状态信息并设置为下一个待切换状态
     ///
     /// # 参数
-    /// - `rm`: 可选的 ResourceManager 引用。如果为 None，会自动获取锁。
-    ///         当外部已持有锁时传入引用可避免死锁。
-    fn prepare_next_state_with_rm(&mut self, rm: Option<&ResourceManager>) {
+    /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
+    fn prepare_next_state(&mut self, rm: &ResourceManager) {
         // 检查当前状态是否定义了 next_state（避免不必要的 clone）
         let next_state_name = match &self.current_state {
             Some(s) if !s.next_state.is_empty() => s.next_state.as_str(),
             _ => return,
         };
 
-        // 根据是否提供 rm 引用，选择不同的获取方式
-        if let Some(rm) = rm {
-            // 使用传入的引用
-            if let Some(next_info) = rm.get_state_by_name(next_state_name) {
-                self.next_state = Some(next_info.clone());
-            }
-        } else {
-            // 自己获取锁
-            let rm = self.resource_manager.lock().unwrap();
-            if let Some(next_info) = rm.get_state_by_name(next_state_name) {
-                self.next_state = Some(next_info.clone());
-            }
+        // 使用传入的引用
+        if let Some(next_info) = rm.get_state_by_name(next_state_name) {
+            self.next_state = Some(next_info.clone());
         }
-    }
-
-    /// 根据当前状态的 next_state 字段预设下一个状态（自动获取锁）
-    fn prepare_next_state(&mut self) {
-        self.prepare_next_state_with_rm(None);
     }
 
     /// 获取下一个待切换状态的引用
@@ -425,36 +393,21 @@ impl StateManager {
     /// 解锁状态并按优先级切换：
     /// 1. 如果有 next_state，切换到 next_state
     /// 2. 否则回到 persistent_state
-    pub fn on_state_complete(&mut self) {
+    ///
+    /// # 参数
+    /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
+    pub fn on_state_complete(&mut self, rm: &ResourceManager) {
         self.locked = false;
 
         // 优先切换到 next_state（使用 take 避免额外 clone）
         if let Some(next) = self.next_state.take() {
-            let _ = self.change_state(next);
+            let _ = self.change_state(next, rm);
             return;
         }
 
         // 否则回到持久状态（需要 clone 因为持久状态需保留）
         if let Some(persistent) = self.persistent_state.clone() {
-            let _ = self.change_state(persistent);
-        }
-    }
-
-    /// 状态播放完毕回调（外部已持有 ResourceManager 锁时使用）
-    ///
-    /// 仅供 `lib.rs` 命令使用，避免重复加锁导致死锁。
-    pub(crate) fn on_state_complete_with_rm(&mut self, rm: &ResourceManager) {
-        self.locked = false;
-
-        // 优先切换到 next_state
-        if let Some(next) = self.next_state.take() {
-            let _ = self.change_state_with_rm(next, rm);
-            return;
-        }
-
-        // 否则回到持久状态
-        if let Some(persistent) = self.persistent_state.clone() {
-            let _ = self.change_state_with_rm(persistent, rm);
+            let _ = self.change_state(persistent, rm);
         }
     }
 
@@ -462,7 +415,7 @@ impl StateManager {
     // 随机状态触发 - 公共 API
     // ========================================================================= //
 
-    /// 从状态列表中随机选择一个可用状态并切换（公共 API）
+    /// 从状态列表中随机选择一个可用状态并切换
     ///
     /// 常用于定时触发器和事件触发器。
     ///
@@ -471,37 +424,17 @@ impl StateManager {
     /// 2. 随机选择一个
     /// 3. 执行切换（遵循优先级和锁定规则）
     ///
+    /// # 参数
+    /// - `states`: 候选状态列表
+    /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
+    ///
     /// # 返回
     /// - `Ok(true)`: 成功触发
     /// - `Ok(false)`: 无可用状态或切换被跳过
-    pub fn trigger_random_state(&mut self, states: &[StateInfo]) -> Result<bool, String> {
-        self.trigger_random_state_internal(states, None)
-    }
-
-    // ========================================================================= //
-    // 随机状态触发 - 模块内 API
-    // ========================================================================= //
-
-    /// 从状态列表中随机选择一个可用状态并切换（外部已持有 ResourceManager 锁时使用）
-    ///
-    /// 仅供 `TriggerManager` 使用，避免重复加锁导致死锁。
-    pub(crate) fn trigger_random_state_with_rm(
+    pub fn trigger_random_state(
         &mut self,
         states: &[StateInfo],
         rm: &ResourceManager,
-    ) -> Result<bool, String> {
-        self.trigger_random_state_internal(states, Some(rm))
-    }
-
-    // ========================================================================= //
-    // 随机状态触发 - 私有实现
-    // ========================================================================= //
-
-    /// 内部随机状态触发实现（统一入口）
-    fn trigger_random_state_internal(
-        &mut self,
-        states: &[StateInfo],
-        rm: Option<&ResourceManager>,
     ) -> Result<bool, String> {
         if states.is_empty() {
             return Ok(false);
@@ -526,10 +459,7 @@ impl StateManager {
 
         #[cfg(debug_assertions)]
         println!("[StateManager] 随机选择状态: '{}'", selected.name);
-        match rm {
-            Some(rm) => self.change_state_with_rm(selected, rm),
-            None => self.change_state(selected),
-        }
+        self.change_state(selected, rm)
     }
 
     /// 基于时间戳的简单随机索引生成
@@ -657,7 +587,7 @@ impl StateManager {
                     .filter_map(|name| rm.get_state_by_name(name).cloned())
                     .collect();
 
-                let _ = sm.trigger_random_state_with_rm(&states, &rm);
+                let _ = sm.trigger_random_state(&states, &rm);
             }
         });
     }
