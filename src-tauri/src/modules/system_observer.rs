@@ -97,8 +97,10 @@ impl SystemObserver {
         const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
         const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
         const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
+        use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
         use windows::Win32::UI::WindowsAndMessaging::{
-            DispatchMessageW, GetMessageW, TranslateMessage, MSG,
+            DispatchMessageW, GetMessageW, GetWindowLongW, TranslateMessage, GWL_STYLE, MSG,
+            WS_MAXIMIZE, WS_POPUP,
         };
 
         // 创建通道用于从 Hook 回调向主逻辑发送信号
@@ -316,18 +318,22 @@ impl SystemObserver {
         }
     }
 
-    /// 使用 SHQueryUserNotificationState 和窗口边界检测全屏/繁忙状态
+    /// 使用 SHQueryUserNotificationState 和 DWM 边界检测全屏/繁忙状态
     unsafe fn is_fullscreen_busy() -> bool {
         use windows::Win32::Foundation::RECT;
+        use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
         use windows::Win32::Graphics::Gdi::{
             GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
         };
         use windows::Win32::UI::Shell::{
-            SHQueryUserNotificationState, QUNS_ACCEPTS_NOTIFICATIONS, QUNS_BUSY, QUNS_NOT_PRESENT,
-            QUNS_PRESENTATION_MODE, QUNS_QUIET_TIME, QUNS_RUNNING_D3D_FULL_SCREEN,
+            SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE,
+            QUNS_RUNNING_D3D_FULL_SCREEN,
         };
-        use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetForegroundWindow, GetWindowLongW, GWL_STYLE, WS_POPUP,
+        };
 
+        // 1. 检查系统通知状态（全屏 D3D、演示模式、繁忙）
         let state_ok = if let Ok(state) = SHQueryUserNotificationState() {
             match state {
                 QUNS_RUNNING_D3D_FULL_SCREEN | QUNS_PRESENTATION_MODE | QUNS_BUSY => true,
@@ -337,20 +343,31 @@ impl SystemObserver {
             false
         };
 
-        // 如果 Shell 状态认为不忙，直接返回 false
         if !state_ok {
             return false;
         }
 
-        // 进一步验证：检查前景窗口是否真的占满了整个显示器（覆盖任务栏）
+        // 2. 进一步验证：检查前景窗口是否占据了显示器的大部分或全部区域
         let hwnd = GetForegroundWindow();
         if hwnd.0.is_null() {
             return false;
         }
 
-        let mut window_rect = RECT::default();
-        if GetWindowRect(hwnd, &mut window_rect).is_err() {
-            return false;
+        // 获取精确的视觉边界（排除阴影）
+        let mut visual_rect = RECT::default();
+        if DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_EXTENDED_FRAME_BOUNDS,
+            &mut visual_rect as *mut RECT as *mut _,
+            std::mem::size_of::<RECT>() as u32,
+        )
+        .is_err()
+        {
+            // 回退到普通 Rect
+            use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+            if GetWindowRect(hwnd, &mut visual_rect).is_err() {
+                return false;
+            }
         }
 
         let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
@@ -366,15 +383,18 @@ impl SystemObserver {
         if GetMonitorInfoW(monitor, &mut monitor_info).into() {
             let m_rect = monitor_info.rcMonitor;
 
-            // 判定标准：窗口边界是否包含或等于显示器边界
-            // 注意：某些全屏窗口（如 Chrome F11）可能会有 1px 的偏移或缩进，这里允许微小误差
-            let threshold = 2;
-            let is_covering_monitor = window_rect.left <= m_rect.left + threshold
-                && window_rect.top <= m_rect.top + threshold
-                && window_rect.right >= m_rect.right - threshold
-                && window_rect.bottom >= m_rect.bottom - threshold;
+            // 判定标准：窗口边界是否基本覆盖显示器边界
+            let threshold = 5; // 允许稍微宽松一点的判定
+            let is_covering_monitor = visual_rect.left <= m_rect.left + threshold
+                && visual_rect.top <= m_rect.top + threshold
+                && visual_rect.right >= m_rect.right - threshold
+                && visual_rect.bottom >= m_rect.bottom - threshold;
 
-            return is_covering_monitor;
+            // 附加检查：全屏应用通常没有边框 (WS_POPUP) 或者是最大化的
+            let style = GetWindowLongW(hwnd, GWL_STYLE) as u32;
+            let looks_like_fullscreen = (style & WS_POPUP.0) != 0 || is_covering_monitor;
+
+            return is_covering_monitor && looks_like_fullscreen;
         }
 
         false

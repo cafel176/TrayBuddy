@@ -20,8 +20,9 @@
 
 #![allow(unused)]
 
+use chrono::{Datelike, Timelike};
 use serde::{Deserialize, Serialize};
-use std::sync::{OnceLock, Mutex};
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// 全局地理位置缓存（可刷新）
@@ -121,26 +122,26 @@ pub struct WeatherInfo {
 // ========================================================================= //
 
 /// 执行 HTTP GET 请求并返回响应体
-/// 
+///
 /// 优先使用 curl（Windows 10+ 自带，更可靠），失败时回退到 PowerShell
-/// 
+///
 /// # Arguments
 /// * `url` - 请求 URL
 /// * `timeout_secs` - 超时时间（秒）
 /// * `content_check` - 可选的内容检查字符串，用于验证响应有效性
-/// 
+///
 /// # Returns
 /// 成功时返回响应体字符串，失败时返回错误信息
 fn http_get(url: &str, timeout_secs: u64, content_check: Option<&str>) -> Result<String, String> {
     #[cfg(windows)]
     {
         use std::process::Command;
-        
+
         // 优先使用 curl（Windows 10+ 自带，UTF-8 输出正常）
         let curl_result = Command::new("curl")
             .args(["-s", "--max-time", &timeout_secs.to_string(), url])
             .output();
-        
+
         if let Ok(output) = curl_result {
             if output.status.success() {
                 let body = String::from_utf8_lossy(&output.stdout).to_string();
@@ -154,7 +155,7 @@ fn http_get(url: &str, timeout_secs: u64, content_check: Option<&str>) -> Result
                 }
             }
         }
-        
+
         // curl 失败时使用 PowerShell，并设置 UTF-8 编码
         // 对于 HTTPS，需要设置 TLS 协议
         let use_tls = url.starts_with("https");
@@ -172,7 +173,7 @@ fn http_get(url: &str, timeout_secs: u64, content_check: Option<&str>) -> Result
                 url, timeout_secs
             )
         };
-        
+
         let output = Command::new("powershell")
             .args(["-Command", &ps_command])
             .output()
@@ -193,7 +194,7 @@ fn http_get(url: &str, timeout_secs: u64, content_check: Option<&str>) -> Result
     #[cfg(not(windows))]
     {
         use std::process::Command;
-        
+
         let output = Command::new("curl")
             .args(["-s", "--max-time", &timeout_secs.to_string(), url])
             .output()
@@ -245,13 +246,13 @@ impl EnvironmentManager {
     // ========================================================================= //
 
     /// 获取地理位置信息 (通过 IP 地理位置 API 获取)
-    /// 
+    ///
     /// 使用全局缓存，首次调用时获取
     #[inline]
     pub fn get_location(&mut self) -> Option<GeoLocation> {
         let cache = CACHED_LOCATION.get_or_init(|| Mutex::new(None));
         let mut guard = cache.lock().ok()?;
-        
+
         if guard.is_none() {
             *guard = Some(Self::fetch_location_from_api());
         }
@@ -275,7 +276,7 @@ impl EnvironmentManager {
         if let Ok(geo) = Self::fetch_ip_geolocation() {
             return geo;
         }
-        
+
         // API 失败时回退到本地时区推断
         Self::fallback_location_from_timezone()
     }
@@ -283,7 +284,7 @@ impl EnvironmentManager {
     /// 通过 ip-api.com 获取 IP 地理位置（免费，无需 API Key）
     fn fetch_ip_geolocation() -> Result<GeoLocation, String> {
         use crate::modules::constants::LOCATION_API_TIMEOUT_SECS;
-        
+
         let url = "http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN";
         let body = http_get(url, LOCATION_API_TIMEOUT_SECS, Some("\"status\""))?;
         Self::parse_ip_geo_response(&body)
@@ -291,8 +292,8 @@ impl EnvironmentManager {
 
     /// 解析 ip-api.com 响应
     fn parse_ip_geo_response(body: &str) -> Result<GeoLocation, String> {
-        let response: IpGeoApiResponse = serde_json::from_str(body)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        let response: IpGeoApiResponse =
+            serde_json::from_str(body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
         if response.status != "success" {
             return Err("API returned error status".to_string());
@@ -317,60 +318,40 @@ impl EnvironmentManager {
     fn fallback_location_from_timezone() -> GeoLocation {
         #[cfg(windows)]
         {
-            use std::mem::MaybeUninit;
+            use chrono::Local;
+            let now = Local::now();
+            let offset_secs = now.offset().local_minus_utc();
+            let offset_hours = offset_secs as f64 / 3600.0;
+            let longitude = offset_hours * 15.0;
 
-            #[repr(C)]
-            struct TIME_ZONE_INFORMATION {
-                bias: i32,
-                standard_name: [u16; 32],
-                standard_date: [u16; 8],
-                standard_bias: i32,
-                daylight_name: [u16; 32],
-                daylight_date: [u16; 8],
-                daylight_bias: i32,
-            }
+            let timezone_name = now.offset().to_string();
 
-            extern "system" {
-                fn GetTimeZoneInformation(lp_time_zone_information: *mut TIME_ZONE_INFORMATION) -> u32;
-            }
+            // 更稳健的半球推断：正偏移通常在东半球，但纬度无法仅从时区推断。
+            // 保持原有的启发式判断，但改用 chrono
+            let is_southern = timezone_name.contains("Australia")
+                || timezone_name.contains("New Zealand")
+                || timezone_name.contains("South Africa")
+                || timezone_name.contains("Argentina")
+                || timezone_name.contains("Brazil")
+                || timezone_name.contains("Chile");
 
-            let mut tzi = MaybeUninit::<TIME_ZONE_INFORMATION>::uninit();
-            unsafe {
-                GetTimeZoneInformation(tzi.as_mut_ptr());
-                let tzi = tzi.assume_init();
-                
-                let offset_hours = -(tzi.bias as f64) / 60.0;
-                let longitude = offset_hours * 15.0;
-                
-                let timezone_name = String::from_utf16_lossy(&tzi.standard_name)
-                    .trim_end_matches('\0')
-                    .to_string();
-                
-                let is_southern = timezone_name.contains("Australia")
-                    || timezone_name.contains("New Zealand")
-                    || timezone_name.contains("South Africa")
-                    || timezone_name.contains("Argentina")
-                    || timezone_name.contains("Brazil")
-                    || timezone_name.contains("Chile");
-                
-                let latitude = if is_southern { -35.0 } else { 40.0 };
-                
-                return GeoLocation {
-                    latitude,
-                    longitude,
-                    timezone: Some(timezone_name),
-                    is_northern_hemisphere: !is_southern,
-                    city: None,
-                    region: None,
-                    country: None,
-                };
-            }
+            let latitude = if is_southern { -35.0 } else { 40.0 };
+
+            return GeoLocation {
+                latitude,
+                longitude,
+                timezone: Some(timezone_name),
+                is_northern_hemisphere: !is_southern,
+                city: None,
+                region: None,
+                country: None,
+            };
         }
 
         #[cfg(not(windows))]
         {
             let tz = std::env::var("TZ").unwrap_or_else(|_| "UTC".to_string());
-            
+
             GeoLocation {
                 latitude: 40.0,
                 longitude: 0.0,
@@ -399,7 +380,7 @@ impl EnvironmentManager {
     }
 
     /// 清除天气缓存
-    /// 
+    ///
     /// 注意：地理位置缓存是全局静态的，无法清除
     pub fn clear_cache(&mut self) {
         self.cached_weather = None;
@@ -480,29 +461,29 @@ impl EnvironmentManager {
         } else {
             format!("{},{}", location.latitude, location.longitude)
         };
-        
+
         self.fetch_weather_sync(&query).ok()
     }
 
     /// 同步获取天气信息 (使用 wttr.in API)
     fn fetch_weather_sync(&self, query: &str) -> Result<WeatherInfo, String> {
         use crate::modules::constants::WEATHER_API_TIMEOUT_SECS;
-        
+
         // 对查询参数进行 URL 编码处理
         let query_encoded = query.replace(' ', "%20");
         let url = format!("https://wttr.in/{}?format=j1", query_encoded);
-        
+
         let body = http_get(&url, WEATHER_API_TIMEOUT_SECS, Some("current_condition"))?;
         self.parse_wttr_response(&body)
     }
 
     /// 解析 wttr.in API 响应
     fn parse_wttr_response(&self, body: &str) -> Result<WeatherInfo, String> {
-        let json: serde_json::Value = serde_json::from_str(body)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        let json: serde_json::Value =
+            serde_json::from_str(body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
         let current = &json["current_condition"][0];
-        
+
         let temp_c = current["temp_C"]
             .as_str()
             .and_then(|s| s.parse::<f64>().ok())
@@ -527,10 +508,7 @@ impl EnvironmentManager {
             .unwrap_or("未知")
             .to_string();
 
-        let condition_code = current["weatherCode"]
-            .as_str()
-            .unwrap_or("0")
-            .to_string();
+        let condition_code = current["weatherCode"].as_str().unwrap_or("0").to_string();
 
         Ok(WeatherInfo {
             condition,
@@ -555,73 +533,18 @@ impl Default for EnvironmentManager {
 
 /// 获取当前日期时间的内部实现
 fn get_current_datetime_impl() -> DateTimeInfo {
-    let now = SystemTime::now();
-    let timestamp = now
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    let dt = chrono::Local::now();
+    let timestamp = dt.timestamp() as u64;
 
-    // 使用 Windows API 获取本地时间
-    #[cfg(windows)]
-    {
-        use std::mem::MaybeUninit;
-        
-        #[repr(C)]
-        struct SYSTEMTIME {
-            w_year: u16,
-            w_month: u16,
-            w_day_of_week: u16,
-            w_day: u16,
-            w_hour: u16,
-            w_minute: u16,
-            w_second: u16,
-            w_milliseconds: u16,
-        }
-
-        extern "system" {
-            fn GetLocalTime(lp_system_time: *mut SYSTEMTIME);
-        }
-
-        let mut st = MaybeUninit::<SYSTEMTIME>::uninit();
-        unsafe {
-            GetLocalTime(st.as_mut_ptr());
-            let st = st.assume_init();
-            
-            return DateTimeInfo {
-                year: st.w_year as u32,
-                month: st.w_month as u32,
-                day: st.w_day as u32,
-                hour: st.w_hour as u32,
-                minute: st.w_minute as u32,
-                second: st.w_second as u32,
-                weekday: st.w_day_of_week as u32,
-                timestamp,
-            };
-        }
-    }
-
-    #[cfg(not(windows))]
-    {
-        // 非 Windows 平台的简单实现（UTC 时间）
-        let secs = timestamp;
-        let days = secs / 86400;
-        let time_of_day = secs % 86400;
-        
-        let hour = (time_of_day / 3600) as u32;
-        let minute = ((time_of_day % 3600) / 60) as u32;
-        let second = (time_of_day % 60) as u32;
-        let weekday = ((days + 4) % 7) as u32; // 1970-01-01 是周四
-        
-        DateTimeInfo {
-            year: 1970 + (days / 365) as u32,
-            month: 1,
-            day: 1,
-            hour,
-            minute,
-            second,
-            weekday,
-            timestamp,
-        }
+    DateTimeInfo {
+        year: dt.year() as u32,
+        month: dt.month() as u32,
+        day: dt.day() as u32,
+        hour: dt.hour() as u32,
+        minute: dt.minute() as u32,
+        second: dt.second() as u32,
+        weekday: dt.weekday().num_days_from_sunday(),
+        timestamp,
     }
 }
 
@@ -757,39 +680,45 @@ pub struct EnvironmentUpdateEvent {
 }
 
 /// 程序启动时初始化环境信息（在后台线程调用，避免阻塞启动）
-/// 
+///
 /// 预先获取地理位置和天气信息，后续调用直接返回缓存
 /// 获取完成后通过 app_handle 发送事件通知前端
 pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R>>) {
     use tauri::Emitter;
-    
+
     #[cfg(debug_assertions)]
     println!("[Environment] Initializing environment info...");
-    
+
     // 初始化缓存结构
     CACHED_LOCATION.get_or_init(|| Mutex::new(None));
-    CACHED_WEATHER.get_or_init(|| Mutex::new(CachedWeather {
-        weather: None,
-        cache_time: 0,
-    }));
-    
+    CACHED_WEATHER.get_or_init(|| {
+        Mutex::new(CachedWeather {
+            weather: None,
+            cache_time: 0,
+        })
+    });
+
     let mut location_result: Option<GeoLocation> = None;
     let mut weather_result: Option<WeatherInfo> = None;
-    
+
     // 获取地理位置
     let mut manager = EnvironmentManager::new();
     if let Some(location) = manager.get_location() {
         #[cfg(debug_assertions)]
-        println!("[Environment] Location: {:?}, {:?}, {:?}", 
-            location.city, location.region, location.country);
+        println!(
+            "[Environment] Location: {:?}, {:?}, {:?}",
+            location.city, location.region, location.country
+        );
         location_result = Some(location.clone());
-        
+
         // 获取天气并缓存到全局
         if let Some(weather) = manager.fetch_weather_for_init() {
             #[cfg(debug_assertions)]
-            println!("[Environment] Weather: {}°C, {}", 
-                weather.temperature, weather.condition);
-            
+            println!(
+                "[Environment] Weather: {}°C, {}",
+                weather.temperature, weather.condition
+            );
+
             if let Some(cache) = CACHED_WEATHER.get() {
                 if let Ok(mut guard) = cache.lock() {
                     guard.weather = Some(weather.clone());
@@ -805,7 +734,7 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
         #[cfg(debug_assertions)]
         println!("[Environment] Failed to get location");
     }
-    
+
     // 发送事件通知前端
     if let Some(handle) = app_handle {
         let event_data = EnvironmentUpdateEvent {
@@ -816,21 +745,23 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
         #[cfg(debug_assertions)]
         println!("[Environment] Event emitted to frontend");
     }
-    
+
     #[cfg(debug_assertions)]
     println!("[Environment] Initialization complete");
 }
 
 /// 获取缓存的地理位置（无需创建 EnvironmentManager）
 pub fn get_cached_location() -> Option<GeoLocation> {
-    CACHED_LOCATION.get()
+    CACHED_LOCATION
+        .get()
         .and_then(|cache| cache.lock().ok())
         .and_then(|guard| guard.clone())
 }
 
 /// 获取缓存的天气（无需创建 EnvironmentManager）
 pub fn get_cached_weather() -> Option<WeatherInfo> {
-    CACHED_WEATHER.get()
+    CACHED_WEATHER
+        .get()
         .and_then(|cache| cache.lock().ok())
         .and_then(|guard| guard.weather.clone())
 }
