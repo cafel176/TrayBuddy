@@ -56,6 +56,7 @@ use tauri::{
     Emitter, Listener, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
+use tauri_plugin_autostart::ManagerExt;
 
 // ========================================================================= //
 // 应用全局状态
@@ -169,7 +170,18 @@ fn update_settings(
         storage.update_settings(settings.clone())?;
     } // 此时锁已释放，防止下方触发的事件回调再次尝试获取锁时产生死锁
 
-    let _ = app.emit("settings-change", settings);
+    let _ = app.emit("settings-change", settings.clone());
+
+    // --- 执行副作用 ---
+
+    // 1. 开机自启动副作用
+    let autostart_manager = app.autolaunch();
+    if settings.auto_start {
+        let _ = autostart_manager.enable();
+    } else {
+        let _ = autostart_manager.disable();
+    }
+
     Ok(())
 }
 
@@ -768,6 +780,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
         .setup(|app| {
             // ========== 初始化核心管理器 ==========
             let rm = Arc::new(Mutex::new(ResourceManager::new(app.handle())));
@@ -790,6 +806,14 @@ pub fn run() {
             storage.data.info.launch_count += 1;
 
             let _ = storage.save();
+
+            // ========== 同步开机自启动状态 ==========
+            let autostart_manager = app.autolaunch();
+            if storage.data.settings.auto_start {
+                let _ = autostart_manager.enable();
+            } else {
+                let _ = autostart_manager.disable();
+            }
 
             // 自动加载上次使用的 Mod
             let last_mod = storage.data.info.current_mod.clone();
