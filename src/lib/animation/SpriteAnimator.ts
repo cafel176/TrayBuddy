@@ -77,6 +77,7 @@ interface MemoryLogEntry {
 /** 日志存储 */
 const memoryLogs: MemoryLogEntry[] = [];
 const startTime = Date.now();
+const MAX_MEMORY_LOGS = 200; // 限制日志条数，防止长时间运行内存增长
 
 /** 记录内存相关事件（仅调试模式下生效） */
 function logMemoryEvent(event: string, details: string, extra?: Partial<MemoryLogEntry>): void {
@@ -90,6 +91,11 @@ function logMemoryEvent(event: string, details: string, extra?: Partial<MemoryLo
     ...extra
   };
   memoryLogs.push(entry);
+  
+  // 超过限制时移除最早的日志
+  if (memoryLogs.length > MAX_MEMORY_LOGS) {
+    memoryLogs.shift();
+  }
   
   // 控制台输出（方便实时观察）
   const cacheInfo = `[Cache: ${entry.cacheSize}/8]`;
@@ -145,7 +151,8 @@ export function getCacheStats(): { hits: number; misses: number; evictions: numb
  * - 缓存 key 为图片的完整 URL
  * 
  * 注意：精灵图解压后很大（如 wave.webp 32帧 ≈ 90MB GPU 纹理）
- *       过多缓存会占用大量 GPU 显存和系统内存
+ *       过多缓存会占用大量 GPU 显存和系统内存。
+ *       对于低内存设备，建议限制为 2 张图片（1 张当前播放，1 张待播）。
  */
 const imageCache = new LRUCache<string, HTMLImageElement>(4);
 

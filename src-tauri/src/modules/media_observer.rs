@@ -925,18 +925,24 @@ impl MediaObserver {
                         .map(|s| s.to_string_lossy())
                         .unwrap_or_default();
 
-                    // 检查是否已注册
+                    // 1. 清理已关闭或重叠的会话（基于 session_id 或对象失效）
                     {
-                        let tokens = session_tokens.lock().unwrap();
-                        if tokens.iter().any(|t| *t.session_id == *session_id) {
-                            continue;
+                        let mut tokens = session_tokens.lock().unwrap();
+                        // 寻找并清理旧会话，释放 Windows 回调资源
+                        for i in (0..tokens.len()).rev() {
+                            if *tokens[i].session_id == *session_id {
+                                let old_token = tokens.remove(i);
+                                old_token.cleanup();
+                            }
                         }
                     }
 
-                    // 只为音乐应用注册事件
+                    // 2. 只为音乐应用注册事件
                     if !Self::is_music_app(&session_id) {
                         continue;
                     }
+
+                    // 3. 注册事件，此处不使用 continue 以支持重新连接
 
                     // 注册 PlaybackInfoChanged 事件
                     let tx_playback = internal_tx.clone();
