@@ -9,6 +9,7 @@
 //! - [`storage`] - 用户数据持久化存储
 //! - [`media_observer`] - 系统媒体状态监听
 //! - [`trigger`] - 事件触发处理
+//! - [`utils`] - 公共工具类 (HTTP, FS, Window)
 
 pub mod constants;
 pub mod environment;
@@ -18,3 +19,4 @@ pub mod state;
 pub mod storage;
 pub mod system_observer;
 pub mod trigger;
+pub mod utils;

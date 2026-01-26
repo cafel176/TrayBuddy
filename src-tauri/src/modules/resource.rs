@@ -20,6 +20,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::Manager;
 
+use crate::modules::utils::fs::{load_json_list, load_json_obj};
+
 // ========================================================================= //
 // 辅助函数
 // ========================================================================= //
@@ -843,8 +845,9 @@ impl ResourceManager {
 
         // 解析资产定义（使用 "asset" 目录而非 "assets"）
         let assets_path = mod_path.join("asset");
-        let imgs = Self::load_json_list(&assets_path.join("img.json"));
-        let sequences = Self::load_json_list(&assets_path.join("sequence.json"));
+        let imgs = crate::modules::utils::fs::load_json_list(&assets_path.join("img.json"));
+        let sequences =
+            crate::modules::utils::fs::load_json_list(&assets_path.join("sequence.json"));
 
         // 解析多语言语音
         let audios =
@@ -855,8 +858,9 @@ impl ResourceManager {
         let (info, texts) = Self::load_text_resources(&text_path);
 
         // 解析气泡样式
-        let bubble_style =
-            Self::load_json_obj::<serde_json::Value>(&mod_path.join("bubble_style.json"));
+        let bubble_style = crate::modules::utils::fs::load_json_obj::<serde_json::Value>(
+            &mod_path.join("bubble_style.json"),
+        );
 
         // 探测预览图和图标
         let mut icon_path = None;
@@ -933,7 +937,9 @@ impl ResourceManager {
 
                     // 加载角色信息
                     if let Some(mut char_info) =
-                        Self::load_json_obj::<CharacterInfo>(&entry.path().join("info.json"))
+                        crate::modules::utils::fs::load_json_obj::<CharacterInfo>(
+                            &entry.path().join("info.json"),
+                        )
                     {
                         if char_info.id.is_empty() || char_info.id.as_ref() == "ERROR" {
                             char_info.id = lang.clone();
@@ -942,8 +948,9 @@ impl ResourceManager {
                     }
 
                     // 加载对话文本
-                    let speech_list: Vec<TextInfo> =
-                        Self::load_json_list(&entry.path().join("speech.json"));
+                    let speech_list: Vec<TextInfo> = crate::modules::utils::fs::load_json_list(
+                        &entry.path().join("speech.json"),
+                    );
                     texts.insert(lang, speech_list);
                 }
             }
@@ -1020,33 +1027,6 @@ impl ResourceManager {
         self.current_mod.as_ref()?.get_info_by_lang(lang)
     }
 
-    // ========================================================================= //
-    // JSON 加载辅助函数
-    // ========================================================================= //
-
-    /// 加载 JSON 数组文件
-    fn load_json_list<T: serde::de::DeserializeOwned>(path: &Path) -> Vec<T> {
-        if !path.exists() {
-            return Vec::new();
-        }
-
-        fs::read_to_string(path)
-            .ok()
-            .and_then(|content| serde_json::from_str(&content).ok())
-            .unwrap_or_default()
-    }
-
-    /// 加载 JSON 对象文件
-    fn load_json_obj<T: serde::de::DeserializeOwned>(path: &Path) -> Option<T> {
-        if !path.exists() {
-            return None;
-        }
-
-        fs::read_to_string(path)
-            .ok()
-            .and_then(|content| serde_json::from_str(&content).ok())
-    }
-
     /// 加载多语言资源（遍历语言子目录）
     fn load_multilang_resources<T: serde::de::DeserializeOwned>(
         base_path: &Path,
@@ -1058,7 +1038,8 @@ impl ResourceManager {
             for entry in entries.flatten() {
                 if entry.path().is_dir() {
                     let lang: Box<str> = entry.file_name().to_string_lossy().into();
-                    let resources: Vec<T> = Self::load_json_list(&entry.path().join(filename));
+                    let resources: Vec<T> =
+                        crate::modules::utils::fs::load_json_list(&entry.path().join(filename));
                     result.insert(lang, resources);
                 }
             }

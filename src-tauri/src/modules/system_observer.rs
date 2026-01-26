@@ -16,7 +16,7 @@ use tauri::Emitter;
 use tauri::Manager;
 use tokio::sync::mpsc;
 
-use crate::modules::constants::{STATE_SILENCE_END, STATE_SILENCE_START};
+use super::utils::window::get_visual_window_rect;
 use crate::AppState;
 
 // ========================================================================= //
@@ -354,15 +354,8 @@ impl SystemObserver {
         }
 
         // 获取精确的视觉边界（排除阴影）
-        let mut visual_rect = RECT::default();
-        if DwmGetWindowAttribute(
-            hwnd,
-            DWMWA_EXTENDED_FRAME_BOUNDS,
-            &mut visual_rect as *mut RECT as *mut _,
-            std::mem::size_of::<RECT>() as u32,
-        )
-        .is_err()
-        {
+        let mut visual_rect = get_visual_window_rect(hwnd);
+        if visual_rect.left == 0 && visual_rect.right == 0 {
             // 回退到普通 Rect
             use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
             if GetWindowRect(hwnd, &mut visual_rect).is_err() {

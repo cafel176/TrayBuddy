@@ -52,6 +52,7 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell",
     # 显示器信息 (GDI)
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
 ] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
 

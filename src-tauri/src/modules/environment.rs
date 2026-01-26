@@ -118,99 +118,7 @@ pub struct WeatherInfo {
 }
 
 // ========================================================================= //
-// HTTP 请求工具函数
-// ========================================================================= //
-
-/// 执行 HTTP GET 请求并返回响应体
-///
-/// 优先使用 curl（Windows 10+ 自带，更可靠），失败时回退到 PowerShell
-///
-/// # Arguments
-/// * `url` - 请求 URL
-/// * `timeout_secs` - 超时时间（秒）
-/// * `content_check` - 可选的内容检查字符串，用于验证响应有效性
-///
-/// # Returns
-/// 成功时返回响应体字符串，失败时返回错误信息
-fn http_get(url: &str, timeout_secs: u64, content_check: Option<&str>) -> Result<String, String> {
-    #[cfg(windows)]
-    {
-        use std::process::Command;
-
-        // 优先使用 curl（Windows 10+ 自带，UTF-8 输出正常）
-        let curl_result = Command::new("curl")
-            .args(["-s", "--max-time", &timeout_secs.to_string(), url])
-            .output();
-
-        if let Ok(output) = curl_result {
-            if output.status.success() {
-                let body = String::from_utf8_lossy(&output.stdout).to_string();
-                // 检查内容有效性
-                if let Some(check) = content_check {
-                    if !body.is_empty() && body.contains(check) {
-                        return Ok(body);
-                    }
-                } else if !body.is_empty() {
-                    return Ok(body);
-                }
-            }
-        }
-
-        // curl 失败时使用 PowerShell，并设置 UTF-8 编码
-        // 对于 HTTPS，需要设置 TLS 协议
-        let use_tls = url.starts_with("https");
-        let ps_command = if use_tls {
-            format!(
-                "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
-                 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-                 (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
-                url, timeout_secs
-            )
-        } else {
-            format!(
-                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-                 (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
-                url, timeout_secs
-            )
-        };
-
-        let output = Command::new("powershell")
-            .args(["-Command", &ps_command])
-            .output()
-            .map_err(|e| format!("Failed to execute request: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("HTTP request failed: {}", stderr));
-        }
-
-        let body = String::from_utf8_lossy(&output.stdout).to_string();
-        if body.is_empty() {
-            return Err("Empty response".to_string());
-        }
-        Ok(body)
-    }
-
-    #[cfg(not(windows))]
-    {
-        use std::process::Command;
-
-        let output = Command::new("curl")
-            .args(["-s", "--max-time", &timeout_secs.to_string(), url])
-            .output()
-            .map_err(|e| format!("Failed to execute request: {}", e))?;
-
-        if !output.status.success() {
-            return Err("HTTP request failed".to_string());
-        }
-
-        let body = String::from_utf8_lossy(&output.stdout).to_string();
-        if body.is_empty() {
-            return Err("Empty response".to_string());
-        }
-        Ok(body)
-    }
-}
+use crate::modules::utils::http::http_get;
 
 // ========================================================================= //
 
@@ -295,7 +203,7 @@ impl EnvironmentManager {
         let response: IpGeoApiResponse =
             serde_json::from_str(body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-        if response.status != "success" {
+        if response.status.as_ref() != "success" {
             return Err("API returned error status".to_string());
         }
 
@@ -424,7 +332,7 @@ impl EnvironmentManager {
         let location = self.get_location()?;
         // 优先使用城市名，其次使用经纬度坐标
         let query = if let Some(ref city) = location.city {
-            city.clone()
+            city.to_string()
         } else {
             // 使用经纬度作为备选（wttr.in 支持坐标查询）
             format!("{},{}", location.latitude, location.longitude)
@@ -453,7 +361,7 @@ impl EnvironmentManager {
     fn fetch_weather_for_init(&mut self) -> Option<WeatherInfo> {
         let location = self.get_location()?;
         let query = if let Some(ref city) = location.city {
-            city.clone()
+            city.to_string()
         } else {
             format!("{},{}", location.latitude, location.longitude)
         };

@@ -762,7 +762,7 @@ impl MediaObserver {
                                                         status: MediaPlaybackStatus::Playing,
                                                         title: None,
                                                         artist: None,
-                                                        app_id: Some(process_name),
+                                                        app_id: Some(process_name.into()),
                                                     });
                                                 }
                                             }
@@ -852,7 +852,7 @@ impl MediaObserver {
                                     status: status.clone(),
                                     title,
                                     artist,
-                                    app_id: app_id.clone(),
+                                    app_id: app_id.map(|s| s.into()),
                                 };
 
                                 match status {
@@ -915,7 +915,7 @@ impl MediaObserver {
                     // 检查是否已注册
                     {
                         let tokens = session_tokens.lock().unwrap();
-                        if tokens.iter().any(|t| t.session_id == session_id) {
+                        if tokens.iter().any(|t| *t.session_id == *session_id) {
                             continue;
                         }
                     }
