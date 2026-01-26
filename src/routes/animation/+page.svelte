@@ -523,11 +523,16 @@
       checkComplete();
     }
 
-    // 显示气泡 (如果有文本或分支)
-    if (state.text || (state.branch && state.branch.length > 0)) {
+    // 显示气泡 (仅在临时状态下显示，或具有分支时显示)
+    // 根据用户要求：切换至持久状态时，禁止显示气泡
+    if (playOnce && (state.text || (state.branch && state.branch.length > 0))) {
       await showBubble(state);
     } else {
-      // 无气泡，直接标记完成
+      // 如果是持久状态，且气泡管理器存在，则确保隐藏之前的气泡
+      if (!playOnce) {
+        bubbleManager?.hide();
+      }
+      // 无气泡需求，直接标记完成
       bubbleComplete = true;
       checkComplete();
     }
