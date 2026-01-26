@@ -21,30 +21,38 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import { spring } from 'svelte/motion';
-  import TypewriterText from './TypewriterText.svelte';
-  import BranchOptions, { type BranchInfo } from './BranchOptions.svelte';
-  import { calculateDisplayDuration } from './markdown';
-  import { bubbleStyle, type BubbleStyleConfig } from './bubbleStyle';
-  import { BUBBLE_DEFAULT_AUTO_CLOSE_MS, BUBBLE_CLOSE_ANIMATION_MS } from '$lib/constants';
+  import { onMount, onDestroy, createEventDispatcher } from "svelte";
+  import { spring } from "svelte/motion";
+  import TypewriterText from "./TypewriterText.svelte";
+  import BranchOptions, { type BranchInfo } from "./BranchOptions.svelte";
+  import { calculateDisplayDuration } from "./markdown";
+  import {
+    bubbleStyle,
+    type BubbleStyleConfig,
+    toStyleString,
+    toCssVars,
+  } from "./bubbleStyle";
+  import {
+    BUBBLE_DEFAULT_AUTO_CLOSE_MS,
+    BUBBLE_CLOSE_ANIMATION_MS,
+  } from "$lib/constants";
 
   // ======================================================================= //
   // Props
   // ======================================================================= //
 
   /** 显示的文本内容 */
-  export let text: string = '';
-  
+  export let text: string = "";
+
   /** 分支选项 */
   export let branches: BranchInfo[] = [];
-  
+
   /** 自动消失时间（毫秒），0 表示不自动消失 */
   export let duration: number = 0;
-  
+
   /** 气泡位置 */
-  export let position: 'top' | 'left' | 'right' = 'top';
-  
+  export let position: "top" | "left" | "right" = "top";
+
   /** 打字速度（毫秒/字符） */
   export let typeSpeed: number = 50;
 
@@ -55,18 +63,18 @@
   /** 弹性缩放动画 */
   const scale = spring(0, {
     stiffness: 0.15,
-    damping: 0.4
+    damping: 0.4,
   });
 
   /** 透明度动画 */
   const opacity = spring(0, {
     stiffness: 0.2,
-    damping: 0.5
+    damping: 0.5,
   });
 
   /** 是否显示分支选项（文本显示完成后显示） */
   let showBranches = false;
-  
+
   /** 自动关闭定时器 */
   let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -101,14 +109,13 @@
     // 弹入动画
     scale.set(1);
     opacity.set(1);
-    
+
     // 如果没有文本，直接处理自动关闭逻辑
     if (!text) {
       showBranches = true;
       // 设置自动关闭（有分支选项的气泡也会在持续时间后消失）
-      const autoCloseDuration = duration > 0 
-        ? duration 
-        : BUBBLE_DEFAULT_AUTO_CLOSE_MS;
+      const autoCloseDuration =
+        duration > 0 ? duration : BUBBLE_DEFAULT_AUTO_CLOSE_MS;
       startAutoClose(autoCloseDuration);
     }
   });
@@ -126,12 +133,11 @@
    */
   function handleTextComplete() {
     showBranches = true;
-    dispatch('textComplete');
-    
+    dispatch("textComplete");
+
     // 设置自动关闭（有分支选项的气泡也会在持续时间后消失）
-    const autoCloseDuration = duration > 0 
-      ? duration 
-      : calculateDisplayDuration(text);
+    const autoCloseDuration =
+      duration > 0 ? duration : calculateDisplayDuration(text);
     startAutoClose(autoCloseDuration);
   }
 
@@ -141,7 +147,7 @@
   function handleBranchSelect(e: CustomEvent<BranchInfo>) {
     // 设置选中的分支（隐藏其他按钮，仅显示选中的）
     selectedBranch = e.detail;
-    dispatch('branchSelect', e.detail);
+    dispatch("branchSelect", e.detail);
     // 不立即关闭，等待持续时间完成后自动关闭
   }
 
@@ -171,16 +177,16 @@
   export function close() {
     if (isClosing) return;
     isClosing = true;
-    
+
     clearAutoCloseTimer();
-    
+
     // 弹出动画
     scale.set(0.8);
     opacity.set(0);
-    
+
     // 动画完成后触发关闭事件
     setTimeout(() => {
-      dispatch('close');
+      dispatch("close");
     }, BUBBLE_CLOSE_ANIMATION_MS);
   }
 
@@ -197,121 +203,70 @@
   // 动态样式计算
   // ======================================================================= //
 
-  $: bubbleMainStyle = style ? `
-    background: ${style.bubble.background};
-    border: ${style.bubble.border};
-    border-radius: ${style.bubble.border_radius};
-    padding: ${style.bubble.padding};
-    min-width: ${style.bubble.min_width};
-    max-width: ${style.bubble.max_width};
-    color: ${style.bubble.color};
-    font-size: ${style.bubble.font_size};
-    line-height: ${style.bubble.line_height};
-    font-family: ${style.bubble.font_family};
-    box-shadow: ${style.bubble.box_shadow};
-    backdrop-filter: ${style.bubble.backdrop_filter};
-  ` : '';
+  $: bubbleMainStyle = style ? toStyleString(style.bubble) : "";
 
-  $: tailSize = style?.bubble.tail.size || '10px';
-  $: tailColor = style?.bubble.tail.color || 'rgba(255, 225, 235, 0.70)';
-  $: tailShadow = style?.bubble.tail.shadow || '0 2px 2px rgba(255, 182, 193, 0.2)';
+  // 尾巴使用 CSS 变量动态映射
+  $: tailVars = style ? toCssVars(style.bubble.tail, "tail") : "";
 
-  $: tailStyleTop = `
-    bottom: -${tailSize};
-    left: 50%;
-    transform: translateX(-50%);
-    border-left: ${tailSize} solid transparent;
-    border-right: ${tailSize} solid transparent;
-    border-top: ${tailSize} solid ${tailColor};
-    filter: drop-shadow(${tailShadow});
-  `;
-
-  $: tailStyleLeft = `
-    right: -${tailSize};
-    top: 50%;
-    transform: translateY(-50%);
-    border-top: ${tailSize} solid transparent;
-    border-bottom: ${tailSize} solid transparent;
-    border-left: ${tailSize} solid ${tailColor};
-  `;
-
-  $: tailStyleRight = `
-    left: -${tailSize};
-    top: 50%;
-    transform: translateY(-50%);
-    border-top: ${tailSize} solid transparent;
-    border-bottom: ${tailSize} solid transparent;
-    border-right: ${tailSize} solid ${tailColor};
-  `;
-
-  $: currentTailStyle = position === 'top' ? tailStyleTop : 
-                        position === 'left' ? tailStyleLeft : tailStyleRight;
-
-  $: decorTopStyle = style?.bubble.decoration_top ? `
-    content: "${style.bubble.decoration_top.content}";
-    position: absolute;
-    top: ${style.bubble.decoration_top.top || 'auto'};
-    right: ${style.bubble.decoration_top.right || 'auto'};
-    bottom: ${style.bubble.decoration_top.bottom || 'auto'};
-    left: ${style.bubble.decoration_top.left || 'auto'};
-    font-size: ${style.bubble.decoration_top.font_size};
-    color: ${style.bubble.decoration_top.color};
-    letter-spacing: ${style.bubble.decoration_top.letter_spacing || 'normal'};
-    pointer-events: none;
-  ` : '';
-
-  $: decorBottomStyle = style?.bubble.decoration_bottom ? `
-    content: "${style.bubble.decoration_bottom.content}";
-    position: absolute;
-    top: ${style.bubble.decoration_bottom.top || 'auto'};
-    right: ${style.bubble.decoration_bottom.right || 'auto'};
-    bottom: ${style.bubble.decoration_bottom.bottom || 'auto'};
-    left: ${style.bubble.decoration_bottom.left || 'auto'};
-    font-size: ${style.bubble.decoration_bottom.font_size};
-    color: ${style.bubble.decoration_bottom.color};
-    pointer-events: none;
-  ` : '';
+  $: decorTopStyle = style?.bubble.decoration_top
+    ? toStyleString(style.bubble.decoration_top)
+    : "";
+  $: decorBottomStyle = style?.bubble.decoration_bottom
+    ? toStyleString(style.bubble.decoration_bottom)
+    : "";
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div 
+<div
   class="bubble-wrapper position-{position}"
-  style="transform: scale({$scale}); opacity: {$opacity};"
+  style="transform: scale({$scale}); opacity: {$opacity}; {tailVars}"
 >
   <div class="bubble" style={bubbleMainStyle} on:click={handleBackdropClick}>
     <!-- 气泡装饰 - 顶部 -->
     {#if style?.bubble.decoration_top}
-      <span class="bubble-decor-top">{style.bubble.decoration_top.content}</span>
+      <span class="bubble-decor-top" style={decorTopStyle}
+        >{style.bubble.decoration_top.content}</span
+      >
     {/if}
-    
+
     <!-- 气泡装饰 - 底部 -->
     {#if style?.bubble.decoration_bottom}
-      <span class="bubble-decor-bottom">{style.bubble.decoration_bottom.content}</span>
+      <span class="bubble-decor-bottom" style={decorBottomStyle}
+        >{style.bubble.decoration_bottom.content}</span
+      >
     {/if}
-    
+
     <!-- 气泡尾巴 -->
-    <div class="bubble-tail" style={currentTailStyle}></div>
-    
+    <div class="bubble-tail"></div>
+
     <!-- 文本内容 -->
     <div class="bubble-content">
       {#if text}
-        <TypewriterText 
-          {text} 
+        <TypewriterText
+          {text}
           speed={typeSpeed}
           on:complete={handleTextComplete}
         />
       {:else}
         <!-- 没有文本时直接显示分支 -->
         {#if branches.length > 0}
-          <BranchOptions {branches} {selectedBranch} on:select={handleBranchSelect} />
+          <BranchOptions
+            {branches}
+            {selectedBranch}
+            on:select={handleBranchSelect}
+          />
         {/if}
       {/if}
     </div>
-    
+
     <!-- 分支选项 -->
     {#if text && showBranches && branches.length > 0}
-      <BranchOptions {branches} {selectedBranch} on:select={handleBranchSelect} />
+      <BranchOptions
+        {branches}
+        {selectedBranch}
+        on:select={handleBranchSelect}
+      />
     {/if}
   </div>
 </div>
@@ -324,7 +279,9 @@
     pointer-events: auto;
   }
 
-  .position-top, .position-left, .position-right {
+  .position-top,
+  .position-left,
+  .position-right {
     display: block;
   }
 
@@ -332,22 +289,9 @@
     position: relative;
   }
 
-  .bubble-decor-top {
-    position: absolute;
-    top: 4px;
-    right: 6px;
-    font-size: 9px;
-    color: rgba(255, 150, 180, 0.35);
-    letter-spacing: 3px;
-    pointer-events: none;
-  }
-
+  .bubble-decor-top,
   .bubble-decor-bottom {
     position: absolute;
-    bottom: 4px;
-    left: 8px;
-    font-size: 11px;
-    color: rgba(255, 160, 190, 0.28);
     pointer-events: none;
   }
 
@@ -355,6 +299,34 @@
     position: absolute;
     width: 0;
     height: 0;
+  }
+
+  .position-top .bubble-tail {
+    bottom: calc(var(--tail-size) * -1);
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: var(--tail-size) solid transparent;
+    border-right: var(--tail-size) solid transparent;
+    border-top: var(--tail-size) solid var(--tail-color);
+    filter: drop-shadow(var(--tail-shadow));
+  }
+
+  .position-left .bubble-tail {
+    right: calc(var(--tail-size) * -1);
+    top: 50%;
+    transform: translateY(-50%);
+    border-top: var(--tail-size) solid transparent;
+    border-bottom: var(--tail-size) solid transparent;
+    border-left: var(--tail-size) solid var(--tail-color);
+  }
+
+  .position-right .bubble-tail {
+    left: calc(var(--tail-size) * -1);
+    top: 50%;
+    transform: translateY(-50%);
+    border-top: var(--tail-size) solid transparent;
+    border-bottom: var(--tail-size) solid transparent;
+    border-right: var(--tail-size) solid var(--tail-color);
   }
 
   .bubble-content {

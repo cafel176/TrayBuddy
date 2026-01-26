@@ -23,15 +23,20 @@
 
 <script lang="ts" context="module">
   // 从统一类型文件重新导出，保持向后兼容
-  export type { BranchInfo } from '$lib/types/asset';
+  export type { BranchInfo } from "$lib/types/asset";
 </script>
 
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
-  import { t } from '$lib/i18n';
-  import { bubbleStyle, type BubbleStyleConfig } from './bubbleStyle';
-  import type { BranchInfo } from '$lib/types/asset';
+  import { createEventDispatcher, onMount } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { t } from "$lib/i18n";
+  import {
+    bubbleStyle,
+    type BubbleStyleConfig,
+    toStyleString,
+    toCssVars,
+  } from "./bubbleStyle";
+  import type { BranchInfo } from "$lib/types/asset";
 
   // ======================================================================= //
   // Props
@@ -39,7 +44,7 @@
 
   /** 分支选项列表 */
   export let branches: BranchInfo[] = [];
-  
+
   /** 是否显示选项（用于延迟显示） */
   export let visible: boolean = true;
 
@@ -55,13 +60,13 @@
 
   /** 按钮文本长度阈值（字符数），短于此值的按钮可以并排显示 */
   let SHORT_TEXT_THRESHOLD = 6;
-  
+
   /** 单行最大按钮数量 */
   let MAX_BUTTONS_PER_ROW = 3;
-  
+
   /** 按钮文本最大字符数，超过此值自动换行 */
   let MAX_CHARS_PER_BUTTON = 8;
-  
+
   /** 常量加载版本号，用于触发响应式重新计算 */
   let constsVersion = 0;
 
@@ -97,10 +102,14 @@
    * 当字符数超过 MAX_CHARS_PER_BUTTON 时自动插入换行
    */
   function wrapButtonText(input: string): string {
-    if (!input || MAX_CHARS_PER_BUTTON <= 0 || input.length <= MAX_CHARS_PER_BUTTON) {
+    if (
+      !input ||
+      MAX_CHARS_PER_BUTTON <= 0 ||
+      input.length <= MAX_CHARS_PER_BUTTON
+    ) {
       return input;
     }
-    
+
     const chunks: string[] = [];
     let remaining = input;
     while (remaining.length > MAX_CHARS_PER_BUTTON) {
@@ -108,7 +117,7 @@
       remaining = remaining.slice(MAX_CHARS_PER_BUTTON);
     }
     if (remaining) chunks.push(remaining);
-    return chunks.join('\n');
+    return chunks.join("\n");
   }
 
   /**
@@ -116,7 +125,7 @@
    */
   function selectBranch(branch: BranchInfo) {
     if (disabled || selectedBranch) return;
-    dispatch('select', branch);
+    dispatch("select", branch);
   }
 
   /**
@@ -126,18 +135,18 @@
     if (!visible || branches.length === 0 || disabled || selectedBranch) return;
 
     switch (e.key) {
-      case 'ArrowUp':
-      case 'ArrowLeft':
+      case "ArrowUp":
+      case "ArrowLeft":
         e.preventDefault();
         focusedIndex = (focusedIndex - 1 + branches.length) % branches.length;
         break;
-      case 'ArrowDown':
-      case 'ArrowRight':
+      case "ArrowDown":
+      case "ArrowRight":
         e.preventDefault();
         focusedIndex = (focusedIndex + 1) % branches.length;
         break;
-      case 'Enter':
-      case ' ':
+      case "Enter":
+      case " ":
         e.preventDefault();
         selectBranch(branches[focusedIndex]);
         break;
@@ -156,10 +165,10 @@
    * constsVersion 用于在常量加载后触发重新计算
    */
   $: wrappedBranches = (() => {
-    void constsVersion;  // 依赖常量版本号
-    return displayBranches.map(b => ({
+    void constsVersion; // 依赖常量版本号
+    return displayBranches.map((b) => ({
       ...b,
-      wrappedText: wrapButtonText(b.text)
+      wrappedText: wrapButtonText(b.text),
     }));
   })();
 
@@ -168,10 +177,10 @@
    * constsVersion 用于在常量加载后触发重新计算
    */
   $: useInlineLayout = (() => {
-    void constsVersion;  // 依赖常量版本号
+    void constsVersion; // 依赖常量版本号
     if (displayBranches.length <= 1) return false;
     if (displayBranches.length > MAX_BUTTONS_PER_ROW) return false;
-    return displayBranches.every(b => b.text.length <= SHORT_TEXT_THRESHOLD);
+    return displayBranches.every((b) => b.text.length <= SHORT_TEXT_THRESHOLD);
   })();
 
   // ======================================================================= //
@@ -181,15 +190,18 @@
   onMount(async () => {
     // 从后端加载常量
     try {
-      const consts = await invoke<Record<string, number>>('get_const_int');
-      if (consts.short_text_threshold) SHORT_TEXT_THRESHOLD = consts.short_text_threshold;
-      if (consts.max_buttons_per_row) MAX_BUTTONS_PER_ROW = consts.max_buttons_per_row;
-      if (consts.max_chars_per_button) MAX_CHARS_PER_BUTTON = consts.max_chars_per_button;
-      constsVersion++;  // 触发响应式重新计算
+      const consts = await invoke<Record<string, number>>("get_const_int");
+      if (consts.short_text_threshold)
+        SHORT_TEXT_THRESHOLD = consts.short_text_threshold;
+      if (consts.max_buttons_per_row)
+        MAX_BUTTONS_PER_ROW = consts.max_buttons_per_row;
+      if (consts.max_chars_per_button)
+        MAX_CHARS_PER_BUTTON = consts.max_chars_per_button;
+      constsVersion++; // 触发响应式重新计算
     } catch (e) {
-      console.error('[BranchOptions] Failed to load constants:', e);
+      console.error("[BranchOptions] Failed to load constants:", e);
     }
-    
+
     // 聚焦容器以接收键盘事件
     containerRef?.focus();
   });
@@ -198,55 +210,26 @@
   // 动态样式计算
   // ======================================================================= //
 
-  $: containerStyle = style ? `
-    gap: ${style.branch.container.gap};
-    margin-top: ${style.branch.container.margin_top};
-    padding-top: ${style.branch.container.padding_top};
-    border-top: ${style.branch.container.border_top};
-  ` : '';
+  $: containerStyle = style ? toStyleString(style.branch.container) : "";
 
-  $: buttonBaseStyle = style ? `
-    padding: ${style.branch.button.padding};
-    ${style.branch.button.min_width ? `min-width: ${style.branch.button.min_width};` : ''}
-    background: ${style.branch.button.background};
-    border: ${style.branch.button.border};
-    border-radius: ${style.branch.button.border_radius};
-    color: ${style.branch.button.color};
-    font-size: ${style.branch.button.font_size};
-    box-shadow: ${style.branch.button.box_shadow};
-    backdrop-filter: ${style.branch.button.backdrop_filter};
-  ` : '';
+  $: buttonBaseStyle = style ? toStyleString(style.branch.button) : "";
 
-  // CSS 变量用于 hover/active 状态
-  $: cssVars = style ? `
-    --btn-hover-bg: ${style.branch.button_hover.background};
-    --btn-hover-border-color: ${style.branch.button_hover.border_color};
-    --btn-hover-shadow: ${style.branch.button_hover.box_shadow};
-    --btn-hover-color: ${style.branch.button_hover.color};
-    --btn-hover-transform: ${style.branch.button_hover.transform};
-    --btn-active-bg: ${style.branch.button_active.background};
-    --btn-active-shadow: ${style.branch.button_active.box_shadow};
-    --btn-active-transform: ${style.branch.button_active.transform};
-    --decor-left-content: "${style.branch.decoration_left.content}";
-    --decor-left-left: ${style.branch.decoration_left.left};
-    --decor-left-font-size: ${style.branch.decoration_left.font_size};
-    --decor-left-color: ${style.branch.decoration_left.color};
-    --decor-left-color-hover: ${style.branch.decoration_left.color_hover};
-    --decor-right-content: "${style.branch.decoration_right.content}";
-    --decor-right-content-hover: "${style.branch.decoration_right.content_hover}";
-    --decor-right-right: ${style.branch.decoration_right.right};
-    --decor-right-font-size: ${style.branch.decoration_right.font_size};
-    --decor-right-font-size-hover: ${style.branch.decoration_right.font_size_hover};
-    --decor-right-color: ${style.branch.decoration_right.color};
-    --decor-right-color-hover: ${style.branch.decoration_right.color_hover};
-  ` : '';
+  // CSS 变量用于 hover/active 状态和装饰元素
+  $: cssVars = style
+    ? `
+    ${toCssVars(style.branch.button_hover, "btn-hover")}
+    ${toCssVars(style.branch.button_active, "btn-active")}
+    ${toCssVars(style.branch.decoration_left, "decor-left")}
+    ${toCssVars(style.branch.decoration_right, "decor-right")}
+  `
+    : "";
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
 {#if visible && branches.length > 0}
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <div 
+  <div
     class="branch-options"
     class:inline-layout={useInlineLayout}
     style="{containerStyle} {cssVars}"
@@ -267,11 +250,14 @@
         aria-selected={index === focusedIndex}
         aria-disabled={disabled || selectedBranch !== null}
         on:click={() => selectBranch(branch)}
-        on:mouseenter={() => { if (!selectedBranch) focusedIndex = index; }}
+        on:mouseenter={() => {
+          if (!selectedBranch) focusedIndex = index;
+        }}
       >
-        <span class="decor-left">{style?.branch.decoration_left.content || '✿'}</span>
+        <span class="decor-left">{style?.branch.decoration_left.content}</span>
         <span class="btn-text">{branch.wrappedText}</span>
-        <span class="decor-right">{style?.branch.decoration_right.content || '·'}</span>
+        <span class="decor-right">{style?.branch.decoration_right.content}</span
+        >
       </button>
     {/each}
   </div>
@@ -321,21 +307,21 @@
 
   .decor-left {
     position: absolute;
-    left: var(--decor-left-left, 8px);
+    left: var(--decor-left-left);
     top: 50%;
     transform: translateY(-50%);
-    font-size: var(--decor-left-font-size, 11px);
-    color: var(--decor-left-color, rgba(255, 150, 180, 0.4));
+    font-size: var(--decor-left-font-size);
+    color: var(--decor-left-color);
     transition: all 0.25s ease;
   }
 
   .decor-right {
     position: absolute;
-    right: var(--decor-right-right, 8px);
+    right: var(--decor-right-right);
     top: 50%;
     transform: translateY(-50%);
-    font-size: var(--decor-right-font-size, 16px);
-    color: var(--decor-right-color, rgba(255, 170, 195, 0.28));
+    font-size: var(--decor-right-font-size);
+    color: var(--decor-right-color);
     transition: all 0.25s ease;
   }
 
@@ -350,14 +336,14 @@
 
   .branch-button:hover .decor-left,
   .branch-button.focused .decor-left {
-    color: var(--decor-left-color-hover, rgba(255, 100, 150, 0.7));
+    color: var(--decor-left-color-hover);
     transform: translateY(-50%) rotate(15deg) scale(1.15);
   }
 
   .branch-button:hover .decor-right,
   .branch-button.focused .decor-right {
-    font-size: var(--decor-right-font-size-hover, 11px);
-    color: var(--decor-right-color-hover, rgba(255, 130, 170, 0.55));
+    font-size: var(--decor-right-font-size-hover);
+    color: var(--decor-right-color-hover);
   }
 
   .branch-button:active {
@@ -382,11 +368,11 @@
   }
 
   .branch-button.selected .decor-left {
-    color: var(--decor-left-color-hover, rgba(255, 100, 150, 0.7));
+    color: var(--decor-left-color-hover);
   }
 
   .branch-button.selected .decor-right {
-    font-size: var(--decor-right-font-size-hover, 11px);
-    color: var(--decor-right-color-hover, rgba(255, 130, 170, 0.55));
+    font-size: var(--decor-right-font-size-hover);
+    color: var(--decor-right-color-hover);
   }
 </style>

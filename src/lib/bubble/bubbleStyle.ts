@@ -12,82 +12,36 @@ import { invoke } from '@tauri-apps/api/core';
 // 类型定义
 // ========================================================================= //
 
-/** 装饰元素样式 */
 export interface DecorationStyle {
   content: string;
-  top?: string;
-  bottom?: string;
-  left?: string;
-  right?: string;
-  font_size: string;
-  color: string;
-  letter_spacing?: string;
-  color_hover?: string;
-  content_hover?: string;
-  font_size_hover?: string;
+  [key: string]: any;
 }
 
-/** 气泡尾巴样式 */
 export interface TailStyle {
-  size: string;
-  color: string;
-  shadow: string;
+  [key: string]: any;
 }
 
-/** 气泡主体样式 */
 export interface BubbleStyle {
-  background: string;
-  border: string;
-  border_radius: string;
-  padding: string;
-  min_width: string;
-  max_width: string;
-  color: string;
-  font_size: string;
-  line_height: string;
-  font_family: string;
-  box_shadow: string;
-  backdrop_filter: string;
   decoration_top?: DecorationStyle;
   decoration_bottom?: DecorationStyle;
   tail: TailStyle;
+  [key: string]: any;
 }
 
-/** 分支容器样式 */
 export interface BranchContainerStyle {
-  gap: string;
-  margin_top: string;
-  padding_top: string;
-  border_top: string;
+  [key: string]: any;
 }
 
-/** 分支按钮样式 */
 export interface BranchButtonStyle {
-  padding: string;
-  min_width?: string;
-  background: string;
-  border: string;
-  border_radius: string;
-  color: string;
-  font_size: string;
-  box_shadow: string;
-  backdrop_filter: string;
+  [key: string]: any;
 }
 
-/** 分支按钮悬停样式 */
 export interface BranchButtonHoverStyle {
-  background: string;
-  border_color: string;
-  box_shadow: string;
-  color: string;
-  transform: string;
+  [key: string]: any;
 }
 
-/** 分支按钮激活样式 */
 export interface BranchButtonActiveStyle {
-  background: string;
-  box_shadow: string;
-  transform: string;
+  [key: string]: any;
 }
 
 /** 分支样式 */
@@ -98,6 +52,7 @@ export interface BranchStyle {
   button_active: BranchButtonActiveStyle;
   decoration_left: DecorationStyle;
   decoration_right: DecorationStyle;
+  [key: string]: any;
 }
 
 /** 完整气泡样式配置 */
@@ -112,85 +67,18 @@ export interface BubbleStyleConfig {
 
 export const defaultStyle: BubbleStyleConfig = {
   bubble: {
-    background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 245, 248, 0.72) 30%, rgba(255, 235, 242, 0.70) 70%, rgba(255, 225, 235, 0.68) 100%)',
-    border: '1.5px solid rgba(255, 182, 193, 0.4)',
-    border_radius: '16px',
-    padding: '10px 14px',
-    min_width: '120px',
-    max_width: '380px',
-    color: '#4a4a4a',
-    font_size: '14px',
-    line_height: '1.5',
-    font_family: '"Microsoft YaHei", "PingFang SC", sans-serif',
-    box_shadow: '0 3px 12px rgba(255, 182, 193, 0.18), 0 1px 4px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
-    backdrop_filter: 'blur(12px)',
-    decoration_top: {
-      content: '✿ ❀ ✿',
-      top: '4px',
-      right: '6px',
-      font_size: '9px',
-      color: 'rgba(255, 150, 180, 0.35)',
-      letter_spacing: '3px'
-    },
-    decoration_bottom: {
-      content: '๑',
-      bottom: '4px',
-      left: '8px',
-      font_size: '11px',
-      color: 'rgba(255, 160, 190, 0.28)'
-    },
     tail: {
       size: '10px',
-      color: 'rgba(255, 225, 235, 0.70)',
-      shadow: '0 2px 2px rgba(255, 182, 193, 0.2)'
+      color: 'transparent'
     }
   },
   branch: {
-    container: {
-      gap: '5px',
-      margin_top: '8px',
-      padding_top: '8px',
-      border_top: '1px dashed rgba(255, 180, 200, 0.35)'
-    },
-    button: {
-      padding: '6px 6px 6px 30px',
-      min_width: '100px',
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 242, 248, 0.68) 100%)',
-      border: '1px solid rgba(255, 185, 200, 0.35)',
-      border_radius: '10px',
-      color: '#5a5a5a',
-      font_size: '13px',
-      box_shadow: '0 1px 4px rgba(255, 182, 193, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-      backdrop_filter: 'blur(8px)'
-    },
-    button_hover: {
-      background: 'linear-gradient(135deg, rgba(255, 235, 245, 0.85) 0%, rgba(255, 210, 230, 0.80) 100%)',
-      border_color: 'rgba(255, 150, 180, 0.5)',
-      box_shadow: '0 4px 14px rgba(255, 182, 193, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
-      color: '#d85a8a',
-      transform: 'translateY(-2px)'
-    },
-    button_active: {
-      background: 'linear-gradient(135deg, rgba(255, 225, 240, 0.85) 0%, rgba(255, 200, 225, 0.80) 100%)',
-      box_shadow: '0 2px 6px rgba(255, 182, 193, 0.18), inset 0 1px 3px rgba(255, 180, 200, 0.15)',
-      transform: 'translateY(0)'
-    },
-    decoration_left: {
-      content: '✿',
-      left: '8px',
-      font_size: '11px',
-      color: 'rgba(255, 150, 180, 0.4)',
-      color_hover: 'rgba(255, 100, 150, 0.7)'
-    },
-    decoration_right: {
-      content: '·',
-      content_hover: '❀',
-      right: '8px',
-      font_size: '16px',
-      font_size_hover: '11px',
-      color: 'rgba(255, 170, 195, 0.28)',
-      color_hover: 'rgba(255, 130, 170, 0.55)'
-    }
+    container: { gap: '5px' },
+    button: {},
+    button_hover: {},
+    button_active: {},
+    decoration_left: { content: '' },
+    decoration_right: { content: '' }
   }
 };
 
@@ -245,7 +133,7 @@ export function getCurrentStyle(): BubbleStyleConfig {
  */
 function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
   const result = { ...target };
-  
+
   for (const key in source) {
     if (source[key] !== undefined) {
       if (
@@ -261,6 +149,57 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
       }
     }
   }
-  
+
   return result;
+}
+
+/**
+ * 将对象转换为 CSS 样式字符串
+ * 自动将 snake_case 转换为 kebab-case
+ */
+export function toStyleString(obj: Record<string, any> | undefined | null): string {
+  if (!obj) return '';
+
+  return Object.entries(obj)
+    .filter(([key, value]) =>
+      typeof value !== 'object' &&
+      value !== undefined &&
+      value !== null &&
+      key !== 'content' &&
+      key !== 'content_hover' &&
+      !key.includes('_hover') &&
+      !key.includes('_active')
+    )
+    .map(([key, value]) => {
+      const cssKey = key.replace(/_/g, '-');
+      // 处理内容相关的特殊情况
+      if (cssKey === 'font-family' && typeof value === 'string' && !value.startsWith('"')) {
+        return `${cssKey}: ${value};`;
+      }
+      return `${cssKey}: ${value};`;
+    })
+    .join(' ');
+}
+
+/**
+ * 将对象转换为 CSS 变量字符串
+ */
+export function toCssVars(obj: Record<string, any> | undefined | null, prefix: string): string {
+  if (!obj) return '';
+
+  return Object.entries(obj)
+    .filter(([key, value]) =>
+      typeof value !== 'object' &&
+      value !== undefined &&
+      value !== null
+    )
+    .map(([key, value]) => {
+      // 移除后缀以便在变量名中使用
+      const cleanKey = key
+        .replace('_hover', '')
+        .replace('_active', '')
+        .replace(/_/g, '-');
+      return `--${prefix}-${cleanKey}: ${value};`;
+    })
+    .join(' ');
 }
