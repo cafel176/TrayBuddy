@@ -91,3 +91,19 @@ pub fn http_get(
         Ok(body)
     }
 }
+
+/// 异步执行 HTTP GET 请求
+///
+/// 使用 tokio::task::spawn_blocking 包装同步实现
+pub async fn http_get_async(
+    url: String,
+    timeout_secs: u64,
+    content_check: Option<String>,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let check = content_check.as_deref();
+        http_get(&url, timeout_secs, check)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}

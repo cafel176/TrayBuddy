@@ -707,21 +707,21 @@ fn get_datetime_info() -> DateTimeInfo {
 
 /// 获取地理位置信息（优先使用全局缓存）
 #[tauri::command]
-fn get_location_info() -> Option<GeoLocation> {
+async fn get_location_info() -> Option<GeoLocation> {
     // 优先返回全局缓存
     if let Some(location) = get_cached_location() {
         return Some(location);
     }
     // 如果缓存为空（初始化还未完成），触发获取
     let mut manager = EnvironmentManager::new();
-    manager.get_location()
+    manager.get_location().await
 }
 
 /// 刷新地理位置信息（强制重新从 API 获取）
 #[tauri::command]
-fn refresh_location_info() -> Option<GeoLocation> {
+async fn refresh_location_info() -> Option<GeoLocation> {
     let mut manager = EnvironmentManager::new();
-    manager.refresh_location()
+    manager.refresh_location().await
 }
 
 /// 获取当前季节
@@ -738,14 +738,14 @@ fn get_time_period_info() -> String {
 
 /// 获取天气信息（优先使用全局缓存）
 #[tauri::command]
-fn get_weather_info() -> Option<WeatherInfo> {
+async fn get_weather_info() -> Option<WeatherInfo> {
     // 优先返回全局缓存
     if let Some(weather) = get_cached_weather() {
         return Some(weather);
     }
     // 如果缓存为空，触发获取
     let mut manager = EnvironmentManager::new();
-    manager.get_weather()
+    manager.get_weather().await
 }
 
 // ========================================================================= //

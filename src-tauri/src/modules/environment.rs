@@ -157,21 +157,33 @@ impl EnvironmentManager {
     ///
     /// 使用全局缓存，首次调用时获取
     #[inline]
-    pub fn get_location(&mut self) -> Option<GeoLocation> {
+    pub async fn get_location(&mut self) -> Option<GeoLocation> {
+        // --- 1. 检查缓存 (快门) ---
         let cache = CACHED_LOCATION.get_or_init(|| Mutex::new(None));
-        let mut guard = cache.lock().ok()?;
+        {
+            let guard = cache.lock().ok()?;
+            if let Some(ref loc) = *guard {
+                return Some(loc.clone());
+            }
+        } // 锁在此释放，接下来的网络请求是非阻塞的
 
-        if guard.is_none() {
-            *guard = Some(Self::fetch_location_from_api());
+        // --- 2. 异步请求数据 ---
+        let new_location = Self::fetch_location_from_api().await;
+
+        // --- 3. 更新缓存 (写锁) ---
+        if let Ok(mut guard) = cache.lock() {
+            *guard = Some(new_location.clone());
         }
-        guard.clone()
+
+        Some(new_location)
     }
 
     /// 强制刷新地理位置缓存
-    pub fn refresh_location(&mut self) -> Option<GeoLocation> {
+    pub async fn refresh_location(&mut self) -> Option<GeoLocation> {
+        let new_location = Self::fetch_location_from_api().await;
+
         let cache = CACHED_LOCATION.get_or_init(|| Mutex::new(None));
         if let Ok(mut guard) = cache.lock() {
-            let new_location = Self::fetch_location_from_api();
             *guard = Some(new_location.clone());
             return Some(new_location);
         }
@@ -179,9 +191,9 @@ impl EnvironmentManager {
     }
 
     /// 通过 IP 地理位置 API 获取位置信息
-    fn fetch_location_from_api() -> GeoLocation {
+    async fn fetch_location_from_api() -> GeoLocation {
         // 尝试从 API 获取位置信息
-        if let Ok(geo) = Self::fetch_ip_geolocation() {
+        if let Ok(geo) = Self::fetch_ip_geolocation().await {
             return geo;
         }
 
@@ -190,11 +202,17 @@ impl EnvironmentManager {
     }
 
     /// 通过 ip-api.com 获取 IP 地理位置（免费，无需 API Key）
-    fn fetch_ip_geolocation() -> Result<GeoLocation, String> {
+    async fn fetch_ip_geolocation() -> Result<GeoLocation, String> {
         use crate::modules::constants::LOCATION_API_TIMEOUT_SECS;
+        use crate::modules::utils::http::http_get_async;
 
-        let url = "http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN";
-        let body = http_get(url, LOCATION_API_TIMEOUT_SECS, Some("\"status\""))?;
+        let url = "http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN".to_string();
+        let body = http_get_async(
+            url,
+            LOCATION_API_TIMEOUT_SECS,
+            Some("\"status\"".to_string()),
+        )
+        .await?;
         Self::parse_ip_geo_response(&body)
     }
 
@@ -275,10 +293,10 @@ impl EnvironmentManager {
     // ========================================================================= //
 
     /// 获取完整的环境信息
-    pub fn get_environment_info(&mut self) -> EnvironmentInfo {
+    pub async fn get_environment_info(&mut self) -> EnvironmentInfo {
         let datetime = self.get_datetime();
-        let location = self.get_location();
-        let weather = self.get_weather();
+        let location = self.get_location().await;
+        let weather = self.get_weather().await;
 
         EnvironmentInfo {
             location,
@@ -306,7 +324,7 @@ impl EnvironmentManager {
 
     /// 获取天气信息 (优先使用全局缓存)
     /// 全局缓存在程序启动时初始化，30 分钟后过期会重新获取
-    pub fn get_weather(&mut self) -> Option<WeatherInfo> {
+    pub async fn get_weather(&mut self) -> Option<WeatherInfo> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -329,7 +347,7 @@ impl EnvironmentManager {
         }
 
         // 获取位置用于天气查询
-        let location = self.get_location()?;
+        let location = self.get_location().await?;
         // 优先使用城市名，其次使用经纬度坐标
         let query = if let Some(ref city) = location.city {
             city.to_string()
@@ -339,7 +357,7 @@ impl EnvironmentManager {
         };
 
         // 从网络获取天气
-        match self.fetch_weather_sync(&query) {
+        match self.fetch_weather_async(&query).await {
             Ok(weather) => {
                 // 更新实例缓存
                 self.cached_weather = Some(weather.clone());
@@ -353,31 +371,37 @@ impl EnvironmentManager {
                 }
                 Some(weather)
             }
-            Err(e) => self.cached_weather.as_ref().map(|w| w.clone()),
+            Err(_) => self.cached_weather.clone(),
         }
     }
 
     /// 初始化时获取天气（内部使用，不更新实例缓存）
-    fn fetch_weather_for_init(&mut self) -> Option<WeatherInfo> {
-        let location = self.get_location()?;
+    async fn fetch_weather_for_init(&mut self) -> Option<WeatherInfo> {
+        let location = self.get_location().await?;
         let query = if let Some(ref city) = location.city {
             city.to_string()
         } else {
             format!("{},{}", location.latitude, location.longitude)
         };
 
-        self.fetch_weather_sync(&query).ok()
+        self.fetch_weather_async(&query).await.ok()
     }
 
-    /// 同步获取天气信息 (使用 wttr.in API)
-    fn fetch_weather_sync(&self, query: &str) -> Result<WeatherInfo, String> {
+    /// 异步获取天气信息 (使用 wttr.in API)
+    async fn fetch_weather_async(&self, query: &str) -> Result<WeatherInfo, String> {
         use crate::modules::constants::WEATHER_API_TIMEOUT_SECS;
+        use crate::modules::utils::http::http_get_async;
 
         // 对查询参数进行 URL 编码处理
         let query_encoded = query.replace(' ', "%20");
         let url = format!("https://wttr.in/{}?format=j1", query_encoded);
 
-        let body = http_get(&url, WEATHER_API_TIMEOUT_SECS, Some("current_condition"))?;
+        let body = http_get_async(
+            url,
+            WEATHER_API_TIMEOUT_SECS,
+            Some("current_condition".to_string()),
+        )
+        .await?;
         self.parse_wttr_response(&body)
     }
 
@@ -563,8 +587,7 @@ pub fn get_season_by_month_and_latitude(month: u32, latitude: f64) -> Season {
 
 /// 便捷函数：获取当前季节 (从系统时区推断半球)
 pub fn get_current_season() -> Season {
-    let mut manager = EnvironmentManager::new();
-    if let Some(location) = manager.get_location() {
+    if let Some(location) = get_cached_location() {
         get_season_by_location(location.latitude)
     } else {
         // 默认北半球
@@ -602,53 +625,58 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
         })
     });
 
-    let mut location_result: Option<GeoLocation> = None;
-    let mut weather_result: Option<WeatherInfo> = None;
+    // 在独立运行时中执行异步初始化逻辑
+    let rt = tokio::runtime::Runtime::new()
+        .expect("Failed to create tokio runtime for environment init");
+    rt.block_on(async {
+        let mut location_result: Option<GeoLocation> = None;
+        let mut weather_result: Option<WeatherInfo> = None;
 
-    // 获取地理位置
-    let mut manager = EnvironmentManager::new();
-    if let Some(location) = manager.get_location() {
-        #[cfg(debug_assertions)]
-        println!(
-            "[Environment] Location: {:?}, {:?}, {:?}",
-            location.city, location.region, location.country
-        );
-        location_result = Some(location.clone());
-
-        // 获取天气并缓存到全局
-        if let Some(weather) = manager.fetch_weather_for_init() {
+        // 获取地理位置
+        let mut manager = EnvironmentManager::new();
+        if let Some(location) = manager.get_location().await {
             #[cfg(debug_assertions)]
             println!(
-                "[Environment] Weather: {}°C, {}",
-                weather.temperature, weather.condition
+                "[Environment] Location: {:?}, {:?}, {:?}",
+                location.city, location.region, location.country
             );
+            location_result = Some(location.clone());
 
-            if let Some(cache) = CACHED_WEATHER.get() {
-                if let Ok(mut guard) = cache.lock() {
-                    guard.weather = Some(weather.clone());
-                    guard.cache_time = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
+            // 获取天气并缓存到全局
+            if let Some(weather) = manager.fetch_weather_for_init().await {
+                #[cfg(debug_assertions)]
+                println!(
+                    "[Environment] Weather: {}°C, {}",
+                    weather.temperature, weather.condition
+                );
+
+                if let Some(cache) = CACHED_WEATHER.get() {
+                    if let Ok(mut guard) = cache.lock() {
+                        guard.weather = Some(weather.clone());
+                        guard.cache_time = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                    }
                 }
+                weather_result = Some(weather);
             }
-            weather_result = Some(weather);
+        } else {
+            #[cfg(debug_assertions)]
+            println!("[Environment] Failed to get location");
         }
-    } else {
-        #[cfg(debug_assertions)]
-        println!("[Environment] Failed to get location");
-    }
 
-    // 发送事件通知前端
-    if let Some(handle) = app_handle {
-        let event_data = EnvironmentUpdateEvent {
-            location: location_result,
-            weather: weather_result,
-        };
-        let _ = handle.emit("environment-updated", event_data);
-        #[cfg(debug_assertions)]
-        println!("[Environment] Event emitted to frontend");
-    }
+        // 发送事件通知前端
+        if let Some(handle) = app_handle {
+            let event_data = EnvironmentUpdateEvent {
+                location: location_result,
+                weather: weather_result,
+            };
+            let _ = handle.emit("environment-updated", event_data);
+            #[cfg(debug_assertions)]
+            println!("[Environment] Event emitted to frontend");
+        }
+    });
 
     #[cfg(debug_assertions)]
     println!("[Environment] Initialization complete");

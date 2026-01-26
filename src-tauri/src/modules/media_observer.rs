@@ -268,9 +268,11 @@ impl MediaObserver {
         }
 
         // 获取 GSMTC 媒体会话管理器（可选，用于获取元数据）
-        let gsmtc_manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
-            .ok()
-            .and_then(|op| op.get().ok());
+        let gsmtc_manager = tokio::task::block_in_place(|| {
+            GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
+                .ok()
+                .and_then(|op| op.get().ok())
+        });
 
         // 创建内部事件通道
         let (internal_tx, mut internal_rx) = tokio_mpsc::unbounded_channel::<()>();
@@ -279,19 +281,20 @@ impl MediaObserver {
         let state = Arc::new(Mutex::new(MediaObserverState::new()));
 
         // 注册 GSMTC 事件（如果可用）
-        let sessions_token = if let Some(ref manager) = gsmtc_manager {
-            let internal_tx_sessions = internal_tx.clone();
-            let sessions_handler = TypedEventHandler::<
-                GlobalSystemMediaTransportControlsSessionManager,
-                SessionsChangedEventArgs,
-            >::new(move |_, _| {
-                let _ = internal_tx_sessions.send(());
-                Ok(())
-            });
-            manager.SessionsChanged(&sessions_handler).ok()
-        } else {
-            None
-        };
+        let sessions_token: Option<windows::Foundation::EventRegistrationToken> =
+            if let Some(ref manager) = gsmtc_manager {
+                let internal_tx_sessions = internal_tx.clone();
+                let sessions_handler = TypedEventHandler::<
+                    GlobalSystemMediaTransportControlsSessionManager,
+                    SessionsChangedEventArgs,
+                >::new(move |_, _| {
+                    let _ = internal_tx_sessions.send(());
+                    windows::core::Result::Ok(())
+                });
+                manager.SessionsChanged(&sessions_handler).ok()
+            } else {
+                None
+            };
 
         // 存储 GSMTC 会话事件 token
         let session_tokens = Arc::new(Mutex::new(Vec::<SessionEventTokens>::new()));
@@ -316,11 +319,20 @@ impl MediaObserver {
             &initial_source,
         );
 
-        // 更新初始状态（启动延迟已在前面执行，确保 login 事件先完成）
+        // 更新初始状态
         if running.load(Ordering::SeqCst) {
             update_cached_media_state(&initial_event);
-            state.lock().unwrap().update(&initial_event);
-            let _ = tx.send(initial_event);
+            let mut state_guard = state.lock().unwrap();
+
+            // 记录初始状态但不一定发送
+            // 只有当初始就是 Playing 时才发送（触发 music_start）
+            // 如果初始是 Stopped/Paused，没必要在程序启动时立即发送，避免触发不必要的 music_end
+            let should_send = initial_event.status == MediaPlaybackStatus::Playing;
+
+            state_guard.update(&initial_event);
+            if should_send {
+                let _ = tx.send(initial_event);
+            }
         }
 
         // 主事件循环
@@ -430,7 +442,7 @@ impl MediaObserver {
         let gsmtc_event = gsmtc_manager.map(Self::get_gsmtc_media_state);
 
         // 从 Core Audio 获取状态（检测所有播放音频的进程）
-        let core_audio_event = Self::get_core_audio_media_state();
+        let core_audio_event = tokio::task::block_in_place(|| Self::get_core_audio_media_state());
 
         // 判断逻辑：
         // 1. 如果 GSMTC 检测到正在播放 -> 返回 GSMTC 结果（有元数据）
@@ -522,7 +534,8 @@ impl MediaObserver {
             .map(Self::collect_gsmtc_sessions)
             .unwrap_or_default();
 
-        let core_audio_sessions = Self::collect_core_audio_sessions();
+        let core_audio_sessions =
+            tokio::task::block_in_place(|| Self::collect_core_audio_sessions());
 
         let debug_info = MediaDebugInfo {
             observer_running: running.load(Ordering::SeqCst),
@@ -932,7 +945,7 @@ impl MediaObserver {
                         PlaybackInfoChangedEventArgs,
                     >::new(move |_, _| {
                         let _ = tx_playback.send(());
-                        Ok(())
+                        windows::core::Result::Ok(())
                     });
                     let playback_token = session.PlaybackInfoChanged(&playback_handler);
 
@@ -943,7 +956,7 @@ impl MediaObserver {
                         MediaPropertiesChangedEventArgs,
                     >::new(move |_, _| {
                         let _ = tx_media.send(());
-                        Ok(())
+                        windows::core::Result::Ok(())
                     });
                     let media_token = session.MediaPropertiesChanged(&media_handler);
 

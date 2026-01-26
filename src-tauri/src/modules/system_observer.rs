@@ -256,8 +256,8 @@ impl SystemObserver {
         }
         */
 
-        // 2. 检测是否全屏/繁忙
-        let is_fullscreen = unsafe { Self::is_fullscreen_busy() };
+        // 2. 检测是否全屏/繁忙 (耗时操作，使用 block_in_place)
+        let is_fullscreen = tokio::task::block_in_place(|| unsafe { Self::is_fullscreen_busy() });
 
         // 更新调试信息
         let debug_info = SystemDebugInfo {
