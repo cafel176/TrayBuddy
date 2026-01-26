@@ -3,7 +3,13 @@
     import { onMount, onDestroy } from "svelte";
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { listen } from "@tauri-apps/api/event";
-    import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+    import {
+        t,
+        initI18n,
+        destroyI18n,
+        onLangChange,
+        currentLang,
+    } from "$lib/i18n";
     import { message } from "@tauri-apps/plugin-dialog";
 
     // ======================================================================= //
@@ -51,6 +57,22 @@
     let imageLoadError = $state(false);
     let currentModName = $state("");
     let unsubRefresh: (() => void) | null = null;
+
+    /** 当前语言下的角色信息 (响应式) */
+    let activeCharInfo = $derived.by(() => {
+        if (!selectedModInfo || !selectedModInfo.info) return null;
+        // 显式引用 _langVersion 以建立 Svelte 响应式依赖
+        void _langVersion;
+
+        const lang = currentLang();
+        const defaultLang = selectedModInfo.manifest.default_text_lang_id;
+
+        return (
+            selectedModInfo.info[lang] ||
+            selectedModInfo.info[defaultLang] ||
+            Object.values(selectedModInfo.info)[0]
+        );
+    });
 
     // ======================================================================= //
     // Logic
@@ -238,23 +260,14 @@
                     <span class="value">{selectedModInfo.manifest.author}</span>
                 </div>
 
-                {#if selectedModInfo.info}
-                    {@const defaultLang =
-                        selectedModInfo.manifest.default_text_lang_id}
-                    {@const charInfo =
-                        selectedModInfo.info[defaultLang] ||
-                        Object.values(selectedModInfo.info)[0]}
-                    {#if charInfo}
-                        <div class="row">
-                            <span class="label">{_("resource.statTexts")}:</span
-                            >
-                            <!-- Reusing label or creating new -->
-                            <span class="value">{charInfo.name}</span>
-                        </div>
-                        <div class="desc">
-                            {charInfo.description}
-                        </div>
-                    {/if}
+                {#if activeCharInfo}
+                    <div class="row">
+                        <span class="label">{_("resource.statTexts")}:</span>
+                        <span class="value">{activeCharInfo.name}</span>
+                    </div>
+                    <div class="desc">
+                        {activeCharInfo.description}
+                    </div>
                 {/if}
             </div>
 
