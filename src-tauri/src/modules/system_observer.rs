@@ -16,6 +16,7 @@ use tauri::Emitter;
 use tauri::Manager;
 use tokio::sync::mpsc;
 
+use super::constants::{STATE_SILENCE_END, STATE_SILENCE_START};
 use super::utils::window::get_visual_window_rect;
 use crate::AppState;
 

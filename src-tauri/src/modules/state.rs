@@ -354,7 +354,7 @@ impl StateManager {
     fn prepare_next_state(&mut self, rm: &ResourceManager) {
         // 检查当前状态是否定义了 next_state（避免不必要的 clone）
         let next_state_name = match &self.current_state {
-            Some(s) if !s.next_state.is_empty() => s.next_state.as_str(),
+            Some(s) if !s.next_state.is_empty() => s.next_state.as_ref(),
             _ => return,
         };
 

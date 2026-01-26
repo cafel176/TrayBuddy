@@ -860,7 +860,9 @@ pub fn run() {
                 };
 
                 // 尝试加载 Mod 图标
-                let icon_path = std::path::Path::new("mods").join(&mod_id).join("icon.ico");
+                let icon_path = std::path::Path::new("mods")
+                    .join(mod_id.as_ref())
+                    .join("icon.ico");
                 let icon = if icon_path.exists() {
                     Image::from_path(&icon_path)
                         .unwrap_or_else(|_| app.default_window_icon().unwrap().clone())
@@ -1653,9 +1655,10 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 }; // 锁在此处释放
 
                 if let Some(state_info) = state_info {
-                    let app_state: State<AppState> = app.state();
+                    let app_state = app.state::<AppState>();
+                    let rm = app_state.resource_manager.lock().unwrap();
                     let mut sm = app_state.state_manager.lock().unwrap();
-                    let _ = sm.change_state_ex(state_info, true);
+                    let _ = sm.change_state_ex(state_info, true, &rm);
                 }
             }
         }

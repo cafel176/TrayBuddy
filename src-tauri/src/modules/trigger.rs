@@ -56,7 +56,7 @@ impl TriggerManager {
         // 获取当前持久状态名称
         let current_persistent_name = state_manager
             .get_persistent_state()
-            .map(|s| s.name.as_str())
+            .map(|s| s.name.as_ref())
             .unwrap_or("");
 
         #[cfg(debug_assertions)]
@@ -66,15 +66,15 @@ impl TriggerManager {
         );
 
         // 根据当前持久状态筛选可触发的状态名列表
-        let state_names: Vec<&String> = trigger
+        let state_names: Vec<&str> = trigger
             .can_trigger_states
             .iter()
             .filter(|group| {
                 // persistent_state 为空表示任意持久状态都可触发
-                group.persistent_state.is_empty()
-                    || group.persistent_state == current_persistent_name
+                group.persistent_state.as_ref().is_empty()
+                    || group.persistent_state.as_ref() == current_persistent_name
             })
-            .flat_map(|group| group.states.iter())
+            .flat_map(|group| group.states.iter().map(|s| s.as_ref()))
             .collect();
 
         if state_names.is_empty() {
