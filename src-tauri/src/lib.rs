@@ -214,7 +214,7 @@ async fn load_mod(
     mod_name: String,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<ModInfo, String> {
+) -> Result<Arc<ModInfo>, String> {
     // 0. 关闭除了 mods 以外的所有窗口
     let windows = app.webview_windows();
     for (label, window) in windows {
@@ -237,7 +237,7 @@ async fn load_mod(
     // 2. 更新用户信息并持久化
     {
         let mut storage = state.storage.lock().unwrap();
-        storage.data.info.current_mod = mod_name.clone();
+        storage.data.info.current_mod = mod_name.clone().into();
         let _ = storage.save();
     }
 
@@ -268,7 +268,7 @@ fn unload_mod(state: State<'_, AppState>) -> bool {
 
 /// 获取当前加载的 Mod 信息
 #[tauri::command]
-fn get_current_mod(state: State<'_, AppState>) -> Option<ModInfo> {
+fn get_current_mod(state: State<'_, AppState>) -> Option<Arc<ModInfo>> {
     let rm = state.resource_manager.lock().unwrap();
     rm.current_mod.clone()
 }

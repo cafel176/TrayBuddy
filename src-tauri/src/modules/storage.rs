@@ -28,10 +28,10 @@ use tauri::Manager;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct UserSettings {
-    pub nickname: String,         // 用户昵称
-    pub birthday: Option<String>, // 用户生日 (格式: "MM-DD")
+    pub nickname: Box<str>,         // 用户昵称
+    pub birthday: Option<Box<str>>, // 用户生日 (格式: "MM-DD")
 
-    pub lang: String,     // 界面语言
+    pub lang: Box<str>,   // 界面语言
     pub auto_start: bool, // 是否随开机自启动
 
     pub no_audio_mode: bool, // 静音模式
@@ -48,10 +48,10 @@ pub struct UserSettings {
 impl Default for UserSettings {
     fn default() -> Self {
         Self {
-            nickname: "User".to_string(),
+            nickname: "User".into(),
             birthday: None,
 
-            lang: "zh".to_string(),
+            lang: "zh".into(),
             auto_start: true,
 
             no_audio_mode: false,
@@ -75,7 +75,7 @@ impl Default for UserSettings {
 pub struct UserInfo {
     pub first_login: Option<i64>, // 第一次启动的时间戳
     pub last_login: Option<i64>,  // 最后一次启动的时间戳
-    pub current_mod: String,      // 上次关闭前加载的 Mod ID
+    pub current_mod: Box<str>,    // 上次关闭前加载的 Mod ID
 
     pub animation_window_x: Option<f64>, // animation 窗口上次关闭时的 X 坐标
     pub animation_window_y: Option<f64>, // animation 窗口上次关闭时的 Y 坐标
@@ -90,7 +90,7 @@ impl Default for UserInfo {
         Self {
             first_login: None,
             last_login: None,
-            current_mod: "tutorial".to_string(),
+            current_mod: "tutorial".into(),
 
             animation_window_x: None,
             animation_window_y: None,

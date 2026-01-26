@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tauri::Manager;
 
 // ========================================================================= //
@@ -25,8 +26,8 @@ use tauri::Manager;
 
 /// 默认名称（用于反序列化失败时）
 #[inline]
-fn default_name() -> String {
-    "ERROR".to_string()
+fn default_name() -> Box<str> {
+    "ERROR".into()
 }
 
 // ========================================================================= //
@@ -38,9 +39,9 @@ fn default_name() -> String {
 #[serde(default)]
 pub struct AssetInfo {
     /// 资产名称（如 "idle", "border"）
-    pub name: String,
+    pub name: Box<str>,
     /// 图片文件名（如 "idle.png"）
-    pub img: String,
+    pub img: Box<str>,
 
     /// 是否为序列帧动画
     pub sequence: bool,
@@ -71,7 +72,7 @@ impl Default for AssetInfo {
     fn default() -> Self {
         Self {
             name: default_name(),
-            img: String::new(),
+            img: "".into(),
             sequence: false,
             origin_reverse: false,
             need_reverse: false,
@@ -95,16 +96,16 @@ impl Default for AssetInfo {
 #[serde(default)]
 pub struct AudioInfo {
     /// 语音名称（如 "morning"）
-    pub name: String,
+    pub name: Box<str>,
     /// 语音文件名（如 "morning.wav"）
-    pub audio: String,
+    pub audio: Box<str>,
 }
 
 impl Default for AudioInfo {
     fn default() -> Self {
         Self {
             name: default_name(),
-            audio: String::new(),
+            audio: "".into(),
         }
     }
 }
@@ -118,9 +119,9 @@ impl Default for AudioInfo {
 #[serde(default)]
 pub struct TextInfo {
     /// 文本名称
-    pub name: String,
+    pub name: Box<str>,
     /// 显示的文本内容
-    pub text: String,
+    pub text: Box<str>,
     /// 文本显示持续时间（秒），默认10秒
     pub duration: u32,
 }
@@ -129,7 +130,7 @@ impl Default for TextInfo {
     fn default() -> Self {
         Self {
             name: default_name(),
-            text: String::new(),
+            text: "".into(),
             duration: 5,
         }
     }
@@ -140,13 +141,13 @@ impl Default for TextInfo {
 #[serde(default)]
 pub struct CharacterInfo {
     /// 语言 ID（如 "zh"）
-    pub id: String,
+    pub id: Box<str>,
     /// 语言显示名称（如 "中文"）
-    pub lang: String,
+    pub lang: Box<str>,
     /// 角色在该语言下的名字
-    pub name: String,
+    pub name: Box<str>,
     /// 角色描述
-    pub description: String,
+    pub description: Box<str>,
 }
 
 impl Default for CharacterInfo {
@@ -154,8 +155,8 @@ impl Default for CharacterInfo {
         Self {
             id: default_name(),
             lang: default_name(),
-            name: "Default".to_string(),
-            description: String::new(),
+            name: "Default".into(),
+            description: "".into(),
         }
     }
 }
@@ -171,32 +172,32 @@ impl Default for CharacterInfo {
 #[serde(default)]
 pub struct StateInfo {
     /// 状态名称
-    pub name: String,
+    pub name: Box<str>,
 
     /// 是否为持久状态（false 表示临时状态）
     pub persistent: bool,
     /// 对应的动画资产名称
-    pub anima: String,
+    pub anima: Box<str>,
     /// 对应的音频名称
-    pub audio: String,
+    pub audio: Box<str>,
     /// 对应的文本名称
-    pub text: String,
+    pub text: Box<str>,
     /// 优先级（数值越大优先级越高）
     pub priority: u32,
 
     /// 允许生效的日期起始（格式: "MM-DD"）
-    pub date_start: String,
+    pub date_start: Box<str>,
     /// 允许生效的日期结束（格式: "MM-DD"）
-    pub date_end: String,
+    pub date_end: Box<str>,
     /// 允许生效的时间起始（格式: "HH:MM"）
-    pub time_start: String,
+    pub time_start: Box<str>,
     /// 允许生效的时间结束（格式: "HH:MM"）
-    pub time_end: String,
+    pub time_end: Box<str>,
 
     /// 播放完成后自动切换到的状态名称
-    pub next_state: String,
+    pub next_state: Box<str>,
     /// 可触发的子状态列表
-    pub can_trigger_states: Vec<String>,
+    pub can_trigger_states: Vec<Box<str>>,
     /// 触发间隔时间（秒），最小值为 300 秒（5 分钟）
     ///
     /// - 设为 0 表示禁用定时触发
@@ -213,15 +214,15 @@ impl Default for StateInfo {
         Self {
             name: default_name(),
             persistent: false,
-            anima: String::new(),
-            audio: String::new(),
-            text: String::new(),
+            anima: "".into(),
+            audio: "".into(),
+            text: "".into(),
             priority: 0,
-            date_start: String::new(),
-            date_end: String::new(),
-            time_start: String::new(),
-            time_end: String::new(),
-            next_state: String::new(),
+            date_start: "".into(),
+            date_end: "".into(),
+            time_start: "".into(),
+            time_end: "".into(),
+            next_state: "".into(),
             can_trigger_states: Vec::new(),
             trigger_time: 0.0,
             trigger_rate: 0.0,
@@ -311,16 +312,16 @@ impl StateInfo {
 #[serde(default)]
 pub struct BranchInfo {
     /// 选项按钮显示的文本
-    pub text: String,
+    pub text: Box<str>,
     /// 点击后跳转到的状态名称
-    pub next_state: String,
+    pub next_state: Box<str>,
 }
 
 impl Default for BranchInfo {
     fn default() -> Self {
         Self {
-            text: String::new(),
-            next_state: String::new(),
+            text: "".into(),
+            next_state: "".into(),
         }
     }
 }
@@ -336,15 +337,15 @@ impl Default for BranchInfo {
 #[serde(default)]
 pub struct TriggerStateGroup {
     /// 持久状态名称，为空字符串时表示任意持久状态都可触发
-    pub persistent_state: String,
+    pub persistent_state: Box<str>,
     /// 可触发的状态名称列表
-    pub states: Vec<String>,
+    pub states: Vec<Box<str>>,
 }
 
 impl Default for TriggerStateGroup {
     fn default() -> Self {
         Self {
-            persistent_state: String::new(),
+            persistent_state: "".into(),
             states: Vec::new(),
         }
     }
@@ -357,7 +358,7 @@ impl Default for TriggerStateGroup {
 #[serde(default)]
 pub struct TriggerInfo {
     /// 触发事件名称（如 "login", "music_start"）
-    pub event: String,
+    pub event: Box<str>,
     /// 可触发的状态组列表（按持久状态分组）
     pub can_trigger_states: Vec<TriggerStateGroup>,
 }
@@ -365,7 +366,7 @@ pub struct TriggerInfo {
 impl Default for TriggerInfo {
     fn default() -> Self {
         Self {
-            event: String::new(),
+            event: "".into(),
             can_trigger_states: Vec::new(),
         }
     }
@@ -398,7 +399,7 @@ impl Default for CharacterConfig {
 #[serde(default)]
 pub struct BorderConfig {
     /// 边框动画资产名称
-    pub anima: String,
+    pub anima: Box<str>,
     /// 是否启用边框
     pub enable: bool,
     /// Z轴偏移（渲染层级）
@@ -408,7 +409,7 @@ pub struct BorderConfig {
 impl Default for BorderConfig {
     fn default() -> Self {
         Self {
-            anima: String::new(),
+            anima: "".into(),
             enable: true,
             z_offset: 2,
         }
@@ -424,16 +425,16 @@ impl Default for BorderConfig {
 #[serde(default)]
 pub struct ModManifest {
     /// Mod 唯一标识
-    pub id: String,
+    pub id: Box<str>,
     /// Mod 版本
-    pub version: String,
+    pub version: Box<str>,
     /// 作者
-    pub author: String,
+    pub author: Box<str>,
 
     /// 默认语音语言 ID
-    pub default_audio_lang_id: String,
+    pub default_audio_lang_id: Box<str>,
     /// 默认文本语言 ID
-    pub default_text_lang_id: String,
+    pub default_text_lang_id: Box<str>,
 
     /// 角色渲染配置
     pub character: CharacterConfig,
@@ -441,7 +442,7 @@ pub struct ModManifest {
     pub border: BorderConfig,
 
     /// 核心状态（如 idle）
-    pub important_states: HashMap<String, StateInfo>,
+    pub important_states: HashMap<Box<str>, StateInfo>,
     /// 其他状态列表
     pub states: Vec<StateInfo>,
     /// 触发器列表
@@ -452,10 +453,10 @@ impl Default for ModManifest {
     fn default() -> Self {
         Self {
             id: default_name(),
-            version: String::new(),
-            author: String::new(),
-            default_audio_lang_id: String::new(),
-            default_text_lang_id: String::new(),
+            version: "".into(),
+            author: "".into(),
+            default_audio_lang_id: "".into(),
+            default_text_lang_id: "".into(),
             character: CharacterConfig::default(),
             border: BorderConfig::default(),
             important_states: HashMap::new(),
@@ -472,12 +473,12 @@ impl ModManifest {
     pub fn get_state_by_name(&self, name: &str) -> Option<&StateInfo> {
         self.important_states
             .get(name)
-            .or_else(|| self.states.iter().find(|s| s.name == name))
+            .or_else(|| self.states.iter().find(|s| &*s.name == name))
     }
 
     /// 根据事件名称查找触发器
     pub fn get_trigger_by_event(&self, event: &str) -> Option<&TriggerInfo> {
-        self.triggers.iter().find(|t| t.event == event)
+        self.triggers.iter().find(|t| &*t.event == event)
     }
 }
 
@@ -498,29 +499,29 @@ pub struct ModInfo {
     /// 序列帧资产列表
     pub sequences: Vec<AssetInfo>,
     /// 语音资源（语言代码 -> 语音列表）
-    pub audios: HashMap<String, Vec<AudioInfo>>,
+    pub audios: HashMap<Box<str>, Vec<AudioInfo>>,
     /// 文本资源（语言代码 -> 文本列表）
-    pub texts: HashMap<String, Vec<TextInfo>>,
+    pub texts: HashMap<Box<str>, Vec<TextInfo>>,
     /// 角色信息（语言代码 -> 角色信息）
-    pub info: HashMap<String, CharacterInfo>,
+    pub info: HashMap<Box<str>, CharacterInfo>,
     /// 气泡样式配置（从 bubble_style.json 加载）
     pub bubble_style: Option<serde_json::Value>,
     /// 图标路径（相对路径，如 "icon.ico"）
-    pub icon_path: Option<String>,
+    pub icon_path: Option<Box<str>>,
     /// 预览图路径（相对路径，如 "preview.png"）
-    pub preview_path: Option<String>,
+    pub preview_path: Option<Box<str>>,
 
     // --- 索引（用于 O(1) 查询，不序列化） ---
     #[serde(skip)]
-    state_index: HashMap<String, usize>,
+    state_index: HashMap<Box<str>, usize>,
     #[serde(skip)]
-    trigger_index: HashMap<String, usize>,
+    trigger_index: HashMap<Box<str>, usize>,
     #[serde(skip)]
-    asset_index: HashMap<String, (bool, usize)>, // (is_sequence, index)
+    asset_index: HashMap<Box<str>, (bool, usize)>, // (is_sequence, index)
     #[serde(skip)]
-    audio_index: HashMap<String, HashMap<String, usize>>, // lang -> name -> index
+    audio_index: HashMap<Box<str>, HashMap<Box<str>, usize>>, // lang -> name -> index
     #[serde(skip)]
-    text_index: HashMap<String, HashMap<String, usize>>, // lang -> name -> index
+    text_index: HashMap<Box<str>, HashMap<Box<str>, usize>>, // lang -> name -> index
 }
 
 impl ModInfo {
@@ -560,7 +561,7 @@ impl ModInfo {
 
         // 音频索引
         for (lang, audios) in &self.audios {
-            let idx: HashMap<String, usize> = audios
+            let idx: HashMap<Box<str>, usize> = audios
                 .iter()
                 .enumerate()
                 .map(|(i, a)| (a.name.clone(), i))
@@ -570,7 +571,7 @@ impl ModInfo {
 
         // 文本索引
         for (lang, texts) in &self.texts {
-            let idx: HashMap<String, usize> = texts
+            let idx: HashMap<Box<str>, usize> = texts
                 .iter()
                 .enumerate()
                 .map(|(i, t)| (t.name.clone(), i))
@@ -686,7 +687,7 @@ impl ModInfo {
 /// 负责 Mod 的扫描、解析与内存映射
 pub struct ResourceManager {
     /// 当前加载的 Mod
-    pub current_mod: Option<ModInfo>,
+    pub current_mod: Option<Arc<ModInfo>>,
     /// Mod 搜索路径列表
     pub search_paths: Vec<PathBuf>,
 }
@@ -886,8 +887,8 @@ impl ResourceManager {
             info,
             texts,
             bubble_style,
-            icon_path,
-            preview_path,
+            icon_path: icon_path.map(|s| s.into()),
+            preview_path: preview_path.map(|s| s.into()),
             state_index: HashMap::new(),
             trigger_index: HashMap::new(),
             asset_index: HashMap::new(),
@@ -908,20 +909,19 @@ impl ResourceManager {
     ///
     /// 加载成功后返回 Mod 信息的克隆（用于返回给前端）。
     /// 内部会缓存原始数据，后续查询使用缓存避免重复克隆。
-    pub fn load_mod(&mut self, mod_name: &str) -> Result<ModInfo, String> {
-        let mod_info = self.read_mod_from_disk(mod_name)?;
+    pub fn load_mod(&mut self, mod_name: &str) -> Result<Arc<ModInfo>, String> {
+        let mod_info = Arc::new(self.read_mod_from_disk(mod_name)?);
         let result = mod_info.clone();
 
         self.current_mod = Some(mod_info);
         Ok(result)
     }
 
-    /// 加载文本资源（角色信息 + 对话文本）
     fn load_text_resources(
         text_path: &Path,
     ) -> (
-        HashMap<String, CharacterInfo>,
-        HashMap<String, Vec<TextInfo>>,
+        HashMap<Box<str>, CharacterInfo>,
+        HashMap<Box<str>, Vec<TextInfo>>,
     ) {
         let mut info = HashMap::new();
         let mut texts = HashMap::new();
@@ -929,14 +929,14 @@ impl ResourceManager {
         if let Ok(entries) = fs::read_dir(text_path) {
             for entry in entries.flatten() {
                 if entry.path().is_dir() {
-                    let lang = entry.file_name().to_string_lossy().into_owned();
+                    let lang: Box<str> = entry.file_name().to_string_lossy().into();
 
                     // 加载角色信息
                     if let Some(mut char_info) =
                         Self::load_json_obj::<CharacterInfo>(&entry.path().join("info.json"))
                     {
-                        if char_info.id.is_empty() || char_info.id == "ERROR" {
-                            char_info.id.clone_from(&lang);
+                        if char_info.id.is_empty() || char_info.id.as_ref() == "ERROR" {
+                            char_info.id = lang.clone();
                         }
                         info.insert(lang.clone(), char_info);
                     }
@@ -1051,13 +1051,13 @@ impl ResourceManager {
     fn load_multilang_resources<T: serde::de::DeserializeOwned>(
         base_path: &Path,
         filename: &str,
-    ) -> HashMap<String, Vec<T>> {
+    ) -> HashMap<Box<str>, Vec<T>> {
         let mut result = HashMap::new();
 
         if let Ok(entries) = fs::read_dir(base_path) {
             for entry in entries.flatten() {
                 if entry.path().is_dir() {
-                    let lang = entry.file_name().to_string_lossy().into_owned();
+                    let lang: Box<str> = entry.file_name().to_string_lossy().into();
                     let resources: Vec<T> = Self::load_json_list(&entry.path().join(filename));
                     result.insert(lang, resources);
                 }

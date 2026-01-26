@@ -76,23 +76,23 @@ pub enum MediaPlaybackStatus {
 #[derive(Debug, Clone, Serialize)]
 pub struct MediaStateEvent {
     pub status: MediaPlaybackStatus,
-    pub title: Option<String>,
-    pub artist: Option<String>,
+    pub title: Option<Box<str>>,
+    pub artist: Option<Box<str>>,
     /// 播放应用的进程名/App ID
-    pub app_id: Option<String>,
+    pub app_id: Option<Box<str>>,
 }
 
 /// GSMTC 会话信息（调试用）
 #[derive(Debug, Clone, Serialize)]
 pub struct GsmtcSessionInfo {
     /// 应用 ID
-    pub app_id: String,
+    pub app_id: Box<str>,
     /// 播放状态
-    pub status: String,
+    pub status: Box<str>,
     /// 标题
-    pub title: Option<String>,
+    pub title: Option<Box<str>>,
     /// 艺术家
-    pub artist: Option<String>,
+    pub artist: Option<Box<str>>,
     /// 是否被识别为音乐应用
     pub is_music_app: bool,
 }
@@ -103,9 +103,9 @@ pub struct CoreAudioSessionInfo {
     /// 进程 ID
     pub pid: u32,
     /// 进程名
-    pub process_name: String,
+    pub process_name: Box<str>,
     /// 会话状态
-    pub session_state: String,
+    pub session_state: Box<str>,
     /// 音量峰值
     pub peak_value: f32,
     /// 是否被识别为音乐应用
@@ -122,7 +122,7 @@ pub struct MediaDebugInfo {
     /// 运行时间（秒）
     pub uptime_secs: u64,
     /// 最后检查时间
-    pub last_check_time: String,
+    pub last_check_time: Box<str>,
     /// GSMTC 是否可用
     pub gsmtc_available: bool,
     /// Core Audio 是否可用
@@ -134,7 +134,7 @@ pub struct MediaDebugInfo {
     /// 当前综合状态
     pub combined_state: MediaStateEvent,
     /// 状态来源
-    pub state_source: String,
+    pub state_source: Box<str>,
     /// 已注册的 GSMTC 事件数量
     pub registered_session_events: usize,
 }
@@ -458,18 +458,18 @@ impl MediaObserver {
                                 artist: gsmtc.artist.clone(),
                                 app_id: event.app_id.clone(),
                             },
-                            "Core Audio + GSMTC metadata".to_string(),
+                            "Core Audio + GSMTC metadata".into(),
                         );
                     }
                 }
-                return (event.clone(), "Core Audio".to_string());
+                return (event.clone(), "Core Audio".into());
             }
         }
 
         // 如果 GSMTC 检测到暂停状态，返回暂停
         if let Some(ref event) = gsmtc_event {
             if event.status == MediaPlaybackStatus::Paused {
-                return (event.clone(), "GSMTC (Paused)".to_string());
+                return (event.clone(), "GSMTC (Paused)".into());
             }
         }
 
@@ -487,7 +487,7 @@ impl MediaObserver {
                 artist: None,
                 app_id: last_app_id,
             },
-            "None (Stopped)".to_string(),
+            "None (Stopped)".into(),
         )
     }
 
@@ -527,13 +527,13 @@ impl MediaObserver {
         let debug_info = MediaDebugInfo {
             observer_running: running.load(Ordering::SeqCst),
             uptime_secs,
-            last_check_time: Local::now().format("%H:%M:%S").to_string(),
+            last_check_time: Local::now().format("%H:%M:%S").to_string().into(),
             gsmtc_available: gsmtc_manager.is_some(),
             core_audio_available,
             gsmtc_sessions,
             core_audio_sessions,
             combined_state: combined_state.clone(),
-            state_source: state_source.to_string(),
+            state_source: state_source.into(),
             registered_session_events: registered_events,
         };
 
@@ -555,11 +555,11 @@ impl MediaObserver {
         if let Ok(session_list) = manager.GetSessions() {
             for i in 0..session_list.Size().unwrap_or(0) {
                 if let Ok(session) = session_list.GetAt(i) {
-                    let app_id = session
+                    let app_id: Box<str> = session
                         .SourceAppUserModelId()
                         .ok()
-                        .map(|s| s.to_string_lossy())
-                        .unwrap_or_default();
+                        .map(|s| s.to_string_lossy().into())
+                        .unwrap_or_else(|| "".into());
 
                     let status = if let Ok(playback_info) = session.GetPlaybackInfo() {
                         match playback_info.PlaybackStatus() {
@@ -583,9 +583,9 @@ impl MediaObserver {
 
                     sessions.push(GsmtcSessionInfo {
                         app_id,
-                        status: status.to_string(),
-                        title,
-                        artist,
+                        status: status.into(),
+                        title: title.map(|s| s.into()),
+                        artist: artist.map(|s| s.into()),
                         is_music_app,
                     });
                 }
@@ -680,8 +680,8 @@ impl MediaObserver {
 
                             sessions.push(CoreAudioSessionInfo {
                                 pid,
-                                process_name,
-                                session_state: session_state.to_string(),
+                                process_name: process_name.into(),
+                                session_state: session_state.into(),
                                 peak_value,
                                 is_music_app,
                                 is_playing,
@@ -949,7 +949,7 @@ impl MediaObserver {
 
                     let mut tokens = session_tokens.lock().unwrap();
                     tokens.push(SessionEventTokens {
-                        session_id,
+                        session_id: session_id.into(),
                         session: session.clone(),
                         playback_token,
                         media_token,
@@ -963,7 +963,7 @@ impl MediaObserver {
     #[cfg(windows)]
     fn get_media_properties(
         session: &windows::Media::Control::GlobalSystemMediaTransportControlsSession,
-    ) -> (Option<String>, Option<String>) {
+    ) -> (Option<Box<str>>, Option<Box<str>>) {
         let properties = match session.TryGetMediaPropertiesAsync() {
             Ok(op) => match op.get() {
                 Ok(p) => p,
@@ -972,8 +972,8 @@ impl MediaObserver {
             Err(_) => return (None, None),
         };
 
-        let title = properties.Title().ok().map(|s| s.to_string_lossy());
-        let artist = properties.Artist().ok().map(|s| s.to_string_lossy());
+        let title = properties.Title().ok().map(|s| s.to_string_lossy().into());
+        let artist = properties.Artist().ok().map(|s| s.to_string_lossy().into());
 
         (title, artist)
     }
@@ -1001,8 +1001,8 @@ impl Default for MediaObserver {
 /// 媒体观察者内部状态（用于检测变化）
 struct MediaObserverState {
     last_status: MediaPlaybackStatus,
-    last_app_id: Option<String>,
-    last_title: Option<String>,
+    last_app_id: Option<Box<str>>,
+    last_title: Option<Box<str>>,
     has_played: bool,
 }
 
@@ -1035,7 +1035,7 @@ impl MediaObserverState {
 /// GSMTC 会话事件 Token 存储（用于清理）
 #[cfg(windows)]
 struct SessionEventTokens {
-    session_id: String,
+    session_id: Box<str>,
     session: windows::Media::Control::GlobalSystemMediaTransportControlsSession,
     playback_token: windows::core::Result<windows::Foundation::EventRegistrationToken>,
     media_token: windows::core::Result<windows::Foundation::EventRegistrationToken>,

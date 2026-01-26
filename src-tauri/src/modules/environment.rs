@@ -47,28 +47,28 @@ pub struct GeoLocation {
     /// 经度
     pub longitude: f64,
     /// 时区名称 (如 "Asia/Shanghai")
-    pub timezone: Option<String>,
+    pub timezone: Option<Box<str>>,
     /// 是否为北半球
     pub is_northern_hemisphere: bool,
     /// 城市名称
-    pub city: Option<String>,
+    pub city: Option<Box<str>>,
     /// 地区/省份名称
-    pub region: Option<String>,
+    pub region: Option<Box<str>>,
     /// 国家名称
-    pub country: Option<String>,
+    pub country: Option<Box<str>>,
 }
 
 /// IP 地理位置 API 响应 (ip-api.com)
 #[derive(Debug, Clone, Deserialize)]
 struct IpGeoApiResponse {
-    status: String,
-    country: Option<String>,
+    status: Box<str>,
+    country: Option<Box<str>>,
     #[serde(rename = "regionName")]
-    region_name: Option<String>,
-    city: Option<String>,
+    region_name: Option<Box<str>>,
+    city: Option<Box<str>>,
     lat: Option<f64>,
     lon: Option<f64>,
-    timezone: Option<String>,
+    timezone: Option<Box<str>>,
 }
 
 /// 时间日期信息
@@ -104,9 +104,9 @@ pub struct EnvironmentInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeatherInfo {
     /// 天气状况 (如 "晴", "多云", "雨" 等)
-    pub condition: String,
+    pub condition: Box<str>,
     /// 天气状况代码
-    pub condition_code: String,
+    pub condition_code: Box<str>,
     /// 当前气温 (摄氏度)
     pub temperature: f64,
     /// 体感温度 (摄氏度)
@@ -340,7 +340,7 @@ impl EnvironmentManager {
             return GeoLocation {
                 latitude,
                 longitude,
-                timezone: Some(timezone_name),
+                timezone: Some(timezone_name.into()),
                 is_northern_hemisphere: !is_southern,
                 city: None,
                 region: None,
@@ -445,11 +445,7 @@ impl EnvironmentManager {
                 }
                 Some(weather)
             }
-            Err(e) => {
-                eprintln!("[EnvironmentManager] Failed to get weather: {}", e);
-                // 如果有旧缓存，即使过期也返回旧数据
-                self.cached_weather.clone()
-            }
+            Err(e) => self.cached_weather.as_ref().map(|w| w.clone()),
         }
     }
 
@@ -502,13 +498,13 @@ impl EnvironmentManager {
             .and_then(|s| s.parse::<f64>().ok());
 
         // 获取中文天气描述
-        let condition = current["lang_zh"][0]["value"]
+        let condition: Box<str> = current["lang_zh"][0]["value"]
             .as_str()
             .or_else(|| current["weatherDesc"][0]["value"].as_str())
             .unwrap_or("未知")
-            .to_string();
+            .into();
 
-        let condition_code = current["weatherCode"].as_str().unwrap_or("0").to_string();
+        let condition_code: Box<str> = current["weatherCode"].as_str().unwrap_or("0").into();
 
         Ok(WeatherInfo {
             condition,
