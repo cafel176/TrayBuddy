@@ -134,7 +134,7 @@
                 class:active={debugBorders}
                 onclick={toggleBorders}
             >
-                {debugBorders ? "ON" : "OFF"}
+                {debugBorders ? _("common.on") : _("common.off")}
             </button>
         </div>
     </div>

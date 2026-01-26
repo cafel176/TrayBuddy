@@ -204,13 +204,10 @@
         modName: selectedMod,
       })) as ModInfo;
       currentModInfo = info;
-      statusMsg =
-        _("resource.statusLoadSuccess") +
-        " " +
-        info.manifest.id +
-        " (v" +
-        info.manifest.version +
-        ")";
+      statusMsg = _("resource.statusLoadSuccessTpl", {
+        id: info.manifest.id,
+        version: info.manifest.version,
+      });
       // 重新加载气泡样式
       await loadBubbleStyle();
     } catch (e) {

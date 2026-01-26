@@ -26,6 +26,9 @@
     "modsTitle": "TrayBuddy Mod Manager",
     "settingsTitle": "TrayBuddy Settings",
     "failed": "failed",
+    "on": "ON",
+    "off": "OFF",
+    "style": "Style",
     "noModHint": "No character loaded or Mod is invalid. Please load a Mod via the context menu."
   },
   "tabs": {
@@ -243,6 +246,7 @@
     "statusSelectMod": "Please select a Mod first",
     "statusLoading": "Loading...",
     "statusLoadSuccess": "Load success:",
+    "statusLoadSuccessTpl": "Load success: {id} (v{version})",
     "statusLoadFailed": "Load failed:",
     "statusUnloaded": "Mod unloaded",
     "statusNoMod": "No Mod loaded",

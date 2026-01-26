@@ -26,6 +26,9 @@
     "modsTitle": "TrayBuddy Mod 管理器",
     "settingsTitle": "TrayBuddy 用户设置",
     "failed": "失败",
+    "on": "开启",
+    "off": "关闭",
+    "style": "样式",
     "noModHint": "未加载角色或 Mod 已失效，请在右键菜单中加载一个 Mod"
   },
   "tabs": {
@@ -243,6 +246,7 @@
     "statusSelectMod": "请先选择一个 Mod",
     "statusLoading": "正在加载...",
     "statusLoadSuccess": "加载成功:",
+    "statusLoadSuccessTpl": "加载成功: {id} (v{version})",
     "statusLoadFailed": "加载失败:",
     "statusUnloaded": "Mod 已卸载",
     "statusNoMod": "当前没有加载的 Mod",

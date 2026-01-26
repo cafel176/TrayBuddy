@@ -26,6 +26,9 @@
     "modsTitle": "TrayBuddy Mod マネージャー",
     "settingsTitle": "TrayBuddy 設定",
     "failed": "失败",
+    "on": "オン",
+    "off": "オフ",
+    "style": "デザイン",
     "noModHint": "キャラクターが読み込まれていないか、Modが無効です。右クリックメニューからModを読み込んでください。"
   },
   "tabs": {
@@ -243,6 +246,7 @@
     "statusSelectMod": "先に Mod を選択してください",
     "statusLoading": "読み込み中...",
     "statusLoadSuccess": "読み込み成功:",
+    "statusLoadSuccessTpl": "読み込み成功: {id} (v{version})",
     "statusLoadFailed": "読み込み失败:",
     "statusUnloaded": "Mod をアンロードしました",
     "statusNoMod": "読み込み中の Mod はありません",
