@@ -1097,6 +1097,7 @@ pub fn run() {
             show_context_menu,
             get_tray_position,
             get_saved_window_position,
+            reset_animation_window_position,
             // 登录检测
             start_login_detection,
         ])
@@ -1989,6 +1990,62 @@ fn get_saved_window_position(state: State<'_, AppState>) -> (Option<f64>, Option
         storage.data.info.animation_window_x,
         storage.data.info.animation_window_y,
     )
+}
+
+/// 重置动画窗口位置到默认位置
+///
+/// 将窗口移动到任务栏上方的默认位置，并清空用户保存的位置信息
+#[tauri::command]
+fn reset_animation_window_position(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    // 1. 获取动画窗口
+    let window = app.get_webview_window("animation")
+        .ok_or_else(|| "Animation window not found".to_string())?;
+
+    // 2. 获取当前的缩放比例
+    let (scale, window_width, window_height) = {
+        let storage = state.storage.lock().unwrap();
+        let scale = storage.data.settings.animation_scale as f64;
+        let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+        let bubble_area_width = BUBBLE_AREA_WIDTH;
+        let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+
+        (
+            scale,
+            bubble_area_width.max(animation_area_width),
+            BUBBLE_AREA_HEIGHT + animation_area_height,
+        )
+    };
+
+    // 3. 计算默认位置（任务栏上方）
+    if let Some(monitor) = window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        // 4. 移动窗口到默认位置
+        window
+            .set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)))
+            .map_err(|e| e.to_string())?;
+
+        // 5. 清空用户保存的位置信息
+        {
+            let mut storage = state.storage.lock().unwrap();
+            storage.data.info.animation_window_x = None;
+            storage.data.info.animation_window_y = None;
+            storage.save().map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
+    } else {
+        Err("Failed to get primary monitor".to_string())
+    }
 }
 
 /// 启动登录检测（由前端调用）

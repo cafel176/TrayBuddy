@@ -29,6 +29,7 @@
     "on": "开启",
     "off": "关闭",
     "style": "样式",
+    "action": "操作",
     "noModHint": "未加载角色或 Mod 已失效，请在右键菜单中加载一个 Mod"
   },
   "tabs": {
@@ -184,7 +185,11 @@
     "durationMinutesAndSeconds": "{minutes} 分钟 {seconds} 秒",
     "durationHours": "{count} 小时",
     "durationHoursAndMinutes": "{hours} 小时 {minutes} 分钟",
-    "durationHoursMinutesAndSeconds": "{hours} 小时 {minutes} 分钟 {seconds} 秒"
+    "durationHoursMinutesAndSeconds": "{hours} 小时 {minutes} 分钟 {seconds} 秒",
+    "resetPosition": "重置窗口位置",
+    "resetPositionHint": "将窗口移动到任务栏上方的默认位置",
+    "resetPositionSuccess": "窗口位置已重置",
+    "resetPositionFailed": "重置失败: "
   },
   "media": {
     "title": "媒体监听调试器",

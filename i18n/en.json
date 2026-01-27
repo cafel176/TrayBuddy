@@ -29,6 +29,7 @@
     "on": "ON",
     "off": "OFF",
     "style": "Style",
+    "action": "Action",
     "noModHint": "No character loaded or Mod is invalid. Please load a Mod via the context menu."
   },
   "tabs": {
@@ -184,7 +185,11 @@
     "durationMinutesAndSeconds": "{minutes} minutes {seconds} seconds",
     "durationHours": "{count} hours",
     "durationHoursAndMinutes": "{hours} hours {minutes} minutes",
-    "durationHoursMinutesAndSeconds": "{hours} hours {minutes} minutes {seconds} seconds"
+    "durationHoursMinutesAndSeconds": "{hours} hours {minutes} minutes {seconds} seconds",
+    "resetPosition": "Reset Window Position",
+    "resetPositionHint": "Move window to default position above taskbar",
+    "resetPositionSuccess": "Window position reset",
+    "resetPositionFailed": "Reset failed: "
   },
   "media": {
     "title": "Media Monitor Debugger",

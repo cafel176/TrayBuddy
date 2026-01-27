@@ -2,8 +2,8 @@
   "lang": "日本語",
   "common": {
     "loading": "読み込み中...",
-    "loadFailed": "読み込み失败:",
-    "saveFailed": "保存失败:",
+    "loadFailed": "読み込み失敗:",
+    "saveFailed": "保存失敗:",
     "refresh": "更新",
     "refreshing": "更新中...",
     "save": "保存",
@@ -25,10 +25,11 @@
     "animationTitle": "TrayBuddy アニメーション",
     "modsTitle": "TrayBuddy Mod マネージャー",
     "settingsTitle": "TrayBuddy 設定",
-    "failed": "失败",
+    "failed": "失敗",
     "on": "オン",
     "off": "オフ",
     "style": "デザイン",
+    "action": "アクション",
     "noModHint": "キャラクターが読み込まれていないか、Modが無効です。右クリックメニューからModを読み込んでください。"
   },
   "tabs": {
@@ -184,7 +185,11 @@
     "durationMinutesAndSeconds": "{minutes} 分 {seconds} 秒",
     "durationHours": "{count} 時間",
     "durationHoursAndMinutes": "{hours} 時間 {minutes} 分",
-    "durationHoursMinutesAndSeconds": "{hours} 時間 {minutes} 分 {seconds} 秒"
+    "durationHoursMinutesAndSeconds": "{hours} 時間 {minutes} 分 {seconds} 秒",
+    "resetPosition": "ウィンドウ位置をリセット",
+    "resetPositionHint": "ウィンドウをタスクバーの上のデフォルト位置に移動",
+    "resetPositionSuccess": "ウィンドウ位置がリセットされました",
+    "resetPositionFailed": "リセット失敗: "
   },
   "media": {
     "title": "メディア監視デバッガー",

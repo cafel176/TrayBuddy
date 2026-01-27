@@ -110,6 +110,18 @@
     }
   }
 
+  /**
+   * 重置动画窗口位置到默认位置
+   */
+  async function resetPosition() {
+    try {
+      await invoke("reset_animation_window_position");
+      statusMsg = _("info.resetPositionSuccess");
+    } catch (e) {
+      statusMsg = `${_("info.resetPositionFailed")} ${e}`;
+    }
+  }
+
   // ======================================================================= //
   // 工具函数
   // ======================================================================= //
@@ -226,6 +238,14 @@
           {_("info.notSaved")}
         {/if}
       </span>
+    </div>
+
+    <!-- 重置窗口位置按钮 -->
+    <div class="data-row">
+      <span class="label">{_("common.action")}</span>
+      <button class="reset-btn" onclick={resetPosition}>
+        {_("info.resetPosition")}
+      </button>
     </div>
 
     <!-- 使用统计部分 -->
@@ -356,6 +376,21 @@
   .save-btn:disabled {
     background: #bdc3c7;
     cursor: not-allowed;
+  }
+
+  .reset-btn {
+    padding: 6px 12px;
+    background: #f39c12;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background 0.2s;
+  }
+
+  .reset-btn:hover {
+    background: #e67e22;
   }
 
   .mini-status {
