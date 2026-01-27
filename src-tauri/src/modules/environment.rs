@@ -486,28 +486,32 @@ pub fn get_current_datetime() -> DateTimeInfo {
     get_current_datetime_impl()
 }
 
-/// 便捷函数：判断当前是否是早晨 (6:00 - 12:00)
+/// 便捷函数：判断当前是否是早晨
 pub fn is_morning() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= 6 && dt.hour < 12
+    dt.hour >= crate::modules::constants::MORNING_HOUR_START
+        && dt.hour < crate::modules::constants::MORNING_HOUR_END
 }
 
-/// 便捷函数：判断当前是否是下午 (12:00 - 18:00)
+/// 便捷函数：判断当前是否是下午
 pub fn is_noon() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= 12 && dt.hour < 18
+    dt.hour >= crate::modules::constants::MORNING_HOUR_END
+        && dt.hour < crate::modules::constants::NOON_HOUR_END
 }
 
-/// 便捷函数：判断当前是否是晚上 (18:00 - 22:00)
+/// 便捷函数：判断当前是否是晚上
 pub fn is_evening() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= 18 && dt.hour < 22
+    dt.hour >= crate::modules::constants::NOON_HOUR_END
+        && dt.hour < crate::modules::constants::EVENING_HOUR_END
 }
 
-/// 便捷函数：判断当前是否是夜间 (22:00 - 6:00)
+/// 便捷函数：判断当前是否是夜间
 pub fn is_night() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= 22 || dt.hour < 6
+    dt.hour >= crate::modules::constants::EVENING_HOUR_END
+        || dt.hour < crate::modules::constants::MORNING_HOUR_START
 }
 
 /// 便捷函数：获取当前时间段名称

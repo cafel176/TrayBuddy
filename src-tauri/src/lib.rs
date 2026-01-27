@@ -855,8 +855,6 @@ pub fn run() {
             }
 
             sm.set_app_handle(app.handle().clone());
-            // 启动定时触发器和设置事件发送器
-            sm.start_timer_loop(app.handle().clone());
 
             // ========== 系统托盘 (System Tray) ==========
             // 必须在注册AppState之前创建，因为需要先使用rm
@@ -905,16 +903,6 @@ pub fn run() {
 
             // ========== 创建动画窗口 ==========
             inner_create_animation_window(app.handle())?;
-
-            // 启动媒体监听器
-            start_media_observer(app.handle().clone(), is_silence);
-
-            // 启动系统状态观察器（监听全屏）
-            #[cfg(target_os = "windows")]
-            {
-                let observer = SystemObserver::new();
-                observer.start(app.handle().clone());
-            }
 
             // ========== 创建托盘 ==========
             {
@@ -1058,6 +1046,8 @@ pub fn run() {
             show_context_menu,
             get_tray_position,
             get_saved_window_position,
+            // 登录检测
+            start_login_detection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1811,4 +1801,519 @@ fn get_saved_window_position(state: State<'_, AppState>) -> (Option<f64>, Option
         storage.data.info.animation_window_x,
         storage.data.info.animation_window_y,
     )
+}
+
+/// 启动登录检测（由前端调用）
+/// 
+/// 启动异步线程检测用户是否已登录到桌面，检测到后自动触发相应事件
+/// 特殊日期判断（生日、首登录纪念日）和login触发都在session_observer回调内处理
+#[tauri::command]
+fn start_login_detection(app: tauri::AppHandle) -> Result<(), String> {
+    // 启动桌面会话检测（所有触发逻辑都在检测回调内）
+    start_session_observer(app);
+    
+    Ok(())
+}
+
+// ========================================================================= //
+// 桌面会话检测
+// ========================================================================= //
+
+/// 解析生日日期字符串（格式：MM-DD）
+/// 返回 (月, 日) 或 None
+fn parse_birthday_date(birthday: &str) -> Option<(u32, u32)> {
+    let parts: Vec<&str> = birthday.split('-').collect();
+    if parts.len() == 2 {
+        let month = parts[0].parse::<u32>().ok()?;
+        let day = parts[1].parse::<u32>().ok()?;
+        // 验证日期有效性
+        if month >= modules::constants::MONTH_MIN && month <= modules::constants::MONTH_MAX
+            && day >= modules::constants::DAY_MIN && day <= modules::constants::DAY_MAX
+        {
+            Some((month, day))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+/// 统一的日期判定函数，集中处理所有日期相关的事件类型判定
+/// 优先级：生日 > 首登录纪念日 > 普通登录
+fn determine_event_type(
+    birthday: &Option<Box<str>>,
+    first_login_timestamp: Option<i64>,
+    is_silence_mode: bool,
+) -> String {
+    use chrono::Datelike;
+
+    let dt = get_current_datetime();
+
+    // 1. 生日判断（最高优先级）
+    if let Some(ref bday) = birthday {
+        if !bday.is_empty() {
+            if let Some((bday_month, bday_day)) = parse_birthday_date(bday) {
+                if bday_month == dt.month && bday_day == dt.day {
+                    println!("[SessionObserver] 今天是生日，优先触发 birthday 事件");
+                    return String::from("birthday");
+                }
+            }
+        }
+    }
+
+    // 2. 首登录纪念日判断
+    if let Some(timestamp) = first_login_timestamp {
+        let first_login_date = chrono::DateTime::from_timestamp(timestamp, 0)
+            .map(|dt| dt.naive_utc().date())
+            .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+
+        let first_login_year = first_login_date.year();
+        let first_login_month = first_login_date.month() as u32;
+        let first_login_day = first_login_date.day();
+
+        let current_year = dt.year as u32;
+        let current_month = dt.month;
+        let current_day = dt.day;
+
+        // 仅在年份大于首次登录年份且月日相符时触发
+        if current_year > first_login_year as u32 && current_month == first_login_month && current_day == first_login_day {
+            println!("[SessionObserver] 今天是首登录纪念日，优先触发 firstday 事件");
+            return String::from("firstday");
+        }
+    }
+
+    // 3. 普通登录
+    if is_silence_mode {
+        String::from("login_silence")
+    } else {
+        String::from("login")
+    }
+}
+
+/// 检测当前会话是否未锁定（用户在桌面上）
+#[cfg(target_os = "windows")]
+fn is_user_logged_in_desktop() -> bool {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetForegroundWindow};
+
+    unsafe {
+        // 检查是否有前台窗口
+        // 锁屏时，GetForegroundWindow 返回 0 或特定的锁屏窗口句柄
+        let hwnd = GetForegroundWindow();
+
+        // 如果没有前台窗口，可能是锁屏状态
+        if hwnd.is_invalid() {
+            return false;
+        }
+
+        // 进一步检查：检查窗口类名
+        // 锁屏窗口的类名通常是 "Windows.UI.Core.CoreWindow"
+        let mut class_name = [0u16; 256];
+        if GetClassNameW(hwnd, &mut class_name) > 0 {
+            let class_str = String::from_utf16_lossy(&class_name[..class_name.iter().position(|&x| x == 0).unwrap_or(class_name.len())]);
+
+            // 锁屏窗口的类名判断
+            if class_str.contains("Windows.UI.Core.CoreWindow") ||
+               class_str.contains("ApplicationFrameWindow") ||
+               class_str.contains("LockScreen") {
+                return false;
+            }
+        }
+
+        // 有前台窗口且不是锁屏窗口，认为已登录
+        true
+    }
+}
+
+/// 非Windows平台的占位实现
+#[cfg(not(target_os = "windows"))]
+fn is_user_logged_in_desktop() -> bool {
+    // 非Windows平台默认返回true，表示已登录
+    true
+}
+
+/// 启动桌面会话监听器（使用 WTS 事件驱动）
+#[cfg(target_os = "windows")]
+fn start_session_observer(app_handle: tauri::AppHandle) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::*;
+    use windows::Win32::Graphics::Gdi::*;
+    use windows::Win32::System::RemoteDesktop::{NOTIFY_FOR_THIS_SESSION, WTSRegisterSessionNotification, WTSUnRegisterSessionNotification};
+    use windows::Win32::UI::WindowsAndMessaging::*;
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+
+    // WTS 会话事件常量
+    const WTS_SESSION_LOCK: u32 = 7;
+    const WTS_SESSION_UNLOCK: u32 = 8;
+
+    // 使用 Arc<AtomicBool> 标记是否已触发登录事件
+    let login_triggered = Arc::new(AtomicBool::new(false));
+    // 使用 Arc<AtomicBool> 标记后台服务是否已启动
+    let services_started = Arc::new(AtomicBool::new(false));
+
+    std::thread::spawn(move || {
+        println!("[SessionObserver] 启动 WTS 会话监听线程");
+
+        unsafe {
+            // 注册窗口类
+            let class_name_wstr: Vec<u16> = "TrayBuddySessionObserver\0".encode_utf16().collect();
+            let title_wstr: Vec<u16> = "TrayBuddy Session Observer\0".encode_utf16().collect();
+
+            let wnd_class = WNDCLASSW {
+                style: WNDCLASS_STYLES(0),
+                lpfnWndProc: Some(session_window_proc),
+                cbClsExtra: 0,
+                cbWndExtra: 0,
+                hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default().into(),
+                hIcon: HICON::default(),
+                hCursor: HCURSOR::default(),
+                hbrBackground: HBRUSH::default(),
+                lpszMenuName: PCWSTR::null(),
+                lpszClassName: PCWSTR::from_raw(class_name_wstr.as_ptr()),
+            };
+
+            if RegisterClassW(&wnd_class) == 0 {
+                eprintln!("[SessionObserver] 窗口类注册失败: {:?}", GetLastError());
+                return;
+            }
+
+            // 创建隐藏窗口
+            let hwnd = CreateWindowExW(
+                WINDOW_EX_STYLE(0),
+                PCWSTR::from_raw(class_name_wstr.as_ptr()),
+                PCWSTR::from_raw(title_wstr.as_ptr()),
+                WINDOW_STYLE(0),
+                0,
+                0,
+                0,
+                0,
+                HWND::default(),
+                HMENU::default(),
+                GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+                None,
+            );
+
+            let hwnd = match hwnd {
+                Ok(h) => h,
+                Err(e) => {
+                    eprintln!("[SessionObserver] 窗口创建失败: {:?}", e);
+                    return;
+                }
+            };
+
+            if hwnd.is_invalid() {
+                eprintln!("[SessionObserver] 窗口创建失败: {:?}", GetLastError());
+                return;
+            }
+
+            // 保存上下文到窗口用户数据
+            let context = SessionObserverContext {
+                app_handle: app_handle.clone(),
+                login_triggered: login_triggered.clone(),
+                services_started: services_started.clone(),
+            };
+
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, Box::into_raw(Box::new(context)) as isize);
+
+            // 注册 WTS 会话通知
+            if WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION).is_err() {
+                eprintln!("[SessionObserver] WTS 会话通知注册失败: {:?}", GetLastError());
+                let _ = DestroyWindow(hwnd);
+                return;
+            }
+
+            println!("[SessionObserver] WTS 会话通知注册成功");
+
+            // 初始状态检查：如果程序启动时用户已经解锁，主动触发登录事件
+            if is_user_logged_in_desktop() {
+                println!("[SessionObserver] 程序启动时检测到用户已登录，主动触发登录事件");
+
+                // 检查并启动后台服务（只启动一次）
+                if services_started.compare_exchange(
+                    false,
+                    true,
+                    Ordering::SeqCst,
+                    Ordering::Relaxed,
+                ).is_ok() {
+                    start_background_services(&app_handle);
+                }
+
+                // 检查并触发登录事件（只触发一次）
+                if login_triggered.compare_exchange(
+                    false,
+                    true,
+                    Ordering::SeqCst,
+                    Ordering::Relaxed,
+                ).is_ok() {
+                    trigger_login_events(&app_handle);
+                }
+            }
+
+            // 消息循环
+            let mut msg = MSG::default();
+            while GetMessageW(&mut msg, HWND::default(), 0, 0).into() {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+
+            // 清理
+            let _ = WTSUnRegisterSessionNotification(hwnd);
+            let _ = DestroyWindow(hwnd);
+        }
+    });
+}
+
+/// 会话观察器上下文
+#[cfg(target_os = "windows")]
+struct SessionObserverContext {
+    app_handle: tauri::AppHandle,
+    login_triggered: Arc<std::sync::atomic::AtomicBool>,
+    services_started: Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(target_os = "windows")]
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+
+/// 会话窗口过程函数
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn session_window_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    use std::sync::atomic::Ordering;
+    use windows::Win32::Foundation::*;
+    use windows::Win32::UI::WindowsAndMessaging::*;
+
+    // WTS 会话事件常量
+    const WTS_SESSION_LOCK: u32 = 7;
+    const WTS_SESSION_UNLOCK: u32 = 8;
+
+    match msg {
+        WM_WTSSESSION_CHANGE => {
+            let event_code = wparam.0 as u32;
+            let session_id = lparam.0 as u32;
+
+            // 获取窗口用户数据
+            let context_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut SessionObserverContext;
+            if !context_ptr.is_null() {
+                let context = &*context_ptr;
+
+                match event_code {
+                    WTS_SESSION_UNLOCK => {
+                        println!("[SessionObserver] 检测到会话解锁 (session_id: {})", session_id);
+
+                        // 检查并启动后台服务（只启动一次）
+                        if context.services_started.compare_exchange(
+                            false,
+                            true,
+                            Ordering::SeqCst,
+                            Ordering::Relaxed,
+                        ).is_ok() {
+                            start_background_services(&context.app_handle);
+                        }
+
+                        // 检查并触发登录事件
+                        if context.login_triggered.compare_exchange(
+                            false,
+                            true,
+                            Ordering::SeqCst,
+                            Ordering::Relaxed,
+                        ).is_ok() {
+                            trigger_login_events(&context.app_handle);
+                        }
+                    }
+                    WTS_SESSION_LOCK => {
+                        println!("[SessionObserver] 检测到会话锁定 (session_id: {})", session_id);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        WM_DESTROY => {
+            // 清理上下文
+            let context_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut SessionObserverContext;
+            if !context_ptr.is_null() {
+                let _ = Box::from_raw(context_ptr);
+            }
+            PostQuitMessage(0);
+        }
+
+        _ => {}
+    }
+
+    DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
+/// 启动后台服务（避免死锁）
+#[cfg(target_os = "windows")]
+fn start_background_services(app_handle: &tauri::AppHandle) {
+    println!("[SessionObserver] 启动后台服务");
+
+    let app_state = app_handle.state::<AppState>();
+
+    // 获取免打扰模式设置（短暂持有锁）
+    let is_silence_mode = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.silence_mode
+    };
+
+    // 启动媒体监听器（独立线程，无锁）
+    start_media_observer(app_handle.clone(), is_silence_mode);
+
+    // 启动系统状态观察器（独立线程，无锁）
+    {
+        let observer = SystemObserver::new();
+        observer.start(app_handle.clone());
+    }
+
+    // 启动定时触发器（短暂持有锁）
+    {
+        let mut sm = app_state.state_manager.lock().unwrap();
+        sm.start_timer_loop(app_handle.clone());
+    }
+}
+
+/// 触发登录相关事件
+#[cfg(target_os = "windows")]
+fn trigger_login_events(app_handle: &tauri::AppHandle) {
+    println!("[SessionObserver] 准备触发登录事件");
+
+    // 获取 AppState 引用
+    let app_state = app_handle.state::<AppState>();
+
+    // 一次性获取所有需要的设置信息，避免重复获取锁
+    let (birthday, first_login_timestamp, is_silence_mode) = {
+        let storage = app_state.storage.lock().unwrap();
+        (
+            storage.data.settings.birthday.clone(),
+            storage.data.info.first_login,
+            storage.data.settings.silence_mode,
+        )
+    };
+
+    // 使用统一的日期判定函数确定事件类型
+    let event_name = determine_event_type(&birthday, first_login_timestamp, is_silence_mode);
+
+    // 触发事件（获取资源管理器和状态管理器锁）
+    println!("[SessionObserver] 触发事件: {}", event_name);
+
+    let rm = app_state.resource_manager.lock().unwrap();
+    let mut sm = app_state.state_manager.lock().unwrap();
+
+    match TriggerManager::trigger_event(&event_name, &rm, &mut sm) {
+        Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
+        Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
+        Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),
+    }
+
+    // 释放锁
+    drop(rm);
+    drop(sm);
+}
+
+/// 非Windows平台的占位实现
+#[cfg(not(target_os = "windows"))]
+fn start_session_observer(app_handle: tauri::AppHandle) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use std::thread;
+
+    // 非Windows平台使用简化的轮询方式
+    let login_triggered = Arc::new(AtomicBool::new(false));
+    let services_started = Arc::new(AtomicBool::new(false));
+
+    thread::spawn(move || {
+        println!("[SessionObserver] 非Windows平台启动简化的会话检测线程");
+
+        // 只需要触发一次，触发后退出循环
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(
+                modules::constants::SESSION_OBSERVER_POLL_INTERVAL_SECS,
+            ));
+
+            // 检查并启动后台服务（只启动一次）
+            if services_started.compare_exchange(
+                false,
+                true,
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            ).is_ok() {
+                start_background_services_non_windows(&app_handle);
+            }
+
+            // 检查并触发登录事件
+            if login_triggered.compare_exchange(
+                false,
+                true,
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            ).is_ok() {
+                println!("[SessionObserver] 非Windows平台模拟登录事件");
+                trigger_login_events_non_windows(&app_handle);
+                break; // 触发后退出循环
+            }
+        }
+    });
+}
+
+/// 非Windows平台启动后台服务
+#[cfg(not(target_os = "windows"))]
+fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
+    println!("[SessionObserver] 启动后台服务（非Windows平台）");
+
+    let app_state = app_handle.state::<AppState>();
+
+    // 获取免打扰模式设置（短暂持有锁）
+    let is_silence_mode = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.silence_mode
+    };
+
+    // 启动媒体监听器
+    start_media_observer(app_handle.clone(), is_silence_mode);
+
+    // 启动定时触发器
+    {
+        let mut sm = app_state.state_manager.lock().unwrap();
+        sm.start_timer_loop(app_handle.clone());
+    }
+}
+
+/// 非Windows平台的登录事件触发（简化版本）
+#[cfg(not(target_os = "windows"))]
+fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
+    let app_state = app_handle.state::<AppState>();
+
+    let (birthday, first_login_timestamp, is_silence_mode) = {
+        let storage = app_state.storage.lock().unwrap();
+        (
+            storage.data.settings.birthday.clone(),
+            storage.data.info.first_login,
+            storage.data.settings.silence_mode,
+        )
+    };
+
+    // 使用统一的日期判定函数确定事件类型
+    let event_name = determine_event_type(&birthday, first_login_timestamp, is_silence_mode);
+
+    println!("[SessionObserver] 触发事件: {}", event_name);
+
+    let rm = app_state.resource_manager.lock().unwrap();
+    let mut sm = app_state.state_manager.lock().unwrap();
+
+    match TriggerManager::trigger_event(&event_name, &rm, &mut sm) {
+        Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
+        Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
+        Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),
+    }
+
+    // 释放锁
+    drop(rm);
+    drop(sm);
 }

@@ -247,7 +247,9 @@ impl StateInfo {
         let current_minutes = dt.hour * 60 + dt.minute;
 
         let start_minutes = Self::parse_time(&self.time_start).unwrap_or(0);
-        let end_minutes = Self::parse_time(&self.time_end).unwrap_or(24 * 60);
+        let end_minutes = Self::parse_time(&self.time_end).unwrap_or(
+            crate::modules::constants::MINUTES_PER_DAY
+        );
 
         // 处理跨午夜的情况（如 22:00 - 06:00）
         if start_minutes <= end_minutes {
@@ -270,7 +272,9 @@ impl StateInfo {
         let current_day = dt.month * 100 + dt.day; // MMDD 格式
 
         let start_day = Self::parse_date(&self.date_start).unwrap_or(0);
-        let end_day = Self::parse_date(&self.date_end).unwrap_or(1231);
+        let end_day = Self::parse_date(&self.date_end).unwrap_or(
+            crate::modules::constants::DEFAULT_END_OF_YEAR
+        );
 
         // 处理跨年的情况（如 12-01 - 01-31）
         if start_day <= end_day {
@@ -737,9 +741,9 @@ impl ResourceManager {
 
         // 3. 可执行文件所在目录的 mods
         if let Ok(exe_path) = std::env::current_exe() {
-            // 尝试向上查找多级父目录中的 mods 文件夹（最多4级）
+            // 尝试向上查找多级父目录中的 mods 文件夹
             let mut current_dir = exe_path.parent();
-            for level in 1..=4 {
+            for level in 1..=crate::modules::constants::MODS_SEARCH_MAX_LEVELS_EXE {
                 if let Some(dir) = current_dir {
                     let mods_path = dir.join("mods");
                     if let Ok(canonical) = dunce::canonicalize(&mods_path) {
@@ -759,10 +763,10 @@ impl ResourceManager {
             }
         }
 
-        // 4. 开发环境：当前工作目录向上查找 mods（最多2级）
+        // 4. 开发环境：当前工作目录向上查找 mods
         if let Ok(cwd) = std::env::current_dir() {
             let mut current_dir = Some(cwd.as_path());
-            for level in 1..=2 {
+            for level in 1..=crate::modules::constants::MODS_SEARCH_MAX_LEVELS_CWD {
                 if let Some(dir) = current_dir {
                     let mods_path = dir.join("mods");
                     if let Ok(canonical) = dunce::canonicalize(&mods_path) {
