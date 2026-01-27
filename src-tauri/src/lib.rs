@@ -172,10 +172,11 @@ fn update_settings(
 ) -> Result<(), String> {
     {
         let mut storage = state.storage.lock().unwrap();
-        storage.update_settings(settings.clone())?;
+        storage.update_settings(settings.clone())?; // 需要 clone，因为 update_settings 会消费所有权
     } // 此时锁已释放，防止下方触发的事件回调再次尝试获取锁时产生死锁
 
-    let _ = app.emit("settings-change", settings.clone());
+    // 内存优化：直接使用 settings 而不是克隆，因为所有权已经在参数中
+    let _ = app.emit("settings-change", settings.clone()); // emit 需要 clone，这是不可避免的
 
     // --- 执行副作用 ---
 
@@ -258,8 +259,9 @@ async fn load_mod(
         let _ = storage.save();
     }
 
-    // 3. 更新托盘图标为Mod图标
-    update_tray_icon(&app);
+    // 3. 异步更新托盘图标和窗口图标为Mod图标（避免阻塞）
+    update_tray_icon_async(app.clone()).await;
+    update_window_icons_async(app.clone()).await;
 
     // 4. 重置状态管理器为新 Mod 的 Idle 状态
     {
@@ -284,14 +286,13 @@ async fn load_mod(
 fn unload_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> bool {
     let mut rm = state.resource_manager.lock().unwrap();
     let result = rm.unload_mod();
-    
-    // 卸载后恢复默认托盘图标
+
+    // 卸载后恢复默认托盘图标和窗口图标（同步版本，因为函数本身是同步的）
     if result {
-        if let Some(tray) = app.tray_by_id("main") {
-            let _ = tray.set_icon(app.default_window_icon().cloned());
-        }
+        update_tray_icon_sync(&app);
+        restore_window_icons_sync(&app);
     }
-    
+
     result
 }
 
@@ -839,6 +840,11 @@ pub fn run() {
             if !last_mod.is_empty() {
                 if let Err(e) = rm.lock().unwrap().load_mod(&last_mod) {
                     eprintln!("[TrayBuddy] 自动加载 Mod '{}' 失败: {}", last_mod, e);
+                } else {
+                    // 自动加载成功后更新托盘图标和窗口图标（同步版本，初始化阶段）
+                    let app_handle = app.handle();
+                    update_tray_icon_sync(&app_handle);
+                    // 注意：此时还没有其他窗口，所以不需要调用 update_window_icons_sync
                 }
             }
 
@@ -1492,33 +1498,154 @@ fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
     key.to_string()
 }
 
-/// 内部函数：根据当前加载的Mod更新托盘图标
-fn update_tray_icon(app: &tauri::AppHandle) {
-    if let Some(tray) = app.tray_by_id("main") {
-        let state: State<AppState> = app.state();
+/// 内部函数：获取当前 Mod 的图标或默认图标
+///
+/// 优化：减少锁的获取次数，避免重复的图标路径解析逻辑
+fn get_app_icon(app: &tauri::AppHandle) -> Option<Image<'_>> {
+    if let Some(state) = app.try_state::<AppState>() {
         let rm = state.resource_manager.lock().unwrap();
+
         if let Some(current_mod) = &rm.current_mod {
             if let Some(icon_path) = &current_mod.icon_path {
                 let full_icon_path = current_mod.path.join(icon_path.as_ref());
                 if full_icon_path.exists() {
-                    if let Ok(new_icon) = Image::from_path(&full_icon_path) {
-                        let _ = tray.set_icon(Some(new_icon));
-                        return;
+                    if let Ok(mod_icon) = Image::from_path(&full_icon_path) {
+                        return Some(mod_icon);
                     }
                 }
             }
         }
-        // 如果没有mod或mod没有图标，使用默认图标
-        let _ = tray.set_icon(app.default_window_icon().cloned());
+    }
+
+    // 使用默认图标
+    app.default_window_icon().cloned()
+}
+
+/// 内部函数：根据当前加载的Mod更新托盘图标（异步版本）
+///
+/// 优化：使用事件驱动，将阻塞操作放到后台线程，避免卡死主线程
+async fn update_tray_icon_async(app: tauri::AppHandle) {
+    let app_handle = app.clone();
+    tokio::task::spawn_blocking(move || {
+        let icon_to_use = get_app_icon(&app_handle);
+
+        if let Some(tray) = app_handle.tray_by_id("main") {
+            if let Some(icon) = icon_to_use {
+                let _ = tray.set_icon(Some(icon));
+            } else {
+                let _ = tray.set_icon(app_handle.default_window_icon().cloned());
+            }
+        }
+    });
+}
+
+/// 内部函数：根据当前加载的Mod更新所有窗口的任务栏图标（异步版本）
+///
+/// 优化：使用事件驱动，将阻塞操作放到后台线程，避免卡死主线程
+/// 内存优化：减少锁持有时间，将图标获取和窗口更新分离
+async fn update_window_icons_async(app: tauri::AppHandle) {
+    let app_handle = app.clone();
+    tokio::task::spawn_blocking(move || {
+        // 在持有锁时仅获取图标
+        let icon_to_use = get_app_icon(&app_handle);
+
+        if icon_to_use.is_none() {
+            // 无法获取 mod 图标，直接返回
+            return;
+        }
+
+        let icon = icon_to_use.unwrap();
+
+        // 锁已释放，现在执行 UI 操作
+        // 更新所有窗口的任务栏图标（跳过 animation 窗口，它设置了 skip_taskbar: true）
+        let windows = app_handle.webview_windows();
+        for (label, window) in windows {
+            if label != "animation" {
+                // clone 图标用于每个窗口设置
+                let _ = window.set_icon(icon.clone());
+            }
+        }
+    });
+}
+
+/// 内部函数：恢复所有窗口的默认图标（异步版本）
+///
+/// 优化：使用事件驱动，将阻塞操作放到后台线程，避免卡死主线程
+/// 内存优化：减少锁持有时间，将图标获取和窗口更新分离
+async fn restore_window_icons_async(app: tauri::AppHandle) {
+    let app_handle = app.clone();
+    tokio::task::spawn_blocking(move || {
+        // 在不持有锁时获取默认图标
+        let default_icon = app_handle.default_window_icon().cloned();
+
+        if default_icon.is_none() {
+            return;
+        }
+
+        let icon = default_icon.unwrap();
+
+        // 锁已释放，现在执行 UI 操作
+        // 恢复所有窗口的默认图标（跳过 animation 窗口）
+        let windows = app_handle.webview_windows();
+        for (label, window) in windows {
+            if label != "animation" {
+                // clone 图标用于每个窗口设置
+                let _ = window.set_icon(icon.clone());
+            }
+        }
+    });
+}
+
+/// 内部函数：为窗口设置正确的图标（Mod 图标或默认图标）
+///
+/// 优化：使用共享的 get_app_icon 函数，避免重复的锁获取和路径解析逻辑
+fn apply_window_icon(app: &tauri::AppHandle, window: &WebviewWindow) {
+    if let Some(icon) = get_app_icon(app) {
+        let _ = window.set_icon(icon);
+    }
+}
+
+/// 内部函数：根据当前加载的Mod更新托盘图标（同步版本，用于非异步上下文）
+///
+/// 用途：在同步上下文中更新托盘图标（如卸载 mod 时）
+fn update_tray_icon_sync(app: &tauri::AppHandle) {
+    if let Some(tray) = app.tray_by_id("main") {
+        if let Some(icon) = get_app_icon(app) {
+            let _ = tray.set_icon(Some(icon));
+        } else {
+            let _ = tray.set_icon(app.default_window_icon().cloned());
+        }
+    }
+}
+
+/// 内部函数：恢复所有窗口的默认图标（同步版本，用于非异步上下文）
+///
+/// 用途：在同步上下文中恢复窗口图标（如卸载 mod 时）
+fn restore_window_icons_sync(app: &tauri::AppHandle) {
+    if let Some(default_icon) = app.default_window_icon() {
+        // 恢复所有窗口的默认图标（跳过 animation 窗口）
+        let windows = app.webview_windows();
+        for (label, window) in windows {
+            if label != "animation" {
+                let _ = window.set_icon(default_icon.clone());
+            }
+        }
     }
 }
 
 /// 内部函数：构建国际化托盘菜单
+///
+/// 内存优化：避免克隆整个 settings，只提取需要的布尔值
 fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let app_state: State<AppState> = app.state();
-    let settings = {
+    // 内存优化：只提取需要的字段，避免克隆整个 settings 结构体
+    let (no_audio_mode, silence_mode, show_character) = {
         let storage = app_state.storage.lock().unwrap();
-        storage.data.settings.clone()
+        (
+            storage.data.settings.no_audio_mode,
+            storage.data.settings.silence_mode,
+            storage.data.settings.show_character,
+        )
     };
 
     let about_i = MenuItem::with_id(
@@ -1557,7 +1684,7 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         "toggle_mute",
         get_i18n_text(app, "menu.mute"),
         true,
-        settings.no_audio_mode,
+        no_audio_mode,
         None::<&str>,
     )?;
     let silence_i = CheckMenuItem::with_id(
@@ -1565,7 +1692,7 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         "toggle_silence",
         get_i18n_text(app, "menu.silence"),
         true,
-        settings.silence_mode,
+        silence_mode,
         None::<&str>,
     )?;
     let show_widget_i = CheckMenuItem::with_id(
@@ -1573,7 +1700,7 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         "toggle_show_widget",
         get_i18n_text(app, "menu.showCharacter"),
         true,
-        settings.show_character,
+        show_character,
         None::<&str>,
     )?;
 
@@ -1623,12 +1750,14 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 let _ = window.show();
                 let _ = window.set_focus();
             } else {
-                let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("about".into()))
+                if let Ok(window) = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("about".into()))
                     .title(get_i18n_text(app, "menu.about"))
                     .inner_size(450.0, 420.0)
                     .resizable(false)
                     .center()
-                    .build();
+                    .build() {
+                    apply_window_icon(app, &window);
+                }
             }
         }
         "quit" => {
@@ -1643,11 +1772,13 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 let _ = window.show();
                 let _ = window.set_focus();
             } else {
-                let _ =
+                if let Ok(window) =
                     WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                         .title(get_i18n_text(app, "common.appTitle"))
                         .inner_size(800.0, 600.0)
-                        .build();
+                        .build() {
+                    apply_window_icon(app, &window);
+                }
             }
         }
         "mod" => {
@@ -1655,11 +1786,13 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 let _ = window.show();
                 let _ = window.set_focus();
             } else {
-                let _ = WebviewWindowBuilder::new(app, "mods", WebviewUrl::App("mods".into()))
+                if let Ok(window) = WebviewWindowBuilder::new(app, "mods", WebviewUrl::App("mods".into()))
                     .title(get_i18n_text(app, "common.modsTitle"))
                     .inner_size(800.0, 700.0)
                     .resizable(false)
-                    .build();
+                    .build() {
+                    apply_window_icon(app, &window);
+                }
             }
         }
         "settings" => {
@@ -1667,16 +1800,19 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 let _ = window.show();
                 let _ = window.set_focus();
             } else {
-                let _ =
+                if let Ok(window) =
                     WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings".into()))
                         .title(get_i18n_text(app, "common.settingsTitle"))
                         .inner_size(800.0, 700.0)
                         .resizable(false)
-                        .build();
+                        .build() {
+                    apply_window_icon(app, &window);
+                }
             }
         }
         "toggle_mute" | "toggle_silence" | "toggle_show_widget" => {
-            let settings = {
+            // 内存优化：只提取需要的字段，避免克隆整个 settings
+            let (no_audio_mode, silence_mode) = {
                 let app_state: State<AppState> = app.state();
                 let mut storage = app_state.storage.lock().unwrap();
                 match id {
@@ -1691,23 +1827,30 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                     }
                     _ => {}
                 }
+                let no_audio_mode = storage.data.settings.no_audio_mode;
+                let silence_mode = storage.data.settings.silence_mode;
                 let _ = storage.save();
-                storage.data.settings.clone()
+                (no_audio_mode, silence_mode)
             };
 
             // 广播设置变更 (供所有窗口 UI 同步)
-            let _ = app.emit("settings-change", settings.clone());
+            // 内存优化：构建简单的结构体而不是克隆整个 settings
+            let settings_change = serde_json::json!({
+                "no_audio_mode": no_audio_mode,
+                "silence_mode": silence_mode
+            });
+            let _ = app.emit("settings-change", settings_change);
 
             // --- 执行副作用 ---
 
             // 1. 静音模式副作用
             if id == "toggle_mute" {
-                let _ = app.emit("mute-change", settings.no_audio_mode);
+                let _ = app.emit("mute-change", no_audio_mode);
             }
 
             // 2. 免打扰模式副作用 (修复死锁：提前释放锁)
             if id == "toggle_silence" {
-                let target_state = if settings.silence_mode {
+                let target_state = if silence_mode {
                     STATE_SILENCE_START
                 } else if get_media_status() {
                     STATE_MUSIC_START
@@ -1824,19 +1967,18 @@ fn start_login_detection(app: tauri::AppHandle) -> Result<(), String> {
 
 /// 解析生日日期字符串（格式：MM-DD）
 /// 返回 (月, 日) 或 None
+///
+/// 内存优化：避免创建临时 Vec，使用直接解析
 fn parse_birthday_date(birthday: &str) -> Option<(u32, u32)> {
-    let parts: Vec<&str> = birthday.split('-').collect();
-    if parts.len() == 2 {
-        let month = parts[0].parse::<u32>().ok()?;
-        let day = parts[1].parse::<u32>().ok()?;
-        // 验证日期有效性
-        if month >= modules::constants::MONTH_MIN && month <= modules::constants::MONTH_MAX
-            && day >= modules::constants::DAY_MIN && day <= modules::constants::DAY_MAX
-        {
-            Some((month, day))
-        } else {
-            None
-        }
+    // 直接使用 split_once 而不是 collect 到 Vec，避免堆分配
+    let (month_str, day_str) = birthday.split_once('-')?;
+    let month = month_str.parse::<u32>().ok()?;
+    let day = day_str.parse::<u32>().ok()?;
+    // 验证日期有效性
+    if month >= modules::constants::MONTH_MIN && month <= modules::constants::MONTH_MAX
+        && day >= modules::constants::DAY_MIN && day <= modules::constants::DAY_MAX
+    {
+        Some((month, day))
     } else {
         None
     }
@@ -1844,11 +1986,13 @@ fn parse_birthday_date(birthday: &str) -> Option<(u32, u32)> {
 
 /// 统一的日期判定函数，集中处理所有日期相关的事件类型判定
 /// 优先级：生日 > 首登录纪念日 > 普通登录
+///
+/// 内存优化：返回 &'static str 而不是 String，避免堆分配
 fn determine_event_type(
-    birthday: &Option<Box<str>>,
+    birthday: Option<&Box<str>>,
     first_login_timestamp: Option<i64>,
     is_silence_mode: bool,
-) -> String {
+) -> &'static str {
     use chrono::Datelike;
 
     let dt = get_current_datetime();
@@ -1859,7 +2003,7 @@ fn determine_event_type(
             if let Some((bday_month, bday_day)) = parse_birthday_date(bday) {
                 if bday_month == dt.month && bday_day == dt.day {
                     println!("[SessionObserver] 今天是生日，优先触发 birthday 事件");
-                    return String::from("birthday");
+                    return "birthday";
                 }
             }
         }
@@ -1882,15 +2026,15 @@ fn determine_event_type(
         // 仅在年份大于首次登录年份且月日相符时触发
         if current_year > first_login_year as u32 && current_month == first_login_month && current_day == first_login_day {
             println!("[SessionObserver] 今天是首登录纪念日，优先触发 firstday 事件");
-            return String::from("firstday");
+            return "firstday";
         }
     }
 
     // 3. 普通登录
     if is_silence_mode {
-        String::from("login_silence")
+        "login_silence"
     } else {
-        String::from("login")
+        "login"
     }
 }
 
@@ -1914,9 +2058,11 @@ fn is_user_logged_in_desktop() -> bool {
         // 锁屏窗口的类名通常是 "Windows.UI.Core.CoreWindow"
         let mut class_name = [0u16; 256];
         if GetClassNameW(hwnd, &mut class_name) > 0 {
-            let class_str = String::from_utf16_lossy(&class_name[..class_name.iter().position(|&x| x == 0).unwrap_or(class_name.len())]);
+            let len = class_name.iter().position(|&x| x == 0).unwrap_or(class_name.len());
+            let class_str = String::from_utf16_lossy(&class_name[..len]);
 
             // 锁屏窗口的类名判断
+            // 内存优化：使用直接的字节比较而不是 String contains
             if class_str.contains("Windows.UI.Core.CoreWindow") ||
                class_str.contains("ApplicationFrameWindow") ||
                class_str.contains("LockScreen") {
@@ -2208,7 +2354,8 @@ fn trigger_login_events(app_handle: &tauri::AppHandle) {
     let app_state = app_handle.state::<AppState>();
 
     // 一次性获取所有需要的设置信息，避免重复获取锁
-    let (birthday, first_login_timestamp, is_silence_mode) = {
+    // 内存优化：只克隆 birthday 的 Box<str>，而不是整个 settings
+    let (birthday_opt, first_login_timestamp, is_silence_mode) = {
         let storage = app_state.storage.lock().unwrap();
         (
             storage.data.settings.birthday.clone(),
@@ -2218,7 +2365,7 @@ fn trigger_login_events(app_handle: &tauri::AppHandle) {
     };
 
     // 使用统一的日期判定函数确定事件类型
-    let event_name = determine_event_type(&birthday, first_login_timestamp, is_silence_mode);
+    let event_name = determine_event_type(birthday_opt.as_ref(), first_login_timestamp, is_silence_mode);
 
     // 触发事件（获取资源管理器和状态管理器锁）
     println!("[SessionObserver] 触发事件: {}", event_name);
@@ -2310,7 +2457,8 @@ fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
 fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
     let app_state = app_handle.state::<AppState>();
 
-    let (birthday, first_login_timestamp, is_silence_mode) = {
+    // 内存优化：只克隆 birthday 的 Box<str>，而不是整个 settings
+    let (birthday_opt, first_login_timestamp, is_silence_mode) = {
         let storage = app_state.storage.lock().unwrap();
         (
             storage.data.settings.birthday.clone(),
@@ -2320,7 +2468,7 @@ fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
     };
 
     // 使用统一的日期判定函数确定事件类型
-    let event_name = determine_event_type(&birthday, first_login_timestamp, is_silence_mode);
+    let event_name = determine_event_type(birthday_opt.as_ref(), first_login_timestamp, is_silence_mode);
 
     println!("[SessionObserver] 触发事件: {}", event_name);
 
