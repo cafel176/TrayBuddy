@@ -27,6 +27,9 @@
 
 mod modules;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
@@ -692,9 +695,11 @@ fn open_path(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         std::process::Command::new("explorer")
             .arg("/select,")
             .arg(&path)
+            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
@@ -1276,8 +1281,10 @@ fn open_storage_dir(app_handle: tauri::AppHandle) -> Result<(), String> {
     // 使用 open_path 逻辑打开目录
     #[cfg(target_os = "windows")]
     {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         std::process::Command::new("explorer")
             .arg(&dir_path)
+            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
@@ -1302,8 +1309,10 @@ fn open_dir(path: String) -> Result<(), String> {
     // 使用 open_path 逻辑打开目录
     #[cfg(target_os = "windows")]
     {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         std::process::Command::new("explorer")
             .arg(&dir_path)
+            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .map_err(|e| e.to_string())?;
     }

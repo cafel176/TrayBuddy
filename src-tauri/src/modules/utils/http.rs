@@ -2,6 +2,9 @@
 
 use std::process::Command;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 /// 执行 HTTP GET 请求并返回响应体
 ///
 /// 优先使用 curl（Windows 10+ 自带，更可靠），失败时回退到 PowerShell
@@ -20,9 +23,12 @@ pub fn http_get(
 ) -> Result<String, String> {
     #[cfg(windows)]
     {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
         // 优先使用 curl（Windows 10+ 自带，UTF-8 输出正常）
         let curl_result = Command::new("curl")
             .args(["-s", "--max-time", &timeout_secs.to_string(), url])
+            .creation_flags(CREATE_NO_WINDOW)
             .output();
 
         if let Ok(output) = curl_result {
@@ -58,6 +64,7 @@ pub fn http_get(
 
         let output = Command::new("powershell")
             .args(["-Command", &ps_command])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| format!("Failed to execute request: {}", e))?;
 
