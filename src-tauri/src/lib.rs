@@ -82,6 +82,21 @@ pub struct AppState {
 }
 
 // ========================================================================= //
+// 辅助函数
+// ========================================================================= //
+
+/// 检查当前是否为 Release 版本
+///
+/// 通过检查 debug_assertions 编译配置来判断运行模式。
+/// - Debug 模式下 debug_assertions 是启用的
+/// - Release 模式下 debug_assertions 会被禁用
+///
+/// 返回 true 表示是 Release 版本，false 表示是 Debug 版本
+fn is_release_build() -> bool {
+    !cfg!(debug_assertions)
+}
+
+// ========================================================================= //
 // 常量查询命令
 // ========================================================================= //
 
@@ -152,6 +167,18 @@ fn get_env_var(name: String) -> Option<String> {
     std::env::var(&name).ok()
 }
 
+/// 获取当前构建模式
+///
+/// 返回 "release" 或 "debug"
+#[tauri::command]
+fn get_build_mode() -> String {
+    if is_release_build() {
+        "release".to_string()
+    } else {
+        "debug".to_string()
+    }
+}
+
 // ========================================================================= //
 // 用户设置命令
 // ========================================================================= //
@@ -181,9 +208,16 @@ fn update_settings(
     // --- 执行副作用 ---
 
     // 1. 开机自启动副作用
+    // 只在 Release 版本中允许启用开机自启动
     let autostart_manager = app.autolaunch();
     if settings.auto_start {
-        let _ = autostart_manager.enable();
+        if is_release_build() {
+            let _ = autostart_manager.enable();
+        } else {
+            // 开发模式下提示用户
+            eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本");
+            let _ = app.emit("autostart-error", "开发模式不支持开机自启动，请使用 Release 版本");
+        }
     } else {
         let _ = autostart_manager.disable();
     }
@@ -828,9 +862,16 @@ pub fn run() {
             let _ = storage.save();
 
             // ========== 同步开机自启动状态 ==========
+            // 只在 Release 版本中允许启用开机自启动
             let autostart_manager = app.autolaunch();
             if storage.data.settings.auto_start {
-                let _ = autostart_manager.enable();
+                if is_release_build() {
+                    let _ = autostart_manager.enable();
+                } else {
+                    // 开发模式下禁用自启动
+                    eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，已禁用");
+                    let _ = autostart_manager.disable();
+                }
             } else {
                 let _ = autostart_manager.disable();
             }
@@ -993,6 +1034,7 @@ pub fn run() {
             get_const_int,
             // 系统工具
             get_env_var,
+            get_build_mode,
             // 用户设置
             get_settings,
             update_settings,

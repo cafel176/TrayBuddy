@@ -19,7 +19,8 @@
           "**"
         ]
       }
-    }
+    },
+    "withGlobalTauri": false
   },
   "bundle": {
     "active": true,
