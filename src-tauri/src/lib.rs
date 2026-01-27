@@ -256,7 +256,10 @@ async fn load_mod(
         let _ = storage.save();
     }
 
-    // 3. 重置状态管理器为新 Mod 的 Idle 状态
+    // 3. 更新托盘图标为Mod图标
+    update_tray_icon(&app);
+
+    // 4. 重置状态管理器为新 Mod 的 Idle 状态
     {
         let rm = state.resource_manager.lock().unwrap();
         let initial_state = rm
@@ -268,7 +271,7 @@ async fn load_mod(
         let _ = sm.change_state_ex(initial_state, true, &rm);
     }
 
-    // 4. 重建窗口以应用新资源
+    // 5. 重建窗口以应用新资源
     recreate_animation_window(app).await?;
 
     Ok(mod_info)
@@ -276,9 +279,18 @@ async fn load_mod(
 
 /// 卸载当前 Mod
 #[tauri::command]
-fn unload_mod(state: State<'_, AppState>) -> bool {
+fn unload_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> bool {
     let mut rm = state.resource_manager.lock().unwrap();
-    rm.unload_mod()
+    let result = rm.unload_mod();
+    
+    // 卸载后恢复默认托盘图标
+    if result {
+        if let Some(tray) = app.tray_by_id("main") {
+            let _ = tray.set_icon(app.default_window_icon().cloned());
+        }
+    }
+    
+    result
 }
 
 /// 获取当前加载的 Mod 信息
@@ -846,6 +858,31 @@ pub fn run() {
             // 启动定时触发器和设置事件发送器
             sm.start_timer_loop(app.handle().clone());
 
+            // ========== 系统托盘 (System Tray) ==========
+            // 必须在注册AppState之前创建，因为需要先使用rm
+            let tray_icon = {
+                // 1. 获取当前加载的 Mod 图标
+                let icon = {
+                    let rm_guard = rm.lock().unwrap();
+                    if let Some(current_mod) = &rm_guard.current_mod {
+                        if let Some(icon_path) = &current_mod.icon_path {
+                            let full_icon_path = current_mod.path.join(icon_path.as_ref());
+                            if full_icon_path.exists() {
+                                Image::from_path(&full_icon_path)
+                                    .unwrap_or_else(|_| app.default_window_icon().unwrap().clone())
+                            } else {
+                                app.default_window_icon().unwrap().clone()
+                            }
+                        } else {
+                            app.default_window_icon().unwrap().clone()
+                        }
+                    } else {
+                        app.default_window_icon().unwrap().clone()
+                    }
+                };
+                icon
+            };
+
             // ========== 注册全局状态（必须在创建窗口之前） ==========
             app.manage(AppState {
                 resource_manager: rm,
@@ -879,32 +916,15 @@ pub fn run() {
                 observer.start(app.handle().clone());
             }
 
-            // ========== 系统托盘 (System Tray) ==========
+            // ========== 创建托盘 ==========
             {
-                // 1. 获取当前 Mod 的图标路径
-                let mod_id = {
-                    let state: State<AppState> = app.state();
-                    let storage = state.storage.lock().unwrap();
-                    storage.data.info.current_mod.clone()
-                };
-
-                // 尝试加载 Mod 图标
-                let icon_path = std::path::Path::new("mods")
-                    .join(mod_id.as_ref())
-                    .join("icon.ico");
-                let icon = if icon_path.exists() {
-                    Image::from_path(&icon_path)
-                        .unwrap_or_else(|_| app.default_window_icon().unwrap().clone())
-                } else {
-                    app.default_window_icon().unwrap().clone()
-                };
 
                 // 2. 创建菜单 (使用辅助函数支持国际化)
                 let menu = inner_build_tray_menu(app.handle())?;
 
                 // 3. 创建托盘
                 let builder = TrayIconBuilder::with_id("main")
-                    .icon(icon)
+                    .icon(tray_icon)
                     .menu(&menu)
                     .show_menu_on_left_click(false)
                     .on_menu_event(move |app, event| {
@@ -1477,6 +1497,27 @@ fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
     }
 
     key.to_string()
+}
+
+/// 内部函数：根据当前加载的Mod更新托盘图标
+fn update_tray_icon(app: &tauri::AppHandle) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let state: State<AppState> = app.state();
+        let rm = state.resource_manager.lock().unwrap();
+        if let Some(current_mod) = &rm.current_mod {
+            if let Some(icon_path) = &current_mod.icon_path {
+                let full_icon_path = current_mod.path.join(icon_path.as_ref());
+                if full_icon_path.exists() {
+                    if let Ok(new_icon) = Image::from_path(&full_icon_path) {
+                        let _ = tray.set_icon(Some(new_icon));
+                        return;
+                    }
+                }
+            }
+        }
+        // 如果没有mod或mod没有图标，使用默认图标
+        let _ = tray.set_icon(app.default_window_icon().cloned());
+    }
 }
 
 /// 内部函数：构建国际化托盘菜单
