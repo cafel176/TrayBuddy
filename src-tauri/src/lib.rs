@@ -77,6 +77,8 @@ pub struct AppState {
     storage: Mutex<Storage>,
     /// 媒体监听器引用（实际在独立线程运行）
     media_observer: Mutex<Option<MediaObserver>>,
+    /// 系统锁屏状态（用于防止锁屏窗口触发免打扰模式）
+    session_locked: Arc<std::sync::atomic::AtomicBool>,
 }
 
 // ========================================================================= //
@@ -887,6 +889,7 @@ pub fn run() {
                 state_manager: Mutex::new(sm),
                 storage: Mutex::new(storage),
                 media_observer: Mutex::new(None),
+                session_locked: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             });
 
             // ========== 监听设置变更以实时刷新托盘菜单 ==========
@@ -2010,10 +2013,20 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
             }
 
             // 保存上下文到窗口用户数据
+            let session_locked = {
+                let app_state: tauri::State<AppState> = app_handle.state();
+                app_state.session_locked.clone()
+            };
+
+            // 设置初始锁屏状态
+            let is_logged_in = is_user_logged_in_desktop();
+            session_locked.store(!is_logged_in, Ordering::SeqCst);
+
             let context = SessionObserverContext {
                 app_handle: app_handle.clone(),
                 login_triggered: login_triggered.clone(),
                 services_started: services_started.clone(),
+                session_locked,
             };
 
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, Box::into_raw(Box::new(context)) as isize);
@@ -2028,7 +2041,7 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
             println!("[SessionObserver] WTS 会话通知注册成功");
 
             // 初始状态检查：如果程序启动时用户已经解锁，主动触发登录事件
-            if is_user_logged_in_desktop() {
+            if is_logged_in {
                 println!("[SessionObserver] 程序启动时检测到用户已登录，主动触发登录事件");
 
                 // 检查并启动后台服务（只启动一次）
@@ -2072,6 +2085,7 @@ struct SessionObserverContext {
     app_handle: tauri::AppHandle,
     login_triggered: Arc<std::sync::atomic::AtomicBool>,
     services_started: Arc<std::sync::atomic::AtomicBool>,
+    session_locked: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg(target_os = "windows")]
@@ -2107,6 +2121,9 @@ unsafe extern "system" fn session_window_proc(
                     WTS_SESSION_UNLOCK => {
                         println!("[SessionObserver] 检测到会话解锁 (session_id: {})", session_id);
 
+                        // 更新锁屏状态
+                        context.session_locked.store(false, Ordering::SeqCst);
+
                         // 检查并启动后台服务（只启动一次）
                         if context.services_started.compare_exchange(
                             false,
@@ -2129,6 +2146,9 @@ unsafe extern "system" fn session_window_proc(
                     }
                     WTS_SESSION_LOCK => {
                         println!("[SessionObserver] 检测到会话锁定 (session_id: {})", session_id);
+
+                        // 更新锁屏状态
+                        context.session_locked.store(true, Ordering::SeqCst);
                     }
                     _ => {}
                 }

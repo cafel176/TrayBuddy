@@ -39,6 +39,8 @@ pub struct SystemDebugInfo {
     pub is_auto_dnd_active: bool,
     /// 当前系统免打扰模式状态
     pub current_silence_mode: bool,
+    /// 会话是否锁定
+    pub session_locked: bool,
 }
 
 static CACHED_DEBUG_INFO: Mutex<Option<SystemDebugInfo>> = Mutex::new(None);
@@ -256,7 +258,13 @@ impl SystemObserver {
         }
         */
 
-        // 2. 检测是否全屏/繁忙 (耗时操作，使用 block_in_place)
+        // 2. 获取锁屏状态
+        let session_locked = {
+            let app_state: tauri::State<AppState> = app_handle.state();
+            app_state.session_locked.load(std::sync::atomic::Ordering::SeqCst)
+        };
+
+        // 3. 检测是否全屏/繁忙 (耗时操作，使用 block_in_place)
         let is_fullscreen = tokio::task::block_in_place(|| unsafe { Self::is_fullscreen_busy() });
 
         // 更新调试信息
@@ -267,20 +275,22 @@ impl SystemObserver {
             auto_dnd_enabled: auto_silence,
             is_auto_dnd_active: *we_enabled_dnd,
             current_silence_mode: is_silence_mode,
+            session_locked,
         };
         update_cached_debug_info(debug_info.clone());
 
         // 发送调试事件通知前端
         let _ = app_handle.emit("system-debug-update", debug_info);
 
-        // 确定目标状态：仅当开启自动免打扰且处于全屏时，才应自动进入 DND
-        let should_be_dnd = auto_silence && is_fullscreen;
+        // 确定目标状态：仅当开启自动免打扰且处于全屏且（未锁定或不抑制锁屏时DND）时，才应自动进入 DND
+        let should_be_dnd = auto_silence && is_fullscreen
+            && (!session_locked || !crate::modules::constants::SYSTEM_OBSERVER_SUPPRESS_DND_WHEN_LOCKED);
 
         #[cfg(debug_assertions)]
         if is_fullscreen {
             println!(
-                "[SystemObserver] Fullscreen detected. Auto-DND enabled: {}, Should enter DND: {}",
-                auto_silence, should_be_dnd
+                "[SystemObserver] Fullscreen detected. Auto-DND enabled: {}, Session locked: {}, Should enter DND: {}",
+                auto_silence, session_locked, should_be_dnd
             );
         }
 
