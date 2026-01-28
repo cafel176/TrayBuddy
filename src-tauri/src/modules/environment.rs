@@ -29,6 +29,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 use crate::modules::utils::http::http_get;
 use crate::modules::constants::WEATHER_CACHE_DURATION_SECS;
+use crate::modules::constants::WEATHER_API_TIMEOUT_SECS;
+use crate::modules::constants::LOCATION_API_TIMEOUT_SECS;
+use crate::modules::utils::http::http_get_async;
+use chrono::Local;
 
 // ========================================================================= //
 
@@ -204,9 +208,6 @@ impl EnvironmentManager {
 
     /// 通过 ip-api.com 获取 IP 地理位置（免费，无需 API Key）
     async fn fetch_ip_geolocation() -> Result<GeoLocation, String> {
-        use crate::modules::constants::LOCATION_API_TIMEOUT_SECS;
-        use crate::modules::utils::http::http_get_async;
-
         let url = "http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN".to_string();
         let body = http_get_async(
             url,
@@ -245,7 +246,6 @@ impl EnvironmentManager {
     fn fallback_location_from_timezone() -> GeoLocation {
         #[cfg(windows)]
         {
-            use chrono::Local;
             let now = Local::now();
             let offset_secs = now.offset().local_minus_utc();
             let offset_hours = offset_secs as f64 / 3600.0;
@@ -349,9 +349,6 @@ impl EnvironmentManager {
 
     /// 异步获取天气信息 (使用 wttr.in API)
     async fn fetch_weather_async(&self, query: &str) -> Result<WeatherInfo, String> {
-        use crate::modules::constants::WEATHER_API_TIMEOUT_SECS;
-        use crate::modules::utils::http::http_get_async;
-
         // 对查询参数进行 URL 编码处理
         let query_encoded = query.replace(' ', "%20");
         let url = format!("https://wttr.in/{}?format=j1", query_encoded);
