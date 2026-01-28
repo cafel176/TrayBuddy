@@ -1467,7 +1467,7 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
                         let mut sm = app_state.state_manager.lock().unwrap();
                         let _ = TriggerManager::trigger_music_start(&rm, &mut sm);
                     }
-                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
+                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped | MediaPlaybackStatus::Unknown => {
                         let rm = app_state.resource_manager.lock().unwrap();
                         let mut sm = app_state.state_manager.lock().unwrap();
                         let _ = TriggerManager::trigger_music_end(&rm, &mut sm);

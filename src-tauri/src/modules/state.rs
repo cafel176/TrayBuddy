@@ -46,7 +46,9 @@
 
 #![allow(unused)]
 
+use super::constants::{STATE_IDLE, STATE_MUSIC, STATE_MUSIC_START};
 use super::event_manager::{emit, events};
+use super::media_observer::{get_cached_media_state, MediaPlaybackStatus};
 use super::resource::{ResourceManager, StateInfo};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -168,11 +170,38 @@ impl StateManager {
             state.name, state.persistent, force
         );
 
-        let is_persistent = state.persistent;
-        let result = if is_persistent {
-            self.set_persistent_state(state, force, rm)
+        // 如果目标是 idle 状态且检测到媒体正在播放，切换到 music_start 状态
+        let final_state = if state.name.as_ref() == STATE_IDLE {
+            match get_cached_media_state() {
+                Some(media_state) if media_state.status == MediaPlaybackStatus::Playing => {
+                    // 获取 music_start 状态
+                    match rm.get_state_by_name(STATE_MUSIC_START) {
+                        Some(music_start_state) => music_start_state.clone(),
+                        None => state,
+                    }
+                }
+                _ => state,
+            }
+        } else if state.name.as_ref() == STATE_MUSIC {
+            match get_cached_media_state() {
+                Some(media_state) if media_state.status != MediaPlaybackStatus::Playing => {
+                    // 获取 music_start 状态
+                    match rm.get_state_by_name(STATE_MUSIC_END) {
+                        Some(music_end_state) => music_end_state.clone(),
+                        None => state,
+                    }
+                }
+                _ => state,
+            }
         } else {
-            self.set_current_state_internal(state, force, rm)
+            state
+        };
+
+        let is_persistent = final_state.persistent;
+        let result = if is_persistent {
+            self.set_persistent_state(final_state, force, rm)
+        } else {
+            self.set_current_state(final_state, force, rm)
         };
 
         // 状态切换成功时，更新定时触发开关
@@ -283,16 +312,6 @@ impl StateManager {
     /// - `force`: true 时忽略优先级和锁定检查
     /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
     pub fn set_current_state(
-        &mut self,
-        state: StateInfo,
-        force: bool,
-        rm: &ResourceManager,
-    ) -> Result<bool, String> {
-        self.set_current_state_internal(state, force, rm)
-    }
-
-    /// 内部临时状态设置实现（所有临时状态切换的统一入口）
-    fn set_current_state_internal(
         &mut self,
         state: StateInfo,
         force: bool,
