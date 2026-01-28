@@ -25,6 +25,8 @@ use crate::AppState;
 // 调试信息
 // ========================================================================= //
 
+static CACHED_DEBUG_INFO: Mutex<Option<SystemDebugInfo>> = Mutex::new(None);
+
 /// 系统观察器调试信息
 #[derive(Debug, Clone, Serialize)]
 pub struct SystemDebugInfo {
@@ -43,8 +45,6 @@ pub struct SystemDebugInfo {
     /// 会话是否锁定
     pub session_locked: bool,
 }
-
-static CACHED_DEBUG_INFO: Mutex<Option<SystemDebugInfo>> = Mutex::new(None);
 
 /// 获取缓存的调试信息
 pub fn get_cached_debug_info() -> Option<SystemDebugInfo> {
@@ -78,6 +78,8 @@ impl SystemObserver {
         }
     }
 
+    // ========================================================================= //
+
     /// 启动观察器
     pub fn start(&self, app_handle: tauri::AppHandle) {
         let running = self.running.clone();
@@ -93,6 +95,8 @@ impl SystemObserver {
         self.running
             .store(false, std::sync::atomic::Ordering::SeqCst);
     }
+
+    // ========================================================================= //
 
     /// 消息循环与事件处理
     fn event_loop(app_handle: tauri::AppHandle, running: Arc<std::sync::atomic::AtomicBool>) {
