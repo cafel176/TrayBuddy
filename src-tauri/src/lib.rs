@@ -33,8 +33,8 @@ use std::os::windows::process::CommandExt;
 use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
-    SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END, STATE_MUSIC_START, STATE_SILENCE,
-    STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
+    MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
+    STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MODS,
     WINDOW_LABEL_SETTINGS,
 };
@@ -340,7 +340,14 @@ async fn load_mod(
     }
 
     // 5. 重建窗口以应用新资源
-    recreate_animation_window(app).await?;
+    recreate_animation_window(app.clone()).await?;
+
+    // 6. 延迟后触发登录事件
+    tokio::time::sleep(std::time::Duration::from_secs(MOD_LOGIN_EVENT_DELAY_SECS)).await;
+    #[cfg(target_os = "windows")]
+    trigger_login_events(&app);
+    #[cfg(not(target_os = "windows"))]
+    trigger_login_events_non_windows(&app);
 
     Ok(mod_info)
 }

@@ -213,6 +213,7 @@ export class AudioManager {
       // 注册播放错误事件
       this.audio.onerror = () => {
         console.error(`Exception playing audio '${audioName}'`);
+        this.onEndCallback?.();
         this.onEndCallback = null;
       };
 
@@ -220,6 +221,8 @@ export class AudioManager {
       return true;
     } catch (e) {
       console.error(`Exception playing audio '${audioName}':`, e);
+      this.onEndCallback?.();
+      this.onEndCallback = null;
       return false;
     }
   }

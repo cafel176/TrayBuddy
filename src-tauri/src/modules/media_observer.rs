@@ -98,7 +98,15 @@ pub fn get_cached_media_state() -> Option<MediaStateEvent> {
 }
 
 /// 更新缓存的媒体状态
+/// 只有音乐应用的状态变动才会被保存
 fn update_cached_media_state(event: &MediaStateEvent) {
+    // 检查是否是音乐应用
+    let should_save = event.app_id.as_deref().map(|id| is_music_app(id)).unwrap_or(false);
+
+    if !should_save {
+        return;
+    }
+
     if let Ok(mut guard) = CACHED_MEDIA_STATE.lock() {
         *guard = Some(event.clone());
     }
@@ -122,6 +130,63 @@ fn update_cached_debug_info(info: MediaDebugInfo) {
     if let Ok(mut guard) = CACHED_DEBUG_INFO.lock() {
         *guard = Some(info);
     }
+}
+
+// ========================================================================= //
+// 辅助函数
+// ========================================================================= //
+
+/// 检查应用名称是否为音乐应用
+///
+/// 根据应用 ID 判断是否为音乐播放器应用
+///
+/// # 参数
+///
+/// * `app_id` - 应用 ID 或进程名
+///
+/// # 返回
+///
+/// 如果是音乐播放器返回 `true`，否则返回 `false`
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// if is_music_app("spotify") {
+///     println!("这是音乐应用");
+/// }
+/// ```
+pub fn is_music_app(app_id: &str) -> bool {
+    let app_lower = app_id.to_lowercase();
+
+    // 常见音乐播放器关键字
+    let music_keywords = [
+        "music",      // 通用：Apple Music, Windows Media Player 等
+        "音乐",       // 中文音乐应用
+        "player",     // 通用播放器：PotPlayer, MPC-HC Player 等
+        "spotify",    // Spotify
+        "qqmusic",    // QQ音乐
+        "kugou",      // 酷狗音乐
+        "kuwo",       // 酷我音乐
+        "foobar",     // foobar2000
+        "aimp",       // AIMP
+        "winamp",     // Winamp
+        "vlc",        // VLC
+        "musicbee",   // MusicBee
+        "groove",     // Groove Music
+        "itunes",     // iTunes
+        "netease",    // 网易云音乐 (NetEase Cloud Music)
+        "cloudmusic", // 网易云音乐进程名
+        "mpv",        // mpv 播放器
+        "mpc-hc",     // Media Player Classic
+        "wmplayer",   // Windows Media Player
+    ];
+
+    // 检查关键字（支持带空格的名称如 "cloud music"）
+    let app_no_space = app_lower.replace(" ", "");
+
+    music_keywords
+        .iter()
+        .any(|&keyword| app_lower.contains(keyword) || app_no_space.contains(keyword))
 }
 
 // ========================================================================= //
@@ -258,43 +323,6 @@ impl MediaObserver {
         self.running
             .store(false, std::sync::atomic::Ordering::SeqCst);
         self.event_tx = None;
-    }
-
-    // ========================================================================= //
-
-    /// 检查应用名称是否为音乐应用
-    fn is_music_app(app_id: &str) -> bool {
-        let app_lower = app_id.to_lowercase();
-
-        // 常见音乐播放器关键字
-        let music_keywords = [
-            "music",      // 通用：Apple Music, Windows Media Player 等
-            "音乐",       // 中文音乐应用
-            "player",     // 通用播放器：PotPlayer, MPC-HC Player 等
-            "spotify",    // Spotify
-            "qqmusic",    // QQ音乐
-            "kugou",      // 酷狗音乐
-            "kuwo",       // 酷我音乐
-            "foobar",     // foobar2000
-            "aimp",       // AIMP
-            "winamp",     // Winamp
-            "vlc",        // VLC
-            "musicbee",   // MusicBee
-            "groove",     // Groove Music
-            "itunes",     // iTunes
-            "netease",    // 网易云音乐 (NetEase Cloud Music)
-            "cloudmusic", // 网易云音乐进程名
-            "mpv",        // mpv 播放器
-            "mpc-hc",     // Media Player Classic
-            "wmplayer",   // Windows Media Player
-        ];
-
-        // 检查关键字（支持带空格的名称如 "cloud music"）
-        let app_no_space = app_lower.replace(" ", "");
-
-        music_keywords
-            .iter()
-            .any(|&keyword| app_lower.contains(keyword) || app_no_space.contains(keyword))
     }
 
     // ========================================================================= //
@@ -663,7 +691,7 @@ impl MediaObserver {
                     };
 
                     let (title, artist) = Self::get_media_properties(&session);
-                    let is_music_app = Self::is_music_app(&app_id);
+                    let is_music_app = is_music_app(&app_id);
 
                     sessions.push(GsmtcSessionInfo {
                         app_id,
@@ -759,7 +787,7 @@ impl MediaObserver {
                                 .and_then(|meter| meter.GetPeakValue().ok())
                                 .unwrap_or(0.0);
 
-                            let is_music_app = Self::is_music_app(&process_name);
+                            let is_music_app = is_music_app(&process_name);
                             let is_playing = peak_value > 0.001;
 
                             sessions.push(CoreAudioSessionInfo {
@@ -826,7 +854,7 @@ impl MediaObserver {
                                         // 获取进程名
                                         if let Some(process_name) = Self::get_process_name(pid) {
                                             // 检查是否为音乐应用
-                                            if Self::is_music_app(&process_name) {
+                                            if is_music_app(&process_name) {
                                                 // 检查是否真正有音频输出（通过音量峰值）
                                                 let is_playing = if let Ok(meter) =
                                                     session_control.cast::<IAudioMeterInformation>()
@@ -919,7 +947,7 @@ impl MediaObserver {
                         .map(|s| s.to_string_lossy());
 
                     if let Some(ref id) = app_id {
-                        if Self::is_music_app(id) {
+                        if is_music_app(id) {
                             if let Ok(playback_info) = session.GetPlaybackInfo() {
                                 let status = match playback_info.PlaybackStatus() {
                                     Ok(s) => match s {
@@ -1009,7 +1037,7 @@ impl MediaObserver {
                     }
 
                     // 2. 只为音乐应用注册事件
-                    if !Self::is_music_app(&session_id) {
+                    if !is_music_app(&session_id) {
                         continue;
                     }
 

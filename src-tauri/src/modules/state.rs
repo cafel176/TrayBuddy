@@ -170,10 +170,16 @@ impl StateManager {
             state.name, state.persistent, force
         );
 
+        // 提前获取媒体状态，减少锁持有时间，避免死锁风险
+        let media_state = get_cached_media_state();
+
+        // 保存原始状态名称，用于后续判断
+        let original_state_name = state.name.clone();
+
         // 如果目标是 idle 状态且检测到媒体正在播放，切换到 music_start 状态
-        let final_state = if state.name.as_ref() == STATE_IDLE {
-            match get_cached_media_state() {
-                Some(media_state) if media_state.status == MediaPlaybackStatus::Playing => {
+        let final_state = if state.name.as_ref() == STATE_IDLE && !force {
+            match media_state {
+                Some(ref ms) if ms.status == MediaPlaybackStatus::Playing => {
                     // 获取 music_start 状态
                     match rm.get_state_by_name(STATE_MUSIC_START) {
                         Some(music_start_state) => music_start_state.clone(),
@@ -182,10 +188,10 @@ impl StateManager {
                 }
                 _ => state,
             }
-        } else if state.name.as_ref() == STATE_MUSIC {
-            match get_cached_media_state() {
-                Some(media_state) if media_state.status != MediaPlaybackStatus::Playing => {
-                    // 获取 music_start 状态
+        } else if state.name.as_ref() == STATE_MUSIC && !force {
+            match media_state {
+                Some(ref ms) if ms.status != MediaPlaybackStatus::Playing => {
+                    // 获取 music_end 状态
                     match rm.get_state_by_name(STATE_MUSIC_END) {
                         Some(music_end_state) => music_end_state.clone(),
                         None => state,
@@ -197,11 +203,16 @@ impl StateManager {
             state
         };
 
+        // 如果状态被修改为 music_start 或 music_end，强制执行切换
+        let final_force = force
+            || (original_state_name.as_ref() == STATE_IDLE && final_state.name.as_ref() == STATE_MUSIC_START)
+            || (original_state_name.as_ref() == STATE_MUSIC && final_state.name.as_ref() == STATE_MUSIC_END);
+
         let is_persistent = final_state.persistent;
         let result = if is_persistent {
-            self.set_persistent_state(final_state, force, rm)
+            self.set_persistent_state(final_state, final_force, rm)
         } else {
-            self.set_current_state(final_state, force, rm)
+            self.set_current_state(final_state, final_force, rm)
         };
 
         // 状态切换成功时，更新定时触发开关
@@ -597,16 +608,22 @@ impl StateManager {
                     continue;
                 }
 
-                // 执行触发（需要获取锁）
-                let rm = app_state.resource_manager.lock().unwrap();
+                // 执行触发（分步获取锁，减少死锁风险）
+                // 第一步：使用 ResourceManager 查询状态信息（短暂持有锁）
+                let states: Vec<StateInfo> = {
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    state_names
+                        .iter()
+                        .filter_map(|name| rm.get_state_by_name(name).cloned())
+                        .collect()
+                };
+
+                // 第二步：使用 StateManager 触发状态切换（短暂持有锁）
                 let mut sm = app_state.state_manager.lock().unwrap();
 
-                // 从 ResourceManager 获取状态信息并触发
-                let states: Vec<StateInfo> = state_names
-                    .iter()
-                    .filter_map(|name| rm.get_state_by_name(name).cloned())
-                    .collect();
-
+                // 第三步：再次获取 ResourceManager 锁（用于 change_state 内部查询）
+                // 注意：这里会与其他线程形成锁顺序：Resource -> State
+                let rm = app_state.resource_manager.lock().unwrap();
                 let _ = sm.trigger_random_state(&states, &rm);
             }
         });
