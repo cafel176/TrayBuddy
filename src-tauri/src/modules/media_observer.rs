@@ -17,14 +17,13 @@ use tokio::sync::mpsc;
 // 全局缓存
 // ========================================================================= //
 
-/// 缓存的媒体状态
-static CACHED_MEDIA_STATE: Mutex<Option<MediaStateEvent>> = Mutex::new(None);
-
-/// 缓存的调试信息
-static CACHED_DEBUG_INFO: Mutex<Option<MediaDebugInfo>> = Mutex::new(None);
-
 /// 观察者启动时间
 static OBSERVER_START_TIME: Mutex<Option<Instant>> = Mutex::new(None);
+
+// ========================================================================= //
+
+/// 缓存的媒体状态
+static CACHED_MEDIA_STATE: Mutex<Option<MediaStateEvent>> = Mutex::new(None);
 
 /// 获取缓存的媒体状态
 pub fn get_cached_media_state() -> Option<MediaStateEvent> {
@@ -40,6 +39,11 @@ fn update_cached_media_state(event: &MediaStateEvent) {
         *guard = Some(event.clone());
     }
 }
+
+// ========================================================================= //
+
+/// 缓存的调试信息
+static CACHED_DEBUG_INFO: Mutex<Option<MediaDebugInfo>> = Mutex::new(None);
 
 /// 获取缓存的调试信息
 pub fn get_cached_debug_info() -> Option<MediaDebugInfo> {
@@ -191,6 +195,8 @@ impl MediaObserver {
             .store(false, std::sync::atomic::Ordering::SeqCst);
         self.event_tx = None;
     }
+
+    // ========================================================================= //
 
     /// 检查应用名称是否为音乐应用
     fn is_music_app(app_id: &str) -> bool {
