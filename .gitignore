@@ -8,6 +8,8 @@ node_modules
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+.vs
+.vs.*
 
 # Check tool logs
 check-tool/memory_profile/Logs/

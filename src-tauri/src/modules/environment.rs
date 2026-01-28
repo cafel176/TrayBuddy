@@ -9,7 +9,8 @@
 //! # 性能优化
 //! - 地理位置使用静态缓存，程序运行期间只请求一次
 //! - 天气信息默认缓存 30 分钟
-//! - 便捷函数直接调用，避免创建管理器实例
+//! - 初始化和运行中更新数据时创建管理器实例完成相关操作
+//! - 外部调用时可以通过便捷函数直接调用，避免创建管理器实例
 //!
 //! ## 示例
 //! ```ignore
@@ -26,20 +27,13 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
+use crate::modules::utils::http::http_get;
+use crate::modules::constants::WEATHER_CACHE_DURATION_SECS;
+
+// ========================================================================= //
 
 /// 全局地理位置缓存（可刷新）
 static CACHED_LOCATION: OnceLock<Mutex<Option<GeoLocation>>> = OnceLock::new();
-
-/// 全局天气缓存（启动时获取一次，之后定期刷新）
-static CACHED_WEATHER: OnceLock<Mutex<CachedWeather>> = OnceLock::new();
-
-/// 天气缓存结构
-struct CachedWeather {
-    weather: Option<WeatherInfo>,
-    cache_time: u64,
-}
-
-// ========================================================================= //
 
 /// 地理位置信息 (通过 IP 地理位置 API 获取)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,18 +54,35 @@ pub struct GeoLocation {
     pub country: Option<Box<str>>,
 }
 
-/// IP 地理位置 API 响应 (ip-api.com)
-#[derive(Debug, Clone, Deserialize)]
-struct IpGeoApiResponse {
-    status: Box<str>,
-    country: Option<Box<str>>,
-    #[serde(rename = "regionName")]
-    region_name: Option<Box<str>>,
-    city: Option<Box<str>>,
-    lat: Option<f64>,
-    lon: Option<f64>,
-    timezone: Option<Box<str>>,
+// ========================================================================= //
+
+/// 全局天气缓存（启动时获取一次，之后定期刷新）
+static CACHED_WEATHER: OnceLock<Mutex<CachedWeather>> = OnceLock::new();
+
+/// 天气信息 (需要联网获取)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeatherInfo {
+    /// 天气状况 (如 "晴", "多云", "雨" 等)
+    pub condition: Box<str>,
+    /// 天气状况代码
+    pub condition_code: Box<str>,
+    /// 当前气温 (摄氏度)
+    pub temperature: f64,
+    /// 体感温度 (摄氏度)
+    pub feels_like: Option<f64>,
+    /// 湿度 (百分比)
+    pub humidity: Option<u32>,
+    /// 风速 (km/h)
+    pub wind_speed: Option<f64>,
 }
+
+/// 天气缓存结构
+struct CachedWeather {
+    weather: Option<WeatherInfo>,
+    cache_time: u64,
+}
+
+// ========================================================================= //
 
 /// 时间日期信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,46 +113,34 @@ pub struct EnvironmentInfo {
     pub weather: Option<WeatherInfo>,
 }
 
-/// 天气信息 (需要联网获取)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WeatherInfo {
-    /// 天气状况 (如 "晴", "多云", "雨" 等)
-    pub condition: Box<str>,
-    /// 天气状况代码
-    pub condition_code: Box<str>,
-    /// 当前气温 (摄氏度)
-    pub temperature: f64,
-    /// 体感温度 (摄氏度)
-    pub feels_like: Option<f64>,
-    /// 湿度 (百分比)
-    pub humidity: Option<u32>,
-    /// 风速 (km/h)
-    pub wind_speed: Option<f64>,
-}
-
 // ========================================================================= //
-use crate::modules::utils::http::http_get;
+
+/// IP 地理位置 API 响应 (ip-api.com)
+#[derive(Debug, Clone, Deserialize)]
+struct IpGeoApiResponse {
+    status: Box<str>,
+    country: Option<Box<str>>,
+    #[serde(rename = "regionName")]
+    region_name: Option<Box<str>>,
+    city: Option<Box<str>>,
+    lat: Option<f64>,
+    lon: Option<f64>,
+    timezone: Option<Box<str>>,
+}
 
 // ========================================================================= //
 
 /// 环境信息管理器
 /// - 时间、日期、地理位置：从系统本地获取
-/// - 天气：需要联网获取，使用长缓存减少请求次数
+/// - 天气：需要联网获取，使用全局缓存减少请求次数
 pub struct EnvironmentManager {
-    /// 缓存的天气信息 (需要联网获取)
-    cached_weather: Option<WeatherInfo>,
-    /// 天气缓存时间戳
-    weather_cache_time: u64,
     /// 天气缓存有效期 (秒)，默认 30 分钟
     weather_cache_duration: u64,
 }
 
 impl EnvironmentManager {
     pub fn new() -> Self {
-        use crate::modules::constants::WEATHER_CACHE_DURATION_SECS;
         Self {
-            cached_weather: None,
-            weather_cache_time: 0,
             weather_cache_duration: WEATHER_CACHE_DURATION_SECS,
         }
     }
@@ -150,7 +149,7 @@ impl EnvironmentManager {
 
     /// 获取当前日期时间信息 (从系统本地获取)
     pub fn get_datetime(&self) -> DateTimeInfo {
-        get_current_datetime_impl()
+        get_current_datetime()
     }
 
     // ========================================================================= //
@@ -293,46 +292,23 @@ impl EnvironmentManager {
     }
 
     // ========================================================================= //
-
-    /// 获取完整的环境信息
-    pub async fn get_environment_info(&mut self) -> EnvironmentInfo {
-        let datetime = self.get_datetime();
-        let location = self.get_location().await;
-        let weather = self.get_weather().await;
-
-        EnvironmentInfo {
-            location,
-            datetime,
-            weather,
-        }
-    }
-
-    /// 清除天气缓存
-    ///
-    /// 注意：地理位置缓存是全局静态的，无法清除
-    pub fn clear_cache(&mut self) {
-        self.cached_weather = None;
-        self.weather_cache_time = 0;
-    }
+    // 天气功能 (需要联网)
+    // ========================================================================= //
 
     /// 设置天气缓存有效期 (秒)
     pub fn set_weather_cache_duration(&mut self, duration: u64) {
         self.weather_cache_duration = duration;
     }
 
-    // ========================================================================= //
-    // 天气功能 (需要联网)
-    // ========================================================================= //
-
-    /// 获取天气信息 (优先使用全局缓存)
-    /// 全局缓存在程序启动时初始化，30 分钟后过期会重新获取
+    /// 获取天气信息 (使用全局缓存)
+    /// 全局缓存在程序启动时初始化，过期后重新获取
     pub async fn get_weather(&mut self) -> Option<WeatherInfo> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
-        // 优先检查全局缓存
+        // 检查全局缓存是否有效
         if let Some(cache) = CACHED_WEATHER.get() {
             if let Ok(guard) = cache.lock() {
                 if guard.weather.is_some() && now - guard.cache_time < self.weather_cache_duration {
@@ -341,13 +317,23 @@ impl EnvironmentManager {
             }
         }
 
-        // 检查实例缓存是否有效
-        if let Some(ref weather) = self.cached_weather {
-            if now - self.weather_cache_time < self.weather_cache_duration {
-                return Some(weather.clone());
+        // 从网络获取天气
+        if let Some(weather) = self.fetch_weather_from_network().await {
+            // 更新全局缓存
+            if let Some(cache) = CACHED_WEATHER.get() {
+                if let Ok(mut guard) = cache.lock() {
+                    guard.weather = Some(weather.clone());
+                    guard.cache_time = now;
+                }
             }
+            Some(weather)
+        } else {
+            None
         }
+    }
 
+    /// 从网络获取天气（不使用缓存，内部方法）
+    async fn fetch_weather_from_network(&mut self) -> Option<WeatherInfo> {
         // 获取位置用于天气查询
         let location = self.get_location().await?;
         // 优先使用城市名，其次使用经纬度坐标
@@ -355,34 +341,6 @@ impl EnvironmentManager {
             city.to_string()
         } else {
             // 使用经纬度作为备选（wttr.in 支持坐标查询）
-            format!("{},{}", location.latitude, location.longitude)
-        };
-
-        // 从网络获取天气
-        match self.fetch_weather_async(&query).await {
-            Ok(weather) => {
-                // 更新实例缓存
-                self.cached_weather = Some(weather.clone());
-                self.weather_cache_time = now;
-                // 同时更新全局缓存
-                if let Some(cache) = CACHED_WEATHER.get() {
-                    if let Ok(mut guard) = cache.lock() {
-                        guard.weather = Some(weather.clone());
-                        guard.cache_time = now;
-                    }
-                }
-                Some(weather)
-            }
-            Err(_) => self.cached_weather.clone(),
-        }
-    }
-
-    /// 初始化时获取天气（内部使用，不更新实例缓存）
-    async fn fetch_weather_for_init(&mut self) -> Option<WeatherInfo> {
-        let location = self.get_location().await?;
-        let query = if let Some(ref city) = location.city {
-            city.to_string()
-        } else {
             format!("{},{}", location.latitude, location.longitude)
         };
 
@@ -449,6 +407,21 @@ impl EnvironmentManager {
             wind_speed,
         })
     }
+
+    // ========================================================================= //
+
+    /// 获取完整的环境信息
+    pub async fn get_environment_info(&mut self) -> EnvironmentInfo {
+        let datetime = self.get_datetime();
+        let location = self.get_location().await;
+        let weather = self.get_weather().await;
+
+        EnvironmentInfo {
+            location,
+            datetime,
+            weather,
+        }
+    }
 }
 
 impl Default for EnvironmentManager {
@@ -458,11 +431,12 @@ impl Default for EnvironmentManager {
 }
 
 // ========================================================================= //
-// 内部实现函数
+// 便捷函数
 // ========================================================================= //
 
-/// 获取当前日期时间的内部实现
-fn get_current_datetime_impl() -> DateTimeInfo {
+/// 便捷函数：获取当前日期时间
+#[inline]
+pub fn get_current_datetime() -> DateTimeInfo {
     let dt = chrono::Local::now();
     let timestamp = dt.timestamp() as u64;
 
@@ -476,16 +450,6 @@ fn get_current_datetime_impl() -> DateTimeInfo {
         weekday: dt.weekday().num_days_from_sunday(),
         timestamp,
     }
-}
-
-// ========================================================================= //
-// 便捷函数
-// ========================================================================= //
-
-/// 便捷函数：获取当前日期时间
-#[inline]
-pub fn get_current_datetime() -> DateTimeInfo {
-    get_current_datetime_impl()
 }
 
 /// 便捷函数：判断当前是否是早晨
@@ -514,17 +478,6 @@ pub fn is_night() -> bool {
     let dt = get_current_datetime();
     dt.hour >= crate::modules::constants::EVENING_HOUR_END
         || dt.hour < crate::modules::constants::MORNING_HOUR_START
-}
-
-/// 便捷函数：获取当前时间段名称
-pub fn get_time_period() -> &'static str {
-    let dt = get_current_datetime();
-    match dt.hour {
-        6..=11 => "morning",
-        12..=17 => "noon",
-        18..=21 => "evening",
-        _ => "night",
-    }
 }
 
 // ========================================================================= //
@@ -648,23 +601,13 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
             );
             location_result = Some(location.clone());
 
-            // 获取天气并缓存到全局
-            if let Some(weather) = manager.fetch_weather_for_init().await {
+            // 获取天气（会自动缓存到全局）
+            if let Some(weather) = manager.get_weather().await {
                 #[cfg(debug_assertions)]
                 println!(
                     "[Environment] Weather: {}°C, {}",
                     weather.temperature, weather.condition
                 );
-
-                if let Some(cache) = CACHED_WEATHER.get() {
-                    if let Ok(mut guard) = cache.lock() {
-                        guard.weather = Some(weather.clone());
-                        guard.cache_time = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs();
-                    }
-                }
                 weather_result = Some(weather);
             }
         } else {
