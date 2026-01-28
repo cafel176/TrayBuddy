@@ -34,8 +34,11 @@ use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
     SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END, STATE_MUSIC_START, STATE_SILENCE,
-    STATE_SILENCE_END, STATE_SILENCE_START,
+    STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
+    WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MODS,
+    WINDOW_LABEL_SETTINGS,
 };
+use modules::event_manager::{emit, emit_from_window, emit_settings_partial, events};
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
     get_time_period, init_environment, DateTimeInfo, EnvironmentManager, GeoLocation, WeatherInfo,
@@ -198,12 +201,12 @@ fn update_settings(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     {
-        let mut storage = state.storage.lock().unwrap();
-        storage.update_settings(settings.clone())?; // 需要 clone，因为 update_settings 会消费所有权
+    let mut storage = state.storage.lock().unwrap();
+    storage.update_settings(settings.clone())?; // 需要 clone，因为 update_settings 会消费所有权
     } // 此时锁已释放，防止下方触发的事件回调再次尝试获取锁时产生死锁
 
-    // 内存优化：直接使用 settings 而不是克隆，因为所有权已经在参数中
-    let _ = app.emit("settings-change", settings.clone()); // emit 需要 clone，这是不可避免的
+    // 发送设置变更事件
+    let _ = emit(&app, events::SETTINGS_CHANGE, settings);
 
     // --- 执行副作用 ---
 
@@ -216,7 +219,6 @@ fn update_settings(
         } else {
             // 开发模式下提示用户
             eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本");
-            let _ = app.emit("autostart-error", "开发模式不支持开机自启动，请使用 Release 版本");
         }
     } else {
         let _ = autostart_manager.disable();
@@ -270,7 +272,7 @@ async fn load_mod(
     // 0. 关闭除了 mods 以外的所有窗口
     let windows = app.webview_windows();
     for (label, window) in windows {
-        if label != "mods" {
+        if label != WINDOW_LABEL_MODS {
             let _ = window.close();
         }
     }
@@ -534,7 +536,7 @@ fn trigger_event(event_name: String, state: State<'_, AppState>) -> Result<bool,
 /// 当 ignore 为 true 时，窗口不响应鼠标事件，鼠标可穿透到下层
 #[tauri::command]
 fn set_ignore_cursor_events(ignore: bool, app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("animation") {
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
         window
             .set_ignore_cursor_events(ignore)
             .map_err(|e| e.to_string())?;
@@ -592,7 +594,7 @@ fn is_cursor_in_interact_area(
 
     // 获取窗口位置和尺寸
     let window = app
-        .get_webview_window("animation")
+        .get_webview_window(WINDOW_LABEL_ANIMATION)
         .ok_or("Animation window not found")?;
 
     let position = window.outer_position().map_err(|e| e.to_string())?;
@@ -683,8 +685,8 @@ fn set_volume(
         storage.save()?;
     }
 
-    // 发送事件通知前端
-    let _ = app.emit("volume-change", volume);
+    // 发送音量变更事件
+    let _ = emit(&app, events::VOLUME_CHANGE, volume);
     Ok(())
 }
 
@@ -698,8 +700,8 @@ fn set_mute(mute: bool, app: tauri::AppHandle, state: State<'_, AppState>) -> Re
         storage.save()?;
     }
 
-    // 发送事件通知前端
-    let _ = app.emit("mute-change", mute);
+    // 发送静音模式变更事件
+    let _ = emit(&app, events::MUTE_CHANGE, mute);
     Ok(())
 }
 
@@ -726,7 +728,7 @@ fn set_animation_scale(
     let new_width = BUBBLE_AREA_WIDTH.max(animation_width);
     let new_height = BUBBLE_AREA_HEIGHT + animation_height;
 
-    if let Some(window) = app.get_webview_window("animation") {
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
         window
             .set_size(LogicalSize::new(new_width, new_height))
             .map_err(|e| e.to_string())?;
@@ -870,7 +872,6 @@ pub fn run() {
                 } else {
                     // 开发模式下禁用自启动
                     eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，已禁用");
-                    let _ = autostart_manager.disable();
                 }
             } else {
                 let _ = autostart_manager.disable();
@@ -943,7 +944,7 @@ pub fn run() {
             {
                 let app_handle = app.handle().clone();
                 app.listen("settings-change", move |_| {
-                    if let Some(tray) = app_handle.tray_by_id("main") {
+                    if let Some(tray) = app_handle.tray_by_id(TRAY_ID_MAIN) {
                         if let Ok(menu) = inner_build_tray_menu(&app_handle) {
                             let _ = tray.set_menu(Some(menu));
                         }
@@ -961,7 +962,7 @@ pub fn run() {
                 let menu = inner_build_tray_menu(app.handle())?;
 
                 // 3. 创建托盘
-                let builder = TrayIconBuilder::with_id("main")
+                let builder = TrayIconBuilder::with_id(TRAY_ID_MAIN)
                     .icon(tray_icon)
                     .menu(&menu)
                     .show_menu_on_left_click(false)
@@ -993,24 +994,24 @@ pub fn run() {
             match event {
                 tauri::WindowEvent::CloseRequested { .. } => {
                     // animation 窗口无法触发这个
-                    if window.label() == "main" || window.label() == "settings" {
+                    if window.label() == WINDOW_LABEL_MAIN || window.label() == WINDOW_LABEL_SETTINGS {
                         let app_state: State<AppState> = window.state();
                         let mut storage = app_state.storage.lock().unwrap();
                         storage.save();
                     }
                 }
                 tauri::WindowEvent::Destroyed => {
-                    if window.label() == "main" {
+                    if window.label() == WINDOW_LABEL_MAIN {
                         // 主窗口销毁时，强制关闭所有可能开启的局部调试状态
-                        let _ = window.app_handle().emit("layout-debugger-status", false);
-                    } else if window.label() == "animation" {
+                        let _ = emit(&window.app_handle(), events::LAYOUT_DEBUGGER_STATUS, false);
+                    } else if window.label() == WINDOW_LABEL_ANIMATION {
                         let app_state: State<AppState> = window.state();
                         let mut storage = app_state.storage.lock().unwrap();
                         storage.save();
                     }
                 }
                 tauri::WindowEvent::Moved(_) => {
-                    if window.label() == "animation" {
+                    if window.label() == WINDOW_LABEL_ANIMATION {
                         // 发送窗口位置更新事件（发送动画区域顶部位置，与保存一致）
                         if let Ok(position) = window.outer_position() {
                             let scale_factor = window.scale_factor().unwrap_or(1.0);
@@ -1018,7 +1019,7 @@ pub fn run() {
                             let y = position.y as f64 / scale_factor;
                             // 动画区域顶部 Y = 窗口 Y + 气泡区域高度
                             let animation_area_y = y + BUBBLE_AREA_HEIGHT;
-                            let _ = window.emit("window-position-changed", (x, animation_area_y));
+                            let _ = emit_from_window(&window, events::WINDOW_POSITION_CHANGED, (x, animation_area_y));
                         }
                         // 实时保存窗口位置（防止异常退出丢失）
                         save_animation_window_position(window);
@@ -1218,7 +1219,7 @@ async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result
     let _ = fs::remove_file(&target_file_path);
 
     if let Ok(ref mod_name) = result {
-        let _ = app.emit("refresh-mods", mod_name);
+        let _ = emit(&app, events::REFRESH_MODS, mod_name);
     }
 
     result
@@ -1248,7 +1249,7 @@ fn get_media_status() -> bool {
 #[tauri::command]
 async fn recreate_animation_window(app: tauri::AppHandle) -> Result<(), String> {
     // 1. 关闭现有窗口
-    if let Some(window) = app.get_webview_window("animation") {
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
         let _ = window.close();
 
         // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
@@ -1290,7 +1291,7 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
 
     // 3. 构建并创建窗口
     let animation_window =
-        WebviewWindowBuilder::new(app, "animation", WebviewUrl::App("animation".into()))
+        WebviewWindowBuilder::new(app, WINDOW_LABEL_ANIMATION, WebviewUrl::App(WINDOW_LABEL_ANIMATION.into()))
             .title(get_i18n_text(app, "common.animationTitle"))
             .inner_size(window_width, window_height)
             .transparent(true)
@@ -1471,7 +1472,7 @@ fn save_animation_window_position(window: &tauri::Window) {
     }
 
     // 获取 animation 窗口
-    let animation_window = app.get_webview_window("animation");
+    let animation_window = app.get_webview_window(WINDOW_LABEL_ANIMATION);
 
     if let Some(anim_win) = animation_window {
         if let Ok(position) = anim_win.outer_position() {
@@ -1572,7 +1573,7 @@ async fn update_tray_icon_async(app: tauri::AppHandle) {
     tokio::task::spawn_blocking(move || {
         let icon_to_use = get_app_icon(&app_handle);
 
-        if let Some(tray) = app_handle.tray_by_id("main") {
+        if let Some(tray) = app_handle.tray_by_id(TRAY_ID_MAIN) {
             if let Some(icon) = icon_to_use {
                 let _ = tray.set_icon(Some(icon));
             } else {
@@ -1603,7 +1604,7 @@ async fn update_window_icons_async(app: tauri::AppHandle) {
         // 更新所有窗口的任务栏图标（跳过 animation 窗口，它设置了 skip_taskbar: true）
         let windows = app_handle.webview_windows();
         for (label, window) in windows {
-            if label != "animation" {
+            if label != WINDOW_LABEL_ANIMATION {
                 // clone 图标用于每个窗口设置
                 let _ = window.set_icon(icon.clone());
             }
@@ -1631,7 +1632,7 @@ async fn restore_window_icons_async(app: tauri::AppHandle) {
         // 恢复所有窗口的默认图标（跳过 animation 窗口）
         let windows = app_handle.webview_windows();
         for (label, window) in windows {
-            if label != "animation" {
+            if label != WINDOW_LABEL_ANIMATION {
                 // clone 图标用于每个窗口设置
                 let _ = window.set_icon(icon.clone());
             }
@@ -1652,7 +1653,7 @@ fn apply_window_icon(app: &tauri::AppHandle, window: &WebviewWindow) {
 ///
 /// 用途：在同步上下文中更新托盘图标（如卸载 mod 时）
 fn update_tray_icon_sync(app: &tauri::AppHandle) {
-    if let Some(tray) = app.tray_by_id("main") {
+    if let Some(tray) = app.tray_by_id(TRAY_ID_MAIN) {
         if let Some(icon) = get_app_icon(app) {
             let _ = tray.set_icon(Some(icon));
         } else {
@@ -1669,7 +1670,7 @@ fn restore_window_icons_sync(app: &tauri::AppHandle) {
         // 恢复所有窗口的默认图标（跳过 animation 窗口）
         let windows = app.webview_windows();
         for (label, window) in windows {
-            if label != "animation" {
+            if label != WINDOW_LABEL_ANIMATION {
                 let _ = window.set_icon(default_icon.clone());
             }
         }
@@ -1811,12 +1812,12 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             app.exit(0)
         }
         "debugger" => {
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window(WINDOW_LABEL_MAIN) {
                 let _ = window.show();
                 let _ = window.set_focus();
             } else {
                 if let Ok(window) =
-                    WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                    WebviewWindowBuilder::new(app, WINDOW_LABEL_MAIN, WebviewUrl::App("index.html".into()))
                         .title(get_i18n_text(app, "common.appTitle"))
                         .inner_size(800.0, 600.0)
                         .build() {
@@ -1877,18 +1878,14 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             };
 
             // 广播设置变更 (供所有窗口 UI 同步)
-            // 内存优化：构建简单的结构体而不是克隆整个 settings
-            let settings_change = serde_json::json!({
-                "no_audio_mode": no_audio_mode,
-                "silence_mode": silence_mode
-            });
-            let _ = app.emit("settings-change", settings_change);
+            // 使用统一的事件管理函数，只发送变化的字段
+            let _ = emit_settings_partial(&app, Some(no_audio_mode), Some(silence_mode), None);
 
             // --- 执行副作用 ---
 
             // 1. 静音模式副作用
             if id == "toggle_mute" {
-                let _ = app.emit("mute-change", no_audio_mode);
+                let _ = emit(&app, events::MUTE_CHANGE, no_audio_mode);
             }
 
             // 2. 免打扰模式副作用 (修复死锁：提前释放锁)
@@ -1923,7 +1920,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 #[tauri::command]
 fn get_tray_position(app: tauri::AppHandle) -> (f64, f64) {
     // 使用 Tauri v2 官方提供的 TrayIcon::rect 接口
-    if let Some(tray) = app.tray_by_id("main") {
+    if let Some(tray) = app.tray_by_id(TRAY_ID_MAIN) {
         if let Ok(Some(rect)) = tray.rect() {
             // Position 和 Size 是枚举，需要模式匹配来获取数值
             let x_val = match rect.position {
@@ -1998,7 +1995,7 @@ fn get_saved_window_position(state: State<'_, AppState>) -> (Option<f64>, Option
 #[tauri::command]
 fn reset_animation_window_position(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // 1. 获取动画窗口
-    let window = app.get_webview_window("animation")
+    let window = app.get_webview_window(WINDOW_LABEL_ANIMATION)
         .ok_or_else(|| "Animation window not found".to_string())?;
 
     // 2. 获取当前的缩放比例

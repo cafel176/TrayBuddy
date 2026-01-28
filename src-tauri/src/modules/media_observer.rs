@@ -6,10 +6,11 @@
 
 #![allow(unused)]
 
+use super::event_manager::emit_debug_update;
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use tokio::sync::mpsc;
 
 // ========================================================================= //
@@ -551,7 +552,7 @@ impl MediaObserver {
         };
 
         // 发送更新事件
-        let _ = app_handle.emit("media-debug-update", debug_info.clone());
+        let _ = emit_debug_update(&app_handle, "media", &debug_info);
 
         update_cached_debug_info(debug_info);
     }

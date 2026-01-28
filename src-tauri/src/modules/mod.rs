@@ -4,6 +4,7 @@
 //!
 //! - [`constants`] - 全局常量定义
 //! - [`environment`] - 环境信息（时间、位置、天气）
+//! - [`event_manager`] - 统一事件发送管理
 //! - [`resource`] - Mod 资源加载与管理
 //! - [`state`] - 角色状态管理与定时触发
 //! - [`storage`] - 用户数据持久化存储
@@ -13,6 +14,7 @@
 
 pub mod constants;
 pub mod environment;
+pub mod event_manager;
 pub mod media_observer;
 pub mod resource;
 pub mod state;

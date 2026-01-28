@@ -20,10 +20,12 @@
 
 #![allow(unused)]
 
+use super::event_manager::{emit, events};
 use chrono::{Datelike, Timelike};
 use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::AppHandle;
 
 /// 全局地理位置缓存（可刷新）
 static CACHED_LOCATION: OnceLock<Mutex<Option<GeoLocation>>> = OnceLock::new();
@@ -676,7 +678,7 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
                 location: location_result,
                 weather: weather_result,
             };
-            let _ = handle.emit("environment-updated", event_data);
+            let _ = emit(handle, events::ENVIRONMENT_UPDATED, event_data);
             #[cfg(debug_assertions)]
             println!("[Environment] Event emitted to frontend");
         }

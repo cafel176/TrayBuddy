@@ -46,12 +46,13 @@
 
 #![allow(unused)]
 
+use super::event_manager::{emit, events};
 use super::resource::{ResourceManager, StateInfo};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 // ========================================================================= //
 // 事件结构体
@@ -609,9 +610,8 @@ impl StateManager {
                 play_once,
             };
 
-            if let Err(e) = app_handle.emit("state-change", event) {
-                eprintln!("[StateManager] 发送状态切换事件失败: {}", e);
-            }
+            // 发送状态切换事件
+            let _ = emit(&app_handle, events::STATE_CHANGE, event);
         }
     }
 }

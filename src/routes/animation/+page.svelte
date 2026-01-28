@@ -271,11 +271,24 @@
       unlistenSettings = await listen<UserSettings>(
         "settings-change",
         async (event) => {
-          showCharacter = event.payload.show_character;
-          showBorder = event.payload.show_border;
-          silenceMode = event.payload.silence_mode;
-          animationScale = event.payload.animation_scale;
-          userNickname = event.payload.nickname || "User";
+          const payload = event.payload;
+
+          // 只更新存在的字段（兼容部分更新）
+          if ("show_character" in payload) {
+            showCharacter = payload.show_character;
+          }
+          if ("show_border" in payload) {
+            showBorder = payload.show_border;
+          }
+          if ("silence_mode" in payload) {
+            silenceMode = payload.silence_mode;
+          }
+          if ("animation_scale" in payload) {
+            animationScale = payload.animation_scale;
+          }
+          if ("nickname" in payload) {
+            userNickname = payload.nickname || "User";
+          }
 
           // 动态加载边框 (如果之前未加载且现在启用了)
           if (showBorder && !borderAnimator && borderCanvas) {

@@ -104,9 +104,17 @@ export class AudioManager {
     // 监听完整设置变更事件（保存按钮触发）
     this.unlistenSettings = await listen<UserSettings>("settings-change", (event) => {
       const s = event.payload;
-      this.muted = s.no_audio_mode;
-      this.volume = s.volume;
-      this.lang = s.lang;
+
+      // 只更新存在的字段（兼容部分更新）
+      if ("no_audio_mode" in s) {
+        this.muted = s.no_audio_mode;
+      }
+      if ("volume" in s) {
+        this.volume = s.volume;
+      }
+      if ("lang" in s) {
+        this.lang = s.lang;
+      }
 
       // 立即更新当前播放的音量
       if (this.audio) {

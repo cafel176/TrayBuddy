@@ -17,6 +17,7 @@ use tauri::Manager;
 use tokio::sync::mpsc;
 
 use super::constants::{STATE_SILENCE_END, STATE_SILENCE_START};
+use super::event_manager::{emit, emit_debug_update, emit_settings_partial, events};
 use super::utils::window::get_visual_window_rect;
 use crate::AppState;
 
@@ -280,7 +281,7 @@ impl SystemObserver {
         update_cached_debug_info(debug_info.clone());
 
         // 发送调试事件通知前端
-        let _ = app_handle.emit("system-debug-update", debug_info);
+        let _ = emit_debug_update(&app_handle, "system", &debug_info);
 
         // 确定目标状态：仅当开启自动免打扰且处于全屏且（未锁定或不抑制锁屏时DND）时，才应自动进入 DND
         let should_be_dnd = auto_silence && is_fullscreen
@@ -412,9 +413,6 @@ impl SystemObserver {
         storage.data.settings.silence_mode = enable;
         storage.save()?;
 
-        // Clone settings needed for emit
-        let settings = storage.data.settings.clone();
-
         // Drops the lock explicitly before emitting event to avoid deadlock
         // (Listener inner_build_tray_menu needs to lock storage)
         drop(storage);
@@ -425,8 +423,8 @@ impl SystemObserver {
             enable
         );
 
-        // 发送设置变更事件到前端
-        let _ = app_handle.clone().emit("settings-change", settings);
+        // 发送设置变更事件到前端（只发送变化的字段）
+        let _ = emit_settings_partial(&app_handle, None, Some(enable), None);
         Ok(())
     }
 

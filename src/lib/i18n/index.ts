@@ -109,7 +109,8 @@ export async function initI18n(): Promise<void> {
 
     // 监听设置变更
     _unlistenSettings = await listen<UserSettings>("settings-change", (event) => {
-      if (event.payload.lang !== _currentLang) {
+      // 只在 lang 字段存在且值变化时更新
+      if ("lang" in event.payload && event.payload.lang !== _currentLang) {
         setLang(event.payload.lang);
       }
     });
