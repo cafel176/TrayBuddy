@@ -65,6 +65,18 @@ use tauri::{
 use tauri_plugin_autostart::ManagerExt;
 
 // ========================================================================= //
+// 全局静态标记
+// ========================================================================= //
+
+/// 标记桌面会话检测是否已启动
+/// 防止重复启动导致资源泄漏
+static SESSION_OBSERVER_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// 标记后台服务是否已启动
+/// 防止重复启动导致资源泄漏
+static BACKGROUND_SERVICES_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+// ========================================================================= //
 // 日期验证常量
 // ========================================================================= //
 
@@ -2060,14 +2072,22 @@ fn reset_animation_window_position(app: tauri::AppHandle, state: State<'_, AppSt
 }
 
 /// 启动登录检测（由前端调用）
-/// 
+///
 /// 启动异步线程检测用户是否已登录到桌面，检测到后自动触发相应事件
 /// 特殊日期判断（生日、首登录纪念日）和login触发都在session_observer回调内处理
 #[tauri::command]
 fn start_login_detection(app: tauri::AppHandle) -> Result<(), String> {
+    use std::sync::atomic::Ordering;
+
+    // 检查是否已经启动过，防止重复启动导致资源泄漏
+    if SESSION_OBSERVER_STARTED.swap(true, Ordering::SeqCst) {
+        // 已启动，直接返回
+        return Ok(());
+    }
+
     // 启动桌面会话检测（所有触发逻辑都在检测回调内）
     start_session_observer(app);
-    
+
     Ok(())
 }
 
@@ -2208,11 +2228,6 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
     const WTS_SESSION_LOCK: u32 = 7;
     const WTS_SESSION_UNLOCK: u32 = 8;
 
-    // 使用 Arc<AtomicBool> 标记是否已触发登录事件
-    let login_triggered = Arc::new(AtomicBool::new(false));
-    // 使用 Arc<AtomicBool> 标记后台服务是否已启动
-    let services_started = Arc::new(AtomicBool::new(false));
-
     std::thread::spawn(move || {
         println!("[SessionObserver] 启动 WTS 会话监听线程");
 
@@ -2280,8 +2295,6 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
 
             let context = SessionObserverContext {
                 app_handle: app_handle.clone(),
-                login_triggered: login_triggered.clone(),
-                services_started: services_started.clone(),
                 session_locked,
             };
 
@@ -2300,25 +2313,11 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
             if is_logged_in {
                 println!("[SessionObserver] 程序启动时检测到用户已登录，主动触发登录事件");
 
-                // 检查并启动后台服务（只启动一次）
-                if services_started.compare_exchange(
-                    false,
-                    true,
-                    Ordering::SeqCst,
-                    Ordering::Relaxed,
-                ).is_ok() {
-                    start_background_services(&app_handle);
-                }
+                // 启动后台服务
+                start_background_services(&app_handle);
 
-                // 检查并触发登录事件（只触发一次）
-                if login_triggered.compare_exchange(
-                    false,
-                    true,
-                    Ordering::SeqCst,
-                    Ordering::Relaxed,
-                ).is_ok() {
-                    trigger_login_events(&app_handle);
-                }
+                // 检查并触发登录事件
+                trigger_login_events(&app_handle);
             }
 
             // 消息循环
@@ -2339,8 +2338,6 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
 #[cfg(target_os = "windows")]
 struct SessionObserverContext {
     app_handle: tauri::AppHandle,
-    login_triggered: Arc<std::sync::atomic::AtomicBool>,
-    services_started: Arc<std::sync::atomic::AtomicBool>,
     session_locked: Arc<std::sync::atomic::AtomicBool>,
 }
 
@@ -2380,25 +2377,11 @@ unsafe extern "system" fn session_window_proc(
                         // 更新锁屏状态
                         context.session_locked.store(false, Ordering::SeqCst);
 
-                        // 检查并启动后台服务（只启动一次）
-                        if context.services_started.compare_exchange(
-                            false,
-                            true,
-                            Ordering::SeqCst,
-                            Ordering::Relaxed,
-                        ).is_ok() {
-                            start_background_services(&context.app_handle);
-                        }
+                        // 启动后台服务
+                        start_background_services(&context.app_handle);
 
-                        // 检查并触发登录事件
-                        if context.login_triggered.compare_exchange(
-                            false,
-                            true,
-                            Ordering::SeqCst,
-                            Ordering::Relaxed,
-                        ).is_ok() {
-                            trigger_login_events(&context.app_handle);
-                        }
+                        // 触发登录事件（每次解锁都会触发）
+                        trigger_login_events(&context.app_handle);
                     }
                     WTS_SESSION_LOCK => {
                         println!("[SessionObserver] 检测到会话锁定 (session_id: {})", session_id);
@@ -2429,6 +2412,14 @@ unsafe extern "system" fn session_window_proc(
 /// 启动后台服务（避免死锁）
 #[cfg(target_os = "windows")]
 fn start_background_services(app_handle: &tauri::AppHandle) {
+    use std::sync::atomic::Ordering;
+
+    // 检查是否已经启动过，防止重复启动导致资源泄漏
+    if BACKGROUND_SERVICES_STARTED.swap(true, Ordering::SeqCst) {
+        println!("[SessionObserver] 后台服务已启动，跳过重复启动");
+        return;
+    }
+
     println!("[SessionObserver] 启动后台服务");
 
     let app_state = app_handle.state::<AppState>();
@@ -2503,7 +2494,6 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
 
     // 非Windows平台使用简化的轮询方式
     let login_triggered = Arc::new(AtomicBool::new(false));
-    let services_started = Arc::new(AtomicBool::new(false));
 
     thread::spawn(move || {
         println!("[SessionObserver] 非Windows平台启动简化的会话检测线程");
@@ -2514,15 +2504,8 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
                 modules::constants::SESSION_OBSERVER_POLL_INTERVAL_SECS,
             ));
 
-            // 检查并启动后台服务（只启动一次）
-            if services_started.compare_exchange(
-                false,
-                true,
-                Ordering::SeqCst,
-                Ordering::Relaxed,
-            ).is_ok() {
-                start_background_services_non_windows(&app_handle);
-            }
+            // 启动后台服务
+            start_background_services_non_windows(&app_handle);
 
             // 检查并触发登录事件
             if login_triggered.compare_exchange(
@@ -2542,6 +2525,14 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
 /// 非Windows平台启动后台服务
 #[cfg(not(target_os = "windows"))]
 fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
+    use std::sync::atomic::Ordering;
+
+    // 检查是否已经启动过，防止重复启动导致资源泄漏
+    if BACKGROUND_SERVICES_STARTED.swap(true, Ordering::SeqCst) {
+        println!("[SessionObserver] 后台服务已启动，跳过重复启动（非Windows平台）");
+        return;
+    }
+
     println!("[SessionObserver] 启动后台服务（非Windows平台）");
 
     let app_state = app_handle.state::<AppState>();
@@ -2554,6 +2545,12 @@ fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
 
     // 启动媒体监听器
     start_media_observer(app_handle.clone(), is_silence_mode);
+
+    // 启动系统状态观察器（独立线程，无锁）
+    {
+        let observer = SystemObserver::new();
+        observer.start(app_handle.clone());
+    }
 
     // 启动定时触发器
     {
