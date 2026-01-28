@@ -65,6 +65,22 @@ use tauri::{
 use tauri_plugin_autostart::ManagerExt;
 
 // ========================================================================= //
+// 日期验证常量
+// ========================================================================= //
+
+/// 月份最小值
+pub const MONTH_MIN: u32 = 1;
+
+/// 月份最大值
+pub const MONTH_MAX: u32 = 12;
+
+/// 日期最小值
+pub const DAY_MIN: u32 = 1;
+
+/// 日期最大值
+pub const DAY_MAX: u32 = 31;
+
+// ========================================================================= //
 // 应用全局状态
 // ========================================================================= //
 
@@ -2069,8 +2085,8 @@ fn parse_birthday_date(birthday: &str) -> Option<(u32, u32)> {
     let month = month_str.parse::<u32>().ok()?;
     let day = day_str.parse::<u32>().ok()?;
     // 验证日期有效性
-    if month >= modules::constants::MONTH_MIN && month <= modules::constants::MONTH_MAX
-        && day >= modules::constants::DAY_MIN && day <= modules::constants::DAY_MAX
+    if month >= MONTH_MIN && month <= MONTH_MAX
+        && day >= DAY_MIN && day <= DAY_MAX
     {
         Some((month, day))
     } else {

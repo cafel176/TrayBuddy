@@ -28,11 +28,65 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 use crate::modules::utils::http::http_get;
-use crate::modules::constants::WEATHER_CACHE_DURATION_SECS;
-use crate::modules::constants::WEATHER_API_TIMEOUT_SECS;
-use crate::modules::constants::LOCATION_API_TIMEOUT_SECS;
+use crate::modules::constants::{
+    WEATHER_CACHE_DURATION_SECS, WEATHER_API_TIMEOUT_SECS, LOCATION_API_TIMEOUT_SECS
+};
 use crate::modules::utils::http::http_get_async;
 use chrono::Local;
+
+// ========================================================================= //
+// 时间段常量
+// ========================================================================= //
+
+/// 早晨开始时间（小时）
+pub const MORNING_HOUR_START: u32 = 6;
+
+/// 早晨结束时间（小时）
+pub const MORNING_HOUR_END: u32 = 12;
+
+/// 中午结束时间（小时）
+pub const NOON_HOUR_END: u32 = 18;
+
+/// 傍晚结束时间（小时）
+pub const EVENING_HOUR_END: u32 = 22;
+
+// ========================================================================= //
+// 地理位置回退常量
+// ========================================================================= //
+
+/// 回退纬度（北半球）
+///
+/// **用途**: API 不可用时使用的默认北半球纬度。
+pub const FALLBACK_LATITUDE_NORTHERN: f64 = 40.0;
+
+/// 回退经度（中国）
+///
+/// **用途**: API 不可用时使用的默认经度。
+pub const FALLBACK_LONGITUDE_CHINA: f64 = 116.0;
+
+/// 回退纬度（南半球）
+///
+/// **用途**: API 不可用时使用的默认南半球纬度。
+pub const FALLBACK_LATITUDE_SOUTHERN: f64 = -35.0;
+
+/// 每小时偏移对应的经度
+///
+/// **用途**: 从时区偏移推断经度时的系数（每小时15度）。
+pub const LONGITUDE_PER_HOUR_OFFSET: f64 = 15.0;
+
+// ========================================================================= //
+// 字符串常量
+// ========================================================================= //
+
+// 季节名称常量
+const SEASON_NAME_SPRING_EN: &str = "spring";
+const SEASON_NAME_SUMMER_EN: &str = "summer";
+const SEASON_NAME_AUTUMN_EN: &str = "autumn";
+const SEASON_NAME_WINTER_EN: &str = "winter";
+const SEASON_NAME_SPRING_ZH: &str = "春";
+const SEASON_NAME_SUMMER_ZH: &str = "夏";
+const SEASON_NAME_AUTUMN_ZH: &str = "秋";
+const SEASON_NAME_WINTER_ZH: &str = "冬";
 
 // ========================================================================= //
 
@@ -249,7 +303,7 @@ impl EnvironmentManager {
             let now = Local::now();
             let offset_secs = now.offset().local_minus_utc();
             let offset_hours = offset_secs as f64 / 3600.0;
-            let longitude = offset_hours * 15.0;
+            let longitude = offset_hours * LONGITUDE_PER_HOUR_OFFSET;
 
             let timezone_name = now.offset().to_string();
 
@@ -262,7 +316,7 @@ impl EnvironmentManager {
                 || timezone_name.contains("Brazil")
                 || timezone_name.contains("Chile");
 
-            let latitude = if is_southern { -35.0 } else { 40.0 };
+            let latitude = if is_southern { FALLBACK_LATITUDE_SOUTHERN } else { FALLBACK_LATITUDE_NORTHERN };
 
             return GeoLocation {
                 latitude,
@@ -280,8 +334,8 @@ impl EnvironmentManager {
             let tz = std::env::var("TZ").unwrap_or_else(|_| "UTC".to_string());
 
             GeoLocation {
-                latitude: 40.0,
-                longitude: 0.0,
+                latitude: FALLBACK_LATITUDE_NORTHERN,
+                longitude: FALLBACK_LONGITUDE_CHINA,
                 timezone: Some(tz),
                 is_northern_hemisphere: true,
                 city: None,
@@ -492,20 +546,20 @@ impl Season {
     /// 获取季节名称 (英文)
     pub fn name(&self) -> &'static str {
         match self {
-            Season::Spring => "spring",
-            Season::Summer => "summer",
-            Season::Autumn => "autumn",
-            Season::Winter => "winter",
+            Season::Spring => SEASON_NAME_SPRING_EN,
+            Season::Summer => SEASON_NAME_SUMMER_EN,
+            Season::Autumn => SEASON_NAME_AUTUMN_EN,
+            Season::Winter => SEASON_NAME_WINTER_EN,
         }
     }
 
     /// 获取季节名称 (中文)
     pub fn name_zh(&self) -> &'static str {
         match self {
-            Season::Spring => "春",
-            Season::Summer => "夏",
-            Season::Autumn => "秋",
-            Season::Winter => "冬",
+            Season::Spring => SEASON_NAME_SPRING_ZH,
+            Season::Summer => SEASON_NAME_SUMMER_ZH,
+            Season::Autumn => SEASON_NAME_AUTUMN_ZH,
+            Season::Winter => SEASON_NAME_WINTER_ZH,
         }
     }
 }

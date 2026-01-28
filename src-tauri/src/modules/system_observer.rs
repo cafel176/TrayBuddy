@@ -17,9 +17,16 @@ use tauri::Manager;
 use tokio::sync::mpsc;
 
 use super::constants::{STATE_SILENCE_END, STATE_SILENCE_START};
-use super::event_manager::{emit, emit_debug_update, emit_settings, events};
+use super::event_manager::{DEBUG_EVENT_TYPE_SYSTEM, emit, emit_debug_update, emit_settings, events};
 use super::utils::window::get_visual_window_rect;
 use crate::AppState;
+
+// ========================================================================= //
+// 字符串常量
+// ========================================================================= //
+
+/// 时间格式：短格式（小时:分钟:秒）
+const TIME_FORMAT_SHORT: &str = "%H:%M:%S";
 
 // ========================================================================= //
 // 调试信息
@@ -275,7 +282,7 @@ impl SystemObserver {
         // 更新调试信息
         let debug_info = SystemDebugInfo {
             observer_running: true,
-            last_check_time: chrono::Local::now().format("%H:%M:%S").to_string(),
+            last_check_time: chrono::Local::now().format(TIME_FORMAT_SHORT).to_string(),
             is_fullscreen_busy: is_fullscreen,
             auto_dnd_enabled: auto_silence,
             is_auto_dnd_active: *we_enabled_dnd,
@@ -285,7 +292,7 @@ impl SystemObserver {
         update_cached_debug_info(debug_info.clone());
 
         // 发送调试事件通知前端
-        let _ = emit_debug_update(&app_handle, "system", &debug_info);
+        let _ = emit_debug_update(&app_handle, DEBUG_EVENT_TYPE_SYSTEM, &debug_info);
 
         // 确定目标状态：仅当开启自动免打扰且处于全屏且（未锁定或不抑制锁屏时DND）时，才应自动进入 DND
         let should_be_dnd = auto_silence && is_fullscreen

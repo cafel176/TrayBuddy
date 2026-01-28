@@ -23,6 +23,20 @@ use tauri::Manager;
 use crate::modules::utils::fs::{load_json_list, load_json_obj};
 
 // ========================================================================= //
+// 资源匹配常量
+// ========================================================================= //
+
+/// 一天中的分钟数（用于时间范围计算）
+///
+/// **用途**: 当时间范围未设置或需要默认值时，使用此常量表示一天的总分钟数。
+pub const MINUTES_PER_DAY: u32 = 24 * 60;
+
+/// 年底默认日期（MMDD 格式）
+///
+/// **用途**: 当日期范围未设置结束日期时，使用此常量表示年底的默认日期。
+pub const DEFAULT_END_OF_YEAR: u32 = 1231;
+
+// ========================================================================= //
 // 辅助函数
 // ========================================================================= //
 
@@ -248,7 +262,7 @@ impl StateInfo {
 
         let start_minutes = Self::parse_time(&self.time_start).unwrap_or(0);
         let end_minutes = Self::parse_time(&self.time_end).unwrap_or(
-            crate::modules::constants::MINUTES_PER_DAY
+            MINUTES_PER_DAY
         );
 
         // 处理跨午夜的情况（如 22:00 - 06:00）
@@ -273,7 +287,7 @@ impl StateInfo {
 
         let start_day = Self::parse_date(&self.date_start).unwrap_or(0);
         let end_day = Self::parse_date(&self.date_end).unwrap_or(
-            crate::modules::constants::DEFAULT_END_OF_YEAR
+            DEFAULT_END_OF_YEAR
         );
 
         // 处理跨年的情况（如 12-01 - 01-31）

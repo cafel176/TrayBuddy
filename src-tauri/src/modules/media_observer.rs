@@ -6,12 +6,76 @@
 
 #![allow(unused)]
 
-use super::event_manager::emit_debug_update;
+use super::event_manager::{DEBUG_EVENT_TYPE_MEDIA, emit_debug_update};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tauri::Manager;
 use tokio::sync::mpsc;
+
+// ========================================================================= //
+// 字符串常量
+// ========================================================================= //
+
+/// 播放状态：播放中
+const PLAYBACK_STATUS_PLAYING: &str = "Playing";
+
+/// 播放状态：已暂停
+const PLAYBACK_STATUS_PAUSED: &str = "Paused";
+
+/// 播放状态：已停止
+const PLAYBACK_STATUS_STOPPED: &str = "Stopped";
+
+/// 播放状态：已关闭
+const PLAYBACK_STATUS_CLOSED: &str = "Closed";
+
+/// 播放状态：已打开
+const PLAYBACK_STATUS_OPENED: &str = "Opened";
+
+/// 播放状态：切换中
+const PLAYBACK_STATUS_CHANGING: &str = "Changing";
+
+/// 播放状态：未知
+const PLAYBACK_STATUS_UNKNOWN: &str = "Unknown";
+
+// ========================================================================= //
+
+/// 会话状态：活跃
+const SESSION_STATE_ACTIVE: &str = "Active";
+
+/// 会话状态：非活跃
+const SESSION_STATE_INACTIVE: &str = "Inactive";
+
+/// 会话状态：已过期
+const SESSION_STATE_EXPIRED: &str = "Expired";
+
+// ========================================================================= //
+
+/// 状态源：GSMTC（播放中）
+const STATE_SOURCE_GSMTC_PLAYING: &str = "GSMTC (Playing)";
+
+/// 状态源：GSMTC（已暂停）
+const STATE_SOURCE_GSMTC_PAUSED: &str = "GSMTC (Paused)";
+
+/// 状态源：Core Audio
+const STATE_SOURCE_CORE_AUDIO: &str = "Core Audio";
+
+/// 状态源：Core Audio + GSMTC 元数据
+const STATE_SOURCE_CORE_AUDIO_GSMTC: &str = "Core Audio + GSMTC metadata";
+
+/// 状态源：无（已停止）
+const STATE_SOURCE_NONE_STOPPED: &str = "None (Stopped)";
+
+/// 状态：错误
+const STATUS_ERROR: &str = "Error";
+
+/// 状态：无信息
+const STATUS_NO_INFO: &str = "NoInfo";
+
+// ========================================================================= //
+
+/// 时间格式：短格式（小时:分钟:秒）
+const TIME_FORMAT_SHORT: &str = "%H:%M:%S";
 
 // ========================================================================= //
 // 全局缓存
@@ -460,7 +524,7 @@ impl MediaObserver {
         // 检查 GSMTC 播放状态
         if let Some(ref event) = gsmtc_event {
             if event.status == MediaPlaybackStatus::Playing {
-                return (event.clone(), "GSMTC (Playing)".to_string());
+                return (event.clone(), STATE_SOURCE_GSMTC_PLAYING.to_string());
             }
         }
 
@@ -477,18 +541,18 @@ impl MediaObserver {
                                 artist: gsmtc.artist.clone(),
                                 app_id: event.app_id.clone(),
                             },
-                            "Core Audio + GSMTC metadata".into(),
+                            STATE_SOURCE_CORE_AUDIO_GSMTC.into(),
                         );
                     }
                 }
-                return (event.clone(), "Core Audio".into());
+                return (event.clone(), STATE_SOURCE_CORE_AUDIO.into());
             }
         }
 
         // 如果 GSMTC 检测到暂停状态，返回暂停
         if let Some(ref event) = gsmtc_event {
             if event.status == MediaPlaybackStatus::Paused {
-                return (event.clone(), "GSMTC (Paused)".into());
+                return (event.clone(), STATE_SOURCE_GSMTC_PAUSED.into());
             }
         }
 
@@ -506,7 +570,7 @@ impl MediaObserver {
                 artist: None,
                 app_id: last_app_id,
             },
-            "None (Stopped)".into(),
+            STATE_SOURCE_NONE_STOPPED.into(),
         )
     }
 
@@ -547,7 +611,7 @@ impl MediaObserver {
         let debug_info = MediaDebugInfo {
             observer_running: running.load(Ordering::SeqCst),
             uptime_secs,
-            last_check_time: Local::now().format("%H:%M:%S").to_string().into(),
+            last_check_time: Local::now().format(TIME_FORMAT_SHORT).to_string().into(),
             gsmtc_available: gsmtc_manager.is_some(),
             core_audio_available,
             gsmtc_sessions,
@@ -558,7 +622,7 @@ impl MediaObserver {
         };
 
         // 发送更新事件
-        let _ = emit_debug_update(&app_handle, "media", &debug_info);
+        let _ = emit_debug_update(&app_handle, DEBUG_EVENT_TYPE_MEDIA, &debug_info);
 
         update_cached_debug_info(debug_info);
     }
@@ -584,18 +648,18 @@ impl MediaObserver {
                     let status = if let Ok(playback_info) = session.GetPlaybackInfo() {
                         match playback_info.PlaybackStatus() {
                             Ok(s) => match s {
-                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => "Playing",
-                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => "Paused",
-                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => "Stopped",
-                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => "Closed",
-                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => "Opened",
-                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => "Changing",
-                                _ => "Unknown",
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => PLAYBACK_STATUS_PLAYING,
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => PLAYBACK_STATUS_PAUSED,
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => PLAYBACK_STATUS_STOPPED,
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => PLAYBACK_STATUS_CLOSED,
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => PLAYBACK_STATUS_OPENED,
+                                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => PLAYBACK_STATUS_CHANGING,
+                                _ => PLAYBACK_STATUS_UNKNOWN,
                             },
-                            Err(_) => "Error",
+                            Err(_) => STATUS_ERROR,
                         }
                     } else {
-                        "NoInfo"
+                        STATUS_NO_INFO
                     };
 
                     let (title, artist) = Self::get_media_properties(&session);
@@ -668,16 +732,16 @@ impl MediaObserver {
                         .GetState()
                         .map(|s| {
                             if s == AudioSessionStateActive {
-                                "Active"
+                                SESSION_STATE_ACTIVE
                             } else if s == AudioSessionStateInactive {
-                                "Inactive"
+                                SESSION_STATE_INACTIVE
                             } else if s == AudioSessionStateExpired {
-                                "Expired"
+                                SESSION_STATE_EXPIRED
                             } else {
-                                "Unknown"
+                                PLAYBACK_STATUS_UNKNOWN
                             }
                         })
-                        .unwrap_or("Error");
+                        .unwrap_or(STATUS_ERROR);
 
                     if let Ok(session_control2) =
                         session_control

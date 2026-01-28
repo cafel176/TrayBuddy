@@ -32,6 +32,12 @@ use std::fmt;
 // 公共常量
 // ========================================================================= //
 
+/// 调试事件类型：系统
+const DEBUG_EVENT_TYPE_SYSTEM: &str = "system";
+
+/// 调试事件类型：媒体
+const DEBUG_EVENT_TYPE_MEDIA: &str = "media";
+
 /// 事件名称常量定义
 ///
 /// 集中管理所有事件名称，避免字符串散布在代码中。
@@ -335,8 +341,8 @@ pub fn emit_debug_update<T: serde::Serialize>(
     debug_info: &T,
 ) -> Result<(), EmitError> {
     let event_name = match event_type {
-        "system" => events::SYSTEM_DEBUG_UPDATE,
-        "media" => events::MEDIA_DEBUG_UPDATE,
+        DEBUG_EVENT_TYPE_SYSTEM => events::SYSTEM_DEBUG_UPDATE,
+        DEBUG_EVENT_TYPE_MEDIA => events::MEDIA_DEBUG_UPDATE,
         _ => {
             eprintln!("[EventManager] Unknown debug event type: {}", event_type);
             return Ok(());
