@@ -38,7 +38,7 @@ use modules::constants::{
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MODS,
     WINDOW_LABEL_SETTINGS,
 };
-use modules::event_manager::{emit, emit_from_window, emit_settings, events};
+use modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
     get_time_period, init_environment, DateTimeInfo, EnvironmentManager, GeoLocation, WeatherInfo,
@@ -234,7 +234,7 @@ fn update_settings(
     } // 此时锁已释放，防止下方触发的事件回调再次尝试获取锁时产生死锁
 
     // 发送设置变更事件
-    let _ = emit(&app, events::SETTINGS_CHANGE, settings);
+    let _ = emit(&app, events::SETTINGS_CHANGE, &settings);
 
     // --- 执行副作用 ---
 
@@ -1047,7 +1047,7 @@ pub fn run() {
                             let y = position.y as f64 / scale_factor;
                             // 动画区域顶部 Y = 窗口 Y + 气泡区域高度
                             let animation_area_y = y + BUBBLE_AREA_HEIGHT;
-                            let _ = emit_from_window(&window, events::WINDOW_POSITION_CHANGED, (x, animation_area_y));
+                            let _ = emit_from_tauri_window(&window, events::WINDOW_POSITION_CHANGED, (x, animation_area_y));
                         }
                         // 实时保存窗口位置（防止异常退出丢失）
                         save_animation_window_position(window);
@@ -1911,12 +1911,12 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
             // 1. 静音模式副作用
             if id == "toggle_mute" {
-                let _ = emit(&app, events::MUTE_CHANGE, no_audio_mode);
+                let _ = emit(&app, events::MUTE_CHANGE, settings.no_audio_mode);
             }
 
             // 2. 免打扰模式副作用 (修复死锁：提前释放锁)
             if id == "toggle_silence" {
-                let target_state = if silence_mode {
+                let target_state = if settings.silence_mode {
                     STATE_SILENCE_START
                 } else if get_media_status() {
                     STATE_MUSIC_START

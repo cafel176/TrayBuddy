@@ -33,10 +33,10 @@ use std::fmt;
 // ========================================================================= //
 
 /// 调试事件类型：系统
-const DEBUG_EVENT_TYPE_SYSTEM: &str = "system";
+pub const DEBUG_EVENT_TYPE_SYSTEM: &str = "system";
 
 /// 调试事件类型：媒体
-const DEBUG_EVENT_TYPE_MEDIA: &str = "media";
+pub const DEBUG_EVENT_TYPE_MEDIA: &str = "media";
 
 /// 事件名称常量定义
 ///
@@ -154,7 +154,7 @@ impl EmitOptions {
 ///
 /// * `app` - Tauri 应用句柄
 /// * `event` - 事件名称（推荐使用 `events` 模块中的常量）
-/// * `payload` - 事件负载，需要实现 `serde::Serialize`
+/// * `payload` - 事件负载，需要实现 `serde::Serialize` 和 `Clone`
 ///
 /// # 返回
 ///
@@ -165,7 +165,7 @@ impl EmitOptions {
 /// ```rust,ignore
 /// emit(&app_handle, events::VOLUME_CHANGE, volume)?;
 /// ```
-pub fn emit<T: serde::Serialize>(
+pub fn emit<T: serde::Serialize + Clone>(
     app: &AppHandle,
     event: &str,
     payload: T,
@@ -181,7 +181,7 @@ pub fn emit<T: serde::Serialize>(
 ///
 /// * `window` - Tauri 窗口句柄
 /// * `event` - 事件名称（推荐使用 `events` 模块中的常量）
-/// * `payload` - 事件负载，需要实现 `serde::Serialize`
+/// * `payload` - 事件负载，需要实现 `serde::Serialize` 和 `Clone`
 ///
 /// # 返回
 ///
@@ -192,12 +192,56 @@ pub fn emit<T: serde::Serialize>(
 /// ```rust,ignore
 /// emit_from_window(&window, events::WINDOW_POSITION_CHANGED, (x, y))?;
 /// ```
-pub fn emit_from_window<T: serde::Serialize>(
+pub fn emit_from_window<T: serde::Serialize + Clone>(
     window: &WebviewWindow,
     event: &str,
     payload: T,
 ) -> Result<(), EmitError> {
     emit_with_options_window(window, event, payload, EmitOptions::default())
+}
+
+/// 发送事件到前端（默认选项，从 Tauri Window）
+///
+/// 使用默认的 `Silent` 选项，失败时仅记录日志。
+/// 此函数接受 `tauri::Window` 类型，兼容 `on_window_event` 回调。
+///
+/// # 参数
+///
+/// * `window` - Tauri 窗口句柄（Window 类型）
+/// * `event` - 事件名称（推荐使用 `events` 模块中的常量）
+/// * `payload` - 事件负载，需要实现 `serde::Serialize` 和 `Clone`
+///
+/// # 返回
+///
+/// 总是返回 `Ok(())`，即使发送失败也会被捕获。
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// .on_window_event(|window, event| {
+///     match event {
+///         tauri::WindowEvent::Moved(_) => {
+///             emit_from_tauri_window(&window, events::WINDOW_POSITION_CHANGED, (x, y))?;
+///         }
+///         _ => {}
+///     }
+/// })
+/// ```
+pub fn emit_from_tauri_window<T: serde::Serialize + Clone>(
+    window: &tauri::Window,
+    event: &str,
+    payload: T,
+) -> Result<(), EmitError> {
+    match window.emit(event, payload) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            eprintln!(
+                "[EventManager] Failed to emit event '{}': {}",
+                event, e
+            );
+            Ok(())
+        }
+    }
 }
 
 /// 发送事件到前端（带选项，从 AppHandle）
@@ -208,7 +252,7 @@ pub fn emit_from_window<T: serde::Serialize>(
 ///
 /// * `app` - Tauri 应用句柄
 /// * `event` - 事件名称（推荐使用 `events` 模块中的常量）
-/// * `payload` - 事件负载，需要实现 `serde::Serialize`
+/// * `payload` - 事件负载，需要实现 `serde::Serialize` 和 `Clone`
 /// * `options` - 发送选项，控制失败时的行为
 ///
 /// # 返回
@@ -238,7 +282,7 @@ pub fn emit_from_window<T: serde::Serialize>(
 ///     EmitOptions::fail_on_error(),
 /// )?;
 /// ```
-pub fn emit_with_options<T: serde::Serialize>(
+pub fn emit_with_options<T: serde::Serialize + Clone>(
     app: &AppHandle,
     event: &str,
     payload: T,
@@ -270,14 +314,14 @@ pub fn emit_with_options<T: serde::Serialize>(
 ///
 /// * `window` - Tauri 窗口句柄
 /// * `event` - 事件名称（推荐使用 `events` 模块中的常量）
-/// * `payload` - 事件负载，需要实现 `serde::Serialize`
+/// * `payload` - 事件负载，需要实现 `serde::Serialize` 和 `Clone`
 /// * `options` - 发送选项，控制失败时的行为
 ///
 /// # 返回
 ///
 /// - `Ok(())` - 事件发送成功（或失败但选项允许忽略）
 /// - `Err(EmitError)` - 事件发送失败且选项要求返回错误
-pub fn emit_with_options_window<T: serde::Serialize>(
+pub fn emit_with_options_window<T: serde::Serialize + Clone>(
     window: &WebviewWindow,
     event: &str,
     payload: T,

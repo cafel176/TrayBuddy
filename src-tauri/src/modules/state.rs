@@ -46,7 +46,7 @@
 
 #![allow(unused)]
 
-use super::constants::{STATE_IDLE, STATE_MUSIC, STATE_MUSIC_START};
+use super::constants::{STATE_IDLE, STATE_MUSIC, STATE_MUSIC_END, STATE_MUSIC_START};
 use super::event_manager::{emit, events};
 use super::media_observer::{get_cached_media_state, MediaPlaybackStatus};
 use super::resource::{ResourceManager, StateInfo};

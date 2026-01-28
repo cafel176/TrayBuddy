@@ -88,6 +88,12 @@ const SEASON_NAME_SUMMER_ZH: &str = "夏";
 const SEASON_NAME_AUTUMN_ZH: &str = "秋";
 const SEASON_NAME_WINTER_ZH: &str = "冬";
 
+// 时间段名称常量
+const TIME_PERIOD_MORNING: &str = "morning";
+const TIME_PERIOD_NOON: &str = "noon";
+const TIME_PERIOD_EVENING: &str = "evening";
+const TIME_PERIOD_NIGHT: &str = "night";
+
 // ========================================================================= //
 
 /// 全局地理位置缓存（可刷新）
@@ -506,29 +512,38 @@ pub fn get_current_datetime() -> DateTimeInfo {
 /// 便捷函数：判断当前是否是早晨
 pub fn is_morning() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= crate::modules::constants::MORNING_HOUR_START
-        && dt.hour < crate::modules::constants::MORNING_HOUR_END
+    dt.hour >= MORNING_HOUR_START && dt.hour < MORNING_HOUR_END
 }
 
 /// 便捷函数：判断当前是否是下午
 pub fn is_noon() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= crate::modules::constants::MORNING_HOUR_END
-        && dt.hour < crate::modules::constants::NOON_HOUR_END
+    dt.hour >= MORNING_HOUR_END && dt.hour < NOON_HOUR_END
 }
 
 /// 便捷函数：判断当前是否是晚上
 pub fn is_evening() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= crate::modules::constants::NOON_HOUR_END
-        && dt.hour < crate::modules::constants::EVENING_HOUR_END
+    dt.hour >= NOON_HOUR_END && dt.hour < EVENING_HOUR_END
 }
 
 /// 便捷函数：判断当前是否是夜间
 pub fn is_night() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= crate::modules::constants::EVENING_HOUR_END
-        || dt.hour < crate::modules::constants::MORNING_HOUR_START
+    dt.hour >= EVENING_HOUR_END || dt.hour < MORNING_HOUR_START
+}
+
+/// 获取当前时间段
+pub fn get_time_period() -> &'static str {
+    if is_morning() {
+        TIME_PERIOD_MORNING
+    } else if is_noon() {
+        TIME_PERIOD_NOON
+    } else if is_evening() {
+        TIME_PERIOD_EVENING
+    } else {
+        TIME_PERIOD_NIGHT
+    }
 }
 
 // ========================================================================= //
@@ -620,7 +635,7 @@ pub struct EnvironmentUpdateEvent {
 ///
 /// 预先获取地理位置和天气信息，后续调用直接返回缓存
 /// 获取完成后通过 app_handle 发送事件通知前端
-pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R>>) {
+pub fn init_environment(app_handle: Option<tauri::AppHandle>) {
     use tauri::Emitter;
 
     #[cfg(debug_assertions)]
@@ -672,7 +687,7 @@ pub fn init_environment<R: tauri::Runtime>(app_handle: Option<tauri::AppHandle<R
                 location: location_result,
                 weather: weather_result,
             };
-            let _ = emit(handle, events::ENVIRONMENT_UPDATED, event_data);
+            let _ = emit(&handle, events::ENVIRONMENT_UPDATED, event_data);
             #[cfg(debug_assertions)]
             println!("[Environment] Event emitted to frontend");
         }

@@ -230,9 +230,9 @@ impl MediaObserver {
     // ========================================================================= //
 
     /// 启动媒体监听（返回事件接收通道）
-    pub fn start<R: tauri::Runtime>(
+    pub fn start(
         &mut self,
-        app_handle: tauri::AppHandle<R>,
+        app_handle: tauri::AppHandle,
         skip_delay: bool,
     ) -> mpsc::UnboundedReceiver<MediaStateEvent> {
         let (tx, rx) = mpsc::unbounded_channel();
@@ -303,10 +303,10 @@ impl MediaObserver {
 
     /// 媒体事件监听循环（混合 GSMTC + Core Audio）
     #[cfg(windows)]
-    async fn media_event_loop<R: tauri::Runtime>(
+    async fn media_event_loop(
         tx: mpsc::UnboundedSender<MediaStateEvent>,
         running: Arc<std::sync::atomic::AtomicBool>,
-        app_handle: tauri::AppHandle<R>,
+        app_handle: tauri::AppHandle,
         skip_delay: bool,
     ) {
         use crate::modules::constants::MEDIA_EVENT_STARTUP_DELAY_SECS;
@@ -576,8 +576,8 @@ impl MediaObserver {
 
     /// 更新调试信息
     #[cfg(windows)]
-    fn update_debug_info<R: tauri::Runtime>(
-        app_handle: &tauri::AppHandle<R>,
+    fn update_debug_info(
+        app_handle: &tauri::AppHandle,
         running: &Arc<std::sync::atomic::AtomicBool>,
         gsmtc_manager: Option<
             &windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager,
