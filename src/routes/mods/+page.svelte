@@ -83,8 +83,25 @@
             searchPaths = await invoke("get_mod_search_paths");
             mods = await invoke("get_available_mods");
             statusMsg = "";
+            
+            // 加载完成后，如果有当前选中的 mod 且在列表中，则自动选中
+            if (currentModName && mods.includes(currentModName)) {
+                await selectMod(currentModName);
+            }
         } catch (e) {
             statusMsg = `${_("modWindow.loadListFailed")} ${e}`;
+        }
+    }
+
+    // 获取当前加载的 mod
+    async function loadCurrentMod() {
+        try {
+            const modInfo = await invoke("get_current_mod");
+            if (modInfo) {
+                currentModName = (modInfo as ModInfo).manifest.id;
+            }
+        } catch (e) {
+            console.error("Failed to load current mod:", e);
         }
     }
 
@@ -120,6 +137,8 @@
                 modName: selectedMod,
             })) as ModInfo;
             currentModName = info.manifest.id;
+            // 加载成功后更新按钮状态
+            selectedModInfo = info;
             statusMsg = _("resource.statusLoadSuccess") + " " + selectedMod;
         } catch (e) {
             statusMsg = _("resource.statusLoadFailed") + " " + e;
@@ -183,7 +202,10 @@
             await initI18n();
             _langVersion++;
             getCurrentWindow().setTitle(_("common.modsTitle"));
-            loadModList();
+
+            // 先获取当前加载的 mod，再加载 mod 列表
+            await loadCurrentMod();
+            await loadModList();
 
             unsubRefresh = await listen("refresh-mods", (event) => {
                 console.log("Mods refreshed via event:", event.payload);

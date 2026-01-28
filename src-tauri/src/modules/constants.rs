@@ -231,7 +231,7 @@ pub const MOD_SWITCH_WINDOW_DELAY_MS: u64 = 300;
 ///
 /// **用途**: Mod 加载和窗口重建完成后，等待此时间再触发登录事件，
 /// 避免状态冲突。
-pub const MOD_LOGIN_EVENT_DELAY_SECS: u64 = 3;
+pub const MOD_LOGIN_EVENT_DELAY_SECS: u64 = 1;
 
 // ========================================================================= //
 // 会话观察者常量
