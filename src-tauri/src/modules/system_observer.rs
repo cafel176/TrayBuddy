@@ -17,7 +17,7 @@ use tauri::Manager;
 use tokio::sync::mpsc;
 
 use super::constants::{STATE_SILENCE_END, STATE_SILENCE_START};
-use super::event_manager::{emit, emit_debug_update, emit_settings_partial, events};
+use super::event_manager::{emit, emit_debug_update, emit_settings, events};
 use super::utils::window::get_visual_window_rect;
 use crate::AppState;
 
@@ -411,6 +411,7 @@ impl SystemObserver {
         let mut storage = app_state.storage.lock().unwrap();
 
         storage.data.settings.silence_mode = enable;
+        let settings = storage.data.settings.clone();
         storage.save()?;
 
         // Drops the lock explicitly before emitting event to avoid deadlock
@@ -423,8 +424,8 @@ impl SystemObserver {
             enable
         );
 
-        // 发送设置变更事件到前端（只发送变化的字段）
-        let _ = emit_settings_partial(&app_handle, None, Some(enable), None);
+        // 发送设置变更事件到前端
+        let _ = emit_settings(&app_handle, &settings);
         Ok(())
     }
 

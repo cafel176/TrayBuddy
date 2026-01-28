@@ -299,43 +299,25 @@ pub fn emit_with_options_window<T: serde::Serialize>(
 // 专用辅助函数
 // ========================================================================= //
 
-/// 发送设置变更事件（只发送部分字段）
+/// 发送设置变更事件
 ///
-/// 优化：避免克隆整个 settings 对象，只发送变化的字段。
+/// 发送完整的 UserSettings 对象到前端。
 ///
 /// # 参数
 ///
 /// * `app` - Tauri 应用句柄
-/// * `no_audio_mode` - 无音频模式（可选）
-/// * `silence_mode` - 静音模式（可选）
-/// * `show_character` - 显示角色（可选）
+/// * `settings` - 设置对象（需要实现 `serde::Serialize`）
 ///
 /// # 示例
 ///
 /// ```rust,ignore
-/// emit_settings_partial(&app, Some(false), Some(true), None)?;
+/// emit_settings(&app, &settings)?;
 /// ```
-pub fn emit_settings_partial(
+pub fn emit_settings<T: serde::Serialize>(
     app: &AppHandle,
-    no_audio_mode: Option<bool>,
-    silence_mode: Option<bool>,
-    show_character: Option<bool>,
+    settings: &T,
 ) -> Result<(), EmitError> {
-    use serde_json::json;
-
-    let mut payload = serde_json::Map::new();
-
-    if let Some(val) = no_audio_mode {
-        payload.insert("no_audio_mode".to_string(), json!(val));
-    }
-    if let Some(val) = silence_mode {
-        payload.insert("silence_mode".to_string(), json!(val));
-    }
-    if let Some(val) = show_character {
-        payload.insert("show_character".to_string(), json!(val));
-    }
-
-    emit_with_options(app, events::SETTINGS_CHANGE, payload, EmitOptions::default())
+    emit_with_options(app, events::SETTINGS_CHANGE, settings, EmitOptions::default())
 }
 
 /// 发送调试信息更新事件

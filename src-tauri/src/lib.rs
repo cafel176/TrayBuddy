@@ -38,7 +38,7 @@ use modules::constants::{
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MODS,
     WINDOW_LABEL_SETTINGS,
 };
-use modules::event_manager::{emit, emit_from_window, emit_settings_partial, events};
+use modules::event_manager::{emit, emit_from_window, emit_settings, events};
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
     get_time_period, init_environment, DateTimeInfo, EnvironmentManager, GeoLocation, WeatherInfo,
@@ -1855,8 +1855,8 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             }
         }
         "toggle_mute" | "toggle_silence" | "toggle_show_widget" => {
-            // 内存优化：只提取需要的字段，避免克隆整个 settings
-            let (no_audio_mode, silence_mode) = {
+            // 提取 settings 和需要的字段
+            let (settings) = {
                 let app_state: State<AppState> = app.state();
                 let mut storage = app_state.storage.lock().unwrap();
                 match id {
@@ -1871,15 +1871,13 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                     }
                     _ => {}
                 }
-                let no_audio_mode = storage.data.settings.no_audio_mode;
-                let silence_mode = storage.data.settings.silence_mode;
+                let settings = storage.data.settings.clone();
                 let _ = storage.save();
-                (no_audio_mode, silence_mode)
+                settings
             };
 
             // 广播设置变更 (供所有窗口 UI 同步)
-            // 使用统一的事件管理函数，只发送变化的字段
-            let _ = emit_settings_partial(&app, Some(no_audio_mode), Some(silence_mode), None);
+            let _ = emit_settings(&app, &settings);
 
             // --- 执行副作用 ---
 
