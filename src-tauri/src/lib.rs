@@ -249,7 +249,12 @@ fn update_settings(
             eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本");
         }
     } else {
-        let _ = autostart_manager.disable();
+        if is_release_build() {
+            let _ = autostart_manager.disable();
+        } else {
+            // 开发模式下提示用户
+            eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本");
+        }       
     }
 
     Ok(())
@@ -909,7 +914,12 @@ pub fn run() {
                     eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，已禁用");
                 }
             } else {
-                let _ = autostart_manager.disable();
+                if is_release_build() {
+                    let _ = autostart_manager.disable();
+                } else {
+                    // 开发模式下禁用自启动
+                    eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，已禁用");
+                }
             }
 
             // 自动加载上次使用的 Mod
