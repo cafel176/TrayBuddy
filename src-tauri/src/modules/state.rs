@@ -46,7 +46,7 @@
 
 #![allow(unused)]
 
-use super::constants::{STATE_IDLE, STATE_MUSIC, STATE_MUSIC_END, STATE_MUSIC_START};
+use super::constants::{STATE_IDLE, STATE_MUSIC, STATE_MUSIC_END, STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START};
 use super::event_manager::{emit, events};
 use super::media_observer::{get_cached_media_state, MediaPlaybackStatus};
 use super::resource::{ResourceManager, StateInfo};
@@ -169,6 +169,21 @@ impl StateManager {
             "[StateManager] Request change to state: '{}' (Persistent: {}, Force: {})",
             state.name, state.persistent, force
         );
+
+        // 如果当前是music或music_start或music_end，不再重复进入和music_start
+        if self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_MUSIC) ||
+        self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_MUSIC_END) {
+            if state.name.as_ref() == STATE_MUSIC_START {
+                return Ok(false);
+            }
+        }
+
+        if self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_SILENCE) ||
+        self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_SILENCE_END) {
+            if state.name.as_ref() == STATE_SILENCE_START {
+                return Ok(false);
+            }
+        }
 
         // 提前获取媒体状态，减少锁持有时间，避免死锁风险
         let media_state = get_cached_media_state();
@@ -333,6 +348,11 @@ impl StateManager {
                 "State '{}' is a persistent state, use set_persistent_state",
                 state.name
             ));
+        }
+
+        // 如果当前状态与目标状态相同，跳过
+        if self.current_state.as_ref().map(|s| &s.name) == Some(&state.name) {
+            return Ok(false);
         }
 
         // 非强制模式下的检查
