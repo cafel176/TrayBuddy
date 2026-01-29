@@ -301,7 +301,7 @@
     {
       "name": "music_hello1_1",
       "persistent": false,
-      "anima": "wink",
+      "anima": "music_idle",
       "audio": "music_hello1_1",
       "text": "music_hello1_1",
       "priority": 2,
@@ -327,7 +327,7 @@
     {
       "name": "music_hello1_2",
       "persistent": false,
-      "anima": "wink",
+      "anima": "music_idle",
       "audio": "",
       "text": "",
       "priority": 2,

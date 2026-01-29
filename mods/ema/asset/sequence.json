@@ -70,6 +70,20 @@
     "offset_y": 3
   },
   {
+    "name": "music_idle",
+    "img": "sequence/music_idle.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": true,
+    "frame_time": 0.1,
+    "frame_size_x": 193,
+    "frame_size_y": 223,
+    "frame_num_x": 5,
+    "frame_num_y": 2,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
     "name": "wink",
     "img": "sequence/wink.webp",
     "sequence": true,
