@@ -100,12 +100,30 @@ pub fn get_cached_media_state() -> Option<MediaStateEvent> {
 /// 更新缓存的媒体状态
 /// 只有音乐应用的状态变动才会被保存
 fn update_cached_media_state(event: &MediaStateEvent) {
+    // 如果 app_id 为 None，说明所有音乐应用都已退出，清除缓存
+    if event.app_id.is_none() {
+        #[cfg(debug_assertions)]
+        println!("[MediaObserver] 清除媒体状态缓存（app_id 为 None）");
+        if let Ok(mut guard) = CACHED_MEDIA_STATE.lock() {
+            *guard = None;
+        }
+        return;
+    }
+
     // 检查是否是音乐应用
     let should_save = event.app_id.as_deref().map(|id| is_music_app(id)).unwrap_or(false);
 
     if !should_save {
         return;
     }
+
+    #[cfg(debug_assertions)]
+    println!(
+        "[MediaObserver] 更新媒体状态缓存 - Status: {:?}, App: {}, Title: {:?}",
+        event.status,
+        event.app_id.as_deref().unwrap_or("Unknown"),
+        event.title.as_deref()
+    );
 
     if let Ok(mut guard) = CACHED_MEDIA_STATE.lock() {
         *guard = Some(event.clone());
@@ -482,8 +500,19 @@ impl MediaObserver {
                     MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
                         state_guard.has_played
                     }
-                    MediaPlaybackStatus::Unknown => false,
+                    MediaPlaybackStatus::Unknown => true,
                 };
+
+                #[cfg(debug_assertions)]
+                println!(
+                    "[MediaObserver] 状态变化 - 从 {:?} -> {:?}, App: {}, 标题: {:?}, 来源: {}, 发送事件: {}",
+                    state_guard.last_status,
+                    current_event.status,
+                    current_event.app_id.as_deref().unwrap_or("None"),
+                    current_event.title.as_deref(),
+                    state_source,
+                    should_send
+                );
 
                 update_cached_media_state(&current_event);
                 state_guard.update(&current_event);
@@ -552,6 +581,12 @@ impl MediaObserver {
         // 检查 GSMTC 播放状态
         if let Some(ref event) = gsmtc_event {
             if event.status == MediaPlaybackStatus::Playing {
+                #[cfg(debug_assertions)]
+                println!(
+                    "[MediaObserver] GSMTC 检测到播放 - App: {}, Title: {:?}",
+                    event.app_id.as_deref().unwrap_or("Unknown"),
+                    event.title.as_deref()
+                );
                 return (event.clone(), STATE_SOURCE_GSMTC_PLAYING.to_string());
             }
         }
@@ -559,9 +594,20 @@ impl MediaObserver {
         // 检查 Core Audio 播放状态
         if let Some(ref event) = core_audio_event {
             if event.status == MediaPlaybackStatus::Playing {
+                #[cfg(debug_assertions)]
+                println!(
+                    "[MediaObserver] Core Audio 检测到播放 - App: {}",
+                    event.app_id.as_deref().unwrap_or("Unknown")
+                );
                 // 尝试从 GSMTC 补充元数据
                 if let Some(ref gsmtc) = gsmtc_event {
                     if gsmtc.title.is_some() || gsmtc.artist.is_some() {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[MediaObserver] 补充 GSMTC 元数据 - Title: {:?}, Artist: {:?}",
+                            gsmtc.title.as_deref(),
+                            gsmtc.artist.as_deref()
+                        );
                         return (
                             MediaStateEvent {
                                 status: MediaPlaybackStatus::Playing,
@@ -577,26 +623,49 @@ impl MediaObserver {
             }
         }
 
-        // 如果 GSMTC 检测到暂停状态，返回暂停
+        // 如果 GSMTC 检测到暂停或停止状态，需要用 Core Audio 验证进程是否还在
         if let Some(ref event) = gsmtc_event {
-            if event.status == MediaPlaybackStatus::Paused {
+            if event.status == MediaPlaybackStatus::Paused || event.status == MediaPlaybackStatus::Stopped {
+                // 如果 Core Audio 检测到没有应用在播放，说明应用已退出，返回 Stopped
+                if core_audio_event.is_none() {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[MediaObserver] 应用已退出 - GSMTC: {:?}, Core Audio: None, 返回 Stopped",
+                        event.status
+                    );
+                    return (
+                        MediaStateEvent {
+                            status: MediaPlaybackStatus::Stopped,
+                            title: None,
+                            artist: None,
+                            app_id: None,  // 应用已退出，清除 app_id
+                        },
+                        STATE_SOURCE_NONE_STOPPED.into(),
+                    );
+                }
+                // 否则返回 GSMTC 的状态
+                #[cfg(debug_assertions)]
+                println!(
+                    "[MediaObserver] 应用暂停/停止但仍在运行 - GSMTC: {:?}, Core Audio: Playing, 返回 GSMTC 状态",
+                    event.status
+                );
                 return (event.clone(), STATE_SOURCE_GSMTC_PAUSED.into());
             }
         }
 
         // 默认返回停止状态
-        // 保留最后已知的 app_id 以便追踪
-        let last_app_id = gsmtc_event
-            .as_ref()
-            .and_then(|e| e.app_id.clone())
-            .or_else(|| core_audio_event.as_ref().and_then(|e| e.app_id.clone()));
+        // 不再保留 app_id，因为所有应用都已经退出或停止
+        #[cfg(debug_assertions)]
+        println!(
+            "[MediaObserver] 默认返回停止状态 - GSMTC: None, Core Audio: None",
+        );
 
         (
             MediaStateEvent {
                 status: MediaPlaybackStatus::Stopped,
                 title: None,
                 artist: None,
-                app_id: last_app_id,
+                app_id: None,  // 清除 app_id，表示没有活跃的音乐应用
             },
             STATE_SOURCE_NONE_STOPPED.into(),
         )
