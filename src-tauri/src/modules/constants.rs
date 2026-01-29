@@ -135,7 +135,7 @@ pub const MEDIA_EVENT_STARTUP_DELAY_SECS: u64 = 5;
 ///
 /// **用途**: GSMTC API 有事件通知，但 Core Audio API 没有，
 /// 需要定期轮询检测不支持 GSMTC 的应用（如网页播放器）的音频状态。
-pub const CORE_AUDIO_POLL_INTERVAL_SECS: u64 = 3;
+pub const CORE_AUDIO_POLL_INTERVAL_SECS: u64 = 2;
 
 /// 音量峰值阈值
 ///
