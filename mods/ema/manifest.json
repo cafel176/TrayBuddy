@@ -86,7 +86,7 @@
     "music": {
       "name": "music",
       "persistent": true,
-      "anima": "idle",
+      "anima": "music",
       "audio": "",
       "text": " BBB",
       "priority": 1,
@@ -103,7 +103,7 @@
     "music_start": {
       "name": "music_start",
       "persistent": false,
-      "anima": "",
+      "anima": "music_start",
       "audio": "",
       "text": "",
       "priority": 2,
@@ -120,7 +120,7 @@
     "music_end": {
       "name": "music_end",
       "persistent": false,
-      "anima": "",
+      "anima": "music_end",
       "audio": "",
       "text": "",
       "priority": 2,
@@ -241,7 +241,7 @@
     {
       "name": "hello1_1",
       "persistent": false,
-      "anima": "wave",
+      "anima": "wink",
       "audio": "hello1_1",
       "text": "hello1_1",
       "priority": 2,
@@ -267,7 +267,7 @@
     {
       "name": "hello1_2",
       "persistent": false,
-      "anima": "wave",
+      "anima": "wink",
       "audio": "hello1_2",
       "text": "hello1_2",
       "priority": 2,
@@ -284,7 +284,7 @@
     {
       "name": "hello1_3",
       "persistent": false,
-      "anima": "wave",
+      "anima": "wink",
       "audio": "hello1_3",
       "text": "hello1_3",
       "priority": 2,
@@ -301,7 +301,7 @@
     {
       "name": "music_hello1_1",
       "persistent": false,
-      "anima": "wave",
+      "anima": "wink",
       "audio": "music_hello1_1",
       "text": "music_hello1_1",
       "priority": 2,
@@ -327,7 +327,7 @@
     {
       "name": "music_hello1_2",
       "persistent": false,
-      "anima": "wave",
+      "anima": "wink",
       "audio": "",
       "text": "",
       "priority": 2,
