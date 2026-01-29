@@ -29,6 +29,15 @@ import { getModPath, clearModPathCache } from "../utils/modPath";
 import type { AssetInfo, AnimationConfig } from "../types/asset";
 
 // ============================================================================
+// 常量定义
+// ============================================================================
+
+/** 图片 LRU 缓存最大容量 */
+const IMAGE_CACHE_MAX_SIZE = 4;
+
+const MEMORY_DEBUG_MODE = false;
+
+// ============================================================================
 // 内存诊断日志（用于追踪内存问题）
 // 仅在内存检测工具启动时生效（通过环境变量 TRAYBUDDY_MEMORY_DEBUG=1 启用）
 // ============================================================================
@@ -61,7 +70,7 @@ export async function initMemoryDebug(): Promise<boolean> {
 
 /** 检查调试模式是否启用（同步检查，未初始化则返回 false） */
 function isMemoryDebugEnabled(): boolean {
-  return memoryDebugEnabled === true;
+  return memoryDebugEnabled === true || MEMORY_DEBUG_MODE;
 }
 
 /** 诊断日志记录 */
@@ -69,7 +78,8 @@ interface MemoryLogEntry {
   timestamp: number;      // 启动后秒数
   event: string;          // 事件类型
   details: string;        // 详细信息
-  cacheSize: number;      // 当前缓存大小
+  cacheSize: number;      // 当前普通缓存大小
+  alwaysCacheSize: number; // 当前边框缓存大小
   cacheHit?: boolean;     // 是否缓存命中
   imageSrc?: string;      // 图片 URL（简化）
 }
@@ -82,23 +92,24 @@ const MAX_MEMORY_LOGS = 200; // 限制日志条数，防止长时间运行内存
 /** 记录内存相关事件（仅调试模式下生效） */
 function logMemoryEvent(event: string, details: string, extra?: Partial<MemoryLogEntry>): void {
   if (!isMemoryDebugEnabled()) return;
-  
+
   const entry: MemoryLogEntry = {
     timestamp: Math.round((Date.now() - startTime) / 1000),
     event,
     details,
     cacheSize: imageCache.size,
+    alwaysCacheSize: alwaysImageCache.size,
     ...extra
   };
   memoryLogs.push(entry);
-  
+
   // 超过限制时移除最早的日志
   if (memoryLogs.length > MAX_MEMORY_LOGS) {
     memoryLogs.shift();
   }
-  
+
   // 控制台输出（方便实时观察）
-  const cacheInfo = `[Cache: ${entry.cacheSize}/8]`;
+  const cacheInfo = `[Normal: ${entry.cacheSize}/${IMAGE_CACHE_MAX_SIZE}, Always: ${entry.alwaysCacheSize}]`;
   const hitInfo = entry.cacheHit !== undefined ? (entry.cacheHit ? '✓HIT' : '✗MISS') : '';
   console.log(`[Memory] ${entry.timestamp}s | ${event} ${cacheInfo} ${hitInfo} | ${details}`);
 }
@@ -112,9 +123,9 @@ export function getMemoryLogs(): MemoryLogEntry[] {
 /** 导出日志为 CSV 格式 */
 export function exportMemoryLogsCSV(): string {
   if (!isMemoryDebugEnabled()) return 'Memory debug mode not enabled';
-  const header = 'Timestamp,Event,Details,CacheSize,CacheHit,ImageSrc';
-  const rows = memoryLogs.map(log => 
-    `${log.timestamp},${log.event},"${log.details}",${log.cacheSize},${log.cacheHit ?? ''},${log.imageSrc ?? ''}`
+  const header = 'Timestamp,Event,Details,CacheSize,AlwaysCacheSize,CacheHit,ImageSrc';
+  const rows = memoryLogs.map(log =>
+    `${log.timestamp},${log.event},"${log.details}",${log.cacheSize},${log.alwaysCacheSize},${log.cacheHit ?? ''},${log.imageSrc ?? ''}`
   );
   return [header, ...rows].join('\n');
 }
@@ -128,7 +139,15 @@ const cacheStats = {
 };
 
 /** 获取缓存统计信息 */
-export function getCacheStats(): { hits: number; misses: number; evictions: number; hitRate: string; debugEnabled: boolean } {
+export function getCacheStats(): { 
+  hits: number; 
+  misses: number; 
+  evictions: number; 
+  hitRate: string; 
+  alwaysCacheSize: number;
+  normalCacheSize: number;
+  debugEnabled: boolean 
+} {
   const total = cacheStats.hits + cacheStats.misses;
   const hitRate = total > 0 ? ((cacheStats.hits / total) * 100).toFixed(1) + '%' : 'N/A';
   return {
@@ -136,6 +155,8 @@ export function getCacheStats(): { hits: number; misses: number; evictions: numb
     misses: cacheStats.misses,
     evictions: cacheStats.evictions,
     hitRate,
+    alwaysCacheSize: alwaysImageCache.size,  // 边框缓存大小（不会淘汰）
+    normalCacheSize: imageCache.size,      // 普通 LRU 缓存大小（会淘汰）
     debugEnabled: isMemoryDebugEnabled()
   };
 }
@@ -154,7 +175,15 @@ export function getCacheStats(): { hits: number; misses: number; evictions: numb
  *       过多缓存会占用大量 GPU 显存和系统内存。
  *       对于低内存设备，建议限制为 2 张图片（1 张当前播放，1 张待播）。
  */
-const imageCache = new LRUCache<string, HTMLImageElement>(4);
+const imageCache = new LRUCache<string, HTMLImageElement>(IMAGE_CACHE_MAX_SIZE);
+
+/**
+ * 边框图片独立缓存（永不淘汰）
+ * 边框动画始终显示，需要持久缓存以避免重复加载
+ * 
+ * 注意：边框缓存不会参与 LRU 淘汰，除非 Mod 切换时统一清除。
+ */
+const alwaysImageCache = new Map<string, HTMLImageElement>();
 
 // 设置淘汰回调，主动释放被淘汰图片的引用
 imageCache.setOnEvict((url, img) => {
@@ -176,12 +205,30 @@ imageCache.setOnEvict((url, img) => {
 });
 
 /**
+ * 判断是否为边框动画图片
+ * @param imgSrc - 图片 URL
+ * @returns 如果是边框动画返回 true
+ */
+function isBorderImage(imgSrc: string): boolean {
+  return imgSrc.toLowerCase().includes('border');
+}
+
+/**
  * 清除图片缓存
  * 在 Mod 切换时调用，释放旧 Mod 的图片资源
+ * 同时清除普通 LRU 缓存和边框独立缓存
  */
 export function clearImageCache(): void {
-  logMemoryEvent('CLEAR_CACHE', `清除全部缓存，当前 ${imageCache.size} 张图片`);
+  const alwaysCount = alwaysImageCache.size;
+  const normalCount = imageCache.size;
+  logMemoryEvent('CLEAR_CACHE', `清除全部缓存 - 持久: ${alwaysCount}张, 普通: ${normalCount}张`);
+  
+  // 清除边框独立缓存
+  alwaysImageCache.clear();
+  
+  // 清除普通 LRU 缓存
   imageCache.clear();
+  
   // 提示浏览器进行垃圾回收（通过创建临时大对象触发）
   // 注意：这不是强制 GC，只是提示
   try {
@@ -517,6 +564,7 @@ export class SpriteAnimator {
    * 加载图片（带缓存）
    *
    * 优先从 LRU 缓存获取，缓存未命中时创建新 Image 对象加载。
+   * 边框动画使用独立缓存，不被 LRU 淘汰。
    *
    * @param imgSrc - 图片 URL
    * @returns 加载成功返回 true
@@ -525,13 +573,20 @@ export class SpriteAnimator {
     return new Promise((resolve) => {
       const shortUrl = imgSrc.split('/').slice(-2).join('/');
       const debugMode = isMemoryDebugEnabled();
+      const isBorder = isBorderImage(imgSrc);
+      
+      // 根据是否为边框选择不同的缓存
+      // 边框使用独立 Map 缓存（永不淘汰）
+      // 普通动画使用 LRU 缓存（可能被淘汰）
+      const cache = isBorder ? alwaysImageCache : imageCache;
       
       // 尝试从缓存获取
-      const cached = imageCache.get(imgSrc);
+      const cached = cache.get(imgSrc);
       if (cached && cached.complete) {
         if (debugMode) {
           cacheStats.hits++;
-          logMemoryEvent('LOAD_IMAGE', `加载图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: true, imageSrc: shortUrl });
+          const cacheType = isBorder ? 'Always' : 'Normal';
+          logMemoryEvent('LOAD_IMAGE', `加载${cacheType}图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: true, imageSrc: shortUrl });
         }
         this.img = cached;
         resolve(true);
@@ -542,11 +597,12 @@ export class SpriteAnimator {
       if (debugMode) {
         cacheStats.misses++;
         cacheStats.loads++;
-        logMemoryEvent('LOAD_IMAGE', `加载图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: false, imageSrc: shortUrl });
+        const cacheType = isBorder ? 'Always' : 'Normal';
+        logMemoryEvent('LOAD_IMAGE', `加载${cacheType}图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: false, imageSrc: shortUrl });
       }
       const newImg = new Image();
       newImg.onload = () => {
-        imageCache.set(imgSrc, newImg);  // 存入缓存
+        cache.set(imgSrc, newImg);  // 存入对应缓存
         this.img = newImg;
         if (debugMode) {
           logMemoryEvent('IMAGE_LOADED', `图片加载完成: ${shortUrl}`, { imageSrc: shortUrl });
