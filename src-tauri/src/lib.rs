@@ -1933,12 +1933,22 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
             // 2. 免打扰模式副作用 (修复死锁：提前释放锁)
             if id == "toggle_silence" {
-                let target_state = if settings.silence_mode {
-                    STATE_SILENCE_START
-                } else if get_media_status() {
-                    STATE_MUSIC_START
+
+                let target_state = if get_media_status() {
+                    // 后面可能增加从music到silence的特殊动画
+                    if settings.silence_mode {
+                        STATE_SILENCE_START
+                    } 
+                    else {
+                        STATE_SILENCE_END
+                    }
                 } else {
-                    STATE_SILENCE_END
+                    if settings.silence_mode {
+                        STATE_SILENCE_START
+                    } 
+                    else {
+                        STATE_SILENCE_END
+                    }
                 };
 
                 let state_info = {

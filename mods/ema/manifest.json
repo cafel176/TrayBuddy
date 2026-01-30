@@ -35,7 +35,7 @@
     "silence": {
       "name": "silence",
       "persistent": true,
-      "anima": "idle",
+      "anima": "silence",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -52,7 +52,7 @@
     "silence_start": {
       "name": "silence_start",
       "persistent": false,
-      "anima": "",
+      "anima": "silence_start",
       "audio": "",
       "text": "",
       "priority": 999,
@@ -69,7 +69,7 @@
     "silence_end": {
       "name": "silence_end",
       "persistent": false,
-      "anima": "",
+      "anima": "silence_end",
       "audio": "",
       "text": "",
       "priority": 999,

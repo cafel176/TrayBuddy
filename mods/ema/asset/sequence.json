@@ -96,5 +96,47 @@
     "frame_num_y": 2,
     "offset_x": 0,
     "offset_y": 0
+  },
+    {
+    "name": "silence",
+    "img": "sequence/silence.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 194,
+    "frame_size_y": 223,
+    "frame_num_x": 9,
+    "frame_num_y": 4,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
+    "name": "silence_start",
+    "img": "sequence/silence_start.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 194,
+    "frame_size_y": 223,
+    "frame_num_x": 8,
+    "frame_num_y": 4,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
+    "name": "silence_end",
+    "img": "sequence/silence_start.webp",
+    "sequence": true,
+    "origin_reverse": true,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 194,
+    "frame_size_y": 223,
+    "frame_num_x": 8,
+    "frame_num_y": 4,
+    "offset_x": 0,
+    "offset_y": 0
   }
 ]
