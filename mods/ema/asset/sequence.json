@@ -126,6 +126,20 @@
     "offset_y": 0
   },
   {
+    "name": "cry",
+    "img": "sequence/cry.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 194,
+    "frame_size_y": 223,
+    "frame_num_x": 5,
+    "frame_num_y": 2,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
     "name": "silence",
     "img": "sequence/silence.webp",
     "sequence": true,
