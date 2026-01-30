@@ -241,7 +241,7 @@
     {
       "name": "hello1_1",
       "persistent": false,
-      "anima": "wink",
+      "anima": "amazing",
       "audio": "hello1_1",
       "text": "hello1_1",
       "priority": 2,
@@ -267,7 +267,7 @@
     {
       "name": "hello1_2",
       "persistent": false,
-      "anima": "wink",
+      "anima": "amaz_cry",
       "audio": "hello1_2",
       "text": "hello1_2",
       "priority": 2,
@@ -284,7 +284,7 @@
     {
       "name": "hello1_3",
       "persistent": false,
-      "anima": "wink",
+      "anima": "amaz_cry",
       "audio": "hello1_3",
       "text": "hello1_3",
       "priority": 2,
