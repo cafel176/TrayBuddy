@@ -135,6 +135,48 @@
     </section>
 
     <section class="card">
+      <h2>3.5) 扩充透明像素设置</h2>
+      <div class="grid">
+        <div class="field">
+          <label>横向扩充（像素）</label>
+          <div class="row" style="gap:8px;margin-top:6px;">
+            <div style="flex:1">
+              <label for="expandLeft" style="font-size:11px;color:var(--muted)">左侧扩充</label>
+              <input id="expandLeft" type="number" min="0" step="1" value="0" />
+            </div>
+            <div style="flex:1">
+              <label for="expandRight" style="font-size:11px;color:var(--muted)">右侧扩充</label>
+              <input id="expandRight" type="number" min="0" step="1" value="0" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>纵向扩充（像素）</label>
+          <div class="row" style="gap:8px;margin-top:6px;">
+            <div style="flex:1">
+              <label for="expandTop" style="font-size:11px;color:var(--muted)">上侧扩充</label>
+              <input id="expandTop" type="number" min="0" step="1" value="0" />
+            </div>
+            <div style="flex:1">
+              <label for="expandBottom" style="font-size:11px;color:var(--muted)">下侧扩充</label>
+              <input id="expandBottom" type="number" min="0" step="1" value="0" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>最终尺寸预览</label>
+          <div class="mono" id="expandSizePreview">-</div>
+        </div>
+
+        <div class="field">
+          <div class="hint">扩充区域将填充完全透明的像素（alpha=0）。仅 PNG 格式支持透明度。</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>4) 输出设置</h2>
       <div class="grid">
         <div class="field">
@@ -167,11 +209,12 @@
               <th>原始尺寸</th>
               <th>裁切后尺寸</th>
               <th>缩放后尺寸</th>
+              <th>最终尺寸</th>
               <th>状态</th>
             </tr>
           </thead>
           <tbody id="fileTableBody">
-            <tr><td colspan="5" class="empty">未选择图片</td></tr>
+            <tr><td colspan="6" class="empty">未选择图片</td></tr>
           </tbody>
         </table>
       </div>

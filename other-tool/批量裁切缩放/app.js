@@ -48,6 +48,12 @@ const els = {
   scalePreviewImage: $('#scalePreviewImage'),
   scalePreviewPlaceholder: $('#scalePreviewPlaceholder'),
 
+  expandLeft: $('#expandLeft'),
+  expandRight: $('#expandRight'),
+  expandTop: $('#expandTop'),
+  expandBottom: $('#expandBottom'),
+  expandSizePreview: $('#expandSizePreview'),
+
   outFormat: $('#outFormat'),
   jpegQualityField: $('#jpegQualityField'),
   jpegQuality: $('#jpegQuality'),
@@ -163,6 +169,22 @@ function getScaledSize(croppedW, croppedH) {
   const w = Math.max(1, Math.round(croppedW * scaleW));
   const h = Math.max(1, Math.round(croppedH * scaleH));
   return { w, h };
+}
+
+function getExpandValues() {
+  return {
+    left: Math.max(0, safeInt(els.expandLeft.value, 0)),
+    right: Math.max(0, safeInt(els.expandRight.value, 0)),
+    top: Math.max(0, safeInt(els.expandTop.value, 0)),
+    bottom: Math.max(0, safeInt(els.expandBottom.value, 0)),
+  };
+}
+
+function getExpandedSize(scaledW, scaledH) {
+  const expand = getExpandValues();
+  const w = scaledW + expand.left + expand.right;
+  const h = scaledH + expand.top + expand.bottom;
+  return { w, h, expand };
 }
 
 function updateCropPreview() {
@@ -407,9 +429,10 @@ function onWheelZoom(e) {
 
 function updateScalePreview() {
   const lockAspect = els.lockAspect.checked;
-  
+
   if (!firstImageInfo) {
     els.scaleSizePreview.textContent = '-';
+    els.expandSizePreview.textContent = '-';
     hideScalePreviewImage();
     return;
   }
@@ -420,20 +443,28 @@ function updateScalePreview() {
   // 验证裁切是否有效
   if (crop.left + crop.right >= origW || crop.top + crop.bottom >= origH) {
     els.scaleSizePreview.textContent = '裁切无效，无法计算缩放';
+    els.expandSizePreview.textContent = '-';
     hideScalePreviewImage();
     return;
   }
 
   const { w: scaledW, h: scaledH } = getScaledSize(croppedW, croppedH);
+  const { w: finalW, h: finalH, expand } = getExpandedSize(scaledW, scaledH);
   const { scaleW, scaleH } = getScaleValues();
 
   if (lockAspect) {
     els.scaleSizePreview.textContent = `${croppedW} × ${croppedH} → ${scaledW} × ${scaledH}（缩放 ${Math.round(scaleW * 100)}%）`;
-    hideScalePreviewImage();
   } else {
     els.scaleSizePreview.textContent = `${croppedW} × ${croppedH} → ${scaledW} × ${scaledH}（宽 ${Math.round(scaleW * 100)}%，高 ${Math.round(scaleH * 100)}%）`;
     // 生成缩放后的预览图
     updateScalePreviewImage(croppedW, croppedH, scaledW, scaledH, crop);
+  }
+
+  // 显示最终尺寸预览（包含扩充）
+  if (expand.left + expand.right + expand.top + expand.bottom === 0) {
+    els.expandSizePreview.textContent = `${scaledW} × ${scaledH}`;
+  } else {
+    els.expandSizePreview.textContent = `${scaledW} × ${scaledH} → ${finalW} × ${finalH}`;
   }
 }
 
@@ -492,7 +523,7 @@ function updateJpegUI() {
 
 function renderTable(rows) {
   if (!rows.length) {
-    els.tableBody.innerHTML = '<tr><td colspan="5" class="empty">未选择图片</td></tr>';
+    els.tableBody.innerHTML = '<tr><td colspan="6" class="empty">未选择图片</td></tr>';
     return;
   }
 
@@ -505,6 +536,7 @@ function renderTable(rows) {
           <td>${fmtSize(r.origW, r.origH)}</td>
           <td>${fmtSize(r.croppedW, r.croppedH)}</td>
           <td>${fmtSize(r.scaledW, r.scaledH)}</td>
+          <td>${fmtSize(r.finalW, r.finalH)}</td>
           <td class="${statusClass}">${escapeHtml(r.statusText || '')}</td>
         </tr>
       `;
@@ -589,6 +621,8 @@ async function refreshSelection() {
         croppedH: null,
         scaledW: null,
         scaledH: null,
+        finalW: null,
+        finalH: null,
         statusText,
         statusType,
       });
@@ -603,6 +637,8 @@ async function refreshSelection() {
         croppedH: null,
         scaledW: null,
         scaledH: null,
+        finalW: null,
+        finalH: null,
         statusText: '无法读取，将跳过',
         statusType: 'bad',
       });
@@ -703,8 +739,24 @@ async function processOne(file) {
   const { w: scaledW, h: scaledH } = getScaledSize(croppedW, croppedH);
   const scaledCanvas = drawToCanvas(croppedCanvas, croppedW, croppedH, scaledW, scaledH);
 
+  // Step 3: 扩充透明像素
+  const expand = getExpandValues();
+  const { w: finalW, h: finalH } = getExpandedSize(scaledW, scaledH);
+  let finalCanvas = scaledCanvas;
+
+  if (expand.left + expand.right + expand.top + expand.bottom > 0) {
+    finalCanvas = document.createElement('canvas');
+    finalCanvas.width = finalW;
+    finalCanvas.height = finalH;
+    const fctx = finalCanvas.getContext('2d', { alpha: true });
+
+    // 不需要填充背景，canvas 默认为透明
+    // 直接绘制缩放后的图片到指定位置
+    fctx.drawImage(scaledCanvas, expand.left, expand.top);
+  }
+
   const mime = els.outFormat.value;
-  const blob = await canvasToBlob(scaledCanvas, mime);
+  const blob = await canvasToBlob(finalCanvas, mime);
 
   // cleanup
   if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
@@ -718,6 +770,8 @@ async function processOne(file) {
     croppedH,
     scaledW,
     scaledH,
+    finalW,
+    finalH,
   };
 }
 
@@ -760,6 +814,8 @@ async function processAll() {
       croppedH: null,
       scaledW: null,
       scaledH: null,
+      finalW: null,
+      finalH: null,
       statusText: isValid ? '排队中…' : (info?.w ? `尺寸不一致，已跳过` : '无法读取，已跳过'),
       statusType: isValid ? 'info' : 'bad',
     };
@@ -789,6 +845,8 @@ async function processAll() {
       rows[i].croppedH = r.croppedH;
       rows[i].scaledW = r.scaledW;
       rows[i].scaledH = r.scaledH;
+      rows[i].finalW = r.finalW;
+      rows[i].finalH = r.finalH;
 
       if (!r.ok) {
         rows[i].statusText = `失败：${r.reason}`;
@@ -798,7 +856,7 @@ async function processAll() {
         continue;
       }
 
-      const outName = `${baseName(f.name)}_crop_${r.croppedW}x${r.croppedH}_scale_${r.scaledW}x${r.scaledH}.${outExt}`;
+      const outName = `${baseName(f.name)}_crop_${r.croppedW}x${r.croppedH}_scale_${r.scaledW}x${r.scaledH}_expand_${r.finalW}x${r.finalH}.${outExt}`;
 
       if (canZip) {
         zip.file(outName, r.blob);
@@ -923,6 +981,12 @@ els.lockAspect.addEventListener('change', () => {
 els.scalePercent.addEventListener('input', updateScalePreview);
 els.scaleWidth.addEventListener('input', updateScalePreview);
 els.scaleHeight.addEventListener('input', updateScalePreview);
+
+// 扩充透明像素输入变化
+els.expandLeft.addEventListener('input', updateScalePreview);
+els.expandRight.addEventListener('input', updateScalePreview);
+els.expandTop.addEventListener('input', updateScalePreview);
+els.expandBottom.addEventListener('input', updateScalePreview);
 
 // 输出格式
 els.outFormat.addEventListener('change', updateJpegUI);
