@@ -1,22 +1,22 @@
 [
   {
     "name": "morning",
-    "text": "**早上好！** 新的一天开始啦～",
+    "text": "**早上好！** 顺利起床了呢。",
     "duration": 3
   },
   {
     "name": "noon",
-    "text": "中午好！该吃饭啦～",
+    "text": "**下午好！** 没有勉强自己吧？",
     "duration": 3
   },
   {
     "name": "evening",
-    "text": "傍晚好！今天辛苦了～",
+    "text": "晚上好……今天也辛苦了。",
     "duration": 3
   },
   {
     "name": "night",
-    "text": "晚上好！记得早点休息哦～",
+    "text": "咦，已经这么晚了……要好好休息哦。",
     "duration": 3
   },
   {

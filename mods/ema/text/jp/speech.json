@@ -1,22 +1,22 @@
 [
   {
     "name": "morning",
-    "text": "おはよう！",
+    "text": "**おはよう！** ちゃんと起きられたね。",
     "duration": 3
   },
   {
     "name": "noon",
-    "text": "おはよう！",
+    "text": "**こんにちは！** 無理、してない？",
     "duration": 3
   },
   {
     "name": "evening",
-    "text": "おはよう！",
+    "text": "こんばんは……。今日も、おつかれさま。",
     "duration": 3
   },
   {
     "name": "night",
-    "text": "おはよう！",
+    "text": "えっ、もうこんな時間……？ ちゃんと休もうね。",
     "duration": 3
   },
   {

@@ -5,15 +5,15 @@
   },
   {
     "name": "noon",
-    "audio": "jp/speech/morning.wav"
+    "audio": "jp/speech/noon.wav"
   },
   {
     "name": "evening",
-    "audio": "jp/speech/morning.wav"
+    "audio": "jp/speech/evening.wav"
   },
   {
     "name": "night",
-    "audio": "jp/speech/morning.wav"
+    "audio": "jp/speech/night.wav"
   }
 ]
 
