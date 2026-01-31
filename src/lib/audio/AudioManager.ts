@@ -29,6 +29,61 @@ import { getModPath, clearModPathCache } from "../utils/modPath";
 import type { AudioInfo, UserSettings } from "../types/asset";
 
 // ============================================================================
+// 常量定义
+// ============================================================================
+
+/** 音频调试模式（设置为 false 可在 release 禁用所有日志） */
+const AUDIO_DEBUG_MODE = false;
+
+// ============================================================================
+// 日志辅助函数
+// ============================================================================
+
+/** 检查音频调试模式是否启用 */
+function isAudioDebugEnabled(): boolean {
+  return AUDIO_DEBUG_MODE;
+}
+
+/** 记录音频普通日志（仅在调试模式下生效） */
+function logAudio(...args: unknown[]): void {
+  if (!isAudioDebugEnabled()) return;
+  console.log("[AudioManager]", ...args);
+}
+
+/** 记录音频警告日志（仅在调试模式下生效） */
+function logAudioWarn(...args: unknown[]): void {
+  if (!isAudioDebugEnabled()) return;
+  console.warn("[AudioManager]", ...args);
+}
+
+/** 记录音频错误日志（始终显示，不受调试模式控制） */
+function logAudioError(...args: unknown[]): void {
+  console.error("[AudioManager]", ...args);
+}
+
+/** 将 Tauri `convertFileSrc` 生成的 asset URL 反解为本地文件路径（用于预检存在性） */
+function assetUrlToFilePath(url: string): string | null {
+  try {
+    const u = new URL(url);
+    // pathname 形如: "/D%3A%2FTrayBuddy%2Fmods%2F..."
+    const raw = u.pathname.startsWith("/") ? u.pathname.slice(1) : u.pathname;
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** 判断当前 Mod 目录下的某个文件路径是否存在 */
+async function existsInCurrentMod(path: string): Promise<boolean> {
+  try {
+    return await invoke<boolean>("path_exists", { path });
+  } catch {
+    // 命令不可用/调用失败时，不阻断播放逻辑（回退到原有 onerror/catch 兜底）
+    return true;
+  }
+}
+
+// ============================================================================
 // 音频 URL 缓存
 // ============================================================================
 
@@ -151,7 +206,7 @@ export class AudioManager {
    * @param audioName - 语音名称（如 "morning", "click"）
    * @param onEnd - 播放完成回调
    * @param loop - 是否循环播放
-   * @returns 成功返回 true
+   * @returns 成功返回 true（音频不存在也视为成功）
    */
   async play(audioName: string, onEnd?: () => void, loop: boolean = false): Promise<boolean> {
     // 空名称直接触发完成回调
@@ -164,6 +219,8 @@ export class AudioManager {
     if (this.audio) {
       this.audio.pause();
       this.audio.src = "";
+      this.audio.onended = null;
+      this.audio.onerror = null;
       this.audio = null;
     }
     this.onEndCallback = null;
@@ -175,26 +232,56 @@ export class AudioManager {
 
       // 缓存未命中，从后端查询
       if (!audioUrl) {
+        logAudio(`Cache miss for '${audioName}', querying from backend...`);
         const audioInfo: AudioInfo | null = await invoke("get_audio_by_name", {
           lang: this.lang,
           name: audioName,
         });
 
+        // 音频不存在时，静默跳过播放（视为成功）
         if (!audioInfo) {
+          logAudio(`Audio not found: '${audioName}' (lang: ${this.lang}), skipping playback`);
           onEnd?.();
-          return false;
+          return true;
         }
 
-        // 构建完整的音频文件 URL
+        logAudio(`Audio info: ${JSON.stringify(audioInfo)}`);
+
+        // 构建完整的音频文件路径
         const modPath = await getModPath();
         if (!modPath) {
+          logAudioWarn(`Failed to get mod path, skipping playback: '${audioName}'`);
           onEnd?.();
-          return false;
+          return true;
         }
 
         const audioPath = `${modPath}/audio/${audioInfo.audio}`.replace(/\\/g, "/");
+        logAudio(`Constructed audio path: ${audioPath}`);
+
+        // 关键：播放前先检查文件是否存在
+        const exists = await existsInCurrentMod(audioPath);
+        if (!exists) {
+          logAudio(`Audio file missing: '${audioName}', skipping playback`);
+          onEnd?.();
+          return true;
+        }
+
         audioUrl = convertFileSrc(audioPath);
-        audioUrlCache.set(cacheKey, audioUrl);  // 存入缓存
+        logAudio(`Converted audio URL: ${audioUrl}`);
+        audioUrlCache.set(cacheKey, audioUrl); // 仅在确认存在后再缓存
+      } else {
+        // 缓存命中：同样做一次预检（避免缓存过期/文件被删除后触发 onerror）
+        logAudio(`Cache hit for '${audioName}'`);
+        const cachedPath = assetUrlToFilePath(audioUrl);
+        if (cachedPath) {
+          const exists = await existsInCurrentMod(cachedPath);
+          if (!exists) {
+            logAudio(`Cached audio missing: '${audioName}', evicting cache & skipping`);
+            audioUrlCache.delete(cacheKey);
+            onEnd?.();
+            return true;
+          }
+        }
       }
 
       // 创建并播放 Audio
@@ -204,26 +291,80 @@ export class AudioManager {
       this.audio.loop = loop;
       this.onEndCallback = loop ? null : (onEnd || null);
 
+      // 注册加载成功事件
+      this.audio.oncanplay = () => {
+        logAudio(`Audio loaded successfully: '${audioName}'`);
+      };
+
       // 注册播放完成事件
       this.audio.onended = () => {
+        logAudio(`Audio playback ended: '${audioName}'`);
         this.onEndCallback?.();
         this.onEndCallback = null;
       };
 
       // 注册播放错误事件
       this.audio.onerror = (e) => {
-        console.error(`Exception playing audio '${audioName}': '${e}'`);
+        const error = this.audio?.error;
+        const errorInfo = {
+          code: error?.code,
+          message: this.getMediaErrorDescription(error?.code),
+          src: this.audio?.src,
+          readyState: this.audio?.readyState,
+          networkState: this.audio?.networkState,
+        };
+
+        // 记录错误日志
+        logAudioError(`Exception playing audio '${audioName}':`, errorInfo);
+        logAudioError(`Full error:`, e, this.audio?.error);
+
         this.onEndCallback?.();
         this.onEndCallback = null;
       };
 
+      logAudio(`Starting playback: '${audioName}' (loop: ${loop})`);
       await this.audio.play();
+      logAudio(`Playback started successfully: '${audioName}'`);
       return true;
     } catch (e) {
-      console.error(`Exception playing audio '${audioName}': '${e}'`);
+      const error = e as Error;
+
+      // 记录错误日志
+      logAudioError(`Exception caught while playing audio '${audioName}':`, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        audioSrc: this.audio?.src,
+        readyState: this.audio?.readyState,
+        networkState: this.audio?.networkState,
+        error: this.audio?.error
+      });
+
       this.onEndCallback?.();
       this.onEndCallback = null;
-      return false;
+      return true;
+    }
+  }
+
+  /**
+   * 获取媒体错误的描述信息
+   * @param code - 错误代码 (MediaError.MEDIA_ERR_*)
+   * @returns 错误描述
+   */
+  private getMediaErrorDescription(code?: number): string {
+    if (code === undefined || code === null) return "Unknown error";
+
+    switch (code) {
+      case MediaError.MEDIA_ERR_ABORTED:
+        return "The fetching process for the media resource was aborted by the user agent at the user's request";
+      case MediaError.MEDIA_ERR_NETWORK:
+        return "A network error of some description caused the user agent to stop fetching the media resource";
+      case MediaError.MEDIA_ERR_DECODE:
+        return "An error occurred while decoding the media resource, or the media resource used a codec that is not supported";
+      case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+        return "The media resource indicated by the src attribute was not suitable";
+      default:
+        return `Unknown error code: ${code}`;
     }
   }
 

@@ -388,6 +388,27 @@ fn get_mod_path(state: State<'_, AppState>) -> Option<String> {
         .map(|m| m.path.to_string_lossy().into_owned())
 }
 
+/// 判断指定路径是否存在（仅允许检查当前 Mod 目录内的路径）
+#[tauri::command]
+fn path_exists(path: String, state: State<'_, AppState>) -> bool {
+    use std::path::PathBuf;
+
+    let rm = state.resource_manager.lock().unwrap();
+    let Some(mod_info) = rm.current_mod.as_ref() else {
+        return false;
+    };
+
+    let base = &mod_info.path;
+    let p = PathBuf::from(path);
+
+    // 安全限制：仅允许检查当前 Mod 根目录下的文件
+    if !p.starts_with(base) {
+        return false;
+    }
+
+    p.exists()
+}
+
 /// 获取边框配置
 #[tauri::command]
 fn get_border_config(state: State<'_, AppState>) -> Option<resource::BorderConfig> {
@@ -1095,6 +1116,7 @@ pub fn run() {
             unload_mod,
             get_current_mod,
             get_mod_path,
+            path_exists,
             get_border_config,
             get_character_config,
             get_state_by_name,
