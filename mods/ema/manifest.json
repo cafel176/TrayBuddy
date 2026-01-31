@@ -353,7 +353,7 @@
     {
       "name": "firstday_4",
       "persistent": false,
-      "anima": "",
+      "anima": "idle",
       "audio": "firstday_4",
       "text": "firstday_4",
       "priority": 2,

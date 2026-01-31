@@ -544,10 +544,36 @@
         }
       }
 
+      // 处理分支选项：将 branch.text 作为索引获取实际文本
+      let processedBranches: BranchInfo[] = [];
+      if (state.branch && state.branch.length > 0) {
+        const settings = await invoke<{ lang: string }>("get_settings");
+        const lang = settings.lang || "zh";
+        
+        for (const branch of state.branch) {
+          // 调用 get_text_by_name 获取实际文本
+          const textInfo = await invoke<{
+            text: string;
+            duration?: number;
+          } | null>("get_text_by_name", {
+            lang: lang,
+            name: branch.text,
+          });
+          
+          // 如果获取成功，使用实际文本；否则使用原 text
+          const actualText = textInfo?.text || branch.text;
+          
+          processedBranches.push({
+            text: actualText,
+            next_state: branch.next_state,
+          });
+        }
+      }
+
       // 构建气泡配置
       const bubbleConfig: BubbleConfig = {
         text: textContent,
-        branches: state.branch || [],
+        branches: processedBranches,
         position: "top",
         typeSpeed: 50,
         duration: textDuration,
@@ -568,7 +594,7 @@
     const branch = e.detail;
     console.log(
       "[handleBranchSelect] Selected branch:",
-      branch.text,
+      branch.text,  // 此时已经是实际文本（已被 get_text_by_name 解析）
       "-> next_state:",
       branch.next_state,
     );
