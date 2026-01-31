@@ -269,6 +269,7 @@
     "id": "ID",
     "version": "バージョン",
     "author": "作者",
+    "modName": "Mod名",
     "defaultAudio": "デフォルト音声",
     "defaultText": "デフォルトテキスト",
     "characterConfig": "キャラクター設定",

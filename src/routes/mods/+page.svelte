@@ -119,9 +119,26 @@
             selectedModInfo = info;
 
             // Load preview image
-            // Try convertFileSrc on path + /preview.png
-            const previewPath = `${info.path}/preview.png`.replace(/\\/g, "/");
-            previewSrc = convertFileSrc(previewPath);
+            // 尝试加载预览图，失败则尝试其他格式
+            const previewExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+            
+            for (const ext of previewExtensions) {
+                const testPath = `${info.path}/preview.${ext}`.replace(/\\/g, "/");
+                const testSrc = convertFileSrc(testPath);
+                
+                // 测试图片是否可以加载
+                const success = await new Promise<boolean>((resolve) => {
+                    const testImg = new Image();
+                    testImg.onload = () => resolve(true);
+                    testImg.onerror = () => resolve(false);
+                    testImg.src = testSrc;
+                });
+                
+                if (success) {
+                    previewSrc = testSrc;
+                    break;
+                }
+            }
 
             statusMsg = "";
         } catch (e) {
@@ -284,7 +301,7 @@
 
                 {#if activeCharInfo}
                     <div class="row">
-                        <span class="label">{_("resource.statTexts")}:</span>
+                        <span class="label">{_("modWindow.modName")}:</span>
                         <span class="value">{activeCharInfo.name}</span>
                     </div>
                     <div class="desc">

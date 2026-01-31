@@ -1,0 +1,82 @@
+{
+  "bubble": {
+    "background": "linear-gradient(180deg, #fffbf0 0%, #fff8e7 50%, #fff5dc 100%)",
+    "border": "1px solid #e8dcc8",
+    "border_radius": "8px",
+    "padding": "12px 16px",
+    "min_width": "120px",
+    "max_width": "380px",
+    "color": "#5a5a5a",
+    "font_size": "14px",
+    "line_height": "1.6",
+    "font_family": "\"Georgia\", \"Times New Roman\", serif",
+    "box_shadow": "2px 2px 6px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)",
+    "backdrop_filter": "none",
+    "decoration_top": {
+      "content": "✉",
+      "top": "6px",
+      "right": "10px",
+      "font_size": "12px",
+      "color": "#c9b896"
+    },
+    "decoration_bottom": {
+      "content": "____",
+      "bottom": "6px",
+      "left": "12px",
+      "font_size": "10px",
+      "color": "#d4c4a8"
+    },
+    "tail": {
+      "size": "10px",
+      "color": "#fff5dc",
+      "shadow": "1px 1px 2px rgba(0, 0, 0, 0.08)"
+    }
+  },
+  "branch": {
+    "container": {
+      "gap": "6px",
+      "margin_top": "10px",
+      "padding_top": "10px",
+      "border_top": "1px solid #e0d5c2"
+    },
+    "button": {
+      "padding": "8px 8px 8px 32px",
+      "min_width": "100px",
+      "background": "linear-gradient(180deg, #fffcf5 0%, #fff9eb 100%)",
+      "border": "1px solid #d9ccba",
+      "border_radius": "6px",
+      "color": "#6a6a6a",
+      "font_size": "13px",
+      "box_shadow": "1px 1px 3px rgba(0, 0, 0, 0.05)",
+      "backdrop_filter": "none"
+    },
+    "button_hover": {
+      "background": "linear-gradient(180deg, #fff9e0 0%, #fff5d0 100%)",
+      "border_color": "#c9b896",
+      "box_shadow": "2px 2px 5px rgba(0, 0, 0, 0.08)",
+      "color": "#8a6a4a",
+      "transform": "translateY(-1px)"
+    },
+    "button_active": {
+      "background": "linear-gradient(180deg, #fff5dc 0%, #fff0c8 100%)",
+      "box_shadow": "1px 1px 3px rgba(0, 0, 0, 0.08)",
+      "transform": "translateY(0)"
+    },
+    "decoration_left": {
+      "content": "✉",
+      "left": "10px",
+      "font_size": "10px",
+      "color": "#c9b896",
+      "color_hover": "#b9a886"
+    },
+    "decoration_right": {
+      "content": "",
+      "content_hover": "",
+      "right": "8px",
+      "font_size": "12px",
+      "font_size_hover": "10px",
+      "color": "#d4c4a8",
+      "color_hover": "#c9b896"
+    }
+  }
+}

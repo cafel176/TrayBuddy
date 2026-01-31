@@ -269,6 +269,7 @@
     "id": "ID",
     "version": "Version",
     "author": "Author",
+    "modName": "Mod Name",
     "defaultAudio": "Default Audio",
     "defaultText": "Default Text",
     "characterConfig": "Character Config",
