@@ -18,7 +18,7 @@
       "persistent": true,
       "anima": "idle",
       "audio": "",
-      "text": "AAAA",
+      "text": "",
       "priority": 1,
       "date_start": "",
       "date_end": "",
@@ -26,7 +26,7 @@
       "time_end": "",
       "next_state": "",
       "can_trigger_states": [
-        "hello1_1"
+        "random1_1"
       ],
       "trigger_time": 600,
       "trigger_rate": 0.3,
@@ -88,7 +88,7 @@
       "persistent": true,
       "anima": "music",
       "audio": "",
-      "text": " BBB",
+      "text": "",
       "priority": 1,
       "date_start": "",
       "date_end": "",
@@ -135,35 +135,40 @@
       "branch": []
     },
     "birthday": {
-      "name": "birthday",
+      "name": "birthday_1",
       "persistent": false,
-      "anima": "",
-      "audio": "",
-      "text": "birthday",
+      "anima": "wave",
+      "audio": "birthday_1",
+      "text": "birthday_1",
       "priority": 2,
       "date_start": "",
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "",
+      "next_state": "birthday_2",
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": []
     },
     "firstday": {
-      "name": "firstday",
+      "name": "firstday_1",
       "persistent": false,
-      "anima": "",
-      "audio": "morning",
-      "text": "",
+      "anima": "wave",
+      "audio": "firstday_1",
+      "text": "firstday_1",
       "priority": 2,
       "date_start": "",
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
+      "next_state": "firstday_2",
+      "can_trigger_states": [
+        {
+          "text": "firstday_button",
+          "next_state": "firstday_3"
+        }
+      ],
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": []
@@ -239,107 +244,163 @@
       "branch": []
     },
     {
-      "name": "hello1_1",
+      "name": "amazing",
+      "persistent": false,
+      "anima": "amazing",
+      "audio": "amazing",
+      "text": "amazing",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "amaz_cry",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [
+        {
+          "text": "amazing_button",
+          "next_state": "amaz_cry"
+        }
+      ]
+    },
+    {
+      "name": "amaz_cry",
+      "persistent": false,
+      "anima": "amaz_cry",
+      "audio": "amaz_cry",
+      "text": "amaz_cry",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "cry",
       "persistent": false,
       "anima": "cry",
-      "audio": "hello1_1",
-      "text": "hello1_1",
+      "audio": "cry",
+      "text": "cry",
       "priority": 2,
       "date_start": "",
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "hello1_3",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "birthday_2",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "birthday_2",
+      "text": "birthday_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "firstday_2",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "firstday_2",
+      "text": "firstday_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "firstday_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "firstday_3",
+      "persistent": false,
+      "anima": "amazing",
+      "audio": "firstday_3",
+      "text": "firstday_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "firstday_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "firstday_4",
+      "persistent": false,
+      "anima": "",
+      "audio": "firstday_4",
+      "text": "firstday_4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "random1_1",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "random1_1",
+      "text": "random1_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": []
+    },
+    {
+      "name": "music_random1_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "music_random1_1",
+      "text": "music_random1_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [
-        {
-          "text": "好的好的好",
-          "next_state": "hello1_2"
-        },
-        {
-          "text": "好的好的好",
-          "next_state": "hello1_2"
-        }
       ]
-    },
-    {
-      "name": "hello1_2",
-      "persistent": false,
-      "anima": "amaz_cry",
-      "audio": "hello1_2",
-      "text": "hello1_2",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "branch": []
-    },
-    {
-      "name": "hello1_3",
-      "persistent": false,
-      "anima": "amaz_cry",
-      "audio": "hello1_3",
-      "text": "hello1_3",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "branch": []
-    },
-    {
-      "name": "music_hello1_1",
-      "persistent": false,
-      "anima": "music_idle",
-      "audio": "music_hello1_1",
-      "text": "music_hello1_1",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "branch": [
-        {
-          "text": "好的好的好的好的好的好好的好的好好的好的好",
-          "next_state": "music_hello1_2"
-        },
-        {
-          "text": "好的好的好的好的好的好好的好的好好的好的好",
-          "next_state": "music_hello1_2"
-        }
-      ]
-    },
-    {
-      "name": "music_hello1_2",
-      "persistent": false,
-      "anima": "music_idle",
-      "audio": "",
-      "text": "",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "branch": []
     }
   ],
   "triggers": [
@@ -349,13 +410,13 @@
         {
           "persistent_state": "idle",
           "states": [
-            "hello1_1"
+            "random1_1", "amazing", "cry"
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "music_hello1_1"
+            "music_random1_1"
           ]
         }
       ]
@@ -380,7 +441,7 @@
         {
           "persistent_state": "idle",
           "states": [
-            "birthday"
+            "birthday_1"
           ]
         }
       ]
@@ -391,7 +452,7 @@
         {
           "persistent_state": "idle",
           "states": [
-            "firstday"
+            "firstday_1"
           ]
         }
       ]
@@ -435,7 +496,7 @@
         {
           "persistent_state": "idle",
           "states": [
-            "hello1_1"
+            "random1_1"
           ]
         }
       ]

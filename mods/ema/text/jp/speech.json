@@ -20,38 +20,68 @@
     "duration": 3
   },
   {
-    "name": "hello1_1",
-    "text": "おはよう！",
+    "name": "birthday_1",
+    "text": "た、誕生日おめでとう……！**{nickname}**\nえへへ……今日は特別な日、だよね。",
     "duration": 3
   },
   {
-    "name": "hello1_2",
-    "text": "おはよう！",
+    "name": "birthday_2",
+    "text": "ボクね……\n毎日、少しでも笑っていられたらいいなって思ってる。",
     "duration": 3
   },
   {
-    "name": "hello1_3",
-    "text": "AAAAAAAAAAAAAA",
+    "name": "firstday_1",
+    "text": "ね、ねえ……。\n今日が何の日か……覚えてる？{nickname}",
     "duration": 3
   },
   {
-    "name": "music_hello1_1",
-    "text": "おはよう！",
+    "name": "firstday_2",
+    "text": "今日って、ボクたちがはじめて会った日、なんだよ。",
     "duration": 3
   },
   {
-    "name": "music_hello1_2",
-    "text": "おはよう！",
+    "name": "firstday_3",
+    "text": "えっ……覚えてたの？\nボク、すごくうれしい……！",
     "duration": 3
   },
   {
-    "name": "birthday",
-    "text": "誕生日 feliz！{nickname}",
+    "name": "firstday_4",
+    "text": "こうして覚えていられるの……すごく、大切だなって思う。",
     "duration": 3
   },
   {
-    "name": "firstday",
-    "text": "初めてのログイン記念日！{nickname}",
+    "name": "firstday_button",
+    "text": "ボクたちがはじめて会った日",
+    "duration": 3
+  },
+  {
+    "name": "amazing",
+    "text": "あっ……。",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button",
+    "text": "どうしたの？",
+    "duration": 3
+  },
+  {
+    "name": "amaz_cry",
+    "text": "ボクのリンゴ……。",
+    "duration": 3
+  },
+  {
+    "name": "cry",
+    "text": "きゃんっ……！？",
+    "duration": 3
+  },
+  {
+    "name": "random1_1",
+    "text": "ボ、ボクは、桜羽エマ！",
+    "duration": 3
+  },
+  {
+    "name": "music_random1_1",
+    "text": "この曲、なんだか心に残るね。ボク、好きかも。",
     "duration": 3
   }
 ]

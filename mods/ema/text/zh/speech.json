@@ -20,38 +20,68 @@
     "duration": 3
   },
   {
-    "name": "hello1_1",
-    "text": "你好呀！我是你的桌面伙伴！\n有什么可以帮助你的吗？",
+    "name": "birthday_1",
+    "text": "生、生日快乐……！**{nickname}**\n嘿嘿……今天是很特别的一天呢。",
     "duration": 3
   },
   {
-    "name": "hello1_2",
-    "text": "好的！那我就在这里陪着你～\n有需要随时叫我哦！",
+    "name": "birthday_2",
+    "text": "我啊……\n希望你每天都能多笑一笑。",
     "duration": 3
   },
   {
-    "name": "hello1_3",
-    "text": "AAAAAAAAAAAAAA",
+    "name": "firstday_1",
+    "text": "那、那个……\n你还记得今天是什么日子吗？{nickname}",
     "duration": 3
   },
   {
-    "name": "music_hello1_1",
-    "text": "你好呀！我是你的桌面伙伴！有什么可以帮助你的吗？",
+    "name": "firstday_2",
+    "text": "今天啊，是我们第一次见面的日子呢。",
     "duration": 3
   },
   {
-    "name": "music_hello1_2",
-    "text": "好的！那我就在这里陪着你～有需要随时叫我哦！",
+    "name": "firstday_3",
+    "text": "咦……你记得吗？\n我真的好开心……！",
     "duration": 3
   },
   {
-    "name": "birthday",
-    "text": "生日快乐！{nickname}",
+    "name": "firstday_4",
+    "text": "能这样记住它，我觉得……真的很珍贵。",
     "duration": 3
   },
   {
-    "name": "firstday",
-    "text": "首次登录纪念日！{nickname}",
+    "name": "firstday_button",
+    "text": "初次见面的日子",
+    "duration": 3
+  },
+  {
+    "name": "amazing",
+    "text": "啊……。",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button",
+    "text": "怎么了？",
+    "duration": 3
+  },
+  {
+    "name": "amaz_cry",
+    "text": "我的苹果……。",
+    "duration": 3
+  },
+  {
+    "name": "cry",
+    "text": "kiang……！？",
+    "duration": 3
+  },
+  {
+    "name": "random1_1",
+    "text": "我、我叫樱羽艾玛！",
+    "duration": 3
+  },
+  {
+    "name": "music_random1_1",
+    "text": "这首歌让人很有感觉呢，我很喜欢。",
     "duration": 3
   }
 ]

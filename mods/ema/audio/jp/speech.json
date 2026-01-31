@@ -14,6 +14,50 @@
   {
     "name": "night",
     "audio": "jp/speech/night.wav"
+  },
+  {
+    "name": "firstday_1",
+    "audio": "jp/speech/firstday_1.wav"
+  },
+  {
+    "name": "firstday_2",
+    "audio": "jp/speech/firstday_2.wav"
+  },
+  {
+    "name": "firstday_3",
+    "audio": "jp/speech/firstday_3.wav"
+  },
+  {
+    "name": "firstday_4",
+    "audio": "jp/speech/firstday_4.wav"
+  },
+  {
+    "name": "birthday_1",
+    "audio": "jp/speech/birthday_1.wav"
+  },
+  {
+    "name": "birthday_2",
+    "audio": "jp/speech/birthday_2.wav"
+  },
+  {
+    "name": "amazing",
+    "audio": "jp/speech/amazing.ogg"
+  },
+  {
+    "name": "amaz_cry",
+    "audio": "jp/speech/amaz_cry.ogg"
+  },
+  {
+    "name": "cry",
+    "audio": "jp/speech/kiang.ogg"
+  },
+  {
+    "name": "random1_1",
+    "audio": "jp/speech/random1_1.wav"
+  },
+  {
+    "name": "music_random1_1",
+    "audio": "jp/speech/music_random1_1.wav"
   }
 ]
 
