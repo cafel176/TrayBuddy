@@ -194,10 +194,11 @@ export function toCssVars(obj: Record<string, any> | undefined | null, prefix: s
       value !== null
     )
     .map(([key, value]) => {
-      // 移除后缀以便在变量名中使用
+      // 约定：保留 hover/active 后缀，用于在 CSS 中区分不同状态
+      // 例如：color_hover -> --decor-left-color-hover
       const cleanKey = key
-        .replace('_hover', '')
-        .replace('_active', '')
+        .replace(/_hover$/g, '-hover')
+        .replace(/_active$/g, '-active')
         .replace(/_/g, '-');
       return `--${prefix}-${cleanKey}: ${value};`;
     })

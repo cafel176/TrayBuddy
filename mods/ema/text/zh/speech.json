@@ -60,8 +60,13 @@
     "duration": 3
   },
   {
-    "name": "amazing_button",
+    "name": "amazing_button1",
     "text": "怎么了？",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button2",
+    "text": "出什么事了？",
     "duration": 3
   },
   {

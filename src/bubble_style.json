@@ -70,8 +70,8 @@
       "color_hover": "#b9a886"
     },
     "decoration_right": {
-      "content": "",
-      "content_hover": "",
+      "content": "·",
+      "content_hover": "✦",
       "right": "8px",
       "font_size": "12px",
       "font_size_hover": "10px",

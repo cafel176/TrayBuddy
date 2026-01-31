@@ -60,7 +60,12 @@
     "duration": 3
   },
   {
-    "name": "amazing_button",
+    "name": "amazing_button1",
+    "text": "どうしたの？",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button2",
     "text": "どうしたの？",
     "duration": 3
   },

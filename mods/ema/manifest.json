@@ -260,7 +260,11 @@
       "trigger_rate": 0,
       "branch": [
         {
-          "text": "amazing_button",
+          "text": "amazing_button1",
+          "next_state": "amaz_cry"
+        },
+        {
+          "text": "amazing_button2",
           "next_state": "amaz_cry"
         }
       ]

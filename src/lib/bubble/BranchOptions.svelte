@@ -77,6 +77,12 @@
   /** 当前高亮的选项索引 */
   let focusedIndex = 0;
 
+  /** 当前鼠标悬停的选项索引（-1 表示无） */
+  let hoveredIndex = -1;
+
+  /** 交互模式：用于避免初次渲染就触发“高亮/hover”效果 */
+  let interactionMode: "none" | "keyboard" | "pointer" = "none";
+
   /** 组件容器引用 */
   let containerRef: HTMLDivElement;
 
@@ -133,6 +139,10 @@
    */
   function handleKeydown(e: KeyboardEvent) {
     if (!visible || branches.length === 0 || disabled || selectedBranch) return;
+
+    // 只有用户实际进行键盘操作时，才进入键盘高亮模式
+    interactionMode = "keyboard";
+    hoveredIndex = -1;
 
     switch (e.key) {
       case "ArrowUp":
@@ -242,7 +252,7 @@
       <button
         class="branch-button"
         class:compact={useInlineLayout}
-        class:focused={index === focusedIndex && !selectedBranch}
+        class:focused={interactionMode === "keyboard" && index === focusedIndex && !selectedBranch}
         class:selected={selectedBranch !== null}
         class:disabled={disabled || selectedBranch !== null}
         style={buttonBaseStyle}
@@ -251,13 +261,27 @@
         aria-disabled={disabled || selectedBranch !== null}
         on:click={() => selectBranch(branch)}
         on:mouseenter={() => {
+          interactionMode = "pointer";
           if (!selectedBranch) focusedIndex = index;
+          hoveredIndex = index;
+        }}
+        on:mouseleave={() => {
+          if (hoveredIndex === index) hoveredIndex = -1;
         }}
       >
         <span class="decor-left">{style?.branch.decoration_left.content}</span>
         <span class="btn-text">{branch.wrappedText}</span>
-        <span class="decor-right">{style?.branch.decoration_right.content}</span
-        >
+        <span class="decor-right">
+          {(
+            style?.branch.decoration_right.content_hover &&
+            (index === hoveredIndex ||
+              (interactionMode === "keyboard" &&
+                index === focusedIndex &&
+                !selectedBranch))
+          )
+            ? style.branch.decoration_right.content_hover
+            : style?.branch.decoration_right.content}
+        </span>
       </button>
     {/each}
   </div>
@@ -327,29 +351,29 @@
 
   .branch-button:hover,
   .branch-button.focused {
-    background: var(--btn-hover-bg) !important;
+    background: var(--btn-hover-background, var(--btn-hover-bg)) !important;
     border-color: var(--btn-hover-border-color) !important;
     transform: var(--btn-hover-transform);
-    box-shadow: var(--btn-hover-shadow) !important;
+    box-shadow: var(--btn-hover-box-shadow, var(--btn-hover-shadow)) !important;
     color: var(--btn-hover-color) !important;
   }
 
   .branch-button:hover .decor-left,
   .branch-button.focused .decor-left {
-    color: var(--decor-left-color-hover);
+    color: var(--decor-left-color-hover, var(--decor-left-color));
     transform: translateY(-50%) rotate(15deg) scale(1.15);
   }
 
   .branch-button:hover .decor-right,
   .branch-button.focused .decor-right {
-    font-size: var(--decor-right-font-size-hover);
-    color: var(--decor-right-color-hover);
+    font-size: var(--decor-right-font-size-hover, var(--decor-right-font-size));
+    color: var(--decor-right-color-hover, var(--decor-right-color));
   }
 
   .branch-button:active {
     transform: var(--btn-active-transform) !important;
-    box-shadow: var(--btn-active-shadow) !important;
-    background: var(--btn-active-bg) !important;
+    box-shadow: var(--btn-active-box-shadow, var(--btn-active-shadow)) !important;
+    background: var(--btn-active-background, var(--btn-active-bg)) !important;
   }
 
   /* 禁用状态 */
@@ -361,9 +385,9 @@
 
   /* 选中状态 - 保持高亮样式 */
   .branch-button.selected {
-    background: var(--btn-hover-bg) !important;
+    background: var(--btn-hover-background, var(--btn-hover-bg)) !important;
     border-color: var(--btn-hover-border-color) !important;
-    box-shadow: var(--btn-hover-shadow) !important;
+    box-shadow: var(--btn-hover-box-shadow, var(--btn-hover-shadow)) !important;
     color: var(--btn-hover-color) !important;
   }
 
