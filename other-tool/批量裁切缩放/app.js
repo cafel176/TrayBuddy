@@ -12,6 +12,7 @@ const els = {
 
   imageCount: $('#imageCount'),
   imageSizeInfo: $('#imageSizeInfo'),
+  skipMismatch: $('#skipMismatch'),
 
   cropTop: $('#cropTop'),
   cropBottom: $('#cropBottom'),
@@ -572,60 +573,19 @@ async function refreshSelection() {
   els.imageCount.textContent = `${files.length} 张`;
 
   // 解析所有图片的尺寸
+  const imageSizes = [];
   const rows = [];
   let mismatchCount = 0;
-  
+
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     try {
       const decoded = await decodeImage(f);
       const w = decoded.w;
       const h = decoded.h;
-
-      // 第一张图作为基准，并保存用于预览
-      if (i === 0) {
-        firstImageInfo = { w, h };
-        els.imageSizeInfo.textContent = `基准尺寸：${w} × ${h}`;
-        
-        // 加载第一张图片用于预览
-        const url = URL.createObjectURL(f);
-        const img = new Image();
-        img.src = url;
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-        });
-        firstImageElement = img;
-        // 注意：保持 URL 有效，不在这里 revoke
-      }
+      imageSizes.push({ file: f, w, h, index: i });
 
       if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
-
-      // 检查是否与第一张图尺寸一致
-      const isValid = (w === firstImageInfo.w && h === firstImageInfo.h);
-      fileInfoMap.set(f, { w, h, valid: isValid });
-
-      let statusText = '待处理';
-      let statusType = 'info';
-      if (!isValid) {
-        mismatchCount++;
-        statusText = `尺寸不一致（${w}×${h}），将跳过`;
-        statusType = 'bad';
-      }
-
-      rows.push({
-        name: f.name,
-        origW: w,
-        origH: h,
-        croppedW: null,
-        croppedH: null,
-        scaledW: null,
-        scaledH: null,
-        finalW: null,
-        finalH: null,
-        statusText,
-        statusType,
-      });
     } catch (_) {
       fileInfoMap.set(f, { w: 0, h: 0, valid: false });
       mismatchCount++;
@@ -645,9 +605,80 @@ async function refreshSelection() {
     }
   }
 
+  if (imageSizes.length === 0) {
+    setStatus('无法读取任何图片');
+    return;
+  }
+
+  // 找到所有图片的最小尺寸
+  const skipMismatchEnabled = els.skipMismatch.checked;
+  let baseW, baseH;
+
+  if (skipMismatchEnabled) {
+    // 跳过模式：使用第一张图片的尺寸作为基准
+    baseW = imageSizes[0].w;
+    baseH = imageSizes[0].h;
+  } else {
+    // 不跳过模式：使用最小尺寸作为基准
+    baseW = Math.min(...imageSizes.map(s => s.w));
+    baseH = Math.min(...imageSizes.map(s => s.h));
+  }
+
+  firstImageInfo = { w: baseW, h: baseH };
+  els.imageSizeInfo.textContent = skipMismatchEnabled
+    ? `基准尺寸：${baseW} × ${baseH}`
+    : `基准尺寸（最小）：${baseW} × ${baseH}`;
+
+  // 加载第一张有效图片用于预览
+  const firstValidImage = imageSizes.find(s => s.file === selectedFiles[0]);
+  if (firstValidImage) {
+    const url = URL.createObjectURL(firstValidImage.file);
+    const img = new Image();
+    img.src = url;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+    firstImageElement = img;
+    // 注意：保持 URL 有效，不在这里 revoke
+  }
+
+  // 构建表格数据
+  imageSizes.forEach((s) => {
+    const { file: f, w, h } = s;
+    const isMismatch = !(w === baseW && h === baseH);
+    const isValid = !isMismatch || !skipMismatchEnabled;
+
+    fileInfoMap.set(f, { w, h, valid: isValid, mismatch: isMismatch });
+
+    let statusText = '待处理';
+    let statusType = 'info';
+    if (!isValid) {
+      mismatchCount++;
+      statusText = `尺寸不一致（${w}×${h}），将跳过`;
+      statusType = 'bad';
+    } else if (isMismatch) {
+      statusText = `裁切为最小尺寸（${w}×${h} → ${baseW}×${baseH}）`;
+    }
+
+    rows.push({
+      name: f.name,
+      origW: w,
+      origH: h,
+      croppedW: null,
+      croppedH: null,
+      scaledW: null,
+      scaledH: null,
+      finalW: null,
+      finalH: null,
+      statusText,
+      statusType,
+    });
+  });
+
   renderTable(rows);
   updateAllPreviews();
-  
+
   // 初始化裁切编辑器
   if (firstImageElement) {
     els.previewImage.src = firstImageElement.src;
@@ -658,24 +689,20 @@ async function refreshSelection() {
 
   // 显示统计信息
   const validCount = files.length - mismatchCount;
-  if (mismatchCount > 0) {
-    if (validCount === 0) {
-      setStatus(`已选择 ${files.length} 张图片，所有图片尺寸不一致，将以第一张图（${firstImageInfo.w}×${firstImageInfo.h}）为基准处理`);
-      // 如果所有图片都不一致，则第一张图设为有效
-      const firstFile = files[0];
-      const info = fileInfoMap.get(firstFile);
-      if (info) {
-        info.valid = true;
-        fileInfoMap.set(firstFile, info);
-        rows[0].statusText = '待处理（基准图）';
-        rows[0].statusType = 'info';
-        renderTable(rows);
+  const mismatchCountOnly = imageSizes.filter(s => s.w !== baseW || s.h !== baseH).length;
+
+  if (mismatchCountOnly > 0) {
+    if (skipMismatchEnabled) {
+      if (validCount === 0) {
+        setStatus(`已选择 ${files.length} 张图片，所有图片尺寸不一致且已勾选跳过，建议取消勾选以处理所有图片`);
+      } else {
+        setStatus(`已选择 ${files.length} 张图片，${mismatchCountOnly} 张尺寸不一致将被跳过，${validCount} 张待处理`);
       }
     } else {
-      setStatus(`已选择 ${files.length} 张图片，${mismatchCount} 张尺寸不一致将被跳过，${validCount} 张待处理`);
+      setStatus(`已选择 ${files.length} 张图片，${mismatchCountOnly} 张尺寸不一致将裁切为最小尺寸（${baseW}×${baseH}）`);
     }
   } else {
-    setStatus(`已选择 ${files.length} 张图片，尺寸一致（${firstImageInfo.w}×${firstImageInfo.h}）`);
+    setStatus(`已选择 ${files.length} 张图片，尺寸一致（${baseW}×${baseH}）`);
   }
 }
 
@@ -710,30 +737,65 @@ async function processOne(file) {
   const origW = decoded.w;
   const origH = decoded.h;
 
-  const crop = getCropValues();
+  let cropLeft, cropRight, cropTop, cropBottom;
+  const skipMismatchEnabled = els.skipMismatch.checked;
+
+  // 检查是否需要自动裁切到基准尺寸
+  if (!skipMismatchEnabled && firstImageInfo) {
+    const baseW = firstImageInfo.w;
+    const baseH = firstImageInfo.h;
+
+    // 如果图片大于基准尺寸，自动计算裁切量使其等于基准尺寸
+    if (origW > baseW) {
+      const excessW = origW - baseW;
+      // 从左右两侧平均裁切
+      cropLeft = Math.floor(excessW / 2);
+      cropRight = excessW - cropLeft;
+    } else {
+      cropLeft = 0;
+      cropRight = 0;
+    }
+
+    if (origH > baseH) {
+      const excessH = origH - baseH;
+      // 从上下两侧平均裁切
+      cropTop = Math.floor(excessH / 2);
+      cropBottom = excessH - cropTop;
+    } else {
+      cropTop = 0;
+      cropBottom = 0;
+    }
+  } else {
+    // 使用用户设置的裁切值
+    const crop = getCropValues();
+    cropLeft = crop.left;
+    cropRight = crop.right;
+    cropTop = crop.top;
+    cropBottom = crop.bottom;
+  }
 
   // 验证裁切
-  if (crop.left + crop.right >= origW) {
-    const msg = `左右裁切总和 ${crop.left + crop.right}px >= 图片宽度 ${origW}px`;
+  if (cropLeft + cropRight >= origW) {
+    const msg = `左右裁切总和 ${cropLeft + cropRight}px >= 图片宽度 ${origW}px`;
     if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
     return { ok: false, reason: msg, origW, origH };
   }
-  if (crop.top + crop.bottom >= origH) {
-    const msg = `上下裁切总和 ${crop.top + crop.bottom}px >= 图片高度 ${origH}px`;
+  if (cropTop + cropBottom >= origH) {
+    const msg = `上下裁切总和 ${cropTop + cropBottom}px >= 图片高度 ${origH}px`;
     if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
     return { ok: false, reason: msg, origW, origH };
   }
 
-  const croppedW = origW - crop.left - crop.right;
-  const croppedH = origH - crop.top - crop.bottom;
+  const croppedW = origW - cropLeft - cropRight;
+  const croppedH = origH - cropTop - cropBottom;
 
-  // Step 1: 裁切
+  // Step 1: 裁切（从源图的指定位置裁切）
   const croppedCanvas = document.createElement('canvas');
   croppedCanvas.width = croppedW;
   croppedCanvas.height = croppedH;
   const cctx = croppedCanvas.getContext('2d', { alpha: true });
   cctx.clearRect(0, 0, croppedW, croppedH);
-  cctx.drawImage(source, crop.left, crop.top, croppedW, croppedH, 0, 0, croppedW, croppedH);
+  cctx.drawImage(source, cropLeft, cropTop, croppedW, croppedH, 0, 0, croppedW, croppedH);
 
   // Step 2: 缩放
   const { w: scaledW, h: scaledH } = getScaledSize(croppedW, croppedH);
@@ -945,6 +1007,7 @@ function clearAll() {
 
 // 事件绑定
 els.fileInput.addEventListener('change', refreshSelection);
+els.skipMismatch.addEventListener('change', refreshSelection);
 els.clearBtn.addEventListener('click', clearAll);
 els.processBtn.addEventListener('click', processAll);
 
