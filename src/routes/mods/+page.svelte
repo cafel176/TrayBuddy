@@ -56,6 +56,7 @@
     let previewSrc = $state("");
     let imageLoadError = $state(false);
     let currentModName = $state("");
+    let currentModPath = $state("");
     let unsubRefresh: (() => void) | null = null;
 
     /** 当前语言下的角色信息 (响应式) */
@@ -98,7 +99,17 @@
         try {
             const modInfo = await invoke("get_current_mod");
             if (modInfo) {
-                currentModName = (modInfo as ModInfo).manifest.id;
+                // 使用 mod 的文件夹名称而不是 manifest.id
+                const modPath = await invoke("get_mod_path");
+                if (modPath) {
+                    currentModPath = modPath as string;
+                    // 从路径中提取文件夹名称
+                    const pathParts = currentModPath.split(/[/\\]/);
+                    currentModName = pathParts[pathParts.length - 1];
+                } else {
+                    // 如果获取路径失败，回退到 manifest.id
+                    currentModName = (modInfo as ModInfo).manifest.id;
+                }
             }
         } catch (e) {
             console.error("Failed to load current mod:", e);
@@ -153,7 +164,10 @@
             const info = (await invoke("load_mod", {
                 modName: selectedMod,
             })) as ModInfo;
-            currentModName = info.manifest.id;
+            // 更新当前 mod 信息（使用路径和文件夹名称）
+            currentModPath = info.path;
+            const pathParts = info.path.split(/[/\\]/);
+            currentModName = pathParts[pathParts.length - 1];
             // 加载成功后更新按钮状态
             selectedModInfo = info;
             statusMsg = _("resource.statusLoadSuccess") + " " + selectedMod;
@@ -315,14 +329,14 @@
                 <div class="buttons">
                     <button
                         class="load-btn"
-                        class:reloading={selectedModInfo?.manifest.id ===
-                            currentModName}
+                        class:reloading={selectedModInfo?.path ===
+                            currentModPath}
                         disabled={loading}
                         onclick={loadMod}
                     >
                         {#if loading}
                             {_("common.loading")}
-                        {:else if selectedModInfo?.manifest.id === currentModName}
+                        {:else if selectedModInfo?.path === currentModPath}
                             {_("modWindow.reloadMod")}
                         {:else}
                             {_("modWindow.loadMod")}
