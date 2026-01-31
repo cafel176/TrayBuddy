@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Initiate",
+    "audio": "zh/speech/Initiate.wav"
+  },
+  {
+    "name": "Wiggle",
+    "audio": "zh/speech/Wiggle.wav"
+  },
+  {
+    "name": "Prize",
+    "audio": "zh/speech/Prize.wav"
+  },
+  {
+    "name": "No",
+    "audio": "zh/speech/No.wav"
+  }
+]
+
+

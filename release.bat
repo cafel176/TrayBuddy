@@ -8,5 +8,11 @@ if %errorlevel% neq 0 (
 )
 
 cd /d "%~dp0"
+:: 删除release模式的 mods 目录
+if exist "%~dp0src-tauri\target\release\mods" (
+    echo Cleaning release mods directory...
+    rmdir /s /q "%~dp0src-tauri\target\release\mods"
+)
+
 pnpm tauri build
 pause
