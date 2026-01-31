@@ -135,7 +135,7 @@
       "branch": []
     },
     "birthday": {
-      "name": "birthday_1",
+      "name": "birthday",
       "persistent": false,
       "anima": "wave",
       "audio": "birthday_1",
@@ -152,7 +152,7 @@
       "branch": []
     },
     "firstday": {
-      "name": "firstday_1",
+      "name": "firstday",
       "persistent": false,
       "anima": "wave",
       "audio": "firstday_1",
@@ -163,15 +163,15 @@
       "time_start": "",
       "time_end": "",
       "next_state": "firstday_2",
-      "can_trigger_states": [
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [
         {
           "text": "firstday_button",
           "next_state": "firstday_3"
         }
-      ],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "branch": []
+      ]
     }
   },
   "states": [
@@ -441,7 +441,7 @@
         {
           "persistent_state": "idle",
           "states": [
-            "birthday_1"
+            "birthday"
           ]
         }
       ]
@@ -452,7 +452,7 @@
         {
           "persistent_state": "idle",
           "states": [
-            "firstday_1"
+            "firstday"
           ]
         }
       ]
