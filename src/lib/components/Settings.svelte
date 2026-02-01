@@ -92,7 +92,7 @@
 
   /** 检查状态消息是否包含错误信息 */
   function isError(msg: string): boolean {
-    return msg.includes(_("common.failed")) || msg.includes("failed");
+    return msg.includes(_("common.failed")) || msg.includes(_("common.failed_alt") || "failed");
   }
 
   // ======================================================================= //

@@ -1,6 +1,7 @@
 {
   "lang": "English",
   "common": {
+    "appName": "TrayBuddy",
     "loading": "Loading...",
     "loadFailed": "Load failed:",
     "saveFailed": "Save failed:",
@@ -59,7 +60,9 @@
     "bubbleArea": "Bubble Area",
     "bubbleCanvas": "Bubble Content",
     "noAnimationWindow": "Animation window not detected",
-    "waitingInfo": "Requesting layout data..."
+    "waitingInfo": "Requesting layout data...",
+    "style": "Style",
+    "opacity": "Opacity"
   },
   "settings": {
     "title": "User Settings",
@@ -496,5 +499,19 @@
     "featureRichState": "🔔 Rich State System",
     "featureCustomizable": "🎨 Highly Customizable Mods",
     "close": "Close"
+  },
+  "backend": {
+    "error": {
+      "noIdleState": "New mod does not have an 'idle' state",
+      "configDirFailed": "Failed to get config dir",
+      "invalidModPath": "Invalid mod path: {path}",
+      "platformNotSupported": "Platform not supported for this action",
+      "windowNotFound": "Window not found"
+    },
+    "log": {
+      "autostartDev": "[TrayBuddy] Autostart is not supported in dev mode, please use Release version",
+      "autostartDisabled": "[TrayBuddy] Autostart is disabled in dev mode",
+      "modLoadFailed": "[TrayBuddy] Failed to auto-load Mod '{name}': {error}"
+    }
   }
 }

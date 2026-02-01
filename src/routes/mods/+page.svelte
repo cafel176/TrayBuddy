@@ -172,7 +172,7 @@
 
             statusMsg = "";
         } catch (e) {
-            statusMsg = `Failed to load details: ${e}`;
+            statusMsg = `${_("modWindow.loadDetailsFailed")} ${e}`;
         }
     }
 
@@ -219,7 +219,7 @@
         })) as ImportModResult;
 
         await message(_("modWindow.importSuccess"), {
-            title: "TrayBuddy",
+            title: _("common.appName"),
             kind: "info",
         });
 
@@ -272,7 +272,7 @@
         }
 
         await message(`${_("modWindow.importFailed")}: ${errorMsg}`, {
-            title: "TrayBuddy",
+            title: _("common.appName"),
             kind: "error",
         });
     }
@@ -431,7 +431,7 @@
                 {#if previewSrc && !imageLoadError}
                     <img
                         src={previewSrc}
-                        alt="Preview"
+                        alt={_("modWindow.preview")}
                         class="preview-img"
                         onerror={() => (imageLoadError = true)}
                     />

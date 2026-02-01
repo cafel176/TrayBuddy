@@ -1,6 +1,7 @@
 {
   "lang": "中文",
   "common": {
+    "appName": "TrayBuddy",
     "loading": "正在加载...",
     "loadFailed": "加载失败:",
     "saveFailed": "保存失败:",
@@ -59,7 +60,9 @@
     "bubbleArea": "气泡区域",
     "bubbleCanvas": "气泡内容",
     "noAnimationWindow": "未检测到动画窗口",
-    "waitingInfo": "正在请求布局数据..."
+    "waitingInfo": "正在请求布局数据...",
+    "style": "样式",
+    "opacity": "不透明度"
   },
   "settings": {
     "title": "用户设置",
@@ -496,5 +499,19 @@
     "featureRichState": "🔔 丰富的状态系统",
     "featureCustomizable": "🎨 高度可定制的 Mod",
     "close": "关闭"
+  },
+  "backend": {
+    "error": {
+      "noIdleState": "新 Mod 缺少 'idle' 状态",
+      "configDirFailed": "获取配置目录失败",
+      "invalidModPath": "无效的 Mod 路径: {path}",
+      "platformNotSupported": "当前平台不支持此操作",
+      "windowNotFound": "未找到窗口"
+    },
+    "log": {
+      "autostartDev": "[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本",
+      "autostartDisabled": "[TrayBuddy] 开发模式下不支持开机自启动，已禁用",
+      "modLoadFailed": "[TrayBuddy] 自动加载 Mod '{name}' 失败: {error}"
+    }
   }
 }

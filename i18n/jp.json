@@ -1,6 +1,7 @@
 {
   "lang": "日本語",
   "common": {
+    "appName": "TrayBuddy",
     "loading": "読み込み中...",
     "loadFailed": "読み込み失敗:",
     "saveFailed": "保存失敗:",
@@ -59,7 +60,9 @@
     "bubbleArea": "フキダシエリア",
     "bubbleCanvas": "フキダシ内容",
     "noAnimationWindow": "アニメーションウィンドウが見つかりません",
-    "waitingInfo": "データを取得中..."
+    "waitingInfo": "データを取得中...",
+    "style": "スタイル",
+    "opacity": "不透明度"
   },
   "settings": {
     "title": "ユーザー設定",
@@ -495,5 +498,19 @@
     "featureRichState": "🔔 豊富な状態システム",
     "featureCustomizable": "🎨 高度にカスタマイズ可能なMod",
     "close": "閉じる"
+  },
+  "backend": {
+    "error": {
+      "noIdleState": "新しいModに 'idle' 状態がありません",
+      "configDirFailed": "設定ディレクトリの取得に失敗しました",
+      "invalidModPath": "無効なModパス：{path}",
+      "platformNotSupported": "このプラットフォームではサポートされていません",
+      "windowNotFound": "ウィンドウが見つかりません"
+    },
+    "log": {
+      "autostartDev": "[TrayBuddy] 開発モードでは自動起動がサポートされていません。リリース版を使用してください",
+      "autostartDisabled": "[TrayBuddy] 開発モードでは自動起動がサポートされていないため、無効化されました",
+      "modLoadFailed": "[TrayBuddy] Mod '{name}' の自動読み込みに失敗しました: {error}"
+    }
   }
 }

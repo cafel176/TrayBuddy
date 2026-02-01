@@ -247,14 +247,14 @@ fn update_settings(
             let _ = autostart_manager.enable();
         } else {
             // 开发模式下提示用户
-            eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本");
+            eprintln!("{}", get_i18n_text(&app, "backend.log.autostartDev"));
         }
     } else {
         if is_release_build() {
             let _ = autostart_manager.disable();
         } else {
             // 开发模式下提示用户
-            eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本");
+            eprintln!("{}", get_i18n_text(&app, "backend.log.autostartDev"));
         }       
     }
 
@@ -454,7 +454,7 @@ async fn load_mod_from_path(
     let config_dir = app
         .path()
         .app_config_dir()
-        .map_err(|e| format!("Failed to get config dir: {}", e))?;
+        .map_err(|e| format!("{}: {}", get_i18n_text(&app, "backend.error.configDirFailed"), e))?;
     let mods_dir = dunce::canonicalize(config_dir.join("mods"))
         .map_err(|e| format!("Failed to canonicalize mods dir: {}", e))?;
 
@@ -462,7 +462,7 @@ async fn load_mod_from_path(
         .map_err(|e| format!("Failed to canonicalize mod path '{}': {}", mod_path, e))?;
 
     if !target.starts_with(&mods_dir) {
-        return Err(format!("Invalid mod path: {} is not under {:?}", mod_path, mods_dir));
+        return Err(get_i18n_text(&app, "backend.error.invalidModPath").replace("{path}", &mod_path));
     }
 
     // 兼容迁移：target 目录名可能是旧的 folder key

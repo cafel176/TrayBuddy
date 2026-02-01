@@ -192,9 +192,9 @@
                                 <span class="v badge">{canvas.zIndex}</span>
                             </div>
                             <div class="row">
-                                <span class="k">Style</span>
+                                <span class="k">{_("layout.style")}</span>
                                 <span class="v small"
-                                    >{canvas.visibility} / Opacity: {canvas.opacity}</span
+                                    >{canvas.visibility} / {_("layout.opacity")}: {canvas.opacity}</span
                                 >
                             </div>
                         </div>
