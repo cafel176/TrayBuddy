@@ -171,8 +171,12 @@ export interface StateInfo {
   /** 进入该状态时对当前 Mod 数据计数器执行操作（可选） */
   mod_data_counter?: ModDataCounterConfig;
 
+  /** 是否显示对话分支气泡 UI（默认 true） */
+  branch_show_bubble?: boolean;
+
   /** 对话分支选项 */
   branch?: BranchInfo[];
+
 }
 
 

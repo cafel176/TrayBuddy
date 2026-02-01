@@ -34,7 +34,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "silence": {
       "name": "silence",
@@ -55,7 +56,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "silence_start": {
       "name": "silence_start",
@@ -76,7 +78,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "silence_end": {
       "name": "silence_end",
@@ -97,7 +100,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "music": {
       "name": "music",
@@ -118,7 +122,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "music_start": {
       "name": "music_start",
@@ -139,7 +144,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "music_end": {
       "name": "music_end",
@@ -160,7 +166,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "birthday": {
       "name": "birthday",
@@ -181,7 +188,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "firstday": {
       "name": "firstday",
@@ -202,7 +210,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     }
   },
   "states": [],

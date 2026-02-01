@@ -39,7 +39,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     }
   },
   "states": [],

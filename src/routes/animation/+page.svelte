@@ -91,6 +91,16 @@
   /** 气泡管理器 */
   let bubbleManager: BubbleManager;
 
+  /**
+   * 分支选择（当禁用分支气泡 UI 时，用于通过空格键选择）
+   */
+  type PendingBranchSelection = {
+    stateName: string;
+    branches: BranchInfo[];
+  };
+  let pendingBranchSelection = $state<PendingBranchSelection | null>(null);
+
+
   /** 状态变化事件监听器取消函数 */
   let unlistenState: (() => void) | null = null;
   /** 设置变化事件监听器取消函数 */
@@ -232,6 +242,45 @@
    * 5. 播放初始状态动画
    * 6. 触发 login 事件
    */
+  function handleGlobalKeydown(e: KeyboardEvent) {
+    // 使用 e.code 以获得物理按键名称（如 Space, KeyE, Digit1）
+    // 这样可以避免空格被识别为 " " 的问题
+    const keyCode = e.code;
+
+    // 当禁用分支气泡 UI 时：仍允许使用空格键选择分支走向
+    if (keyCode === "Space" && pendingBranchSelection?.branches?.length) {
+      e.preventDefault();
+      void chooseBranchBySpace();
+      return;
+    }
+
+    triggerManager?.trigger(`keydown:${keyCode}`);
+  }
+
+  async function chooseBranchBySpace() {
+    const pending = pendingBranchSelection;
+    if (!pending || pending.branches.length === 0) return;
+
+    // 当前无 UI 时无法切换焦点，这里约定“空格 = 选择第 1 个分支”。
+    const chosen = pending.branches[0];
+
+    console.log("[BranchHidden] Space choose branch", {
+      state: pending.stateName,
+      chosenText: chosen.text,
+      chosenNextState: chosen.next_state,
+      options: pending.branches.map((b) => ({ text: b.text, next_state: b.next_state })),
+      ts: Date.now(),
+    });
+
+    try {
+      await invoke("set_next_state", { name: chosen.next_state });
+      emit("next-state-changed", { name: chosen.next_state });
+      pendingBranchSelection = null;
+    } catch (error) {
+      console.error("[BranchHidden] Failed to set next state:", error);
+    }
+  }
+
   async function init() {
     try {
       // 默认启用窗口级鼠标穿透
@@ -240,12 +289,8 @@
       startCursorPolling();
 
       // 注册全局键盘监听器（仅在窗口聚焦时生效）
-      window.addEventListener("keydown", (e) => {
-        // 使用 e.code 以获得物理按键名称（如 Space, KeyE, Digit1）
-        // 这样可以避免空格被识别为 " " 的问题
-        const keyCode = e.code;
-        triggerManager?.trigger(`keydown:${keyCode}`);
-      });
+      window.addEventListener("keydown", handleGlobalKeydown);
+
 
       // 注册语言变更监听
       unsubLang = onLangChange(() => {
@@ -527,10 +572,14 @@
    * 5. 通知后端动画完成
    */
   async function playState(state: StateInfo, playOnce: boolean) {
+    // 进入新状态时，清理上一轮可能残留的“无气泡分支选择”上下文
+    pendingBranchSelection = null;
+
     isPlayOnce = playOnce;
     animationComplete = false;
     audioComplete = false;
     bubbleComplete = false;
+
 
     // 开始播放动画
     await playAnimation(state.anima, playOnce);
@@ -635,17 +684,43 @@
         }
       }
 
-      // 构建气泡配置
+      // 是否显示分支气泡 UI（默认 true）
+      const showBranchBubble = state.branch_show_bubble !== false;
+
+      // 若禁用分支气泡 UI，则仍保存分支上下文以支持空格选择
+      if (!showBranchBubble && processedBranches.length > 0) {
+        pendingBranchSelection = {
+          stateName: state.name,
+          branches: processedBranches,
+        };
+        console.log("[showBubble] Branch bubble disabled; press Space to choose", {
+          state: state.name,
+          branches: processedBranches.map((b) => ({ text: b.text, next_state: b.next_state })),
+        });
+      } else {
+        pendingBranchSelection = null;
+      }
+
+      // 构建气泡配置（禁用分支 UI 时不渲染按钮）
       const bubbleConfig: BubbleConfig = {
         text: textContent,
-        branches: processedBranches,
+        branches: showBranchBubble ? processedBranches : [],
         position: "top",
         typeSpeed: 50,
         duration: textDuration,
       };
 
+      // 如果既没有文本也没有分支 UI，就不展示气泡，直接完成
+      if (!bubbleConfig.text && (!bubbleConfig.branches || bubbleConfig.branches.length === 0)) {
+        bubbleManager?.hide();
+        bubbleComplete = true;
+        checkComplete();
+        return;
+      }
+
       // 显示气泡
       bubbleManager?.show(bubbleConfig);
+
     } catch (e) {
       console.error("[showBubble] Failed to show bubble:", e);
     }
@@ -657,18 +732,29 @@
    */
   async function handleBranchSelect(e: CustomEvent<BranchInfo>) {
     const branch = e.detail;
-    console.log(
-      "[handleBranchSelect] Selected branch:",
-      branch.text,  // 此时已经是实际文本（已被 get_text_by_name 解析）
-      "-> next_state:",
-      branch.next_state,
-    );
+
+    console.log("[handleBranchSelect] Selected branch", {
+      source: "bubbleUI",
+      chosenText: branch.text, // 此时已经是实际文本（已被 get_text_by_name 解析）
+      chosenNextState: branch.next_state,
+      pendingState: pendingBranchSelection?.stateName,
+      pendingOptions: pendingBranchSelection?.branches?.map((b) => ({
+        text: b.text,
+        next_state: b.next_state,
+      })),
+      ts: Date.now(),
+    });
+
 
     try {
       // 设置下一个待切换状态（当前状态播放完毕后自动切换）
       await invoke("set_next_state", { name: branch.next_state });
       // 通知调试面板 next_state 已更新
       emit("next-state-changed", { name: branch.next_state });
+
+      // 结束“无气泡分支选择”上下文（若存在）
+      pendingBranchSelection = null;
+
     } catch (error) {
       console.error("[handleBranchSelect] Failed to set next state:", error);
     }
@@ -937,6 +1023,7 @@
 
   // 组件销毁时清理资源
   onDestroy(() => {
+    window.removeEventListener("keydown", handleGlobalKeydown);
     stopCursorPolling();
     characterAnimator?.destroy();
     borderAnimator?.destroy();

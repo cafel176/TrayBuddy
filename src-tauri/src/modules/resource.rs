@@ -320,8 +320,15 @@ pub struct StateInfo {
     /// 进入该状态时对当前 Mod 数据计数器执行操作（可选）
     pub mod_data_counter: Option<ModDataCounterConfig>,
 
+    /// 是否显示对话分支气泡 UI
+    ///
+    /// - true：行为与当前版本完全一致（显示分支按钮）
+    /// - false：仍会触发分支逻辑，但不显示气泡 UI（前端可用空格键选择）
+    pub branch_show_bubble: bool,
+
     /// 对话分支选项
     pub branch: Vec<BranchInfo>,
+
 }
 
 
@@ -343,6 +350,7 @@ impl Default for StateInfo {
             trigger_time: 0.0,
             trigger_rate: 0.0,
             mod_data_counter: None,
+            branch_show_bubble: true,
             branch: Vec::new(),
         }
     }

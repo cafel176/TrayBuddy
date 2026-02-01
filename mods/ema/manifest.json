@@ -39,7 +39,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "silence": {
       "name": "silence",
@@ -60,7 +61,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "silence_start": {
       "name": "silence_start",
@@ -81,7 +83,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "silence_end": {
       "name": "silence_end",
@@ -102,7 +105,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "music": {
       "name": "music",
@@ -123,7 +127,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "music_start": {
       "name": "music_start",
@@ -144,7 +149,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "music_end": {
       "name": "music_end",
@@ -165,7 +171,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "birthday": {
       "name": "birthday",
@@ -186,7 +193,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     "firstday": {
       "name": "firstday",
@@ -212,7 +220,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     }
   },
   "states": [
@@ -235,7 +244,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "noon",
@@ -256,7 +266,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "evening",
@@ -277,7 +288,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "night",
@@ -298,7 +310,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "amazing",
@@ -328,7 +341,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "amaz_cry",
@@ -349,7 +363,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "cry",
@@ -370,7 +385,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "birthday_2",
@@ -391,7 +407,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "firstday_2",
@@ -412,7 +429,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "firstday_3",
@@ -433,7 +451,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "firstday_4",
@@ -454,7 +473,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "random1_1",
@@ -475,7 +495,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     },
     {
       "name": "music_random1_1",
@@ -496,7 +517,8 @@
       "mod_data_counter": {
         "op": "add",
         "value": 0
-      }
+      },
+      "branch_show_bubble": true
     }
   ],
   "triggers": [
