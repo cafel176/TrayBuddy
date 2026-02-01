@@ -14,11 +14,13 @@
 
 use super::environment::get_current_datetime;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::Manager;
+
 
 use crate::modules::utils::fs::{load_json_list, load_json_obj};
 
@@ -825,11 +827,14 @@ impl ModInfo {
 struct ModLocator {
     /// manifest.json 中的 id
     id: String,
+    /// manifest.json 中的 version（用于同 id 多版本选择）
+    version: String,
     /// Mod 文件夹名（目录名）
     folder: String,
     /// Mod 根目录绝对路径
     path: PathBuf,
 }
+
 
 /// 资源管理器
 ///
@@ -946,6 +951,59 @@ impl ResourceManager {
     /// 重建 mod 索引（manifest.id -> path, folder -> id）
     ///
     /// 搜索顺序遵循 `search_paths` 的优先级：越靠前优先级越高。
+    fn parse_version(version: &str) -> (Vec<u64>, Option<String>) {
+        let v = version.trim().trim_start_matches('v').trim_start_matches('V');
+        if v.is_empty() {
+            return (vec![0], None);
+        }
+
+        let (main, pre) = match v.split_once('-') {
+            Some((a, b)) => (a, Some(b.to_string())),
+            None => (v, None),
+        };
+
+        let nums: Vec<u64> = main
+            .split('.')
+            .map(|part| {
+                let digits: String = part.chars().take_while(|c| c.is_ascii_digit()).collect();
+                digits.parse::<u64>().unwrap_or(0)
+            })
+            .collect();
+
+        (if nums.is_empty() { vec![0] } else { nums }, pre)
+    }
+
+    /// 版本比较：返回 a 相对 b 的大小
+    ///
+    /// - 先比较数字段（按点分隔）
+    /// - 数字段相同：无 pre-release 的版本更大（例如 1.0.0 > 1.0.0-beta）
+    /// - 都有 pre-release：按字符串比较
+    fn compare_version(a: &str, b: &str) -> Ordering {
+        if a == b {
+            return Ordering::Equal;
+        }
+
+        let (an, apre) = Self::parse_version(a);
+        let (bn, bpre) = Self::parse_version(b);
+
+        let max_len = an.len().max(bn.len());
+        for i in 0..max_len {
+            let av = *an.get(i).unwrap_or(&0);
+            let bv = *bn.get(i).unwrap_or(&0);
+            match av.cmp(&bv) {
+                Ordering::Equal => {}
+                ord => return ord,
+            }
+        }
+
+        match (&apre, &bpre) {
+            (None, Some(_)) => Ordering::Greater,
+            (Some(_), None) => Ordering::Less,
+            (Some(a1), Some(b1)) => a1.cmp(b1),
+            (None, None) => Ordering::Equal,
+        }
+    }
+
     fn rebuild_mod_index(&mut self) {
         self.mod_index.clear();
         self.folder_to_id.clear();
@@ -964,16 +1022,16 @@ impl ResourceManager {
                 let folder = entry.file_name().to_string_lossy().into_owned();
                 let canonical_dir = dunce::canonicalize(&dir_path).unwrap_or(dir_path);
 
-                // 尝试读取 manifest.json 获取 manifest.id
+                // 尝试读取 manifest.json 获取 (manifest.id, manifest.version)
                 let manifest_path = canonical_dir.join("manifest.json");
-                let manifest_id = if manifest_path.exists() {
+                let (manifest_id, manifest_version) = if manifest_path.exists() {
                     fs::read_to_string(&manifest_path)
                         .ok()
                         .and_then(|s| serde_json::from_str::<ModManifest>(&s).ok())
-                        .map(|m| m.id.to_string())
-                        .unwrap_or_else(|| folder.clone())
+                        .map(|m| (m.id.to_string(), m.version.to_string()))
+                        .unwrap_or_else(|| (folder.clone(), "".to_string()))
                 } else {
-                    folder.clone()
+                    (folder.clone(), "".to_string())
                 };
 
                 // folder -> id（首个发现者优先）
@@ -981,15 +1039,21 @@ impl ResourceManager {
                     .entry(folder.clone())
                     .or_insert_with(|| manifest_id.clone());
 
-                // id -> locator（首个发现者优先，避免同 id 被后续路径覆盖）
-                if self.mod_index.contains_key(&manifest_id) {
-                    continue;
+                // id -> locator：
+                // - 若同 id 多个 mod：选择版本号更新的
+                // - 若版本号相同：保留先发现的
+                if let Some(existing) = self.mod_index.get(&manifest_id) {
+                    let ord = Self::compare_version(&manifest_version, &existing.version);
+                    if ord != Ordering::Greater {
+                        continue;
+                    }
                 }
 
                 self.mod_index.insert(
                     manifest_id.clone(),
                     ModLocator {
                         id: manifest_id,
+                        version: manifest_version,
                         folder,
                         path: canonical_dir,
                     },
@@ -997,6 +1061,7 @@ impl ResourceManager {
             }
         }
     }
+
 
     /// 解析 Mod 标识符为实际目录路径
     ///
