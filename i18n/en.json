@@ -463,10 +463,18 @@
     "modDirOpenFailed": "Failed to open mod directory",
     "importMod": "Import Mod",
     "importSuccess": "Import success",
+    "importAndLoadSuccess": "Import and reload success",
     "importFailed": "Import failed",
     "unrecognizedFile": "Unrecognized file (not a valid .tbuddy archive)",
     "loadListFailed": "Failed to load mod list:",
-    "loadDetailsFailed": "Failed to load details:"
+    "loadDetailsFailed": "Failed to load details:",
+
+    "conflictTitle": "A Mod with the same ID is already loaded",
+    "conflictId": "ID",
+    "conflictLoaded": "Loaded",
+    "conflictImported": "Incoming",
+    "keepLoaded": "Keep loaded",
+    "keepImported": "Keep incoming"
   },
   "menu": {
     "about": "About",

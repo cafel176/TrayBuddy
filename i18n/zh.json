@@ -463,10 +463,18 @@
     "modDirOpenFailed": "打开 Mod 目录失败",
     "importMod": "导入 Mod",
     "importSuccess": "导入成功",
+    "importAndLoadSuccess": "导入并重新加载成功",
     "importFailed": "导入失败",
     "unrecognizedFile": "无法识别的文件 (不是有效的 .tbuddy 压缩包)",
     "loadListFailed": "加载 Mod 列表失败:",
-    "loadDetailsFailed": "加载详情失败:"
+    "loadDetailsFailed": "加载详情失败:",
+
+    "conflictTitle": "检测到同 ID 的 Mod 已加载",
+    "conflictId": "ID",
+    "conflictLoaded": "已加载",
+    "conflictImported": "新导入",
+    "keepLoaded": "保留已加载",
+    "keepImported": "保留新导入"
   },
   "menu": {
     "about": "关于本程序",

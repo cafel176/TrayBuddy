@@ -466,7 +466,14 @@
     "importFailed": "インポート失败",
     "unrecognizedFile": "認識できないファイル (.tbuddy 形式ではありません)",
     "loadListFailed": "Modリストの読み込みに失敗しました:",
-    "loadDetailsFailed": "詳細の読み込みに失敗しました:"
+    "loadDetailsFailed": "詳細の読み込みに失敗しました:",
+
+    "conflictTitle": "同じ ID の Mod がすでに読み込まれています",
+    "conflictId": "ID",
+    "conflictLoaded": "読み込み中",
+    "conflictImported": "新規",
+    "keepLoaded": "読み込み中を保持",
+    "keepImported": "新規を保持"
   },
   "menu": {
     "about": "このアプリについて",

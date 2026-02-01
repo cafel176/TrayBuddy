@@ -5,7 +5,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [sveltekit()],
 
   // =========================================================================
@@ -24,6 +24,7 @@ export default defineConfig(async () => ({
         // 手动分割代码块，优化加载
         // 注意：不要在 manualChunks 中包含 @tauri-apps/api，
         // 因为 SvelteKit SSR 会将其标记为外部模块
+        /** @param {string} id */
         manualChunks(id) {
           // 避免处理 @tauri-apps/api（SSR 时为外部模块）
           if (id.includes('@tauri-apps/api')) {
@@ -39,6 +40,7 @@ export default defineConfig(async () => ({
   // =========================================================================
   esbuild: {
     // 生产环境移除 console.log，保留 console.warn 和 console.error
+    // @ts-expect-error process is a nodejs global
     drop: process.env.NODE_ENV === 'production' ? ['console'] : [],
   },
 
@@ -71,4 +73,4 @@ export default defineConfig(async () => ({
       allow: ['..'],
     },
   },
-}));
+});

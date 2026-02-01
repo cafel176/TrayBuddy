@@ -44,6 +44,20 @@
         info: Record<string, CharacterInfo>;
     }
 
+    interface ModTbuddyPick {
+        filePath: string;
+        id: string;
+        version: string;
+    }
+
+    interface ImportModResult {
+        id: string;
+        extractedPath: string;
+    }
+
+
+
+
     // ======================================================================= //
     // State
     // ======================================================================= //
@@ -57,7 +71,16 @@
     let imageLoadError = $state(false);
     let currentModName = $state("");
     let currentModPath = $state("");
+    let currentModVersion = $state("");
     let unsubRefresh: (() => void) | null = null;
+
+    // 导入冲突弹窗（同 id 已加载）
+    let conflictOpen = $state(false);
+    let conflictModId = $state("");
+    let conflictLoadedVersion = $state("");
+    let conflictIncomingVersion = $state("");
+    let pendingImportPath = $state<string | null>(null);
+
 
     /** 当前语言下的角色信息 (响应式) */
     let activeCharInfo = $derived.by(() => {
@@ -101,6 +124,11 @@
             if (modInfo) {
                 currentModPath = modInfo.path;
                 currentModName = modInfo.manifest.id;
+                currentModVersion = modInfo.manifest.version;
+            } else {
+                currentModPath = "";
+                currentModName = "";
+                currentModVersion = "";
             }
         } catch (e) {
             console.error("Failed to load current mod:", e);
@@ -182,34 +210,149 @@
         }
     }
 
-    async function importMod() {
+    /**
+     * 导入 Mod 文件（通用版本，带成功提示和自动选中）
+     */
+    async function doImportFromPath(filePath: string): Promise<ImportModResult> {
+        const result = (await invoke("import_mod_from_path_detailed", {
+            filePath,
+        })) as ImportModResult;
+
+        await message(_("modWindow.importSuccess"), {
+            title: "TrayBuddy",
+            kind: "info",
+        });
+
+        // 此时后台会 emit refresh-mods，由 listener 处理刷新，这里不需要手动 loadModList 了
+        if (result?.id) {
+            // 注意：如果 refresh-mods 的 listener 还没执行完，选中可能会失败（mods 还没更新）
+            // 所以稍微延迟一下
+            setTimeout(() => selectMod(result.id), 100);
+        }
+
+        return result;
+    }
+
+    /**
+     * 静默导入 Mod 文件（用于更新覆盖场景，不显示弹窗，不自动选中）
+     */
+    async function doImportSilent(filePath: string): Promise<ImportModResult> {
+        return (await invoke("import_mod_from_path_detailed", {
+            filePath,
+        })) as ImportModResult;
+    }
+
+
+    function closeConflictDialog() {
+        conflictOpen = false;
+        conflictModId = "";
+        conflictLoadedVersion = "";
+        conflictIncomingVersion = "";
+        pendingImportPath = null;
+    }
+
+    async function keepLoadedAndExit() {
+        // 用户选择保留已加载的：流程直接结束
+        closeConflictDialog();
+    }
+
+    function toErrorMessage(e: unknown): string {
+        if (typeof e === "string") return e;
+        if (e && typeof e === "object" && "message" in e) {
+            const msg = (e as { message?: unknown }).message;
+            if (typeof msg === "string") return msg;
+        }
+        return String(e);
+    }
+
+    async function showImportError(e: unknown) {
+        let errorMsg = toErrorMessage(e);
+        if (errorMsg.includes("Invalid .tbuddy file")) {
+            errorMsg = _("modWindow.unrecognizedFile");
+        }
+
+        await message(`${_("modWindow.importFailed")}: ${errorMsg}`, {
+            title: "TrayBuddy",
+            kind: "error",
+        });
+    }
+
+    async function keepIncomingAndContinue() {
+        const filePath = pendingImportPath;
+        // 记录冲突的 mod id，用于后续判断是否需要自动加载
+        const conflictId = conflictModId;
+        // 记录是否为当前正在加载的 mod
+        const isCurrentMod = conflictId === currentModName;
+        closeConflictDialog();
+        if (!filePath) return;
+
         try {
-            const modName = (await invoke("import_mod")) as string;
-            await message(_("modWindow.importSuccess"), {
-                title: "TrayBuddy",
-                kind: "info",
-            });
-            // 此时后台会 emit refresh-mods，由 listener 处理刷新，这里不需要手动 loadModList 了
-            if (modName) {
-                // 如果后端返回了 modName，可以尝试直接选中
-                // 注意：如果 refresh-mods 的 listener 还没执行完，选中可能会失败（mods 还没更新）
-                // 所以我们让 listener 负责刷新，如果已经选中了就不管了，或者稍微延迟一下
-                setTimeout(() => selectMod(modName), 100);
+            // 如果旧版本是当前已加载的 mod，使用静默导入并立即加载
+            if (isCurrentMod) {
+                // 静默导入，不显示成功消息
+                const imported = await doImportSilent(filePath);
+                
+                if (imported?.extractedPath) {
+                    // 调用后端加载流程：关闭窗口→加载资源→重置状态→重建窗口→触发登录
+                    const info = (await invoke("load_mod_from_path", {
+                        modPath: imported.extractedPath,
+                    })) as ModInfo;
+
+                    // 立即刷新当前 mod 状态
+                    currentModPath = info.path;
+                    currentModName = info.manifest.id;
+                    currentModVersion = info.manifest.version;
+
+                    // 手动刷新 mod 列表（因为导入后目录可能改变）
+                    await loadModList();
+
+                    // 尝试让列表选中该 mod
+                    setTimeout(() => selectMod(info.manifest.id), 100);
+
+                    // 显示加载成功消息
+                    await message(_("modWindow.importAndLoadSuccess") || _("resource.statusLoadSuccess"), {
+                        title: "TrayBuddy",
+                        kind: "info",
+                    });
+                } else {
+                    // 如果没有 extractedPath，回退到普通导入流程
+                    await doImportFromPath(filePath);
+                }
+            } else {
+                // 普通导入（非当前 mod），使用带提示的版本
+                await doImportFromPath(filePath);
             }
         } catch (e) {
-            if (e === "Canceled") return;
-
-            let errorMsg = e as string;
-            if (errorMsg.includes("Invalid .tbuddy file")) {
-                errorMsg = _("modWindow.unrecognizedFile");
-            }
-
-            await message(`${_("modWindow.importFailed")}: ${errorMsg}`, {
-                title: "TrayBuddy",
-                kind: "error",
-            });
+            await showImportError(e);
         }
     }
+
+
+    async function importMod() {
+        try {
+            const picked = (await invoke("pick_mod_tbuddy")) as ModTbuddyPick;
+            if (!picked?.filePath) return;
+
+            // 如果发现已经加载了同 id 的 mod，则弹窗提示并询问保留哪个
+            if (currentModName && picked.id === currentModName) {
+                conflictOpen = true;
+                conflictModId = picked.id;
+                conflictLoadedVersion = currentModVersion || _("common.unknown");
+                conflictIncomingVersion = picked.version || _("common.unknown");
+                pendingImportPath = picked.filePath;
+                return;
+            }
+
+            await doImportFromPath(picked.filePath);
+        } catch (e) {
+            // 后端 file picker 取消会返回 "Canceled"
+            if (toErrorMessage(e) === "Canceled") return;
+            await showImportError(e);
+        }
+    }
+
+
+
 
     // ======================================================================= //
     // Lifecycle
@@ -346,6 +489,47 @@
         {/if}
     </div>
 </div>
+
+{#if conflictOpen}
+    <div
+        class="modal-backdrop"
+        role="button"
+        tabindex="0"
+        aria-label="Close"
+        onclick={(e) => {
+            if (e.currentTarget === e.target) keepLoadedAndExit();
+        }}
+        onkeydown={(e) => {
+            if (e.key === "Escape") keepLoadedAndExit();
+        }}
+    >
+        <div class="modal" role="dialog" aria-modal="true">
+            <h3>{_("modWindow.conflictTitle")}</h3>
+            <div class="modal-body">
+                <div class="line">
+                    <span class="label">{_("modWindow.conflictId")}:</span>
+                    <span class="value">{conflictModId}</span>
+                </div>
+                <div class="line">
+                    <span class="label">{_("modWindow.conflictLoaded")}:</span>
+                    <span class="value">v{conflictLoadedVersion}</span>
+                </div>
+                <div class="line">
+                    <span class="label">{_("modWindow.conflictImported")}:</span>
+                    <span class="value">v{conflictIncomingVersion}</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" onclick={keepLoadedAndExit}>
+                    {_("modWindow.keepLoaded")}
+                </button>
+                <button type="button" class="load-btn" onclick={keepIncomingAndContinue}>
+                    {_("modWindow.keepImported")}
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <style>
     :global(body) {
@@ -608,12 +792,69 @@
         box-shadow: 0 6px 16px rgba(250, 173, 20, 0.4);
     }
 
+
+
+
     .empty-state {
         flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #999;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+
+        cursor: pointer;
+    }
+
+    .modal {
+        width: 420px;
+        max-width: calc(100vw - 40px);
+        background: #fff;
+        border-radius: 10px;
+        padding: 18px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        cursor: default;
+    }
+
+    .modal h3 {
+        margin: 0 0 12px 0;
+        font-size: 1.05em;
+        color: #333;
+    }
+
+    .modal-body {
+        background: #f8f9fa;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .modal-body .line {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        margin-bottom: 8px;
+    }
+
+    .modal-body .line:last-child {
+        margin-bottom: 0;
+    }
+
+    .modal-actions {
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -691,5 +932,17 @@
             background: #555;
             color: #177ddc;
         }
+        .modal {
+            background: #3a3a3a;
+            border-color: #444;
+        }
+        .modal h3 {
+            color: #f6f6f6;
+        }
+        .modal-body {
+            background: #2f2f2f;
+            border-color: #444;
+        }
     }
 </style>
+

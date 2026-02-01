@@ -1123,19 +1123,13 @@ impl ResourceManager {
         }
     }
 
-    /// 加载指定的 Mod
-    ///
-    /// 加载成功后返回 Mod 信息的克隆（用于返回给前端）。
-    /// 内部会缓存原始数据，后续查询使用缓存避免重复克隆。
-    /// 从磁盘读取 Mod 信息（不加载到当前状态）
-    ///
-    /// 用于 Mod 预览或加载前的检查
-    pub fn read_mod_from_disk(&mut self, mod_id: &str) -> Result<ModInfo, String> {
-        // 查找 Mod 目录（优先使用 manifest.id 解析）
-        let mod_path = self
-            .resolve_mod_path(mod_id)
-            .ok_or_else(|| format!("Mod '{}' not found", mod_id))?;
-
+    fn read_mod_from_path(&self, mod_path: PathBuf) -> Result<ModInfo, String> {
+        if !mod_path.exists() {
+            return Err(format!("Mod path does not exist: {:?}", mod_path));
+        }
+        if !mod_path.is_dir() {
+            return Err(format!("Mod path is not a directory: {:?}", mod_path));
+        }
 
         // 解析 manifest.json
         let manifest_path = mod_path.join("manifest.json");
@@ -1210,6 +1204,23 @@ impl ResourceManager {
         Ok(mod_info)
     }
 
+    /// 从磁盘读取 Mod 信息（不加载到当前状态）
+    ///
+    /// 用于 Mod 预览或加载前的检查
+    pub fn read_mod_from_disk(&mut self, mod_id: &str) -> Result<ModInfo, String> {
+        // 查找 Mod 目录（优先使用 manifest.id 解析）
+        let mod_path = self
+            .resolve_mod_path(mod_id)
+            .ok_or_else(|| format!("Mod '{}' not found", mod_id))?;
+
+        self.read_mod_from_path(mod_path)
+    }
+
+    /// 从指定目录读取 Mod 信息（不通过索引解析 id）
+    pub fn read_mod_from_folder_path(&self, mod_path: PathBuf) -> Result<ModInfo, String> {
+        self.read_mod_from_path(mod_path)
+    }
+
     /// 加载指定的 Mod
     ///
     /// 加载成功后返回 Mod 信息的克隆（用于返回给前端）。
@@ -1218,6 +1229,14 @@ impl ResourceManager {
         let mod_info = Arc::new(self.read_mod_from_disk(mod_id)?);
         let result = mod_info.clone();
 
+        self.current_mod = Some(mod_info);
+        Ok(result)
+    }
+
+    /// 从指定目录路径直接加载 Mod（用于导入后立即加载某个具体目录）
+    pub fn load_mod_from_folder_path(&mut self, mod_path: PathBuf) -> Result<Arc<ModInfo>, String> {
+        let mod_info = Arc::new(self.read_mod_from_folder_path(mod_path)?);
+        let result = mod_info.clone();
         self.current_mod = Some(mod_info);
         Ok(result)
     }
