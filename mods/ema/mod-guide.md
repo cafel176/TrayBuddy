@@ -8,7 +8,10 @@
 mods/mod/
 ├── manifest.json            # mod主要信息清单
 ├── preview.png              # mod预览图
+├── icon.png                 # mod图标 (或 icon.ico)
+├── bubble_style.json        # [可选] 气泡样式自定义配置
 ├── asset/                  # 动画图像资源
+
 │   ├── img.json                # 杂图索引
 │   ├── sequence.json           # 序列帧动画索引
 │   ├── img/                    # 杂图存放处
@@ -42,9 +45,12 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `default_text_lang_id` | String | 找不到对应语言的文本时，会使用默认id语言的文本 |
 | `character` | Object | 角色渲染配置 |
 | `border` | Object | 边框配置 |
-| `important_states` | Object | 关键状态映射 (如 `idle`) |
-| `states` | Array | 其他状态定义数组 |
+| `show_mod_data_panel` | Boolean | 是否在动画窗口左上角显示 Mod 数据面板 |
+| `mod_data_default_int` | Number | Mod 数据的默认初始整数值 (首次加载该 Mod 时写入) |
+| `important_states` | Object | 关键状态映射 (如 `idle`, `silence`)，Key 为状态名，Value 为状态对象 |
+| `states` | Array | 其他普通状态定义数组 |
 | `triggers` | Array | 事件触发定义数组 |
+
 
 #### 2.1.1 角色配置对象 (Character Object)
 
@@ -75,9 +81,12 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | `time_start` / `time_end` | String | 有效时间区间 (格式：HH:MM，可选) |
 | `next_state` | String | 播放完成后自动跳转到的下一个状态名称 |
 | `can_trigger_states` | Array | 处于该状态下可能随机触发的子状态列表 |
-| `trigger_time` | Number | 随机触发的最小间隔时间 (秒)，最小值为 300 秒，小于 300 会被自动修正为 300 |
+| `trigger_time` | Number | 随机触发的最小间隔时间 (秒)。若大于 0，则受系统最小间隔限制（当前为 300 秒），小于 300 会被自动修正。设为 0 表示不自动触发。 |
 | `trigger_rate` | Number | 随机触发的概率 (0.0 - 1.0) |
-| `branch` | Array | 分支选项数组，用于交互式对话 |
+| `mod_data_counter` | Object | 进入该状态时对 Mod 数据执行的操作 (可选) |
+| `branch_show_bubble` | Boolean | 标记是否在界面上显示对话分支按钮 (默认 true) |
+| `branch` | Array | 固定对话分支选项数组，用于交互式对话 |
+
 
 #### 2.1.4 分支对象 (Branch Object)
 用于状态对象的 `branch` 数组，实现交互式对话选项。
@@ -101,7 +110,16 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `persistent_state` | String | 持久状态名称，只有处于该持久状态时才能触发。为空字符串时表示任意持久状态都可触发 |
-| `states` | Array | 可触发的状态名称列表 |
+| `states` | Array | 可触发的状态列表。支持字符串数组 `["state1"]` 或对象数组 `[{"state": "state1", "weight": 1}]` 以支持权重随机。 |
+
+#### 2.1.7 数据计数器对象 (ModDataCounter Object)
+用于状态对象的 `mod_data_counter` 字段。
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `op` | String | 操作类型：`add` (加), `sub` (减), `mul` (乘), `div` (除), `set` (直接设置) |
+| `value` | Number | 操作数 |
+
 
 **触发器配置示例：**
 
@@ -219,9 +237,13 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 }
 ```
 
+### 2.7 `bubble_style.json` (可选)
+用于自定义对话气泡的视觉样式（颜色、边框、字体大小等）。若不存在，则使用系统默认样式。
+
 ---
 
 ## 3. 对话分支系统
+
 
 对话分支允许用户通过点击选项来决定对话走向。
 
@@ -267,16 +289,16 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 
 ### 4.1 重要状态 (Important States)
 
-以下是 mod 中定义的关键状态：
+以下是系统内置或约定俗成的关键状态，建议在 `important_states` 中定义：
 
 | 状态名称 | 持久状态 | 说明 |
 | :--- | :--- | :--- |
-| `idle` | ✅ | 默认空闲状态，定时随机触发交互 |
-| `silence` | ✅ | 免打扰状态，无随机触发 |
-| `silence_start` | ❌ | 进入免打扰时触发，切换到 `silence` |
-| `silence_end` | ❌ | 退出免打扰时触发，切换到 `idle` |
-| `music` | ✅ | 播放音乐状态，低频率随机触发 |
-| `music_start` | ❌ | 音乐开始时触发，切换到 `music` |
-| `music_end` | ❌ | 音乐结束时触发，切换到 `idle` |
-| `birthday` | ❌ | 在用户生日时触发 |
-| `firstday` | ❌ | 在用户首次登录纪念日触发 |
+| `idle` | ✅ | **默认空闲状态**。系统启动或临时状态播放完毕后通常返回此状态，支持定时随机触发交互。 |
+| `silence` | ✅ | **静默/免打扰状态**。当检测到全屏应用或用户手动开启时进入，通常不应设置随机触发。 |
+| `silence_start` | ❌ | 进入静默模式的过渡状态。 |
+| `silence_end` | ❌ | 退出静默模式返回 `idle` 的过渡状态。 |
+| `music` | ✅ | **音乐播放状态**。当检测到系统有媒体播放时进入。 |
+| `music_start` | ❌ | 音乐开始播放时的过渡状态。 |
+| `music_end` | ❌ | 音乐停止播放返回 `idle` 的过渡状态。 |
+| `birthday` | ❌ | 用户生日触发状态。 |
+| `firstday` | ❌ | 用户首次运行周年纪念触发状态。 |

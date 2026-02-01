@@ -173,7 +173,7 @@ pub const LOCATION_API_TIMEOUT_SECS: u64 = 30;
 /// 触发器最小触发间隔时间（秒）
 ///
 /// **用途**: 防止状态过于频繁切换，至少间隔 5 分钟才会触发下一次随机事件。
-pub const MIN_TRIGGER_TIME_SECS: f32 = 300.0;
+pub const MIN_TRIGGER_TIME_SECS: f32 = 1.0;
 
 /// 定时触发器检查间隔（秒）
 ///
