@@ -44,8 +44,8 @@ pub const MORNING_HOUR_START: u32 = 6;
 /// 早晨结束时间（小时）
 pub const MORNING_HOUR_END: u32 = 12;
 
-/// 中午结束时间（小时）
-pub const NOON_HOUR_END: u32 = 18;
+/// 下午结束时间（小时）
+pub const AFTERNOON_HOUR_END: u32 = 18;
 
 /// 傍晚结束时间（小时）
 pub const EVENING_HOUR_END: u32 = 22;
@@ -90,7 +90,7 @@ const SEASON_NAME_WINTER_ZH: &str = "冬";
 
 // 时间段名称常量
 const TIME_PERIOD_MORNING: &str = "morning";
-const TIME_PERIOD_NOON: &str = "noon";
+const TIME_PERIOD_AFTERNOON: &str = "afternoon";
 const TIME_PERIOD_EVENING: &str = "evening";
 const TIME_PERIOD_NIGHT: &str = "night";
 
@@ -515,16 +515,16 @@ pub fn is_morning() -> bool {
     dt.hour >= MORNING_HOUR_START && dt.hour < MORNING_HOUR_END
 }
 
-/// 便捷函数：判断当前是否是下午
-pub fn is_noon() -> bool {
+/// 便捷函数：判断当前是否是中午/下午
+pub fn is_afternoon() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= MORNING_HOUR_END && dt.hour < NOON_HOUR_END
+    dt.hour >= MORNING_HOUR_END && dt.hour < AFTERNOON_HOUR_END
 }
 
 /// 便捷函数：判断当前是否是晚上
 pub fn is_evening() -> bool {
     let dt = get_current_datetime();
-    dt.hour >= NOON_HOUR_END && dt.hour < EVENING_HOUR_END
+    dt.hour >= AFTERNOON_HOUR_END && dt.hour < EVENING_HOUR_END
 }
 
 /// 便捷函数：判断当前是否是夜间
@@ -537,8 +537,8 @@ pub fn is_night() -> bool {
 pub fn get_time_period() -> &'static str {
     if is_morning() {
         TIME_PERIOD_MORNING
-    } else if is_noon() {
-        TIME_PERIOD_NOON
+    } else if is_afternoon() {
+        TIME_PERIOD_AFTERNOON
     } else if is_evening() {
         TIME_PERIOD_EVENING
     } else {

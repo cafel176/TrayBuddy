@@ -708,18 +708,23 @@
 
     .row {
         display: flex;
-        margin-bottom: 8px;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 15px;
+        margin-bottom: 10px;
     }
 
     .label {
-        width: 80px;
         color: #666;
         font-weight: 500;
+        flex-shrink: 0;
     }
 
     .value {
         color: #333;
         font-weight: 600;
+        text-align: right;
+        word-break: break-all;
     }
 
     .desc {

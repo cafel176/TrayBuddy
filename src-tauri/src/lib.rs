@@ -2335,9 +2335,9 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 label: "about",
                 url: "about",
                 title_key: "menu.about",
-                width: 450.0,
-                height: 420.0,
-                resizable: false,
+                width: 500.0,
+                height: 720.0,
+                resizable: true,
                 center: true,
             });
         }
@@ -2366,7 +2366,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 title_key: "common.modsTitle",
                 width: 800.0,
                 height: 700.0,
-                resizable: false,
+                resizable: true,
                 center: false,
             });
         }
@@ -2377,7 +2377,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 title_key: "common.settingsTitle",
                 width: 800.0,
                 height: 700.0,
-                resizable: false,
+                resizable: true,
                 center: false,
             });
         }
