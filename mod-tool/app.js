@@ -88,7 +88,23 @@ document.addEventListener('DOMContentLoaded', () => {
   initPreviewUpload();
   initBubbleListeners();
   initLanguageChangeListener();
+  initDatePickers();
 });
+
+/**
+ * 初始化日期选择器事件监听
+ */
+function initDatePickers() {
+  // 开始日期月份改变时更新日选项
+  document.getElementById('state-date-start-month')?.addEventListener('change', () => {
+    updateDayOptions('state-date-start-month', 'state-date-start-day');
+  });
+  
+  // 结束日期月份改变时更新日选项
+  document.getElementById('state-date-end-month')?.addEventListener('change', () => {
+    updateDayOptions('state-date-end-month', 'state-date-end-day');
+  });
+}
 
 /**
  * 初始化语言切换监听
@@ -1642,6 +1658,148 @@ function updateAnimaSelects() {
   });
 }
 
+/**
+ * 获取所有音频名称
+ */
+function getAllAudioNames() {
+  const audioNames = new Set();
+  for (const [lang, audios] of Object.entries(currentMod.audio || {})) {
+    if (Array.isArray(audios)) {
+      audios.forEach(a => {
+        if (a && a.name) audioNames.add(a.name);
+      });
+    }
+  }
+  return Array.from(audioNames);
+}
+
+/**
+ * 获取所有文本名称
+ */
+function getAllTextNames() {
+  const textNames = new Set();
+  for (const [lang, data] of Object.entries(currentMod.texts || {})) {
+    if (data && Array.isArray(data.speech)) {
+      data.speech.forEach(s => {
+        if (s && s.name) textNames.add(s.name);
+      });
+    }
+  }
+  return Array.from(textNames);
+}
+
+/**
+ * 获取所有状态名称
+ */
+function getAllStateNames() {
+  const stateNames = new Set();
+  
+  // 普通状态
+  if (Array.isArray(currentMod.manifest.states)) {
+    currentMod.manifest.states.forEach(s => {
+      if (s && s.name) stateNames.add(s.name);
+    });
+  }
+  
+  // 重要状态
+  const importantStates = currentMod.manifest.important_states || {};
+  for (const [key, state] of Object.entries(importantStates)) {
+    if (state && state.name) stateNames.add(state.name);
+  }
+  
+  return Array.from(stateNames);
+}
+
+/**
+ * 更新音频下拉列表
+ */
+function updateAudioSelect(selectElement, currentValue = '') {
+  if (!selectElement) return;
+  
+  const audioNames = getAllAudioNames();
+  selectElement.innerHTML = `<option value="">${window.i18n.t('select_audio_placeholder')}</option>`;
+  audioNames.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    selectElement.appendChild(option);
+  });
+  selectElement.value = currentValue;
+}
+
+/**
+ * 更新文本下拉列表
+ */
+function updateTextSelect(selectElement, currentValue = '') {
+  if (!selectElement) return;
+  
+  const textNames = getAllTextNames();
+  selectElement.innerHTML = `<option value="">${window.i18n.t('select_text_placeholder')}</option>`;
+  textNames.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    selectElement.appendChild(option);
+  });
+  selectElement.value = currentValue;
+}
+
+/**
+ * 更新状态下拉列表
+ */
+function updateStateSelect(selectElement, currentValue = '', excludeState = '') {
+  if (!selectElement) return;
+  
+  const stateNames = getAllStateNames().filter(n => n !== excludeState);
+  selectElement.innerHTML = `<option value="">${window.i18n.t('select_state_placeholder')}</option>`;
+  stateNames.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    selectElement.appendChild(option);
+  });
+  selectElement.value = currentValue;
+}
+
+/**
+ * 生成音频下拉选项HTML
+ */
+function getAudioSelectOptions(currentValue = '') {
+  const audioNames = getAllAudioNames();
+  let html = `<option value="">${window.i18n.t('select_audio_placeholder')}</option>`;
+  audioNames.forEach(name => {
+    const selected = name === currentValue ? ' selected' : '';
+    html += `<option value="${name}"${selected}>${name}</option>`;
+  });
+  return html;
+}
+
+/**
+ * 生成文本下拉选项HTML
+ */
+function getTextSelectOptions(currentValue = '') {
+  const textNames = getAllTextNames();
+  let html = `<option value="">${window.i18n.t('select_text_placeholder')}</option>`;
+  textNames.forEach(name => {
+    const selected = name === currentValue ? ' selected' : '';
+    html += `<option value="${name}"${selected}>${name}</option>`;
+  });
+  return html;
+}
+
+/**
+ * 生成状态下拉选项HTML
+ */
+function getStateSelectOptions(currentValue = '', excludeState = '') {
+  const stateNames = getAllStateNames().filter(n => n !== excludeState);
+  let html = `<option value="">${window.i18n.t('select_state_placeholder')}</option>`;
+  stateNames.forEach(name => {
+    const selected = name === currentValue ? ' selected' : '';
+    html += `<option value="${name}"${selected}>${name}</option>`;
+  });
+  return html;
+}
+
 // ============================================================================
 // 状态管理
 // ============================================================================
@@ -1671,12 +1829,22 @@ function renderStates() {
         </div>
       </div>
       <div class="state-item-actions">
-        <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ ${window.i18n.t('btn_edit')}</button>
-        <button class="btn btn-sm btn-ghost" onclick="deleteState(${index})">🗑️ ${window.i18n.t('btn_delete')}</button>
+        <button class="btn btn-sm btn-ghost" onclick="copyStateToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+        <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
+        <button class="btn btn-sm btn-ghost" onclick="deleteState(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
       </div>
     `;
     stateList.appendChild(item);
   });
+  
+  // 底部添加按钮
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteStateFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addState()">➕ <span data-i18n="btn_add_state">${window.i18n.t('btn_add_state')}</span></button>
+  `;
+  stateList.appendChild(footer);
 }
 
 /**
@@ -1721,7 +1889,9 @@ function renderImportantStateCard(state, key) {
     <div class="state-card-header">
       <span class="state-card-title">${state.name || key}</span>
       <div class="state-card-actions">
-        <button class="btn btn-sm btn-ghost" onclick="editImportantState('${key}')">✏️ ${window.i18n.t('btn_edit')}</button>
+        <button class="btn btn-sm btn-ghost" onclick="copyImportantStateToClipboard('${key}')" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+        <button class="btn btn-sm btn-ghost" onclick="pasteImportantStateFromClipboard('${key}')" title="${window.i18n.t('btn_paste_from_clipboard')}">📥</button>
+        <button class="btn btn-sm btn-ghost" onclick="editImportantState('${key}')">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
       </div>
     </div>
     <div class="state-card-body">
@@ -1801,14 +1971,16 @@ function openStateModal(title, state) {
   
   document.getElementById('state-name').value = state.name || '';
   document.getElementById('state-persistent').checked = state.persistent || false;
-  document.getElementById('state-audio').value = state.audio || '';
-  document.getElementById('state-text').value = state.text || '';
   document.getElementById('state-priority').value = state.priority || 2;
-  document.getElementById('state-date-start').value = state.date_start || '';
-  document.getElementById('state-date-end').value = state.date_end || '';
+  
+  // 设置日期选择器
+  setDatePicker('state-date-start', state.date_start || '');
+  setDatePicker('state-date-end', state.date_end || '');
+  
+  // 设置时间选择器
   document.getElementById('state-time-start').value = state.time_start || '';
   document.getElementById('state-time-end').value = state.time_end || '';
-  document.getElementById('state-next-state').value = state.next_state || '';
+  
   document.getElementById('state-trigger-time').value = state.trigger_time || 0;
   document.getElementById('state-trigger-rate').value = state.trigger_rate || 0;
   document.getElementById('state-branch-show-bubble').checked = state.branch_show_bubble !== false;
@@ -1816,6 +1988,15 @@ function openStateModal(title, state) {
   // 更新动画下拉列表
   updateAnimaSelects();
   document.getElementById('state-anima').value = state.anima || '';
+  
+  // 更新音频下拉列表
+  updateAudioSelect(document.getElementById('state-audio'), state.audio || '');
+  
+  // 更新文本下拉列表
+  updateTextSelect(document.getElementById('state-text'), state.text || '');
+  
+  // 更新下一状态下拉列表（排除当前状态自身）
+  updateStateSelect(document.getElementById('state-next-state'), state.next_state || '', state.name || '');
   
   // 渲染可触发子状态
   renderCanTriggerStates(state.can_trigger_states || []);
@@ -1834,6 +2015,83 @@ function openStateModal(title, state) {
   renderBranches(state.branch || []);
   
   document.getElementById('state-modal').classList.add('show');
+}
+
+/**
+ * 获取指定月份的天数
+ */
+function getDaysInMonth(month) {
+  const daysMap = {
+    '01': 31, '02': 29, '03': 31, '04': 30,
+    '05': 31, '06': 30, '07': 31, '08': 31,
+    '09': 30, '10': 31, '11': 30, '12': 31
+  };
+  return daysMap[month] || 31;
+}
+
+/**
+ * 更新日期选择器的日选项
+ */
+function updateDayOptions(monthSelectId, daySelectId) {
+  const monthSelect = document.getElementById(monthSelectId);
+  const daySelect = document.getElementById(daySelectId);
+  if (!monthSelect || !daySelect) return;
+  
+  const month = monthSelect.value;
+  const currentDay = daySelect.value;
+  const days = month ? getDaysInMonth(month) : 31;
+  
+  // 保存当前选中的日
+  daySelect.innerHTML = '<option value="">--</option>';
+  for (let i = 1; i <= days; i++) {
+    const val = i.toString().padStart(2, '0');
+    const option = document.createElement('option');
+    option.value = val;
+    option.textContent = val;
+    daySelect.appendChild(option);
+  }
+  
+  // 恢复之前的选择（如果仍有效）
+  if (currentDay && parseInt(currentDay) <= days) {
+    daySelect.value = currentDay;
+  }
+}
+
+/**
+ * 设置日期选择器的值
+ */
+function setDatePicker(baseName, value) {
+  const monthSelect = document.getElementById(baseName + '-month');
+  const daySelect = document.getElementById(baseName + '-day');
+  if (!monthSelect || !daySelect) return;
+  
+  if (value && value.includes('-')) {
+    const [month, day] = value.split('-');
+    monthSelect.value = month;
+    updateDayOptions(baseName + '-month', baseName + '-day');
+    daySelect.value = day;
+  } else {
+    monthSelect.value = '';
+    updateDayOptions(baseName + '-month', baseName + '-day');
+    daySelect.value = '';
+  }
+}
+
+/**
+ * 获取日期选择器的值
+ */
+function getDatePickerValue(baseName) {
+  const monthSelect = document.getElementById(baseName + '-month');
+  const daySelect = document.getElementById(baseName + '-day');
+  if (!monthSelect || !daySelect) return '';
+  
+  const month = monthSelect.value;
+  const day = daySelect.value;
+  
+  if (month && day) {
+    return `${month}-${day}`;
+  }
+  return '';
 }
 
 /**
@@ -1858,7 +2116,7 @@ function renderCanTriggerStates(canTriggerStates) {
     }
     
     div.innerHTML = `
-      <input type="text" placeholder="${window.i18n.t('state_name_label')}" value="${stateName}" data-can-trigger-state="${index}">
+      <select data-can-trigger-state="${index}">${getStateSelectOptions(stateName)}</select>
       <input type="number" placeholder="${window.i18n.t('weight_label')}" value="${weight}" min="1" data-can-trigger-weight="${index}" style="width: 80px;">
       <button class="btn btn-sm btn-ghost" onclick="removeCanTriggerState(${index})">🗑️</button>
     `;
@@ -1876,7 +2134,7 @@ function addCanTriggerState() {
   const div = document.createElement('div');
   div.className = 'can-trigger-item';
   div.innerHTML = `
-    <input type="text" placeholder="${window.i18n.t('state_name_label')}" data-can-trigger-state="${index}">
+    <select data-can-trigger-state="${index}">${getStateSelectOptions()}</select>
     <input type="number" placeholder="${window.i18n.t('weight_label')}" value="1" min="1" data-can-trigger-weight="${index}" style="width: 80px;">
     <button class="btn btn-sm btn-ghost" onclick="removeCanTriggerState(${index})">🗑️</button>
   `;
@@ -1949,8 +2207,8 @@ function saveState() {
     audio: document.getElementById('state-audio').value.trim(),
     text: document.getElementById('state-text').value.trim(),
     priority: parseInt(document.getElementById('state-priority').value) || 2,
-    date_start: document.getElementById('state-date-start').value.trim(),
-    date_end: document.getElementById('state-date-end').value.trim(),
+    date_start: getDatePickerValue('state-date-start'),
+    date_end: getDatePickerValue('state-date-end'),
     time_start: document.getElementById('state-time-start').value.trim(),
     time_end: document.getElementById('state-time-end').value.trim(),
     next_state: document.getElementById('state-next-state').value.trim(),
@@ -2007,8 +2265,8 @@ function renderBranches(branches) {
     const item = document.createElement('div');
     item.className = 'branch-item';
     item.innerHTML = `
-      <input type="text" placeholder="${window.i18n.t('branch_text_placeholder')}" value="${branch.text || ''}" data-branch-text="${index}">
-      <input type="text" placeholder="${window.i18n.t('branch_state_placeholder')}" value="${branch.next_state || ''}" data-branch-state="${index}">
+      <select data-branch-text="${index}">${getTextSelectOptions(branch.text || '')}</select>
+      <select data-branch-state="${index}">${getStateSelectOptions(branch.next_state || '')}</select>
       <button class="btn btn-sm btn-ghost" onclick="removeBranch(${index})">🗑️</button>
     `;
     branchList.appendChild(item);
@@ -2025,8 +2283,8 @@ function addBranch() {
   const item = document.createElement('div');
   item.className = 'branch-item';
   item.innerHTML = `
-    <input type="text" placeholder="${window.i18n.t('branch_text_placeholder')}" data-branch-text="${index}">
-    <input type="text" placeholder="${window.i18n.t('branch_state_placeholder')}" data-branch-state="${index}">
+    <select data-branch-text="${index}">${getTextSelectOptions()}</select>
+    <select data-branch-state="${index}">${getStateSelectOptions()}</select>
     <button class="btn btn-sm btn-ghost" onclick="removeBranch(${index})">🗑️</button>
   `;
   branchList.appendChild(item);
@@ -2089,8 +2347,9 @@ function renderTriggers() {
           <code>${trigger.event}</code>
         </div>
         <div class="trigger-actions">
-          <button class="btn btn-sm btn-ghost" onclick="editTriggerFull(${index})">✏️ ${window.i18n.t('btn_edit')}</button>
-          <button class="btn btn-sm btn-ghost" onclick="deleteTrigger(${index})">🗑️ ${window.i18n.t('btn_delete')}</button>
+          <button class="btn btn-sm btn-ghost" onclick="copyTriggerToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editTriggerFull(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteTrigger(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
         </div>
       </div>
       <div class="trigger-states">
@@ -2099,6 +2358,15 @@ function renderTriggers() {
     `;
     triggerList.appendChild(item);
   });
+  
+  // 底部添加按钮
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteTriggerFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ <span data-i18n="btn_add_trigger">${window.i18n.t('btn_add_trigger')}</span></button>
+  `;
+  triggerList.appendChild(footer);
 }
 
 /**
@@ -2201,7 +2469,7 @@ function renderTriggerGroups(canTriggerStates) {
       const weight = (s && typeof s === 'object' && Number.isFinite(s.weight)) ? s.weight : 1;
       return `
         <div class="trigger-state-row" data-group="${groupIndex}" data-state="${stateIndex}">
-          <input type="text" placeholder="${window.i18n.t('state_name_label')}" value="${stateName}" data-trigger-state-name="${groupIndex}-${stateIndex}">
+          <select data-trigger-state-name="${groupIndex}-${stateIndex}">${getStateSelectOptions(stateName)}</select>
           <input type="number" placeholder="${window.i18n.t('weight_label')}" value="${weight}" min="1" data-trigger-state-weight="${groupIndex}-${stateIndex}" style="width: 70px;">
           <button class="btn btn-sm btn-ghost" onclick="removeTriggerState(${groupIndex}, ${stateIndex})">🗑️</button>
         </div>
@@ -2212,14 +2480,14 @@ function renderTriggerGroups(canTriggerStates) {
       <div class="trigger-group-header">
         <div class="form-group" style="flex: 1; margin: 0;">
           <label>${window.i18n.t('persistent_state_label')}</label>
-          <input type="text" placeholder="${window.i18n.t('persistent_state_hint')}" value="${persistentState}" data-trigger-persistent="${groupIndex}">
+          <select data-trigger-persistent="${groupIndex}">${getStateSelectOptions(persistentState)}</select>
         </div>
-        <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ ${window.i18n.t('btn_delete_group')}</button>
+        <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ <span data-i18n="btn_delete_group">${window.i18n.t('btn_delete_group')}</span></button>
       </div>
       <div class="trigger-states-list" data-trigger-group="${groupIndex}">
         ${statesHtml}
       </div>
-      <button class="btn btn-sm btn-secondary" onclick="addTriggerStateToGroup(${groupIndex})" style="margin-top: 8px;">➕ ${window.i18n.t('btn_add_state')}</button>
+      <button class="btn btn-sm btn-secondary" onclick="addTriggerStateToGroup(${groupIndex})" style="margin-top: 8px;">➕ <span data-i18n="btn_add_state">${window.i18n.t('btn_add_state')}</span></button>
     `;
     
     list.appendChild(div);
@@ -2239,13 +2507,13 @@ function addTriggerGroup() {
     <div class="trigger-group-header">
       <div class="form-group" style="flex: 1; margin: 0;">
         <label>${window.i18n.t('persistent_state_label')}</label>
-        <input type="text" placeholder="${window.i18n.t('persistent_state_hint')}" data-trigger-persistent="${groupIndex}">
+        <select data-trigger-persistent="${groupIndex}">${getStateSelectOptions()}</select>
       </div>
-      <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ ${window.i18n.t('btn_delete_group')}</button>
+      <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ <span data-i18n="btn_delete_group">${window.i18n.t('btn_delete_group')}</span></button>
     </div>
     <div class="trigger-states-list" data-trigger-group="${groupIndex}">
     </div>
-    <button class="btn btn-sm btn-secondary" onclick="addTriggerStateToGroup(${groupIndex})" style="margin-top: 8px;">➕ ${window.i18n.t('btn_add_state')}</button>
+    <button class="btn btn-sm btn-secondary" onclick="addTriggerStateToGroup(${groupIndex})" style="margin-top: 8px;">➕ <span data-i18n="btn_add_state">${window.i18n.t('btn_add_state')}</span></button>
   `;
   
   list.appendChild(div);
@@ -2276,7 +2544,7 @@ function addTriggerStateToGroup(groupIndex) {
   row.dataset.group = groupIndex;
   row.dataset.state = stateIndex;
   row.innerHTML = `
-    <input type="text" placeholder="${window.i18n.t('state_name_label')}" data-trigger-state-name="${groupIndex}-${stateIndex}">
+    <select data-trigger-state-name="${groupIndex}-${stateIndex}">${getStateSelectOptions()}</select>
     <input type="number" placeholder="${window.i18n.t('weight_label')}" value="1" min="1" data-trigger-state-weight="${groupIndex}-${stateIndex}" style="width: 70px;">
     <button class="btn btn-sm btn-ghost" onclick="removeTriggerState(${groupIndex}, ${stateIndex})">🗑️</button>
   `;
@@ -2436,6 +2704,7 @@ function renderAssetList(type, assets) {
       <div class="asset-card-header">
         <span class="asset-card-name">${asset.name}</span>
         <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyAssetToClipboard('${type}', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
           <button class="btn btn-sm btn-ghost" onclick="editAsset('${type}', ${index})">✏️</button>
           <button class="btn btn-sm btn-ghost" onclick="deleteAsset('${type}', ${index})">🗑️</button>
         </div>
@@ -2449,6 +2718,16 @@ function renderAssetList(type, assets) {
     `;
     list.appendChild(card);
   });
+  
+  // 底部添加按钮
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  const btnLabel = type === 'sequence' ? window.i18n.t('btn_add_animation') : window.i18n.t('btn_add_img');
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteAssetFromClipboard('${type}')">📋 <span data-i18n="btn_paste_from_clipboard">${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addAsset('${type}')">➕ <span>${btnLabel}</span></button>
+  `;
+  list.appendChild(footer);
 }
 
 /**
@@ -2561,6 +2840,184 @@ function deleteAsset(type, index) {
 }
 
 // ============================================================================
+// 剪切板功能
+// ============================================================================
+
+/**
+ * 复制单个资源到剪切板
+ */
+async function copyAssetToClipboard(type, index) {
+  if (!currentMod) return;
+  const asset = currentMod.assets[type][index];
+  if (!asset) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'warning');
+    return;
+  }
+  try {
+    const data = {
+      type: 'tbuddy_asset',
+      data: asset
+    };
+    await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    showToast(window.i18n.t('msg_copied_to_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+  }
+}
+
+/**
+ * 从剪切板粘贴资源（添加到列表末尾）
+ */
+async function pasteAssetFromClipboard(type) {
+  if (!currentMod) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== 'tbuddy_asset' || typeof parsed.data !== 'object') {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+      return;
+    }
+    currentMod.assets[type].push(parsed.data);
+    renderAssets();
+    markUnsaved();
+    showToast(window.i18n.t('msg_pasted_from_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+  }
+}
+
+/**
+ * 复制单个重要状态到剪切板
+ */
+async function copyImportantStateToClipboard(key) {
+  if (!currentMod || !currentMod.manifest.important_states) return;
+  const state = currentMod.manifest.important_states[key];
+  if (!state) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'warning');
+    return;
+  }
+  try {
+    const data = {
+      type: 'tbuddy_important_state',
+      data: state
+    };
+    await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    showToast(window.i18n.t('msg_copied_to_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+  }
+}
+
+/**
+ * 从剪切板粘贴到指定重要状态
+ */
+async function pasteImportantStateFromClipboard(key) {
+  if (!currentMod) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== 'tbuddy_important_state' || typeof parsed.data !== 'object') {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+      return;
+    }
+    // 保留原有的 name 为 key
+    parsed.data.name = key;
+    currentMod.manifest.important_states[key] = parsed.data;
+    renderStates();
+    markUnsaved();
+    showToast(window.i18n.t('msg_pasted_from_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+  }
+}
+
+/**
+ * 复制单个普通状态到剪切板
+ */
+async function copyStateToClipboard(index) {
+  if (!currentMod) return;
+  const state = currentMod.manifest.states[index];
+  if (!state) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'warning');
+    return;
+  }
+  try {
+    const data = {
+      type: 'tbuddy_state',
+      data: state
+    };
+    await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    showToast(window.i18n.t('msg_copied_to_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+  }
+}
+
+/**
+ * 从剪切板粘贴普通状态（添加到列表末尾）
+ */
+async function pasteStateFromClipboard() {
+  if (!currentMod) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== 'tbuddy_state' || typeof parsed.data !== 'object') {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+      return;
+    }
+    currentMod.manifest.states.push(parsed.data);
+    renderStates();
+    markUnsaved();
+    showToast(window.i18n.t('msg_pasted_from_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+  }
+}
+
+/**
+ * 复制单个触发器到剪切板
+ */
+async function copyTriggerToClipboard(index) {
+  if (!currentMod) return;
+  const trigger = currentMod.manifest.triggers[index];
+  if (!trigger) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'warning');
+    return;
+  }
+  try {
+    const data = {
+      type: 'tbuddy_trigger',
+      data: trigger
+    };
+    await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    showToast(window.i18n.t('msg_copied_to_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+  }
+}
+
+/**
+ * 从剪切板粘贴触发器（添加到列表末尾）
+ */
+async function pasteTriggerFromClipboard() {
+  if (!currentMod) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== 'tbuddy_trigger' || typeof parsed.data !== 'object') {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+      return;
+    }
+    currentMod.manifest.triggers.push(parsed.data);
+    renderTriggers();
+    markUnsaved();
+    showToast(window.i18n.t('msg_pasted_from_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+  }
+}
+
+// ============================================================================
 // 文本管理
 // ============================================================================
 
@@ -2585,7 +3042,10 @@ function renderTexts() {
   langs.forEach(lang => {
     const tab = document.createElement('div');
     tab.className = `lang-tab ${lang === currentTextLang ? 'active' : ''}`;
-    tab.textContent = currentMod.texts[lang]?.info?.lang || lang;
+    tab.innerHTML = `
+      <span class="lang-tab-name">${currentMod.texts[lang]?.info?.lang || lang}</span>
+      <button class="lang-tab-delete" onclick="event.stopPropagation(); deleteTextLanguage('${lang}')" title="${window.i18n.t('btn_delete_lang')}">×</button>
+    `;
     tab.onclick = () => {
       currentTextLang = lang;
       renderTexts();
@@ -2646,6 +3106,14 @@ function renderSpeechTexts() {
     `;
     list.appendChild(item);
   });
+  
+  // 底部添加按钮
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-primary" onclick="addSpeechText()">➕ <span data-i18n="btn_add_text">${window.i18n.t('btn_add_text')}</span></button>
+  `;
+  list.appendChild(footer);
 }
 
 /**
@@ -2663,6 +3131,32 @@ function addLanguage() {
     markUnsaved();
     showToast(window.i18n.t('msg_lang_added'), 'success');
   }
+}
+
+/**
+ * 删除文本语言
+ */
+function deleteTextLanguage(langId) {
+  const langs = Object.keys(currentMod.texts);
+  if (langs.length <= 1) {
+    showToast(window.i18n.t('msg_cannot_delete_last_lang'), 'error');
+    return;
+  }
+  
+  if (!confirm(window.i18n.t('msg_confirm_delete_lang').replace('{lang}', langId))) {
+    return;
+  }
+  
+  delete currentMod.texts[langId];
+  
+  // 如果删除的是当前选中的语言，切换到第一个语言
+  if (currentTextLang === langId) {
+    currentTextLang = Object.keys(currentMod.texts)[0];
+  }
+  
+  renderTexts();
+  markUnsaved();
+  showToast(window.i18n.t('msg_lang_deleted'), 'success');
 }
 
 /**
@@ -2719,7 +3213,10 @@ function renderAudio() {
   langs.forEach(lang => {
     const tab = document.createElement('div');
     tab.className = `lang-tab ${lang === currentAudioLang ? 'active' : ''}`;
-    tab.textContent = lang;
+    tab.innerHTML = `
+      <span class="lang-tab-name">${lang}</span>
+      <button class="lang-tab-delete" onclick="event.stopPropagation(); deleteAudioLanguage('${lang}')" title="${window.i18n.t('btn_delete_lang')}">×</button>
+    `;
     tab.onclick = () => {
       currentAudioLang = lang;
       renderAudio();
@@ -2756,6 +3253,14 @@ function renderAudioList() {
     `;
     list.appendChild(item);
   });
+  
+  // 底部添加按钮
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-primary" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">${window.i18n.t('btn_add_audio')}</span></button>
+  `;
+  list.appendChild(footer);
 }
 
 /**
@@ -2770,6 +3275,32 @@ function addAudioLanguage() {
     markUnsaved();
     showToast(window.i18n.t('msg_lang_added'), 'success');
   }
+}
+
+/**
+ * 删除音频语言
+ */
+function deleteAudioLanguage(langId) {
+  const langs = Object.keys(currentMod.audio);
+  if (langs.length <= 1) {
+    showToast(window.i18n.t('msg_cannot_delete_last_lang'), 'error');
+    return;
+  }
+  
+  if (!confirm(window.i18n.t('msg_confirm_delete_lang').replace('{lang}', langId))) {
+    return;
+  }
+  
+  delete currentMod.audio[langId];
+  
+  // 如果删除的是当前选中的语言，切换到第一个语言
+  if (currentAudioLang === langId) {
+    currentAudioLang = Object.keys(currentMod.audio)[0];
+  }
+  
+  renderAudio();
+  markUnsaved();
+  showToast(window.i18n.t('msg_lang_deleted'), 'success');
 }
 
 /**

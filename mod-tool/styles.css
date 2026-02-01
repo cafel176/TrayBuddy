@@ -420,6 +420,22 @@ body {
   margin-bottom: 0;
 }
 
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -469,6 +485,29 @@ body {
 .form-group small {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+/* 日期选择器组 */
+.date-picker-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-picker-group .date-month-select,
+.date-picker-group .date-day-select {
+  flex: 1;
+  min-width: 60px;
+}
+
+.date-picker-group .date-separator {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* 时间输入框样式 */
+input[type="time"] {
+  color-scheme: dark;
 }
 
 .required {
@@ -795,7 +834,10 @@ input:checked + .slider::before {
 }
 
 .lang-tab {
-  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
@@ -803,6 +845,45 @@ input:checked + .slider::before {
   font-size: 14px;
   color: var(--text-secondary);
   transition: all 0.2s;
+}
+
+.lang-tab-name {
+  pointer-events: none;
+}
+
+.lang-tab-delete {
+  display: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lang-tab:hover .lang-tab-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lang-tab-delete:hover {
+  background: var(--color-danger);
+  color: white;
+}
+
+.lang-tab.active .lang-tab-delete {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.lang-tab.active .lang-tab-delete:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .lang-tab:hover {

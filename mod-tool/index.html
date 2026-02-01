@@ -13,7 +13,7 @@
     <!-- 顶部工具栏 -->
     <header class="toolbar">
       <div class="toolbar-left">
-        <h1 data-i18n="title">🎨 TrayBuddy Mod Editor</h1>
+        <h1>🎨 <span data-i18n="title">TrayBuddy Mod Editor</span></h1>
         <span class="mod-name" id="currentModName" data-i18n="mod_not_loaded">未加载 Mod</span>
       </div>
       <div class="toolbar-right">
@@ -22,21 +22,21 @@
           <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
           <button class="lang-btn" data-lang="ja" onclick="setLanguage('ja')">JA</button>
         </div>
-        <a href="tutorial.html" class="btn btn-ghost" style="text-decoration: none;" data-i18n="tutorial">📖 使用教程</a>
+        <a href="tutorial.html" class="btn btn-ghost" style="text-decoration: none;">📖 <span data-i18n="tutorial">使用教程</span></a>
         <div class="dropdown">
-          <button class="btn btn-secondary" data-i18n="open_mod">📂 打开 Mod</button>
+          <button class="btn btn-secondary">📂 <span data-i18n="open_mod">打开 Mod</span></button>
           <div class="dropdown-content">
-            <button onclick="loadModFolder()" data-i18n="open_folder">📂 打开文件夹</button>
-            <button onclick="loadModTbuddy()" data-i18n="open_tbuddy">📦 打开 .tbuddy</button>
+            <button onclick="loadModFolder()">📂 <span data-i18n="open_folder">打开文件夹</span></button>
+            <button onclick="loadModTbuddy()">📦 <span data-i18n="open_tbuddy">打开 .tbuddy</span></button>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="createNewMod()" data-i18n="new_mod">➕ 新建 Mod</button>
-        <button class="btn btn-success" onclick="saveMod()" id="saveBtn" disabled data-i18n="save">💾 保存</button>
+        <button class="btn btn-primary" onclick="createNewMod()">➕ <span data-i18n="new_mod">新建 Mod</span></button>
+        <button class="btn btn-success" onclick="saveMod()" id="saveBtn" disabled>💾 <span data-i18n="save">保存</span></button>
         <div class="dropdown">
-          <button class="btn btn-info" id="exportBtn" disabled data-i18n="export">📦 导出</button>
+          <button class="btn btn-info" id="exportBtn" disabled>📦 <span data-i18n="export">导出</span></button>
           <div class="dropdown-content">
-            <button onclick="saveMod()" data-i18n="to_folder">📂 到文件夹</button>
-            <button onclick="exportMod()" data-i18n="to_tbuddy">📦 到 .tbuddy</button>
+            <button onclick="saveMod()">📂 <span data-i18n="to_folder">到文件夹</span></button>
+            <button onclick="exportMod()">📦 <span data-i18n="to_tbuddy">到 .tbuddy</span></button>
           </div>
         </div>
       </div>
@@ -45,12 +45,12 @@
     <!-- 顶部导航标签 -->
     <nav class="top-nav">
       <ul class="nav-tabs">
-        <li class="nav-tab active" data-tab="manifest" data-i18n="tab_manifest">基础信息</li>
-        <li class="nav-tab" data-tab="states-triggers" data-i18n="tab_states_triggers">状态和触发</li>
-        <li class="nav-tab" data-tab="texts" data-i18n="tab_texts">多语言文本</li>
-        <li class="nav-tab" data-tab="audio" data-i18n="tab_audio">多语言音频</li>
-        <li class="nav-tab" data-tab="assets" data-i18n="tab_assets">动画</li>
-        <li class="nav-tab" data-tab="bubble" data-i18n="tab_bubble">气泡样式</li>
+        <li class="nav-tab active" data-tab="manifest">📋 <span data-i18n="tab_manifest">基础信息</span></li>
+        <li class="nav-tab" data-tab="texts">💬 <span data-i18n="tab_texts">多语言文本</span></li>
+        <li class="nav-tab" data-tab="audio">🔊 <span data-i18n="tab_audio">多语言音频</span></li>
+        <li class="nav-tab" data-tab="assets">🖼️ <span data-i18n="tab_assets">动画</span></li>
+        <li class="nav-tab" data-tab="states-triggers">🎭 <span data-i18n="tab_states_triggers">状态和触发</span></li>
+        <li class="nav-tab" data-tab="bubble">💬 <span data-i18n="tab_bubble">气泡样式</span></li>
       </ul>
     </nav>
 
@@ -66,12 +66,12 @@
             <h2 data-i18n="welcome_title">欢迎使用 Mod Editor</h2>
             <p data-i18n="welcome_desc">点击「打开 Mod」加载现有 Mod 文件夹或 .tbuddy 文件，或点击「新建 Mod」创建一个全新的 Mod</p>
             <div class="empty-actions">
-              <button class="btn btn-large btn-secondary" onclick="loadModFolder()" data-i18n="btn_open_folder">📂 打开 Mod 文件夹</button>
-              <button class="btn btn-large btn-info" onclick="loadModTbuddy()" data-i18n="btn_open_tbuddy">📦 打开 .tbuddy</button>
-              <button class="btn btn-large btn-primary" onclick="createNewMod()" data-i18n="btn_create_new">➕ 创建新 Mod</button>
+              <button class="btn btn-large btn-secondary" onclick="loadModFolder()">📂 <span data-i18n="btn_open_folder">打开 Mod 文件夹</span></button>
+              <button class="btn btn-large btn-info" onclick="loadModTbuddy()">📦 <span data-i18n="btn_open_tbuddy">打开 .tbuddy</span></button>
+              <button class="btn btn-large btn-primary" onclick="createNewMod()">➕ <span data-i18n="btn_create_new">创建新 Mod</span></button>
             </div>
             <p style="margin-top: 24px; color: #64748b;">
-              <span data-i18n="first_use_hint">首次使用？查看</span> <a href="tutorial.html" style="color: #6366f1;" data-i18n="tutorial">📖 使用教程</a>
+              <span data-i18n="first_use_hint">首次使用？查看</span> <a href="tutorial.html" style="color: #6366f1;">📖 <span data-i18n="tutorial">使用教程</span></a>
             </p>
           </div>
         </div>
@@ -79,7 +79,7 @@
         <!-- 基本信息 Tab -->
         <div class="tab-content" id="tab-manifest">
           <div class="panel-header">
-            <h2 data-i18n="manifest_title">📋 基础信息</h2>
+            <h2>📋 <span data-i18n="manifest_title">基础信息</span></h2>
             <p class="panel-desc" data-i18n="manifest_desc">配置 Mod 的基本信息、角色和边框设置</p>
           </div>
           <div class="panel-body">
@@ -204,7 +204,7 @@
         <!-- 状态和触发 Tab -->
         <div class="tab-content" id="tab-states-triggers">
           <div class="panel-header">
-            <h2 data-i18n="states_triggers_title">🎭 状态和触发</h2>
+            <h2>🎭 <span data-i18n="states_triggers_title">状态和触发</span></h2>
             <p class="panel-desc" data-i18n="states_triggers_desc">管理角色的各种状态、对话分支以及事件触发逻辑</p>
           </div>
           <div class="panel-body">
@@ -224,7 +224,10 @@
                 <section class="form-section">
                   <div class="section-header">
                     <h3 data-i18n="section_state_list">普通状态列表</h3>
-                    <button class="btn btn-sm btn-primary" onclick="addState()" data-i18n="btn_add_state">➕ 添加状态</button>
+                    <div class="section-actions">
+                      <button class="btn btn-sm btn-ghost" onclick="pasteStateFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                      <button class="btn btn-sm btn-primary" onclick="addState()">➕ <span data-i18n="btn_add_state">添加状态</span></button>
+                    </div>
                   </div>
                   <div class="state-list" id="state-list">
                     <!-- 由 JS 动态填充 -->
@@ -237,7 +240,10 @@
                 <section class="form-section">
                   <div class="section-header">
                     <h3 data-i18n="section_triggers">触发器 (事件响应)</h3>
-                    <button class="btn btn-sm btn-primary" onclick="addTrigger()" data-i18n="btn_add_trigger">➕ 添加触发器</button>
+                    <div class="section-actions">
+                      <button class="btn btn-sm btn-ghost" onclick="pasteTriggerFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                      <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ <span data-i18n="btn_add_trigger">添加触发器</span></button>
+                    </div>
                   </div>
                   <div class="trigger-list" id="trigger-list">
                     <!-- 由 JS 动态填充 -->
@@ -261,7 +267,7 @@
         <!-- 动画资源 Tab -->
         <div class="tab-content" id="tab-assets">
           <div class="panel-header">
-            <h2 data-i18n="assets_title">🖼️ 动画资源</h2>
+            <h2>🖼️ <span data-i18n="assets_title">动画资源</span></h2>
             <p class="panel-desc" data-i18n="assets_desc">管理序列帧动画和静态图片资源</p>
           </div>
           <div class="panel-body">
@@ -269,7 +275,10 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_sequence">序列帧动画 (sequence.json)</h3>
-                <button class="btn btn-sm btn-primary" onclick="addAsset('sequence')" data-i18n="btn_add_animation">➕ 添加动画</button>
+                <div class="section-actions">
+                  <button class="btn btn-sm btn-ghost" onclick="pasteAssetFromClipboard('sequence')">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                  <button class="btn btn-sm btn-primary" onclick="addAsset('sequence')">➕ <span data-i18n="btn_add_animation">添加动画</span></button>
+                </div>
               </div>
               <div class="asset-list" id="sequence-list">
                 <!-- 由 JS 动态填充 -->
@@ -280,7 +289,10 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_img">杂图资源 (img.json)</h3>
-                <button class="btn btn-sm btn-primary" onclick="addAsset('img')" data-i18n="btn_add_img">➕ 添加图片</button>
+                <div class="section-actions">
+                  <button class="btn btn-sm btn-ghost" onclick="pasteAssetFromClipboard('img')">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                  <button class="btn btn-sm btn-primary" onclick="addAsset('img')">➕ <span data-i18n="btn_add_img">添加图片</span></button>
+                </div>
               </div>
               <div class="asset-list" id="img-list">
                 <!-- 由 JS 动态填充 -->
@@ -292,7 +304,7 @@
         <!-- 气泡样式 Tab -->
         <div class="tab-content" id="tab-bubble">
           <div class="panel-header">
-            <h2 data-i18n="bubble_title">🧼 气泡样式</h2>
+            <h2>💬 <span data-i18n="bubble_title">气泡样式</span></h2>
             <p class="panel-desc" data-i18n="bubble_desc">配置对话气泡和分支选项的外观（bubble_style.json）</p>
           </div>
           <div class="panel-body">
@@ -333,7 +345,7 @@
                   </div>
                 </div>
               </div>
-              <button class="btn btn-sm btn-secondary" onclick="updateBubblePreview()" data-i18n="btn_refresh_preview">🔄 刷新预览</button>
+              <button class="btn btn-sm btn-secondary" onclick="updateBubblePreview()">🔄 <span data-i18n="btn_refresh_preview">刷新预览</span></button>
             </section>
 
             <div class="two-column-layout">
@@ -551,7 +563,7 @@
 
         <div class="tab-content" id="tab-texts">
           <div class="panel-header">
-            <h2 data-i18n="texts_title">💬 文本管理</h2>
+            <h2>💬 <span data-i18n="texts_title">文本管理</span></h2>
             <p class="panel-desc" data-i18n="texts_desc">管理多语言文本和角色信息</p>
           </div>
           <div class="panel-body">
@@ -559,7 +571,7 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_languages">语言</h3>
-                <button class="btn btn-sm btn-primary" onclick="addLanguage()" data-i18n="btn_add_lang">➕ 添加语言</button>
+                <button class="btn btn-sm btn-primary" onclick="addLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
               </div>
               <div class="lang-tabs" id="text-lang-tabs">
                 <!-- 由 JS 动态填充 -->
@@ -593,7 +605,7 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_speech_texts">对话文本 (speech.json)</h3>
-                <button class="btn btn-sm btn-primary" onclick="addSpeechText()" data-i18n="btn_add_text">➕ 添加文本</button>
+                <button class="btn btn-sm btn-primary" onclick="addSpeechText()">➕ <span data-i18n="btn_add_text">添加文本</span></button>
               </div>
               <div class="speech-list" id="speech-text-list">
                 <!-- 由 JS 动态填充 -->
@@ -605,7 +617,7 @@
         <!-- 音频管理 Tab -->
         <div class="tab-content" id="tab-audio">
           <div class="panel-header">
-            <h2 data-i18n="audio_title">🔊 音频管理</h2>
+            <h2>🔊 <span data-i18n="audio_title">音频管理</span></h2>
             <p class="panel-desc" data-i18n="audio_desc">管理多语言音频资源</p>
           </div>
           <div class="panel-body">
@@ -613,7 +625,7 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_languages">语言</h3>
-                <button class="btn btn-sm btn-primary" onclick="addAudioLanguage()" data-i18n="btn_add_lang">➕ 添加语言</button>
+                <button class="btn btn-sm btn-primary" onclick="addAudioLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
               </div>
               <div class="lang-tabs" id="audio-lang-tabs">
                 <!-- 由 JS 动态填充 -->
@@ -624,7 +636,7 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_audio_files">音频文件 (speech.json)</h3>
-                <button class="btn btn-sm btn-primary" onclick="addAudioEntry()" data-i18n="btn_add_audio">➕ 添加音频</button>
+                <button class="btn btn-sm btn-primary" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">添加音频</span></button>
               </div>
               <div class="audio-list" id="audio-list">
                 <!-- 由 JS 动态填充 -->
@@ -665,11 +677,15 @@
           </div>
           <div class="form-group">
             <label data-i18n="audio_label">关联音频</label>
-            <input type="text" id="state-audio" data-i18n-placeholder="placeholder_audio_name" placeholder="音频名称">
+            <select id="state-audio">
+              <option value="" data-i18n="select_audio_placeholder">-- 选择音频 --</option>
+            </select>
           </div>
           <div class="form-group">
             <label data-i18n="text_label">关联文本</label>
-            <input type="text" id="state-text" data-i18n-placeholder="placeholder_text_name" placeholder="文本名称">
+            <select id="state-text">
+              <option value="" data-i18n="select_text_placeholder">-- 选择文本 --</option>
+            </select>
           </div>
           <div class="form-group">
             <label data-i18n="priority_label">优先级</label>
@@ -677,23 +693,65 @@
           </div>
           <div class="form-group">
             <label data-i18n="date_start_label">开始日期 (MM-DD)</label>
-            <input type="text" id="state-date-start" data-i18n-placeholder="placeholder_date_start" placeholder="例如: 01-01">
+            <div class="date-picker-group">
+              <select id="state-date-start-month" class="date-month-select">
+                <option value="">--</option>
+                <option value="01">01</option>
+                <option value="02">02</option>
+                <option value="03">03</option>
+                <option value="04">04</option>
+                <option value="05">05</option>
+                <option value="06">06</option>
+                <option value="07">07</option>
+                <option value="08">08</option>
+                <option value="09">09</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+              </select>
+              <span class="date-separator">-</span>
+              <select id="state-date-start-day" class="date-day-select">
+                <option value="">--</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
             <label data-i18n="date_end_label">结束日期 (MM-DD)</label>
-            <input type="text" id="state-date-end" data-i18n-placeholder="placeholder_date_end" placeholder="例如: 12-31">
+            <div class="date-picker-group">
+              <select id="state-date-end-month" class="date-month-select">
+                <option value="">--</option>
+                <option value="01">01</option>
+                <option value="02">02</option>
+                <option value="03">03</option>
+                <option value="04">04</option>
+                <option value="05">05</option>
+                <option value="06">06</option>
+                <option value="07">07</option>
+                <option value="08">08</option>
+                <option value="09">09</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+              </select>
+              <span class="date-separator">-</span>
+              <select id="state-date-end-day" class="date-day-select">
+                <option value="">--</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
             <label data-i18n="time_start_label">开始时间 (HH:MM)</label>
-            <input type="text" id="state-time-start" data-i18n-placeholder="placeholder_time_start" placeholder="例如: 06:00">
+            <input type="time" id="state-time-start">
           </div>
           <div class="form-group">
             <label data-i18n="time_end_label">结束时间 (HH:MM)</label>
-            <input type="text" id="state-time-end" data-i18n-placeholder="placeholder_time_end" placeholder="例如: 12:00">
+            <input type="time" id="state-time-end">
           </div>
           <div class="form-group">
             <label data-i18n="next_state_label">下一状态</label>
-            <input type="text" id="state-next-state" data-i18n-placeholder="placeholder_next_state" placeholder="自动跳转的状态名">
+            <select id="state-next-state">
+              <option value="" data-i18n="select_state_placeholder">-- 选择状态 --</option>
+            </select>
           </div>
           <div class="form-group">
             <label data-i18n="trigger_time_label">触发间隔 (秒)</label>
@@ -716,7 +774,7 @@
         <div class="can-trigger-section">
           <div class="section-header">
             <h4 data-i18n="section_can_trigger_states">可触发子状态</h4>
-            <button class="btn btn-sm btn-secondary" onclick="addCanTriggerState()" data-i18n="btn_add_trigger_state">➕ 添加状态</button>
+            <button class="btn btn-sm btn-secondary" onclick="addCanTriggerState()">➕ <span data-i18n="btn_add_trigger_state">添加状态</span></button>
           </div>
           <small class="section-hint" data-i18n="can_trigger_states_hint">配置该状态可随机触发的子状态及权重</small>
           <div class="can-trigger-list" id="can-trigger-list">
@@ -753,7 +811,7 @@
         <div class="branch-section">
           <div class="section-header">
             <h4 data-i18n="section_branches">对话分支</h4>
-            <button class="btn btn-sm btn-secondary" onclick="addBranch()" data-i18n="btn_add_branch">➕ 添加分支</button>
+            <button class="btn btn-sm btn-secondary" onclick="addBranch()">➕ <span data-i18n="btn_add_branch">添加分支</span></button>
           </div>
           <div class="branch-list" id="branch-list">
             <!-- 由 JS 动态填充 -->
@@ -894,7 +952,7 @@
         <div class="trigger-groups-section">
           <div class="section-header">
             <h4 data-i18n="section_trigger_groups">触发状态组</h4>
-            <button class="btn btn-sm btn-secondary" onclick="addTriggerGroup()" data-i18n="btn_add_group">➕ 添加状态组</button>
+            <button class="btn btn-sm btn-secondary" onclick="addTriggerGroup()">➕ <span data-i18n="btn_add_group">添加状态组</span></button>
           </div>
           <small class="section-hint" data-i18n="trigger_groups_hint">每个状态组对应一个持久状态，当角色处于该持久状态时可触发组内的状态</small>
           <div class="trigger-groups-list" id="trigger-groups-list">
