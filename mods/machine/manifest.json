@@ -8,7 +8,7 @@
     "z_offset": 1
   },
   "border": {
-    "anima": "border",
+    "anima": "",
     "enable": false,
     "z_offset": 2
   },

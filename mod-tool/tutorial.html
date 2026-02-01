@@ -462,60 +462,56 @@
     <div class="sidebar-title">目录</div>
     <ul class="sidebar-nav">
       <li><a href="#intro">简介</a></li>
-      <li><a href="#requirements">环境要求</a></li>
       <li><a href="#quickstart">快速开始</a></li>
       <li class="sub-item"><a href="#open-mod">打开现有 Mod</a></li>
       <li class="sub-item"><a href="#create-mod">创建新 Mod</a></li>
-      <li><a href="#manifest">基本信息配置</a></li>
-      <li><a href="#states">状态管理</a></li>
-      <li class="sub-item"><a href="#state-fields">状态字段说明</a></li>
-      <li class="sub-item"><a href="#branches">对话分支</a></li>
-      <li><a href="#triggers">触发器配置</a></li>
-      <li><a href="#assets">动画资源</a></li>
-      <li><a href="#texts">文本管理</a></li>
-      <li class="sub-item"><a href="#markdown">Markdown 语法</a></li>
-      <li><a href="#audio">音频管理</a></li>
+      <li class="sub-item"><a href="#tbuddy">使用 .tbuddy 文件</a></li>
+      <li><a href="#manifest">基础信息配置</a></li>
+      <li><a href="#states-triggers">状态和触发</a></li>
+      <li><a href="#bubble">气泡样式配置</a></li>
+      <li><a href="#assets">动画管理</a></li>
+      <li><a href="#texts">多语言文本</a></li>
+      <li><a href="#audio">多语言音频</a></li>
       <li><a href="#save">保存与导出</a></li>
       <li><a href="#structure">Mod 目录结构</a></li>
-      <li><a href="#faq">常见问题</a></li>
     </ul>
   </aside>
 
   <!-- 主内容 -->
   <main class="main-content">
     <h1>📖 Mod Editor 使用教程</h1>
-    <p class="lead">本教程将指导你如何使用 TrayBuddy Mod Editor 创建和编辑角色 Mod 包。</p>
+    <p class="lead">本教程将指导你如何使用 TrayBuddy Mod Editor 创建和编辑角色 Mod 包（文件夹或 .tbuddy）。</p>
 
     <!-- 简介 -->
     <section id="intro">
       <h2>简介</h2>
-      <p>TrayBuddy Mod Editor 是一个可视化的 Mod 编辑工具，让你无需手动编辑 JSON 文件即可创建和修改桌面角色 Mod。</p>
+      <p>TrayBuddy Mod Editor 是一个可视化的 Mod 编辑工具，采用顶部标签页设计，让你更直观地管理角色的各种数据。</p>
       
       <div class="feature-grid">
         <div class="feature-card">
           <div class="feature-icon">📋</div>
-          <div class="feature-title">基本信息</div>
+          <div class="feature-title">基础信息</div>
           <div class="feature-desc">配置 Mod ID、版本、作者、角色渲染参数等</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🎭</div>
-          <div class="feature-title">状态管理</div>
-          <div class="feature-desc">管理角色的各种动作状态和对话分支</div>
+          <div class="feature-title">状态和触发</div>
+          <div class="feature-desc">管理动作状态、对话分支、事件响应逻辑以及数据计数器（Mod Data Counter）</div>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <div class="feature-title">触发器</div>
-          <div class="feature-desc">配置点击、登录等事件触发的状态切换</div>
+          <div class="feature-icon">🧼</div>
+          <div class="feature-title">气泡样式</div>
+          <div class="feature-desc">自定义对话气泡样式，支持背景滤镜、装饰文字和阴影效果</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🖼️</div>
-          <div class="feature-title">动画资源</div>
+          <div class="feature-title">动画</div>
           <div class="feature-desc">管理序列帧动画和静态图片配置</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">💬</div>
           <div class="feature-title">文本管理</div>
-          <div class="feature-desc">多语言文本编辑，支持 Markdown</div>
+          <div class="feature-desc">多语言文本编辑，支持简易 Markdown</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🔊</div>
@@ -524,6 +520,49 @@
         </div>
       </div>
     </section>
+
+    <!-- 快速开始 -->
+    <section id="quickstart">
+      <h2>快速开始</h2>
+      
+      <h3 id="open-mod">打开现有 Mod</h3>
+      <p>现在支持两种方式打开 Mod：</p>
+      <ul>
+        <li><strong>打开文件夹</strong>：直接选择电脑上的 Mod 目录。</li>
+        <li><strong>打开 .tbuddy</strong>：选择打包好的 <code>.tbuddy</code> 文件，编辑器会自动解压读取。</li>
+      </ul>
+
+      <h3 id="tbuddy">什么是 .tbuddy？</h3>
+      <p><code>.tbuddy</code> 是 TrayBuddy 专用的 Mod 包格式，本质上是一个包含 Mod 完整目录结构的 ZIP 压缩包。你可以通过编辑器的「导出」功能生成它。</p>
+    </section>
+
+    <!-- 状态和触发 -->
+    <section id="states-triggers">
+      <h2>🎭 状态和触发</h2>
+      <p>我们将状态管理和触发器配置整合到了同一个页面，左侧管理状态，右侧管理事件响应。</p>
+      
+      <div class="callout callout-info">
+        <div class="callout-title">💡 提示</div>
+        <p>现在可以在「可触发子状态」中设置权重，格式为 <code>state_name:weight</code>，例如 <code>happy:2, normal:1</code> 表示 happy 触发概率是 normal 的两倍。</p>
+      </div>
+
+      <h4>数据计数器 (Mod Data Counter)</h4>
+      <p>你可以在状态激活时对角色的自定义变量进行操作，支持 <code>set</code>、<code>add</code>、<code>sub</code>、<code>mul</code>、<code>div</code>。这些变量可以被程序其他部分引用（如显示好感度）。</p>
+    </section>
+
+    <!-- 气泡样式 -->
+    <section id="bubble">
+      <h2>🧼 气泡样式配置</h2>
+      <p>在「气泡样式」标签页中，你可以通过可视化表单修改 <code>bubble_style.json</code>。这些设置会直接影响桌面角色的对话气泡外观。</p>
+      <ul>
+        <li><strong>背景</strong>：支持颜色代码或 CSS 渐变。</li>
+        <li><strong>背景滤镜</strong>：支持 CSS <code>backdrop-filter</code>，如 <code>blur(8px)</code> 实现毛玻璃效果。</li>
+        <li><strong>装饰文字</strong>：可以在气泡上方或下方显示固定的装饰字符。</li>
+        <li><strong>尾巴阴影</strong>：为气泡小尾巴添加阴影，增强立体感。</li>
+        <li><strong>分支按钮</strong>：支持配置普通、悬浮、点击（Active）三种状态的颜色。</li>
+      </ul>
+    </section>
+
 
     <!-- 环境要求 -->
     <section id="requirements">

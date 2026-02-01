@@ -8,7 +8,7 @@
     "z_offset": 1
   },
   "border": {
-    "anima": "border",
+    "anima": "",
     "enable": false,
     "z_offset": 2
   },
@@ -18,7 +18,7 @@
     "idle": {
       "name": "idle",
       "persistent": true,
-      "anima": "idle",
+      "anima": "",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -29,18 +29,15 @@
       "next_state": "",
       "can_trigger_states": [],
       "trigger_time": 0,
-      "trigger_rate": 0,
+      "trigger_rate": 0.1,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "silence": {
       "name": "silence",
       "persistent": true,
-      "anima": "idle",
+      "anima": "",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -53,10 +50,7 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "silence_start": {
@@ -75,10 +69,7 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "silence_end": {
@@ -97,16 +88,13 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "music": {
       "name": "music",
       "persistent": true,
-      "anima": "idle",
+      "anima": "",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -119,10 +107,7 @@
       "trigger_time": 0,
       "trigger_rate": 0.1,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "music_start": {
@@ -141,10 +126,7 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "music_end": {
@@ -163,10 +145,7 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "birthday": {
@@ -185,10 +164,7 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     },
     "firstday": {
@@ -207,13 +183,43 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
+      "mod_data_counter": null,
       "branch_show_bubble": true
     }
   },
   "states": [],
-  "triggers": []
+  "triggers": [
+    {
+      "event": "click",
+      "can_trigger_states": []
+    },
+    {
+      "event": "keydown:Space",
+      "can_trigger_states": []
+    },
+    {
+      "event": "login",
+      "can_trigger_states": []
+    },
+    {
+      "event": "birthday",
+      "can_trigger_states": []
+    },
+    {
+      "event": "firstday",
+      "can_trigger_states": []
+    },
+    {
+      "event": "login_silence",
+      "can_trigger_states": []
+    },
+    {
+      "event": "music_start",
+      "can_trigger_states": []
+    },
+    {
+      "event": "music_end",
+      "can_trigger_states": []
+    }
+  ]
 }

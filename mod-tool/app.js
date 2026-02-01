@@ -20,8 +20,14 @@ let currentTextLang = 'zh';
 /** 当前选中的音频语言 */
 let currentAudioLang = 'jp';
 
-/** 当前编辑的状态索引 (-1 表示 idle，>= 0 表示 states 数组索引) */
+/** 当前编辑的状态索引 (-1 表示重要状态，>= 0 表示 states 数组索引，-2 表示新建) */
 let editingStateIndex = -2;
+
+/** 当前编辑的重要状态 key（idle, silence 等） */
+let editingImportantStateKey = null;
+
+/** 当前编辑的触发器索引 */
+let editingTriggerIndex = -1;
 
 /** 当前编辑的资源类型 ('sequence' 或 'img') */
 let editingAssetType = null;
@@ -29,8 +35,49 @@ let editingAssetType = null;
 /** 当前编辑的资源索引 */
 let editingAssetIndex = -1;
 
+/** 气泡样式配置 */
+let bubbleStyle = null;
+
 /** 是否有未保存的更改 */
 let hasUnsavedChanges = false;
+
+/** JSZip 实例 */
+let zip = null;
+
+/** 支持的预览图格式（按优先级排序） */
+const PREVIEW_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+
+/** 当前预览图的扩展名 */
+let currentPreviewExt = 'png';
+
+// ============================================================================
+// 工具函数
+// ============================================================================
+
+/**
+ * 从 data URL 中提取文件扩展名
+ * @param {string} dataUrl - data URL 字符串
+ * @returns {string|null} 扩展名（如 'png', 'jpg', 'jpeg', 'webp'）或 null
+ */
+function getExtensionFromDataUrl(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') return null;
+  
+  // data URL 格式: data:image/png;base64,xxxxx
+  const match = dataUrl.match(/^data:image\/(\w+);/);
+  if (!match) return null;
+  
+  const mimeExt = match[1].toLowerCase();
+  
+  // MIME 类型到扩展名的映射
+  const mimeToExt = {
+    'png': 'png',
+    'jpeg': 'jpg',
+    'jpg': 'jpg',
+    'webp': 'webp'
+  };
+  
+  return mimeToExt[mimeExt] || null;
+}
 
 // ============================================================================
 // 初始化
@@ -39,28 +86,262 @@ let hasUnsavedChanges = false;
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initPreviewUpload();
+  initBubbleListeners();
+  initLanguageChangeListener();
 });
+
+/**
+ * 初始化语言切换监听
+ * 当语言切换时，重新渲染动态生成的内容
+ */
+function initLanguageChangeListener() {
+  window.addEventListener('languageChanged', () => {
+    if (!currentMod) return;
+    
+    // 重新设置 Mod 名称（因为 data-i18n 会覆盖它）
+    const isNewMod = !modFolderHandle;
+    const modNameEl = document.getElementById('currentModName');
+    if (isNewMod) {
+      modNameEl.textContent = currentMod.manifest.id + ` (${window.i18n.t('new_label')})`;
+    } else {
+      modNameEl.textContent = currentMod.manifest.id;
+    }
+    
+    // 重新渲染所有动态内容
+    renderStates();
+    renderTriggers();
+    renderAssets();
+    renderTexts();
+    renderAudio();
+    populateBubbleStyle();
+    populateManifestForm();
+    
+    // 如果状态编辑弹窗打开中，重新渲染弹窗内容
+    if (document.getElementById('state-modal').classList.contains('show')) {
+      refreshStateModalI18n();
+    }
+    
+    // 如果触发器编辑弹窗打开中，重新渲染弹窗内容
+    if (document.getElementById('trigger-modal').classList.contains('show')) {
+      refreshTriggerModalI18n();
+    }
+    
+    // 如果资源编辑弹窗打开中，重新渲染弹窗内容
+    if (document.getElementById('asset-modal').classList.contains('show')) {
+      refreshAssetModalI18n();
+    }
+  });
+}
+
+/**
+ * 刷新状态编辑弹窗内的 i18n 内容
+ */
+function refreshStateModalI18n() {
+  // 收集当前弹窗内的数据
+  const canTriggerStates = collectCanTriggerStates();
+  const branches = collectBranches();
+  
+  // 重新渲染动态列表（保留数据）
+  renderCanTriggerStates(canTriggerStates);
+  renderBranches(branches);
+}
+
+/**
+ * 刷新触发器编辑弹窗内的 i18n 内容
+ */
+function refreshTriggerModalI18n() {
+  // 收集当前弹窗内的数据
+  const triggerData = collectTriggerData();
+  
+  // 重新渲染触发状态组
+  renderTriggerGroups(triggerData.can_trigger_states);
+}
+
+/**
+ * 刷新资源编辑弹窗内的 i18n 内容
+ */
+function refreshAssetModalI18n() {
+  // 资源弹窗的 placeholder 由 data-i18n-placeholder 处理，暂无需额外刷新
+}
 
 /**
  * 初始化导航
  */
 function initNavigation() {
-  const navItems = document.querySelectorAll('.nav-item');
-  navItems.forEach(item => {
-    item.addEventListener('click', () => {
+  const tabs = document.querySelectorAll('.nav-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
       if (!currentMod) {
-        showToast('请先加载或创建一个 Mod', 'warning');
+        showToast(window.i18n.t('msg_load_mod_first'), 'warning');
         return;
       }
       
-      const tab = item.dataset.tab;
-      switchTab(tab);
+      const tabId = tab.dataset.tab;
+      switchTab(tabId);
       
       // 更新导航状态
-      navItems.forEach(n => n.classList.remove('active'));
-      item.classList.add('active');
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
     });
   });
+}
+
+/**
+ * 初始化气泡样式监听
+ */
+function initBubbleListeners() {
+  const inputs = [
+    // bubble
+    'bubble-bg', 'bubble-border', 'bubble-radius', 'bubble-padding', 
+    'bubble-min-width', 'bubble-max-width', 'bubble-color', 'bubble-font-size',
+    'bubble-line-height', 'bubble-font-family', 'bubble-box-shadow', 'bubble-backdrop-filter',
+    'bubble-decoration-top', 'bubble-decoration-bottom',
+    'bubble-tail-size', 'bubble-tail-color', 'bubble-tail-shadow',
+    // branch container
+    'branch-container-gap', 'branch-container-margin-top', 'branch-container-padding-top', 'branch-container-border-top',
+    // branch button
+    'branch-btn-bg', 'branch-btn-color', 'branch-btn-border', 'branch-btn-border-radius',
+    'branch-btn-padding', 'branch-btn-min-width', 'branch-btn-font-size', 'branch-btn-box-shadow', 'branch-btn-backdrop-filter',
+    // branch hover
+    'branch-btn-hover-bg', 'branch-btn-hover-color', 'branch-btn-hover-border-color', 'branch-btn-hover-box-shadow', 'branch-btn-hover-transform',
+    // branch active
+    'branch-btn-active-bg', 'branch-btn-active-box-shadow', 'branch-btn-active-transform',
+    // decoration
+    'branch-decoration-left', 'branch-decoration-right'
+  ];
+  
+  inputs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', () => {
+        collectBubbleStyle();
+        updateBubblePreview();
+        markUnsaved();
+      });
+      el.addEventListener('input', () => {
+        // 实时预览（节流）
+        clearTimeout(el._previewTimer);
+        el._previewTimer = setTimeout(() => {
+          collectBubbleStyle();
+          updateBubblePreview();
+        }, 300);
+      });
+    }
+  });
+}
+
+/**
+ * 更新气泡预览
+ */
+function updateBubblePreview() {
+  if (!currentMod || !currentMod.bubbleStyle) return;
+  const s = currentMod.bubbleStyle;
+  
+  const bubble = document.getElementById('bubble-preview');
+  const tail = document.getElementById('preview-tail');
+  const decoTop = document.getElementById('preview-deco-top');
+  const decoBottom = document.getElementById('preview-deco-bottom');
+  const branches = document.getElementById('preview-branches');
+  const btn1 = document.getElementById('preview-branch-1');
+  const btn2 = document.getElementById('preview-branch-2');
+  const decoLeft = document.getElementById('preview-btn-deco-left');
+  const decoRight = document.getElementById('preview-btn-deco-right');
+  
+  if (!bubble) return;
+  
+  // 重置样式
+  bubble.style.cssText = '';
+  tail.style.cssText = '';
+  branches.style.cssText = '';
+  btn1.style.cssText = '';
+  btn2.style.cssText = '';
+  
+  // --- 气泡主体 ---
+  if (s.bubble) {
+    if (s.bubble.background) bubble.style.background = s.bubble.background;
+    if (s.bubble.border) bubble.style.border = s.bubble.border;
+    if (s.bubble.border_radius) bubble.style.borderRadius = s.bubble.border_radius;
+    if (s.bubble.padding) bubble.style.padding = s.bubble.padding;
+    if (s.bubble.min_width) bubble.style.minWidth = s.bubble.min_width;
+    if (s.bubble.max_width) bubble.style.maxWidth = s.bubble.max_width;
+    if (s.bubble.color) bubble.style.color = s.bubble.color;
+    if (s.bubble.font_size) bubble.style.fontSize = s.bubble.font_size;
+    if (s.bubble.line_height) bubble.style.lineHeight = s.bubble.line_height;
+    if (s.bubble.font_family) bubble.style.fontFamily = s.bubble.font_family;
+    if (s.bubble.box_shadow) bubble.style.boxShadow = s.bubble.box_shadow;
+    if (s.bubble.backdrop_filter) bubble.style.backdropFilter = s.bubble.backdrop_filter;
+  }
+  
+  // --- 装饰 ---
+  if (s.bubble?.decoration_top?.content) {
+    decoTop.textContent = s.bubble.decoration_top.content;
+    decoTop.style.display = 'block';
+  } else {
+    decoTop.style.display = 'none';
+  }
+  
+  if (s.bubble?.decoration_bottom?.content) {
+    decoBottom.textContent = s.bubble.decoration_bottom.content;
+    decoBottom.style.display = 'block';
+  } else {
+    decoBottom.style.display = 'none';
+  }
+  
+  // --- 尾巴 ---
+  if (s.bubble?.tail) {
+    if (s.bubble.tail.size) {
+      tail.style.borderWidth = s.bubble.tail.size;
+    }
+    if (s.bubble.tail.color) {
+      tail.style.borderTopColor = s.bubble.tail.color;
+    }
+    if (s.bubble.tail.shadow) {
+      tail.style.filter = `drop-shadow(${s.bubble.tail.shadow})`;
+    }
+  }
+  
+  // --- 分支容器 ---
+  if (s.branch?.container) {
+    if (s.branch.container.gap) branches.style.gap = s.branch.container.gap;
+    if (s.branch.container.margin_top) branches.style.marginTop = s.branch.container.margin_top;
+    if (s.branch.container.padding_top) branches.style.paddingTop = s.branch.container.padding_top;
+    if (s.branch.container.border_top) branches.style.borderTop = s.branch.container.border_top;
+  }
+  
+  // --- 分支按钮 ---
+  const applyBtnStyle = (btn) => {
+    if (!s.branch?.button) return;
+    if (s.branch.button.background) btn.style.background = s.branch.button.background;
+    if (s.branch.button.color) btn.style.color = s.branch.button.color;
+    if (s.branch.button.border) btn.style.border = s.branch.button.border;
+    if (s.branch.button.border_radius) btn.style.borderRadius = s.branch.button.border_radius;
+    if (s.branch.button.padding) btn.style.padding = s.branch.button.padding;
+    if (s.branch.button.min_width) btn.style.minWidth = s.branch.button.min_width;
+    if (s.branch.button.font_size) btn.style.fontSize = s.branch.button.font_size;
+    if (s.branch.button.box_shadow) btn.style.boxShadow = s.branch.button.box_shadow;
+    if (s.branch.button.backdrop_filter) btn.style.backdropFilter = s.branch.button.backdrop_filter;
+  };
+  
+  applyBtnStyle(btn1);
+  applyBtnStyle(btn2);
+  
+  // --- 装饰文字 ---
+  if (s.branch?.decoration_left?.content) {
+    decoLeft.textContent = s.branch.decoration_left.content;
+    // 同步到第二个按钮
+    btn2.querySelector('.deco-left').textContent = s.branch.decoration_left.content;
+  } else {
+    decoLeft.textContent = '';
+    btn2.querySelector('.deco-left').textContent = '';
+  }
+  
+  if (s.branch?.decoration_right?.content) {
+    decoRight.textContent = s.branch.decoration_right.content;
+    btn2.querySelector('.deco-right').textContent = s.branch.decoration_right.content;
+  } else {
+    decoRight.textContent = '';
+    btn2.querySelector('.deco-right').textContent = '';
+  }
 }
 
 /**
@@ -80,12 +361,57 @@ function initPreviewUpload() {
         previewImage.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
         if (currentMod) {
           currentMod.previewData = e.target.result;
+          // 从上传的文件中获取扩展名
+          const ext = getExtensionFromDataUrl(e.target.result);
+          if (ext) currentPreviewExt = ext;
           markUnsaved();
         }
       };
       reader.readAsDataURL(file);
     }
   });
+  
+  // 图标上传
+  const iconImage = document.getElementById('icon-image');
+  const iconFile = document.getElementById('icon-file');
+  
+  iconImage.addEventListener('click', () => iconFile.click());
+  
+  iconFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        iconImage.innerHTML = `<img src="${e.target.result}" alt="Icon">`;
+        if (currentMod) {
+          currentMod.iconData = e.target.result;
+          markUnsaved();
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
+/**
+ * 切换气泡样式启用状态
+ */
+function toggleBubbleStyle() {
+  const enabled = document.getElementById('bubble-enable').checked;
+  const fields = document.getElementById('bubble-style-fields');
+  
+  if (enabled) {
+    fields.classList.remove('bubble-disabled');
+    fields.classList.add('bubble-enabled');
+  } else {
+    fields.classList.remove('bubble-enabled');
+    fields.classList.add('bubble-disabled');
+  }
+  
+  if (currentMod) {
+    currentMod.bubbleEnabled = enabled;
+    markUnsaved();
+  }
 }
 
 /**
@@ -96,6 +422,11 @@ function switchTab(tab) {
   const targetTab = document.getElementById(`tab-${tab}`);
   if (targetTab) {
     targetTab.classList.add('active');
+    
+    // 如果是气泡页，填充数据
+    if (tab === 'bubble') {
+      populateBubbleStyle();
+    }
   }
 }
 
@@ -104,13 +435,151 @@ function switchTab(tab) {
 // ============================================================================
 
 /**
+ * 打开 .tbuddy 文件
+ */
+async function loadModTbuddy() {
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      types: [
+        {
+          description: 'TrayBuddy Mod',
+          accept: { 'application/octet-stream': ['.tbuddy'] }
+        }
+      ]
+    });
+    
+    const file = await fileHandle.getFile();
+    const jszip = new JSZip();
+    const zipData = await jszip.loadAsync(file);
+    
+    showToast(window.i18n.t('msg_loading_tbuddy'), 'info');
+    
+    // 寻找根目录
+    let rootPath = '';
+    const manifestFile = Object.keys(zipData.files).find(f => f.endsWith('manifest.json'));
+    if (!manifestFile) {
+      throw new Error(window.i18n.t('msg_manifest_not_found'));
+    }
+    rootPath = manifestFile.replace('manifest.json', '');
+    
+    const manifestText = await zipData.file(manifestFile).async('string');
+    const manifest = JSON.parse(manifestText);
+    normalizeManifestForEditor(manifest);
+    
+    currentMod = {
+      manifest: manifest,
+      assets: { sequence: [], img: [] },
+      texts: {},
+      audio: {},
+      bubbleStyle: null,
+      bubbleEnabled: false,
+      previewData: null,
+      iconData: null
+    };
+    
+    // 重置预览图扩展名
+    currentPreviewExt = 'png';
+    
+    // 读取其他文件
+    const seqFile = zipData.file(`${rootPath}asset/sequence.json`);
+    if (seqFile) currentMod.assets.sequence = JSON.parse(await seqFile.async('string'));
+    
+    const imgFile = zipData.file(`${rootPath}asset/img.json`);
+    if (imgFile) currentMod.assets.img = JSON.parse(await imgFile.async('string'));
+    
+    const bubbleFile = zipData.file(`${rootPath}bubble_style.json`);
+    if (bubbleFile) {
+      currentMod.bubbleStyle = JSON.parse(await bubbleFile.async('string'));
+      currentMod.bubbleEnabled = true;
+    }
+    
+    // 读取 text 和 audio
+    for (const fileName in zipData.files) {
+      if (fileName.startsWith(`${rootPath}text/`) && fileName.endsWith('info.json')) {
+        const parts = fileName.split('/');
+        const lang = parts[parts.length - 2];
+        if (!currentMod.texts[lang]) currentMod.texts[lang] = { info: null, speech: [] };
+        currentMod.texts[lang].info = JSON.parse(await zipData.file(fileName).async('string'));
+        
+        const speechFile = zipData.file(`${rootPath}text/${lang}/speech.json`);
+        if (speechFile) currentMod.texts[lang].speech = JSON.parse(await speechFile.async('string'));
+      }
+      
+      if (fileName.startsWith(`${rootPath}audio/`) && fileName.endsWith('speech.json')) {
+        const parts = fileName.split('/');
+        const lang = parts[parts.length - 2];
+        currentMod.audio[lang] = JSON.parse(await zipData.file(fileName).async('string'));
+      }
+    }
+    
+    // 读取预览图（支持多种格式）
+    currentPreviewExt = 'png'; // 默认
+    for (const ext of PREVIEW_EXTENSIONS) {
+      const previewFile = zipData.file(`${rootPath}preview.${ext}`);
+      if (previewFile) {
+        const blob = await previewFile.async('blob');
+        currentMod.previewData = await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result);
+          reader.readAsDataURL(blob);
+        });
+        currentPreviewExt = ext;
+        break;
+      }
+    }
+    
+    // 读取图标
+    const iconFile = zipData.file(`${rootPath}icon.ico`);
+    if (iconFile) {
+      const blob = await iconFile.async('blob');
+      currentMod.iconData = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.readAsDataURL(blob);
+      });
+    }
+    
+    modFolderHandle = null; // .tbuddy 加载的不记录文件夹句柄
+    finishLoading(manifest);
+    
+  } catch (e) {
+    console.error('Failed to load .tbuddy:', e);
+    showToast(window.i18n.t('msg_load_failed', { error: e.message }), 'error');
+  }
+}
+
+/**
+ * 完成加载后的 UI 更新
+ */
+function finishLoading(manifest) {
+  document.getElementById('currentModName').textContent = manifest.id;
+  document.getElementById('saveBtn').disabled = false;
+  document.getElementById('exportBtn').disabled = false;
+  
+  populateManifestForm();
+  renderStates();
+  renderTriggers();
+  renderAssets();
+  renderTexts();
+  renderAudio();
+  populateBubbleStyle();
+  
+  switchTab('manifest');
+  document.querySelector('.nav-tab[data-tab="manifest"]').classList.add('active');
+  document.querySelector('.nav-tab.active:not([data-tab="manifest"])')?.classList.remove('active');
+  document.getElementById('tab-empty').classList.remove('active');
+  
+  showToast(window.i18n.t('msg_load_success', { id: manifest.id }), 'success');
+}
+
+/**
  * 加载 Mod 文件夹
  */
 async function loadModFolder() {
   try {
     // 使用 File System Access API
     if (!('showDirectoryPicker' in window)) {
-      showToast('您的浏览器不支持文件夹访问，请使用 Chrome/Edge', 'error');
+      showToast(window.i18n.t('msg_browser_not_support'), 'error');
       return;
     }
     
@@ -118,13 +587,14 @@ async function loadModFolder() {
       mode: 'readwrite'
     });
     
-    showToast('正在加载 Mod...', 'info');
+    showToast(window.i18n.t('msg_loading_mod'), 'info');
     
     // 读取 manifest.json
     const manifestHandle = await modFolderHandle.getFileHandle('manifest.json');
     const manifestFile = await manifestHandle.getFile();
     const manifestText = await manifestFile.text();
     const manifest = JSON.parse(manifestText);
+    normalizeManifestForEditor(manifest);
     
     // 初始化 Mod 数据结构
     currentMod = {
@@ -135,8 +605,14 @@ async function loadModFolder() {
       },
       texts: {},
       audio: {},
-      previewData: null
+      bubbleStyle: null,
+      bubbleEnabled: false,
+      previewData: null,
+      iconData: null
     };
+    
+    // 重置预览图扩展名
+    currentPreviewExt = 'png';
     
     // 读取 asset/sequence.json
     try {
@@ -156,6 +632,16 @@ async function loadModFolder() {
       currentMod.assets.img = JSON.parse(await imgFile.text());
     } catch (e) {
       console.log('No img.json found');
+    }
+
+    // 读取 bubble_style.json
+    try {
+      const bubbleHandle = await modFolderHandle.getFileHandle('bubble_style.json');
+      const bubbleFile = await bubbleHandle.getFile();
+      currentMod.bubbleStyle = JSON.parse(await bubbleFile.text());
+      currentMod.bubbleEnabled = true;
+    } catch (e) {
+      console.log('No bubble_style.json found');
     }
     
     // 读取 text 目录
@@ -208,45 +694,45 @@ async function loadModFolder() {
       console.log('No audio directory found');
     }
     
-    // 读取预览图
-    try {
-      const previewHandle = await modFolderHandle.getFileHandle('preview.png');
-      const previewFile = await previewHandle.getFile();
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        currentMod.previewData = e.target.result;
-        document.getElementById('preview-image').innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-      };
-      reader.readAsDataURL(previewFile);
-    } catch (e) {
-      console.log('No preview.png found');
+    // 读取预览图（支持多种格式）
+    currentPreviewExt = 'png'; // 默认
+    for (const ext of PREVIEW_EXTENSIONS) {
+      try {
+        const previewHandle = await modFolderHandle.getFileHandle(`preview.${ext}`);
+        const previewFile = await previewHandle.getFile();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          currentMod.previewData = e.target.result;
+          document.getElementById('preview-image').innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        };
+        reader.readAsDataURL(previewFile);
+        currentPreviewExt = ext;
+        break;
+      } catch (e) {
+        // 尝试下一个格式
+      }
     }
     
-    // 更新 UI
-    document.getElementById('currentModName').textContent = manifest.id;
-    document.getElementById('saveBtn').disabled = false;
-    document.getElementById('exportBtn').disabled = false;
+    // 读取图标
+    try {
+      const iconHandle = await modFolderHandle.getFileHandle('icon.ico');
+      const iconFile = await iconHandle.getFile();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentMod.iconData = e.target.result;
+        document.getElementById('icon-image').innerHTML = `<img src="${e.target.result}" alt="Icon">`;
+      };
+      reader.readAsDataURL(iconFile);
+    } catch (e) {
+      console.log('No icon.ico found');
+    }
     
-    // 填充表单
-    populateManifestForm();
-    renderStates();
-    renderTriggers();
-    renderAssets();
-    renderTexts();
-    renderAudio();
-    
-    // 切换到基本信息页
-    switchTab('manifest');
-    document.querySelector('.nav-item[data-tab="manifest"]').classList.add('active');
-    document.querySelector('.nav-item.active:not([data-tab="manifest"])')?.classList.remove('active');
-    document.getElementById('tab-empty').classList.remove('active');
-    
-    showToast(`成功加载 Mod: ${manifest.id}`, 'success');
+    finishLoading(manifest);
     
   } catch (e) {
     console.error('Failed to load mod:', e);
     if (e.name !== 'AbortError') {
-      showToast('加载失败: ' + e.message, 'error');
+      showToast(window.i18n.t('msg_load_failed', { error: e.message }), 'error');
     }
   }
 }
@@ -274,68 +760,26 @@ async function confirmCreateMod() {
   const modAuthor = document.getElementById('new-mod-author').value.trim();
   
   if (!modId) {
-    showToast('请输入 Mod ID', 'warning');
+    showToast(window.i18n.t('msg_enter_mod_id'), 'warning');
     return;
   }
   
   if (!/^[a-zA-Z0-9_]+$/.test(modId)) {
-    showToast('Mod ID 只能包含英文、数字和下划线', 'warning');
+    showToast(window.i18n.t('msg_mod_id_invalid'), 'warning');
     return;
   }
-  
-  // 创建默认 Mod 结构
-  currentMod = {
-    manifest: {
-      id: modId,
-      version: '1.0.0',
-      author: modAuthor || 'Unknown',
-      default_audio_lang_id: 'jp',
-      default_text_lang_id: 'zh',
-      character: {
-        z_offset: 1
-      },
-      border: {
-        anima: '',
-        enable: false,
-        z_offset: 2
-      },
-      important_states: {
-        idle: createDefaultState('idle', true)
-      },
-      states: [],
-      triggers: [
-        { event: 'click', can_trigger_states: [] },
-        { event: 'login', can_trigger_states: [] }
-      ]
-    },
-    assets: {
-      sequence: [],
-      img: []
-    },
-    texts: {
-      zh: {
-        info: {
-          id: 'zh',
-          lang: '简体中文',
-          name: modName || modId,
-          description: ''
-        },
-        speech: []
-      }
-    },
-    audio: {
-      jp: []
-    },
-    previewData: null
-  };
-  
+
+  showToast(window.i18n.t('msg_creating_mod'), 'info');
+
+  // 基于 ./template 生成初始数据
+  currentMod = await createModFromTemplate(modId, modName, modAuthor);
   modFolderHandle = null; // 新建 Mod 暂无文件夹句柄
-  
+
   // 更新 UI
-  document.getElementById('currentModName').textContent = modId + ' (新建)';
+  document.getElementById('currentModName').textContent = modId + ` (${window.i18n.t('new_label')})`;
   document.getElementById('saveBtn').disabled = false;
   document.getElementById('exportBtn').disabled = false;
-  
+
   // 填充表单
   populateManifestForm();
   renderStates();
@@ -343,16 +787,246 @@ async function confirmCreateMod() {
   renderAssets();
   renderTexts();
   renderAudio();
-  
+  populateBubbleStyle();
+
   // 切换到基本信息页
   switchTab('manifest');
-  document.querySelector('.nav-item[data-tab="manifest"]').classList.add('active');
+  document.querySelector('.nav-tab[data-tab="manifest"]').classList.add('active');
   document.getElementById('tab-empty').classList.remove('active');
-  
+
   closeNewModModal();
-  showToast(`已创建新 Mod: ${modId}`, 'success');
+  showToast(window.i18n.t('msg_mod_created', { id: modId }), 'success');
   markUnsaved();
 }
+
+async function createModFromTemplate(modId, modName, modAuthor) {
+  const base = './template';
+
+  // 1. 先读取结构配置文件
+  const structure = await fetchJsonSafe(`${base}/structure.json`);
+  if (!structure) {
+    throw new Error('Template structure.json not found');
+  }
+
+  // 2. 读取 manifest（必须）
+  const manifest = await fetchJsonSafe(`${base}/${structure.manifest}`);
+  if (!manifest || typeof manifest !== 'object') {
+    throw new Error('Template manifest.json not found or invalid');
+  }
+
+  // 3. 读取 bubble_style（可选）
+  const bubbleStyle = structure.bubble_style 
+    ? await fetchJsonSafe(`${base}/${structure.bubble_style}`)
+    : null;
+
+  // 4. 动态读取 assets
+  const assets = { sequence: [], img: [] };
+  if (structure.assets) {
+    const assetPromises = Object.entries(structure.assets).map(async ([key, path]) => {
+      const data = await fetchJsonSafe(`${base}/${path}`);
+      return [key, Array.isArray(data) ? data : []];
+    });
+    const assetResults = await Promise.all(assetPromises);
+    assetResults.forEach(([key, data]) => {
+      assets[key] = deepClone(data);
+    });
+  }
+
+  // 5. 动态读取 texts（根据 text_langs 配置）
+  const texts = {};
+  const textLangs = structure.text_langs || [];
+  const textPromises = textLangs.map(async (lang) => {
+    const [info, speech] = await Promise.all([
+      fetchJsonSafe(`${base}/text/${lang}/info.json`),
+      fetchJsonSafe(`${base}/text/${lang}/speech.json`)
+    ]);
+    return [lang, { info, speech }];
+  });
+  const textResults = await Promise.all(textPromises);
+  textResults.forEach(([lang, data]) => {
+    if (data.info && typeof data.info === 'object') {
+      texts[lang] = {
+        info: deepClone(data.info),
+        speech: Array.isArray(data.speech) ? deepClone(data.speech) : []
+      };
+    }
+  });
+
+  // 6. 动态读取 audio（根据 audio_langs 配置）
+  const audio = {};
+  const audioLangs = structure.audio_langs || [];
+  const audioPromises = audioLangs.map(async (lang) => {
+    const data = await fetchJsonSafe(`${base}/audio/${lang}/speech.json`);
+    return [lang, data];
+  });
+  const audioResults = await Promise.all(audioPromises);
+  audioResults.forEach(([lang, data]) => {
+    if (Array.isArray(data)) {
+      audio[lang] = deepClone(data);
+    }
+  });
+
+  // 7. 组装 mod 对象
+  const mod = {
+    manifest: deepClone(manifest),
+    assets,
+    texts,
+    audio,
+    bubbleStyle: (bubbleStyle && typeof bubbleStyle === 'object') ? deepClone(bubbleStyle) : null,
+    bubbleEnabled: !!(bubbleStyle && typeof bubbleStyle === 'object'),
+    previewData: null,
+    iconData: null
+  };
+
+  // 重置预览图扩展名
+  currentPreviewExt = 'png';
+
+  // --- 仅覆盖 manifest 的必要字段（id, author）
+  mod.manifest.id = modId;
+  if (modAuthor) {
+    mod.manifest.author = modAuthor;
+  }
+
+  // --- 覆盖 texts 里的名称（如果用户提供了 modName）
+  if (modName) {
+    Object.values(mod.texts).forEach((t) => {
+      if (t && t.info && typeof t.info === 'object') {
+        t.info.name = modName;
+      }
+    });
+  }
+
+  // 规范化，避免模板结构与编辑器不兼容导致弹窗渲染报错
+  normalizeManifestForEditor(mod.manifest);
+
+  return mod;
+}
+
+function normalizeStateForEditor(state) {
+  if (!state || typeof state !== 'object') return;
+
+  if (!Array.isArray(state.can_trigger_states)) state.can_trigger_states = [];
+  if (!Array.isArray(state.branch)) state.branch = [];
+
+  // mod_data_counter 应该是 { op, value } 对象或 null
+  // 兼容旧格式：ema 等历史版本里是 { op, value } 或数组
+  if (state.mod_data_counter) {
+    if (Array.isArray(state.mod_data_counter)) {
+      // 如果是数组，取第一个元素
+      const first = state.mod_data_counter[0];
+      if (first && typeof first === 'object') {
+        state.mod_data_counter = {
+          op: first.op || 'add',
+          value: first.val ?? first.value ?? 0
+        };
+      } else {
+        state.mod_data_counter = null;
+      }
+    } else if (typeof state.mod_data_counter === 'object') {
+      // 确保格式正确
+      state.mod_data_counter = {
+        op: state.mod_data_counter.op || 'add',
+        value: state.mod_data_counter.value ?? state.mod_data_counter.val ?? 0
+      };
+    } else {
+      state.mod_data_counter = null;
+    }
+  }
+
+  if (typeof state.branch_show_bubble !== 'boolean') state.branch_show_bubble = true;
+}
+
+function normalizeManifestForEditor(manifest) {
+  if (!manifest || typeof manifest !== 'object') return;
+
+  // ema 字段补齐
+  if (typeof manifest.show_mod_data_panel !== 'boolean') manifest.show_mod_data_panel = false;
+  if (!Number.isFinite(Number(manifest.mod_data_default_int))) manifest.mod_data_default_int = 0;
+
+  manifest.character = manifest.character || { z_offset: 1 };
+  if (!Number.isFinite(Number(manifest.character.z_offset))) manifest.character.z_offset = 1;
+
+  manifest.border = manifest.border || { anima: '', enable: false, z_offset: 2 };
+  if (typeof manifest.border.enable !== 'boolean') manifest.border.enable = false;
+  if (!Number.isFinite(Number(manifest.border.z_offset))) manifest.border.z_offset = 2;
+  if (typeof manifest.border.anima !== 'string') manifest.border.anima = '';
+
+  manifest.important_states = (manifest.important_states && typeof manifest.important_states === 'object') ? manifest.important_states : {};
+
+  ensureImportantState(manifest, 'idle', { persistent: true, priority: 1, trigger_rate: 0.1, next_state: '' });
+  ensureImportantState(manifest, 'silence', { persistent: true, priority: 1, trigger_rate: 0, next_state: '' });
+  ensureImportantState(manifest, 'silence_start', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'silence' });
+  ensureImportantState(manifest, 'silence_end', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'idle' });
+  ensureImportantState(manifest, 'music', { persistent: true, priority: 1, trigger_rate: 0.1, next_state: '' });
+  ensureImportantState(manifest, 'music_start', { persistent: false, priority: 2, trigger_rate: 0, next_state: 'music' });
+  ensureImportantState(manifest, 'music_end', { persistent: false, priority: 2, trigger_rate: 0, next_state: 'idle' });
+  ensureImportantState(manifest, 'birthday', { persistent: false, priority: 2, trigger_rate: 0, next_state: '' });
+  ensureImportantState(manifest, 'firstday', { persistent: false, priority: 2, trigger_rate: 0, next_state: '' });
+
+  // states / triggers
+  manifest.states = Array.isArray(manifest.states) ? manifest.states : [];
+  manifest.triggers = Array.isArray(manifest.triggers) ? manifest.triggers : [];
+
+  // 规范化 states
+  Object.values(manifest.important_states).forEach(normalizeStateForEditor);
+  manifest.states.forEach(normalizeStateForEditor);
+
+  // 触发器字段补齐（兼容 ema 的复杂结构：这里不强行改结构，只保证数组存在）
+  manifest.triggers.forEach((t) => {
+    if (!t || typeof t !== 'object') return;
+    if (typeof t.event !== 'string') t.event = '';
+    if (!Array.isArray(t.can_trigger_states)) t.can_trigger_states = [];
+  });
+}
+
+function ensureImportantState(manifest, key, defaults) {
+  if (!manifest || typeof manifest !== 'object') return;
+  manifest.important_states = (manifest.important_states && typeof manifest.important_states === 'object') ? manifest.important_states : {};
+
+  if (!manifest.important_states[key] || typeof manifest.important_states[key] !== 'object') {
+    manifest.important_states[key] = {
+      name: key,
+      persistent: Boolean(defaults?.persistent),
+      anima: '',
+      audio: '',
+      text: '',
+      priority: Number.isFinite(Number(defaults?.priority)) ? Number(defaults.priority) : (defaults?.persistent ? 1 : 2),
+      date_start: '',
+      date_end: '',
+      time_start: '',
+      time_end: '',
+      next_state: typeof defaults?.next_state === 'string' ? defaults.next_state : '',
+      can_trigger_states: [],
+      trigger_time: 0,
+      trigger_rate: Number.isFinite(Number(defaults?.trigger_rate)) ? Number(defaults.trigger_rate) : (defaults?.persistent ? 0.1 : 0),
+      branch: [],
+      mod_data_counter: [],
+      branch_show_bubble: true
+    };
+  }
+
+  // 确保 name 正确
+  if (typeof manifest.important_states[key].name !== 'string' || !manifest.important_states[key].name) {
+    manifest.important_states[key].name = key;
+  }
+}
+
+
+async function fetchJsonSafe(url) {
+  try {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+function deepClone(obj) {
+  if (obj === null || obj === undefined) return obj;
+  return JSON.parse(JSON.stringify(obj));
+}
+
 
 /**
  * 创建默认状态对象
@@ -385,29 +1059,36 @@ async function saveMod() {
   
   // 从表单收集数据
   collectManifestData();
+  collectBubbleStyle();
   
-  if (!modFolderHandle) {
-    // 新建的 Mod，需要选择保存位置
-    try {
-      modFolderHandle = await window.showDirectoryPicker({
-        mode: 'readwrite'
-      });
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        showToast('保存失败: ' + e.message, 'error');
-      }
-      return;
+  // 每次保存都弹窗选择目标文件夹
+  try {
+    modFolderHandle = await window.showDirectoryPicker({
+      mode: 'readwrite'
+    });
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      showToast(window.i18n.t('msg_save_failed', { error: e.message }), 'error');
     }
+    return;
   }
   
   try {
-    showToast('正在保存...', 'info');
+    showToast(window.i18n.t('msg_saving'), 'info');
     
     // 保存 manifest.json
     const manifestHandle = await modFolderHandle.getFileHandle('manifest.json', { create: true });
     const manifestWritable = await manifestHandle.createWritable();
     await manifestWritable.write(JSON.stringify(currentMod.manifest, null, 2));
     await manifestWritable.close();
+
+    // 保存 bubble_style.json (仅当启用时)
+    if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
+      const bubbleHandle = await modFolderHandle.getFileHandle('bubble_style.json', { create: true });
+      const bubbleWritable = await bubbleHandle.createWritable();
+      await bubbleWritable.write(JSON.stringify(currentMod.bubbleStyle, null, 2));
+      await bubbleWritable.close();
+    }
     
     // 创建 asset 目录并保存
     const assetDir = await modFolderHandle.getDirectoryHandle('asset', { create: true });
@@ -458,35 +1139,121 @@ async function saveMod() {
       await speechWritable.close();
     }
     
-    // 保存预览图
+    // 保存预览图（根据实际格式保存）
     if (currentMod.previewData) {
-      const previewHandle = await modFolderHandle.getFileHandle('preview.png', { create: true });
+      // 从 data URL 中提取实际的 MIME 类型
+      const actualExt = getExtensionFromDataUrl(currentMod.previewData) || currentPreviewExt;
+      const previewHandle = await modFolderHandle.getFileHandle(`preview.${actualExt}`, { create: true });
       const previewWritable = await previewHandle.createWritable();
       const response = await fetch(currentMod.previewData);
       const blob = await response.blob();
       await previewWritable.write(blob);
       await previewWritable.close();
+      
+      // 删除其他格式的预览图文件（如果存在）
+      for (const ext of PREVIEW_EXTENSIONS) {
+        if (ext !== actualExt) {
+          try {
+            await modFolderHandle.removeEntry(`preview.${ext}`);
+          } catch (e) {
+            // 文件不存在，忽略
+          }
+        }
+      }
+    }
+    
+    // 保存图标
+    if (currentMod.iconData) {
+      const iconHandle = await modFolderHandle.getFileHandle('icon.ico', { create: true });
+      const iconWritable = await iconHandle.createWritable();
+      const response = await fetch(currentMod.iconData);
+      const blob = await response.blob();
+      await iconWritable.write(blob);
+      await iconWritable.close();
     }
     
     hasUnsavedChanges = false;
     document.getElementById('currentModName').textContent = currentMod.manifest.id;
-    showToast('保存成功！', 'success');
+    showToast(window.i18n.t('msg_save_success'), 'success');
     
   } catch (e) {
     console.error('Failed to save mod:', e);
-    showToast('保存失败: ' + e.message, 'error');
+    showToast(window.i18n.t('msg_save_failed', { error: e.message }), 'error');
   }
 }
 
 /**
- * 导出 Mod (生成 ZIP)
+ * 导出 Mod (生成 .tbuddy ZIP)
  */
 async function exportMod() {
   if (!currentMod) return;
   
   collectManifestData();
+  collectBubbleStyle();
   
-  showToast('导出功能需要额外的 ZIP 库支持，请使用保存功能', 'info');
+  try {
+    showToast(window.i18n.t('msg_exporting'), 'info');
+    const jszip = new JSZip();
+    const root = jszip.folder(currentMod.manifest.id);
+    
+    // 写入基础 JSON
+    root.file('manifest.json', JSON.stringify(currentMod.manifest, null, 2));
+    if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
+      root.file('bubble_style.json', JSON.stringify(currentMod.bubbleStyle, null, 2));
+    }
+    
+    const asset = root.folder('asset');
+    asset.file('sequence.json', JSON.stringify(currentMod.assets.sequence, null, 2));
+    asset.file('img.json', JSON.stringify(currentMod.assets.img, null, 2));
+    asset.folder('sequence');
+    asset.folder('img');
+    
+    const text = root.folder('text');
+    for (const [lang, data] of Object.entries(currentMod.texts)) {
+      const langDir = text.folder(lang);
+      if (data.info) langDir.file('info.json', JSON.stringify(data.info, null, 2));
+      langDir.file('speech.json', JSON.stringify(data.speech, null, 2));
+    }
+    
+    const audio = root.folder('audio');
+    for (const [lang, data] of Object.entries(currentMod.audio)) {
+      const langDir = audio.folder(lang);
+      langDir.file('speech.json', JSON.stringify(data, null, 2));
+      langDir.folder('speech');
+    }
+    
+    // 预览图（根据实际格式保存）
+    if (currentMod.previewData) {
+      const actualExt = getExtensionFromDataUrl(currentMod.previewData) || currentPreviewExt;
+      const base64Data = currentMod.previewData.split(',')[1];
+      root.file(`preview.${actualExt}`, base64Data, { base64: true });
+    }
+    
+    // 图标
+    if (currentMod.iconData) {
+      const base64Data = currentMod.iconData.split(',')[1];
+      root.file('icon.ico', base64Data, { base64: true });
+    }
+    
+    // 生成并保存
+    const content = await jszip.generateAsync({ type: 'blob' });
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: `${currentMod.manifest.id}.tbuddy`,
+      types: [{ description: 'TrayBuddy Mod', accept: { 'application/octet-stream': ['.tbuddy'] } }]
+    });
+    
+    const writable = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    
+    showToast(window.i18n.t('msg_export_success'), 'success');
+    
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      console.error('Failed to export:', e);
+      showToast(window.i18n.t('msg_export_failed', { error: e.message }), 'error');
+    }
+  }
 }
 
 /**
@@ -505,7 +1272,268 @@ function markUnsaved() {
 // ============================================================================
 
 /**
+ * 填充气泡样式表单
+ */
+function populateBubbleStyle() {
+  if (!currentMod) return;
+  
+  // 设置开关状态
+  const enabled = currentMod.bubbleEnabled === true;
+  document.getElementById('bubble-enable').checked = enabled;
+  
+  const fields = document.getElementById('bubble-style-fields');
+  if (enabled) {
+    fields.classList.remove('bubble-disabled');
+    fields.classList.add('bubble-enabled');
+  } else {
+    fields.classList.remove('bubble-enabled');
+    fields.classList.add('bubble-disabled');
+  }
+  
+  if (!currentMod.bubbleStyle) return;
+  const s = currentMod.bubbleStyle;
+  
+  // --- bubble 主体样式 ---
+  document.getElementById('bubble-bg').value = s.bubble?.background || '';
+  document.getElementById('bubble-border').value = s.bubble?.border || '';
+  document.getElementById('bubble-radius').value = s.bubble?.border_radius || '';
+  document.getElementById('bubble-padding').value = s.bubble?.padding || '';
+  document.getElementById('bubble-min-width').value = s.bubble?.min_width || '';
+  document.getElementById('bubble-max-width').value = s.bubble?.max_width || '';
+  document.getElementById('bubble-color').value = s.bubble?.color || '#000000';
+  document.getElementById('bubble-font-size').value = s.bubble?.font_size || '';
+  document.getElementById('bubble-line-height').value = s.bubble?.line_height || '';
+  document.getElementById('bubble-font-family').value = s.bubble?.font_family || '';
+  document.getElementById('bubble-box-shadow').value = s.bubble?.box_shadow || '';
+  document.getElementById('bubble-backdrop-filter').value = s.bubble?.backdrop_filter || '';
+  
+  // --- decoration ---
+  document.getElementById('bubble-decoration-top').value = s.bubble?.decoration_top?.content || '';
+  document.getElementById('bubble-decoration-bottom').value = s.bubble?.decoration_bottom?.content || '';
+  
+  // --- tail ---
+  document.getElementById('bubble-tail-size').value = s.bubble?.tail?.size || '';
+  document.getElementById('bubble-tail-color').value = s.bubble?.tail?.color || '#ffffff';
+  document.getElementById('bubble-tail-shadow').value = s.bubble?.tail?.shadow || '';
+  
+  // --- branch.container ---
+  document.getElementById('branch-container-gap').value = s.branch?.container?.gap || '';
+  document.getElementById('branch-container-margin-top').value = s.branch?.container?.margin_top || '';
+  document.getElementById('branch-container-padding-top').value = s.branch?.container?.padding_top || '';
+  document.getElementById('branch-container-border-top').value = s.branch?.container?.border_top || '';
+  
+  // --- branch.button ---
+  document.getElementById('branch-btn-bg').value = s.branch?.button?.background || '';
+  document.getElementById('branch-btn-color').value = s.branch?.button?.color || '#000000';
+  document.getElementById('branch-btn-border').value = s.branch?.button?.border || '';
+  document.getElementById('branch-btn-border-radius').value = s.branch?.button?.border_radius || '';
+  document.getElementById('branch-btn-padding').value = s.branch?.button?.padding || '';
+  document.getElementById('branch-btn-min-width').value = s.branch?.button?.min_width || '';
+  document.getElementById('branch-btn-font-size').value = s.branch?.button?.font_size || '';
+  document.getElementById('branch-btn-box-shadow').value = s.branch?.button?.box_shadow || '';
+  document.getElementById('branch-btn-backdrop-filter').value = s.branch?.button?.backdrop_filter || '';
+  
+  // --- branch.button_hover ---
+  document.getElementById('branch-btn-hover-bg').value = s.branch?.button_hover?.background || '';
+  document.getElementById('branch-btn-hover-color').value = s.branch?.button_hover?.color || '';
+  document.getElementById('branch-btn-hover-border-color').value = s.branch?.button_hover?.border_color || '';
+  document.getElementById('branch-btn-hover-box-shadow').value = s.branch?.button_hover?.box_shadow || '';
+  document.getElementById('branch-btn-hover-transform').value = s.branch?.button_hover?.transform || '';
+  
+  // --- branch.button_active ---
+  document.getElementById('branch-btn-active-bg').value = s.branch?.button_active?.background || '';
+  document.getElementById('branch-btn-active-box-shadow').value = s.branch?.button_active?.box_shadow || '';
+  document.getElementById('branch-btn-active-transform').value = s.branch?.button_active?.transform || '';
+  
+  // --- branch.decoration ---
+  document.getElementById('branch-decoration-left').value = s.branch?.decoration_left?.content || '';
+  document.getElementById('branch-decoration-right').value = s.branch?.decoration_right?.content || '';
+  
+  // 更新预览
+  updateBubblePreview();
+}
+
+/**
+ * 收集气泡样式表单
+ * 采用合并策略，只更新有 UI 的字段，保留其他字段
+ */
+function collectBubbleStyle() {
+  if (!currentMod) return;
+  
+  // 初始化基本结构（如果不存在）
+  if (!currentMod.bubbleStyle) {
+    currentMod.bubbleStyle = { bubble: {}, branch: {} };
+  }
+  const s = currentMod.bubbleStyle;
+  
+  // 确保嵌套对象存在
+  s.bubble = s.bubble || {};
+  s.bubble.tail = s.bubble.tail || {};
+  s.bubble.decoration_top = s.bubble.decoration_top || {};
+  s.bubble.decoration_bottom = s.bubble.decoration_bottom || {};
+  s.branch = s.branch || {};
+  s.branch.container = s.branch.container || {};
+  s.branch.button = s.branch.button || {};
+  s.branch.button_hover = s.branch.button_hover || {};
+  s.branch.button_active = s.branch.button_active || {};
+  s.branch.decoration_left = s.branch.decoration_left || {};
+  s.branch.decoration_right = s.branch.decoration_right || {};
+  
+  // --- bubble 主体样式 ---
+  const bubbleBg = document.getElementById('bubble-bg').value;
+  if (bubbleBg) s.bubble.background = bubbleBg;
+  
+  const bubbleBorder = document.getElementById('bubble-border').value;
+  if (bubbleBorder) s.bubble.border = bubbleBorder;
+  
+  const bubbleRadius = document.getElementById('bubble-radius').value;
+  if (bubbleRadius) s.bubble.border_radius = bubbleRadius;
+  
+  const bubblePadding = document.getElementById('bubble-padding').value;
+  if (bubblePadding) s.bubble.padding = bubblePadding;
+  
+  const bubbleMinWidth = document.getElementById('bubble-min-width').value;
+  if (bubbleMinWidth) s.bubble.min_width = bubbleMinWidth;
+  
+  const bubbleMaxWidth = document.getElementById('bubble-max-width').value;
+  if (bubbleMaxWidth) s.bubble.max_width = bubbleMaxWidth;
+  
+  const bubbleColor = document.getElementById('bubble-color').value;
+  if (bubbleColor) s.bubble.color = bubbleColor;
+  
+  const bubbleFontSize = document.getElementById('bubble-font-size').value;
+  if (bubbleFontSize) s.bubble.font_size = bubbleFontSize;
+  
+  const bubbleLineHeight = document.getElementById('bubble-line-height').value;
+  if (bubbleLineHeight) s.bubble.line_height = bubbleLineHeight;
+  
+  const bubbleFontFamily = document.getElementById('bubble-font-family').value;
+  if (bubbleFontFamily) s.bubble.font_family = bubbleFontFamily;
+  
+  const bubbleBoxShadow = document.getElementById('bubble-box-shadow').value;
+  if (bubbleBoxShadow) s.bubble.box_shadow = bubbleBoxShadow;
+  
+  const bubbleBackdropFilter = document.getElementById('bubble-backdrop-filter').value;
+  if (bubbleBackdropFilter) s.bubble.backdrop_filter = bubbleBackdropFilter;
+  
+  // --- bubble.decoration_top ---
+  const decoTopContent = document.getElementById('bubble-decoration-top').value;
+  if (decoTopContent) {
+    s.bubble.decoration_top.content = decoTopContent;
+  } else {
+    delete s.bubble.decoration_top;
+  }
+  
+  // --- bubble.decoration_bottom ---
+  const decoBottomContent = document.getElementById('bubble-decoration-bottom').value;
+  if (decoBottomContent) {
+    s.bubble.decoration_bottom.content = decoBottomContent;
+  } else {
+    delete s.bubble.decoration_bottom;
+  }
+  
+  // --- bubble.tail ---
+  const tailSize = document.getElementById('bubble-tail-size').value;
+  if (tailSize) s.bubble.tail.size = tailSize;
+  
+  const tailColor = document.getElementById('bubble-tail-color').value;
+  if (tailColor) s.bubble.tail.color = tailColor;
+  
+  const tailShadow = document.getElementById('bubble-tail-shadow').value;
+  if (tailShadow) s.bubble.tail.shadow = tailShadow;
+  
+  // --- branch.container ---
+  const containerGap = document.getElementById('branch-container-gap').value;
+  if (containerGap) s.branch.container.gap = containerGap;
+  
+  const containerMarginTop = document.getElementById('branch-container-margin-top').value;
+  if (containerMarginTop) s.branch.container.margin_top = containerMarginTop;
+  
+  const containerPaddingTop = document.getElementById('branch-container-padding-top').value;
+  if (containerPaddingTop) s.branch.container.padding_top = containerPaddingTop;
+  
+  const containerBorderTop = document.getElementById('branch-container-border-top').value;
+  if (containerBorderTop) s.branch.container.border_top = containerBorderTop;
+  
+  // --- branch.button ---
+  const btnBg = document.getElementById('branch-btn-bg').value;
+  if (btnBg) s.branch.button.background = btnBg;
+  
+  const btnColor = document.getElementById('branch-btn-color').value;
+  if (btnColor) s.branch.button.color = btnColor;
+  
+  const btnBorder = document.getElementById('branch-btn-border').value;
+  if (btnBorder) s.branch.button.border = btnBorder;
+  
+  const btnBorderRadius = document.getElementById('branch-btn-border-radius').value;
+  if (btnBorderRadius) s.branch.button.border_radius = btnBorderRadius;
+  
+  const btnPadding = document.getElementById('branch-btn-padding').value;
+  if (btnPadding) s.branch.button.padding = btnPadding;
+  
+  const btnMinWidth = document.getElementById('branch-btn-min-width').value;
+  if (btnMinWidth) s.branch.button.min_width = btnMinWidth;
+  
+  const btnFontSize = document.getElementById('branch-btn-font-size').value;
+  if (btnFontSize) s.branch.button.font_size = btnFontSize;
+  
+  const btnBoxShadow = document.getElementById('branch-btn-box-shadow').value;
+  if (btnBoxShadow) s.branch.button.box_shadow = btnBoxShadow;
+  
+  const btnBackdropFilter = document.getElementById('branch-btn-backdrop-filter').value;
+  if (btnBackdropFilter) s.branch.button.backdrop_filter = btnBackdropFilter;
+  
+  // --- branch.button_hover ---
+  const btnHoverBg = document.getElementById('branch-btn-hover-bg').value;
+  if (btnHoverBg) s.branch.button_hover.background = btnHoverBg;
+  
+  const btnHoverColor = document.getElementById('branch-btn-hover-color').value;
+  if (btnHoverColor) s.branch.button_hover.color = btnHoverColor;
+  
+  const btnHoverBorderColor = document.getElementById('branch-btn-hover-border-color').value;
+  if (btnHoverBorderColor) s.branch.button_hover.border_color = btnHoverBorderColor;
+  
+  const btnHoverBoxShadow = document.getElementById('branch-btn-hover-box-shadow').value;
+  if (btnHoverBoxShadow) s.branch.button_hover.box_shadow = btnHoverBoxShadow;
+  
+  const btnHoverTransform = document.getElementById('branch-btn-hover-transform').value;
+  if (btnHoverTransform) s.branch.button_hover.transform = btnHoverTransform;
+  
+  // --- branch.button_active ---
+  const btnActiveBg = document.getElementById('branch-btn-active-bg').value;
+  if (btnActiveBg) {
+    s.branch.button_active.background = btnActiveBg;
+  }
+  
+  const btnActiveBoxShadow = document.getElementById('branch-btn-active-box-shadow').value;
+  if (btnActiveBoxShadow) s.branch.button_active.box_shadow = btnActiveBoxShadow;
+  
+  const btnActiveTransform = document.getElementById('branch-btn-active-transform').value;
+  if (btnActiveTransform) s.branch.button_active.transform = btnActiveTransform;
+  
+  // --- branch.decoration_left ---
+  const decoLeftContent = document.getElementById('branch-decoration-left').value;
+  if (decoLeftContent) {
+    s.branch.decoration_left.content = decoLeftContent;
+  } else {
+    delete s.branch.decoration_left;
+  }
+  
+  // --- branch.decoration_right ---
+  const decoRightContent = document.getElementById('branch-decoration-right').value;
+  if (decoRightContent) {
+    s.branch.decoration_right.content = decoRightContent;
+  } else {
+    delete s.branch.decoration_right;
+  }
+  
+  // 清理空对象
+  if (Object.keys(s.branch.button_active).length === 0) delete s.branch.button_active;
+}
+
+/**
  * 填充 Manifest 表单
+
  */
 function populateManifestForm() {
   const m = currentMod.manifest;
@@ -518,6 +1546,10 @@ function populateManifestForm() {
   document.getElementById('character-z-offset').value = m.character?.z_offset || 1;
   document.getElementById('border-enable').checked = m.border?.enable || false;
   document.getElementById('border-z-offset').value = m.border?.z_offset || 2;
+
+  // 数据面板
+  document.getElementById('show-mod-data-panel').checked = m.show_mod_data_panel === true;
+  document.getElementById('mod-data-default-int').value = Number.isFinite(Number(m.mod_data_default_int)) ? Number(m.mod_data_default_int) : 0;
   
   // 更新动画下拉列表
   updateAnimaSelects();
@@ -527,7 +1559,14 @@ function populateManifestForm() {
   if (currentMod.previewData) {
     document.getElementById('preview-image').innerHTML = `<img src="${currentMod.previewData}" alt="Preview">`;
   } else {
-    document.getElementById('preview-image').innerHTML = '<span class="preview-placeholder">点击上传预览图</span>';
+    document.getElementById('preview-image').innerHTML = `<span class="preview-placeholder">${window.i18n.t('preview_placeholder')}</span>`;
+  }
+  
+  // 显示图标
+  if (currentMod.iconData) {
+    document.getElementById('icon-image').innerHTML = `<img src="${currentMod.iconData}" alt="Icon">`;
+  } else {
+    document.getElementById('icon-image').innerHTML = `<span class="preview-placeholder">${window.i18n.t('icon_placeholder')}</span>`;
   }
   
   // 添加表单变化监听
@@ -563,6 +1602,10 @@ function collectManifestData() {
     enable: document.getElementById('border-enable').checked,
     z_offset: parseInt(document.getElementById('border-z-offset').value) || 2
   };
+
+  // 数据面板
+  m.show_mod_data_panel = document.getElementById('show-mod-data-panel').checked;
+  m.mod_data_default_int = parseInt(document.getElementById('mod-data-default-int').value) || 0;
 }
 
 /**
@@ -580,7 +1623,7 @@ function updateAnimaSelects() {
     if (!select) return;
     
     const currentValue = select.value;
-    select.innerHTML = '<option value="">-- 选择动画 --</option>';
+    select.innerHTML = `<option value="">${window.i18n.t('select_anima_placeholder')}</option>`;
     allAnimas.forEach(name => {
       const option = document.createElement('option');
       option.value = name;
@@ -599,12 +1642,10 @@ function updateAnimaSelects() {
  * 渲染状态列表
  */
 function renderStates() {
-  // 渲染 Idle 状态
-  const idleCard = document.getElementById('idle-state-card');
-  const idleState = currentMod.manifest.important_states.idle;
-  idleCard.innerHTML = renderStateCard(idleState, -1);
+  // 渲染重要状态列表
+  renderImportantStates();
   
-  // 渲染状态列表
+  // 渲染普通状态列表
   const stateList = document.getElementById('state-list');
   stateList.innerHTML = '';
   
@@ -615,15 +1656,15 @@ function renderStates() {
       <div class="state-item-info">
         <span class="state-item-name">${state.name}</span>
         <div class="state-item-meta">
-          ${state.persistent ? '<span class="state-item-tag persistent">持久</span>' : ''}
-          ${state.anima ? `<span class="state-item-tag">动画: ${state.anima}</span>` : ''}
-          ${state.text ? `<span class="state-item-tag">文本: ${state.text}</span>` : ''}
-          ${state.branch?.length ? `<span class="state-item-tag">分支: ${state.branch.length}</span>` : ''}
+          ${state.persistent ? `<span class="state-item-tag persistent">${window.i18n.t('persistent_label')}</span>` : ''}
+          ${state.anima ? `<span class="state-item-tag">${window.i18n.t('anima_label')}: ${state.anima}</span>` : ''}
+          ${state.text ? `<span class="state-item-tag">${window.i18n.t('text_label')}: ${state.text}</span>` : ''}
+          ${state.branch?.length ? `<span class="state-item-tag">${window.i18n.t('section_branches')}: ${state.branch.length}</span>` : ''}
         </div>
       </div>
       <div class="state-item-actions">
-        <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ 编辑</button>
-        <button class="btn btn-sm btn-ghost" onclick="deleteState(${index})">🗑️ 删除</button>
+        <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ ${window.i18n.t('btn_edit')}</button>
+        <button class="btn btn-sm btn-ghost" onclick="deleteState(${index})">🗑️ ${window.i18n.t('btn_delete')}</button>
       </div>
     `;
     stateList.appendChild(item);
@@ -631,35 +1672,88 @@ function renderStates() {
 }
 
 /**
- * 渲染状态卡片 HTML
+ * 渲染重要状态列表
  */
-function renderStateCard(state, index) {
+function renderImportantStates() {
+  const container = document.getElementById('important-states-list');
+  container.innerHTML = '';
+  
+  const importantStates = currentMod.manifest.important_states || {};
+  const stateOrder = ['idle', 'silence', 'silence_start', 'silence_end', 'music', 'music_start', 'music_end', 'birthday', 'firstday'];
+  
+  stateOrder.forEach(key => {
+    const state = importantStates[key];
+    if (!state) return;
+    
+    const card = document.createElement('div');
+    card.className = 'state-card';
+    card.innerHTML = renderImportantStateCard(state, key);
+    container.appendChild(card);
+  });
+  
+  // 添加其他自定义重要状态
+  Object.keys(importantStates).forEach(key => {
+    if (stateOrder.includes(key)) return;
+    const state = importantStates[key];
+    const card = document.createElement('div');
+    card.className = 'state-card';
+    card.innerHTML = renderImportantStateCard(state, key);
+    container.appendChild(card);
+  });
+}
+
+/**
+ * 渲染重要状态卡片 HTML
+ */
+function renderImportantStateCard(state, key) {
+  const canTriggerCount = (state.can_trigger_states || []).length;
+  const branchCount = (state.branch || []).length;
+  
   return `
     <div class="state-card-header">
-      <span class="state-card-title">${state.name}</span>
+      <span class="state-card-title">${state.name || key}</span>
       <div class="state-card-actions">
-        <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ 编辑</button>
+        <button class="btn btn-sm btn-ghost" onclick="editImportantState('${key}')">✏️ ${window.i18n.t('btn_edit')}</button>
       </div>
     </div>
     <div class="state-card-body">
       <div class="state-card-field">
-        <span class="label">动画: </span>
+        <span class="label">${window.i18n.t('anima_label')}: </span>
         <span class="value">${state.anima || '-'}</span>
       </div>
       <div class="state-card-field">
-        <span class="label">持久: </span>
-        <span class="value">${state.persistent ? '是' : '否'}</span>
+        <span class="label">${window.i18n.t('persistent_label')}: </span>
+        <span class="value">${state.persistent ? window.i18n.t('yes') : window.i18n.t('no')}</span>
       </div>
       <div class="state-card-field">
-        <span class="label">优先级: </span>
+        <span class="label">${window.i18n.t('priority_label')}: </span>
         <span class="value">${state.priority}</span>
       </div>
       <div class="state-card-field">
-        <span class="label">触发率: </span>
+        <span class="label">${window.i18n.t('trigger_rate_label')}: </span>
         <span class="value">${state.trigger_rate}</span>
       </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('next_state_label')}: </span>
+        <span class="value">${state.next_state || '-'}</span>
+      </div>
+      ${canTriggerCount > 0 ? `<div class="state-card-field">
+        <span class="label">${window.i18n.t('can_trigger_states_label')}: </span>
+        <span class="value">${canTriggerCount} ${window.i18n.t('count_unit')}</span>
+      </div>` : ''}
+      ${branchCount > 0 ? `<div class="state-card-field">
+        <span class="label">${window.i18n.t('section_branches')}: </span>
+        <span class="value">${branchCount} ${window.i18n.t('count_unit')}</span>
+      </div>` : ''}
     </div>
   `;
+}
+
+/**
+ * 渲染状态卡片 HTML（旧版兼容）
+ */
+function renderStateCard(state, index) {
+  return renderImportantStateCard(state, state.name);
 }
 
 /**
@@ -667,7 +1761,8 @@ function renderStateCard(state, index) {
  */
 function addState() {
   editingStateIndex = -2; // -2 表示新建状态
-  openStateModal('添加状态', createDefaultState('new_state'));
+  editingImportantStateKey = null;
+  openStateModal(window.i18n.t('modal_add_state'), createDefaultState('new_state'));
 }
 
 /**
@@ -675,10 +1770,19 @@ function addState() {
  */
 function editState(index) {
   editingStateIndex = index;
-  const state = index === -1 
-    ? currentMod.manifest.important_states.idle 
-    : currentMod.manifest.states[index];
-  openStateModal('编辑状态', state);
+  editingImportantStateKey = null;
+  const state = currentMod.manifest.states[index];
+  openStateModal(window.i18n.t('modal_edit_state'), state);
+}
+
+/**
+ * 编辑重要状态
+ */
+function editImportantState(key) {
+  editingStateIndex = -1;
+  editingImportantStateKey = key;
+  const state = currentMod.manifest.important_states[key];
+  openStateModal(window.i18n.t('modal_edit_state') + ` (${key})`, state);
 }
 
 /**
@@ -699,25 +1803,124 @@ function openStateModal(title, state) {
   document.getElementById('state-next-state').value = state.next_state || '';
   document.getElementById('state-trigger-time').value = state.trigger_time || 0;
   document.getElementById('state-trigger-rate').value = state.trigger_rate || 0;
-
-  // can_trigger_states 现在是对象数组：[{ state, weight }]
-  // 编辑器输入格式：name 或 name:weight（逗号分隔）
-  document.getElementById('state-can-trigger').value = (state.can_trigger_states || [])
-    .map((x) => {
-      if (typeof x === 'string') return x;
-      const w = Number.isFinite(x.weight) ? x.weight : 1;
-      return w !== 1 ? `${x.state}:${w}` : x.state;
-    })
-    .join(', ');
+  document.getElementById('state-branch-show-bubble').checked = state.branch_show_bubble !== false;
   
   // 更新动画下拉列表
   updateAnimaSelects();
   document.getElementById('state-anima').value = state.anima || '';
   
+  // 渲染可触发子状态
+  renderCanTriggerStates(state.can_trigger_states || []);
+  
+  // 填充计数器
+  const counter = state.mod_data_counter;
+  if (counter && typeof counter === 'object' && counter.op) {
+    document.getElementById('state-counter-op').value = counter.op;
+    document.getElementById('state-counter-value').value = counter.value || 0;
+  } else {
+    document.getElementById('state-counter-op').value = '';
+    document.getElementById('state-counter-value').value = 0;
+  }
+  
   // 渲染分支
   renderBranches(state.branch || []);
   
   document.getElementById('state-modal').classList.add('show');
+}
+
+/**
+ * 渲染可触发子状态列表
+ */
+function renderCanTriggerStates(canTriggerStates) {
+  const list = document.getElementById('can-trigger-list');
+  list.innerHTML = '';
+  
+  canTriggerStates.forEach((item, index) => {
+    const div = document.createElement('div');
+    div.className = 'can-trigger-item';
+    
+    // 兼容旧格式（字符串）和新格式（对象 { state, weight }）
+    let stateName = '';
+    let weight = 1;
+    if (typeof item === 'string') {
+      stateName = item;
+    } else if (item && typeof item === 'object') {
+      stateName = item.state || '';
+      weight = Number.isFinite(item.weight) ? item.weight : 1;
+    }
+    
+    div.innerHTML = `
+      <input type="text" placeholder="${window.i18n.t('state_name_label')}" value="${stateName}" data-can-trigger-state="${index}">
+      <input type="number" placeholder="${window.i18n.t('weight_label')}" value="${weight}" min="1" data-can-trigger-weight="${index}" style="width: 80px;">
+      <button class="btn btn-sm btn-ghost" onclick="removeCanTriggerState(${index})">🗑️</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+/**
+ * 添加可触发子状态
+ */
+function addCanTriggerState() {
+  const list = document.getElementById('can-trigger-list');
+  const index = list.children.length;
+  
+  const div = document.createElement('div');
+  div.className = 'can-trigger-item';
+  div.innerHTML = `
+    <input type="text" placeholder="${window.i18n.t('state_name_label')}" data-can-trigger-state="${index}">
+    <input type="number" placeholder="${window.i18n.t('weight_label')}" value="1" min="1" data-can-trigger-weight="${index}" style="width: 80px;">
+    <button class="btn btn-sm btn-ghost" onclick="removeCanTriggerState(${index})">🗑️</button>
+  `;
+  list.appendChild(div);
+}
+
+/**
+ * 移除可触发子状态
+ */
+function removeCanTriggerState(index) {
+  const list = document.getElementById('can-trigger-list');
+  list.children[index]?.remove();
+  
+  // 重新索引
+  Array.from(list.children).forEach((item, i) => {
+    item.querySelector('[data-can-trigger-state]').dataset.canTriggerState = i;
+    item.querySelector('[data-can-trigger-weight]').dataset.canTriggerWeight = i;
+    item.querySelector('button').onclick = () => removeCanTriggerState(i);
+  });
+}
+
+
+/**
+ * 收集可触发子状态数据
+ */
+function collectCanTriggerStates() {
+  const states = [];
+  const list = document.getElementById('can-trigger-list');
+  
+  Array.from(list.children).forEach(item => {
+    const state = item.querySelector('[data-can-trigger-state]').value.trim();
+    const weight = parseInt(item.querySelector('[data-can-trigger-weight]').value) || 1;
+    if (state) {
+      states.push({ state, weight });
+    }
+  });
+  
+  return states;
+}
+
+/**
+ * 收集计数器数据
+ */
+function collectDataCounter() {
+  const op = document.getElementById('state-counter-op').value;
+  const value = parseInt(document.getElementById('state-counter-value').value) || 0;
+  
+  if (!op) {
+    return null; // 无操作
+  }
+  
+  return { op, value };
 }
 
 /**
@@ -743,35 +1946,26 @@ function saveState() {
     time_start: document.getElementById('state-time-start').value.trim(),
     time_end: document.getElementById('state-time-end').value.trim(),
     next_state: document.getElementById('state-next-state').value.trim(),
-    can_trigger_states: document.getElementById('state-can-trigger').value
-      .split(',')
-      .map((raw) => raw.trim())
-      .filter((raw) => raw)
-      .map((raw) => {
-        const [namePart, weightPart] = raw.split(':').map((x) => x.trim());
-        const weight = parseInt(weightPart, 10);
-        return {
-          state: namePart,
-          weight: Number.isFinite(weight) && weight > 0 ? weight : 1,
-        };
-      }),
+    can_trigger_states: collectCanTriggerStates(),
     trigger_time: parseInt(document.getElementById('state-trigger-time').value) || 0,
     trigger_rate: parseFloat(document.getElementById('state-trigger-rate').value) || 0,
+    branch_show_bubble: document.getElementById('state-branch-show-bubble').checked,
+    mod_data_counter: collectDataCounter(),
     branch: collectBranches()
   };
   
   if (!state.name) {
-    showToast('请输入状态名称', 'warning');
+    showToast(window.i18n.t('msg_enter_state_name'), 'warning');
     return;
   }
   
   if (editingStateIndex === -2) {
     // 新建状态
     currentMod.manifest.states.push(state);
-  } else if (editingStateIndex === -1) {
-    // 编辑 idle 状态
-    currentMod.manifest.important_states.idle = state;
-  } else {
+  } else if (editingStateIndex === -1 && editingImportantStateKey) {
+    // 编辑重要状态
+    currentMod.manifest.important_states[editingImportantStateKey] = state;
+  } else if (editingStateIndex >= 0) {
     // 编辑普通状态
     currentMod.manifest.states[editingStateIndex] = state;
   }
@@ -779,18 +1973,18 @@ function saveState() {
   closeStateModal();
   renderStates();
   markUnsaved();
-  showToast('状态已保存', 'success');
+  showToast(window.i18n.t('msg_state_saved'), 'success');
 }
 
 /**
  * 删除状态
  */
 function deleteState(index) {
-  if (confirm('确定要删除这个状态吗？')) {
+  if (confirm(window.i18n.t('msg_confirm_delete_state'))) {
     currentMod.manifest.states.splice(index, 1);
     renderStates();
     markUnsaved();
-    showToast('状态已删除', 'success');
+    showToast(window.i18n.t('msg_state_deleted'), 'success');
   }
 }
 
@@ -805,8 +1999,8 @@ function renderBranches(branches) {
     const item = document.createElement('div');
     item.className = 'branch-item';
     item.innerHTML = `
-      <input type="text" placeholder="选项文本" value="${branch.text || ''}" data-branch-text="${index}">
-      <input type="text" placeholder="跳转状态" value="${branch.next_state || ''}" data-branch-state="${index}">
+      <input type="text" placeholder="${window.i18n.t('branch_text_placeholder')}" value="${branch.text || ''}" data-branch-text="${index}">
+      <input type="text" placeholder="${window.i18n.t('branch_state_placeholder')}" value="${branch.next_state || ''}" data-branch-state="${index}">
       <button class="btn btn-sm btn-ghost" onclick="removeBranch(${index})">🗑️</button>
     `;
     branchList.appendChild(item);
@@ -823,8 +2017,8 @@ function addBranch() {
   const item = document.createElement('div');
   item.className = 'branch-item';
   item.innerHTML = `
-    <input type="text" placeholder="选项文本" data-branch-text="${index}">
-    <input type="text" placeholder="跳转状态" data-branch-state="${index}">
+    <input type="text" placeholder="${window.i18n.t('branch_text_placeholder')}" data-branch-text="${index}">
+    <input type="text" placeholder="${window.i18n.t('branch_state_placeholder')}" data-branch-state="${index}">
     <button class="btn btn-sm btn-ghost" onclick="removeBranch(${index})">🗑️</button>
   `;
   branchList.appendChild(item);
@@ -877,19 +2071,22 @@ function renderTriggers() {
   currentMod.manifest.triggers.forEach((trigger, index) => {
     const item = document.createElement('div');
     item.className = 'trigger-item';
+    
+    // 渲染触发状态的摘要
+    const statesSummary = renderTriggerStatesSummary(trigger.can_trigger_states || []);
+    
     item.innerHTML = `
       <div class="trigger-item-header">
         <div class="trigger-event">
           <code>${trigger.event}</code>
         </div>
         <div class="trigger-actions">
-          <button class="btn btn-sm btn-ghost" onclick="editTrigger(${index})">✏️ 编辑</button>
-          <button class="btn btn-sm btn-ghost" onclick="deleteTrigger(${index})">🗑️ 删除</button>
+          <button class="btn btn-sm btn-ghost" onclick="editTriggerFull(${index})">✏️ ${window.i18n.t('btn_edit')}</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteTrigger(${index})">🗑️ ${window.i18n.t('btn_delete')}</button>
         </div>
       </div>
       <div class="trigger-states">
-        ${(trigger.can_trigger_states || []).map(s => `<span class="trigger-state-tag">${s}</span>`).join('')}
-        ${(trigger.can_trigger_states || []).length === 0 ? '<span class="trigger-state-tag">无触发状态</span>' : ''}
+        ${statesSummary}
       </div>
     `;
     triggerList.appendChild(item);
@@ -897,51 +2094,310 @@ function renderTriggers() {
 }
 
 /**
- * 添加触发器
+ * 渲染触发状态摘要
  */
-function addTrigger() {
-  const event = prompt('请输入事件名称 (如: click, login, music_start)');
-  if (event) {
-    currentMod.manifest.triggers.push({
-      event: event.trim(),
-      can_trigger_states: []
-    });
-    renderTriggers();
-    markUnsaved();
-    showToast('触发器已添加', 'success');
+function renderTriggerStatesSummary(canTriggerStates) {
+  if (!canTriggerStates || canTriggerStates.length === 0) {
+    return `<span class="trigger-state-tag">${window.i18n.t('no_trigger_states')}</span>`;
   }
+  
+  return canTriggerStates.map(s => {
+    if (typeof s === 'string') {
+      return `<span class="trigger-state-tag">${s}</span>`;
+    }
+    if (s && typeof s === 'object') {
+      // 复杂结构：{ persistent_state, states: [{state, weight}] }
+      const persistent = typeof s.persistent_state === 'string' ? s.persistent_state : '';
+      const states = Array.isArray(s.states) ? s.states : [];
+      const list = states
+        .map(x => {
+          if (x && typeof x === 'object' && typeof x.state === 'string') {
+            const w = Number.isFinite(x.weight) && x.weight !== 1 ? `:${x.weight}` : '';
+            return x.state + w;
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join(', ');
+      const label = persistent ? `[${persistent}] ${list || '-'}` : (list || '[complex]');
+      return `<span class="trigger-state-tag">${label}</span>`;
+    }
+    return `<span class="trigger-state-tag">${String(s)}</span>`;
+  }).join('');
 }
 
 /**
- * 编辑触发器
+ * 添加触发器
+ */
+function addTrigger() {
+  editingTriggerIndex = -1;
+  openTriggerModal(window.i18n.t('modal_add_trigger') || '添加触发器', {
+    event: '',
+    can_trigger_states: []
+  });
+}
+
+/**
+ * 完整编辑触发器
+ */
+function editTriggerFull(index) {
+  editingTriggerIndex = index;
+  const trigger = currentMod.manifest.triggers[index];
+  openTriggerModal(window.i18n.t('modal_edit_trigger') || '编辑触发器', trigger);
+}
+
+/**
+ * 打开触发器编辑弹窗
+ */
+function openTriggerModal(title, trigger) {
+  document.getElementById('trigger-modal-title').textContent = title;
+  document.getElementById('trigger-event').value = trigger.event || '';
+  
+  // 渲染触发状态组
+  renderTriggerGroups(trigger.can_trigger_states || []);
+  
+  document.getElementById('trigger-modal').classList.add('show');
+}
+
+/**
+ * 关闭触发器编辑弹窗
+ */
+function closeTriggerModal() {
+  document.getElementById('trigger-modal').classList.remove('show');
+}
+
+/**
+ * 渲染触发状态组
+ */
+function renderTriggerGroups(canTriggerStates) {
+  const list = document.getElementById('trigger-groups-list');
+  list.innerHTML = '';
+  
+  canTriggerStates.forEach((group, groupIndex) => {
+    const div = document.createElement('div');
+    div.className = 'trigger-group-item';
+    
+    // 兼容简单格式（字符串）和复杂格式（对象）
+    let persistentState = '';
+    let states = [];
+    
+    if (typeof group === 'string') {
+      states = [{ state: group, weight: 1 }];
+    } else if (group && typeof group === 'object') {
+      persistentState = group.persistent_state || '';
+      states = Array.isArray(group.states) ? group.states : [];
+    }
+    
+    const statesHtml = states.map((s, stateIndex) => {
+      const stateName = typeof s === 'string' ? s : (s.state || '');
+      const weight = (s && typeof s === 'object' && Number.isFinite(s.weight)) ? s.weight : 1;
+      return `
+        <div class="trigger-state-row" data-group="${groupIndex}" data-state="${stateIndex}">
+          <input type="text" placeholder="${window.i18n.t('state_name_label')}" value="${stateName}" data-trigger-state-name="${groupIndex}-${stateIndex}">
+          <input type="number" placeholder="${window.i18n.t('weight_label')}" value="${weight}" min="1" data-trigger-state-weight="${groupIndex}-${stateIndex}" style="width: 70px;">
+          <button class="btn btn-sm btn-ghost" onclick="removeTriggerState(${groupIndex}, ${stateIndex})">🗑️</button>
+        </div>
+      `;
+    }).join('');
+    
+    div.innerHTML = `
+      <div class="trigger-group-header">
+        <div class="form-group" style="flex: 1; margin: 0;">
+          <label>${window.i18n.t('persistent_state_label')}</label>
+          <input type="text" placeholder="${window.i18n.t('persistent_state_hint')}" value="${persistentState}" data-trigger-persistent="${groupIndex}">
+        </div>
+        <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ ${window.i18n.t('btn_delete_group')}</button>
+      </div>
+      <div class="trigger-states-list" data-trigger-group="${groupIndex}">
+        ${statesHtml}
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick="addTriggerStateToGroup(${groupIndex})" style="margin-top: 8px;">➕ ${window.i18n.t('btn_add_state')}</button>
+    `;
+    
+    list.appendChild(div);
+  });
+}
+
+/**
+ * 添加触发状态组
+ */
+function addTriggerGroup() {
+  const list = document.getElementById('trigger-groups-list');
+  const groupIndex = list.children.length;
+  
+  const div = document.createElement('div');
+  div.className = 'trigger-group-item';
+  div.innerHTML = `
+    <div class="trigger-group-header">
+      <div class="form-group" style="flex: 1; margin: 0;">
+        <label>${window.i18n.t('persistent_state_label')}</label>
+        <input type="text" placeholder="${window.i18n.t('persistent_state_hint')}" data-trigger-persistent="${groupIndex}">
+      </div>
+      <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ ${window.i18n.t('btn_delete_group')}</button>
+    </div>
+    <div class="trigger-states-list" data-trigger-group="${groupIndex}">
+    </div>
+    <button class="btn btn-sm btn-secondary" onclick="addTriggerStateToGroup(${groupIndex})" style="margin-top: 8px;">➕ ${window.i18n.t('btn_add_state')}</button>
+  `;
+  
+  list.appendChild(div);
+}
+
+/**
+ * 移除触发状态组
+ */
+function removeTriggerGroup(groupIndex) {
+  const list = document.getElementById('trigger-groups-list');
+  list.children[groupIndex]?.remove();
+  reindexTriggerGroups();
+}
+
+/**
+ * 添加状态到组
+ */
+function addTriggerStateToGroup(groupIndex) {
+  const list = document.getElementById('trigger-groups-list');
+  const groupDiv = list.children[groupIndex];
+  if (!groupDiv) return;
+  
+  const statesList = groupDiv.querySelector(`[data-trigger-group="${groupIndex}"]`);
+  const stateIndex = statesList.children.length;
+  
+  const row = document.createElement('div');
+  row.className = 'trigger-state-row';
+  row.dataset.group = groupIndex;
+  row.dataset.state = stateIndex;
+  row.innerHTML = `
+    <input type="text" placeholder="${window.i18n.t('state_name_label')}" data-trigger-state-name="${groupIndex}-${stateIndex}">
+    <input type="number" placeholder="${window.i18n.t('weight_label')}" value="1" min="1" data-trigger-state-weight="${groupIndex}-${stateIndex}" style="width: 70px;">
+    <button class="btn btn-sm btn-ghost" onclick="removeTriggerState(${groupIndex}, ${stateIndex})">🗑️</button>
+  `;
+  
+  statesList.appendChild(row);
+}
+
+/**
+ * 移除触发状态
+ */
+function removeTriggerState(groupIndex, stateIndex) {
+  const list = document.getElementById('trigger-groups-list');
+  const groupDiv = list.children[groupIndex];
+  if (!groupDiv) return;
+  
+  const statesList = groupDiv.querySelector(`[data-trigger-group="${groupIndex}"]`);
+  statesList.children[stateIndex]?.remove();
+  
+  // 重新索引组内状态
+  Array.from(statesList.children).forEach((row, i) => {
+    row.dataset.state = i;
+    row.querySelector('[data-trigger-state-name]').dataset.triggerStateName = `${groupIndex}-${i}`;
+    row.querySelector('[data-trigger-state-weight]').dataset.triggerStateWeight = `${groupIndex}-${i}`;
+    row.querySelector('button').onclick = () => removeTriggerState(groupIndex, i);
+  });
+}
+
+/**
+ * 重新索引触发状态组
+ */
+function reindexTriggerGroups() {
+  const list = document.getElementById('trigger-groups-list');
+  
+  Array.from(list.children).forEach((groupDiv, groupIndex) => {
+    groupDiv.querySelector('[data-trigger-persistent]').dataset.triggerPersistent = groupIndex;
+    
+    const statesList = groupDiv.querySelector('[data-trigger-group]');
+    statesList.dataset.triggerGroup = groupIndex;
+    
+    Array.from(statesList.children).forEach((row, stateIndex) => {
+      row.dataset.group = groupIndex;
+      row.dataset.state = stateIndex;
+      row.querySelector('[data-trigger-state-name]').dataset.triggerStateName = `${groupIndex}-${stateIndex}`;
+      row.querySelector('[data-trigger-state-weight]').dataset.triggerStateWeight = `${groupIndex}-${stateIndex}`;
+      row.querySelector('button').onclick = () => removeTriggerState(groupIndex, stateIndex);
+    });
+    
+    // 更新删除组按钮
+    groupDiv.querySelector('.trigger-group-header button').onclick = () => removeTriggerGroup(groupIndex);
+    
+    // 更新添加状态按钮
+    groupDiv.querySelector('.trigger-group-item > button:last-child').onclick = () => addTriggerStateToGroup(groupIndex);
+  });
+}
+
+/**
+ * 收集触发器数据
+ */
+function collectTriggerData() {
+  const event = document.getElementById('trigger-event').value.trim();
+  const canTriggerStates = [];
+  
+  const list = document.getElementById('trigger-groups-list');
+  
+  Array.from(list.children).forEach((groupDiv, groupIndex) => {
+    const persistentState = groupDiv.querySelector(`[data-trigger-persistent="${groupIndex}"]`)?.value.trim() || '';
+    const statesList = groupDiv.querySelector(`[data-trigger-group="${groupIndex}"]`);
+    const states = [];
+    
+    Array.from(statesList.children).forEach((row, stateIndex) => {
+      const stateName = row.querySelector(`[data-trigger-state-name="${groupIndex}-${stateIndex}"]`)?.value.trim() || '';
+      const weight = parseInt(row.querySelector(`[data-trigger-state-weight="${groupIndex}-${stateIndex}"]`)?.value) || 1;
+      if (stateName) {
+        states.push({ state: stateName, weight });
+      }
+    });
+    
+    if (states.length > 0) {
+      canTriggerStates.push({
+        persistent_state: persistentState,
+        states: states
+      });
+    }
+  });
+  
+  return { event, can_trigger_states: canTriggerStates };
+}
+
+/**
+ * 保存触发器
+ */
+function saveTrigger() {
+  const triggerData = collectTriggerData();
+  
+  if (!triggerData.event) {
+    showToast(window.i18n.t('msg_enter_event_name'), 'warning');
+    return;
+  }
+  
+  if (editingTriggerIndex === -1) {
+    // 新建触发器
+    currentMod.manifest.triggers.push(triggerData);
+  } else {
+    // 编辑现有触发器
+    currentMod.manifest.triggers[editingTriggerIndex] = triggerData;
+  }
+  
+  closeTriggerModal();
+  renderTriggers();
+  markUnsaved();
+  showToast(window.i18n.t('msg_trigger_saved'), 'success');
+}
+
+/**
+ * 编辑触发器（简单模式，保留兼容）
  */
 function editTrigger(index) {
-  const trigger = currentMod.manifest.triggers[index];
-  const states = prompt(
-    '请输入可触发的状态列表 (逗号分隔)',
-    (trigger.can_trigger_states || []).join(', ')
-  );
-  
-  if (states !== null) {
-    trigger.can_trigger_states = states
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s);
-    renderTriggers();
-    markUnsaved();
-    showToast('触发器已更新', 'success');
-  }
+  editTriggerFull(index);
 }
 
 /**
  * 删除触发器
  */
 function deleteTrigger(index) {
-  if (confirm('确定要删除这个触发器吗？')) {
+  if (confirm(window.i18n.t('msg_confirm_delete'))) {
     currentMod.manifest.triggers.splice(index, 1);
     renderTriggers();
     markUnsaved();
-    showToast('触发器已删除', 'success');
+    showToast(window.i18n.t('msg_trigger_deleted'), 'success');
   }
 }
 
@@ -977,10 +2433,10 @@ function renderAssetList(type, assets) {
         </div>
       </div>
       <div class="asset-card-body">
-        <div class="asset-field"><span class="label">路径:</span> ${asset.img}</div>
-        <div class="asset-field"><span class="label">帧:</span> ${asset.frame_num_x}×${asset.frame_num_y}</div>
-        <div class="asset-field"><span class="label">尺寸:</span> ${asset.frame_size_x}×${asset.frame_size_y}</div>
-        <div class="asset-field"><span class="label">帧时:</span> ${asset.frame_time}s</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('asset_path_label')}:</span> ${asset.img}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('asset_frames_label')}:</span> ${asset.frame_num_x}×${asset.frame_num_y}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('asset_size_label')}:</span> ${asset.frame_size_x}×${asset.frame_size_y}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('asset_frame_time_label')}:</span> ${asset.frame_time}s</div>
       </div>
     `;
     list.appendChild(card);
@@ -993,7 +2449,7 @@ function renderAssetList(type, assets) {
 function addAsset(type) {
   editingAssetType = type;
   editingAssetIndex = -1;
-  openAssetModal('添加动画资源', {
+  openAssetModal(window.i18n.t('modal_add_asset'), {
     name: '',
     img: type === 'sequence' ? 'sequence/' : 'img/',
     sequence: true,
@@ -1016,7 +2472,7 @@ function editAsset(type, index) {
   editingAssetType = type;
   editingAssetIndex = index;
   const asset = currentMod.assets[type][index];
-  openAssetModal('编辑动画资源', asset);
+  openAssetModal(window.i18n.t('modal_edit_asset'), asset);
 }
 
 /**
@@ -1068,7 +2524,7 @@ function saveAsset() {
   };
   
   if (!asset.name) {
-    showToast('请输入资源名称', 'warning');
+    showToast(window.i18n.t('msg_enter_asset_name'), 'warning');
     return;
   }
   
@@ -1081,18 +2537,18 @@ function saveAsset() {
   closeAssetModal();
   renderAssets();
   markUnsaved();
-  showToast('资源已保存', 'success');
+  showToast(window.i18n.t('msg_asset_saved'), 'success');
 }
 
 /**
  * 删除资源
  */
 function deleteAsset(type, index) {
-  if (confirm('确定要删除这个资源吗？')) {
+  if (confirm(window.i18n.t('msg_confirm_delete_asset'))) {
     currentMod.assets[type].splice(index, 1);
     renderAssets();
     markUnsaved();
-    showToast('资源已删除', 'success');
+    showToast(window.i18n.t('msg_asset_deleted'), 'success');
   }
 }
 
@@ -1172,12 +2628,12 @@ function renderSpeechTexts() {
     item.innerHTML = `
       <div class="speech-item-header">
         <input type="text" class="speech-item-name" value="${speech.name || ''}" 
-          placeholder="文本名称" onchange="updateSpeechText(${index}, 'name', this.value)">
+          placeholder="${window.i18n.t('text_name_placeholder')}" onchange="updateSpeechText(${index}, 'name', this.value)">
         <div class="speech-item-actions">
           <button class="btn btn-sm btn-ghost" onclick="deleteSpeechText(${index})">🗑️</button>
         </div>
       </div>
-      <textarea class="speech-item-text" rows="3" placeholder="对话内容（支持 Markdown）"
+      <textarea class="speech-item-text" rows="3" placeholder="${window.i18n.t('text_content_placeholder')}"
         onchange="updateSpeechText(${index}, 'text', this.value)">${speech.text || ''}</textarea>
     `;
     list.appendChild(item);
@@ -1188,7 +2644,7 @@ function renderSpeechTexts() {
  * 添加语言
  */
 function addLanguage() {
-  const langId = prompt('请输入语言ID (如: en, jp, zh)');
+  const langId = prompt(window.i18n.t('msg_enter_lang_id'));
   if (langId && !currentMod.texts[langId]) {
     currentMod.texts[langId] = {
       info: { id: langId, lang: langId, name: '', description: '' },
@@ -1197,7 +2653,7 @@ function addLanguage() {
     currentTextLang = langId;
     renderTexts();
     markUnsaved();
-    showToast('语言已添加', 'success');
+    showToast(window.i18n.t('msg_lang_added'), 'success');
   }
 }
 
@@ -1282,9 +2738,9 @@ function renderAudioList() {
     item.innerHTML = `
       <div class="audio-item-info">
         <input type="text" class="audio-item-name" value="${audio.name || ''}" 
-          placeholder="音频名称" onchange="updateAudioEntry(${index}, 'name', this.value)">
+          placeholder="${window.i18n.t('audio_name_placeholder')}" onchange="updateAudioEntry(${index}, 'name', this.value)">
         <input type="text" class="audio-item-path" value="${audio.audio || ''}" 
-          placeholder="文件路径 (如: jp/speech/morning.wav)" onchange="updateAudioEntry(${index}, 'audio', this.value)">
+          placeholder="${window.i18n.t('audio_path_placeholder')}" onchange="updateAudioEntry(${index}, 'audio', this.value)">
       </div>
       <div class="audio-item-actions">
         <button class="btn btn-sm btn-ghost" onclick="deleteAudioEntry(${index})">🗑️</button>
@@ -1298,13 +2754,13 @@ function renderAudioList() {
  * 添加音频语言
  */
 function addAudioLanguage() {
-  const langId = prompt('请输入语言ID (如: en, jp, zh)');
+  const langId = prompt(window.i18n.t('msg_enter_lang_id'));
   if (langId && !currentMod.audio[langId]) {
     currentMod.audio[langId] = [];
     currentAudioLang = langId;
     renderAudio();
     markUnsaved();
-    showToast('语言已添加', 'success');
+    showToast(window.i18n.t('msg_lang_added'), 'success');
   }
 }
 

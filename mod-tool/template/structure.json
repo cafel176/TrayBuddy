@@ -1,0 +1,10 @@
+{
+  "manifest": "manifest.json",
+  "bubble_style": "bubble_style.json",
+  "assets": {
+    "sequence": "asset/sequence.json",
+    "img": "asset/img.json"
+  },
+  "text_langs": ["zh", "en", "jp"],
+  "audio_langs": ["zh", "en", "jp"]
+}
