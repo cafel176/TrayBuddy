@@ -74,7 +74,7 @@ impl Default for UserSettings {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct ModData {
-    /// Mod ID（当前实现以 mod 文件夹名为 ID）
+    /// Mod ID（使用 manifest.json 的 id 作为唯一标识）
     pub mod_id: String,
     /// 一个整型变量（可由 Mod/前端自由定义语义）
     pub value: i32,
@@ -95,7 +95,7 @@ impl Default for ModData {
 pub struct UserInfo {
     pub first_login: Option<i64>, // 第一次启动的时间戳
     pub last_login: Option<i64>,  // 最后一次启动的时间戳
-    pub current_mod: Box<str>,    // 上次关闭前加载的 Mod ID（文件夹名）
+    pub current_mod: Box<str>,    // 上次关闭前加载的 Mod ID（manifest.json 的 id）
 
     pub animation_window_x: Option<f64>, // animation 窗口上次关闭时的 X 坐标
     pub animation_window_y: Option<f64>, // animation 窗口上次关闭时的 Y 坐标
@@ -104,7 +104,7 @@ pub struct UserInfo {
     pub total_usage_seconds: i64, // 累计使用时长（秒）
     pub total_click_count: i64,   // 总点击次数
 
-    /// 各 Mod 的持久化数据（key = mod_id/文件夹名）
+    /// 各 Mod 的持久化数据（key = manifest.id）
     pub mod_data: HashMap<String, ModData>,
 }
 

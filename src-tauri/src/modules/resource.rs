@@ -750,6 +750,17 @@ impl ModInfo {
 // 资源管理器
 // ========================================================================= //
 
+/// Mod 位置索引项（用于通过 manifest.id 解析到真实目录）
+#[derive(Debug, Clone)]
+struct ModLocator {
+    /// manifest.json 中的 id
+    id: String,
+    /// Mod 文件夹名（目录名）
+    folder: String,
+    /// Mod 根目录绝对路径
+    path: PathBuf,
+}
+
 /// 资源管理器
 ///
 /// 负责 Mod 的扫描、解析与内存映射
@@ -758,6 +769,11 @@ pub struct ResourceManager {
     pub current_mod: Option<Arc<ModInfo>>,
     /// Mod 搜索路径列表
     pub search_paths: Vec<PathBuf>,
+
+    /// manifest.id -> ModLocator（以 manifest.id 为唯一标识）
+    mod_index: HashMap<String, ModLocator>,
+    /// folder -> manifest.id（兼容旧逻辑/迁移用）
+    folder_to_id: HashMap<String, String>,
 }
 
 impl ResourceManager {
@@ -766,6 +782,8 @@ impl ResourceManager {
         Self {
             current_mod: None,
             search_paths: Self::discover_mod_paths(app_handle),
+            mod_index: HashMap::new(),
+            folder_to_id: HashMap::new(),
         }
     }
 
@@ -855,26 +873,110 @@ impl ResourceManager {
     // Mod 操作
     // ========================================================================= //
 
-    /// 列出所有可用的 Mod（去重）
-    pub fn list_mods(&self) -> Vec<String> {
-        let mut mods = std::collections::HashSet::new();
+    /// 重建 mod 索引（manifest.id -> path, folder -> id）
+    ///
+    /// 搜索顺序遵循 `search_paths` 的优先级：越靠前优先级越高。
+    fn rebuild_mod_index(&mut self) {
+        self.mod_index.clear();
+        self.folder_to_id.clear();
 
-        for path in &self.search_paths {
-            if let Ok(entries) = fs::read_dir(path) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        if let Some(name) = entry.file_name().to_str() {
-                            mods.insert(name.to_string());
-                        }
-                    }
+        for base in &self.search_paths {
+            let Ok(entries) = fs::read_dir(base) else {
+                continue;
+            };
+
+            for entry in entries.flatten() {
+                let dir_path = entry.path();
+                if !dir_path.is_dir() {
+                    continue;
                 }
+
+                let folder = entry.file_name().to_string_lossy().into_owned();
+                let canonical_dir = dunce::canonicalize(&dir_path).unwrap_or(dir_path);
+
+                // 尝试读取 manifest.json 获取 manifest.id
+                let manifest_path = canonical_dir.join("manifest.json");
+                let manifest_id = if manifest_path.exists() {
+                    fs::read_to_string(&manifest_path)
+                        .ok()
+                        .and_then(|s| serde_json::from_str::<ModManifest>(&s).ok())
+                        .map(|m| m.id.to_string())
+                        .unwrap_or_else(|| folder.clone())
+                } else {
+                    folder.clone()
+                };
+
+                // folder -> id（首个发现者优先）
+                self.folder_to_id
+                    .entry(folder.clone())
+                    .or_insert_with(|| manifest_id.clone());
+
+                // id -> locator（首个发现者优先，避免同 id 被后续路径覆盖）
+                if self.mod_index.contains_key(&manifest_id) {
+                    continue;
+                }
+
+                self.mod_index.insert(
+                    manifest_id.clone(),
+                    ModLocator {
+                        id: manifest_id,
+                        folder,
+                        path: canonical_dir,
+                    },
+                );
+            }
+        }
+    }
+
+    /// 解析 Mod 标识符为实际目录路径
+    ///
+    /// - 首选：`manifest.json` 中的 `id`
+    /// - 兼容：历史上使用的文件夹名
+    fn resolve_mod_path(&mut self, mod_id_or_folder: &str) -> Option<PathBuf> {
+        self.rebuild_mod_index();
+
+        if let Some(locator) = self.mod_index.get(mod_id_or_folder) {
+            return Some(locator.path.clone());
+        }
+
+        if let Some(id) = self.folder_to_id.get(mod_id_or_folder) {
+            if let Some(locator) = self.mod_index.get(id) {
+                return Some(locator.path.clone());
             }
         }
 
-        let mut result: Vec<String> = mods.into_iter().collect();
+        // 最后兜底：按 folder 直接拼路径（兼容旧逻辑）
+        for base in &self.search_paths {
+            let p = base.join(mod_id_or_folder);
+            if p.is_dir() {
+                return Some(p);
+            }
+        }
+
+        None
+    }
+
+    /// 将传入的标识符解析为 manifest.id
+    ///
+    /// - 如果本身就是 manifest.id：原样返回
+    /// - 如果是文件夹名：返回对应 manifest.id
+    pub fn resolve_mod_id(&mut self, mod_id_or_folder: &str) -> Option<String> {
+        self.rebuild_mod_index();
+        if self.mod_index.contains_key(mod_id_or_folder) {
+            Some(mod_id_or_folder.to_string())
+        } else {
+            self.folder_to_id.get(mod_id_or_folder).cloned()
+        }
+    }
+
+    /// 列出所有可用的 Mod（以 manifest.id 作为唯一标识）
+    pub fn list_mods(&mut self) -> Vec<String> {
+        self.rebuild_mod_index();
+        let mut result: Vec<String> = self.mod_index.keys().cloned().collect();
         result.sort();
         result
     }
+
 
     /// 卸载当前 Mod
     pub fn unload_mod(&mut self) -> bool {
@@ -893,14 +995,12 @@ impl ResourceManager {
     /// 从磁盘读取 Mod 信息（不加载到当前状态）
     ///
     /// 用于 Mod 预览或加载前的检查
-    pub fn read_mod_from_disk(&self, mod_name: &str) -> Result<ModInfo, String> {
-        // 查找 Mod 目录
+    pub fn read_mod_from_disk(&mut self, mod_id: &str) -> Result<ModInfo, String> {
+        // 查找 Mod 目录（优先使用 manifest.id 解析）
         let mod_path = self
-            .search_paths
-            .iter()
-            .map(|p| p.join(mod_name))
-            .find(|p| p.is_dir())
-            .ok_or_else(|| format!("Mod '{}' not found", mod_name))?;
+            .resolve_mod_path(mod_id)
+            .ok_or_else(|| format!("Mod '{}' not found", mod_id))?;
+
 
         // 解析 manifest.json
         let manifest_path = mod_path.join("manifest.json");
@@ -979,8 +1079,8 @@ impl ResourceManager {
     ///
     /// 加载成功后返回 Mod 信息的克隆（用于返回给前端）。
     /// 内部会缓存原始数据，后续查询使用缓存避免重复克隆。
-    pub fn load_mod(&mut self, mod_name: &str) -> Result<Arc<ModInfo>, String> {
-        let mod_info = Arc::new(self.read_mod_from_disk(mod_name)?);
+    pub fn load_mod(&mut self, mod_id: &str) -> Result<Arc<ModInfo>, String> {
+        let mod_info = Arc::new(self.read_mod_from_disk(mod_id)?);
         let result = mod_info.clone();
 
         self.current_mod = Some(mod_info);

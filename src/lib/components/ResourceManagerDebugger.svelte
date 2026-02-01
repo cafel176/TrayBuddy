@@ -179,7 +179,8 @@
       const info = (await invoke("get_current_mod")) as ModInfo | null;
       if (info) {
         currentModInfo = info;
-        selectedMod = info.path.split(/[\\/]/).pop() || "";
+        // 统一使用 manifest.id 作为唯一标识
+        selectedMod = info.manifest.id;
         statusMsg = _("resource.statusCurrentLoaded") + " " + info.manifest.id;
       } else {
         statusMsg = _("resource.statusRefreshed", { count: mods.length });
@@ -201,7 +202,7 @@
     statusMsg = _("resource.statusLoading");
     try {
       const info = (await invoke("load_mod", {
-        modName: selectedMod,
+        modId: selectedMod,
       })) as ModInfo;
       currentModInfo = info;
       statusMsg = _("resource.statusLoadSuccessTpl", {

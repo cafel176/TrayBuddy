@@ -94,22 +94,13 @@
         }
     }
 
-    // 获取当前加载的 mod
+    // 获取当前加载的 mod（统一使用 manifest.id 作为唯一标识）
     async function loadCurrentMod() {
         try {
-            const modInfo = await invoke("get_current_mod");
+            const modInfo = (await invoke("get_current_mod")) as ModInfo | null;
             if (modInfo) {
-                // 使用 mod 的文件夹名称而不是 manifest.id
-                const modPath = await invoke("get_mod_path");
-                if (modPath) {
-                    currentModPath = modPath as string;
-                    // 从路径中提取文件夹名称
-                    const pathParts = currentModPath.split(/[/\\]/);
-                    currentModName = pathParts[pathParts.length - 1];
-                } else {
-                    // 如果获取路径失败，回退到 manifest.id
-                    currentModName = (modInfo as ModInfo).manifest.id;
-                }
+                currentModPath = modInfo.path;
+                currentModName = modInfo.manifest.id;
             }
         } catch (e) {
             console.error("Failed to load current mod:", e);
@@ -125,7 +116,7 @@
 
         try {
             const info = (await invoke("get_mod_details", {
-                modName,
+                modId: modName,
             })) as ModInfo;
             selectedModInfo = info;
 
@@ -162,12 +153,11 @@
         loading = true;
         try {
             const info = (await invoke("load_mod", {
-                modName: selectedMod,
+                modId: selectedMod,
             })) as ModInfo;
-            // 更新当前 mod 信息（使用路径和文件夹名称）
+            // 更新当前 mod 信息（统一使用 manifest.id）
             currentModPath = info.path;
-            const pathParts = info.path.split(/[/\\]/);
-            currentModName = pathParts[pathParts.length - 1];
+            currentModName = info.manifest.id;
             // 加载成功后更新按钮状态
             selectedModInfo = info;
             statusMsg = _("resource.statusLoadSuccess") + " " + selectedMod;

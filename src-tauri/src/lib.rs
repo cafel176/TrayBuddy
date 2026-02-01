@@ -337,14 +337,14 @@ fn get_mod_search_paths(state: State<'_, AppState>) -> Vec<String> {
 /// 获取可用的 Mod 列表
 #[tauri::command]
 fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
-    let rm = state.resource_manager.lock().unwrap();
+    let mut rm = state.resource_manager.lock().unwrap();
     rm.list_mods()
 }
 
 /// 加载指定 Mod
 #[tauri::command]
 async fn load_mod(
-    mod_name: String,
+    mod_id: String,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Arc<ModInfo>, String> {
@@ -364,13 +364,32 @@ async fn load_mod(
     // 1. 加载资源
     let mod_info = {
         let mut rm = state.resource_manager.lock().unwrap();
-        rm.load_mod(&mod_name)?
+        rm.load_mod(&mod_id)?
     };
 
     // 2. 更新用户信息并持久化（并确保该 Mod 的数据在首次加载时初始化）
     {
         let mut storage = state.storage.lock().unwrap();
-        storage.data.info.current_mod = mod_name.clone().into();
+
+        // 统一使用 manifest.id 作为 Mod 的唯一标识
+        let manifest_id = mod_info.manifest.id.to_string();
+
+        // 兼容迁移：调用方可能传入旧的文件夹名
+        if manifest_id != mod_id {
+            if storage.data.info.mod_data.contains_key(&mod_id) {
+                if !storage.data.info.mod_data.contains_key(&manifest_id) {
+                    if let Some(mut old) = storage.data.info.mod_data.remove(&mod_id) {
+                        old.mod_id = manifest_id.clone();
+                        storage.data.info.mod_data.insert(manifest_id.clone(), old);
+                    }
+                } else {
+                    // 若两者都存在，优先保留 manifest.id 对应的数据
+                    let _ = storage.data.info.mod_data.remove(&mod_id);
+                }
+            }
+        }
+
+        storage.data.info.current_mod = manifest_id.clone().into();
 
         // 首次加载该 Mod 时创建数据（默认值来自 Mod manifest）
         let default_value = mod_info.manifest.mod_data_default_int;
@@ -378,14 +397,15 @@ async fn load_mod(
             .data
             .info
             .mod_data
-            .entry(mod_name.clone())
+            .entry(manifest_id.clone())
             .or_insert(ModData {
-                mod_id: mod_name.clone(),
+                mod_id: manifest_id,
                 value: default_value,
             });
 
         let _ = storage.save();
     }
+
 
     // 3. 异步更新托盘图标和窗口图标为Mod图标（避免阻塞）
     update_tray_icon_async(app.clone()).await;
@@ -983,6 +1003,55 @@ pub fn run() {
 
             let _ = storage.save();
 
+            // ========== 迁移：统一使用 manifest.id 作为 Mod 唯一标识 ==========
+            {
+                let mut changed = false;
+                let current = storage.data.info.current_mod.to_string();
+
+                let mut rm_guard = rm.lock().unwrap();
+
+                // 1) 迁移 current_mod（历史版本可能存的是文件夹名）
+                if !current.is_empty() {
+                    if let Some(id) = rm_guard.resolve_mod_id(&current) {
+                        if id != current {
+                            storage.data.info.current_mod = id.into();
+                            changed = true;
+                        }
+                    }
+                }
+
+                // 2) 迁移 mod_data 的 key（历史版本可能用文件夹名作为 key）
+                let keys: Vec<String> = storage.data.info.mod_data.keys().cloned().collect();
+                for k in keys {
+                    let Some(id) = rm_guard.resolve_mod_id(&k) else {
+                        continue;
+                    };
+
+                    if id == k {
+                        continue;
+                    }
+
+                    if storage.data.info.mod_data.contains_key(&id) {
+                        // 冲突时优先保留 manifest.id 对应的数据
+                        let _ = storage.data.info.mod_data.remove(&k);
+                        changed = true;
+                        continue;
+                    }
+
+                    if let Some(mut v) = storage.data.info.mod_data.remove(&k) {
+                        v.mod_id = id.clone();
+                        storage.data.info.mod_data.insert(id, v);
+                        changed = true;
+                    }
+                }
+
+                drop(rm_guard);
+
+                if changed {
+                    let _ = storage.save();
+                }
+            }
+
             // ========== 同步开机自启动状态 ==========
             // 只在 Release 版本中允许启用开机自启动
             let autostart_manager = app.autolaunch();
@@ -1020,8 +1089,28 @@ pub fn run() {
                         // 注意：此时还没有其他窗口，所以不需要调用 update_window_icons_sync
 
                         // 首次加载该 Mod 时创建数据（默认值来自 Mod manifest），并立即落盘
+                        // 统一使用 manifest.id 作为 Mod 唯一标识
                         let default_value = mod_info.manifest.mod_data_default_int;
-                        let mod_id = last_mod.to_string();
+                        let mod_id = mod_info.manifest.id.to_string();
+
+                        // 兼容迁移：last_mod 可能是旧的文件夹名
+                        if mod_id != last_mod.as_ref() {
+                            if storage.data.info.mod_data.contains_key(last_mod.as_ref()) {
+                                if !storage.data.info.mod_data.contains_key(&mod_id) {
+                                    if let Some(mut old) =
+                                        storage.data.info.mod_data.remove(last_mod.as_ref())
+                                    {
+                                        old.mod_id = mod_id.clone();
+                                        storage.data.info.mod_data.insert(mod_id.clone(), old);
+                                    }
+                                } else {
+                                    let _ = storage.data.info.mod_data.remove(last_mod.as_ref());
+                                }
+                            }
+                        }
+
+                        storage.data.info.current_mod = mod_id.clone().into();
+
                         storage
                             .data
                             .info
@@ -1260,10 +1349,10 @@ pub fn run() {
 #[tauri::command]
 fn get_mod_details(
     state: State<'_, AppState>,
-    mod_name: String,
+    mod_id: String,
 ) -> Result<modules::resource::ModInfo, String> {
-    let mgr = state.resource_manager.lock().unwrap();
-    mgr.read_mod_from_disk(&mod_name)
+    let mut mgr = state.resource_manager.lock().unwrap();
+    mgr.read_mod_from_disk(&mod_id)
 }
 
 /// 导入 Mod (.tbuddy 文件)
@@ -1321,24 +1410,31 @@ async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result
             Err(_) => return Err("Invalid .tbuddy file (not a valid zip)".into()),
         };
 
-        // 确定解压目标文件夹名称 (移除 .tbuddy 后缀)
-        let mod_folder_name = selected_path
-            .file_stem()
-            .ok_or("Invalid file name stem")?
-            .to_string_lossy();
-        //let extract_path = mods_dir.join(mod_folder_name.as_ref());
+        // 解压目标目录（当前实现：直接解压到 mods 目录，zip 内应包含一个顶层文件夹）
         let extract_path = mods_dir;
 
         if !extract_path.exists() {
             fs::create_dir_all(&extract_path).map_err(|e| e.to_string())?;
         }
 
+        // 尝试从压缩包路径推断顶层文件夹名
+        let mut root_folder: Option<String> = None;
+
         for i in 0..archive.len() {
             let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-            let outpath = match file.enclosed_name() {
-                Some(path) => extract_path.join(path),
+            let enclosed = match file.enclosed_name() {
+                Some(path) => path.to_path_buf(),
                 None => continue,
             };
+
+            if root_folder.is_none() {
+                if let Some(first) = enclosed.components().next() {
+                    root_folder = Some(first.as_os_str().to_string_lossy().into_owned());
+                }
+            }
+
+            let outpath = extract_path.join(&enclosed);
+
 
             if file.name().ends_with('/') {
                 fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
@@ -1362,7 +1458,16 @@ async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result
                 }
             }
         }
-        Ok(mod_folder_name.into_owned())
+        let folder = root_folder.ok_or("Invalid .tbuddy file (missing root folder)")?;
+
+        // 读取 manifest.id 作为返回值（统一使用 manifest.id 作为唯一标识）
+        let manifest_path = extract_path.join(&folder).join("manifest.json");
+        let manifest_content = fs::read_to_string(&manifest_path)
+            .map_err(|e| format!("Failed to read manifest: {}", e))?;
+        let manifest: modules::resource::ModManifest = serde_json::from_str(&manifest_content)
+            .map_err(|e| format!("Failed to parse manifest: {}", e))?;
+
+        Ok(manifest.id.to_string())
     })();
 
     // 5. 无论成功失败，删除拷贝的临时文件

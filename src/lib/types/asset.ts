@@ -278,7 +278,7 @@ export interface UserSettings {
  * 对应后端 Rust 的 `ModData` 结构体。
  */
 export interface ModData {
-  /** Mod ID（当前实现以 mod 文件夹名为 ID） */
+  /** Mod ID（使用 manifest.json 的 id 作为唯一标识） */
   mod_id: string;
   /** 一个整型变量（可由 Mod/前端自由定义语义） */
   value: number;
@@ -295,7 +295,7 @@ export interface UserInfo {
   /** 最后一次启动的时间戳 */
   last_login: number | null;
 
-  /** 上次关闭前加载的 Mod ID（文件夹名） */
+  /** 上次关闭前加载的 Mod ID（manifest.json 的 id） */
   current_mod: string;
 
   /** animation 窗口上次关闭时的 X 坐标 */
@@ -310,7 +310,7 @@ export interface UserInfo {
   /** 总点击次数 */
   total_click_count: number;
 
-  /** 各 Mod 的持久化数据（key = mod_id/文件夹名） */
+  /** 各 Mod 的持久化数据（key = manifest.id） */
   mod_data: Record<string, ModData>;
 }
 
