@@ -34,7 +34,9 @@
     ],
     "resources": {
       "../mods": "mods",
-      "../i18n": "i18n"
+      "../i18n": "i18n",
+      "../mod-tool": "mod-tool",
+      "../other-tool": "other-tool"
     }
   }
 }
