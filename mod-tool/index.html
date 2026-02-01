@@ -571,7 +571,11 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_languages">语言</h3>
-                <button class="btn btn-sm btn-primary" onclick="addLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
+                <div class="section-actions">
+                  <button class="btn btn-sm btn-ghost" onclick="pasteTextLanguage()">📋 <span data-i18n="btn_paste_lang">粘贴语言</span></button>
+                  <button class="btn btn-sm btn-ghost" onclick="copyTextLanguage()">📄 <span data-i18n="btn_copy_lang">复制语言</span></button>
+                  <button class="btn btn-sm btn-primary" onclick="addLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
+                </div>
               </div>
               <div class="lang-tabs" id="text-lang-tabs">
                 <!-- 由 JS 动态填充 -->
@@ -625,7 +629,11 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_languages">语言</h3>
-                <button class="btn btn-sm btn-primary" onclick="addAudioLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
+                <div class="section-actions">
+                  <button class="btn btn-sm btn-ghost" onclick="pasteAudioLanguage()">📋 <span data-i18n="btn_paste_lang">粘贴语言</span></button>
+                  <button class="btn btn-sm btn-ghost" onclick="copyAudioLanguage()">📄 <span data-i18n="btn_copy_lang">复制语言</span></button>
+                  <button class="btn btn-sm btn-primary" onclick="addAudioLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
+                </div>
               </div>
               <div class="lang-tabs" id="audio-lang-tabs">
                 <!-- 由 JS 动态填充 -->
@@ -860,7 +868,7 @@
           <div class="form-group">
             <label data-i18n="need_reverse_label">需要反向播放</label>
             <label class="switch">
-              <input type="checkbox" id="asset-need-reverse" checked>
+              <input type="checkbox" id="asset-need-reverse">
               <span class="slider"></span>
             </label>
           </div>

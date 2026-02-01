@@ -2741,7 +2741,7 @@ function addAsset(type) {
     img: type === 'sequence' ? 'sequence/' : 'img/',
     sequence: true,
     origin_reverse: false,
-    need_reverse: true,
+    need_reverse: false,
     frame_time: 0.1,
     frame_size_x: 260,
     frame_size_y: 298,
@@ -3160,6 +3160,71 @@ function deleteTextLanguage(langId) {
 }
 
 /**
+ * 复制文本语言到剪切板
+ */
+function copyTextLanguage() {
+  const langData = currentMod.texts[currentTextLang];
+  if (!langData) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'error');
+    return;
+  }
+  
+  const copyData = {
+    type: 'traybuddy_text_lang',
+    langId: currentTextLang,
+    data: JSON.parse(JSON.stringify(langData))
+  };
+  
+  navigator.clipboard.writeText(JSON.stringify(copyData, null, 2))
+    .then(() => {
+      showToast(window.i18n.t('msg_lang_copied').replace('{lang}', currentTextLang), 'success');
+    })
+    .catch(() => {
+      showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+    });
+}
+
+/**
+ * 从剪切板粘贴文本语言
+ */
+async function pasteTextLanguage() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    
+    if (parsed.type !== 'traybuddy_text_lang' || !parsed.data) {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'error');
+      return;
+    }
+    
+    // 询问新语言ID
+    let newLangId = prompt(window.i18n.t('msg_enter_new_lang_id'), parsed.langId || '');
+    if (!newLangId) return;
+    
+    // 检查是否已存在
+    if (currentMod.texts[newLangId]) {
+      if (!confirm(window.i18n.t('msg_lang_exists_overwrite').replace('{lang}', newLangId))) {
+        return;
+      }
+    }
+    
+    // 复制数据并更新语言ID
+    const newData = JSON.parse(JSON.stringify(parsed.data));
+    if (newData.info) {
+      newData.info.id = newLangId;
+    }
+    
+    currentMod.texts[newLangId] = newData;
+    currentTextLang = newLangId;
+    renderTexts();
+    markUnsaved();
+    showToast(window.i18n.t('msg_lang_pasted').replace('{lang}', newLangId), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'error');
+  }
+}
+
+/**
  * 添加对话文本
  */
 function addSpeechText() {
@@ -3301,6 +3366,66 @@ function deleteAudioLanguage(langId) {
   renderAudio();
   markUnsaved();
   showToast(window.i18n.t('msg_lang_deleted'), 'success');
+}
+
+/**
+ * 复制音频语言到剪切板
+ */
+function copyAudioLanguage() {
+  const langData = currentMod.audio[currentAudioLang];
+  if (!langData) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'error');
+    return;
+  }
+  
+  const copyData = {
+    type: 'traybuddy_audio_lang',
+    langId: currentAudioLang,
+    data: JSON.parse(JSON.stringify(langData))
+  };
+  
+  navigator.clipboard.writeText(JSON.stringify(copyData, null, 2))
+    .then(() => {
+      showToast(window.i18n.t('msg_lang_copied').replace('{lang}', currentAudioLang), 'success');
+    })
+    .catch(() => {
+      showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+    });
+}
+
+/**
+ * 从剪切板粘贴音频语言
+ */
+async function pasteAudioLanguage() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    
+    if (parsed.type !== 'traybuddy_audio_lang' || !parsed.data) {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'error');
+      return;
+    }
+    
+    // 询问新语言ID
+    let newLangId = prompt(window.i18n.t('msg_enter_new_lang_id'), parsed.langId || '');
+    if (!newLangId) return;
+    
+    // 检查是否已存在
+    if (currentMod.audio[newLangId]) {
+      if (!confirm(window.i18n.t('msg_lang_exists_overwrite').replace('{lang}', newLangId))) {
+        return;
+      }
+    }
+    
+    // 复制数据
+    currentMod.audio[newLangId] = JSON.parse(JSON.stringify(parsed.data));
+    currentAudioLang = newLangId;
+    renderAudio();
+    markUnsaved();
+    showToast(window.i18n.t('msg_lang_pasted').replace('{lang}', newLangId), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'error');
+  }
 }
 
 /**

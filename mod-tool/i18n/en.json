@@ -302,5 +302,11 @@
   "btn_delete_lang": "Delete Language",
   "msg_confirm_delete_lang": "Are you sure you want to delete language \"{lang}\"? This action cannot be undone.",
   "msg_cannot_delete_last_lang": "Cannot delete the last language",
-  "msg_lang_deleted": "Language deleted"
+  "msg_lang_deleted": "Language deleted",
+  "btn_copy_lang": "Copy Language",
+  "btn_paste_lang": "Paste Language",
+  "msg_lang_copied": "Language \"{lang}\" copied to clipboard",
+  "msg_lang_pasted": "Language \"{lang}\" pasted",
+  "msg_enter_new_lang_id": "Please enter new language ID",
+  "msg_lang_exists_overwrite": "Language \"{lang}\" already exists. Overwrite?"
 }
