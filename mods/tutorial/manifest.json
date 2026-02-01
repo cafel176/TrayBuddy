@@ -12,6 +12,8 @@
     "enable": true,
     "z_offset": 2
   },
+  "show_mod_data_panel": false,
+  "mod_data_default_int": 0,
   "important_states": {
     "idle": {
       "name": "idle",
@@ -30,11 +32,13 @@
       ],
       "trigger_time": 600,
       "trigger_rate": 0.3,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     }
   },
-  "states": [
-  ],
-  "triggers": [
-  ]
+  "states": [],
+  "triggers": []
 }

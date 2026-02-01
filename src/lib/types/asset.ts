@@ -107,6 +107,25 @@ export interface BranchInfo {
 }
 
 /**
+ * Mod 数据计数操作类型
+ *
+ * 对应后端 Rust 的 `ModDataCounterOp`。
+ */
+export type ModDataCounterOp = "add" | "sub" | "mul" | "div" | "set";
+
+/**
+ * Mod 数据计数配置
+ *
+ * 对应后端 Rust 的 `ModDataCounterConfig`。
+ */
+export interface ModDataCounterConfig {
+  /** 操作类型 */
+  op: ModDataCounterOp;
+  /** 操作数（或 set 时的目标值） */
+  value: number;
+}
+
+/**
  * 状态信息接口
  *
  * 对应后端 Rust 的 `StateInfo` 结构体。
@@ -141,6 +160,10 @@ export interface StateInfo {
   trigger_rate?: number;
   /** 可触发的状态列表 */
   can_trigger_states?: string[];
+
+  /** 进入该状态时对当前 Mod 数据计数器执行操作（可选） */
+  mod_data_counter?: ModDataCounterConfig;
+
   /** 对话分支选项 */
   branch?: BranchInfo[];
 }
@@ -250,6 +273,18 @@ export interface UserSettings {
 }
 
 /**
+ * 每个 Mod 的独立数据
+ *
+ * 对应后端 Rust 的 `ModData` 结构体。
+ */
+export interface ModData {
+  /** Mod ID（当前实现以 mod 文件夹名为 ID） */
+  mod_id: string;
+  /** 一个整型变量（可由 Mod/前端自由定义语义） */
+  value: number;
+}
+
+/**
  * 用户基础信息
  * 
  * 对应后端 Rust 的 `UserInfo` 结构体。
@@ -259,10 +294,24 @@ export interface UserInfo {
   first_login: number | null;
   /** 最后一次启动的时间戳 */
   last_login: number | null;
-  /** 上次关闭前加载的 Mod ID */
+
+  /** 上次关闭前加载的 Mod ID（文件夹名） */
   current_mod: string;
+
+  /** animation 窗口上次关闭时的 X 坐标 */
+  animation_window_x: number | null;
+  /** animation 窗口上次关闭时的 Y 坐标 */
+  animation_window_y: number | null;
+
   /** 总启动次数 */
   launch_count: number;
+  /** 累计使用时长（秒） */
+  total_usage_seconds: number;
+  /** 总点击次数 */
+  total_click_count: number;
+
+  /** 各 Mod 的持久化数据（key = mod_id/文件夹名） */
+  mod_data: Record<string, ModData>;
 }
 
 /**

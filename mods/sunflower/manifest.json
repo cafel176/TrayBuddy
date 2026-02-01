@@ -12,6 +12,8 @@
     "enable": false,
     "z_offset": 2
   },
+  "show_mod_data_panel": false,
+  "mod_data_default_int": 0,
   "important_states": {
     "idle": {
       "name": "idle",
@@ -28,7 +30,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "silence": {
       "name": "silence",
@@ -45,7 +51,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "silence_start": {
       "name": "silence_start",
@@ -62,7 +72,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "silence_end": {
       "name": "silence_end",
@@ -79,7 +93,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "music": {
       "name": "music",
@@ -96,7 +114,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0.1,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "music_start": {
       "name": "music_start",
@@ -113,7 +135,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "music_end": {
       "name": "music_end",
@@ -130,7 +156,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "birthday": {
       "name": "birthday",
@@ -147,7 +177,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "firstday": {
       "name": "firstday",
@@ -164,11 +198,13 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     }
   },
-  "states": [
-  ],
-  "triggers": [
-  ]
+  "states": [],
+  "triggers": []
 }

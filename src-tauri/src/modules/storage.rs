@@ -16,6 +16,7 @@
 #![allow(unused)]
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
@@ -69,13 +70,32 @@ impl Default for UserSettings {
 
 // ========================================================================= //
 
+/// 每个 Mod 的独立数据（保存在 UserInfo 中）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ModData {
+    /// Mod ID（当前实现以 mod 文件夹名为 ID）
+    pub mod_id: String,
+    /// 一个整型变量（可由 Mod/前端自由定义语义）
+    pub value: i32,
+}
+
+impl Default for ModData {
+    fn default() -> Self {
+        Self {
+            mod_id: "".into(),
+            value: 0,
+        }
+    }
+}
+
 /// 用户基础信息
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct UserInfo {
     pub first_login: Option<i64>, // 第一次启动的时间戳
     pub last_login: Option<i64>,  // 最后一次启动的时间戳
-    pub current_mod: Box<str>,    // 上次关闭前加载的 Mod ID
+    pub current_mod: Box<str>,    // 上次关闭前加载的 Mod ID（文件夹名）
 
     pub animation_window_x: Option<f64>, // animation 窗口上次关闭时的 X 坐标
     pub animation_window_y: Option<f64>, // animation 窗口上次关闭时的 Y 坐标
@@ -83,6 +103,9 @@ pub struct UserInfo {
     pub launch_count: i32,        // 总启动次数
     pub total_usage_seconds: i64, // 累计使用时长（秒）
     pub total_click_count: i64,   // 总点击次数
+
+    /// 各 Mod 的持久化数据（key = mod_id/文件夹名）
+    pub mod_data: HashMap<String, ModData>,
 }
 
 impl Default for UserInfo {
@@ -98,6 +121,8 @@ impl Default for UserInfo {
             launch_count: 0,
             total_usage_seconds: 0,
             total_click_count: 0,
+
+            mod_data: HashMap::new(),
         }
     }
 }

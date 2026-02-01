@@ -71,6 +71,9 @@ pub mod events {
 
     /// 环境信息更新事件
     pub const ENVIRONMENT_UPDATED: &str = "environment-updated";
+
+    /// Mod 数据更新事件
+    pub const MOD_DATA_CHANGED: &str = "mod-data-changed";
 }
 
 // ========================================================================= //

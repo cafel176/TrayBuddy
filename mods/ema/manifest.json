@@ -12,6 +12,8 @@
     "enable": true,
     "z_offset": 2
   },
+  "show_mod_data_panel": false,
+  "mod_data_default_int": 0,
   "important_states": {
     "idle": {
       "name": "idle",
@@ -30,7 +32,11 @@
       ],
       "trigger_time": 600,
       "trigger_rate": 0.3,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "silence": {
       "name": "silence",
@@ -47,7 +53,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "silence_start": {
       "name": "silence_start",
@@ -64,7 +74,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "silence_end": {
       "name": "silence_end",
@@ -81,7 +95,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "music": {
       "name": "music",
@@ -98,7 +116,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0.1,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "music_start": {
       "name": "music_start",
@@ -115,7 +137,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "music_end": {
       "name": "music_end",
@@ -132,7 +158,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "birthday": {
       "name": "birthday",
@@ -149,7 +179,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     "firstday": {
       "name": "firstday",
@@ -171,7 +205,11 @@
           "text": "firstday_button",
           "next_state": "firstday_3"
         }
-      ]
+      ],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     }
   },
   "states": [
@@ -190,7 +228,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "noon",
@@ -207,7 +249,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "evening",
@@ -224,7 +270,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "night",
@@ -241,7 +291,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "amazing",
@@ -267,7 +321,11 @@
           "text": "amazing_button2",
           "next_state": "amaz_cry"
         }
-      ]
+      ],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "amaz_cry",
@@ -284,7 +342,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "cry",
@@ -301,7 +363,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "birthday_2",
@@ -318,7 +384,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "firstday_2",
@@ -335,7 +405,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "firstday_3",
@@ -352,7 +426,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "firstday_4",
@@ -369,7 +447,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "random1_1",
@@ -386,7 +468,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": []
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     },
     {
       "name": "music_random1_1",
@@ -403,8 +489,11 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [
-      ]
+      "branch": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      }
     }
   ],
   "triggers": [
@@ -414,7 +503,9 @@
         {
           "persistent_state": "idle",
           "states": [
-            "random1_1", "amazing", "cry"
+            "random1_1",
+            "amazing",
+            "cry"
           ]
         },
         {

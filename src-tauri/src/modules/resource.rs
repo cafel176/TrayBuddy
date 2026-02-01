@@ -181,6 +181,42 @@ impl Default for CharacterInfo {
 // 状态定义
 // ========================================================================= //
 
+/// 进入某个状态时，对当前 Mod 的数据计数器执行的操作
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ModDataCounterOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Set,
+}
+
+impl Default for ModDataCounterOp {
+    fn default() -> Self {
+        Self::Add
+    }
+}
+
+/// Mod 数据计数配置（挂在每个 State 上）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ModDataCounterConfig {
+    /// 操作类型：add/sub/mul/div/set
+    pub op: ModDataCounterOp,
+    /// 操作数（或 set 时的目标值）
+    pub value: i32,
+}
+
+impl Default for ModDataCounterConfig {
+    fn default() -> Self {
+        Self {
+            op: ModDataCounterOp::Add,
+            value: 0,
+        }
+    }
+}
+
 /// 状态信息
 ///
 /// 定义角色的一个状态，包括动画、音频、触发条件等
@@ -221,6 +257,10 @@ pub struct StateInfo {
     pub trigger_time: f32,
     /// 触发概率（0.0 - 1.0）
     pub trigger_rate: f32,
+
+    /// 进入该状态时对当前 Mod 数据计数器执行操作（可选）
+    pub mod_data_counter: Option<ModDataCounterConfig>,
+
     /// 对话分支选项
     pub branch: Vec<BranchInfo>,
 }
@@ -242,6 +282,7 @@ impl Default for StateInfo {
             can_trigger_states: Vec::new(),
             trigger_time: 0.0,
             trigger_rate: 0.0,
+            mod_data_counter: None,
             branch: Vec::new(),
         }
     }
@@ -461,6 +502,11 @@ pub struct ModManifest {
     /// 边框配置
     pub border: BorderConfig,
 
+    /// 是否在动画窗口左上角显示 Mod 数据面板
+    pub show_mod_data_panel: bool,
+    /// Mod 数据的默认 int 初始值（首次加载该 Mod 时写入 UserInfo）
+    pub mod_data_default_int: i32,
+
     /// 核心状态（如 idle）
     pub important_states: HashMap<Box<str>, StateInfo>,
     /// 其他状态列表
@@ -479,6 +525,8 @@ impl Default for ModManifest {
             default_text_lang_id: "".into(),
             character: CharacterConfig::default(),
             border: BorderConfig::default(),
+            show_mod_data_panel: false,
+            mod_data_default_int: 0,
             important_states: HashMap::new(),
             states: Vec::new(),
             triggers: Vec::new(),

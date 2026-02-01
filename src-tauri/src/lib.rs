@@ -51,7 +51,7 @@ use modules::resource::{
     TriggerInfo,
 };
 use modules::state::StateManager;
-use modules::storage::{Storage, UserInfo, UserSettings};
+use modules::storage::{ModData, Storage, UserInfo, UserSettings};
 use modules::system_observer::{SystemDebugInfo, SystemObserver};
 use modules::trigger::TriggerManager;
 use std::sync::{Arc, Mutex};
@@ -274,6 +274,52 @@ fn update_user_info(info: UserInfo, state: State<'_, AppState>) -> Result<(), St
     storage.update_user_info(info)
 }
 
+/// 获取当前 Mod 的数据
+#[tauri::command]
+fn get_current_mod_data(state: State<'_, AppState>) -> Option<ModData> {
+    let storage = state.storage.lock().unwrap();
+    let mod_id = storage.data.info.current_mod.to_string();
+    storage.data.info.mod_data.get(&mod_id).cloned()
+}
+
+/// 设置当前 Mod 的数据 value（会立即落盘）
+#[tauri::command]
+fn set_current_mod_data_value(
+    value: i32,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<ModData, String> {
+    let mut storage = state.storage.lock().unwrap();
+    let mod_id = storage.data.info.current_mod.to_string();
+
+    // 先写入内存（注意：避免跨 save 持有 entry 的可变借用）
+    {
+        let entry = storage.data.info.mod_data.entry(mod_id.clone()).or_insert(ModData {
+            mod_id: mod_id.clone(),
+            value,
+        });
+        entry.value = value;
+    }
+
+    // 立刻落盘
+    storage.save()?;
+
+    // 再从 map 中取出最新值用于返回/广播
+    let data = storage
+        .data
+        .info
+        .mod_data
+        .get(&mod_id)
+        .cloned()
+        .unwrap_or(ModData {
+            mod_id,
+            value,
+        });
+
+    let _ = emit(&app, events::MOD_DATA_CHANGED, data.clone());
+    Ok(data)
+}
+
 // ========================================================================= //
 // Mod 资源管理命令
 // ========================================================================= //
@@ -321,10 +367,23 @@ async fn load_mod(
         rm.load_mod(&mod_name)?
     };
 
-    // 2. 更新用户信息并持久化
+    // 2. 更新用户信息并持久化（并确保该 Mod 的数据在首次加载时初始化）
     {
         let mut storage = state.storage.lock().unwrap();
         storage.data.info.current_mod = mod_name.clone().into();
+
+        // 首次加载该 Mod 时创建数据（默认值来自 Mod manifest）
+        let default_value = mod_info.manifest.mod_data_default_int;
+        storage
+            .data
+            .info
+            .mod_data
+            .entry(mod_name.clone())
+            .or_insert(ModData {
+                mod_id: mod_name.clone(),
+                value: default_value,
+            });
+
         let _ = storage.save();
     }
 
@@ -946,15 +1005,37 @@ pub fn run() {
             // 自动加载上次使用的 Mod
             let last_mod = storage.data.info.current_mod.clone();
             if !last_mod.is_empty() {
-                if let Err(e) = rm.lock().unwrap().load_mod(&last_mod) {
-                    eprintln!("[TrayBuddy] 自动加载 Mod '{}' 失败: {}", last_mod, e);
-                } else {
-                    // 自动加载成功后更新托盘图标和窗口图标（同步版本，初始化阶段）
-                    let app_handle = app.handle();
-                    update_tray_icon_sync(&app_handle);
-                    // 注意：此时还没有其他窗口，所以不需要调用 update_window_icons_sync
+                // 注意：不要把 `rm.lock()` 写在 if-let 条件里。
+                // 在某些情况下临时值生命周期可能延长到整个 if 语句末尾，导致 else 分支里再次 `rm.lock()` 时同线程二次上锁卡死。
+                let load_result = { rm.lock().unwrap().load_mod(&last_mod) };
+
+                match load_result {
+                    Err(e) => {
+                        eprintln!("[TrayBuddy] 自动加载 Mod '{}' 失败: {}", last_mod, e);
+                    }
+                    Ok(mod_info) => {
+                        // 自动加载成功后更新托盘图标和窗口图标（同步版本，初始化阶段）
+                        let app_handle = app.handle();
+                        update_tray_icon_sync(&app_handle);
+                        // 注意：此时还没有其他窗口，所以不需要调用 update_window_icons_sync
+
+                        // 首次加载该 Mod 时创建数据（默认值来自 Mod manifest），并立即落盘
+                        let default_value = mod_info.manifest.mod_data_default_int;
+                        let mod_id = last_mod.to_string();
+                        storage
+                            .data
+                            .info
+                            .mod_data
+                            .entry(mod_id.clone())
+                            .or_insert(ModData {
+                                mod_id,
+                                value: default_value,
+                            });
+                        let _ = storage.save();
+                    }
                 }
             }
+
 
             // ========== 初始化状态 ==========
             let is_silence = storage.data.settings.silence_mode;
@@ -1107,6 +1188,8 @@ pub fn run() {
             update_settings,
             get_user_info,
             update_user_info,
+            get_current_mod_data,
+            set_current_mod_data_value,
             record_click_event,
             // Mod 资源管理
             get_mod_details,

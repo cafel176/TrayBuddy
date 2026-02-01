@@ -46,15 +46,20 @@
 
 #![allow(unused)]
 
-use super::constants::{STATE_IDLE, STATE_MUSIC, STATE_MUSIC_END, STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START};
+use super::constants::{
+    STATE_IDLE, STATE_MUSIC, STATE_MUSIC_END, STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END,
+    STATE_SILENCE_START,
+};
 use super::event_manager::{emit, events};
 use super::media_observer::{get_cached_media_state, MediaPlaybackStatus};
-use super::resource::{ResourceManager, StateInfo};
+use super::resource::{ModDataCounterOp, ResourceManager, StateInfo};
+use super::storage::ModData;
+use crate::AppState;
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 // ========================================================================= //
 // 事件结构体
@@ -306,6 +311,7 @@ impl StateManager {
         // 切换当前状态并通知前端
         self.current_state = Some(state.clone());
         self.emit_state_change(&state, false);
+        self.apply_mod_data_counter_async(&state);
 
         self.clear_next_state();
 
@@ -377,6 +383,7 @@ impl StateManager {
         // 切换到临时状态并锁定
         self.current_state = Some(state.clone());
         self.emit_state_change(&state, true);
+        self.apply_mod_data_counter_async(&state);
         self.locked = true;
 
         // 预设下一个状态
@@ -670,4 +677,98 @@ impl StateManager {
             let _ = emit(&app_handle, events::STATE_CHANGE, event);
         }
     }
+
+    /// 进入状态时，按配置异步更新当前 Mod 的数据计数器，并立即落盘
+    ///
+    /// 设计目标：
+    /// - 该方法不应阻塞状态切换主流程
+    /// - 不应持有 ResourceManager 锁（避免锁顺序死锁）
+    fn apply_mod_data_counter_async(&self, state: &StateInfo) {
+        let Some(cfg) = state.mod_data_counter.clone() else {
+            return;
+        };
+
+        // 过滤“无效操作”，避免频繁触发保存/广播：
+        // - +0 / -0 / *1 / /1 这些不会改变值
+        match cfg.op {
+            ModDataCounterOp::Add | ModDataCounterOp::Sub if cfg.value == 0 => return,
+            ModDataCounterOp::Mul | ModDataCounterOp::Div if cfg.value == 1 => return,
+            _ => {}
+        }
+
+        let Some(app_handle) = self.app_handle.clone() else {
+            return;
+        };
+
+        std::thread::spawn(move || {
+            let Some(app_state) = app_handle.try_state::<AppState>() else {
+                return;
+            };
+
+            let mut storage = app_state.storage.lock().unwrap();
+            let mod_id = storage.data.info.current_mod.to_string();
+
+            let current = storage
+                .data
+                .info
+                .mod_data
+                .get(&mod_id)
+                .map(|m| m.value)
+                .unwrap_or(0);
+
+            let next_opt = match cfg.op {
+                ModDataCounterOp::Add => current.checked_add(cfg.value),
+                ModDataCounterOp::Sub => current.checked_sub(cfg.value),
+                ModDataCounterOp::Mul => current.checked_mul(cfg.value),
+                ModDataCounterOp::Div => {
+                    if cfg.value == 0 {
+                        None
+                    } else {
+                        current.checked_div(cfg.value)
+                    }
+                }
+                ModDataCounterOp::Set => Some(cfg.value),
+            };
+
+            let Some(next) = next_opt else {
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "[StateManager] mod_data_counter 计算失败（可能溢出/除 0），已跳过：mod='{}' current={} op={:?} value={} ",
+                    mod_id, current, cfg.op, cfg.value
+                );
+                return;
+            };
+
+            if next == current {
+                return;
+            }
+
+            // 写入并立即落盘
+            {
+                let entry = storage.data.info.mod_data.entry(mod_id.clone()).or_insert(ModData {
+                    mod_id: mod_id.clone(),
+                    value: current,
+                });
+                entry.value = next;
+            }
+
+            if storage.save().is_err() {
+                return;
+            }
+
+            // 广播更新事件（供前端 HUD 同步）
+            let data = storage
+                .data
+                .info
+                .mod_data
+                .get(&mod_id)
+                .cloned()
+                .unwrap_or(ModData {
+                    mod_id,
+                    value: next,
+                });
+            let _ = emit(&app_handle, events::MOD_DATA_CHANGED, data);
+        });
+    }
 }
+

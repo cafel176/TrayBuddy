@@ -36,11 +36,7 @@
   import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
-  import {
-    getCurrentWindow,
-    LogicalPosition,
-    LogicalSize,
-  } from "@tauri-apps/api/window";
+  import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
   import {
     SpriteAnimator,
     getMemoryLogs,
@@ -60,8 +56,7 @@
     CharacterConfig,
     BorderConfig,
     UserSettings,
-    UserInfo,
-    DateTimeInfo,
+    ModData,
   } from "$lib/types/asset";
   import BubbleManager, {
     type BubbleConfig,
@@ -134,6 +129,57 @@
 
   /** 是否未加载任何 Mod */
   let noMod = $state(false);
+
+  // =========================================================================
+  // Mod 数据面板（动画区左上角 HUD）
+  // =========================================================================
+
+  /** 是否显示 Mod 数据面板（由 Mod manifest 控制） */
+  let showModDataPanel = $state(false);
+
+  /** 当前 Mod 的数据 */
+  let currentModData = $state<ModData | null>(null);
+
+  /** Mod 数据上次展示的 value（用于计算变化量） */
+  let lastModDataValue = $state<number | null>(null);
+
+  /** Mod 数据变化提示（上漂渐隐） */
+  type ModDataToast = { id: number; delta: number };
+  let modDataToasts = $state<ModDataToast[]>([]);
+  let modDataToastSeq = $state(0);
+
+  function pushModDataToast(delta: number) {
+    // 不展示 0（也避免由于异常/并发导致的重复）
+    if (!delta) return;
+
+    const id = ++modDataToastSeq;
+    modDataToasts = [...modDataToasts, { id, delta }];
+
+    // 动画结束后自动移除
+    window.setTimeout(() => {
+      modDataToasts = modDataToasts.filter((t) => t.id !== id);
+    }, 1400);
+  }
+
+  function applyModDataUpdate(data: ModData | null) {
+    const next = data?.value;
+    if (typeof next !== "number") {
+      currentModData = data;
+      lastModDataValue = null;
+      return;
+    }
+
+    if (typeof lastModDataValue === "number" && next !== lastModDataValue) {
+      pushModDataToast(next - lastModDataValue);
+    }
+
+    currentModData = data;
+    lastModDataValue = next;
+  }
+
+  /** Mod 数据事件监听器取消函数 */
+  let unlistenModData: (() => void) | null = null;
+
 
   /** 布局调试边框启用状态 */
   let debugBordersEnabled = $state(false);
@@ -325,8 +371,27 @@
       await invoke("start_login_detection");
 
       // 检查当前是否加载了 Mod
-      const currentMod = await invoke("get_current_mod");
+      const currentMod: any = await invoke("get_current_mod");
       noMod = !currentMod;
+
+      // ---------------------------------------------------------------------
+      // Mod 数据面板初始化
+      // ---------------------------------------------------------------------
+      showModDataPanel = Boolean(currentMod?.manifest?.show_mod_data_panel);
+      if (showModDataPanel) {
+        try {
+          const data = await invoke<ModData | null>("get_current_mod_data");
+          applyModDataUpdate(data);
+        } catch {
+          applyModDataUpdate(null);
+        }
+
+        // 监听后端广播的 Mod 数据更新
+        unlistenModData = await listen<ModData>("mod-data-changed", (event) => {
+          applyModDataUpdate(event.payload);
+        });
+      }
+
 
       // ---------------------------------------------------------------------
       // 布局调试监听
@@ -880,6 +945,7 @@
     unlistenState?.();
     unlistenSettings?.();
     unlistenPlaybackReq?.();
+    unlistenModData?.();
     unsubLang?.();
     destroyI18n();
   });
@@ -961,6 +1027,28 @@
       bind:this={borderCanvas}
     ></canvas>
 
+    <!-- 当前 Mod 数据（左上角，仅数值 + 变化上漂提示） -->
+    {#if showModDataPanel}
+      <div class="mod-data-hud" aria-label="mod-data-value">
+        <div class="mod-data-panel">
+          {currentModData?.value ?? "-"}
+        </div>
+
+        <div class="mod-data-toast-layer" aria-hidden="true">
+          {#each modDataToasts as toast, i (toast.id)}
+            <div
+              class="mod-data-toast {toast.delta > 0 ? 'pos' : 'neg'}"
+              style="--toast-offset: {i};"
+            >
+              {toast.delta > 0 ? `+${toast.delta}` : `${toast.delta}`}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+
+
     <!-- 空 Mod 提示 -->
     {#if noMod}
       <div class="no-mod-hint">
@@ -1027,6 +1115,94 @@
     position: relative;
     pointer-events: none; /* 区域本身鼠标穿透 */
   }
+
+  /* Mod 数据 HUD（动画区左上角） */
+  .mod-data-hud {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 300;
+    pointer-events: none;
+  }
+
+  /* Mod 数据面板（仅显示数值） */
+  .mod-data-panel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 4px 6px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+
+    /* 轻微字距，数字更清晰 */
+    letter-spacing: 0.2px;
+  }
+
+  /* 数值变化提示：上漂并渐隐 */
+  .mod-data-toast-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0;
+  }
+
+  .mod-data-toast {
+    position: absolute;
+    left: 50%;
+    top: calc(-2px - var(--toast-offset, 0) * 10px);
+    transform: translate(-50%, 0);
+
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+
+    padding: 2px 4px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+
+    opacity: 0;
+    animation: mod-data-float 1.35s ease-out forwards;
+  }
+
+  .mod-data-toast.pos {
+    color: rgba(120, 255, 170, 0.98);
+  }
+
+  .mod-data-toast.neg {
+    color: rgba(255, 140, 140, 0.98);
+  }
+
+  @keyframes mod-data-float {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, 2px);
+    }
+    12% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -22px);
+    }
+  }
+
+
 
   /* 角色 Canvas - 居中显示 */
   .character-canvas {
