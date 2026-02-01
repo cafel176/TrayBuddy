@@ -279,58 +279,62 @@ where
 
 /// 状态信息
 ///
-/// 定义角色的一个状态，包括动画、音频、触发条件等
+/// 定义角色的一个具体行为状态（如 idle, hello, music_play）。
+/// 一个状态包含了如何展示（anima）、如何说话（audio/text）以及在何时生效（date/time）的完整指令。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct StateInfo {
-    /// 状态名称
+    /// 状态唯一标识符（由 Mod 作者在 manifest 中定义）
     pub name: Box<str>,
 
-    /// 是否为持久状态（false 表示临时状态）
+    /// 持久性标记：
+    /// - `true`: 该状态是一个持久基态（如 idle）。当临时状态播放完毕后，通常会回到当前活跃的持久状态。
+    /// - `false`: 临时状态（如点击反应）。播放完后会销毁并寻找下一个状态。
     pub persistent: bool,
-    /// 对应的动画资产名称
+    
+    /// 核心资产绑定：
+    /// 分别对应 `assets/imgs` 或 `assets/sequences` 目录下的资产名
     pub anima: Box<str>,
-    /// 对应的音频名称
+    /// 语音资源名，映射到 `audios/` 目录
     pub audio: Box<str>,
-    /// 对应的文本名称
+    /// 对话文本名，映射到 `texts/` 目录
     pub text: Box<str>,
-    /// 优先级（数值越大优先级越高）
+    
+    /// 状态优先级：
+    /// 用于决定是否可以“打断”当前正在播放的状态。数值越高，话语权越大。
     pub priority: u32,
 
-    /// 允许生效的日期起始（格式: "MM-DD"）
+    /// 环境约束 - 日期范围 (MM-DD)：
+    /// 用于实现节日特效（如 12-25 圣诞节期间生效的特殊状态）。
     pub date_start: Box<str>,
-    /// 允许生效的日期结束（格式: "MM-DD"）
     pub date_end: Box<str>,
-    /// 允许生效的时间起始（格式: "HH:MM"）
+    
+    /// 环境约束 - 时间范围 (HH:MM)：
+    /// 用于实现早晚问候（如 06:00 - 09:00 期间触发的状态）。
     pub time_start: Box<str>,
-    /// 允许生效的时间结束（格式: "HH:MM"）
     pub time_end: Box<str>,
 
-    /// 播放完成后自动切换到的状态名称
+    /// 链式状态：播放完成后自动跳转到的下一个状态名（如有）
     pub next_state: Box<str>,
-    /// 可触发的子状态列表（加权随机）
+    
+    /// 概率分支：播放完成后可随机触发的子状态列表。
+    /// 系统会根据 `CanTriggerState` 中定义的权重执行加权随机选择。
     #[serde(default, deserialize_with = "deserialize_can_trigger_states")]
     pub can_trigger_states: Vec<CanTriggerState>,
-    /// 触发间隔时间（秒），最小值为 300 秒（5 分钟）
-    ///
-    /// - 设为 0 表示禁用定时触发
-    /// - 设为 > 0 但 < 300 的值会被自动修正为 300
+    
+    /// 自动触发间隔（秒）：
+    /// 当角色处于此状态时，每隔多少秒执行一次随机分支触发。
     pub trigger_time: f32,
-    /// 触发概率（0.0 - 1.0）
+    /// 自动触发的基础概率：配合 `trigger_time` 使用。
     pub trigger_rate: f32,
 
-    /// 进入该状态时对当前 Mod 数据计数器执行操作（可选）
+    /// 计数器副作用：进入该状态时对 Mod 特有的变量执行增减操作（如好感度+1）
     pub mod_data_counter: Option<ModDataCounterConfig>,
 
-    /// 是否显示对话分支气泡 UI
-    ///
-    /// - true：行为与当前版本完全一致（显示分支按钮）
-    /// - false：仍会触发分支逻辑，但不显示气泡 UI（前端可用空格键选择）
+    /// 分支气泡交互控制：标记是否在界面上显示对话分支按钮
     pub branch_show_bubble: bool,
-
-    /// 对话分支选项
+    /// 固定对话分支选项：用户交互式的后续状态选择
     pub branch: Vec<BranchInfo>,
-
 }
 
 

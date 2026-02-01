@@ -106,6 +106,18 @@ impl SystemObserver {
     // ========================================================================= //
 
     /// 消息循环与事件处理
+    /// 
+    /// **技术内幕：**
+    /// Windows 的事件钩子 (`SetWinEventHook`) 要求调用线程必须拥有一个处于运行状态的消息循环（Message Loop）。
+    /// 因此，我们专门为观察器开启了一个独立的线程，并在该线程中执行 `GetMessageW` 循环。
+    /// 
+    /// **监听事件：**
+    /// 1. `EVENT_SYSTEM_FOREGROUND`: 当用户切换窗口（Alt+Tab）时触发。
+    /// 2. `EVENT_OBJECT_LOCATIONCHANGE`: 当窗口移动、缩放或最大化时触发。
+    /// 
+    /// **防抖处理：**
+    /// 由于位置变化事件非常频繁（拖拽时每帧都会触发），回调函数中仅向主逻辑发送一个极简的信号。
+    /// 后端的 `check_loop` 会执行去抖动（Debounce），在信号停止后的 500ms 才执行昂贵的坐标计算逻辑。
     fn event_loop(app_handle: tauri::AppHandle, running: Arc<std::sync::atomic::AtomicBool>) {
         use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
         use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};

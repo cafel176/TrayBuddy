@@ -277,6 +277,18 @@
         });
     }
 
+    /**
+     * 覆盖并继续导入逻辑
+     * 
+     * 这是 Mod 管理器中最复杂的交互分支：
+     * 1. **场景判定**：用户正在导入一个 ID 已存在的 Mod。
+     * 2. **自动加载决策**：
+     *    - 如果冲突的 Mod 正是当前屏幕上正在运行的那个，导入后必须执行“热重载”。
+     *    - 否则，仅执行磁盘覆盖并刷新列表。
+     * 3. **热重载流程 (isCurrentMod)**:
+     *    - 调用 `doImportSilent` 执行解压和文件替换。
+     *    - 调用 `load_mod_from_path` 触发后端的全套重载逻辑（销毁窗口、刷新索引、重建渲染）。
+     */
     async function keepIncomingAndContinue() {
         const filePath = pendingImportPath;
         // 记录冲突的 mod id，用于后续判断是否需要自动加载

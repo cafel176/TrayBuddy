@@ -347,7 +347,23 @@ impl MediaObserver {
     // Windows 混合 API 实现
     // ========================================================================= //
 
-    /// 媒体事件监听循环（混合 GSMTC + Core Audio）
+    /// 媒体事件监听循环
+    /// 
+    /// 这是该模块的核心工作逻辑。由于 Windows 上并没有一个统一且完美的 API 来监听所有媒体播放，
+    /// 本应用采用了“混合监听策略”：
+    /// 
+    /// 1. **GSMTC (GlobalSystemMediaTransportControls)**: 
+    ///    - 优势：能获取到歌曲标题、艺术家等丰富的元数据。
+    ///    - 局限：只有那些显式支持 Windows 媒体控制的应用（如 Spotify, Chrome, QQ音乐）才会出现在这里。
+    /// 
+    /// 2. **Core Audio API (IAudioSessionManager2)**:
+    ///    - 优势：能检测到系统中任何产生音频输出的进程（通过音量峰值检测）。
+    ///    - 局限：无法获取具体的媒体信息，只能知道哪个进程在出声。
+    /// 
+    /// **逻辑细节：**
+    /// - 循环会定期（由 `CORE_AUDIO_POLL_INTERVAL_SECS` 定义）轮询 Core Audio 状态。
+    /// - 同时，通过注册 `SessionsChanged` 异步回调来实时捕获 GSMTC 会话的变化。
+    /// - `get_combined_media_state_with_source` 负责将这两个来源的数据进行融合（Fuse）。
     #[cfg(windows)]
     async fn media_event_loop(
         tx: mpsc::UnboundedSender<MediaStateEvent>,
@@ -574,7 +590,19 @@ impl MediaObserver {
         Self::get_combined_media_state_with_source(gsmtc_manager).0
     }
 
-    /// 获取混合媒体状态，同时返回来源信息（调试用）
+    /// 获取综合媒体状态，执行跨 API 的数据融合逻辑
+    /// 
+    /// # 判定算法优先级：
+    /// 1. **GSMTC Playing**: 如果 GSMTC 报告正在播放，则信任它，因为它包含最完整的媒体元数据。
+    /// 2. **Core Audio Playing**: 
+    ///    - 如果 GSMTC 没有反馈播放状态，但 Core Audio 检测到有音乐类进程产生音频峰值。
+    ///    - 此时标记为 `Playing`。
+    ///    - **优化策略**：尝试从 GSMTC 的暂停会话中提取元数据（标题/艺术家），实现“声音来自 Core Audio，信息来自 GSMTC”的互补效果。
+    /// 3. **GSMTC Paused**: 
+    ///    - 如果 GSMTC 处于暂停状态，检查 Core Audio。
+    ///    - 如果 Core Audio 也没有任何音频活动，可能意味着应用已彻底退出。
+    ///    - 否则，返回 `Paused` 状态，以便角色维持对应的“听歌结束/待机”动作。
+    /// 4. **Default**: 返回 `Stopped`。
     #[cfg(windows)]
     fn get_combined_media_state_with_source(
         gsmtc_manager: Option<

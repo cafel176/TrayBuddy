@@ -94,67 +94,69 @@ pub const DAY_MIN: u32 = 1;
 pub const DAY_MAX: u32 = 31;
 
 // ========================================================================= //
-// 应用全局状态
+// 应用全局状态与初始化
 // ========================================================================= //
 
 /// 应用全局状态
 ///
-/// 通过 Tauri 的状态管理器在命令处理函数中共享访问
+/// 该结构体被封装在 `Arc` 中并通过 Tauri 的 `manage` 系统进行管理，
+/// 允许在所有的 `tauri::command` 处理函数中通过 `State<AppState>` 安全地共享访问。
+/// 所有内部成员都使用同步锁（Mutex/Atomic）以保证在多线程环境下的数据安全。
 pub struct AppState {
-    /// 资源管理器：负责 Mod 的加载、卸载和资源查询
+    /// 资源管理器：负责 Mod 的扫描、加载、卸载及资源路径的解析与查询
     pub resource_manager: Arc<Mutex<ResourceManager>>,
-    /// 状态管理器：负责角色状态的切换和事件通知
+    /// 状态管理器：驱动角色的状态机，处理状态切换逻辑、动画序列生成以及触发器响应
     pub state_manager: Mutex<StateManager>,
-    /// 存储管理器：负责用户设置和信息的持久化
+    /// 存储管理器：负责本地配置（settings.json）和用户数据（info.json）的持久化读写
     storage: Mutex<Storage>,
-    /// 媒体监听器引用（实际在独立线程运行）
+    /// 媒体监听器引用：在独立线程中运行，用于捕获系统媒体播放状态并反馈给状态机
     media_observer: Mutex<Option<MediaObserver>>,
-    /// 系统锁屏状态（用于防止锁屏窗口触发免打扰模式）
+    /// 系统会话锁屏状态：原子布尔值，用于实时标记 Windows 是否处于锁屏或 UAC 界面，
+    /// 从而辅助状态机决定是否应进入静默/免打扰模式。
     session_locked: Arc<std::sync::atomic::AtomicBool>,
 }
 
 // ========================================================================= //
-// 辅助函数
+// 核心辅助工具
 // ========================================================================= //
 
-/// 检查当前是否为 Release 版本
+/// 检查当前是否为 Release 优化构建
 ///
-/// 通过检查 debug_assertions 编译配置来判断运行模式。
-/// - Debug 模式下 debug_assertions 是启用的
-/// - Release 模式下 debug_assertions 会被禁用
-///
-/// 返回 true 表示是 Release 版本，false 表示是 Debug 版本
+/// 该函数在运行时动态判断，主要用于启用某些仅在生产环境下需要的特性（如开机自启动）。
+/// 逻辑基于编译时宏 `debug_assertions`。
 fn is_release_build() -> bool {
     !cfg!(debug_assertions)
 }
 
 // ========================================================================= //
-// 常量查询命令
+// 前端常量与环境查询 IPC 命令
 // ========================================================================= //
 
-/// 获取浮点型常量（窗口尺寸、缩放比例等）
+/// 获取前端所需的几何与缩放常量
 ///
-/// 返回的常量包括：
-/// - `animation_window_width`: 动画窗口宽度
-/// - `animation_window_height`: 动画窗口高度
-/// - `animation_area_height`: 动画区域高度（角色显示区域，已缩放）
-/// - `bubble_area_height`: 气泡区域高度（固定不缩放）
-/// - `bubble_area_width`: 气泡区域宽度（固定不缩放）
-/// - `animation_scale`: 缩放比例
+/// 计算逻辑：
+/// 1. 从 Storage 中读取用户定义的 `animation_scale`。
+/// 2. 计算缩放后的动画区域。
+/// 3. 计算容纳气泡和角色的最小窗口尺寸。
+/// 
+/// 返回一个包含所有尺寸数值的 HashMap，方便前端动态布局。
 #[tauri::command]
 fn get_const_float(state: State<'_, AppState>) -> std::collections::HashMap<String, f64> {
     let storage = state.storage.lock().unwrap();
     let scale = storage.data.settings.animation_scale as f64;
 
-    // 预分配容量避免扩容
+    // 预分配容量以优化内存性能
     let mut map = std::collections::HashMap::with_capacity(7);
-    // 气泡区域固定尺寸，不随缩放变化
+    
+    // 气泡区域尺寸在本项目中采用固定比例，不随角色缩放，以保证文本可读性
     let bubble_height = BUBBLE_AREA_HEIGHT;
     let bubble_width = BUBBLE_AREA_WIDTH;
-    // 动画区域按比例缩放
+    
+    // 动画区域（角色本体）按用户比例缩放
     let animation_height = ANIMATION_AREA_HEIGHT * scale;
     let animation_width = ANIMATION_AREA_WIDTH * scale;
-    // 窗口尺寸：宽度取两者最大值，高度为气泡+动画
+    
+    // 窗口最终尺寸：宽度取气泡或角色的最大值，高度为两者之和
     let window_width = bubble_width.max(animation_width);
     let window_height = bubble_height + animation_height;
 
@@ -223,6 +225,14 @@ fn get_settings(state: State<'_, AppState>) -> UserSettings {
 }
 
 /// 更新用户设置
+///
+/// 这是一个核心 IPC 命令，不仅负责持久化配置，还会触发一系列系统级的副作用。
+/// 
+/// 流程：
+/// 1. 获取 `storage` 互斥锁并更新内存中的设置。
+/// 2. 释放锁，防止后续事件通知引起的回调（如果是同步执行）产生死锁。
+/// 3. 向前端广播 `SETTINGS_CHANGE` 事件，使 UI 能够实时响应（如语言切换、透明度调整）。
+/// 4. 处理副作用：目前主要是根据设置启用或禁用 Windows 开机自启动。
 #[tauri::command]
 fn update_settings(
     settings: UserSettings,
@@ -230,30 +240,29 @@ fn update_settings(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     {
-    let mut storage = state.storage.lock().unwrap();
-    storage.update_settings(settings.clone())?; // 需要 clone，因为 update_settings 会消费所有权
+        let mut storage = state.storage.lock().unwrap();
+        storage.update_settings(settings.clone())?; // 需要 clone，因为 update_settings 会消费所有权
     } // 此时锁已释放，防止下方触发的事件回调再次尝试获取锁时产生死锁
 
-    // 发送设置变更事件
+    // 发送设置变更事件，通知所有窗口（尤其是设置窗口本身和其他监听窗口）
     let _ = emit(&app, events::SETTINGS_CHANGE, &settings);
 
     // --- 执行副作用 ---
 
     // 1. 开机自启动副作用
-    // 只在 Release 版本中允许启用开机自启动
+    // 注意：由于安全和权限原因，开机自启动逻辑仅在 Release 构建下生效
     let autostart_manager = app.autolaunch();
     if settings.auto_start {
         if is_release_build() {
             let _ = autostart_manager.enable();
         } else {
-            // 开发模式下提示用户
+            // 开发模式下仅在控制台输出提示，不实际修改注册表
             eprintln!("{}", get_i18n_text(&app, "backend.log.autostartDev"));
         }
     } else {
         if is_release_build() {
             let _ = autostart_manager.disable();
         } else {
-            // 开发模式下提示用户
             eprintln!("{}", get_i18n_text(&app, "backend.log.autostartDev"));
         }       
     }
@@ -283,7 +292,7 @@ fn get_current_mod_data(state: State<'_, AppState>) -> Option<ModData> {
     storage.data.info.mod_data.get(&mod_id).cloned()
 }
 
-/// 设置当前 Mod 的数据 value（会立即落盘）
+/// 设置当前 Mod 的数值数据（如好感度、计数器等，会立即落盘）
 #[tauri::command]
 fn set_current_mod_data_value(
     value: i32,
@@ -293,7 +302,7 @@ fn set_current_mod_data_value(
     let mut storage = state.storage.lock().unwrap();
     let mod_id = storage.data.info.current_mod.to_string();
 
-    // 先写入内存（注意：避免跨 save 持有 entry 的可变借用）
+    // 先写入内存中的 map
     {
         let entry = storage.data.info.mod_data.entry(mod_id.clone()).or_insert(ModData {
             mod_id: mod_id.clone(),
@@ -302,10 +311,10 @@ fn set_current_mod_data_value(
         entry.value = value;
     }
 
-    // 立刻落盘
+    // 立即保存到磁盘 info.json
     storage.save()?;
 
-    // 再从 map 中取出最新值用于返回/广播
+    // 取出更新后的数据用于返回和广播
     let data = storage
         .data
         .info
@@ -317,6 +326,7 @@ fn set_current_mod_data_value(
             value,
         });
 
+    // 广播数据变更，允许 Mod 脚本实时响应
     let _ = emit(&app, events::MOD_DATA_CHANGED, data.clone());
     Ok(data)
 }
@@ -342,6 +352,24 @@ fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
     rm.list_mods()
 }
 
+/// Mod 加载的核心通用工作流
+/// 
+/// 这是一个复杂的异步过程，涉及资源加载、状态迁移、窗口重建以及系统集成更新。
+/// 
+/// # 参数
+/// - `legacy_key`: 用于向后兼容旧版存储格式的 Mod 标识符。
+/// - `load`: 闭包，实际执行资源管理器中的加载逻辑。
+/// 
+/// # 工作流步骤
+/// 1. **清理环境**：关闭除了 Mod 管理器以外的所有窗口，防止旧资源的引用冲突。
+/// 2. **执行加载**：调用 `ResourceManager` 解析 `manifest.json` 并索引所有资源文件。
+/// 3. **数据迁移与初始化**：
+///    - 检查是否存在旧格式的 Mod 数据并进行自动迁移。
+///    - 更新当前活跃 Mod 标识并初始化其特有的存储空间（如果尚未存在）。
+/// 4. **视觉更新**：异步更换托盘图标和所有窗口的图标。
+/// 5. **状态机重置**：强制将角色状态切换至新 Mod 的 `idle` 状态。
+/// 6. **界面重建**：完全销毁并重新创建动画渲染窗口（Animation Window），这是确保新资源（Canvas 尺寸、层级等）生效最可靠的方式。
+/// 7. **事件触发**：延迟触发 Mod 登录事件，允许 Mod 执行初始化动作（如语音招呼）。
 async fn load_mod_common<F>(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
@@ -352,6 +380,7 @@ where
     F: FnOnce(&mut crate::modules::resource::ResourceManager) -> Result<Arc<ModInfo>, String>,
 {
     // 0. 关闭除了 mods 以外的所有窗口
+    // 理由：每个 Mod 的动画窗口参数可能完全不同，热重载不如重建窗口稳定。
     let windows = app.webview_windows();
     for (label, window) in windows {
         if label != WINDOW_LABEL_MODS {
@@ -359,26 +388,24 @@ where
         }
     }
 
-    // 给一点时间让窗口关闭（特别是 animation 窗口，防止标签冲突）
+    // 给一点时间让 OS 真正释放窗口资源（特别是 Windows 下的渲染句柄）
     tokio::time::sleep(std::time::Duration::from_millis(
         crate::modules::constants::MOD_SWITCH_WINDOW_DELAY_MS,
     ))
     .await;
 
-    // 1. 加载资源
+    // 1. 加载资源：解析 manifest 并建立资源索引
     let mod_info = {
         let mut rm = state.resource_manager.lock().unwrap();
         load(&mut rm)?
     };
 
-    // 2. 更新用户信息并持久化（并确保该 Mod 的数据在首次加载时初始化）
+    // 2. 更新用户信息并持久化（处理数据迁移）
     {
         let mut storage = state.storage.lock().unwrap();
-
-        // 统一使用 manifest.id 作为 Mod 的唯一标识
         let manifest_id = mod_info.manifest.id.to_string();
 
-        // 兼容迁移：调用方可能传入旧的 key（历史文件夹名 / 调用参数）
+        // 兼容迁移逻辑：如果用户以前用的是文件夹名作为 ID，现在通过 manifest.id 自动转换
         if let Some(key) = legacy_key {
             if !key.is_empty() && key != manifest_id {
                 if storage.data.info.mod_data.contains_key(&key) {
@@ -388,7 +415,7 @@ where
                             storage.data.info.mod_data.insert(manifest_id.clone(), old);
                         }
                     } else {
-                        // 若两者都存在，优先保留 manifest.id 对应的数据
+                        // 两者共存时，以规范化的 manifest_id 为准
                         let _ = storage.data.info.mod_data.remove(&key);
                     }
                 }
@@ -397,7 +424,7 @@ where
 
         storage.data.info.current_mod = manifest_id.clone().into();
 
-        // 首次加载该 Mod 时创建数据（默认值来自 Mod manifest）
+        // 为新 Mod 初始化默认持久化数据
         let default_value = mod_info.manifest.mod_data_default_int;
         storage
             .data
@@ -412,7 +439,7 @@ where
         let _ = storage.save();
     }
 
-    // 3. 异步更新托盘图标和窗口图标为Mod图标（避免阻塞）
+    // 3. 异步更新全局视觉图标
     update_tray_icon_async(app.clone()).await;
     update_window_icons_async(app.clone()).await;
 
@@ -421,17 +448,17 @@ where
         let rm = state.resource_manager.lock().unwrap();
         let initial_state = rm
             .get_state_by_name(STATE_IDLE)
-            .ok_or_else(|| "New mod does not have an 'idle' state".to_string())?
+            .ok_or_else(|| get_i18n_text(&app, "backend.error.noIdleState"))?
             .clone();
         let mut sm = state.state_manager.lock().unwrap();
-        // 强制切换到新 Mod 的初始状态
+        // 强制切换，不检查当前是否有正在播放的不可中断动画
         let _ = sm.change_state_ex(initial_state, true, &rm);
     }
 
-    // 5. 重建窗口以应用新资源
+    // 5. 重建渲染窗口
     recreate_animation_window(app.clone()).await?;
 
-    // 6. 延迟后触发登录事件
+    // 6. 触发登录/加载完成事件（如播放打招呼语音）
     tokio::time::sleep(std::time::Duration::from_secs(MOD_LOGIN_EVENT_DELAY_SECS)).await;
     #[cfg(target_os = "windows")]
     trigger_login_events(&app);

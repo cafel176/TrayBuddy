@@ -786,13 +786,16 @@ export class SpriteAnimator {
   /**
    * 动画主循环
    *
-   * 使用 requestAnimationFrame 实现流畅动画：
-   * - 检查播放状态和资源加载状态
-   * - 窗口不可见时暂停渲染（减少 GPU 占用）
-   * - 根据 frameTime 控制帧率
-   * - 绘制当前帧并推进到下一帧
+   * 通过 requestAnimationFrame 实现与显示器刷新率同步的高效渲染。
+   * 
+   * # 性能控制：
+   * 1. **可见性检查**：当 `isVisible` 为 false（窗口最小化或完全遮挡）时，立即跳出循环，
+   *    此时 `animationId` 被置为 null，完全停止 JavaScript 线程的计算开销。
+   * 2. **异步等待**：如果图片尚未加载完成或 Context 丢失，会进入等待模式，不执行绘制。
+   * 3. **频率控制**：通过对比 `time` 与 `lastTime`，确保动画按照 `frameTime`（Mod 定义的帧率）播放，
+   *    而非无限制地以 144Hz 或更高频率渲染，从而大幅节省 CPU/GPU 资源。
    *
-   * @param time - requestAnimationFrame 提供的高精度时间戳
+   * @param time - requestAnimationFrame 自动传入的高精度时间戳（毫秒）
    */
   private animate = (time: number): void => {
     if (!this.isPlaying) return;
@@ -844,9 +847,19 @@ export class SpriteAnimator {
   }
 
   /**
-   * 推进到下一帧
+   * 推进至下一帧索引
    *
-   * 根据 originReverse 选择正向或反向推进逻辑
+   * 这是一个高度优化的有限状态机逻辑，用于处理各种复杂的播放模式：
+   * 
+   * # 播放算法：
+   * 1. **正向/反向起始 (originReverse)**: 
+   *    有些精灵图设计是倒序的，通过此标记决定是从 `[0,0]` 开始还是从 `[maxX,maxY]` 开始。
+   * 2. **往返循环 (needReverse)**: 
+   *    实现类似“呼吸”或“眨眼”的平滑效果（0->1->2->1->0）。
+   *    开启后，当到达序列尽头时，不直接跳回起点，而是反转播放方向。
+   * 3. **单次播放 (isPlayOnce)**: 
+   *    用于触发动作。当一个完整的循环（包含往返阶段）结束后，自动执行 `stop()` 
+   *    并触发 `onCompleteCallback` 回调，使后端能够检测到动画结束并切换回 `idle`。
    */
   private advanceFrame(): void {
     if (this.originReverse) {
