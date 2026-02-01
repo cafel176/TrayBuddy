@@ -468,7 +468,9 @@
     "preview": "Preview",
     "noPreview": "No Preview",
     "author": "Author",
+    "modName": "Mod Name",
     "version": "Version",
+
     "description": "Description",
     "loading": "Loading...",
     "loadSuccess": "Load Success",

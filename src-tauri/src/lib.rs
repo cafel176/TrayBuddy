@@ -1766,15 +1766,18 @@ fn get_media_status() -> bool {
 async fn recreate_animation_window(app: tauri::AppHandle) -> Result<(), String> {
     // 1. 关闭现有窗口
     if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
-        let _ = window.close();
+        // 先移除关闭拦截事件，否则 close() 可能会因为 API 拦截而不生效
+        // 注意：Tauri v2 中无法直接移除之前闭包注册的事件，但我们可以尝试销毁它
+        let _ = window.destroy();
 
         // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
         // 如果立即创建，会报错 "already exists"
         tokio::time::sleep(std::time::Duration::from_millis(
-            modules::constants::WINDOW_RESIZE_DELAY_MS,
+            modules::constants::WINDOW_RESIZE_DELAY_MS + 200, // 增加一点缓冲时间
         ))
         .await;
     }
+
 
     // 2. 创建新窗口
     inner_create_animation_window(&app)
@@ -1806,8 +1809,14 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
     let window_height = bubble_area_height + animation_area_height;
 
     // 3. 构建并创建窗口
+    // 检查是否已存在同名窗口，如果存在则直接返回（防抖或异常处理）
+    if let Some(existing) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
+        return Ok(());
+    }
+
     let animation_window =
         WebviewWindowBuilder::new(app, WINDOW_LABEL_ANIMATION, WebviewUrl::App(WINDOW_LABEL_ANIMATION.into()))
+
             .title(get_i18n_text(app, "common.animationTitle"))
             .inner_size(window_width, window_height)
             .transparent(true)
