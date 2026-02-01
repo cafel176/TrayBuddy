@@ -701,22 +701,20 @@ impl StateManager {
                 // 这与 trigger_login_events、get_force_change_handler 等处的锁顺序一致
                 
                 // 第一步：获取 ResourceManager 锁
-                // - 过滤不存在/不可用的状态
-                // - 计算加权随机所需的 (state, weight)
-                // - 保持锁直到状态切换完成（避免锁顺序不一致）
+                // - 筛选可用状态的名称和权重（避免克隆完整的 StateInfo 列表）
                 let rm = app_state.resource_manager.lock().unwrap();
                 
-                let enabled_candidates: Vec<(StateInfo, u64)> = state_candidates
+                let candidate_names: Vec<(&str, u64)> = state_candidates
                     .iter()
                     .filter_map(|c| {
                         if c.weight == 0 {
                             return None;
                         }
+                        // 检查状态是否存在且当前可用
                         rm.get_state_by_name(c.state.as_ref())
-                            .cloned()
                             .and_then(|s| {
                                 if s.is_enable() {
-                                    Some((s, c.weight as u64))
+                                    Some((c.state.as_ref(), c.weight as u64))
                                 } else {
                                     None
                                 }
@@ -724,14 +722,35 @@ impl StateManager {
                     })
                     .collect();
 
-                let Some(selected) = Self::pick_weighted_state(enabled_candidates) else {
-                    // 释放 rm 锁后继续循环
+                if candidate_names.is_empty() {
+                    drop(rm);
+                    continue;
+                }
+
+                // 随机选择一个名称
+                let total_weight: u64 = candidate_names.iter().map(|(_, w)| *w).sum();
+                let mut pick = Self::random_u64(total_weight);
+                let mut selected_name = None;
+                for (name, weight) in candidate_names {
+                    if pick < weight {
+                        selected_name = Some(name);
+                        break;
+                    }
+                    pick -= weight;
+                }
+
+                let Some(name) = selected_name else {
+                    drop(rm);
+                    continue;
+                };
+
+                // 只克隆最终选中的那一个状态
+                let Some(selected) = rm.get_state_by_name(name).cloned() else {
                     drop(rm);
                     continue;
                 };
 
                 // 第二步：获取 StateManager 锁（在持有 rm 的情况下）
-                // 锁顺序：ResourceManager → StateManager（与其他地方一致）
                 let mut sm = app_state.state_manager.lock().unwrap();
                 let _ = sm.change_state(selected, &rm);
                 

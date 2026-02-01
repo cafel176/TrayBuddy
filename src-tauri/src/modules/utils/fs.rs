@@ -10,9 +10,12 @@ pub fn load_json_list<T: DeserializeOwned>(path: &Path) -> Vec<T> {
         return Vec::new();
     }
 
-    fs::read_to_string(path)
+    fs::File::open(path)
         .ok()
-        .and_then(|content| serde_json::from_str(&content).ok())
+        .and_then(|file| {
+            let reader = std::io::BufReader::new(file);
+            serde_json::from_reader(reader).ok()
+        })
         .unwrap_or_default()
 }
 
@@ -22,7 +25,8 @@ pub fn load_json_obj<T: DeserializeOwned>(path: &Path) -> Option<T> {
         return None;
     }
 
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|content| serde_json::from_str(&content).ok())
+    fs::File::open(path).ok().and_then(|file| {
+        let reader = std::io::BufReader::new(file);
+        serde_json::from_reader(reader).ok()
+    })
 }

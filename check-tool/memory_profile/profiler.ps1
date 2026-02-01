@@ -36,30 +36,34 @@ function Get-ProcessMemoryInfo {
     try {
         $Process.Refresh()
         
-        # 获取 GDI 和 USER 对象数（用于检测图形资源泄漏）
-        $gdiObjects = 0
-        $userObjects = 0
-        try {
-            Add-Type -MemberDefinition @"
+# Get GDI and USER object counts (used for detecting graphics resource leaks)
+$gdiObjects = 0
+$userObjects = 0
+try {
+    # Move Add-Type outside or use a check to avoid redefinition errors
+    if (-not ("Native.Win32" -as [type])) {
+        Add-Type -MemberDefinition @"
 [DllImport("user32.dll")]
 public static extern int GetGuiResources(IntPtr hProcess, int uiFlags);
 "@ -Name "Win32" -Namespace "Native" -ErrorAction SilentlyContinue
-            $gdiObjects = [Native.Win32]::GetGuiResources($Process.Handle, 0)  # GDI_OBJECTS = 0
-            $userObjects = [Native.Win32]::GetGuiResources($Process.Handle, 1) # USER_OBJECTS = 1
-        } catch {}
-        
-        return @{
-            WorkingSet64 = $Process.WorkingSet64
-            PrivateMemorySize64 = $Process.PrivateMemorySize64
-            VirtualMemorySize64 = $Process.VirtualMemorySize64
-            PagedMemorySize64 = $Process.PagedMemorySize64
-            PeakWorkingSet64 = $Process.PeakWorkingSet64
-            PeakVirtualMemorySize64 = $Process.PeakVirtualMemorySize64
-            HandleCount = $Process.HandleCount
-            ThreadCount = $Process.Threads.Count
-            GDIObjects = $gdiObjects
-            USERObjects = $userObjects
-        }
+    }
+    $gdiObjects = [Native.Win32]::GetGuiResources($Process.Handle, 0)  # GDI_OBJECTS = 0
+    $userObjects = [Native.Win32]::GetGuiResources($Process.Handle, 1) # USER_OBJECTS = 1
+} catch {}
+
+return @{
+    WorkingSet64 = $Process.WorkingSet64
+    PrivateMemorySize64 = $Process.PrivateMemorySize64
+    VirtualMemorySize64 = $Process.VirtualMemorySize64
+    PagedMemorySize64 = $Process.PagedMemorySize64
+    PeakWorkingSet64 = $Process.PeakWorkingSet64
+    PeakVirtualMemorySize64 = $Process.PeakVirtualMemorySize64
+    HandleCount = $Process.HandleCount
+    ThreadCount = $Process.Threads.Count
+    GDIObjects = $gdiObjects
+    USERObjects = $userObjects
+}
+
     } catch { return $null }
 }
 
@@ -136,6 +140,7 @@ Write-Log "----------------------------------------"
 $lastTotalMemory = @{}
 $lastSampleTime = @{}
 $memorySpikes = @()  # 记录内存突增事件
+$spikeThresholdMB = 50 # 将阈值提高到 50MB，以适应高清 Mod 加载
 
 $sampleCount = 0
 while ((Get-Date) -lt $endTime) {
@@ -149,30 +154,28 @@ while ((Get-Date) -lt $endTime) {
     }
     
     try {
-        $webviewProcesses = Get-Process -Name "msedgewebview2" -ErrorAction SilentlyContinue
-        if ($webviewProcesses) {
-            $wmiProcesses = Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue
-            foreach ($wmiProc in $wmiProcesses) {
-                $parentId = $wmiProc.ParentProcessId
-                $isOurs = $false
-                $checkDepth = 0
-                while ($parentId -and $checkDepth -lt 5) {
-                    if ($parentId -eq $mainProcess.Id) {
-                        $isOurs = $true
-                        break
-                    }
-                    $parentProc = Get-CimInstance Win32_Process -Filter "ProcessId=$parentId" -ErrorAction SilentlyContinue
-                    if ($parentProc) {
-                        $parentId = $parentProc.ParentProcessId
-                    } else {
-                        break
-                    }
-                    $checkDepth++
+        # 优化：更全面地搜索相关子进程（包括 GPU 和渲染进程）
+        $wmiProcesses = Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe' OR Name='WebView2.exe'" -ErrorAction SilentlyContinue
+        foreach ($wmiProc in $wmiProcesses) {
+            $parentId = $wmiProc.ParentProcessId
+            $isOurs = $false
+            $checkDepth = 0
+            while ($parentId -and $checkDepth -lt 5) {
+                if ($parentId -eq $mainProcess.Id) {
+                    $isOurs = $true
+                    break
                 }
-                if ($isOurs) {
-                    $proc = Get-Process -Id $wmiProc.ProcessId -ErrorAction SilentlyContinue
-                    if ($proc) { $relatedProcesses += $proc }
+                $parentProc = Get-CimInstance Win32_Process -Filter "ProcessId=$parentId" -ErrorAction SilentlyContinue
+                if ($parentProc) {
+                    $parentId = $parentProc.ParentProcessId
+                } else {
+                    break
                 }
+                $checkDepth++
+            }
+            if ($isOurs) {
+                $proc = Get-Process -Id $wmiProc.ProcessId -ErrorAction SilentlyContinue
+                if ($proc) { $relatedProcesses += $proc }
             }
         }
     } catch {}
@@ -197,11 +200,11 @@ while ((Get-Date) -lt $endTime) {
             $sampleData.TotalWorkingSet += $memInfo.WorkingSet64
             $sampleData.TotalPrivate += $memInfo.PrivateMemorySize64
             
-            # 计算内存变化率
+            # 计算内存变化率 (使用 Private Memory 作为主要指标)
             $procKey = "$($proc.ProcessName)_$($proc.Id)"
             $deltaMB = 0
             $memRateMB = 0
-            $currentMemMB = $memInfo.WorkingSet64 / 1MB
+            $currentMemMB = $memInfo.PrivateMemorySize64 / 1MB
             
             if ($lastTotalMemory.ContainsKey($procKey)) {
                 $deltaMB = $currentMemMB - $lastTotalMemory[$procKey]
@@ -210,8 +213,8 @@ while ((Get-Date) -lt $endTime) {
                     $memRateMB = $deltaMB / $timeDiff
                 }
                 
-                # 检测内存突增（单次增量 > 30MB）
-                if ($deltaMB -gt 30) {
+                # 检测内存突增（使用 Private Memory 变动）
+                if ($deltaMB -gt $spikeThresholdMB) {
                     $memorySpikes += @{
                         Timestamp = Get-Date
                         Elapsed = $elapsed
@@ -222,9 +225,10 @@ while ((Get-Date) -lt $endTime) {
                         ToMB = [math]::Round($currentMemMB, 2)
                     }
                     Write-Host ""
-                    Write-Log "⚠️ Memory Spike: $($proc.ProcessName) +$([math]::Round($deltaMB, 1)) MB" "Yellow"
+                    Write-Log "⚠️ Private Memory Spike: $($proc.ProcessName) +$([math]::Round($deltaMB, 1)) MB" "Yellow"
                 }
             }
+
             $lastTotalMemory[$procKey] = $currentMemMB
             $lastSampleTime[$procKey] = Get-Date
             
@@ -235,9 +239,11 @@ while ((Get-Date) -lt $endTime) {
     
     $samples += $sampleData
     
-    $totalMB = [math]::Round($sampleData.TotalWorkingSet / 1MB, 2)
+    $totalWSMB = [math]::Round($sampleData.TotalWorkingSet / 1MB, 2)
+    $totalPrivMB = [math]::Round($sampleData.TotalPrivate / 1MB, 2)
     $procCount = $sampleData.Processes.Count
-    Write-Host ("`rSample #{0} | Time: {1}s/{2}s | Processes: {3} | Total Memory: {4} MB    " -f $sampleCount, $elapsed, $Duration, $procCount, $totalMB) -NoNewline
+    Write-Host ("`rSample #{0} | Time: {1}s/{2}s | Procs: {3} | Priv: {4} MB | WS: {5} MB    " -f $sampleCount, $elapsed, $Duration, $procCount, $totalPrivMB, $totalWSMB) -NoNewline
+
     
     Start-Sleep -Seconds $SampleInterval
     
@@ -349,38 +355,46 @@ foreach ($key in $processStats.Keys | Sort-Object) {
 $report += "============================================================================"
 $report += "Summary Statistics"
 $report += "============================================================================"
+$report += "CRITICAL NOTE: "
+$report += "1. Private Memory is the most accurate metric for application memory usage."
+$report += "2. Working Set includes shared DLLs/memory and will be OVERESTIMATED when"
+$report += "   simply summing multiple processes (the same DLL is counted multiple times)."
+$report += "3. Focus on Private Memory trends to identify leaks."
 $report += ""
+
 
 $allTotalWorkingSets = $samples | ForEach-Object { $_.TotalWorkingSet }
 $allTotalPrivates = $samples | ForEach-Object { $_.TotalPrivate }
 
 if ($allTotalWorkingSets.Count -gt 0) {
-    $avgTotal = ($allTotalWorkingSets | Measure-Object -Average).Average
-    $maxTotal = ($allTotalWorkingSets | Measure-Object -Maximum).Maximum
-    $minTotal = ($allTotalWorkingSets | Measure-Object -Minimum).Minimum
-    $avgPrivateTotal = ($allTotalPrivates | Measure-Object -Average).Average
-    $maxPrivateTotal = ($allTotalPrivates | Measure-Object -Maximum).Maximum
+    $avgWS = ($allTotalWorkingSets | Measure-Object -Average).Average
+    $maxWS = ($allTotalWorkingSets | Measure-Object -Maximum).Maximum
+    $minWS = ($allTotalWorkingSets | Measure-Object -Minimum).Minimum
+    
+    $avgPriv = ($allTotalPrivates | Measure-Object -Average).Average
+    $maxPriv = ($allTotalPrivates | Measure-Object -Maximum).Maximum
+    $minPriv = ($allTotalPrivates | Measure-Object -Minimum).Minimum
     
     $report += "Total Working Set (all processes):"
-    $report += "  Average: $(Format-Bytes $avgTotal)"
-    $report += "  Min: $(Format-Bytes $minTotal)"
-    $report += "  Max: $(Format-Bytes $maxTotal)"
+    $report += "  Average: $(Format-Bytes $avgWS)"
+    $report += "  Peak:    $(Format-Bytes $maxWS)"
     $report += ""
-    $report += "Total Private Memory (all processes):"
-    $report += "  Average: $(Format-Bytes $avgPrivateTotal)"
-    $report += "  Max: $(Format-Bytes $maxPrivateTotal)"
+    $report += "Total Private Memory (Actual Footprint):"
+    $report += "  Average: $(Format-Bytes $avgPriv)"
+    $report += "  Min:     $(Format-Bytes $minPriv)"
+    $report += "  Peak:    $(Format-Bytes $maxPriv)"
     $report += ""
     
     if ($samples.Count -ge 2) {
-        $firstSample = $samples[0].TotalWorkingSet
-        $lastSample = $samples[-1].TotalWorkingSet
-        $growth = $lastSample - $firstSample
-        $growthPercent = if ($firstSample -gt 0) { [math]::Round(($growth / $firstSample) * 100, 2) } else { 0 }
+        $firstPriv = $samples[0].TotalPrivate
+        $lastPriv = $samples[-1].TotalPrivate
+        $growth = $lastPriv - $firstPriv
+        $growthPercent = if ($firstPriv -gt 0) { [math]::Round(($growth / $firstPriv) * 100, 2) } else { 0 }
         
-        $report += "Memory Growth Trend:"
-        $report += "  Initial: $(Format-Bytes $firstSample)"
-        $report += "  Final: $(Format-Bytes $lastSample)"
-        $report += "  Growth: $(Format-Bytes $growth) ($growthPercent%)"
+        $report += "Private Memory Trend:"
+        $report += "  Initial: $(Format-Bytes $firstPriv)"
+        $report += "  Final:   $(Format-Bytes $lastPriv)"
+        $report += "  Growth:  $(Format-Bytes $growth) ($growthPercent%)"
         $report += ""
     }
 }
@@ -390,30 +404,35 @@ $report += "Process Type Analysis"
 $report += "============================================================================"
 $report += ""
 
-$mainProcessMem = 0
-$webviewProcessMem = 0
+# 修复：基于每个样本点的即时分布计算平均比例，避免 PID 变更导致的累加错误
+$mainProcessMems = @()
+$webviewProcessMems = @()
 
-foreach ($key in $processStats.Keys) {
-    $stat = $processStats[$key]
-    $validSamples = $stat.Samples | Where-Object { $_ -ne $null }
-    if ($validSamples.Count -eq 0) { continue }
-    $avgMem = ($validSamples | ForEach-Object { $_.WorkingSet64 } | Measure-Object -Average).Average
-    
-    if ($stat.Name -eq "TrayBuddy") {
-        $mainProcessMem += $avgMem
-    } elseif ($stat.Name -eq "msedgewebview2") {
-        $webviewProcessMem += $avgMem
+foreach ($sample in $samples) {
+    $currentMain = 0
+    $currentWebview = 0
+    foreach ($proc in $sample.Processes) {
+        if ($proc.Name -eq "TrayBuddy") { 
+            $currentMain += $proc.MemInfo.PrivateMemorySize64 
+        } elseif ($proc.Name -eq "msedgewebview2") { 
+            $currentWebview += $proc.MemInfo.PrivateMemorySize64 
+        }
     }
+    $mainProcessMems += $currentMain
+    $webviewProcessMems += $currentWebview
 }
 
-$totalMem = $mainProcessMem + $webviewProcessMem
+$avgMain = ($mainProcessMems | Measure-Object -Average).Average
+$avgWebview = ($webviewProcessMems | Measure-Object -Average).Average
+
+$totalMem = $avgMain + $avgWebview
 if ($totalMem -gt 0) {
-    $mainPercent = [math]::Round(($mainProcessMem / $totalMem) * 100, 1)
-    $webviewPercent = [math]::Round(($webviewProcessMem / $totalMem) * 100, 1)
+    $mainPercent = [math]::Round(($avgMain / $totalMem) * 100, 1)
+    $webviewPercent = [math]::Round(($avgWebview / $totalMem) * 100, 1)
     
-    $report += "Memory Distribution:"
-    $report += "  Main Process (TrayBuddy.exe):     $(Format-Bytes $mainProcessMem) ($mainPercent%)"
-    $report += "  WebView2 Processes (GPU/Render):  $(Format-Bytes $webviewProcessMem) ($webviewPercent%)"
+    $report += "Memory Distribution (based on Average Private Memory):"
+    $report += "  Main Process (TrayBuddy.exe):     $(Format-Bytes $avgMain) ($mainPercent%)"
+    $report += "  WebView2 Processes (GPU/Render):  $(Format-Bytes $avgWebview) ($webviewPercent%)"
     $report += ""
 }
 
@@ -478,7 +497,7 @@ if ($memorySpikes.Count -gt 0) {
     $report += ""
 }
 
-if ($webviewProcessMem -gt $mainProcessMem) {
+if ($avgWebview -gt $avgMain) {
     $report += "[!] WebView2 processes consume most memory (typical for Tauri apps)"
     $report += ""
     $report += "Potential optimizations:"
@@ -490,7 +509,7 @@ if ($webviewProcessMem -gt $mainProcessMem) {
     $report += ""
 }
 
-if ($mainProcessMem -gt 50MB) {
+if ($avgMain -gt 50MB) {
     $report += "[!] Main process memory is relatively high"
     $report += ""
     $report += "Potential optimizations:"
@@ -501,14 +520,14 @@ if ($mainProcessMem -gt 50MB) {
 }
 
 if ($samples.Count -ge 2) {
-    $growth = $samples[-1].TotalWorkingSet - $samples[0].TotalWorkingSet
-    if ($growth -gt 10MB) {
-        $report += "[!] Continuous memory growth detected - possible memory leak"
+    $growth = $samples[-1].TotalPrivate - $samples[0].TotalPrivate
+    if ($growth -gt 15MB) {
+        $report += "[!] Continuous Private Memory growth detected - possible memory leak"
         $report += ""
         $report += "Investigation suggestions:"
         $report += "  1. Check event listeners are properly cleaned up"
-        $report += "  2. Check timers are properly cleared"
-        $report += "  3. Check for unreleased image cache"
+        $report += "  2. Check if Backdrop Blur or heavy CSS filters are leaking GPU memory"
+        $report += "  3. Check for unreleased image cache in Mod switching"
         $report += "  4. Use Chrome DevTools Memory panel for analysis"
         $report += ""
     }

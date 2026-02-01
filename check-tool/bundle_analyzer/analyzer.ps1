@@ -72,11 +72,12 @@ if (-not $SkipBuild) {
     try {
         Write-Log "Running: pnpm tauri build" "Cyan"
         $buildStart = Get-Date
-        $process = Start-Process -FilePath "cmd" -ArgumentList "/c","pnpm tauri build 2>&1" -NoNewWindow -Wait -PassThru
+        # In Tauri v2, we should use pnpm tauri build directly to see output
+        pnpm tauri build
         $buildDuration = (Get-Date) - $buildStart
         
-        if ($process.ExitCode -ne 0) {
-            Write-Log "Build failed! Exit code: $($process.ExitCode)" "Red"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "Build failed! Exit code: $LASTEXITCODE" "Red"
             exit 1
         }
         Write-Log "Build complete! Duration: $($buildDuration.TotalSeconds.ToString('N1')) seconds" "Green"
@@ -87,10 +88,12 @@ if (-not $SkipBuild) {
     Write-Log "Skipping build step" "Yellow"
 }
 
+
 # Step 2: Locate build artifacts
 $BundleDir = "$ProjectRoot\src-tauri\target\release\bundle"
 $ReleaseDir = "$ProjectRoot\src-tauri\target\release"
 $ModsDir = "$ProjectRoot\mods"
+$I18nDir = "$ProjectRoot\i18n"
 $FrontendDir = "$ProjectRoot\build"
 
 Write-Log "Analyzing bundle artifacts..." "Yellow"
@@ -113,15 +116,16 @@ $report += "1. Main Executable"
 $report += "============================================================================"
 $report += ""
 
-$exePath = "$ReleaseDir\TrayBuddy.exe"
+$exePath = "$ReleaseDir\traybuddy.exe"
 if (Test-Path $exePath) {
     $exeSize = (Get-Item $exePath).Length
-    $report += "TrayBuddy.exe: $(Format-Size $exeSize)"
-    "Executable,TrayBuddy.exe,$exeSize,$([math]::Round($exeSize/1MB, 2)),1,Main binary" | Out-File -FilePath $CsvFile -Append -Encoding UTF8
+    $report += "traybuddy.exe: $(Format-Size $exeSize)"
+    "Executable,traybuddy.exe,$exeSize,$([math]::Round($exeSize/1MB, 2)),1,Main binary" | Out-File -FilePath $CsvFile -Append -Encoding UTF8
 } else {
-    $report += "TrayBuddy.exe: NOT FOUND"
+    $report += "traybuddy.exe: NOT FOUND (Check if build succeeded)"
 }
 $report += ""
+
 
 # --- MSI Installer ---
 $report += "============================================================================"
@@ -200,10 +204,11 @@ $report += ""
 
 # --- Mods (Bundled Resources) ---
 $report += "============================================================================"
-$report += "5. Mods (Bundled Resources)"
+$report += "5. Resources (Mods & I18n)"
 $report += "============================================================================"
 $report += ""
 
+# Analyze Mods
 if (Test-Path $ModsDir) {
     $totalModsSize = Get-FolderSize $ModsDir
     $report += "Total Mods Size: $(Format-Size $totalModsSize)"
@@ -237,6 +242,15 @@ if (Test-Path $ModsDir) {
     $report += "Mods directory not found"
 }
 
+# Analyze I18n
+if (Test-Path $I18nDir) {
+    $i18nSize = Get-FolderSize $I18nDir
+    $report += "I18n Resources: $(Format-Size $i18nSize)"
+    "Resources,i18n,$i18nSize,$([math]::Round($i18nSize/1MB, 2)),$( (Get-ChildItem $I18nDir -File).Count ),Translation files" | Out-File -FilePath $CsvFile -Append -Encoding UTF8
+    $report += ""
+}
+
+
 # --- Release Directory Analysis ---
 $report += "============================================================================"
 $report += "6. Release Directory Overview"
@@ -246,11 +260,12 @@ $report += ""
 if (Test-Path $ReleaseDir) {
     # Key files in release directory
     $keyFiles = @(
-        "TrayBuddy.exe",
-        "TrayBuddy.pdb",
+        "traybuddy.exe",
+        "traybuddy.pdb",
         "traybuddy_lib.dll",
         "traybuddy_lib.pdb"
     )
+
     
     foreach ($fileName in $keyFiles) {
         $filePath = "$ReleaseDir\$fileName"
@@ -282,6 +297,7 @@ $summaryData = @{
     "Executable" = 0
     "Frontend" = 0
     "Mods" = 0
+    "I18n" = 0
     "MSI" = 0
     "NSIS" = 0
 }
@@ -289,6 +305,8 @@ $summaryData = @{
 if (Test-Path $exePath) { $summaryData["Executable"] = (Get-Item $exePath).Length }
 if (Test-Path $FrontendDir) { $summaryData["Frontend"] = Get-FolderSize $FrontendDir }
 if (Test-Path $ModsDir) { $summaryData["Mods"] = Get-FolderSize $ModsDir }
+if (Test-Path $I18nDir) { $summaryData["I18n"] = Get-FolderSize $I18nDir }
+
 
 $msiFiles = Get-ChildItem -Path "$BundleDir\msi" -Filter "*.msi" -ErrorAction SilentlyContinue
 if ($msiFiles) { $summaryData["MSI"] = ($msiFiles | Measure-Object -Property Length -Sum).Sum }
@@ -305,7 +323,8 @@ $summaryData.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
 
 $totalDistributable = $summaryData["MSI"]
 if ($summaryData["NSIS"] -gt $totalDistributable) { $totalDistributable = $summaryData["NSIS"] }
-if ($totalDistributable -eq 0) { $totalDistributable = $summaryData["Executable"] + $summaryData["Mods"] }
+if ($totalDistributable -eq 0) { $totalDistributable = $summaryData["Executable"] + $summaryData["Mods"] + $summaryData["I18n"] }
+
 
 $report += ""
 $report += "Distributable Package Size: $(Format-Size $totalDistributable)"
@@ -361,12 +380,13 @@ if (Test-Path $ModsDir) {
 }
 
 # Check if PDB files are included
-if (Test-Path "$ReleaseDir\TrayBuddy.pdb") {
-    $pdbSize = (Get-Item "$ReleaseDir\TrayBuddy.pdb").Length
+if (Test-Path "$ReleaseDir\traybuddy.pdb") {
+    $pdbSize = (Get-Item "$ReleaseDir\traybuddy.pdb").Length
     $report += "[i] Debug symbols (PDB) present: $(Format-Size $pdbSize)"
     $report += "    These are not included in installer but useful for debugging"
     $report += ""
 }
+
 
 # Check executable size
 if (Test-Path $exePath) {

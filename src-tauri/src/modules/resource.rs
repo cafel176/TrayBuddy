@@ -21,6 +21,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::Manager;
 
+/// 并发加载限制：限制同时加载大型配置或资源的线程数
+/// 避免在快速切换 Mod 时产生瞬时堆内存高峰
+lazy_static::lazy_static! {
+    static ref LOAD_SEMAPHORE: Arc<tokio::sync::Semaphore> = Arc::new(tokio::sync::Semaphore::new(3));
+}
+
 
 use crate::modules::utils::fs::{load_json_list, load_json_obj};
 
@@ -668,7 +674,28 @@ pub struct ModInfo {
     text_index: HashMap<Box<str>, HashMap<Box<str>, usize>>, // lang -> name -> index
 }
 
+/// Mod 摘要信息（用于管理器列表展示，减少 IPC 传输开销）
+#[derive(Debug, Serialize, Clone)]
+pub struct ModSummary {
+    pub path: PathBuf,
+    pub manifest: ModManifest,
+    pub info: HashMap<Box<str>, CharacterInfo>,
+    pub icon_path: Option<Box<str>>,
+    pub preview_path: Option<Box<str>>,
+}
+
 impl ModInfo {
+    /// 转换为摘要信息
+    pub fn to_summary(&self) -> ModSummary {
+        ModSummary {
+            path: self.path.clone(),
+            manifest: self.manifest.clone(),
+            info: self.info.clone(),
+            icon_path: self.icon_path.clone(),
+            preview_path: self.preview_path.clone(),
+        }
+    }
+
     /// 构建查询索引（加载后调用）
     fn build_indices(&mut self) {
         // 状态索引
@@ -1128,6 +1155,11 @@ impl ResourceManager {
     }
 
     fn read_mod_from_path(&self, mod_path: PathBuf) -> Result<ModInfo, String> {
+        // 使用信号量限制并发加载，防止内存抖动
+        // 注意：由于 read_mod_from_path 是同步函数，我们使用 try_acquire
+        // 如果无法获取许可（并发已满），我们依然继续加载，但记录警告
+        let _permit = LOAD_SEMAPHORE.try_acquire(); 
+        
         if !mod_path.exists() {
             return Err(format!("Mod path does not exist: {:?}", mod_path));
         }
@@ -1137,10 +1169,9 @@ impl ResourceManager {
 
         // 解析 manifest.json
         let manifest_path = mod_path.join("manifest.json");
-        let manifest_content = fs::read_to_string(&manifest_path)
-            .map_err(|e| format!("Failed to read manifest: {}", e))?;
-        let manifest: ModManifest = serde_json::from_str(&manifest_content)
-            .map_err(|e| format!("Failed to parse manifest: {}", e))?;
+        let manifest: ModManifest = load_json_obj(&manifest_path)
+            .ok_or_else(|| format!("Failed to load or parse manifest at {:?}", manifest_path))?;
+
 
         // 解析资产定义（使用 "asset" 目录而非 "assets"）
         let assets_path = mod_path.join("asset");

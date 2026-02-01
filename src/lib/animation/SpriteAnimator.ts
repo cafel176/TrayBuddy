@@ -198,11 +198,12 @@ imageCache.setOnEvict((url, img) => {
   // 1. 清空事件处理器，避免内存泄漏
   img.onload = null;
   img.onerror = null;
-  // 2. 设置 src 为空数据 URI（比空字符串更彻底）
-  img.src = 'data:,';
-  // 3. 移除所有属性引用
+  // 2. 设置 src 为最小透明图片，提示浏览器释放旧纹理资源
+  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+  // 3. 移除 src 属性并尝试手动触发垃圾回收提示
   img.removeAttribute('src');
 });
+
 
 /**
  * 判断是否为边框动画图片
@@ -356,7 +357,6 @@ export class SpriteAnimator {
     // 优化 Canvas 上下文配置，减少 GPU 开销
     this.ctx = canvas.getContext("2d", {
       alpha: true,             // 需要透明背景
-      desynchronized: true,    // 降低延迟，减少与主线程同步
       willReadFrequently: false // 不频繁读取像素数据
     });
     
@@ -367,12 +367,14 @@ export class SpriteAnimator {
       
       if (!this.isVisible && wasVisible) {
         // 窗口变为不可见：释放当前图片引用以减少 GPU 纹理占用
-        // 保存 URL 以便恢复时重新加载
+        // 仅断开引用，不要重置 src，否则会导致缓存中的图片损坏
         if (this.img) {
           this.hiddenImgSrc = this.currentImgSrc;
           this.img = null;
         }
       } else if (this.isVisible && !wasVisible) {
+
+
         // 窗口恢复可见：重新加载图片并恢复动画
         if (this.hiddenImgSrc) {
           this.loadImage(this.hiddenImgSrc).then(() => {
@@ -531,7 +533,14 @@ export class SpriteAnimator {
   async switchWithConfig(config: AnimationConfig, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
     // 仅当图片 URL 变化时才重新加载
     if (this.currentImgSrc !== config.imgSrc) {
+      // 切换图片前，仅断开当前图片引用。由 LRUCache 的 setOnEvict 负责真正的显存回收。
+      if (this.img && !alwaysImageCache.has(this.currentImgSrc)) {
+         this.img = null;
+      }
+      
       const loaded = await this.loadImage(config.imgSrc);
+
+
       if (!loaded) return false;
       this.currentImgSrc = config.imgSrc;
     }
@@ -542,8 +551,10 @@ export class SpriteAnimator {
     this.onCompleteCallback = onComplete || null;
     
     // 调整 Canvas 尺寸以匹配帧大小
-    this.canvas.width = this.frameWidth;
-    this.canvas.height = this.frameHeight;
+    // 优化：仅在尺寸变化时重置宽高度，避免不必要的缓冲区重分配
+    if (this.canvas.width !== this.frameWidth) this.canvas.width = this.frameWidth;
+    if (this.canvas.height !== this.frameHeight) this.canvas.height = this.frameHeight;
+    
     this.drawCurrentFrame();
     
     // 启动动画循环
@@ -570,14 +581,12 @@ export class SpriteAnimator {
    * @returns 加载成功返回 true
    */
   private loadImage(imgSrc: string): Promise<boolean> {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       const shortUrl = imgSrc.split('/').slice(-2).join('/');
       const debugMode = isMemoryDebugEnabled();
       const isBorder = isBorderImage(imgSrc);
       
       // 根据是否为边框选择不同的缓存
-      // 边框使用独立 Map 缓存（永不淘汰）
-      // 普通动画使用 LRU 缓存（可能被淘汰）
       const cache = isBorder ? alwaysImageCache : imageCache;
       
       // 尝试从缓存获取
@@ -600,14 +609,25 @@ export class SpriteAnimator {
         const cacheType = isBorder ? 'Always' : 'Normal';
         logMemoryEvent('LOAD_IMAGE', `加载${cacheType}图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: false, imageSrc: shortUrl });
       }
+      
       const newImg = new Image();
-      newImg.onload = () => {
-        cache.set(imgSrc, newImg);  // 存入对应缓存
-        this.img = newImg;
-        if (debugMode) {
-          logMemoryEvent('IMAGE_LOADED', `图片加载完成: ${shortUrl}`, { imageSrc: shortUrl });
+      newImg.onload = async () => {
+        try {
+          // 使用 decode() 确保图片解码完成，减少首帧渲染时的 CPU 抖动
+          await newImg.decode();
+          cache.set(imgSrc, newImg);
+          this.img = newImg;
+          if (debugMode) {
+            logMemoryEvent('IMAGE_LOADED', `图片加载并解码完成: ${shortUrl}`, { imageSrc: shortUrl });
+          }
+          resolve(true);
+        } catch (e) {
+          console.error("Image decode failed:", e);
+          // 解码失败时退回到 onload 逻辑（部分环境可能不支持 decode）
+          cache.set(imgSrc, newImg);
+          this.img = newImg;
+          resolve(true);
         }
-        resolve(true);
       };
       newImg.onerror = () => {
         if (debugMode) {
@@ -775,8 +795,18 @@ export class SpriteAnimator {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
     }
-    this.img = null;
+    
+    // 显式释放当前图片引用
+    if (this.img) {
+      this.img.onload = null;
+      this.img.onerror = null;
+      this.img.src = 'data:,';
+      this.img = null;
+    }
+    
     this.ctx = null;
+    this.currentImgSrc = "";
+    this.hiddenImgSrc = null;
   }
 
   // ============================================================================

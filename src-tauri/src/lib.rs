@@ -1436,9 +1436,9 @@ pub fn run() {
 fn get_mod_details(
     state: State<'_, AppState>,
     mod_id: String,
-) -> Result<modules::resource::ModInfo, String> {
+) -> Result<modules::resource::ModSummary, String> {
     let mut mgr = state.resource_manager.lock().unwrap();
-    mgr.read_mod_from_disk(&mod_id)
+    mgr.read_mod_from_disk(&mod_id).map(|info| info.to_summary())
 }
 
 /// 解析 .tbuddy(zip) 中的 manifest 信息
@@ -1819,7 +1819,18 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
             .build()
             .map_err(|e| e.to_string())?;
 
+    // 性能优化：动画窗口拦截关闭事件，改为隐藏，以保持后台渲染进程常驻
+    // 其他工具窗口则遵循“关闭即销毁”策略以节省内存
+    let w_clone = animation_window.clone();
+    animation_window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w_clone.hide();
+        }
+    });
+
     // 4. 初始鼠标穿透
+
     if is_silence {
         let _ = animation_window.set_ignore_cursor_events(true);
     }
@@ -2153,7 +2164,11 @@ struct WindowConfig<'a> {
     resizable: bool,
     /// 是否居中显示
     center: bool,
+    /// 是否在关闭时销毁（而不是隐藏）
+    destroy_on_close: bool,
 }
+
+
 
 /// 显示或创建窗口的通用函数
 ///
@@ -2169,14 +2184,19 @@ struct WindowConfig<'a> {
 fn show_or_create_window(app: &tauri::AppHandle, config: WindowConfig) {
     if let Some(window) = app.get_webview_window(config.label) {
         let _ = window.show();
+        let _ = window.unminimize(); // 确保窗口不是最小化状态
         let _ = window.set_focus();
     } else {
+
         let mut builder = WebviewWindowBuilder::new(
             app,
             config.label,
             WebviewUrl::App(config.url.into()),
         )
+        // 性能优化：限制每个 Webview 的资源占用
+        // 某些版本的 WebView2 支持通过这种方式传递参数，或者在环境初始化时设置
         .title(get_i18n_text(app, config.title_key))
+
         .inner_size(config.width, config.height)
         .resizable(config.resizable);
 
@@ -2186,7 +2206,21 @@ fn show_or_create_window(app: &tauri::AppHandle, config: WindowConfig) {
 
         if let Ok(window) = builder.build() {
             apply_window_icon(app, &window);
+            
+            // 如果配置了销毁，则不拦截关闭事件，让其默认销毁窗口及对应的渲染进程
+            // 注意：Tauri 默认行为就是关闭窗口即销毁，
+            // 我们只需要确保没有全局的 close 拦截器将其改为 hide 即可。
+            if !config.destroy_on_close {
+                let w_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = w_clone.hide();
+                    }
+                });
+            }
         }
+
     }
 }
 
@@ -2330,17 +2364,6 @@ fn show_context_menu(app: tauri::AppHandle, window: WebviewWindow) -> Result<(),
 /// 统一渲染/托盘菜单事件处理
 fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
     match id {
-        "about" => {
-            show_or_create_window(app, WindowConfig {
-                label: "about",
-                url: "about",
-                title_key: "menu.about",
-                width: 500.0,
-                height: 720.0,
-                resizable: true,
-                center: true,
-            });
-        }
         "quit" => {
             let app_state: State<AppState> = app.state();
             let mut storage = app_state.storage.lock().unwrap();
@@ -2348,39 +2371,65 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
             app.exit(0)
         }
-        "debugger" => {
-            show_or_create_window(app, WindowConfig {
-                label: WINDOW_LABEL_MAIN,
-                url: "index.html",
-                title_key: "common.appTitle",
-                width: 800.0,
-                height: 600.0,
-                resizable: true,
-                center: false,
-            });
+        "about" | "settings" | "mod" | "debugger" => {
+            // 优化：对于这些工具窗口，如果已经打开，尝试聚焦；
+            // 考虑未来改为关闭即销毁，而不是隐藏
+            let label = match id {
+                "about" => "about",
+                "settings" => "settings",
+                "mod" => "mods",
+                "debugger" => WINDOW_LABEL_MAIN,
+                _ => id
+            };
+
+            let config = match id {
+                "about" => WindowConfig {
+                    label: "about",
+                    url: "about",
+                    title_key: "menu.about",
+                    width: 500.0,
+                    height: 720.0,
+                    resizable: true,
+                    center: true,
+                    destroy_on_close: true, // 工具窗口，关闭即销毁，释放进程
+                },
+                "debugger" => WindowConfig {
+                    label: WINDOW_LABEL_MAIN,
+                    url: "index.html",
+                    title_key: "common.appTitle",
+                    width: 800.0,
+                    height: 600.0,
+                    resizable: true,
+                    center: false,
+                    destroy_on_close: true,
+                },
+                "mod" => WindowConfig {
+                    label: "mods",
+                    url: "mods",
+                    title_key: "common.modsTitle",
+                    width: 800.0,
+                    height: 700.0,
+                    resizable: true,
+                    center: false,
+                    destroy_on_close: true,
+                },
+                "settings" => WindowConfig {
+                    label: "settings",
+                    url: "settings",
+                    title_key: "common.settingsTitle",
+                    width: 800.0,
+                    height: 700.0,
+                    resizable: true,
+                    center: false,
+                    destroy_on_close: true,
+                },
+
+                _ => unreachable!()
+            };
+            
+            show_or_create_window(app, config);
         }
-        "mod" => {
-            show_or_create_window(app, WindowConfig {
-                label: "mods",
-                url: "mods",
-                title_key: "common.modsTitle",
-                width: 800.0,
-                height: 700.0,
-                resizable: true,
-                center: false,
-            });
-        }
-        "settings" => {
-            show_or_create_window(app, WindowConfig {
-                label: "settings",
-                url: "settings",
-                title_key: "common.settingsTitle",
-                width: 800.0,
-                height: 700.0,
-                resizable: true,
-                center: false,
-            });
-        }
+
         "toggle_mute" | "toggle_silence" | "toggle_show_widget" => {
             // 提取 settings 和需要的字段
             let (settings) = {

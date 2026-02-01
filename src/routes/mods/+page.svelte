@@ -159,8 +159,17 @@
                 // 测试图片是否可以加载
                 const success = await new Promise<boolean>((resolve) => {
                     const testImg = new Image();
-                    testImg.onload = () => resolve(true);
-                    testImg.onerror = () => resolve(false);
+                    testImg.onload = () => {
+                        testImg.onload = null;
+                        testImg.onerror = null;
+                        resolve(true);
+                    };
+                    testImg.onerror = () => {
+                        testImg.onload = null;
+                        testImg.onerror = null;
+                        testImg.src = 'data:,';
+                        resolve(false);
+                    };
                     testImg.src = testSrc;
                 });
                 

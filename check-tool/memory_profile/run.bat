@@ -38,7 +38,15 @@ if "%1"=="quick" (
 )
 
 echo Starting memory profiler...
+
+:: 清理旧的日志文件
+if exist "%~dp0Logs" (
+    echo Cleaning up old logs in Logs folder...
+    del /q "%~dp0Logs\*.*"
+)
+
 echo Duration: %DURATION% seconds
+
 if defined SKIP_BUILD echo Skip build: Yes
 echo.
 

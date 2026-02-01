@@ -33,6 +33,13 @@ if "%1"=="quick" (
 )
 
 echo Starting bundle analyzer...
+
+:: 清理旧的日志文件
+if exist "%~dp0Logs" (
+    echo Cleaning up old logs in Logs folder...
+    del /q "%~dp0Logs\*.*"
+)
+
 if defined SKIP_BUILD echo Skip build: Yes
 echo.
 
