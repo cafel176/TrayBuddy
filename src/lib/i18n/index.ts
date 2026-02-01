@@ -242,3 +242,6 @@ export function tArray(key: string): string[] {
 export function getTranslator(): typeof t {
   return t;
 }
+
+// 导出 hooks 模块
+export * from "./hooks";

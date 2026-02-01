@@ -54,6 +54,7 @@ use modules::state::StateManager;
 use modules::storage::{ModData, Storage, UserInfo, UserSettings};
 use modules::system_observer::{SystemDebugInfo, SystemObserver};
 use modules::trigger::TriggerManager;
+use modules::utils::i18n::get_i18n_text as get_i18n_text_cached;
 use std::sync::{Arc, Mutex};
 use tauri::{
     image::Image,
@@ -1985,49 +1986,15 @@ fn save_animation_window_position(window: &tauri::Window) {
 }
 
 /// 获取国际化文本 (用于后端窗口标题同步)
+///
+/// 使用缓存版本，避免每次调用都重新读取和解析 JSON 文件
 fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
     let app_state: State<AppState> = app.state();
-
-    // 1. 获取当前语言
     let lang = {
         let storage = app_state.storage.lock().unwrap();
         storage.data.settings.lang.clone()
     };
-
-    // 2. 加载 i18n 资源文件
-    // 虽然 Svelte 打包包含了资源，但后端需要直接从资源目录读取
-    let i18n_path = app
-        .path()
-        .resource_dir()
-        .unwrap_or_default()
-        .join("i18n")
-        .join(format!("{}.json", lang));
-
-    // 如果资源目录下不存在（可能是开发模式），则尝试从当前工作目录下的 i18n 目录读取
-    let i18n_path = if !i18n_path.exists() {
-        std::path::PathBuf::from("i18n").join(format!("{}.json", lang))
-    } else {
-        i18n_path
-    };
-
-    if let Ok(content) = std::fs::read_to_string(i18n_path) {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            let keys: Vec<&str> = key.split('.').collect();
-            let mut current = &json;
-            for k in keys {
-                if let Some(val) = current.get(k) {
-                    current = val;
-                } else {
-                    return key.to_string();
-                }
-            }
-            if let Some(s) = current.as_str() {
-                return s.to_string();
-            }
-        }
-    }
-
-    key.to_string()
+    get_i18n_text_cached(app, &lang, key)
 }
 
 /// 内部函数：获取当前 Mod 的图标或默认图标
@@ -2134,6 +2101,65 @@ async fn restore_window_icons_async(app: tauri::AppHandle) {
 fn apply_window_icon(app: &tauri::AppHandle, window: &WebviewWindow) {
     if let Some(icon) = get_app_icon(app) {
         let _ = window.set_icon(icon);
+    }
+}
+
+// ========================================================================= //
+// 窗口管理工具函数
+// ========================================================================= //
+
+/// 窗口配置结构体
+///
+/// 用于统一窗口创建参数，减少重复代码
+struct WindowConfig<'a> {
+    /// 窗口标签（唯一标识）
+    label: &'a str,
+    /// 窗口 URL 路径
+    url: &'a str,
+    /// i18n 标题键
+    title_key: &'a str,
+    /// 窗口宽度
+    width: f64,
+    /// 窗口高度
+    height: f64,
+    /// 是否可调整大小
+    resizable: bool,
+    /// 是否居中显示
+    center: bool,
+}
+
+/// 显示或创建窗口的通用函数
+///
+/// 代码复用优化：将重复的窗口显示/创建逻辑统一为一个函数
+///
+/// # 参数
+/// - `app`: Tauri 应用句柄
+/// - `config`: 窗口配置
+///
+/// # 行为
+/// - 如果窗口已存在，显示并聚焦
+/// - 如果窗口不存在，创建新窗口并应用图标
+fn show_or_create_window(app: &tauri::AppHandle, config: WindowConfig) {
+    if let Some(window) = app.get_webview_window(config.label) {
+        let _ = window.show();
+        let _ = window.set_focus();
+    } else {
+        let mut builder = WebviewWindowBuilder::new(
+            app,
+            config.label,
+            WebviewUrl::App(config.url.into()),
+        )
+        .title(get_i18n_text(app, config.title_key))
+        .inner_size(config.width, config.height)
+        .resizable(config.resizable);
+
+        if config.center {
+            builder = builder.center();
+        }
+
+        if let Ok(window) = builder.build() {
+            apply_window_icon(app, &window);
+        }
     }
 }
 
@@ -2278,19 +2304,15 @@ fn show_context_menu(app: tauri::AppHandle, window: WebviewWindow) -> Result<(),
 fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
     match id {
         "about" => {
-            if let Some(window) = app.get_webview_window("about") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            } else {
-                if let Ok(window) = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("about".into()))
-                    .title(get_i18n_text(app, "menu.about"))
-                    .inner_size(450.0, 420.0)
-                    .resizable(false)
-                    .center()
-                    .build() {
-                    apply_window_icon(app, &window);
-                }
-            }
+            show_or_create_window(app, WindowConfig {
+                label: "about",
+                url: "about",
+                title_key: "menu.about",
+                width: 450.0,
+                height: 420.0,
+                resizable: false,
+                center: true,
+            });
         }
         "quit" => {
             let app_state: State<AppState> = app.state();
@@ -2300,47 +2322,37 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             app.exit(0)
         }
         "debugger" => {
-            if let Some(window) = app.get_webview_window(WINDOW_LABEL_MAIN) {
-                let _ = window.show();
-                let _ = window.set_focus();
-            } else {
-                if let Ok(window) =
-                    WebviewWindowBuilder::new(app, WINDOW_LABEL_MAIN, WebviewUrl::App("index.html".into()))
-                        .title(get_i18n_text(app, "common.appTitle"))
-                        .inner_size(800.0, 600.0)
-                        .build() {
-                    apply_window_icon(app, &window);
-                }
-            }
+            show_or_create_window(app, WindowConfig {
+                label: WINDOW_LABEL_MAIN,
+                url: "index.html",
+                title_key: "common.appTitle",
+                width: 800.0,
+                height: 600.0,
+                resizable: true,
+                center: false,
+            });
         }
         "mod" => {
-            if let Some(window) = app.get_webview_window("mods") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            } else {
-                if let Ok(window) = WebviewWindowBuilder::new(app, "mods", WebviewUrl::App("mods".into()))
-                    .title(get_i18n_text(app, "common.modsTitle"))
-                    .inner_size(800.0, 700.0)
-                    .resizable(false)
-                    .build() {
-                    apply_window_icon(app, &window);
-                }
-            }
+            show_or_create_window(app, WindowConfig {
+                label: "mods",
+                url: "mods",
+                title_key: "common.modsTitle",
+                width: 800.0,
+                height: 700.0,
+                resizable: false,
+                center: false,
+            });
         }
         "settings" => {
-            if let Some(window) = app.get_webview_window("settings") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            } else {
-                if let Ok(window) =
-                    WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings".into()))
-                        .title(get_i18n_text(app, "common.settingsTitle"))
-                        .inner_size(800.0, 700.0)
-                        .resizable(false)
-                        .build() {
-                    apply_window_icon(app, &window);
-                }
-            }
+            show_or_create_window(app, WindowConfig {
+                label: "settings",
+                url: "settings",
+                title_key: "common.settingsTitle",
+                width: 800.0,
+                height: 700.0,
+                resizable: false,
+                center: false,
+            });
         }
         "toggle_mute" | "toggle_silence" | "toggle_show_widget" => {
             // 提取 settings 和需要的字段

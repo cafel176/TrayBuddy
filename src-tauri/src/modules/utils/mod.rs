@@ -5,8 +5,10 @@
 //! - 文件与 JSON 加载
 //! - 窗口控制与 DWM API 包装
 //! - 操作系统版本检测
+//! - i18n 国际化文本缓存
 
 pub mod fs;
 pub mod http;
+pub mod i18n;
 pub mod os_version;
 pub mod window;
