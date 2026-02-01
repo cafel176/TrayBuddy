@@ -1027,6 +1027,14 @@ function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
+/**
+ * 将对象序列化为 JSON 字符串，并防止 \n 被双重转义
+ * 这样用户在输入框输入的 \n 在 JSON 文件中会保存为 \n (换行符) 而不是 \\n
+ */
+function stringifyForSave(obj) {
+  return JSON.stringify(obj, null, 2).replace(/\\\\n/g, '\\n');
+}
+
 
 /**
  * 创建默认状态对象
@@ -1079,14 +1087,14 @@ async function saveMod() {
     // 保存 manifest.json
     const manifestHandle = await modFolderHandle.getFileHandle('manifest.json', { create: true });
     const manifestWritable = await manifestHandle.createWritable();
-    await manifestWritable.write(JSON.stringify(currentMod.manifest, null, 2));
+    await manifestWritable.write(stringifyForSave(currentMod.manifest));
     await manifestWritable.close();
 
     // 保存 bubble_style.json (仅当启用时)
     if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
       const bubbleHandle = await modFolderHandle.getFileHandle('bubble_style.json', { create: true });
       const bubbleWritable = await bubbleHandle.createWritable();
-      await bubbleWritable.write(JSON.stringify(currentMod.bubbleStyle, null, 2));
+      await bubbleWritable.write(stringifyForSave(currentMod.bubbleStyle));
       await bubbleWritable.close();
     }
     
@@ -1096,13 +1104,13 @@ async function saveMod() {
     // 保存 sequence.json
     const seqHandle = await assetDir.getFileHandle('sequence.json', { create: true });
     const seqWritable = await seqHandle.createWritable();
-    await seqWritable.write(JSON.stringify(currentMod.assets.sequence, null, 2));
+    await seqWritable.write(stringifyForSave(currentMod.assets.sequence));
     await seqWritable.close();
     
     // 保存 img.json
     const imgHandle = await assetDir.getFileHandle('img.json', { create: true });
     const imgWritable = await imgHandle.createWritable();
-    await imgWritable.write(JSON.stringify(currentMod.assets.img, null, 2));
+    await imgWritable.write(stringifyForSave(currentMod.assets.img));
     await imgWritable.close();
     
     // 创建 asset 子目录
@@ -1117,13 +1125,13 @@ async function saveMod() {
       if (data.info) {
         const infoHandle = await langDir.getFileHandle('info.json', { create: true });
         const infoWritable = await infoHandle.createWritable();
-        await infoWritable.write(JSON.stringify(data.info, null, 2));
+        await infoWritable.write(stringifyForSave(data.info));
         await infoWritable.close();
       }
       
       const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
       const speechWritable = await speechHandle.createWritable();
-      await speechWritable.write(JSON.stringify(data.speech, null, 2));
+      await speechWritable.write(stringifyForSave(data.speech));
       await speechWritable.close();
     }
     
@@ -1135,7 +1143,7 @@ async function saveMod() {
       
       const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
       const speechWritable = await speechHandle.createWritable();
-      await speechWritable.write(JSON.stringify(data, null, 2));
+      await speechWritable.write(stringifyForSave(data));
       await speechWritable.close();
     }
     
@@ -1197,28 +1205,28 @@ async function exportMod() {
     const root = jszip.folder(currentMod.manifest.id);
     
     // 写入基础 JSON
-    root.file('manifest.json', JSON.stringify(currentMod.manifest, null, 2));
+    root.file('manifest.json', stringifyForSave(currentMod.manifest));
     if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
-      root.file('bubble_style.json', JSON.stringify(currentMod.bubbleStyle, null, 2));
+      root.file('bubble_style.json', stringifyForSave(currentMod.bubbleStyle));
     }
     
     const asset = root.folder('asset');
-    asset.file('sequence.json', JSON.stringify(currentMod.assets.sequence, null, 2));
-    asset.file('img.json', JSON.stringify(currentMod.assets.img, null, 2));
+    asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
+    asset.file('img.json', stringifyForSave(currentMod.assets.img));
     asset.folder('sequence');
     asset.folder('img');
     
     const text = root.folder('text');
     for (const [lang, data] of Object.entries(currentMod.texts)) {
       const langDir = text.folder(lang);
-      if (data.info) langDir.file('info.json', JSON.stringify(data.info, null, 2));
-      langDir.file('speech.json', JSON.stringify(data.speech, null, 2));
+      if (data.info) langDir.file('info.json', stringifyForSave(data.info));
+      langDir.file('speech.json', stringifyForSave(data.speech));
     }
     
     const audio = root.folder('audio');
     for (const [lang, data] of Object.entries(currentMod.audio)) {
       const langDir = audio.folder(lang);
-      langDir.file('speech.json', JSON.stringify(data, null, 2));
+      langDir.file('speech.json', stringifyForSave(data));
       langDir.folder('speech');
     }
     

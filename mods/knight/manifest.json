@@ -627,7 +627,7 @@
   "triggers": [
     {
       "event": "click",
-      "can_trigger_states": [        
+      "can_trigger_states": [
         {
           "persistent_state": "idle",
           "states": [
@@ -650,7 +650,7 @@
     },
     {
       "event": "keydown:Space",
-      "can_trigger_states": [        
+      "can_trigger_states": [
         {
           "persistent_state": "idle",
           "states": [
@@ -674,7 +674,7 @@
     {
       "event": "login",
       "can_trigger_states": [
-                {
+        {
           "persistent_state": "idle",
           "states": [
             {
