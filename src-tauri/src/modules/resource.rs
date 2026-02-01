@@ -217,6 +217,64 @@ impl Default for ModDataCounterConfig {
     }
 }
 
+/// 可触发子状态配置（状态名 + 权重）
+///
+/// - `state`: 子状态名
+/// - `weight`: 正整数权重，用于加权随机（概率 = weight / sum(weight)）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CanTriggerState {
+    /// 子状态名（兼容旧字段名 `name`）
+    #[serde(alias = "name")]
+    pub state: Box<str>,
+
+    /// 正整数权重（缺省为 1）
+    #[serde(default = "default_can_trigger_weight")]
+    pub weight: u32,
+}
+
+#[inline]
+fn default_can_trigger_weight() -> u32 {
+    1
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum CanTriggerStateDe {
+    Name(Box<str>),
+    Obj(CanTriggerState),
+}
+
+fn deserialize_can_trigger_states<'de, D>(deserializer: D) -> Result<Vec<CanTriggerState>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    let raw: Vec<CanTriggerStateDe> = Vec::deserialize(deserializer)?;
+    Ok(raw
+        .into_iter()
+        .filter_map(|v| match v {
+            CanTriggerStateDe::Name(name) => {
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(CanTriggerState {
+                        state: name,
+                        weight: 1,
+                    })
+                }
+            }
+            CanTriggerStateDe::Obj(obj) => {
+                if obj.state.is_empty() {
+                    None
+                } else {
+                    Some(obj)
+                }
+            }
+        })
+        .collect())
+}
+
 /// 状态信息
 ///
 /// 定义角色的一个状态，包括动画、音频、触发条件等
@@ -248,8 +306,9 @@ pub struct StateInfo {
 
     /// 播放完成后自动切换到的状态名称
     pub next_state: Box<str>,
-    /// 可触发的子状态列表
-    pub can_trigger_states: Vec<Box<str>>,
+    /// 可触发的子状态列表（加权随机）
+    #[serde(default, deserialize_with = "deserialize_can_trigger_states")]
+    pub can_trigger_states: Vec<CanTriggerState>,
     /// 触发间隔时间（秒），最小值为 300 秒（5 分钟）
     ///
     /// - 设为 0 表示禁用定时触发
@@ -264,6 +323,7 @@ pub struct StateInfo {
     /// 对话分支选项
     pub branch: Vec<BranchInfo>,
 }
+
 
 impl Default for StateInfo {
     fn default() -> Self {
@@ -399,9 +459,11 @@ impl Default for BranchInfo {
 pub struct TriggerStateGroup {
     /// 持久状态名称，为空字符串时表示任意持久状态都可触发
     pub persistent_state: Box<str>,
-    /// 可触发的状态名称列表
-    pub states: Vec<Box<str>>,
+    /// 可触发的状态列表（加权随机）
+    #[serde(default, deserialize_with = "deserialize_can_trigger_states")]
+    pub states: Vec<CanTriggerState>,
 }
+
 
 impl Default for TriggerStateGroup {
     fn default() -> Self {

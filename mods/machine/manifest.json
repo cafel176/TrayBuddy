@@ -361,22 +361,40 @@
         {
           "persistent_state": "idle",
           "states": [
-            "Initiate_Prize",
-            "Initiate_No"
+            {
+              "state": "Initiate_Prize",
+              "weight": 1
+            },
+            {
+              "state": "Initiate_No",
+              "weight": 2
+            }
           ]
         },
         {
           "persistent_state": "Prize_Idle",
           "states": [
-            "Initiate_Prize",
-            "Initiate_No"
+            {
+              "state": "Initiate_Prize",
+              "weight": 1
+            },
+            {
+              "state": "Initiate_No",
+              "weight": 2
+            }
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "Initiate_Prize",
-            "Initiate_No"
+            {
+              "state": "Initiate_Prize",
+              "weight": 1
+            },
+            {
+              "state": "Initiate_No",
+              "weight": 2
+            }
           ]
         }
       ]
@@ -387,22 +405,40 @@
         {
           "persistent_state": "idle",
           "states": [
-            "Initiate_Prize",
-            "Initiate_No"
+            {
+              "state": "Initiate_Prize",
+              "weight": 1
+            },
+            {
+              "state": "Initiate_No",
+              "weight": 2
+            }
           ]
         },
         {
           "persistent_state": "Prize_Idle",
           "states": [
-            "Initiate_Prize",
-            "Initiate_No"
+            {
+              "state": "Initiate_Prize",
+              "weight": 1
+            },
+            {
+              "state": "Initiate_No",
+              "weight": 2
+            }
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "Initiate_Prize",
-            "Initiate_No"
+            {
+              "state": "Initiate_Prize",
+              "weight": 1
+            },
+            {
+              "state": "Initiate_No",
+              "weight": 2
+            }
           ]
         }
       ]

@@ -419,8 +419,8 @@
           <span class="label">{_("trigger.triggerableStates")}</span>
           <div class="state-tags">
             {#if persistentState.can_trigger_states && persistentState.can_trigger_states.length > 0}
-              {#each persistentState.can_trigger_states as stateName}
-                <span class="tag state-tag">{stateName}</span>
+              {#each persistentState.can_trigger_states as s}
+                <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
               {/each}
             {:else}
               <span class="disabled">{_("trigger.none")}</span>
@@ -474,8 +474,8 @@
                       {/if}
                     </span>
                     <div class="group-states">
-                      {#each group.states as stateName}
-                        <span class="tag state-tag">{stateName}</span>
+                      {#each group.states as s}
+                        <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
                       {/each}
                     </div>
                   </div>

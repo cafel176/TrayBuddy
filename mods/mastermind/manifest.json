@@ -277,17 +277,35 @@
         {
           "persistent_state": "idle",
           "states": [
-            "random1",
-            "random2",
-            "random3"
+            {
+              "state": "random1",
+              "weight": 1
+            },
+            {
+              "state": "random2",
+              "weight": 1
+            },
+            {
+              "state": "random3",
+              "weight": 1
+            }
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "random1",
-            "random2",
-            "random3"
+            {
+              "state": "random1",
+              "weight": 1
+            },
+            {
+              "state": "random2",
+              "weight": 1
+            },
+            {
+              "state": "random3",
+              "weight": 1
+            }
           ]
         }
       ]
@@ -298,17 +316,35 @@
         {
           "persistent_state": "idle",
           "states": [
-            "random1",
-            "random2",
-            "random3"
+            {
+              "state": "random1",
+              "weight": 1
+            },
+            {
+              "state": "random2",
+              "weight": 1
+            },
+            {
+              "state": "random3",
+              "weight": 1
+            }
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "random1",
-            "random2",
-            "random3"
+            {
+              "state": "random1",
+              "weight": 1
+            },
+            {
+              "state": "random2",
+              "weight": 1
+            },
+            {
+              "state": "random3",
+              "weight": 1
+            }
           ]
         }
       ]

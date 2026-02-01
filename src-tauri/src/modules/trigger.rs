@@ -10,6 +10,8 @@
 use super::constants::{EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START};
 use super::resource::{ResourceManager, StateInfo};
 use super::state::StateManager;
+use std::collections::HashMap;
+
 
 // ========================================================================= //
 // 触发器管理器
@@ -65,19 +67,22 @@ impl TriggerManager {
             current_persistent_name
         );
 
-        // 根据当前持久状态筛选可触发的状态名列表
-        let state_names: Vec<&str> = trigger
-            .can_trigger_states
-            .iter()
-            .filter(|group| {
-                // persistent_state 为空表示任意持久状态都可触发
-                group.persistent_state.as_ref().is_empty()
-                    || group.persistent_state.as_ref() == current_persistent_name
-            })
-            .flat_map(|group| group.states.iter().map(|s| s.as_ref()))
-            .collect();
+        // 根据当前持久状态筛选可触发的状态名列表，并按权重聚合
+        let mut weight_map: HashMap<String, u64> = HashMap::new();
+        for group in trigger.can_trigger_states.iter().filter(|group| {
+            // persistent_state 为空表示任意持久状态都可触发
+            group.persistent_state.as_ref().is_empty()
+                || group.persistent_state.as_ref() == current_persistent_name
+        }) {
+            for s in &group.states {
+                if s.weight == 0 || s.state.as_ref().is_empty() {
+                    continue;
+                }
+                *weight_map.entry(s.state.to_string()).or_insert(0) += s.weight as u64;
+            }
+        }
 
-        if state_names.is_empty() {
+        if weight_map.is_empty() {
             #[cfg(debug_assertions)]
             println!(
                 "[TriggerManager] 触发器 '{}' 在当前持久状态 '{}' 下没有可触发状态",
@@ -86,28 +91,26 @@ impl TriggerManager {
             return Ok(false);
         }
 
-        // 从 ResourceManager 获取状态信息
-        let states: Vec<StateInfo> = state_names
-            .iter()
-            .filter_map(|name| match resource_manager.get_state_by_name(name) {
-                Some(state) => Some(state.clone()),
-                None => {
-                    #[cfg(debug_assertions)]
-                    println!("[TriggerManager] 未找到状态 '{}'", name);
-                    None
-                }
+        // 从 ResourceManager 获取状态信息，并过滤不可用状态
+        let candidates: Vec<(StateInfo, u64)> = weight_map
+            .into_iter()
+            .filter_map(|(name, w)| {
+                resource_manager
+                    .get_state_by_name(&name)
+                    .cloned()
+                    .and_then(|st| if st.is_enable() { Some((st, w)) } else { None })
             })
             .collect();
 
-        if states.is_empty() {
+        let Some(selected) = StateManager::pick_weighted_state(candidates) else {
             #[cfg(debug_assertions)]
             println!("[TriggerManager] 没有找到任何有效状态");
             return Ok(false);
-        }
+        };
 
-        // 调用 StateManager 进行随机选择和切换
-        // 传入 resource_manager 引用避免死锁（因为外层已持有锁）
-        state_manager.trigger_random_state(&states, resource_manager)
+        // 直接切换到选中的状态（避免再做一次无权重随机）
+        state_manager.change_state(selected, resource_manager)
+
     }
 
     // ========================================================================= //

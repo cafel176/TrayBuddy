@@ -435,7 +435,7 @@
               <span
                 class="extra-tag trigger"
                 title={_("state.triggerableTooltip", {
-                  states: state.can_trigger_states.join(", "),
+                  states: state.can_trigger_states.map((s) => s.state).join(", "),
                 })}>🎯{state.can_trigger_states.length}</span
               >
             {/if}

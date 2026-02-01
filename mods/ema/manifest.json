@@ -28,7 +28,10 @@
       "time_end": "",
       "next_state": "",
       "can_trigger_states": [
-        "random1_1"
+        {
+          "state": "random1_1",
+          "weight": 1
+        }
       ],
       "trigger_time": 600,
       "trigger_rate": 0.3,
@@ -503,84 +506,27 @@
         {
           "persistent_state": "idle",
           "states": [
-            "random1_1",
-            "amazing",
-            "cry"
+            {
+              "state": "random1_1",
+              "weight": 2
+            },
+            {
+              "state": "amazing",
+              "weight": 1
+            },
+            {
+              "state": "cry",
+              "weight": 1
+            }
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "music_random1_1"
-          ]
-        }
-      ]
-    },
-    {
-      "event": "login",
-      "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            "morning",
-            "noon",
-            "evening",
-            "night"
-          ]
-        }
-      ]
-    },
-    {
-      "event": "birthday",
-      "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            "birthday"
-          ]
-        }
-      ]
-    },
-    {
-      "event": "firstday",
-      "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            "firstday"
-          ]
-        }
-      ]
-    },
-    {
-      "event": "login_silence",
-      "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            "silence_start"
-          ]
-        }
-      ]
-    },
-    {
-      "event": "music_start",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            "music_start"
-          ]
-        }
-      ]
-    },
-    {
-      "event": "music_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            "music_end"
+            {
+              "state": "music_random1_1",
+              "weight": 1
+            }
           ]
         }
       ]
@@ -591,7 +537,123 @@
         {
           "persistent_state": "idle",
           "states": [
-            "random1_1"
+            {
+              "state": "random1_1",
+              "weight": 2
+            },
+            {
+              "state": "amazing",
+              "weight": 1
+            },
+            {
+              "state": "cry",
+              "weight": 1
+            }
+          ]
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "music_random1_1",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "login",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "morning",
+              "weight": 1
+            },
+            {
+              "state": "noon",
+              "weight": 1
+            },
+            {
+              "state": "evening",
+              "weight": 1
+            },
+            {
+              "state": "night",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "birthday",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "birthday",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "firstday",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "firstday",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "login_silence",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "silence_start",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "music_start",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "music_start",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "music_end",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "music_end",
+              "weight": 1
+            }
           ]
         }
       ]

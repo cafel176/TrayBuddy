@@ -61,7 +61,7 @@
     time_start: string;
     time_end: string;
     next_state: string;
-    can_trigger_states: string[];
+    can_trigger_states: { state: string; weight: number }[];
     trigger_time: number;
     trigger_rate: number;
     branch: { text: string; next_state: string }[];
@@ -69,8 +69,9 @@
 
   interface TriggerStateGroup {
     persistent_state: string;
-    states: string[];
+    states: { state: string; weight: number }[];
   }
+
 
   interface TriggerInfo {
     event: string;
@@ -618,11 +619,12 @@
                             >
                             <div class="tag-list">
                               {#each state.can_trigger_states as s}
-                                <span class="tag state-tag">{s}</span>
+                                <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
                               {/each}
                             </div>
                           </div>
                         {/if}
+
                         {#if state.branch && state.branch.length > 0}
                           <div class="detail-item">
                             <span class="detail-label"
@@ -722,7 +724,7 @@
                             >
                             <div class="tag-list">
                               {#each state.can_trigger_states as s}
-                                <span class="tag state-tag">{s}</span>
+                                <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
                               {/each}
                             </div>
                           </div>
@@ -842,11 +844,12 @@
                               >
                               <div class="tag-list">
                                 {#each state.can_trigger_states as s}
-                                  <span class="tag state-tag">{s}</span>
+                                  <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
                                 {/each}
                               </div>
                             </div>
                           {/if}
+
                           {#if state.branch && state.branch.length > 0}
                             <div class="detail-item">
                               <span class="detail-label"
@@ -949,7 +952,7 @@
                               >
                               <div class="tag-list">
                                 {#each state.can_trigger_states as s}
-                                  <span class="tag state-tag">{s}</span>
+                                  <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
                                 {/each}
                               </div>
                             </div>
@@ -1015,8 +1018,8 @@
                             </div>
                             {#if group.states.length > 0}
                               <div class="trigger-states">
-                                {#each group.states as state}
-                                  <span class="tag state-tag">{state}</span>
+                                {#each group.states as s}
+                                  <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
                                 {/each}
                               </div>
                             {:else}

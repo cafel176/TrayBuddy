@@ -131,6 +131,13 @@ export interface ModDataCounterConfig {
  * 对应后端 Rust 的 `StateInfo` 结构体。
  * 描述角色的一个状态及其关联资源。
  */
+export interface CanTriggerState {
+  /** 子状态名 */
+  state: string;
+  /** 权重（正整数；概率 = weight / sum(weight)） */
+  weight: number;
+}
+
 export interface StateInfo {
   /** 状态名称（如 "idle", "morning"） */
   name: string;
@@ -158,8 +165,8 @@ export interface StateInfo {
   trigger_time?: number;
   /** 定时触发概率 (0.0 - 1.0) */
   trigger_rate?: number;
-  /** 可触发的状态列表 */
-  can_trigger_states?: string[];
+  /** 可触发的状态列表（加权随机） */
+  can_trigger_states?: CanTriggerState[];
 
   /** 进入该状态时对当前 Mod 数据计数器执行操作（可选） */
   mod_data_counter?: ModDataCounterConfig;
@@ -167,6 +174,7 @@ export interface StateInfo {
   /** 对话分支选项 */
   branch?: BranchInfo[];
 }
+
 
 /**
  * 状态变化事件数据
@@ -193,9 +201,10 @@ export interface StateChangeEvent {
 export interface TriggerStateGroup {
   /** 持久状态名称，为空字符串时表示任意持久状态都可触发 */
   persistent_state: string;
-  /** 可触发的状态名称列表 */
-  states: string[];
+  /** 可触发的状态列表（加权随机） */
+  states: CanTriggerState[];
 }
+
 
 /**
  * 触发器信息接口

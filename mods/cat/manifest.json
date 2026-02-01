@@ -235,13 +235,19 @@
         {
           "persistent_state": "idle",
           "states": [
-            "click"
+            {
+              "state": "click",
+              "weight": 1
+            }
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "click"
+            {
+              "state": "click",
+              "weight": 1
+            }
           ]
         }
       ]
@@ -252,13 +258,19 @@
         {
           "persistent_state": "idle",
           "states": [
-            "click"
+            {
+              "state": "click",
+              "weight": 1
+            }
           ]
         },
         {
           "persistent_state": "music",
           "states": [
-            "click"
+            {
+              "state": "click",
+              "weight": 1
+            }
           ]
         }
       ]

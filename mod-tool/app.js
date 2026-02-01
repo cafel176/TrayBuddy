@@ -699,7 +699,16 @@ function openStateModal(title, state) {
   document.getElementById('state-next-state').value = state.next_state || '';
   document.getElementById('state-trigger-time').value = state.trigger_time || 0;
   document.getElementById('state-trigger-rate').value = state.trigger_rate || 0;
-  document.getElementById('state-can-trigger').value = (state.can_trigger_states || []).join(', ');
+
+  // can_trigger_states 现在是对象数组：[{ state, weight }]
+  // 编辑器输入格式：name 或 name:weight（逗号分隔）
+  document.getElementById('state-can-trigger').value = (state.can_trigger_states || [])
+    .map((x) => {
+      if (typeof x === 'string') return x;
+      const w = Number.isFinite(x.weight) ? x.weight : 1;
+      return w !== 1 ? `${x.state}:${w}` : x.state;
+    })
+    .join(', ');
   
   // 更新动画下拉列表
   updateAnimaSelects();
@@ -736,8 +745,16 @@ function saveState() {
     next_state: document.getElementById('state-next-state').value.trim(),
     can_trigger_states: document.getElementById('state-can-trigger').value
       .split(',')
-      .map(s => s.trim())
-      .filter(s => s),
+      .map((raw) => raw.trim())
+      .filter((raw) => raw)
+      .map((raw) => {
+        const [namePart, weightPart] = raw.split(':').map((x) => x.trim());
+        const weight = parseInt(weightPart, 10);
+        return {
+          state: namePart,
+          weight: Number.isFinite(weight) && weight > 0 ? weight : 1,
+        };
+      }),
     trigger_time: parseInt(document.getElementById('state-trigger-time').value) || 0,
     trigger_rate: parseFloat(document.getElementById('state-trigger-rate').value) || 0,
     branch: collectBranches()

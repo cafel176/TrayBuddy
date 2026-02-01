@@ -536,7 +536,58 @@ impl StateManager {
         usize::from_le_bytes(buf) % max
     }
 
+    /// 生成 0 到 max-1 之间的真随机 u64（使用系统 CSPRNG）
+    ///
+    /// `max` 必须 > 0。
+    #[inline]
+    fn random_u64(max: u64) -> u64 {
+        let mut buf = [0u8; 8];
+        getrandom::getrandom(&mut buf).unwrap_or_else(|_| {
+            // 回退到时间戳（极少发生）
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos();
+            buf = nanos.to_le_bytes().repeat(2).try_into().unwrap_or([0; 8]);
+        });
+        u64::from_le_bytes(buf) % max
+    }
+
+    /// 按权重从候选状态中选出一个状态
+    ///
+    /// 概率：\(P_i = w_i / \sum w\)
+    pub(crate) fn pick_weighted_state(candidates: Vec<(StateInfo, u64)>) -> Option<StateInfo> {
+        let mut items: Vec<(StateInfo, u64)> = candidates
+            .into_iter()
+            .filter(|(s, w)| *w > 0 && !s.name.as_ref().is_empty())
+            .collect();
+
+        if items.is_empty() {
+            return None;
+        }
+        if items.len() == 1 {
+            return Some(items.remove(0).0);
+        }
+
+        let total: u64 = items.iter().map(|(_, w)| *w).sum();
+        if total == 0 {
+            return None;
+        }
+
+        let pick = Self::random_u64(total);
+        let mut acc: u64 = 0;
+        for (s, w) in items.into_iter() {
+            acc += w;
+            if pick < acc {
+                return Some(s);
+            }
+        }
+
+        None
+    }
+
     /// 生成 0.0 到 1.0 之间的真随机数（使用系统 CSPRNG）
+
     #[inline]
     fn random_float() -> f32 {
         let mut buf = [0u8; 4];
@@ -604,7 +655,7 @@ impl StateManager {
                 let app_state: tauri::State<crate::AppState> = app_handle.state();
 
                 // 从 state_manager 获取必要信息后立即释放锁
-                let (trigger_time, trigger_rate, state_names) = {
+                let (trigger_time, trigger_rate, state_candidates) = {
                     let sm = app_state.state_manager.lock().unwrap();
                     match sm.get_persistent_state() {
                         Some(s) => (s.trigger_time, s.trigger_rate, s.can_trigger_states.clone()),
@@ -626,7 +677,7 @@ impl StateManager {
                 last_trigger_time = SystemTime::now();
 
                 // 检查触发概率（无锁操作）
-                if trigger_rate <= 0.0 || state_names.is_empty() {
+                if trigger_rate <= 0.0 || state_candidates.is_empty() {
                     continue;
                 }
 
@@ -637,21 +688,42 @@ impl StateManager {
 
                 // 执行触发（分步获取锁，减少死锁风险）
                 // 第一步：使用 ResourceManager 查询状态信息（短暂持有锁）
-                let states: Vec<StateInfo> = {
+                // - 过滤不存在/不可用的状态
+                // - 计算加权随机所需的 (state, weight)
+                let enabled_candidates: Vec<(StateInfo, u64)> = {
                     let rm = app_state.resource_manager.lock().unwrap();
-                    state_names
+                    state_candidates
                         .iter()
-                        .filter_map(|name| rm.get_state_by_name(name).cloned())
+                        .filter_map(|c| {
+                            if c.weight == 0 {
+                                return None;
+                            }
+                            rm.get_state_by_name(c.state.as_ref())
+                                .cloned()
+                                .and_then(|s| {
+                                    if s.is_enable() {
+                                        Some((s, c.weight as u64))
+                                    } else {
+                                        None
+                                    }
+                                })
+                        })
                         .collect()
                 };
 
-                // 第二步：使用 StateManager 触发状态切换（短暂持有锁）
+                let Some(selected) = Self::pick_weighted_state(enabled_candidates) else {
+                    continue;
+                };
+
+
+                // 第三步：使用 StateManager 触发状态切换（短暂持有锁）
                 let mut sm = app_state.state_manager.lock().unwrap();
 
-                // 第三步：再次获取 ResourceManager 锁（用于 change_state 内部查询）
-                // 注意：这里会与其他线程形成锁顺序：Resource -> State
+                // 第四步：再次获取 ResourceManager 锁（用于 change_state 内部查询）
+                // 注意：这里会与其他线程形成锁顺序：State -> Resource
                 let rm = app_state.resource_manager.lock().unwrap();
-                let _ = sm.trigger_random_state(&states, &rm);
+                let _ = sm.change_state(selected, &rm);
+
             }
         });
     }

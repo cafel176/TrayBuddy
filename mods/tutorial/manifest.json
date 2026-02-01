@@ -28,7 +28,10 @@
       "time_end": "",
       "next_state": "",
       "can_trigger_states": [
-        "hello1_1"
+        {
+          "state": "hello1_1",
+          "weight": 1
+        }
       ],
       "trigger_time": 600,
       "trigger_rate": 0.3,
