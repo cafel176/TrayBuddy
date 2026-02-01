@@ -138,6 +138,7 @@ impl SystemObserver {
         // 但是用户明确要求 "事件驱动"。
         // 我们实现一个简化的事件驱动模型：
 
+
         // 定义回调函数
         unsafe extern "system" fn win_event_proc(
             _h_win_event_hook: HWINEVENTHOOK,
@@ -153,13 +154,17 @@ impl SystemObserver {
                 // 发送自定义消息到当前线程的消息队列，通知检查状态
                 // 这里我们简化处理：因为这是在回调中，我们不能直接调用 app_handle 逻辑（跨线程/重入风险）
                 // 我们使用全局通道发送信号
-                if let Some(sender) = &*GLOBAL_TX.lock().unwrap() {
-                    let _ = sender.send(());
+                // 注意：使用 ok() 而非 unwrap()，避免在锁被污染时 panic
+                if let Ok(guard) = GLOBAL_TX.lock() {
+                    if let Some(sender) = &*guard {
+                        let _ = sender.send(());
+                    }
                 }
             }
         }
 
         // 初始化全局通道
+        // 这里在主线程初始化阶段，使用 unwrap() 是安全的
         *GLOBAL_TX.lock().unwrap() = Some(tx);
 
         unsafe {

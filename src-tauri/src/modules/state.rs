@@ -687,43 +687,47 @@ impl StateManager {
                 }
 
                 // 执行触发（分步获取锁，减少死锁风险）
-                // 第一步：使用 ResourceManager 查询状态信息（短暂持有锁）
+                // 关键：保持锁顺序一致性：ResourceManager → StateManager
+                // 这与 trigger_login_events、get_force_change_handler 等处的锁顺序一致
+                
+                // 第一步：获取 ResourceManager 锁
                 // - 过滤不存在/不可用的状态
                 // - 计算加权随机所需的 (state, weight)
-                let enabled_candidates: Vec<(StateInfo, u64)> = {
-                    let rm = app_state.resource_manager.lock().unwrap();
-                    state_candidates
-                        .iter()
-                        .filter_map(|c| {
-                            if c.weight == 0 {
-                                return None;
-                            }
-                            rm.get_state_by_name(c.state.as_ref())
-                                .cloned()
-                                .and_then(|s| {
-                                    if s.is_enable() {
-                                        Some((s, c.weight as u64))
-                                    } else {
-                                        None
-                                    }
-                                })
-                        })
-                        .collect()
-                };
+                // - 保持锁直到状态切换完成（避免锁顺序不一致）
+                let rm = app_state.resource_manager.lock().unwrap();
+                
+                let enabled_candidates: Vec<(StateInfo, u64)> = state_candidates
+                    .iter()
+                    .filter_map(|c| {
+                        if c.weight == 0 {
+                            return None;
+                        }
+                        rm.get_state_by_name(c.state.as_ref())
+                            .cloned()
+                            .and_then(|s| {
+                                if s.is_enable() {
+                                    Some((s, c.weight as u64))
+                                } else {
+                                    None
+                                }
+                            })
+                    })
+                    .collect();
 
                 let Some(selected) = Self::pick_weighted_state(enabled_candidates) else {
+                    // 释放 rm 锁后继续循环
+                    drop(rm);
                     continue;
                 };
 
-
-                // 第三步：使用 StateManager 触发状态切换（短暂持有锁）
+                // 第二步：获取 StateManager 锁（在持有 rm 的情况下）
+                // 锁顺序：ResourceManager → StateManager（与其他地方一致）
                 let mut sm = app_state.state_manager.lock().unwrap();
-
-                // 第四步：再次获取 ResourceManager 锁（用于 change_state 内部查询）
-                // 注意：这里会与其他线程形成锁顺序：State -> Resource
-                let rm = app_state.resource_manager.lock().unwrap();
                 let _ = sm.change_state(selected, &rm);
-
+                
+                // 显式释放锁
+                drop(sm);
+                drop(rm);
             }
         });
     }

@@ -131,11 +131,16 @@ pub const EVENT_MUSIC_END: &str = "music_end";
 /// 让用户先看到登录动画，再响应媒体播放事件。
 pub const MEDIA_EVENT_STARTUP_DELAY_SECS: u64 = 5;
 
+
 /// Core Audio 轮询超时间隔（秒）
 ///
 /// **用途**: GSMTC API 有事件通知，但 Core Audio API 没有，
 /// 需要定期轮询检测不支持 GSMTC 的应用（如网页播放器）的音频状态。
-pub const CORE_AUDIO_POLL_INTERVAL_SECS: u64 = 1;
+/// 
+/// 注意：当 GSMTC 可用时（Windows 10 1809+），大多数媒体应用会触发 GSMTC 事件，
+/// 所以这个轮询主要是为不支持 GSMTC 的应用（如浏览器播放）提供保底检测。
+/// 间隔设置为 2 秒以平衡响应速度和系统资源消耗。
+pub const CORE_AUDIO_POLL_INTERVAL_SECS: u64 = 2;
 
 /// 音量峰值阈值
 ///
