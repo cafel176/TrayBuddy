@@ -14,5 +14,13 @@ if exist "%~dp0src-tauri\target\release\mods" (
     rmdir /s /q "%~dp0src-tauri\target\release\mods"
 )
 
-pnpm tauri build
+echo Building Tauri app...
+pnpm tauri build --verbose > tauri-build.log 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERROR] Build failed! Check tauri-build.log for details.
+    pause
+    exit /b %errorlevel%
+)
+echo Build successful! Log saved to tauri-build.log.
 pause

@@ -14,6 +14,13 @@ if exist "%~dp0src-tauri\target\debug\mods" (
     rmdir /s /q "%~dp0src-tauri\target\debug\mods"
 )
 
-pnpm tauri dev
+echo Starting Tauri dev server...
+pnpm tauri dev --verbose > tauri-dev.log 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERROR] Build failed! Check tauri-dev.log for details.
+    pause
+    exit /b %errorlevel%
+)
+echo Build successful! Log saved to tauri-dev.log.
 pause
-
