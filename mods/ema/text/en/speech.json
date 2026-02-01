@@ -1,57 +1,92 @@
 [
   {
     "name": "morning",
-    "text": "morning",
+    "text": "**Good morning!** You woke up successfully.",
     "duration": 3
   },
   {
     "name": "noon",
-    "text": "noon",
+    "text": "**Good afternoon!** Don't push yourself too hard, okay?",
     "duration": 3
   },
   {
     "name": "evening",
-    "text": "evening",
+    "text": "Good evening... you worked hard today.",
     "duration": 3
   },
   {
     "name": "night",
-    "text": "night",
+    "text": "Oh, it's already this late... get some good rest.",
     "duration": 3
   },
   {
-    "name": "hello1_1",
-    "text": "hello1_1",
+    "name": "birthday_1",
+    "text": "H-Happy Birthday...! **{nickname}**\nHehe... today is a very special day.",
     "duration": 3
   },
   {
-    "name": "hello1_2",
-    "text": "hello1_2",
+    "name": "birthday_2",
+    "text": "As for me...\nI hope you can smile more every day.",
     "duration": 3
   },
   {
-    "name": "hello1_3",
-    "text": "AAAAAAAAAAAAAA",
+    "name": "firstday_1",
+    "text": "U-Um...\nDo you remember what day today is? {nickname}",
     "duration": 3
   },
   {
-    "name": "music_hello1_1",
-    "text": "music_hello1_1",
+    "name": "firstday_2",
+    "text": "Today is the day we first met.",
     "duration": 3
   },
   {
-    "name": "music_hello1_2",
-    "text": "music_hello1_2",
+    "name": "firstday_3",
+    "text": "Eh... you remember?\nI'm really happy...!",
     "duration": 3
   },
   {
-    "name": "birthday",
-    "text": "birthday {nickname}",
+    "name": "firstday_4",
+    "text": "Being able to remember it like this, I feel... it's really precious.",
     "duration": 3
   },
   {
-    "name": "firstday",
-    "text": "firstday {nickname}",
+    "name": "firstday_button",
+    "text": "The day we first met",
+    "duration": 3
+  },
+  {
+    "name": "amazing",
+    "text": "Ah...",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button1",
+    "text": "What's wrong?",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button2",
+    "text": "What happened?",
+    "duration": 3
+  },
+  {
+    "name": "amaz_cry",
+    "text": "My apple...",
+    "duration": 3
+  },
+  {
+    "name": "cry",
+    "text": "kiang...!?",
+    "duration": 1
+  },
+  {
+    "name": "random1_1",
+    "text": "M-My name is Sakuraba Ema!",
+    "duration": 3
+  },
+  {
+    "name": "music_random1_1",
+    "text": "This song feels very special, I like it.",
     "duration": 3
   }
 ]
