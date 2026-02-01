@@ -240,7 +240,7 @@ const ui = {
 
   renderTable(rows) {
     if (!rows.length) {
-      els.tableBody.innerHTML = '<tr><td colspan="6" class="empty">未选择图片</td></tr>';
+      els.tableBody.innerHTML = `<tr><td colspan="6" class="empty" data-i18n="waiting_upload">${window.i18n?.t('waiting_upload') || '等待上传图片...'}</td></tr>`;
       return;
     }
     els.tableBody.innerHTML = rows.map(r => `
@@ -262,7 +262,8 @@ const ui = {
 
   updateCropEditor() {
     if (!state.baseImageInfo || !state.previewImageObj) {
-      els.cropSizeLabel.textContent = '裁切后：- × -';
+      const label = window.i18n?.t('crop_size_label') || '裁切后：';
+      els.cropSizeLabel.innerHTML = `<span data-i18n="crop_size_label">${label}</span>- × -`;
       els.editor.preview.style.display = 'none';
       els.editor.placeholder.style.display = 'block';
       this.toggleEditorControls(false);
@@ -272,11 +273,12 @@ const ui = {
     const { w, h } = state.baseImageInfo;
     const { w: cw, h: ch, crop } = calculator.getCroppedSize(w, h);
     
+    const label = window.i18n?.t('crop_size_label') || '裁切后：';
     if (crop.left + crop.right >= w || crop.top + crop.bottom >= h) {
-      els.cropSizeLabel.textContent = '裁切区域超出图片范围！';
+      els.cropSizeLabel.textContent = window.i18n?.t('crop_invalid') || '裁切区域超出图片范围！';
       els.cropSizeLabel.style.color = 'var(--danger)';
     } else {
-      els.cropSizeLabel.textContent = `裁切后：${cw} × ${ch}`;
+      els.cropSizeLabel.innerHTML = `<span data-i18n="crop_size_label">${label}</span>${cw} × ${ch}`;
       els.cropSizeLabel.style.color = '';
     }
 
@@ -336,7 +338,7 @@ const ui = {
     const { w: cw, h: ch, crop } = calculator.getCroppedSize(w, h);
     
     if (cw <= 0 || ch <= 0) {
-      els.scaleSizePreview.textContent = '无效裁切';
+      els.scaleSizePreview.textContent = window.i18n?.t('crop_invalid') || '裁切区域无效';
       return;
     }
 
@@ -344,9 +346,12 @@ const ui = {
     const { w: fw, h: fh, exp } = calculator.getFinalSize(sw, sh);
     const { sw: scaleW, sh: scaleH } = calculator.getScaleValues();
 
+    const labelW = window.i18n?.t('table_width') || '宽';
+    const labelH = window.i18n?.t('table_height') || '高';
+
     els.scaleSizePreview.textContent = els.lockAspect.checked
       ? `${cw}×${ch} → ${sw}×${sh} (${Math.round(scaleW * 100)}%)`
-      : `${cw}×${ch} → ${sw}×${sh} (宽${Math.round(scaleW * 100)}% 高${Math.round(scaleH * 100)}%)`;
+      : `${cw}×${ch} → ${sw}×${sh} (${labelW}${Math.round(scaleW * 100)}% ${labelH}${Math.round(scaleH * 100)}%)`;
 
     els.expandSizePreview.textContent = (exp.left + exp.right + exp.top + exp.bottom === 0)
       ? `${sw}×${sh}`
@@ -407,7 +412,7 @@ const processor = {
       return;
     }
 
-    ui.setStatus('解析图片中...');
+    ui.setStatus(window.i18n?.t('status_parsing') || '解析图片中...');
     
     const infos = [];
     for (const file of state.selectedFiles) {
@@ -421,9 +426,10 @@ const processor = {
     }
 
     if (!infos.length) {
-      ui.setStatus('无法读取所选图片');
+      ui.setStatus(window.i18n?.t('status_error_read') || '无法读取所选图片');
       return;
     }
+
 
     // 计算基准尺寸
     const skip = els.skipMismatch.checked;
@@ -467,22 +473,22 @@ const processor = {
   },
 
   refreshUIStatus(count, bw, bh) {
-    els.imageCount.textContent = `${count} 张`;
-    els.imageSizeInfo.textContent = `基准尺寸：${bw}×${bh}`;
+    els.imageCount.textContent = `${count} ${window.i18n?.t('unit_pcs') || '张'}`;
+    els.imageSizeInfo.textContent = `${window.i18n?.t('base_size') || '基准尺寸'}：${bw}×${bh}`;
     
     const rows = state.selectedFiles.map(f => {
       const info = state.fileInfoMap.get(f);
-      if (!info) return { name: f.name, statusText: '未知错误', statusType: 'bad' };
-      if (!info.valid) return { name: f.name, origW: info.w, origH: info.h, statusText: '尺寸不一已跳过', statusType: 'bad' };
+      if (!info) return { name: f.name, statusText: window.i18n?.t('status_error_unknown') || '未知错误', statusType: 'bad' };
+      if (!info.valid) return { name: f.name, origW: info.w, origH: info.h, statusText: window.i18n?.t('status_skipped') || '已跳过', statusType: 'bad' };
       
       return {
         name: f.name, origW: info.w, origH: info.h,
-        statusText: info.mismatch ? '将自动裁切后处理' : '待处理',
+        statusText: info.mismatch ? (window.i18n?.t('status_auto_crop') || '将自动裁切后处理') : (window.i18n?.t('status_pending') || '待处理'),
         statusType: info.mismatch ? 'info' : ''
       };
     });
     ui.renderTable(rows);
-    ui.setStatus('准备就绪');
+    ui.setStatus(window.i18n?.t('status_ready') || '准备就绪');
   },
 
   zoomFit() {
@@ -501,10 +507,10 @@ const processor = {
 
   async processAll() {
     const validFiles = state.selectedFiles.filter(f => state.fileInfoMap.get(f)?.valid);
-    if (!validFiles.length) return alert('没有可处理的图片');
+    if (!validFiles.length) return alert(window.i18n?.t('alert_no_images') || '没有可处理的图片');
 
     els.processBtn.disabled = true;
-    ui.setStatus('处理中...');
+    ui.setStatus(window.i18n?.t('status_processing') || '处理中...');
 
     const zip = window.JSZip ? new JSZip() : null;
     const format = els.outFormat.value;
@@ -517,7 +523,7 @@ const processor = {
             name: file.name, 
             origW: info.w, 
             origH: info.h, 
-            statusText: info.valid ? '排队中' : '已跳过',
+            statusText: info.valid ? (window.i18n?.t('status_queuing') || '排队中') : (window.i18n?.t('status_skipped') || '已跳过'),
             statusType: info.valid ? '' : 'bad'
         };
     });
@@ -527,31 +533,32 @@ const processor = {
       const file = state.selectedFiles[i];
       if (!state.fileInfoMap.get(file)?.valid) continue;
 
-      rows[i].statusText = '进行中...';
+      rows[i].statusText = window.i18n?.t('status_ongoing') || '进行中...';
       ui.renderTable(rows);
 
       try {
         const result = await this.processOne(file);
-        Object.assign(rows[i], result, { statusText: '完成', statusType: 'ok' });
+        Object.assign(rows[i], result, { statusText: window.i18n?.t('status_done') || '完成', statusType: 'ok' });
         success++;
 
         const outName = `${utils.baseName(file.name)}_result.${ext}`;
         if (zip) zip.file(outName, result.blob);
         else this.downloadBlob(result.blob, outName);
       } catch (e) {
-        rows[i].statusText = `失败: ${e.message}`;
+        rows[i].statusText = `${window.i18n?.t('status_failed') || '失败'}: ${e.message}`;
         rows[i].statusType = 'bad';
       }
       ui.renderTable(rows);
     }
 
     if (zip && success > 0) {
-      ui.setStatus('正在生成压缩包...');
+      ui.setStatus(window.i18n?.t('status_zipping') || '正在生成压缩包...');
       const content = await zip.generateAsync({ type: 'blob' });
       this.downloadBlob(content, `batch_process_${Date.now()}.zip`);
     }
 
-    ui.setStatus(`处理结束：成功 ${success} 张`);
+    const endMsg = (window.i18n?.t('status_finished') || '处理结束：成功 {n} 张').replace('{n}', success);
+    ui.setStatus(endMsg);
     els.processBtn.disabled = false;
   },
 
@@ -573,7 +580,8 @@ const processor = {
     }
 
     const cw = ow - cl - cr, ch = oh - ct - cb;
-    if (cw <= 0 || ch <= 0) throw new Error('裁切区域无效');
+    if (cw <= 0 || ch <= 0) throw new Error(window.i18n?.t('crop_invalid') || '裁切区域无效');
+
 
     // 1. 裁切
     const cCanvas = document.createElement('canvas');
@@ -732,6 +740,11 @@ function init() {
   ui.updateScaleUI();
   ui.updateOutputUI();
   ui.renderTable([]);
+
+  window.addEventListener('languageChanged', () => {
+    ui.updateAllPreviews();
+    processor.refreshUIStatus(state.selectedFiles.length, state.baseImageInfo?.w || 0, state.baseImageInfo?.h || 0);
+  });
 }
 
 init();

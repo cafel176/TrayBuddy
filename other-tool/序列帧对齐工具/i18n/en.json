@@ -1,0 +1,17 @@
+{
+  "title": "Sequence Frame Aligner",
+  "img1_label": "Image 1 (Fixed Reference)",
+  "img2_label": "Image 2 (Adjustable)",
+  "select_img": "Select Image",
+  "dropzone_text": "Drag image here or <span>click to select</span>",
+  "opacity": "Opacity",
+  "scale": "Scale",
+  "preview_area": "Preview Area",
+  "reset_pos": "Reset Position",
+  "reset_view": "Reset View",
+  "waiting_upload": "Upload images to start aligning",
+  "preview_zoom": "Preview Zoom:",
+  "zoom_fit": "Fit",
+  "tips_title": "Tips:",
+  "tips_content": "Drag & drop to upload | Drag Image 2 to move | Arrow keys for fine-tuning (Shift to speed up) | Ctrl+Wheel to zoom preview | Wheel to scale Image 2"
+}

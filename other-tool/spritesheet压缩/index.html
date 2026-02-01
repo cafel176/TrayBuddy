@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spritesheet 压缩工具</title>
+  <title data-i18n="title">Spritesheet 压缩工具</title>
   <link rel="stylesheet" href="style.css">
+  <script src="../i18n-helper.js"></script>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>🎨 Spritesheet 压缩工具</h1>
-      <p class="subtitle">减少精灵图文件大小，优化 GPU 内存占用</p>
+      <h1 data-i18n="header_title">🎨 Spritesheet 压缩工具</h1>
+      <p class="subtitle" data-i18n="header_subtitle">减少精灵图文件大小，优化 GPU 内存占用</p>
     </header>
 
     <main>
@@ -19,8 +20,8 @@
         <div class="drop-zone" id="dropZone">
           <div class="drop-zone-content">
             <span class="drop-icon">📁</span>
-            <p>拖拽图片到此处，或点击选择</p>
-            <p class="hint">支持 PNG、JPG、WebP 格式</p>
+            <p data-i18n="drop_zone_text">拖拽图片到此处，或点击选择</p>
+            <p class="hint" data-i18n="drop_zone_hint">支持 PNG、JPG、WebP 格式</p>
           </div>
           <input type="file" id="fileInput" accept="image/*" multiple hidden>
         </div>
@@ -28,31 +29,31 @@
 
       <!-- 压缩选项 -->
       <section class="options-section">
-        <h2>压缩选项</h2>
+        <h2 data-i18n="options_title">压缩选项</h2>
         <div class="options-grid">
           <div class="option-group">
-            <label for="outputFormat">输出格式</label>
+            <label for="outputFormat" data-i18n="output_format_label">输出格式</label>
             <select id="outputFormat">
-              <option value="webp">WebP (推荐，最小)</option>
-              <option value="png">PNG (无损，较大)</option>
-              <option value="jpeg">JPEG (有损，不支持透明)</option>
+              <option value="webp" data-i18n="format_webp">WebP (推荐，最小)</option>
+              <option value="png" data-i18n="format_png">PNG (无损，较大)</option>
+              <option value="jpeg" data-i18n="format_jpeg">JPEG (有损，不支持透明)</option>
             </select>
           </div>
           
           <div class="option-group">
-            <label for="quality">质量: <span id="qualityValue">85</span>%</label>
+            <label><span data-i18n="quality_label" data-i18n-n="85">质量: 85%</span></label>
             <input type="range" id="quality" min="10" max="100" value="85">
           </div>
           
           <div class="option-group">
-            <label for="scale">缩放比例: <span id="scaleValue">100</span>%</label>
+            <label><span data-i18n="scale_label" data-i18n-n="100">缩放比例: 100%</span></label>
             <input type="range" id="scale" min="25" max="100" value="100" step="5">
           </div>
           
           <div class="option-group checkbox-group">
             <label>
               <input type="checkbox" id="preserveAlpha" checked>
-              保留透明通道
+              <span data-i18n="preserve_alpha_label">保留透明通道</span>
             </label>
           </div>
         </div>
@@ -60,26 +61,26 @@
 
       <!-- 文件列表 -->
       <section class="files-section" id="filesSection" style="display: none;">
-        <h2>文件列表</h2>
+        <h2 data-i18n="files_title">文件列表</h2>
         <div class="files-list" id="filesList"></div>
         <div class="actions">
-          <button class="btn btn-primary" id="compressAll">🚀 压缩全部</button>
-          <button class="btn btn-secondary" id="downloadAll" disabled>📦 下载全部 (ZIP)</button>
-          <button class="btn btn-danger" id="clearAll">🗑️ 清空</button>
+          <button class="btn btn-primary" id="compressAll" data-i18n="compress_all_btn">🚀 压缩全部</button>
+          <button class="btn btn-secondary" id="downloadAll" disabled data-i18n="download_all_btn">📦 下载全部 (ZIP)</button>
+          <button class="btn btn-danger" id="clearAll" data-i18n="clear_all_btn">🗑️ 清空</button>
         </div>
       </section>
 
       <!-- 预览对比 -->
       <section class="preview-section" id="previewSection" style="display: none;">
-        <h2>预览对比</h2>
+        <h2 data-i18n="preview_title">预览对比</h2>
         <div class="preview-container">
           <div class="preview-panel">
-            <h3>原图</h3>
+            <h3 data-i18n="original_label">原图</h3>
             <div class="preview-image" id="originalPreview"></div>
             <div class="preview-info" id="originalInfo"></div>
           </div>
           <div class="preview-panel">
-            <h3>压缩后</h3>
+            <h3 data-i18n="compressed_label">压缩后</h3>
             <div class="preview-image" id="compressedPreview"></div>
             <div class="preview-info" id="compressedInfo"></div>
           </div>
@@ -88,22 +89,22 @@
 
       <!-- 统计信息 -->
       <section class="stats-section" id="statsSection" style="display: none;">
-        <h2>压缩统计</h2>
+        <h2 data-i18n="stats_title">压缩统计</h2>
         <div class="stats-grid">
           <div class="stat-card">
-            <span class="stat-label">原始大小</span>
+            <span class="stat-label" data-i18n="stat_original_size">原始大小</span>
             <span class="stat-value" id="totalOriginal">0 MB</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">压缩后大小</span>
+            <span class="stat-label" data-i18n="stat_compressed_size">压缩后大小</span>
             <span class="stat-value" id="totalCompressed">0 MB</span>
           </div>
           <div class="stat-card highlight">
-            <span class="stat-label">节省空间</span>
+            <span class="stat-label" data-i18n="stat_space_saved">节省空间</span>
             <span class="stat-value" id="totalSaved">0%</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">预估 GPU 内存减少</span>
+            <span class="stat-label" data-i18n="stat_gpu_saved">预估 GPU 内存减少</span>
             <span class="stat-value" id="gpuSaved">0 MB</span>
           </div>
         </div>
@@ -111,8 +112,8 @@
     </main>
 
     <footer>
-      <p>💡 提示：WebP 格式通常比 PNG 小 50-70%，同时保持良好的图片质量</p>
-      <p>🎮 适用于 TrayBuddy 桌面宠物项目的精灵图优化</p>
+      <p data-i18n="footer_hint">💡 提示：WebP 格式通常比 PNG 小 50-70%，同时保持良好的图片质量</p>
+      <p data-i18n="footer_project">🎮 适用于 TrayBuddy 桌面宠物项目的精灵图优化</p>
     </footer>
   </div>
 

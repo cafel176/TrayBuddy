@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleFile(file) {
         if (!file.type.startsWith('video/')) {
-            alert('请上传视频文件');
+            alert(window.i18n?.t('alert_upload_video') || '请上传视频文件');
             return;
         }
         videoFile = file;
@@ -115,7 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateFrameEstimate() {
         const fps = parseInt(fpsInput.value) || 0;
         const totalFrames = Math.floor((endTime - startTime) * fps);
-        totalFramesEstimate.textContent = `(预计 ${Math.max(0, totalFrames)} 帧)`;
+        const template = window.i18n?.t('estimate_frames') || '(预计 {n} 帧)';
+        totalFramesEstimate.textContent = template.replace('{n}', Math.max(0, totalFrames));
     }
 
     fpsInput.addEventListener('input', updateFrameEstimate);
@@ -166,7 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalFrames = Math.floor((endTime - startTime) / interval);
         
         if (totalFrames > 500) {
-            if (!confirm(`将提取 ${totalFrames} 帧，可能会消耗较多内存。是否继续？`)) return;
+            const confirmMsg = (window.i18n?.t('confirm_many_frames') || '将提取 {n} 帧，可能会消耗较多内存。是否继续？').replace('{n}', totalFrames);
+            if (!confirm(confirmMsg)) return;
         }
 
         loadingOverlay.classList.remove('hidden');
@@ -178,8 +180,10 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.width = videoPlayer.videoWidth;
         canvas.height = videoPlayer.videoHeight;
 
+        const extractingTemplate = window.i18n?.t('extracting') || '正在提取: {n}%';
+
         for (let time = startTime; time <= endTime; time += interval) {
-            loadingText.textContent = `正在提取: ${Math.round(((time - startTime) / (endTime - startTime)) * 100)}%`;
+            loadingText.textContent = extractingTemplate.replace('{n}', Math.round(((time - startTime) / (endTime - startTime)) * 100));
             videoPlayer.currentTime = time;
             await new Promise(resolve => {
                 videoPlayer.onseeked = resolve;
@@ -212,11 +216,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             div.innerHTML = `
                 <img src="${frame.processedData}">
-                <button class="frame-preview-btn" title="查看高清图">
+                <button class="frame-preview-btn" title="${window.i18n?.t('view_high_res') || '查看高清图'}">
                     <i data-lucide="maximize-2" style="width:14px;height:14px;"></i>
                 </button>
                 <input type="checkbox" class="frame-checkbox" ${frame.selected ? 'checked' : ''}>
             `;
+
 
 
             // High Res Preview logic
@@ -277,15 +282,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const overlay = document.createElement('div');
         overlay.className = 'color-picker-overlay';
         overlay.innerHTML = `
-            <h3 style="margin-bottom: 1rem;">点击大图拾取背景色</h3>
+            <h3 style="margin-bottom: 1rem;" data-i18n="picker_title">${window.i18n?.t('picker_title') || '点击大图拾取背景色'}</h3>
             <div class="picker-canvas-container">
                 <canvas id="picker-canvas"></canvas>
             </div>
             <div class="picker-toolbar">
                 <div id="picker-preview" style="width: 40px; height: 40px; border: 2px solid white; border-radius: 4px;"></div>
                 <span id="picker-hex" style="font-family: monospace; font-size: 1.2rem;">#000000</span>
-                <button id="picker-confirm">确认选择</button>
-                <button id="picker-cancel" class="secondary">取消</button>
+                <button id="picker-confirm" data-i18n="picker_confirm">${window.i18n?.t('picker_confirm') || '确认选择'}</button>
+                <button id="picker-cancel" class="secondary" data-i18n="picker_cancel">${window.i18n?.t('picker_cancel') || '取消'}</button>
             </div>
         `;
         document.body.appendChild(overlay);
@@ -361,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetHex = colorHex.value;
         const targetRgb = hexToRgb(targetHex);
         if (!targetRgb) {
-            alert('请先选择背景颜色');
+            alert(window.i18n?.t('alert_no_color') || '请先选择背景颜色');
             return;
         }
         
@@ -371,7 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const spill = (parseInt(spillInput.value) || 0) / 100;
 
         loadingOverlay.classList.remove('hidden');
-        loadingText.textContent = '正在处理背景 (HSV + 优化算法)...';
+        loadingText.textContent = window.i18n?.t('processing_bg') || '正在处理背景 (HSV + 优化算法)...';
+
 
         const videoWidth = videoPlayer.videoWidth;
         const videoHeight = videoPlayer.videoHeight;
@@ -490,7 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
             img.onload = () => {
                 ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
                 ctx.drawImage(img, 0, 0);
-                previewInfo.textContent = `第 ${previewIndex + 1} / ${selectedFrames.length} 帧`;
+                const infoTemplate = window.i18n?.t('preview_info') || '第 {current} / {total} 帧';
+                previewInfo.textContent = infoTemplate.replace('{current}', previewIndex + 1).replace('{total}', selectedFrames.length);
                 previewProgressBar.style.width = `${((previewIndex + 1) / selectedFrames.length) * 100}%`;
             };
         }
@@ -506,7 +513,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function tickPreview() {
         const selectedFrames = extractedFrames.filter(f => f.selected);
         if (selectedFrames.length === 0) {
-            previewInfo.textContent = `第 0 / 0 帧`;
+            const infoTemplate = window.i18n?.t('preview_info') || '第 {current} / {total} 帧';
+            previewInfo.textContent = infoTemplate.replace('{current}', 0).replace('{total}', 0);
             previewProgressBar.style.width = `0%`;
             return;
         }
@@ -520,7 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Update progress UI
-        previewInfo.textContent = `第 ${previewIndex + 1} / ${selectedFrames.length} 帧`;
+        const infoTemplate = window.i18n?.t('preview_info') || '第 {current} / {total} 帧';
+        previewInfo.textContent = infoTemplate.replace('{current}', previewIndex + 1).replace('{total}', selectedFrames.length);
         previewProgressBar.style.width = `${((previewIndex + 1) / selectedFrames.length) * 100}%`;
 
         const mode = playModeSelect.value;
@@ -545,10 +554,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (previewInterval) {
             clearInterval(previewInterval);
             previewInterval = null;
-            togglePlayBtn.textContent = '播放';
+            togglePlayBtn.textContent = window.i18n?.t('play') || '播放';
         } else {
             startPreview();
-            togglePlayBtn.textContent = '暂停';
+            togglePlayBtn.textContent = window.i18n?.t('pause') || '暂停';
         }
     });
 
@@ -558,12 +567,12 @@ document.addEventListener('DOMContentLoaded', () => {
     exportBtn.addEventListener('click', async () => {
         const selectedFrames = extractedFrames.filter(f => f.selected);
         if (selectedFrames.length === 0) {
-            alert('没有选中的帧可以导出');
+            alert(window.i18n?.t('alert_no_frames') || '没有选中的帧可以导出');
             return;
         }
 
         loadingOverlay.classList.remove('hidden');
-        loadingText.textContent = '正在打包...';
+        loadingText.textContent = window.i18n?.t('packing') || '正在打包...';
 
         const zip = new JSZip();
         selectedFrames.forEach((frame, index) => {
@@ -579,5 +588,28 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         
         loadingOverlay.classList.add('hidden');
+    });
+
+    window.addEventListener('languageChanged', () => {
+        updateFrameEstimate();
+        // If results card is visible, refresh it
+        if (!resultsCard.classList.contains('hidden')) {
+            renderFrames();
+        }
+        
+        // Update preview info text if it's visible
+        if (!previewCard.classList.contains('hidden')) {
+            const selectedFrames = extractedFrames.filter(f => f.selected);
+            const infoTemplate = window.i18n?.t('preview_info') || '第 {current} / {total} 帧';
+            const current = selectedFrames.length > 0 ? previewIndex + 1 : 0;
+            previewInfo.textContent = infoTemplate.replace('{current}', current).replace('{total}', selectedFrames.length);
+        }
+
+        // Update play/pause button text
+        if (previewInterval) {
+            togglePlayBtn.textContent = window.i18n?.t('pause') || '暂停';
+        } else {
+            togglePlayBtn.textContent = window.i18n?.t('play') || '播放';
+        }
     });
 });

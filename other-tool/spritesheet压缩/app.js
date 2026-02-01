@@ -10,6 +10,7 @@ class SpritesheetCompressor {
     
     this.initElements();
     this.initEventListeners();
+    this.initI18n();
   }
   
   initElements() {
@@ -20,9 +21,7 @@ class SpritesheetCompressor {
     // Options
     this.outputFormat = document.getElementById('outputFormat');
     this.quality = document.getElementById('quality');
-    this.qualityValue = document.getElementById('qualityValue');
     this.scale = document.getElementById('scale');
-    this.scaleValue = document.getElementById('scaleValue');
     this.preserveAlpha = document.getElementById('preserveAlpha');
     
     // Files section
@@ -57,23 +56,58 @@ class SpritesheetCompressor {
     
     // Options events
     this.quality.addEventListener('input', () => {
-      this.qualityValue.textContent = this.quality.value;
+      const label = this.quality.parentElement.querySelector('[data-i18n="quality_label"]');
+      if (label) {
+        label.setAttribute('data-i18n-n', this.quality.value);
+        if (window.i18n) window.i18n.updateDOM();
+      }
     });
     this.scale.addEventListener('input', () => {
-      this.scaleValue.textContent = this.scale.value;
+      const label = this.scale.parentElement.querySelector('[data-i18n="scale_label"]');
+      if (label) {
+        label.setAttribute('data-i18n-n', this.scale.value);
+        if (window.i18n) window.i18n.updateDOM();
+      }
     });
     
     // Format change - update quality visibility for PNG
     this.outputFormat.addEventListener('change', () => {
       const isPng = this.outputFormat.value === 'png';
       this.quality.disabled = isPng;
-      this.qualityValue.textContent = isPng ? 'N/A' : this.quality.value;
+      const label = this.quality.parentElement.querySelector('[data-i18n="quality_label"]');
+      if (label) {
+        if (isPng) {
+          label.textContent = 'N/A';
+          label.removeAttribute('data-i18n');
+        } else {
+          label.setAttribute('data-i18n', 'quality_label');
+          label.setAttribute('data-i18n-n', this.quality.value);
+          if (window.i18n) window.i18n.updateDOM();
+        }
+      }
     });
     
     // Action buttons
     this.compressAllBtn.addEventListener('click', () => this.compressAll());
     this.downloadAllBtn.addEventListener('click', () => this.downloadAll());
     this.clearAllBtn.addEventListener('click', () => this.clearAll());
+
+    window.addEventListener('languageChanged', () => {
+        this.renderFileList();
+        if (this.previewSection.style.display !== 'none') {
+            // Re-render current preview if visible
+            const visiblePreviewId = Array.from(this.files.keys()).find(id => {
+               // This is a bit tricky, let's just refresh the whole list for now
+               return false;
+            });
+        }
+    });
+  }
+
+  initI18n() {
+    if (window.i18n) {
+        window.i18n.init();
+    }
   }
   
   handleDragOver(e) {
@@ -197,7 +231,11 @@ class SpritesheetCompressor {
       
       const status = document.createElement('span');
       status.className = `file-status ${fileData.status}`;
-      status.textContent = this.getStatusText(fileData.status);
+      if (window.i18n) {
+          status.setAttribute('data-i18n', `status_${fileData.status}`);
+      } else {
+          status.textContent = this.getStatusText(fileData.status);
+      }
       
       const actions = document.createElement('div');
       actions.className = 'file-actions';
@@ -230,6 +268,7 @@ class SpritesheetCompressor {
       this.filesList.appendChild(item);
     }
     
+    if (window.i18n) window.i18n.updateDOM();
     this.updateStats();
   }
   
@@ -348,12 +387,21 @@ class SpritesheetCompressor {
     origImg.src = URL.createObjectURL(fileData.file);
     this.originalPreview.appendChild(origImg);
     
-    this.originalInfo.innerHTML = `
-      <p>文件: ${fileData.name}</p>
-      <p>大小: ${this.formatSize(fileData.originalSize)}</p>
-      <p>尺寸: ${fileData.width} × ${fileData.height}</p>
-      <p>GPU 内存: ~${this.formatSize(fileData.width * fileData.height * 4)}</p>
-    `;
+    if (window.i18n) {
+        this.originalInfo.innerHTML = `
+          <p data-i18n="preview_info_file" data-i18n-name="${fileData.name}"></p>
+          <p data-i18n="preview_info_size" data-i18n-size="${this.formatSize(fileData.originalSize)}"></p>
+          <p data-i18n="preview_info_dims" data-i18n-w="${fileData.width}" data-i18n-h="${fileData.height}"></p>
+          <p data-i18n="preview_info_gpu" data-i18n-size="${this.formatSize(fileData.width * fileData.height * 4)}"></p>
+        `;
+    } else {
+        this.originalInfo.innerHTML = `
+          <p>文件: ${fileData.name}</p>
+          <p>大小: ${this.formatSize(fileData.originalSize)}</p>
+          <p>尺寸: ${fileData.width} × ${fileData.height}</p>
+          <p>GPU 内存: ~${this.formatSize(fileData.width * fileData.height * 4)}</p>
+        `;
+    }
     
     // Compressed preview
     this.compressedPreview.innerHTML = '';
@@ -366,17 +414,37 @@ class SpritesheetCompressor {
       const gpuMem = fileData.newWidth * fileData.newHeight * 4;
       const gpuSaved = (fileData.width * fileData.height * 4) - gpuMem;
       
-      this.compressedInfo.innerHTML = `
-        <p>文件: ${fileData.compressedName}</p>
-        <p>大小: ${this.formatSize(fileData.compressedSize)} (-${ratio}%)</p>
-        <p>尺寸: ${fileData.newWidth} × ${fileData.newHeight}</p>
-        <p>GPU 内存: ~${this.formatSize(gpuMem)} (${gpuSaved > 0 ? '节省 ' + this.formatSize(gpuSaved) : '无变化'})</p>
-      `;
+      if (window.i18n) {
+          const gpuSavedText = gpuSaved > 0 ? 
+              window.i18n.t('preview_info_gpu_saved').replace('{size}', this.formatSize(gpuSaved)) : 
+              window.i18n.t('preview_info_gpu_no_change');
+
+          this.compressedInfo.innerHTML = `
+            <p data-i18n="preview_info_file" data-i18n-name="${fileData.compressedName}"></p>
+            <p data-i18n="preview_info_size" data-i18n-size="${this.formatSize(fileData.compressedSize)} (-${ratio}%)"></p>
+            <p data-i18n="preview_info_dims" data-i18n-w="${fileData.newWidth}" data-i18n-h="${fileData.newHeight}"></p>
+            <p>${window.i18n.t('preview_info_gpu').replace('{size}', this.formatSize(gpuMem))}${gpuSavedText}</p>
+          `;
+      } else {
+          this.compressedInfo.innerHTML = `
+            <p>文件: ${fileData.compressedName}</p>
+            <p>大小: ${this.formatSize(fileData.compressedSize)} (-${ratio}%)</p>
+            <p>尺寸: ${fileData.newWidth} × ${fileData.newHeight}</p>
+            <p>GPU 内存: ~${this.formatSize(gpuMem)} (${gpuSaved > 0 ? '节省 ' + this.formatSize(gpuSaved) : '无变化'})</p>
+          `;
+      }
     } else {
-      this.compressedPreview.innerHTML = '<p style="color: var(--text-muted);">尚未压缩</p>';
-      this.compressedInfo.innerHTML = '<p>请先点击"压缩全部"</p>';
+      if (window.i18n) {
+          this.compressedPreview.innerHTML = `<p style="color: var(--text-muted);" data-i18n="not_compressed_yet"></p>`;
+          this.compressedInfo.innerHTML = `<p data-i18n="please_compress_first"></p>`;
+      } else {
+          this.compressedPreview.innerHTML = '<p style="color: var(--text-muted);">尚未压缩</p>';
+          this.compressedInfo.innerHTML = '<p>请先点击"压缩全部"</p>';
+      }
     }
     
+    if (window.i18n) window.i18n.updateDOM();
+
     // Scroll to preview
     this.previewSection.scrollIntoView({ behavior: 'smooth' });
   }

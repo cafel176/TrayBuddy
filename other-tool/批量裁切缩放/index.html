@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>批量裁切缩放工具</title>
+  <title data-i18n="title">批量裁切缩放工具</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,47 +12,47 @@
 <body>
   <div class="container">
     <header class="header">
-      <h1>✨ 批量裁切缩放工具</h1>
-      <p class="subtitle">专业级本地图片批处理，先裁切后缩放，极致流畅。</p>
+      <h1 data-i18n="title">✨ 批量裁切缩放工具</h1>
+      <p class="subtitle" data-i18n="subtitle">专业级本地图片批处理，先裁切后缩放，极致流畅。</p>
     </header>
 
     <!-- Step 1: Upload -->
     <section class="card">
-      <h2>📁 1) 选择图片</h2>
+      <h2 data-i18n="step1">📁 1) 选择图片</h2>
       <div class="drop-zone" id="dropZone">
         <div class="drop-zone-content">
           <div class="icon">🚀</div>
-          <div class="text">点击或将图片拖拽至此区域</div>
-          <p class="hint">支持 PNG, JPG, WebP 批量处理</p>
+          <div class="text" data-i18n="dropzone_text">点击或将图片拖拽至此区域</div>
+          <p class="hint" data-i18n="dropzone_hint">支持 PNG, JPG, WebP 批量处理</p>
           <input id="fileInput" type="file" accept="image/*" multiple hidden />
         </div>
       </div>
       
       <div class="info-box">
-        <span>数量: <strong id="imageCount">未选择</strong></span>
+        <span data-i18n="count">数量:</span> <strong id="imageCount" data-i18n="unselected">未选择</strong>
         <span id="imageSizeInfo"></span>
       </div>
 
       <div class="row" style="margin-top: 16px; justify-content: flex-end;">
-        <button id="clearBtn" class="btn btn-ghost" type="button">🗑️ 清空列表</button>
+        <button id="clearBtn" class="btn btn-ghost" type="button" data-i18n="clear_btn">🗑️ 清空列表</button>
       </div>
     </section>
 
     <!-- Step 1.5: Processing Options -->
     <section class="card">
-      <h2>⚙️ 1.5) 处理策略</h2>
+      <h2 data-i18n="step1_5">⚙️ 1.5) 处理策略</h2>
       <div class="field">
         <label class="checkbox">
           <input id="skipMismatch" type="checkbox" checked />
-          跳过尺寸不一致的图片
+          <span data-i18n="skip_mismatch">跳过尺寸不一致的图片</span>
         </label>
-        <p class="hint">勾选：仅处理与首张图片尺寸相同的素材。取消：将所有图片裁切至最小共有尺寸后再处理。</p>
+        <p class="hint" data-i18n="skip_mismatch_hint">勾选：仅处理与首张图片尺寸相同的素材。取消：将所有图片裁切至最小共有尺寸后再处理。</p>
       </div>
     </section>
 
     <!-- Step 2: Crop -->
     <section class="card">
-      <h2>✂️ 2) 可视化裁切设置</h2>
+      <h2 data-i18n="step2">✂️ 2) 可视化裁切设置</h2>
       
       <div class="crop-editor-container">
         <div class="crop-editor-toolbar">
@@ -60,9 +60,9 @@
             <button type="button" class="zoom-btn" id="zoomOutBtn">−</button>
             <span class="zoom-label" id="zoomLabel" style="min-width: 50px; text-align: center; font-size: 0.8rem;">100%</span>
             <button type="button" class="zoom-btn" id="zoomInBtn">+</button>
-            <button type="button" class="zoom-btn" id="zoomFitBtn" style="margin-left: 8px;">适应</button>
+            <button type="button" class="zoom-btn" id="zoomFitBtn" style="margin-left: 8px;" data-i18n="zoom_fit">适应</button>
           </div>
-          <div class="crop-size-display" id="cropSizeLabel">裁切后：- × -</div>
+          <div class="crop-size-display" id="cropSizeLabel"><span data-i18n="crop_size_label">裁切后：</span>- × -</div>
         </div>
         
         <div class="crop-editor-wrapper" id="cropEditorWrapper">
@@ -73,72 +73,72 @@
               <div class="crop-overlay" id="overlayBottom"></div>
               <div class="crop-overlay" id="overlayLeft"></div>
               <div class="crop-overlay" id="overlayRight"></div>
-              <div class="crop-handle crop-handle-top" id="handleTop" title="上边距"></div>
-              <div class="crop-handle crop-handle-bottom" id="handleBottom" title="下边距"></div>
-              <div class="crop-handle crop-handle-left" id="handleLeft" title="左边距"></div>
-              <div class="crop-handle crop-handle-right" id="handleRight" title="右边距"></div>
+              <div class="crop-handle crop-handle-top" id="handleTop"></div>
+              <div class="crop-handle crop-handle-bottom" id="handleBottom"></div>
+              <div class="crop-handle crop-handle-left" id="handleLeft"></div>
+              <div class="crop-handle crop-handle-right" id="handleRight"></div>
             </div>
-            <div class="crop-placeholder" id="cropPlaceholder">请先上传图片</div>
+            <div class="crop-placeholder" id="cropPlaceholder" data-i18n="waiting_upload">请先上传图片</div>
           </div>
         </div>
       </div>
 
       <div class="grid" style="grid-template-columns: repeat(4, 1fr); margin-top: 16px;">
         <div class="field">
-          <label>上 (px)</label>
+          <label data-i18n="crop_top">上 (px)</label>
           <input id="cropTop" type="number" min="0" value="0" />
         </div>
         <div class="field">
-          <label>下 (px)</label>
+          <label data-i18n="crop_bottom">下 (px)</label>
           <input id="cropBottom" type="number" min="0" value="0" />
         </div>
         <div class="field">
-          <label>左 (px)</label>
+          <label data-i18n="crop_left">左 (px)</label>
           <input id="cropLeft" type="number" min="0" value="0" />
         </div>
         <div class="field">
-          <label>右 (px)</label>
+          <label data-i18n="crop_right">右 (px)</label>
           <input id="cropRight" type="number" min="0" value="0" />
         </div>
       </div>
-      <p class="hint">提示：可直接拖动预览图上的蓝色基准线进行裁切调整。</p>
+      <p class="hint" data-i18n="crop_hint">提示：可直接拖动预览图上的蓝色基准线进行裁切调整。</p>
     </section>
 
     <!-- Step 3: Resize -->
     <section class="card">
-      <h2>📐 3) 缩放与预览</h2>
+      <h2 data-i18n="step3">📐 3) 缩放与预览</h2>
       <div class="grid">
         <div class="field">
           <label class="checkbox">
             <input id="lockAspect" type="checkbox" checked />
-            保持长宽比
+            <span data-i18n="lock_aspect">保持长宽比</span>
           </label>
         </div>
 
         <div class="field" id="uniformScaleField">
-          <label>缩放比例 (%)</label>
+          <label data-i18n="scale_percent">缩放比例 (%)</label>
           <input id="scalePercent" type="number" min="1" max="1000" value="100" />
         </div>
 
         <div class="field" id="separateScaleField" hidden>
           <div class="row" style="gap:12px;">
             <div style="flex:1">
-              <label>宽度 (%)</label>
+              <label data-i18n="scale_width">宽度 (%)</label>
               <input id="scaleWidth" type="number" min="1" max="1000" value="100" style="width:100%" />
             </div>
             <div style="flex:1">
-              <label>高度 (%)</label>
+              <label data-i18n="scale_height">高度 (%)</label>
               <input id="scaleHeight" type="number" min="1" max="1000" value="100" style="width:100%" />
             </div>
           </div>
           <div class="scale-preview-box">
             <img id="scalePreviewImage" style="max-width: 100%; max-height: 100%; display: none;" />
-            <span id="scalePreviewPlaceholder" style="color: var(--muted); font-size: 0.8rem;">非等比预览</span>
+            <span id="scalePreviewPlaceholder" style="color: var(--muted); font-size: 0.8rem;" data-i18n="scale_preview_placeholder">非等比预览</span>
           </div>
         </div>
 
         <div class="field">
-          <label>缩放结果预览</label>
+          <label data-i18n="scale_result_label">缩放结果预览</label>
           <div id="scaleSizePreview" style="font-family: monospace; padding: 10px; background: #000; border-radius: 6px; color: var(--success);">-</div>
         </div>
       </div>
@@ -146,17 +146,17 @@
 
     <!-- Step 3.5: Expand -->
     <section class="card">
-      <h2>⬜ 3.5) 扩充填充 (Padding)</h2>
+      <h2 data-i18n="step3_5">⬜ 3.5) 扩充填充 (Padding)</h2>
       <div class="grid">
         <div class="field">
-          <label>横向扩充 (左 | 右)</label>
+          <label data-i18n="expand_h">横向扩充 (左 | 右)</label>
           <div class="row" style="gap:8px;">
             <input id="expandLeft" type="number" min="0" value="0" style="flex:1" />
             <input id="expandRight" type="number" min="0" value="0" style="flex:1" />
           </div>
         </div>
         <div class="field">
-          <label>纵向扩充 (上 | 下)</label>
+          <label data-i18n="expand_v">纵向扩充 (上 | 下)</label>
           <div class="row" style="gap:8px;">
             <input id="expandTop" type="number" min="0" value="0" style="flex:1" />
             <input id="expandBottom" type="number" min="0" value="0" style="flex:1" />
@@ -164,12 +164,12 @@
         </div>
 
         <div class="field">
-          <label>填充颜色 (RGBA)</label>
+          <label data-i18n="expand_color">填充颜色 (RGBA)</label>
           <div class="row" style="gap:12px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <input id="expandColor" type="color" value="#000000" style="width: 44px; height: 44px; padding: 2px; border-radius: 6px;" />
               <div style="flex: 1;">
-                <label style="font-size: 11px; margin-bottom: 2px; display: block;">透明度: <span id="expandAlphaVal">0</span>%</label>
+                <label style="font-size: 11px; margin-bottom: 2px; display: block;"><span data-i18n="expand_alpha">透明度:</span> <span id="expandAlphaVal">0</span>%</label>
                 <input id="expandAlpha" type="range" min="0" max="100" value="0" style="width: 100%;" />
               </div>
             </div>
@@ -177,61 +177,64 @@
         </div>
 
         <div class="field">
-          <label>最终导出尺寸</label>
+          <label data-i18n="expand_size_label">最终导出尺寸</label>
           <div id="expandSizePreview" style="font-family: monospace; padding: 10px; background: #000; border-radius: 6px; color: var(--primary);">-</div>
         </div>
       </div>
-      <p class="hint">扩充部分将使用指定颜色填充。提示：100% 不透明度即为纯色，0% 即为全透明。</p>
+      <p class="hint" data-i18n="expand_hint">扩充部分将使用指定颜色填充。提示：100% 不透明度即为纯色，0% 即为全透明。</p>
     </section>
 
 
     <!-- Step 4: Output -->
     <section class="card">
-      <h2>💾 4) 输出与导出</h2>
+      <h2 data-i18n="step4">💾 4) 输出与导出</h2>
       <div class="grid">
         <div class="field">
-          <label>导出格式</label>
+          <label data-i18n="out_format">导出格式</label>
           <select id="outFormat">
-            <option value="image/png" selected>PNG (无损透明)</option>
-            <option value="image/jpeg">JPG (高压缩比)</option>
+            <option value="image/png" selected data-i18n="format_png">PNG (无损透明)</option>
+            <option value="image/jpeg" data-i18n="format_jpg">JPG (高压缩比)</option>
           </select>
         </div>
         <div class="field" id="jpegQualityField" hidden>
-          <label>JPG 质量 (0.6 - 1.0)</label>
+          <label data-i18n="jpeg_quality">JPG 质量 (0.6 - 1.0)</label>
           <input id="jpegQuality" type="number" min="0.6" max="1" step="0.05" value="0.92" />
         </div>
       </div>
 
       <div class="row" style="margin-top: 24px;">
-        <button id="processBtn" class="btn" type="button">⚡ 开始处理并打包下载</button>
-        <span id="status" class="hint">未开始</span>
+        <button id="processBtn" class="btn" type="button" data-i18n="process_btn">⚡ 开始处理并打包下载</button>
+        <span class="hint"><span data-i18n="status_label">状态：</span><span id="status" data-i18n="status_idle">未开始</span></span>
       </div>
 
       <div class="tableWrap">
         <table class="table">
           <thead>
             <tr>
-              <th>文件名</th>
-              <th>原始</th>
-              <th>裁切</th>
-              <th>缩放</th>
-              <th>最终</th>
-              <th>状态</th>
+              <th data-i18n="table_filename">文件名</th>
+              <th data-i18n="table_orig">原始</th>
+              <th data-i18n="table_crop">裁切</th>
+              <th data-i18n="table_scale">缩放</th>
+              <th data-i18n="table_final">最终</th>
+              <th data-i18n="table_status">状态</th>
             </tr>
           </thead>
           <tbody id="fileTableBody">
-            <tr><td colspan="6" style="text-align:center; padding: 30px; color: var(--muted);">等待上传图片...</td></tr>
+            <tr><td colspan="6" style="text-align:center; padding: 30px; color: var(--muted);" data-i18n="waiting_upload">等待上传图片...</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
     <footer style="text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 40px;">
-      <p>完全本地处理，保护您的隐私。TrayBuddy Tools</p>
+      <p data-i18n="footer">完全本地处理，保护您的隐私。TrayBuddy Tools</p>
     </footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="../i18n-helper.js"></script>
   <script src="./app.js"></script>
+</body>
+</html>
 </body>
 </html>

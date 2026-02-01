@@ -1,0 +1,17 @@
+{
+  "title": "序列帧对齐工具",
+  "img1_label": "图片 1（固定基准）",
+  "img2_label": "图片 2（可调整）",
+  "select_img": "选择图片",
+  "dropzone_text": "拖拽图片到此处 或 <span>点击选择</span>",
+  "opacity": "透明度",
+  "scale": "缩放",
+  "preview_area": "预览区域",
+  "reset_pos": "重置位置",
+  "reset_view": "重置视图",
+  "waiting_upload": "请上传图片开始对齐",
+  "preview_zoom": "预览缩放:",
+  "zoom_fit": "适应",
+  "tips_title": "操作提示：",
+  "tips_content": "拖拽图片到对应区域上传 | 拖拽图片2调整位置 | 方向键微调(Shift加速) | Ctrl+滚轮缩放预览 | 滚轮缩放图片2"
+}

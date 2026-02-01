@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video2Timesheet - 视频提取序列帧工具</title>
+    <title data-i18n="title">Video2Timesheet - 视频提取序列帧工具</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -12,7 +12,7 @@
     <header>
         <div class="logo">Video2Timesheet</div>
         <div class="header-actions">
-            <button id="reset-btn" class="secondary hidden">重新开始</button>
+            <button id="reset-btn" class="secondary hidden" data-i18n="reset_btn">重新开始</button>
         </div>
     </header>
 
@@ -20,8 +20,8 @@
         <!-- Step 1: Upload -->
         <section id="upload-section" class="upload-section">
             <i data-lucide="upload-cloud" class="upload-icon"></i>
-            <h2>点击或拖拽视频文件到这里</h2>
-            <p style="color: var(--text-muted); margin-top: 0.5rem;">支持 MP4, WebM, MOV 等格式</p>
+            <h2 data-i18n="upload_title">点击或拖拽视频文件到这里</h2>
+            <p style="color: var(--text-muted); margin-top: 0.5rem;" data-i18n="upload_hint">支持 MP4, WebM, MOV 等格式</p>
             <input type="file" id="video-input" accept="video/*" class="hidden">
         </section>
 
@@ -44,23 +44,23 @@
 
                 <div class="controls-grid">
                     <div class="input-group">
-                        <label>帧率 (FPS) <span id="total-frames-estimate" style="color: var(--accent); margin-left: 10px;">(预计 0 帧)</span></label>
+                        <label><span data-i18n="fps_label">帧率 (FPS)</span> <span id="total-frames-estimate" style="color: var(--accent); margin-left: 10px;">(预计 0 帧)</span></label>
                         <input type="number" id="fps-input" value="12" min="1" max="60">
                     </div>
                     <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 0.5rem;">
-                        <button id="set-start-btn" class="secondary">设为起点</button>
-                        <button id="set-end-btn" class="secondary">设为终点</button>
-                        <button id="extract-btn">提取序列帧</button>
+                        <button id="set-start-btn" class="secondary" data-i18n="set_start">设为起点</button>
+                        <button id="set-end-btn" class="secondary" data-i18n="set_end">设为终点</button>
+                        <button id="extract-btn" data-i18n="extract_btn">提取序列帧</button>
                     </div>
                 </div>
             </div>
 
             <div id="results-card" class="card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3>提取结果 (<span id="frame-count">0</span> 帧)</h3>
+                    <h3><span data-i18n="results_title_prefix">提取结果</span> (<span id="frame-count">0</span> <span data-i18n="unit_frames">帧</span>)</h3>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button id="select-all" class="secondary">全选</button>
-                        <button id="deselect-all" class="secondary">反选</button>
+                        <button id="select-all" class="secondary" data-i18n="select_all">全选</button>
+                        <button id="deselect-all" class="secondary" data-i18n="deselect_all">反选</button>
                     </div>
                 </div>
                 
@@ -70,29 +70,29 @@
 
                 <div class="controls-grid" style="margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
                     <div class="input-group">
-                        <label>背景剔除颜色 (点击预览图大图拾取)</label>
+                        <label data-i18n="bg_remove_label">背景剔除颜色 (点击预览图大图拾取)</label>
                         <div class="color-picker-container">
                             <div id="color-preview" class="color-preview" style="background: transparent;"></div>
                             <input type="text" id="color-hex" placeholder="#000000" style="width: 100px;">
-                            <button id="open-picker-btn" class="secondary">打开拾色器</button>
+                            <button id="open-picker-btn" class="secondary" data-i18n="open_picker">打开拾色器</button>
                         </div>
                     </div>
                     <div class="input-group">
-                        <label>容差 (0-100)</label>
+                        <label data-i18n="tolerance_label">容差 (0-100)</label>
                         <input type="number" id="tolerance-input" value="20" min="0" max="100">
                     </div>
                     <div class="input-group">
-                        <label>边缘平滑 (羽化)</label>
+                        <label data-i18n="feather_label">边缘平滑 (羽化)</label>
                         <input type="number" id="feather-input" value="10" min="0" max="100">
                     </div>
                     <div class="input-group">
-                        <label>溢色移除 (抑制)</label>
+                        <label data-i18n="spill_label">溢色移除 (抑制)</label>
                         <input type="number" id="spill-input" value="20" min="0" max="100">
                     </div>
                     <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 1rem; grid-column: 1 / -1;">
-                        <button id="reset-bg" class="secondary">重置图片</button>
-                        <button id="apply-chroma" class="secondary">背景色剔除</button>
-                        <button id="export-btn">导出序列帧</button>
+                        <button id="reset-bg" class="secondary" data-i18n="reset_img">重置图片</button>
+                        <button id="apply-chroma" class="secondary" data-i18n="bg_remove_btn">背景色剔除</button>
+                        <button id="export-btn" data-i18n="export_btn">导出序列帧</button>
                     </div>
                 </div>
             </div>
@@ -100,7 +100,7 @@
             <!-- Preview Carousel -->
             <div id="preview-card" class="card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3>预览轮播</h3>
+                    <h3 data-i18n="preview_title">预览轮播</h3>
                     <span id="preview-info" style="color: var(--text-muted); font-size: 0.9rem;">第 0 / 0 帧</span>
                 </div>
                 <div class="preview-container">
@@ -110,19 +110,19 @@
                     </div>
                     <div class="controls-grid" style="width: 100%;">
                         <div class="input-group">
-                            <label>播放模式</label>
+                            <label data-i18n="play_mode_label">播放模式</label>
                             <select id="play-mode" style="background: #0f172a; color: white; border: 1px solid var(--border); padding: 0.75rem; border-radius: 0.5rem;">
-                                <option value="forward">顺序播放</option>
-                                <option value="backward">倒序播放</option>
-                                <option value="pingpong">乒乓播放</option>
+                                <option value="forward" data-i18n="mode_forward">顺序播放</option>
+                                <option value="backward" data-i18n="mode_backward">倒序播放</option>
+                                <option value="pingpong" data-i18n="mode_pingpong">乒乓播放</option>
                             </select>
                         </div>
                         <div class="input-group">
-                            <label>播放速度 (FPS)</label>
+                            <label data-i18n="speed_label">播放速度 (FPS)</label>
                             <input type="number" id="preview-fps" value="12" min="1" max="60">
                         </div>
                         <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 0.5rem;">
-                            <button id="toggle-play" class="secondary">播放/暂停</button>
+                            <button id="toggle-play" class="secondary" data-i18n="play">播放</button>
                         </div>
                     </div>
                 </div>
@@ -132,13 +132,14 @@
 
     <div id="loading-overlay" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;">
         <div style="border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
-        <p id="loading-text" style="margin-top: 1rem; color: white;">正在处理...</p>
+        <p id="loading-text" style="margin-top: 1rem; color: white;" data-i18n="processing">正在处理...</p>
     </div>
 
     <style>
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 
+    <script src="../i18n-helper.js"></script>
     <script src="app.js"></script>
     <script>
         lucide.createIcons();

@@ -9,7 +9,7 @@ const frameWInput = document.getElementById('frame-w');
 const frameHInput = document.getElementById('frame-h');
 const fpsInput = document.getElementById('fps');
 const fpsVal = document.getElementById('fps-val');
-const frameSizeLabel = document.getElementById('frame-size');
+const frameSizeLabel = document.getElementById('frame-size-container');
 const resetBtn = document.getElementById('reset-btn');
 const uploadText = document.getElementById('upload-text');
 
@@ -46,14 +46,15 @@ tabBtns.forEach(btn => {
         resetToUpload();
         
         if (currentMode === 'spritesheet') {
-            uploadText.textContent = '点击或拖拽 Sprite Sheet 到这里';
+            uploadText.setAttribute('data-i18n', 'upload_text_sheet');
             gridSettings.style.display = 'block';
             frameSettings.style.display = 'block';
         } else {
-            uploadText.textContent = '点击或拖拽一组 PNG 图片到这里';
+            uploadText.setAttribute('data-i18n', 'upload_text_pngs');
             gridSettings.style.display = 'none';
             frameSettings.style.display = 'none';
         }
+        if (window.i18n) window.i18n.updateDOM();
     };
 });
 
@@ -146,7 +147,9 @@ function initMultiPreview() {
     spriteView.style.backgroundImage = `url(${frameImages[0].url})`;
     spriteView.style.backgroundSize = 'contain';
     spriteView.style.backgroundPosition = 'center';
-    frameSizeLabel.textContent = `${firstFrame.width} x ${firstFrame.height}`;
+    
+    frameSizeLabel.setAttribute('data-i18n-size', `${firstFrame.width} x ${firstFrame.height}`);
+    if (window.i18n) window.i18n.updateDOM();
     
     startAnimation();
 }
@@ -160,7 +163,9 @@ function updatePreviewLayout() {
     spriteView.style.width = `${frameW}px`;
     spriteView.style.height = `${frameH}px`;
     spriteView.style.backgroundSize = `${img.width}px ${img.height}px`;
-    frameSizeLabel.textContent = `${frameW} x ${frameH}`;
+    
+    frameSizeLabel.setAttribute('data-i18n-size', `${frameW} x ${frameH}`);
+    if (window.i18n) window.i18n.updateDOM();
 }
 
 function animate(timestamp) {
@@ -252,7 +257,11 @@ function startAnimation() {
 });
 
 fpsInput.oninput = () => {
-    fpsVal.textContent = fpsInput.value;
+    const label = fpsInput.parentElement.querySelector('[data-i18n="fps_label"]');
+    if (label) {
+        label.setAttribute('data-i18n-n', fpsInput.value);
+        if (window.i18n) window.i18n.updateDOM();
+    }
 };
 
 resetBtn.onclick = () => {
@@ -281,3 +290,14 @@ forwardBtn.onclick = () => setPlayMode('forward');
 reverseBtn.onclick = () => setPlayMode('reverse');
 pingpongBtn.onclick = () => setPlayMode('pingpong');
 pingpongReverseBtn.onclick = () => setPlayMode('pingpong-reverse');
+
+// 初始化 i18n
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.i18n) {
+        window.i18n.init();
+    }
+});
+
+window.addEventListener('languageChanged', () => {
+    // 这里可以添加语言切换后的额外逻辑
+});

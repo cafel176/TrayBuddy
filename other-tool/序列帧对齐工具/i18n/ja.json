@@ -1,0 +1,17 @@
+{
+  "title": "シーケンスフレーム位置合わせツール",
+  "img1_label": "画像 1 (固定基準)",
+  "img2_label": "画像 2 (調整可能)",
+  "select_img": "画像を選択",
+  "dropzone_text": "画像をドラッグ＆ドロップ または <span>クリックして選択</span>",
+  "opacity": "不透明度",
+  "scale": "スケール",
+  "preview_area": "プレビューエリア",
+  "reset_pos": "位置リセット",
+  "reset_view": "ビューリセット",
+  "waiting_upload": "画像をアップロードして開始",
+  "preview_zoom": "表示倍率:",
+  "zoom_fit": "フィット",
+  "tips_title": "操作ヒント：",
+  "tips_content": "ドラッグでアップロード | 画像2をドラッグして移動 | 矢印キーで微調整(Shiftで加速) | Ctrl+ホイールでプレビュー拡大縮小 | ホイールで画像2をスケール"
+}
