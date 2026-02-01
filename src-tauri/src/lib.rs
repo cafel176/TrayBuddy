@@ -2638,11 +2638,18 @@ fn determine_event_type(
     }
 }
 
+
 /// 检测当前会话是否未锁定（用户在桌面上）
+/// 
+/// 兼容性说明：
+/// - Windows 10/11: 检测 "Windows.UI.Core.CoreWindow" 和 "ApplicationFrameWindow" 类名
+/// - Windows 8/8.1: 检测 "LockScreen" 类名
+/// - Windows 7: 检测 "LogonUI" 窗口进程
 #[cfg(target_os = "windows")]
 fn is_user_logged_in_desktop() -> bool {
+    use crate::modules::utils::os_version::{get_windows_version, WindowsVersion};
     use windows::Win32::Foundation::HWND;
-    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetForegroundWindow};
+    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetForegroundWindow, GetWindowThreadProcessId};
 
     unsafe {
         // 检查是否有前台窗口
@@ -2654,24 +2661,75 @@ fn is_user_logged_in_desktop() -> bool {
             return false;
         }
 
-        // 进一步检查：检查窗口类名
-        // 锁屏窗口的类名通常是 "Windows.UI.Core.CoreWindow"
+        // 获取窗口类名
         let mut class_name = [0u16; 256];
         if GetClassNameW(hwnd, &mut class_name) > 0 {
             let len = class_name.iter().position(|&x| x == 0).unwrap_or(class_name.len());
             let class_str = String::from_utf16_lossy(&class_name[..len]);
 
             // 锁屏窗口的类名判断
-            // 内存优化：使用直接的字节比较而不是 String contains
-            if class_str.contains("Windows.UI.Core.CoreWindow") ||
-               class_str.contains("ApplicationFrameWindow") ||
-               class_str.contains("LockScreen") {
+            // Windows 10/11: "Windows.UI.Core.CoreWindow", "ApplicationFrameWindow"
+            // Windows 8/8.1: "LockScreen", "LockAppHost"
+            // Windows 7: "LogonUI" (需要通过进程名检测)
+            if class_str.contains("Windows.UI.Core.CoreWindow")
+                || class_str.contains("ApplicationFrameWindow")
+                || class_str.contains("LockScreen")
+                || class_str.contains("LockAppHost")
+            {
                 return false;
+            }
+
+            // Windows 7 特殊处理：检测 LogonUI 窗口
+            let win_ver = get_windows_version();
+            if win_ver.is_win7() {
+                // Windows 7 锁屏窗口类名可能是 "#32770" (对话框) 或其他
+                // 更可靠的方法是检测进程名是否为 LogonUI.exe
+                let mut pid: u32 = 0;
+                GetWindowThreadProcessId(hwnd, Some(&mut pid));
+                if pid > 0 {
+                    if let Some(name) = get_process_name_by_pid(pid) {
+                        if name.to_lowercase().contains("logonui") {
+                            return false;
+                        }
+                    }
+                }
             }
         }
 
         // 有前台窗口且不是锁屏窗口，认为已登录
         true
+    }
+}
+
+/// 根据 PID 获取进程名（用于 Windows 7 锁屏检测）
+#[cfg(target_os = "windows")]
+fn get_process_name_by_pid(pid: u32) -> Option<String> {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+
+        let mut buffer = [0u16; 260];
+        let mut size = buffer.len() as u32;
+
+        let result = QueryFullProcessImageNameW(
+            handle,
+            PROCESS_NAME_WIN32,
+            windows::core::PWSTR(buffer.as_mut_ptr()),
+            &mut size,
+        );
+
+        let _ = CloseHandle(handle);
+
+        if result.is_ok() {
+            let path = String::from_utf16_lossy(&buffer[..size as usize]);
+            path.rsplit('\\').next().map(|s| s.to_string())
+        } else {
+            None
+        }
     }
 }
 

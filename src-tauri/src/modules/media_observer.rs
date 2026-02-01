@@ -356,13 +356,9 @@ impl MediaObserver {
         skip_delay: bool,
     ) {
         use crate::modules::constants::MEDIA_EVENT_STARTUP_DELAY_SECS;
+        use crate::modules::utils::os_version::is_gsmtc_available;
         use std::sync::atomic::Ordering;
         use tokio::sync::mpsc as tokio_mpsc;
-        use windows::Foundation::TypedEventHandler;
-        use windows::Media::Control::{
-            GlobalSystemMediaTransportControlsSession,
-            GlobalSystemMediaTransportControlsSessionManager, SessionsChangedEventArgs,
-        };
 
         // 记录启动时间
         if let Ok(mut guard) = OBSERVER_START_TIME.lock() {
@@ -384,12 +380,27 @@ impl MediaObserver {
             return;
         }
 
+        // 检查 GSMTC 是否可用（Windows 10 1809+）
+        // Windows 7/8/8.1 不支持 GSMTC，仅使用 Core Audio API
+        let gsmtc_supported = is_gsmtc_available();
+
+        #[cfg(debug_assertions)]
+        if !gsmtc_supported {
+            println!("[MediaObserver] GSMTC 不可用（需要 Windows 10 1809+），仅使用 Core Audio API");
+        }
+
         // 获取 GSMTC 媒体会话管理器（可选，用于获取元数据）
-        let gsmtc_manager = tokio::task::block_in_place(|| {
-            GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
-                .ok()
-                .and_then(|op| op.get().ok())
-        });
+        // 仅在支持的系统上尝试初始化
+        let gsmtc_manager = if gsmtc_supported {
+            tokio::task::block_in_place(|| {
+                use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
+                GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
+                    .ok()
+                    .and_then(|op| op.get().ok())
+            })
+        } else {
+            None
+        };
 
         // 创建内部事件通道
         let (internal_tx, mut internal_rx) = tokio_mpsc::unbounded_channel::<()>();
@@ -400,6 +411,10 @@ impl MediaObserver {
         // 注册 GSMTC 事件（如果可用）
         let sessions_token: Option<windows::Foundation::EventRegistrationToken> =
             if let Some(ref manager) = gsmtc_manager {
+                use windows::Foundation::TypedEventHandler;
+                use windows::Media::Control::{
+                    GlobalSystemMediaTransportControlsSessionManager, SessionsChangedEventArgs,
+                };
                 let internal_tx_sessions = internal_tx.clone();
                 let sessions_handler = TypedEventHandler::<
                     GlobalSystemMediaTransportControlsSessionManager,

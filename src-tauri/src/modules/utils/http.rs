@@ -1,4 +1,10 @@
 //! HTTP 请求工具函数
+//!
+//! 兼容性说明：
+//! - Windows 10 1803+: 优先使用系统自带的 curl
+//! - Windows 7/8/8.1: 回退到 PowerShell（需要 TLS 1.2 支持）
+//!   - Windows 7 需要安装 KB3140245 补丁才能支持 TLS 1.2
+//!   - 如果 TLS 1.2 不可用，HTTPS 请求可能失败
 
 use std::process::Command;
 
@@ -23,35 +29,54 @@ pub fn http_get(
 ) -> Result<String, String> {
     #[cfg(windows)]
     {
+        use super::os_version::{get_windows_version, WindowsVersion};
+
         const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        // 优先使用 curl（Windows 10+ 自带，UTF-8 输出正常）
-        let curl_result = Command::new("curl")
-            .args(["-s", "--max-time", &timeout_secs.to_string(), url])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output();
+        // Windows 10 1803+ 自带 curl，优先尝试
+        // Windows 7/8 没有 curl，直接使用 PowerShell
+        let win_ver = get_windows_version();
+        let try_curl = win_ver.is_at_least(&WindowsVersion {
+            major: 10,
+            minor: 0,
+            build: 17134, // Windows 10 1803
+        });
 
-        if let Ok(output) = curl_result {
-            if output.status.success() {
-                let body = String::from_utf8_lossy(&output.stdout).to_string();
-                // 检查内容有效性
-                if let Some(check) = content_check {
-                    if !body.is_empty() && body.contains(check) {
+        if try_curl {
+            let curl_result = Command::new("curl")
+                .args(["-s", "--max-time", &timeout_secs.to_string(), url])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output();
+
+            if let Ok(output) = curl_result {
+                if output.status.success() {
+                    let body = String::from_utf8_lossy(&output.stdout).to_string();
+                    // 检查内容有效性
+                    if let Some(check) = content_check {
+                        if !body.is_empty() && body.contains(check) {
+                            return Ok(body);
+                        }
+                    } else if !body.is_empty() {
                         return Ok(body);
                     }
-                } else if !body.is_empty() {
-                    return Ok(body);
                 }
             }
         }
 
-        // curl 失败时使用 PowerShell，并设置 UTF-8 编码
+        // curl 不可用或失败时使用 PowerShell
+        // 强制启用 TLS 1.2（Windows 7 需要 KB3140245 补丁）
+        // 同时尝试启用 TLS 1.1 和 TLS 1.0 作为回退（更好的兼容性）
         let use_tls = url.starts_with("https");
         let ps_command = if use_tls {
             format!(
-                "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
-                 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-                 (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
+                "try {{ \
+                    [Net.ServicePointManager]::SecurityProtocol = \
+                        [Net.SecurityProtocolType]::Tls12 -bor \
+                        [Net.SecurityProtocolType]::Tls11 -bor \
+                        [Net.SecurityProtocolType]::Tls \
+                }} catch {{ }}; \
+                [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+                (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
                 url, timeout_secs
             )
         } else {
@@ -63,7 +88,7 @@ pub fn http_get(
         };
 
         let output = Command::new("powershell")
-            .args(["-Command", &ps_command])
+            .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
             .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| format!("Failed to execute request: {}", e))?;
