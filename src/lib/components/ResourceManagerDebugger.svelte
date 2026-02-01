@@ -64,8 +64,11 @@
     can_trigger_states: { state: string; weight: number }[];
     trigger_time: number;
     trigger_rate: number;
+    mod_data_counter: { op: string; value: number } | null;
+    branch_show_bubble: boolean;
     branch: { text: string; next_state: string }[];
   }
+
 
   interface TriggerStateGroup {
     persistent_state: string;
@@ -96,10 +99,13 @@
     default_text_lang_id: string;
     character: CharacterConfig;
     border: BorderConfig;
+    show_mod_data_panel: boolean;
+    mod_data_default_int: number;
     important_states: Record<string, StateInfo>;
     states: StateInfo[];
     triggers: TriggerInfo[];
   }
+
 
   interface AudioInfo {
     name: string;
@@ -465,7 +471,20 @@
                   >{currentModInfo.manifest.default_text_lang_id}</span
                 >
               </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.showModDataPanel")}</span>
+                <span class="info-value"
+                  >{currentModInfo.manifest.show_mod_data_panel ? _("common.yes") : _("common.no")}</span
+                >
+              </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.modDataDefaultInt")}</span>
+                <span class="info-value"
+                  >{currentModInfo.manifest.mod_data_default_int}</span
+                >
+              </div>
             </div>
+
 
             <h5>{_("resource.characterConfig")}</h5>
             <div class="info-grid compact">
@@ -612,7 +631,20 @@
                             })}
                           </div>
                         {/if}
+                        {#if state.mod_data_counter}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.modDataCounter")}</span>
+                            <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
+                          </div>
+                        {/if}
+                        {#if !state.branch_show_bubble}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.branchShowBubble")}</span>
+                            {_("common.no")}
+                          </div>
+                        {/if}
                         {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+
                           <div class="detail-item">
                             <span class="detail-label"
                               >{_("resource.triggerable")}</span
@@ -717,7 +749,20 @@
                             })}
                           </div>
                         {/if}
+                        {#if state.mod_data_counter}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.modDataCounter")}</span>
+                            <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
+                          </div>
+                        {/if}
+                        {#if !state.branch_show_bubble}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.branchShowBubble")}</span>
+                            {_("common.no")}
+                          </div>
+                        {/if}
                         {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+
                           <div class="detail-item">
                             <span class="detail-label"
                               >{_("resource.triggerable")}</span
@@ -837,7 +882,20 @@
                               })}
                             </div>
                           {/if}
+                          {#if state.mod_data_counter}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.modDataCounter")}</span>
+                              <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
+                            </div>
+                          {/if}
+                          {#if !state.branch_show_bubble}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.branchShowBubble")}</span>
+                              {_("common.no")}
+                            </div>
+                          {/if}
                           {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+
                             <div class="detail-item">
                               <span class="detail-label"
                                 >{_("resource.triggerable")}</span
@@ -945,7 +1003,20 @@
                               })}
                             </div>
                           {/if}
+                          {#if state.mod_data_counter}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.modDataCounter")}</span>
+                              <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
+                            </div>
+                          {/if}
+                          {#if !state.branch_show_bubble}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.branchShowBubble")}</span>
+                              {_("common.no")}
+                            </div>
+                          {/if}
                           {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+
                             <div class="detail-item">
                               <span class="detail-label"
                                 >{_("resource.triggerable")}</span
@@ -1616,6 +1687,13 @@
     border-color: #1abc9c;
     color: #16a085;
   }
+
+  .tag.counter-tag {
+    background: #fdf2e9;
+    border-color: #e67e22;
+    color: #d35400;
+  }
+
 
   /* 状态分类折叠 */
   .state-category {

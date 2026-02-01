@@ -60,7 +60,10 @@
     total_usage_seconds: number;
     /** 总点击次数 */
     total_click_count: number;
+    /** 各 Mod 的数据 */
+    mod_data: Record<string, { mod_id: string; value: number }>;
   }
+
 
   // ======================================================================= //
   // 响应式状态
@@ -281,7 +284,19 @@
       <span class="value">{info.total_click_count} {_("info.times")}</span>
     </div>
 
+    <!-- Mod 专属数据 -->
+    {#if info.mod_data && Object.keys(info.mod_data).length > 0}
+      <div class="divider">{_("info.modData")}</div>
+      {#each Object.entries(info.mod_data) as [modId, data]}
+        <div class="data-row">
+          <span class="label">{modId}</span>
+          <span class="value">{_("info.modDataValue")}: {data.value}</span>
+        </div>
+      {/each}
+    {/if}
+
     <!-- 保存按钮 -->
+
     <div class="actions">
       <button class="save-btn" onclick={saveInfo} disabled={saving}>
         {saving ? _("common.saving") : _("common.save")}

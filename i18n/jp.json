@@ -182,7 +182,10 @@
     "launchCount": "起動回数:",
     "totalUsage": "累計使用時間:",
     "totalClicks": "総クリック数:",
+    "modData": "Mod 固有データ",
+    "modDataValue": "数値",
     "times": "回",
+
     "durationSeconds": "{count} 秒",
     "durationMinutes": "{count} 分",
     "durationMinutesAndSeconds": "{minutes} 分 {seconds} 秒",
@@ -275,7 +278,10 @@
     "modName": "Mod名",
     "defaultAudio": "デフォルト音声",
     "defaultText": "デフォルトテキスト",
+    "showModDataPanel": "データパネルを表示",
+    "modDataDefaultInt": "初期データ値",
     "characterConfig": "キャラクター設定",
+
     "borderConfig": "枠線設定",
     "enable": "有効",
     "animation": "アニメーション",
@@ -295,7 +301,10 @@
     "timeLabel": "時刻:",
     "timerLabel": "タイマー:",
     "timerDesc": "{interval}秒ごとに検出、確率 {chance}%",
+    "modDataCounter": "データカウンター:",
+    "branchShowBubble": "選択肢吹き出しを表示",
     "triggerable": "トリガー可能:",
+
     "branchLabel": "分岐:",
     "otherStates": "その他の状態",
     "triggers": "トリガー",
@@ -336,7 +345,10 @@
     "animationLabel": "アニメーション:",
     "audioLabel": "音声:",
     "textLabel": "テキスト:",
+    "modDataCounterLabel": "データカウンター:",
+    "branchShowBubbleLabel": "選択肢吹き出しを表示:",
     "nextStateLabel": "次の状態:",
+
     "branchOptionsLabel": "分岐オプション:",
     "noNext": "なし (永続状態に戻る)",
     "frontendStatus": "フロントエンド再生状態",

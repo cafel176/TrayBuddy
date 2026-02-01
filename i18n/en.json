@@ -182,7 +182,10 @@
     "launchCount": "Launch count:",
     "totalUsage": "Total usage:",
     "totalClicks": "Total clicks:",
+    "modData": "Mod Specific Data",
+    "modDataValue": "Value",
     "times": "times",
+
     "durationSeconds": "{count} seconds",
     "durationMinutes": "{count} minutes",
     "durationMinutesAndSeconds": "{minutes} minutes {seconds} seconds",
@@ -275,7 +278,10 @@
     "modName": "Mod Name",
     "defaultAudio": "Default Audio",
     "defaultText": "Default Text",
+    "showModDataPanel": "Show Data Panel",
+    "modDataDefaultInt": "Default Data Value",
     "characterConfig": "Character Config",
+
     "borderConfig": "Border Config",
     "enable": "Enable",
     "animation": "Animation",
@@ -295,7 +301,10 @@
     "timeLabel": "Time:",
     "timerLabel": "Timer:",
     "timerDesc": "Every {interval}s, {chance}% chance",
+    "modDataCounter": "Data Counter:",
+    "branchShowBubble": "Show Branch Bubble",
     "triggerable": "Triggerable:",
+
     "branchLabel": "Branch:",
     "otherStates": "Other States",
     "triggers": "Triggers",
@@ -336,7 +345,10 @@
     "animationLabel": "Animation:",
     "audioLabel": "Audio:",
     "textLabel": "Text:",
+    "modDataCounterLabel": "Data Counter:",
+    "branchShowBubbleLabel": "Show Branch Bubble:",
     "nextStateLabel": "Next state:",
+
     "branchOptionsLabel": "Branch options:",
     "noNext": "None (returns to persistent)",
     "frontendStatus": "Frontend Playback Status",

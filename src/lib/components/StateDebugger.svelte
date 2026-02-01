@@ -289,7 +289,16 @@
               <span class="label">{_("state.nextStateLabel")}</span>
               <span class="next-state-value">{currentState.next_state}</span>
             </div>{/if}
+          {#if currentState.mod_data_counter}<div class="detail-row">
+              <span class="label">{_("state.modDataCounterLabel")}</span>
+              <span class="counter-value">{currentState.mod_data_counter.op} {currentState.mod_data_counter.value}</span>
+            </div>{/if}
+          {#if currentState.branch_show_bubble === false}<div class="detail-row">
+              <span class="label">{_("state.branchShowBubbleLabel")}</span>
+              <span class="bubble-value">{_("common.no")}</span>
+            </div>{/if}
         </div>
+
         <!-- 对话分支信息 (如果有) -->
         {#if currentState.branch && currentState.branch.length > 0}
           <div class="branch-info">
@@ -422,7 +431,7 @@
                 >→{state.next_state}</span
               >
             {/if}
-            {#if (state.trigger_time ?? 0) > 0}
+            {#if (state.trigger_rate ?? 0) > 0 && (state.trigger_time ?? 0) > 0}
               <span
                 class="extra-tag timer"
                 title={_("state.timerTooltip", {
@@ -431,7 +440,22 @@
                 })}>⏱{state.trigger_time}s</span
               >
             {/if}
+            {#if state.mod_data_counter}
+              <span
+                class="extra-tag counter"
+                title={_("state.modDataCounterLabel") + " " + state.mod_data_counter.op + " " + state.mod_data_counter.value}
+                >🔢{state.mod_data_counter.op}</span
+              >
+            {/if}
+            {#if state.branch_show_bubble === false}
+              <span
+                class="extra-tag no-bubble"
+                title={_("state.branchShowBubbleLabel") + " " + _("common.no")}
+                >🚫💬</span
+              >
+            {/if}
             {#if state.can_trigger_states && state.can_trigger_states.length > 0}
+
               <span
                 class="extra-tag trigger"
                 title={_("state.triggerableTooltip", {
@@ -644,6 +668,17 @@
     font-weight: bold;
   }
 
+  .counter-value {
+    color: #e67e22;
+    font-weight: bold;
+  }
+
+  .bubble-value {
+    color: #e74c3c;
+    font-weight: bold;
+  }
+
+
   .empty {
     color: #bdc3c7;
     font-style: italic;
@@ -824,7 +859,16 @@
     background: #fef9e7;
     color: #b7950b;
   }
+  .extra-tag.counter {
+    background: #fdf2e9;
+    color: #d35400;
+  }
+  .extra-tag.no-bubble {
+    background: #fdedec;
+    color: #c0392b;
+  }
   .extra-tag.trigger {
+
     background: #eafaf1;
     color: #1e8449;
   }

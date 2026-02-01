@@ -182,7 +182,10 @@
     "launchCount": "启动次数:",
     "totalUsage": "累计使用:",
     "totalClicks": "点击次数:",
+    "modData": "Mod 专属数据",
+    "modDataValue": "数值",
     "times": "次",
+
     "durationSeconds": "{count} 秒",
     "durationMinutes": "{count} 分钟",
     "durationMinutesAndSeconds": "{minutes} 分钟 {seconds} 秒",
@@ -274,7 +277,10 @@
     "author": "作者",
     "defaultAudio": "默认语音",
     "defaultText": "默认文本",
+    "showModDataPanel": "显示数据面板",
+    "modDataDefaultInt": "初始数据值",
     "characterConfig": "角色配置",
+
     "borderConfig": "边框配置",
     "enable": "启用",
     "animation": "动画",
@@ -294,7 +300,10 @@
     "timeLabel": "时间:",
     "timerLabel": "定时:",
     "timerDesc": "每 {interval}s 检测, 概率 {chance}%",
+    "modDataCounter": "数据计数器:",
+    "branchShowBubble": "显示分支气泡",
     "triggerable": "可触发:",
+
     "branchLabel": "分支:",
     "otherStates": "其他状态",
     "triggers": "触发器",
@@ -335,7 +344,10 @@
     "animationLabel": "动画:",
     "audioLabel": "音频:",
     "textLabel": "文本:",
+    "modDataCounterLabel": "数据计数器:",
+    "branchShowBubbleLabel": "显示分支气泡:",
     "nextStateLabel": "后续状态:",
+
     "branchOptionsLabel": "分支选项:",
     "noNext": "无 (将回到持久状态)",
     "frontendStatus": "前端播放状态",

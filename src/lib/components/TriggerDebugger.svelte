@@ -294,7 +294,16 @@
               <span class="label">{_("state.nextStateLabel")}</span>
               <span class="next-state-value">{currentState.next_state}</span>
             </div>{/if}
+          {#if currentState.mod_data_counter}<div class="detail-row">
+              <span class="label">{_("state.modDataCounterLabel")}</span>
+              <span class="counter-value">{currentState.mod_data_counter.op} {currentState.mod_data_counter.value}</span>
+            </div>{/if}
+          {#if currentState.branch_show_bubble === false}<div class="detail-row">
+              <span class="label">{_("state.branchShowBubbleLabel")}</span>
+              <span class="bubble-value">{_("common.no")}</span>
+            </div>{/if}
         </div>
+
         <!-- 对话分支信息 (如果有) -->
         {#if currentState.branch && currentState.branch.length > 0}
           <div class="branch-info">
@@ -658,6 +667,17 @@
     color: #9b59b6;
     font-weight: bold;
   }
+
+  .counter-value {
+    color: #e67e22;
+    font-weight: bold;
+  }
+
+  .bubble-value {
+    color: #e74c3c;
+    font-weight: bold;
+  }
+
 
   .branch-info {
     margin-top: 8px;
