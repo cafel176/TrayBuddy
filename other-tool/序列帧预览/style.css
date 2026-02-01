@@ -36,7 +36,37 @@ header h1 {
     -webkit-text-fill-color: transparent;
 }
 
+.tabs {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.tab-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: #94a3b8;
+    padding: 10px 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
 .upload-section {
+
     border: 2px dashed var(--border);
     border-radius: 24px;
     padding: 4rem 2rem;

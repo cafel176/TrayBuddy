@@ -1,5 +1,6 @@
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
+const multiFileInput = document.getElementById('multi-file-input');
 const appContent = document.getElementById('app-content');
 const spriteView = document.getElementById('sprite-view');
 const rowsInput = document.getElementById('rows');
@@ -10,28 +11,84 @@ const fpsInput = document.getElementById('fps');
 const fpsVal = document.getElementById('fps-val');
 const frameSizeLabel = document.getElementById('frame-size');
 const resetBtn = document.getElementById('reset-btn');
-
-let img = new Image();
-let currentFrame = 0;
-let animationId = null;
-let lastTimestamp = 0;
-let playMode = 'forward'; // forward, reverse, pingpong, pingpong-reverse
-let pingpongDirection = 1; // 乒乓模式当前方向: 1正向, -1反向
+const uploadText = document.getElementById('upload-text');
 
 const forwardBtn = document.getElementById('forward-btn');
 const reverseBtn = document.getElementById('reverse-btn');
 const pingpongBtn = document.getElementById('pingpong-btn');
 const pingpongReverseBtn = document.getElementById('pingpong-reverse-btn');
 
+const gridSettings = document.getElementById('grid-settings');
+
+const frameSettings = document.getElementById('frame-settings');
+const tabBtns = document.querySelectorAll('.tab-btn');
+
+let currentMode = 'spritesheet'; // spritesheet, png-series
+let img = new Image();
+let frameImages = []; // 用于 png-series 模式
+let currentFrame = 0;
+let animationId = null;
+let lastTimestamp = 0;
+let playMode = 'forward'; // forward, reverse, pingpong, pingpong-reverse
+let pingpongDirection = 1; // 乒乓模式当前方向: 1正向, -1反向
+
+// 模式切换
+tabBtns.forEach(btn => {
+    btn.onclick = () => {
+        const mode = btn.dataset.mode;
+        if (mode === currentMode) return;
+
+        currentMode = mode;
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // 重置上传区域
+        resetToUpload();
+        
+        if (currentMode === 'spritesheet') {
+            uploadText.textContent = '点击或拖拽 Sprite Sheet 到这里';
+            gridSettings.style.display = 'block';
+            frameSettings.style.display = 'block';
+        } else {
+            uploadText.textContent = '点击或拖拽一组 PNG 图片到这里';
+            gridSettings.style.display = 'none';
+            frameSettings.style.display = 'none';
+        }
+    };
+});
+
+function resetToUpload() {
+    if (animationId) cancelAnimationFrame(animationId);
+    dropZone.style.display = 'block';
+    appContent.style.display = 'none';
+    img = new Image();
+    frameImages = [];
+    currentFrame = 0;
+    fileInput.value = '';
+    multiFileInput.value = '';
+}
+
 // 上传处理
-dropZone.onclick = () => fileInput.click();
+dropZone.onclick = () => {
+    if (currentMode === 'spritesheet') {
+        fileInput.click();
+    } else {
+        multiFileInput.click();
+    }
+};
+
 fileInput.onchange = (e) => handleFile(e.target.files[0]);
+multiFileInput.onchange = (e) => handleMultiFiles(e.target.files);
 
 dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = '#ff6b6b'; };
 dropZone.ondragleave = () => { dropZone.style.borderColor = 'rgba(255, 255, 255, 0.1)'; };
 dropZone.ondrop = (e) => {
     e.preventDefault();
-    handleFile(e.dataTransfer.files[0]);
+    if (currentMode === 'spritesheet') {
+        handleFile(e.dataTransfer.files[0]);
+    } else {
+        handleMultiFiles(e.dataTransfer.files);
+    }
 };
 
 function handleFile(file) {
@@ -43,6 +100,25 @@ function handleFile(file) {
         img.onload = initPreview;
     };
     reader.readAsDataURL(file);
+}
+
+async function handleMultiFiles(files) {
+    const fileList = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (fileList.length === 0) return;
+
+    // 自然排序
+    fileList.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+    frameImages = [];
+    for (const file of fileList) {
+        const url = URL.createObjectURL(file);
+        const frameImg = new Image();
+        frameImg.src = url;
+        await new Promise(resolve => frameImg.onload = resolve);
+        frameImages.push({ img: frameImg, url: url });
+    }
+
+    initMultiPreview();
 }
 
 function initPreview() {
@@ -60,7 +136,24 @@ function initPreview() {
     startAnimation();
 }
 
+function initMultiPreview() {
+    dropZone.style.display = 'none';
+    appContent.style.display = 'grid';
+    
+    const firstFrame = frameImages[0].img;
+    spriteView.style.width = `${firstFrame.width}px`;
+    spriteView.style.height = `${firstFrame.height}px`;
+    spriteView.style.backgroundImage = `url(${frameImages[0].url})`;
+    spriteView.style.backgroundSize = 'contain';
+    spriteView.style.backgroundPosition = 'center';
+    frameSizeLabel.textContent = `${firstFrame.width} x ${firstFrame.height}`;
+    
+    startAnimation();
+}
+
 function updatePreviewLayout() {
+    if (currentMode !== 'spritesheet') return;
+
     const frameW = parseInt(frameWInput.value) || 1;
     const frameH = parseInt(frameHInput.value) || 1;
     
@@ -73,11 +166,24 @@ function updatePreviewLayout() {
 function animate(timestamp) {
     const fps = parseInt(fpsInput.value);
     const interval = 1000 / fps;
-    const rows = parseInt(rowsInput.value) || 1;
-    const cols = parseInt(colsInput.value) || 1;
-    const frameW = parseInt(frameWInput.value) || (img.width / cols);
-    const frameH = parseInt(frameHInput.value) || (img.height / rows);
-    const totalFrames = rows * cols;
+    
+    let totalFrames = 0;
+    let rows = 1;
+    let cols = 1;
+    let frameW = 0;
+    let frameH = 0;
+
+    if (currentMode === 'spritesheet') {
+        rows = parseInt(rowsInput.value) || 1;
+        cols = parseInt(colsInput.value) || 1;
+        frameW = parseInt(frameWInput.value) || (img.width / cols);
+        frameH = parseInt(frameHInput.value) || (img.height / rows);
+        totalFrames = rows * cols;
+    } else {
+        totalFrames = frameImages.length;
+    }
+
+    if (totalFrames === 0) return;
 
     if (timestamp - lastTimestamp > interval) {
         if (playMode === 'forward') {
@@ -85,7 +191,6 @@ function animate(timestamp) {
         } else if (playMode === 'reverse') {
             currentFrame = (currentFrame - 1 + totalFrames) % totalFrames;
         } else if (playMode === 'pingpong') {
-            // 乒乓模式：正序开始
             currentFrame += pingpongDirection;
             if (currentFrame >= totalFrames - 1) {
                 currentFrame = totalFrames - 1;
@@ -95,7 +200,6 @@ function animate(timestamp) {
                 pingpongDirection = 1;
             }
         } else if (playMode === 'pingpong-reverse') {
-            // 乒乓倒序模式：倒序开始
             currentFrame += pingpongDirection;
             if (currentFrame <= 0) {
                 currentFrame = 0;
@@ -106,19 +210,26 @@ function animate(timestamp) {
             }
         }
         
-        const col = currentFrame % cols;
-        const row = Math.floor(currentFrame / cols);
+        if (currentMode === 'spritesheet') {
+            const col = currentFrame % cols;
+            const row = Math.floor(currentFrame / cols);
+            spriteView.style.backgroundPosition = `-${col * frameW}px -${row * frameH}px`;
+        } else {
+            spriteView.style.backgroundImage = `url(${frameImages[currentFrame].url})`;
+        }
         
-        spriteView.style.backgroundPosition = `-${col * frameW}px -${row * frameH}px`;
         lastTimestamp = timestamp;
     }
     animationId = requestAnimationFrame(animate);
 }
 
+
 function startAnimation() {
     if (animationId) cancelAnimationFrame(animationId);
+    lastTimestamp = 0;
     animationId = requestAnimationFrame(animate);
 }
+
 
 // 监听行列变化，自动同步尺寸输入框
 [rowsInput, colsInput].forEach(input => {

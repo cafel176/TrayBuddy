@@ -13,15 +13,22 @@
             <p>即时预览序列帧动态效果</p>
         </header>
 
+        <div class="tabs">
+            <button class="tab-btn active" data-mode="spritesheet">Sprite Sheet 模式</button>
+            <button class="tab-btn" data-mode="png-series">多 PNG 序列模式</button>
+        </div>
+
         <main>
             <div class="upload-section" id="drop-zone">
                 <input type="file" id="file-input" accept="image/*" hidden>
+                <input type="file" id="multi-file-input" accept="image/png" multiple hidden>
                 <div class="upload-content">
                     <div class="icon">🖼️</div>
-                    <p>点击或拖拽 Sprite Sheet 到这里</p>
+                    <p id="upload-text">点击或拖拽 Sprite Sheet 到这里</p>
                     <span class="hint">支持 PNG, JPG, WebP</span>
                 </div>
             </div>
+
 
             <div class="preview-layout" id="app-content" style="display: none;">
                 <div class="preview-card">
@@ -29,7 +36,7 @@
                 </div>
 
                 <div class="controls-card">
-                    <div class="control-group">
+                    <div class="control-group" id="grid-settings">
                         <label>网格设置 (行数 × 列数)</label>
                         <div class="input-row">
                             <input type="number" id="rows" value="1" min="1" placeholder="行数">
@@ -38,7 +45,7 @@
                         </div>
                     </div>
 
-                    <div class="control-group">
+                    <div class="control-group" id="frame-settings">
                         <label>单帧尺寸 (宽 × 高)</label>
                         <div class="input-row">
                             <input type="number" id="frame-w" placeholder="宽度">
@@ -46,6 +53,7 @@
                             <input type="number" id="frame-h" placeholder="高度">
                         </div>
                     </div>
+
 
                     <div class="control-group">
                         <label>播放速度 (FPS: <span id="fps-val">10</span>)</label>

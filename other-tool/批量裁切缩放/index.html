@@ -4,237 +4,230 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>批量裁切缩放工具</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div class="container">
     <header class="header">
-      <div>
-        <h1>批量裁切缩放工具</h1>
-        <p class="subtitle">先四向裁切，后按百分比缩放。适用于一组大小相同的图片批量处理。</p>
-      </div>
+      <h1>✨ 批量裁切缩放工具</h1>
+      <p class="subtitle">专业级本地图片批处理，先裁切后缩放，极致流畅。</p>
     </header>
 
+    <!-- Step 1: Upload -->
     <section class="card">
-      <h2>1) 选择图片</h2>
-      <div class="row">
-        <input id="fileInput" type="file" accept="image/*" multiple />
-        <button id="clearBtn" class="btn btn-ghost" type="button">清空</button>
-      </div>
-      <div class="hint">支持批量选择 PNG/JPG/WebP 等图片；处理完全在本地浏览器内完成。</div>
-      <div class="info-box" id="imageInfo">
-        <span>图片信息：</span>
-        <span id="imageCount">未选择</span>
-        <span id="imageSizeInfo"></span>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>1.5) 处理选项</h2>
-      <div class="grid">
-        <div class="field">
-          <label class="checkbox">
-            <input id="skipMismatch" type="checkbox" checked />
-            跳过尺寸不一致的图片
-          </label>
-          <div class="hint">勾选后，尺寸与第一张图不同的图片将被跳过；取消勾选将全部处理，所有图片将裁切为最小尺寸。</div>
+      <h2>📁 1) 选择图片</h2>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-content">
+          <div class="icon">🚀</div>
+          <div class="text">点击或将图片拖拽至此区域</div>
+          <p class="hint">支持 PNG, JPG, WebP 批量处理</p>
+          <input id="fileInput" type="file" accept="image/*" multiple hidden />
         </div>
       </div>
+      
+      <div class="info-box">
+        <span>数量: <strong id="imageCount">未选择</strong></span>
+        <span id="imageSizeInfo"></span>
+      </div>
+
+      <div class="row" style="margin-top: 16px; justify-content: flex-end;">
+        <button id="clearBtn" class="btn btn-ghost" type="button">🗑️ 清空列表</button>
+      </div>
     </section>
 
+    <!-- Step 1.5: Processing Options -->
     <section class="card">
-      <h2>2) 四向裁切设置（单位：像素）</h2>
+      <h2>⚙️ 1.5) 处理策略</h2>
+      <div class="field">
+        <label class="checkbox">
+          <input id="skipMismatch" type="checkbox" checked />
+          跳过尺寸不一致的图片
+        </label>
+        <p class="hint">勾选：仅处理与首张图片尺寸相同的素材。取消：将所有图片裁切至最小共有尺寸后再处理。</p>
+      </div>
+    </section>
+
+    <!-- Step 2: Crop -->
+    <section class="card">
+      <h2>✂️ 2) 可视化裁切设置</h2>
       
-      <!-- 可视化裁切预览区域 -->
       <div class="crop-editor-container">
         <div class="crop-editor-toolbar">
           <div class="zoom-controls">
-            <button type="button" class="zoom-btn" id="zoomOutBtn" title="缩小">−</button>
-            <span class="zoom-label" id="zoomLabel">100%</span>
-            <button type="button" class="zoom-btn" id="zoomInBtn" title="放大">+</button>
-            <button type="button" class="zoom-btn" id="zoomFitBtn" title="适应">适应</button>
+            <button type="button" class="zoom-btn" id="zoomOutBtn">−</button>
+            <span class="zoom-label" id="zoomLabel" style="min-width: 50px; text-align: center; font-size: 0.8rem;">100%</span>
+            <button type="button" class="zoom-btn" id="zoomInBtn">+</button>
+            <button type="button" class="zoom-btn" id="zoomFitBtn" style="margin-left: 8px;">适应</button>
           </div>
           <div class="crop-size-display" id="cropSizeLabel">裁切后：- × -</div>
         </div>
         
         <div class="crop-editor-wrapper" id="cropEditorWrapper">
-          <div class="crop-editor centered" id="cropEditor">
+          <div class="crop-editor" id="cropEditor">
             <div class="crop-editor-inner" id="cropEditorInner">
               <img id="previewImage" class="crop-source-image" />
-              <div class="crop-overlay crop-overlay-top" id="overlayTop"></div>
-              <div class="crop-overlay crop-overlay-bottom" id="overlayBottom"></div>
-              <div class="crop-overlay crop-overlay-left" id="overlayLeft"></div>
-              <div class="crop-overlay crop-overlay-right" id="overlayRight"></div>
-              <div class="crop-handle crop-handle-top" id="handleTop" title="拖动调整上边裁切"></div>
-              <div class="crop-handle crop-handle-bottom" id="handleBottom" title="拖动调整下边裁切"></div>
-              <div class="crop-handle crop-handle-left" id="handleLeft" title="拖动调整左边裁切"></div>
-              <div class="crop-handle crop-handle-right" id="handleRight" title="拖动调整右边裁切"></div>
+              <div class="crop-overlay" id="overlayTop"></div>
+              <div class="crop-overlay" id="overlayBottom"></div>
+              <div class="crop-overlay" id="overlayLeft"></div>
+              <div class="crop-overlay" id="overlayRight"></div>
+              <div class="crop-handle crop-handle-top" id="handleTop" title="上边距"></div>
+              <div class="crop-handle crop-handle-bottom" id="handleBottom" title="下边距"></div>
+              <div class="crop-handle crop-handle-left" id="handleLeft" title="左边距"></div>
+              <div class="crop-handle crop-handle-right" id="handleRight" title="右边距"></div>
             </div>
-            <div class="crop-placeholder" id="cropPlaceholder">请先选择图片</div>
+            <div class="crop-placeholder" id="cropPlaceholder">请先上传图片</div>
           </div>
         </div>
       </div>
 
-      <!-- 数值输入区域 -->
-      <div class="crop-inputs">
-        <div class="crop-input-group">
-          <label for="cropTop">上</label>
-          <input id="cropTop" type="number" min="0" step="1" value="0" />
-          <span class="unit">px</span>
+      <div class="grid" style="grid-template-columns: repeat(4, 1fr); margin-top: 16px;">
+        <div class="field">
+          <label>上 (px)</label>
+          <input id="cropTop" type="number" min="0" value="0" />
         </div>
-        <div class="crop-input-group">
-          <label for="cropBottom">下</label>
-          <input id="cropBottom" type="number" min="0" step="1" value="0" />
-          <span class="unit">px</span>
+        <div class="field">
+          <label>下 (px)</label>
+          <input id="cropBottom" type="number" min="0" value="0" />
         </div>
-        <div class="crop-input-group">
-          <label for="cropLeft">左</label>
-          <input id="cropLeft" type="number" min="0" step="1" value="0" />
-          <span class="unit">px</span>
+        <div class="field">
+          <label>左 (px)</label>
+          <input id="cropLeft" type="number" min="0" value="0" />
         </div>
-        <div class="crop-input-group">
-          <label for="cropRight">右</label>
-          <input id="cropRight" type="number" min="0" step="1" value="0" />
-          <span class="unit">px</span>
+        <div class="field">
+          <label>右 (px)</label>
+          <input id="cropRight" type="number" min="0" value="0" />
         </div>
       </div>
-      
-      <div class="hint">拖动蓝色基准线可视化调整裁切区域，或直接输入数值。滚轮缩放预览。</div>
+      <p class="hint">提示：可直接拖动预览图上的蓝色基准线进行裁切调整。</p>
     </section>
 
+    <!-- Step 3: Resize -->
     <section class="card">
-      <h2>3) 缩放设置</h2>
+      <h2>📐 3) 缩放与预览</h2>
       <div class="grid">
         <div class="field">
           <label class="checkbox">
             <input id="lockAspect" type="checkbox" checked />
             保持长宽比
           </label>
-          <div class="hint">勾选后，宽高按相同百分比缩放；取消勾选可分别设置宽高缩放比例。</div>
         </div>
 
         <div class="field" id="uniformScaleField">
-          <label for="scalePercent">缩放比例（%）</label>
-          <input id="scalePercent" type="number" min="1" max="1000" step="1" value="100" />
-          <div class="hint">100% 表示不缩放，50% 表示缩小一半，200% 表示放大一倍。</div>
+          <label>缩放比例 (%)</label>
+          <input id="scalePercent" type="number" min="1" max="1000" value="100" />
         </div>
 
         <div class="field" id="separateScaleField" hidden>
-          <label>分别设置宽高缩放比例（%）</label>
-          <div class="row" style="gap:8px;margin-top:6px;">
+          <div class="row" style="gap:12px;">
             <div style="flex:1">
-              <label for="scaleWidth" style="font-size:11px;color:var(--muted)">宽度缩放（%）</label>
-              <input id="scaleWidth" type="number" min="1" max="1000" step="1" value="100" />
+              <label>宽度 (%)</label>
+              <input id="scaleWidth" type="number" min="1" max="1000" value="100" style="width:100%" />
             </div>
             <div style="flex:1">
-              <label for="scaleHeight" style="font-size:11px;color:var(--muted)">高度缩放（%）</label>
-              <input id="scaleHeight" type="number" min="1" max="1000" step="1" value="100" />
+              <label>高度 (%)</label>
+              <input id="scaleHeight" type="number" min="1" max="1000" value="100" style="width:100%" />
             </div>
           </div>
-          <!-- 缩放预览 -->
-          <div class="scale-preview-container" id="scalePreviewContainer">
-            <div class="scale-preview-box">
-              <img id="scalePreviewImage" class="scale-preview-image" />
-              <div class="scale-preview-placeholder" id="scalePreviewPlaceholder">缩放预览</div>
-            </div>
+          <div class="scale-preview-box">
+            <img id="scalePreviewImage" style="max-width: 100%; max-height: 100%; display: none;" />
+            <span id="scalePreviewPlaceholder" style="color: var(--muted); font-size: 0.8rem;">非等比预览</span>
           </div>
         </div>
 
         <div class="field">
-          <label>缩放后尺寸预览</label>
-          <div class="mono" id="scaleSizePreview">-</div>
+          <label>缩放结果预览</label>
+          <div id="scaleSizePreview" style="font-family: monospace; padding: 10px; background: #000; border-radius: 6px; color: var(--success);">-</div>
         </div>
       </div>
     </section>
 
+    <!-- Step 3.5: Expand -->
     <section class="card">
-      <h2>3.5) 扩充透明像素设置</h2>
+      <h2>⬜ 3.5) 扩充填充 (Padding)</h2>
       <div class="grid">
         <div class="field">
-          <label>横向扩充（像素）</label>
-          <div class="row" style="gap:8px;margin-top:6px;">
-            <div style="flex:1">
-              <label for="expandLeft" style="font-size:11px;color:var(--muted)">左侧扩充</label>
-              <input id="expandLeft" type="number" min="0" step="1" value="0" />
-            </div>
-            <div style="flex:1">
-              <label for="expandRight" style="font-size:11px;color:var(--muted)">右侧扩充</label>
-              <input id="expandRight" type="number" min="0" step="1" value="0" />
+          <label>横向扩充 (左 | 右)</label>
+          <div class="row" style="gap:8px;">
+            <input id="expandLeft" type="number" min="0" value="0" style="flex:1" />
+            <input id="expandRight" type="number" min="0" value="0" style="flex:1" />
+          </div>
+        </div>
+        <div class="field">
+          <label>纵向扩充 (上 | 下)</label>
+          <div class="row" style="gap:8px;">
+            <input id="expandTop" type="number" min="0" value="0" style="flex:1" />
+            <input id="expandBottom" type="number" min="0" value="0" style="flex:1" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>填充颜色 (RGBA)</label>
+          <div class="row" style="gap:12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input id="expandColor" type="color" value="#000000" style="width: 44px; height: 44px; padding: 2px; border-radius: 6px;" />
+              <div style="flex: 1;">
+                <label style="font-size: 11px; margin-bottom: 2px; display: block;">透明度: <span id="expandAlphaVal">0</span>%</label>
+                <input id="expandAlpha" type="range" min="0" max="100" value="0" style="width: 100%;" />
+              </div>
             </div>
           </div>
         </div>
 
         <div class="field">
-          <label>纵向扩充（像素）</label>
-          <div class="row" style="gap:8px;margin-top:6px;">
-            <div style="flex:1">
-              <label for="expandTop" style="font-size:11px;color:var(--muted)">上侧扩充</label>
-              <input id="expandTop" type="number" min="0" step="1" value="0" />
-            </div>
-            <div style="flex:1">
-              <label for="expandBottom" style="font-size:11px;color:var(--muted)">下侧扩充</label>
-              <input id="expandBottom" type="number" min="0" step="1" value="0" />
-            </div>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>最终尺寸预览</label>
-          <div class="mono" id="expandSizePreview">-</div>
-        </div>
-
-        <div class="field">
-          <div class="hint">扩充区域将填充完全透明的像素（alpha=0）。仅 PNG 格式支持透明度。</div>
+          <label>最终导出尺寸</label>
+          <div id="expandSizePreview" style="font-family: monospace; padding: 10px; background: #000; border-radius: 6px; color: var(--primary);">-</div>
         </div>
       </div>
+      <p class="hint">扩充部分将使用指定颜色填充。提示：100% 不透明度即为纯色，0% 即为全透明。</p>
     </section>
 
+
+    <!-- Step 4: Output -->
     <section class="card">
-      <h2>4) 输出设置</h2>
+      <h2>💾 4) 输出与导出</h2>
       <div class="grid">
         <div class="field">
-          <label for="outFormat">输出格式</label>
+          <label>导出格式</label>
           <select id="outFormat">
-            <option value="image/png" selected>PNG（推荐，清晰）</option>
-            <option value="image/jpeg">JPG（更小）</option>
+            <option value="image/png" selected>PNG (无损透明)</option>
+            <option value="image/jpeg">JPG (高压缩比)</option>
           </select>
         </div>
-
         <div class="field" id="jpegQualityField" hidden>
-          <label for="jpegQuality">JPG 质量（0.6 - 1.0）</label>
+          <label>JPG 质量 (0.6 - 1.0)</label>
           <input id="jpegQuality" type="number" min="0.6" max="1" step="0.05" value="0.92" />
         </div>
       </div>
-    </section>
 
-    <section class="card">
-      <h2>5) 处理与导出</h2>
-      <div class="row">
-        <button id="processBtn" class="btn" type="button">开始处理并下载 ZIP</button>
-        <div id="status" class="status">未开始</div>
+      <div class="row" style="margin-top: 24px;">
+        <button id="processBtn" class="btn" type="button">⚡ 开始处理并打包下载</button>
+        <span id="status" class="hint">未开始</span>
       </div>
 
       <div class="tableWrap">
         <table class="table">
           <thead>
             <tr>
-              <th>文件</th>
-              <th>原始尺寸</th>
-              <th>裁切后尺寸</th>
-              <th>缩放后尺寸</th>
-              <th>最终尺寸</th>
+              <th>文件名</th>
+              <th>原始</th>
+              <th>裁切</th>
+              <th>缩放</th>
+              <th>最终</th>
               <th>状态</th>
             </tr>
           </thead>
           <tbody id="fileTableBody">
-            <tr><td colspan="6" class="empty">未选择图片</td></tr>
+            <tr><td colspan="6" style="text-align:center; padding: 30px; color: var(--muted);">等待上传图片...</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <footer class="footer">
-      <div class="hint">离线本地工具：无需安装，无需上传服务器。</div>
+    <footer style="text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 40px;">
+      <p>完全本地处理，保护您的隐私。TrayBuddy Tools</p>
     </footer>
   </div>
 

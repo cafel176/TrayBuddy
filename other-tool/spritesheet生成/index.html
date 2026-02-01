@@ -394,7 +394,7 @@
                     <input type="checkbox" id="customSize">
                     <label for="customSize">自定义帧尺寸</label>
                 </div>
-                
+
                 <div class="form-row" id="sizeInputs" style="display: none;">
                     <div class="form-group">
                         <label>帧宽度 (px)</label>
@@ -405,6 +405,18 @@
                         <input type="number" id="frameHeight" value="64" min="1">
                     </div>
                 </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="compressWebp" checked>
+                    <label for="compressWebp">导出为 WebP (压缩体积)</label>
+                </div>
+
+                <div class="form-group" id="webpQualityGroup">
+                    <label>WebP 质量: <span id="qualityValue">85</span>%</label>
+                    <input type="range" id="webpQuality" min="10" max="100" value="85" style="width: 100%; accent-color: #00d9ff;">
+                </div>
+
+
                 
                 <button class="btn btn-primary" id="generateBtn" disabled>生成 Sprite Sheet</button>
                 <button class="btn btn-secondary" id="downloadBtn" style="display: none;">💾 下载 PNG</button>
@@ -455,8 +467,13 @@
         const sizeInfo = document.getElementById('sizeInfo');
         const baseSize = document.getElementById('baseSize');
         const sizeWarning = document.getElementById('sizeWarning');
+        const compressWebpCheckbox = document.getElementById('compressWebp');
+        const webpQualityGroup = document.getElementById('webpQualityGroup');
+        const webpQualityInput = document.getElementById('webpQuality');
+        const qualityValueText = document.getElementById('qualityValue');
 
         let frames = [];
+
         let generatedCanvas = null;
         let baseDimensions = null; // 基准尺寸
 
@@ -636,7 +653,18 @@
             sizeInputs.style.display = customSizeCheckbox.checked ? 'grid' : 'none';
         });
 
+        // WebP 压缩选项
+        compressWebpCheckbox.addEventListener('change', () => {
+            webpQualityGroup.style.display = compressWebpCheckbox.checked ? 'block' : 'none';
+            downloadBtn.textContent = compressWebpCheckbox.checked ? '💾 下载 WebP' : '💾 下载 PNG';
+        });
+
+        webpQualityInput.addEventListener('input', () => {
+            qualityValueText.textContent = webpQualityInput.value;
+        });
+
         // 生成Sprite Sheet
+
         generateBtn.addEventListener('click', generateSpriteSheet);
 
         function generateSpriteSheet() {
@@ -701,18 +729,33 @@
             document.getElementById('statSize').textContent = `${canvas.width}x${canvas.height}`;
             document.getElementById('statLayout').textContent = `${columns}x${rows}`;
 
+            downloadBtn.textContent = compressWebpCheckbox.checked ? '💾 下载 WebP' : '💾 下载 PNG';
             downloadBtn.style.display = 'block';
         }
 
+
         // 下载
-        downloadBtn.addEventListener('click', () => {
+        downloadBtn.addEventListener('click', async () => {
             if (!generatedCanvas) return;
             
-            const link = document.createElement('a');
-            link.download = 'spritesheet.png';
-            link.href = generatedCanvas.toDataURL('image/png');
-            link.click();
+            if (compressWebpCheckbox.checked) {
+                const quality = parseInt(webpQualityInput.value) / 100;
+                generatedCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = 'spritesheet.webp';
+                    link.href = url;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                }, 'image/webp', quality);
+            } else {
+                const link = document.createElement('a');
+                link.download = 'spritesheet.png';
+                link.href = generatedCanvas.toDataURL('image/png');
+                link.click();
+            }
         });
+
 
         // 输入变化时自动重新生成
         [columnsInput, rowsInput, frameWidthInput, frameHeightInput].forEach(input => {

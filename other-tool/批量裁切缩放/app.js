@@ -1,1063 +1,737 @@
 /* global JSZip */
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+/**
+ * 批量裁切缩放工具 - 核心逻辑
+ * 模块化组织：配置、状态、DOM引用、工具函数、核心处理、UI更新、事件绑定
+ */
 
+// --- 1. 配置与常量 ---
+const CONFIG = {
+  MIN_ZOOM: 0.1,
+  MAX_ZOOM: 5,
+  ZOOM_STEP: 0.25,
+  DEFAULT_JPEG_QUALITY: 0.92,
+  MIME_TYPES: {
+    PNG: 'image/png',
+    JPEG: 'image/jpeg'
+  }
+};
+
+// --- 2. 状态管理 ---
+const state = {
+  selectedFiles: [],
+  fileInfoMap: new Map(), // File -> { w, h, valid, mismatch }
+  baseImageInfo: null,    // { w, h } 基准尺寸
+  previewImageObj: null,  // 用于预览的 Image 对象
+  currentZoom: 1,
+  isDragging: false,
+  dragState: {
+    handle: null,
+    startX: 0,
+    startY: 0,
+    startValue: 0
+  }
+};
+
+// --- 3. DOM 元素引用 ---
+const $ = (sel) => document.querySelector(sel);
 const els = {
+  // 核心控制
   fileInput: $('#fileInput'),
+  dropZone: $('#dropZone'),
   clearBtn: $('#clearBtn'),
   processBtn: $('#processBtn'),
   status: $('#status'),
   tableBody: $('#fileTableBody'),
 
+  // 统计与选项
   imageCount: $('#imageCount'),
   imageSizeInfo: $('#imageSizeInfo'),
   skipMismatch: $('#skipMismatch'),
 
-  cropTop: $('#cropTop'),
-  cropBottom: $('#cropBottom'),
-  cropLeft: $('#cropLeft'),
-  cropRight: $('#cropRight'),
+  // 裁切设置
+  cropInputs: {
+    top: $('#cropTop'),
+    bottom: $('#cropBottom'),
+    left: $('#cropLeft'),
+    right: $('#cropRight')
+  },
   cropSizeLabel: $('#cropSizeLabel'),
   
-  // 裁切编辑器元素
-  cropEditorWrapper: $('#cropEditorWrapper'),
-  cropEditor: $('#cropEditor'),
-  cropEditorInner: $('#cropEditorInner'),
-  previewImage: $('#previewImage'),
-  cropPlaceholder: $('#cropPlaceholder'),
-  overlayTop: $('#overlayTop'),
-  overlayBottom: $('#overlayBottom'),
-  overlayLeft: $('#overlayLeft'),
-  overlayRight: $('#overlayRight'),
-  handleTop: $('#handleTop'),
-  handleBottom: $('#handleBottom'),
-  handleLeft: $('#handleLeft'),
-  handleRight: $('#handleRight'),
-  zoomInBtn: $('#zoomInBtn'),
-  zoomOutBtn: $('#zoomOutBtn'),
-  zoomFitBtn: $('#zoomFitBtn'),
-  zoomLabel: $('#zoomLabel'),
+  // 裁切编辑器
+  editor: {
+    wrapper: $('#cropEditorWrapper'),
+    container: $('#cropEditor'),
+    inner: $('#cropEditorInner'),
+    preview: $('#previewImage'),
+    placeholder: $('#cropPlaceholder'),
+    overlays: {
+      top: $('#overlayTop'),
+      bottom: $('#overlayBottom'),
+      left: $('#overlayLeft'),
+      right: $('#overlayRight')
+    },
+    handles: {
+      top: $('#handleTop'),
+      bottom: $('#handleBottom'),
+      left: $('#handleLeft'),
+      right: $('#handleRight')
+    },
+    zoom: {
+      in: $('#zoomInBtn'),
+      out: $('#zoomOutBtn'),
+      fit: $('#zoomFitBtn'),
+      label: $('#zoomLabel')
+    }
+  },
 
+  // 缩放设置
   lockAspect: $('#lockAspect'),
   uniformScaleField: $('#uniformScaleField'),
   separateScaleField: $('#separateScaleField'),
-  scalePercent: $('#scalePercent'),
-  scaleWidth: $('#scaleWidth'),
-  scaleHeight: $('#scaleHeight'),
+  scaleInputs: {
+    percent: $('#scalePercent'),
+    width: $('#scaleWidth'),
+    height: $('#scaleHeight')
+  },
   scaleSizePreview: $('#scaleSizePreview'),
-  scalePreviewImage: $('#scalePreviewImage'),
-  scalePreviewPlaceholder: $('#scalePreviewPlaceholder'),
+  scalePreviewImg: $('#scalePreviewImage'),
+  scalePlaceholder: $('#scalePreviewPlaceholder'),
 
-  expandLeft: $('#expandLeft'),
-  expandRight: $('#expandRight'),
-  expandTop: $('#expandTop'),
-  expandBottom: $('#expandBottom'),
+  // 扩充设置
+  expandInputs: {
+    left: $('#expandLeft'),
+    right: $('#expandRight'),
+    top: $('#expandTop'),
+    bottom: $('#expandBottom'),
+    color: $('#expandColor'),
+    alpha: $('#expandAlpha'),
+    alphaVal: $('#expandAlphaVal')
+  },
+
   expandSizePreview: $('#expandSizePreview'),
 
+  // 输出设置
   outFormat: $('#outFormat'),
   jpegQualityField: $('#jpegQualityField'),
-  jpegQuality: $('#jpegQuality'),
+  jpegQuality: $('#jpegQuality')
 };
 
-let selectedFiles = [];
-let firstImageInfo = null; // {w, h}
-let firstImageElement = null; // 保存第一张图片的 Image 对象用于预览
-let fileInfoMap = new Map(); // file -> {w, h, valid}  记录每个文件的尺寸和是否有效
+// --- 4. 工具函数 ---
 
-// 缩放相关状态
-let currentZoom = 1;
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 5;
-const ZOOM_STEP = 0.25;
+const utils = {
+  clamp: (n, min, max) => Math.max(min, Math.min(max, n)),
+  
+  fmtSize: (w, h) => (w && h ? `${w} × ${h}` : '-'),
+  
+  mimeToExt: (mime) => (mime === CONFIG.MIME_TYPES.JPEG ? 'jpg' : 'png'),
+  
+  baseName: (name) => {
+    const idx = name.lastIndexOf('.');
+    return idx >= 0 ? name.slice(0, idx) : name;
+  },
+  
+  safeInt: (v, fallback = 0) => {
+    const n = parseInt(v);
+    return isNaN(n) ? fallback : n;
+  },
+  
+  safeNum: (v, fallback = 100) => {
+    const n = parseFloat(v);
+    return isNaN(n) ? fallback : n;
+  },
 
-// 拖拽相关状态
-let isDragging = false;
-let dragHandle = null;
-let dragStartY = 0;
-let dragStartX = 0;
-let dragStartValue = 0;
+  escapeHtml: (s) => String(s)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;'),
 
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function setStatus(text) {
-  els.status.textContent = text;
-}
-
-function fmtSize(w, h) {
-  if (!w || !h) return '-';
-  return `${w} × ${h}`;
-}
-
-function mimeToExt(mime) {
-  if (mime === 'image/png') return 'png';
-  if (mime === 'image/jpeg') return 'jpg';
-  return 'png';
-}
-
-function baseName(name) {
-  const idx = name.lastIndexOf('.');
-  return idx >= 0 ? name.slice(0, idx) : name;
-}
-
-function safeInt(v, fallback) {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
-}
-
-function safeNum(v, fallback) {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
-
-async function decodeImage(file) {
-  if ('createImageBitmap' in window) {
-    try {
-      const bmp = await createImageBitmap(file);
-      return { bmp, w: bmp.width, h: bmp.height };
-    } catch (_) {
-      // fallback below
+  async decodeImage(file) {
+    if ('createImageBitmap' in window) {
+      try {
+        const bmp = await createImageBitmap(file);
+        return { bmp, w: bmp.width, h: bmp.height };
+      } catch (e) { /* fallback */ }
     }
-  }
-
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.decoding = 'async';
-    img.src = url;
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve({ img, w: img.naturalWidth, h: img.naturalHeight });
+      };
       img.onerror = reject;
+      img.src = url;
     });
-    return { img, w: img.naturalWidth, h: img.naturalHeight };
-  } finally {
-    URL.revokeObjectURL(url);
   }
-}
-
-function getCropValues() {
-  return {
-    top: Math.max(0, safeInt(els.cropTop.value, 0)),
-    bottom: Math.max(0, safeInt(els.cropBottom.value, 0)),
-    left: Math.max(0, safeInt(els.cropLeft.value, 0)),
-    right: Math.max(0, safeInt(els.cropRight.value, 0)),
-  };
-}
-
-function getCroppedSize(origW, origH) {
-  const crop = getCropValues();
-  const w = Math.max(1, origW - crop.left - crop.right);
-  const h = Math.max(1, origH - crop.top - crop.bottom);
-  return { w, h, crop };
-}
-
-function getScaleValues() {
-  const lockAspect = els.lockAspect.checked;
-  if (lockAspect) {
-    const p = safeNum(els.scalePercent.value, 100);
-    return { scaleW: p / 100, scaleH: p / 100 };
-  } else {
-    const sw = safeNum(els.scaleWidth.value, 100);
-    const sh = safeNum(els.scaleHeight.value, 100);
-    return { scaleW: sw / 100, scaleH: sh / 100 };
-  }
-}
-
-function getScaledSize(croppedW, croppedH) {
-  const { scaleW, scaleH } = getScaleValues();
-  const w = Math.max(1, Math.round(croppedW * scaleW));
-  const h = Math.max(1, Math.round(croppedH * scaleH));
-  return { w, h };
-}
-
-function getExpandValues() {
-  return {
-    left: Math.max(0, safeInt(els.expandLeft.value, 0)),
-    right: Math.max(0, safeInt(els.expandRight.value, 0)),
-    top: Math.max(0, safeInt(els.expandTop.value, 0)),
-    bottom: Math.max(0, safeInt(els.expandBottom.value, 0)),
-  };
-}
-
-function getExpandedSize(scaledW, scaledH) {
-  const expand = getExpandValues();
-  const w = scaledW + expand.left + expand.right;
-  const h = scaledH + expand.top + expand.bottom;
-  return { w, h, expand };
-}
-
-function updateCropPreview() {
-  if (!firstImageInfo || !firstImageElement) {
-    els.cropSizeLabel.textContent = '裁切后：- × -';
-    els.previewImage.style.display = 'none';
-    els.cropPlaceholder.style.display = 'block';
-    hideOverlaysAndHandles();
-    return;
-  }
-
-  const { w: origW, h: origH } = firstImageInfo;
-  const { w: croppedW, h: croppedH, crop } = getCroppedSize(origW, origH);
-
-  // 验证裁切是否有效
-  if (crop.left + crop.right >= origW || crop.top + crop.bottom >= origH) {
-    els.cropSizeLabel.textContent = '裁切无效！';
-    return;
-  }
-
-  els.cropSizeLabel.textContent = `裁切后：${croppedW} × ${croppedH}`;
-
-  // 更新遮罩层和基准线位置
-  updateOverlaysAndHandles();
-}
-
-function hideOverlaysAndHandles() {
-  els.overlayTop.style.display = 'none';
-  els.overlayBottom.style.display = 'none';
-  els.overlayLeft.style.display = 'none';
-  els.overlayRight.style.display = 'none';
-  els.handleTop.style.display = 'none';
-  els.handleBottom.style.display = 'none';
-  els.handleLeft.style.display = 'none';
-  els.handleRight.style.display = 'none';
-}
-
-function showOverlaysAndHandles() {
-  els.overlayTop.style.display = 'block';
-  els.overlayBottom.style.display = 'block';
-  els.overlayLeft.style.display = 'block';
-  els.overlayRight.style.display = 'block';
-  els.handleTop.style.display = 'block';
-  els.handleBottom.style.display = 'block';
-  els.handleLeft.style.display = 'block';
-  els.handleRight.style.display = 'block';
-}
-
-function updateOverlaysAndHandles() {
-  if (!firstImageInfo) return;
-
-  const { w: origW, h: origH } = firstImageInfo;
-  const crop = getCropValues();
-  
-  // 计算缩放后的像素位置
-  const scaledW = origW * currentZoom;
-  const scaledH = origH * currentZoom;
-  const cropTopPx = crop.top * currentZoom;
-  const cropBottomPx = crop.bottom * currentZoom;
-  const cropLeftPx = crop.left * currentZoom;
-  const cropRightPx = crop.right * currentZoom;
-
-  // 更新遮罩层
-  // 上遮罩
-  els.overlayTop.style.top = '0';
-  els.overlayTop.style.left = '0';
-  els.overlayTop.style.width = `${scaledW}px`;
-  els.overlayTop.style.height = `${cropTopPx}px`;
-
-  // 下遮罩
-  els.overlayBottom.style.bottom = '0';
-  els.overlayBottom.style.left = '0';
-  els.overlayBottom.style.width = `${scaledW}px`;
-  els.overlayBottom.style.height = `${cropBottomPx}px`;
-
-  // 左遮罩（在上下遮罩之间）
-  els.overlayLeft.style.top = `${cropTopPx}px`;
-  els.overlayLeft.style.left = '0';
-  els.overlayLeft.style.width = `${cropLeftPx}px`;
-  els.overlayLeft.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
-
-  // 右遮罩（在上下遮罩之间）
-  els.overlayRight.style.top = `${cropTopPx}px`;
-  els.overlayRight.style.right = '0';
-  els.overlayRight.style.width = `${cropRightPx}px`;
-  els.overlayRight.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
-
-  // 更新基准线位置
-  // 上基准线
-  els.handleTop.style.top = `${cropTopPx}px`;
-  els.handleTop.style.left = `${cropLeftPx}px`;
-  els.handleTop.style.width = `${scaledW - cropLeftPx - cropRightPx}px`;
-
-  // 下基准线
-  els.handleBottom.style.top = `${scaledH - cropBottomPx}px`;
-  els.handleBottom.style.left = `${cropLeftPx}px`;
-  els.handleBottom.style.width = `${scaledW - cropLeftPx - cropRightPx}px`;
-
-  // 左基准线
-  els.handleLeft.style.left = `${cropLeftPx}px`;
-  els.handleLeft.style.top = `${cropTopPx}px`;
-  els.handleLeft.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
-
-  // 右基准线
-  els.handleRight.style.left = `${scaledW - cropRightPx}px`;
-  els.handleRight.style.top = `${cropTopPx}px`;
-  els.handleRight.style.height = `${scaledH - cropTopPx - cropBottomPx}px`;
-
-  showOverlaysAndHandles();
-}
-
-// 缩放相关函数
-function setZoom(zoom) {
-  currentZoom = clamp(zoom, MIN_ZOOM, MAX_ZOOM);
-  els.zoomLabel.textContent = `${Math.round(currentZoom * 100)}%`;
-  
-  if (firstImageElement && firstImageInfo) {
-    const scaledW = firstImageInfo.w * currentZoom;
-    const scaledH = firstImageInfo.h * currentZoom;
-    
-    // 设置图片和内层容器尺寸
-    els.previewImage.style.width = `${scaledW}px`;
-    els.previewImage.style.height = `${scaledH}px`;
-    els.cropEditorInner.style.width = `${scaledW}px`;
-    els.cropEditorInner.style.height = `${scaledH}px`;
-    
-    // 判断是否需要居中（当图片小于容器时）
-    const wrapperRect = els.cropEditorWrapper.getBoundingClientRect();
-    const needCenter = scaledW <= wrapperRect.width && scaledH <= wrapperRect.height;
-    
-    if (needCenter) {
-      els.cropEditor.classList.add('centered');
-    } else {
-      els.cropEditor.classList.remove('centered');
-    }
-    
-    updateOverlaysAndHandles();
-  }
-}
-
-function zoomIn() {
-  setZoom(currentZoom + ZOOM_STEP);
-}
-
-function zoomOut() {
-  setZoom(currentZoom - ZOOM_STEP);
-}
-
-function zoomFit() {
-  if (!firstImageInfo) return;
-  
-  const wrapperRect = els.cropEditorWrapper.getBoundingClientRect();
-  const padding = 20;
-  const availableW = wrapperRect.width - padding * 2;
-  const availableH = wrapperRect.height - padding * 2;
-  
-  const scaleX = availableW / firstImageInfo.w;
-  const scaleY = availableH / firstImageInfo.h;
-  const fitZoom = Math.min(scaleX, scaleY, 1);
-  
-  setZoom(fitZoom);
-}
-
-// 拖拽相关函数
-function startDrag(e, handle) {
-  e.preventDefault();
-  isDragging = true;
-  dragHandle = handle;
-  
-  const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-  const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-  
-  dragStartX = clientX;
-  dragStartY = clientY;
-  
-  if (handle === 'top') {
-    dragStartValue = parseInt(els.cropTop.value) || 0;
-  } else if (handle === 'bottom') {
-    dragStartValue = parseInt(els.cropBottom.value) || 0;
-  } else if (handle === 'left') {
-    dragStartValue = parseInt(els.cropLeft.value) || 0;
-  } else if (handle === 'right') {
-    dragStartValue = parseInt(els.cropRight.value) || 0;
-  }
-  
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', stopDrag);
-  document.addEventListener('touchmove', onDrag);
-  document.addEventListener('touchend', stopDrag);
-}
-
-function onDrag(e) {
-  if (!isDragging || !firstImageInfo) return;
-  
-  const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-  const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-  
-  const { w: origW, h: origH } = firstImageInfo;
-  
-  if (dragHandle === 'top') {
-    const deltaY = clientY - dragStartY;
-    const deltaPx = Math.round(deltaY / currentZoom);
-    const newValue = clamp(dragStartValue + deltaPx, 0, origH - parseInt(els.cropBottom.value || 0) - 1);
-    els.cropTop.value = newValue;
-  } else if (dragHandle === 'bottom') {
-    const deltaY = dragStartY - clientY;
-    const deltaPx = Math.round(deltaY / currentZoom);
-    const newValue = clamp(dragStartValue + deltaPx, 0, origH - parseInt(els.cropTop.value || 0) - 1);
-    els.cropBottom.value = newValue;
-  } else if (dragHandle === 'left') {
-    const deltaX = clientX - dragStartX;
-    const deltaPx = Math.round(deltaX / currentZoom);
-    const newValue = clamp(dragStartValue + deltaPx, 0, origW - parseInt(els.cropRight.value || 0) - 1);
-    els.cropLeft.value = newValue;
-  } else if (dragHandle === 'right') {
-    const deltaX = dragStartX - clientX;
-    const deltaPx = Math.round(deltaX / currentZoom);
-    const newValue = clamp(dragStartValue + deltaPx, 0, origW - parseInt(els.cropLeft.value || 0) - 1);
-    els.cropRight.value = newValue;
-  }
-  
-  updateAllPreviews();
-}
-
-function stopDrag() {
-  isDragging = false;
-  dragHandle = null;
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', stopDrag);
-  document.removeEventListener('touchmove', onDrag);
-  document.removeEventListener('touchend', stopDrag);
-}
-
-// 滚轮缩放
-function onWheelZoom(e) {
-  if (!firstImageInfo) return;
-  e.preventDefault();
-  
-  const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-  setZoom(currentZoom + delta);
-}
-
-function updateScalePreview() {
-  const lockAspect = els.lockAspect.checked;
-
-  if (!firstImageInfo) {
-    els.scaleSizePreview.textContent = '-';
-    els.expandSizePreview.textContent = '-';
-    hideScalePreviewImage();
-    return;
-  }
-
-  const { w: origW, h: origH } = firstImageInfo;
-  const { w: croppedW, h: croppedH, crop } = getCroppedSize(origW, origH);
-
-  // 验证裁切是否有效
-  if (crop.left + crop.right >= origW || crop.top + crop.bottom >= origH) {
-    els.scaleSizePreview.textContent = '裁切无效，无法计算缩放';
-    els.expandSizePreview.textContent = '-';
-    hideScalePreviewImage();
-    return;
-  }
-
-  const { w: scaledW, h: scaledH } = getScaledSize(croppedW, croppedH);
-  const { w: finalW, h: finalH, expand } = getExpandedSize(scaledW, scaledH);
-  const { scaleW, scaleH } = getScaleValues();
-
-  if (lockAspect) {
-    els.scaleSizePreview.textContent = `${croppedW} × ${croppedH} → ${scaledW} × ${scaledH}（缩放 ${Math.round(scaleW * 100)}%）`;
-  } else {
-    els.scaleSizePreview.textContent = `${croppedW} × ${croppedH} → ${scaledW} × ${scaledH}（宽 ${Math.round(scaleW * 100)}%，高 ${Math.round(scaleH * 100)}%）`;
-    // 生成缩放后的预览图
-    updateScalePreviewImage(croppedW, croppedH, scaledW, scaledH, crop);
-  }
-
-  // 显示最终尺寸预览（包含扩充）
-  if (expand.left + expand.right + expand.top + expand.bottom === 0) {
-    els.expandSizePreview.textContent = `${scaledW} × ${scaledH}`;
-  } else {
-    els.expandSizePreview.textContent = `${scaledW} × ${scaledH} → ${finalW} × ${finalH}`;
-  }
-}
-
-function hideScalePreviewImage() {
-  els.scalePreviewImage.style.display = 'none';
-  els.scalePreviewPlaceholder.style.display = 'block';
-}
-
-function updateScalePreviewImage(croppedW, croppedH, scaledW, scaledH, crop) {
-  if (!firstImageElement) {
-    hideScalePreviewImage();
-    return;
-  }
-
-  // 先裁切
-  const croppedCanvas = document.createElement('canvas');
-  croppedCanvas.width = croppedW;
-  croppedCanvas.height = croppedH;
-  const cctx = croppedCanvas.getContext('2d');
-  cctx.drawImage(
-    firstImageElement,
-    crop.left, crop.top, croppedW, croppedH,
-    0, 0, croppedW, croppedH
-  );
-
-  // 再缩放（不等比例）
-  const scaledCanvas = document.createElement('canvas');
-  scaledCanvas.width = scaledW;
-  scaledCanvas.height = scaledH;
-  const sctx = scaledCanvas.getContext('2d');
-  sctx.imageSmoothingEnabled = true;
-  sctx.imageSmoothingQuality = 'high';
-  sctx.drawImage(croppedCanvas, 0, 0, croppedW, croppedH, 0, 0, scaledW, scaledH);
-
-  // 显示预览
-  els.scalePreviewImage.src = scaledCanvas.toDataURL('image/png');
-  els.scalePreviewImage.style.display = 'block';
-  els.scalePreviewPlaceholder.style.display = 'none';
-}
-
-function updateAllPreviews() {
-  updateCropPreview();
-  updateScalePreview();
-}
-
-function updateScaleFieldsUI() {
-  const lockAspect = els.lockAspect.checked;
-  els.uniformScaleField.hidden = !lockAspect;
-  els.separateScaleField.hidden = lockAspect;
-}
-
-function updateJpegUI() {
-  const isJpeg = els.outFormat.value === 'image/jpeg';
-  els.jpegQualityField.hidden = !isJpeg;
-}
-
-function renderTable(rows) {
-  if (!rows.length) {
-    els.tableBody.innerHTML = '<tr><td colspan="6" class="empty">未选择图片</td></tr>';
-    return;
-  }
-
-  els.tableBody.innerHTML = rows
-    .map((r) => {
-      const statusClass = r.statusType === 'bad' ? 'bad' : r.statusType === 'ok' ? 'ok' : '';
-      return `
-        <tr>
-          <td>${escapeHtml(r.name)}</td>
-          <td>${fmtSize(r.origW, r.origH)}</td>
-          <td>${fmtSize(r.croppedW, r.croppedH)}</td>
-          <td>${fmtSize(r.scaledW, r.scaledH)}</td>
-          <td>${fmtSize(r.finalW, r.finalH)}</td>
-          <td class="${statusClass}">${escapeHtml(r.statusText || '')}</td>
-        </tr>
-      `;
-    })
-    .join('');
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-async function refreshSelection() {
-  const files = Array.from(els.fileInput.files || []);
-  selectedFiles = files;
-  firstImageInfo = null;
-  firstImageElement = null;
-  fileInfoMap.clear();
-
-  if (!files.length) {
-    els.imageCount.textContent = '未选择';
-    els.imageSizeInfo.textContent = '';
-    renderTable([]);
-    updateAllPreviews();
-    return;
-  }
-
-  setStatus(`已选择 ${files.length} 张图片，解析尺寸中…`);
-  els.imageCount.textContent = `${files.length} 张`;
-
-  // 解析所有图片的尺寸
-  const imageSizes = [];
-  const rows = [];
-  let mismatchCount = 0;
-
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i];
-    try {
-      const decoded = await decodeImage(f);
-      const w = decoded.w;
-      const h = decoded.h;
-      imageSizes.push({ file: f, w, h, index: i });
-
-      if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
-    } catch (_) {
-      fileInfoMap.set(f, { w: 0, h: 0, valid: false });
-      mismatchCount++;
-      rows.push({
-        name: f.name,
-        origW: null,
-        origH: null,
-        croppedW: null,
-        croppedH: null,
-        scaledW: null,
-        scaledH: null,
-        finalW: null,
-        finalH: null,
-        statusText: '无法读取，将跳过',
-        statusType: 'bad',
-      });
-    }
-  }
-
-  if (imageSizes.length === 0) {
-    setStatus('无法读取任何图片');
-    return;
-  }
-
-  // 找到所有图片的最小尺寸
-  const skipMismatchEnabled = els.skipMismatch.checked;
-  let baseW, baseH;
-
-  if (skipMismatchEnabled) {
-    // 跳过模式：使用第一张图片的尺寸作为基准
-    baseW = imageSizes[0].w;
-    baseH = imageSizes[0].h;
-  } else {
-    // 不跳过模式：使用最小尺寸作为基准
-    baseW = Math.min(...imageSizes.map(s => s.w));
-    baseH = Math.min(...imageSizes.map(s => s.h));
-  }
-
-  firstImageInfo = { w: baseW, h: baseH };
-  els.imageSizeInfo.textContent = skipMismatchEnabled
-    ? `基准尺寸：${baseW} × ${baseH}`
-    : `基准尺寸（最小）：${baseW} × ${baseH}`;
-
-  // 加载第一张有效图片用于预览
-  const firstValidImage = imageSizes.find(s => s.file === selectedFiles[0]);
-  if (firstValidImage) {
-    const url = URL.createObjectURL(firstValidImage.file);
-    const img = new Image();
-    img.src = url;
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
-    });
-    firstImageElement = img;
-    // 注意：保持 URL 有效，不在这里 revoke
-  }
-
-  // 构建表格数据
-  imageSizes.forEach((s) => {
-    const { file: f, w, h } = s;
-    const isMismatch = !(w === baseW && h === baseH);
-    const isValid = !isMismatch || !skipMismatchEnabled;
-
-    fileInfoMap.set(f, { w, h, valid: isValid, mismatch: isMismatch });
-
-    let statusText = '待处理';
-    let statusType = 'info';
-    if (!isValid) {
-      mismatchCount++;
-      statusText = `尺寸不一致（${w}×${h}），将跳过`;
-      statusType = 'bad';
-    } else if (isMismatch) {
-      statusText = `裁切为最小尺寸（${w}×${h} → ${baseW}×${baseH}）`;
-    }
-
-    rows.push({
-      name: f.name,
-      origW: w,
-      origH: h,
-      croppedW: null,
-      croppedH: null,
-      scaledW: null,
-      scaledH: null,
-      finalW: null,
-      finalH: null,
-      statusText,
-      statusType,
-    });
-  });
-
-  renderTable(rows);
-  updateAllPreviews();
-
-  // 初始化裁切编辑器
-  if (firstImageElement) {
-    els.previewImage.src = firstImageElement.src;
-    els.previewImage.style.display = 'block';
-    els.cropPlaceholder.style.display = 'none';
-    zoomFit();
-  }
-
-  // 显示统计信息
-  const validCount = files.length - mismatchCount;
-  const mismatchCountOnly = imageSizes.filter(s => s.w !== baseW || s.h !== baseH).length;
-
-  if (mismatchCountOnly > 0) {
-    if (skipMismatchEnabled) {
-      if (validCount === 0) {
-        setStatus(`已选择 ${files.length} 张图片，所有图片尺寸不一致且已勾选跳过，建议取消勾选以处理所有图片`);
-      } else {
-        setStatus(`已选择 ${files.length} 张图片，${mismatchCountOnly} 张尺寸不一致将被跳过，${validCount} 张待处理`);
-      }
-    } else {
-      setStatus(`已选择 ${files.length} 张图片，${mismatchCountOnly} 张尺寸不一致将裁切为最小尺寸（${baseW}×${baseH}）`);
-    }
-  } else {
-    setStatus(`已选择 ${files.length} 张图片，尺寸一致（${baseW}×${baseH}）`);
-  }
-}
-
-function drawToCanvas(source, srcW, srcH, dstW, dstH) {
-  const canvas = document.createElement('canvas');
-  canvas.width = dstW;
-  canvas.height = dstH;
-  const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
-
-  ctx.clearRect(0, 0, dstW, dstH);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(source, 0, 0, srcW, srcH, 0, 0, dstW, dstH);
-  return canvas;
-}
-
-async function canvasToBlob(canvas, mime) {
-  const isJpeg = mime === 'image/jpeg';
-  const q = isJpeg ? clamp(Number(els.jpegQuality.value) || 0.92, 0.6, 1) : undefined;
-  return await new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),
-      mime,
-      q
-    );
-  });
-}
-
-async function processOne(file) {
-  const decoded = await decodeImage(file);
-  const source = decoded.bmp || decoded.img;
-  const origW = decoded.w;
-  const origH = decoded.h;
-
-  let cropLeft, cropRight, cropTop, cropBottom;
-  const skipMismatchEnabled = els.skipMismatch.checked;
-
-  // 检查是否需要自动裁切到基准尺寸
-  if (!skipMismatchEnabled && firstImageInfo) {
-    const baseW = firstImageInfo.w;
-    const baseH = firstImageInfo.h;
-
-    // 如果图片大于基准尺寸，自动计算裁切量使其等于基准尺寸
-    if (origW > baseW) {
-      const excessW = origW - baseW;
-      // 从左右两侧平均裁切
-      cropLeft = Math.floor(excessW / 2);
-      cropRight = excessW - cropLeft;
-    } else {
-      cropLeft = 0;
-      cropRight = 0;
-    }
-
-    if (origH > baseH) {
-      const excessH = origH - baseH;
-      // 从上下两侧平均裁切
-      cropTop = Math.floor(excessH / 2);
-      cropBottom = excessH - cropTop;
-    } else {
-      cropTop = 0;
-      cropBottom = 0;
-    }
-  } else {
-    // 使用用户设置的裁切值
-    const crop = getCropValues();
-    cropLeft = crop.left;
-    cropRight = crop.right;
-    cropTop = crop.top;
-    cropBottom = crop.bottom;
-  }
-
-  // 验证裁切
-  if (cropLeft + cropRight >= origW) {
-    const msg = `左右裁切总和 ${cropLeft + cropRight}px >= 图片宽度 ${origW}px`;
-    if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
-    return { ok: false, reason: msg, origW, origH };
-  }
-  if (cropTop + cropBottom >= origH) {
-    const msg = `上下裁切总和 ${cropTop + cropBottom}px >= 图片高度 ${origH}px`;
-    if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
-    return { ok: false, reason: msg, origW, origH };
-  }
-
-  const croppedW = origW - cropLeft - cropRight;
-  const croppedH = origH - cropTop - cropBottom;
-
-  // Step 1: 裁切（从源图的指定位置裁切）
-  const croppedCanvas = document.createElement('canvas');
-  croppedCanvas.width = croppedW;
-  croppedCanvas.height = croppedH;
-  const cctx = croppedCanvas.getContext('2d', { alpha: true });
-  cctx.clearRect(0, 0, croppedW, croppedH);
-  cctx.drawImage(source, cropLeft, cropTop, croppedW, croppedH, 0, 0, croppedW, croppedH);
-
-  // Step 2: 缩放
-  const { w: scaledW, h: scaledH } = getScaledSize(croppedW, croppedH);
-  const scaledCanvas = drawToCanvas(croppedCanvas, croppedW, croppedH, scaledW, scaledH);
-
-  // Step 3: 扩充透明像素
-  const expand = getExpandValues();
-  const { w: finalW, h: finalH } = getExpandedSize(scaledW, scaledH);
-  let finalCanvas = scaledCanvas;
-
-  if (expand.left + expand.right + expand.top + expand.bottom > 0) {
-    finalCanvas = document.createElement('canvas');
-    finalCanvas.width = finalW;
-    finalCanvas.height = finalH;
-    const fctx = finalCanvas.getContext('2d', { alpha: true });
-
-    // 不需要填充背景，canvas 默认为透明
-    // 直接绘制缩放后的图片到指定位置
-    fctx.drawImage(scaledCanvas, expand.left, expand.top);
-  }
-
-  const mime = els.outFormat.value;
-  const blob = await canvasToBlob(finalCanvas, mime);
-
-  // cleanup
-  if (decoded.bmp && decoded.bmp.close) decoded.bmp.close();
-
-  return {
-    ok: true,
-    blob,
-    origW,
-    origH,
-    croppedW,
-    croppedH,
-    scaledW,
-    scaledH,
-    finalW,
-    finalH,
-  };
-}
-
-async function processAll() {
-  if (!selectedFiles.length) {
-    alert('请先选择图片');
-    return;
-  }
-
-  // 筛选有效文件
-  const validFiles = selectedFiles.filter(f => {
-    const info = fileInfoMap.get(f);
-    return info && info.valid;
-  });
-
-  if (!validFiles.length) {
-    alert('没有可处理的图片（所有图片尺寸不一致或无法读取）');
-    return;
-  }
-
-  const canZip = !!window.JSZip;
-  const zip = canZip ? new JSZip() : null;
-  const outExt = mimeToExt(els.outFormat.value);
-
-  els.processBtn.disabled = true;
-  els.clearBtn.disabled = true;
-  els.fileInput.disabled = true;
-
-  setStatus(canZip ? '处理中…' : '处理中…（JSZip 未加载，将逐个下载）');
-
-  // 构建行数据，保留原有状态
-  const rows = selectedFiles.map((f) => {
-    const info = fileInfoMap.get(f);
-    const isValid = info && info.valid;
+};
+
+// --- 5. 核心计算逻辑 ---
+
+const calculator = {
+  getCropValues: () => ({
+    top: Math.max(0, utils.safeInt(els.cropInputs.top.value)),
+    bottom: Math.max(0, utils.safeInt(els.cropInputs.bottom.value)),
+    left: Math.max(0, utils.safeInt(els.cropInputs.left.value)),
+    right: Math.max(0, utils.safeInt(els.cropInputs.right.value))
+  }),
+
+  getCroppedSize(origW, origH) {
+    const crop = this.getCropValues();
     return {
-      name: f.name,
-      origW: info?.w || null,
-      origH: info?.h || null,
-      croppedW: null,
-      croppedH: null,
-      scaledW: null,
-      scaledH: null,
-      finalW: null,
-      finalH: null,
-      statusText: isValid ? '排队中…' : (info?.w ? `尺寸不一致，已跳过` : '无法读取，已跳过'),
-      statusType: isValid ? 'info' : 'bad',
+      w: Math.max(1, origW - crop.left - crop.right),
+      h: Math.max(1, origH - crop.top - crop.bottom),
+      crop
+    };
+  },
+
+  getScaleValues: () => {
+    if (els.lockAspect.checked) {
+      const p = utils.safeNum(els.scaleInputs.percent.value) / 100;
+      return { sw: p, sh: p };
+    }
+    return {
+      sw: utils.safeNum(els.scaleInputs.width.value) / 100,
+      sh: utils.safeNum(els.scaleInputs.height.value) / 100
+    };
+  },
+
+  getScaledSize(croppedW, croppedH) {
+    const { sw, sh } = this.getScaleValues();
+    return {
+      w: Math.max(1, Math.round(croppedW * sw)),
+      h: Math.max(1, Math.round(croppedH * sh))
+    };
+  },
+
+  getExpandValues: () => ({
+    left: Math.max(0, utils.safeInt(els.expandInputs.left.value)),
+    right: Math.max(0, utils.safeInt(els.expandInputs.right.value)),
+    top: Math.max(0, utils.safeInt(els.expandInputs.top.value)),
+    bottom: Math.max(0, utils.safeInt(els.expandInputs.bottom.value)),
+    color: els.expandInputs.color.value,
+    alpha: utils.safeInt(els.expandInputs.alpha.value) / 100
+  }),
+
+
+  getFinalSize(scaledW, scaledH) {
+    const exp = this.getExpandValues();
+    return {
+      w: scaledW + exp.left + exp.right,
+      h: scaledH + exp.top + exp.bottom,
+      exp
+    };
+  }
+};
+
+// --- 6. UI 更新函数 ---
+
+const ui = {
+  setStatus: (msg) => { els.status.textContent = msg; },
+
+  updateScaleUI() {
+    const lock = els.lockAspect.checked;
+    els.uniformScaleField.hidden = !lock;
+    els.separateScaleField.hidden = lock;
+  },
+
+  updateOutputUI() {
+    els.jpegQualityField.hidden = els.outFormat.value !== CONFIG.MIME_TYPES.JPEG;
+  },
+
+  renderTable(rows) {
+    if (!rows.length) {
+      els.tableBody.innerHTML = '<tr><td colspan="6" class="empty">未选择图片</td></tr>';
+      return;
+    }
+    els.tableBody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${utils.escapeHtml(r.name)}</td>
+        <td>${utils.fmtSize(r.origW, r.origH)}</td>
+        <td>${utils.fmtSize(r.croppedW, r.croppedH)}</td>
+        <td>${utils.fmtSize(r.scaledW, r.scaledH)}</td>
+        <td>${utils.fmtSize(r.finalW, r.finalH)}</td>
+        <td class="${r.statusType || ''}">${utils.escapeHtml(r.statusText || '')}</td>
+      </tr>
+    `).join('');
+  },
+
+  updateAllPreviews() {
+    this.updateCropEditor();
+    this.updateScalePreview();
+  },
+
+  updateCropEditor() {
+    if (!state.baseImageInfo || !state.previewImageObj) {
+      els.cropSizeLabel.textContent = '裁切后：- × -';
+      els.editor.preview.style.display = 'none';
+      els.editor.placeholder.style.display = 'block';
+      this.toggleEditorControls(false);
+      return;
+    }
+
+    const { w, h } = state.baseImageInfo;
+    const { w: cw, h: ch, crop } = calculator.getCroppedSize(w, h);
+    
+    if (crop.left + crop.right >= w || crop.top + crop.bottom >= h) {
+      els.cropSizeLabel.textContent = '裁切区域超出图片范围！';
+      els.cropSizeLabel.style.color = 'var(--danger)';
+    } else {
+      els.cropSizeLabel.textContent = `裁切后：${cw} × ${ch}`;
+      els.cropSizeLabel.style.color = '';
+    }
+
+    this.refreshEditorCanvas();
+  },
+
+  toggleEditorControls(show) {
+    const display = show ? 'block' : 'none';
+    Object.values(els.editor.overlays).forEach(el => el.style.display = display);
+    Object.values(els.editor.handles).forEach(el => el.style.display = display);
+  },
+
+  refreshEditorCanvas() {
+    if (!state.baseImageInfo) return;
+    const { w, h } = state.baseImageInfo;
+    const crop = calculator.getCropValues();
+    const z = state.currentZoom;
+
+    // 容器与预览图缩放
+    const sw = w * z, sh = h * z;
+    els.editor.preview.style.width = `${sw}px`;
+    els.editor.preview.style.height = `${sh}px`;
+    els.editor.inner.style.width = `${sw}px`;
+    els.editor.inner.style.height = `${sh}px`;
+
+    // 居中判断
+    const wrap = els.editor.wrapper.getBoundingClientRect();
+    els.editor.container.classList.toggle('centered', sw <= wrap.width && sh <= wrap.height);
+
+    // 遮罩与手柄位置计算
+    const { overlays, handles } = els.editor;
+    const ct = crop.top * z, cb = crop.bottom * z, cl = crop.left * z, cr = crop.right * z;
+
+    overlays.top.style.cssText = `top:0;left:0;width:${sw}px;height:${ct}px`;
+    overlays.bottom.style.cssText = `bottom:0;left:0;width:${sw}px;height:${cb}px`;
+    overlays.left.style.cssText = `top:${ct}px;left:0;width:${cl}px;height:${sh - ct - cb}px`;
+    overlays.right.style.cssText = `top:${ct}px;right:0;width:${cr}px;height:${sh - ct - cb}px`;
+
+    handles.top.style.cssText = `top:${ct}px;left:${cl}px;width:${sw - cl - cr}px`;
+    handles.bottom.style.cssText = `top:${sh - cb}px;left:${cl}px;width:${sw - cl - cr}px`;
+    handles.left.style.cssText = `left:${cl}px;top:${ct}px;height:${sh - ct - cb}px`;
+    handles.right.style.cssText = `left:${sw - cr}px;top:${ct}px;height:${sh - ct - cb}px`;
+
+    this.toggleEditorControls(true);
+  },
+
+  updateScalePreview() {
+    if (!state.baseImageInfo) {
+      els.scaleSizePreview.textContent = '-';
+      els.expandSizePreview.textContent = '-';
+      els.scalePreviewImg.style.display = 'none';
+      els.scalePlaceholder.style.display = 'block';
+      return;
+    }
+
+    const { w, h } = state.baseImageInfo;
+    const { w: cw, h: ch, crop } = calculator.getCroppedSize(w, h);
+    
+    if (cw <= 0 || ch <= 0) {
+      els.scaleSizePreview.textContent = '无效裁切';
+      return;
+    }
+
+    const { w: sw, h: sh } = calculator.getScaledSize(cw, ch);
+    const { w: fw, h: fh, exp } = calculator.getFinalSize(sw, sh);
+    const { sw: scaleW, sh: scaleH } = calculator.getScaleValues();
+
+    els.scaleSizePreview.textContent = els.lockAspect.checked
+      ? `${cw}×${ch} → ${sw}×${sh} (${Math.round(scaleW * 100)}%)`
+      : `${cw}×${ch} → ${sw}×${sh} (宽${Math.round(scaleW * 100)}% 高${Math.round(scaleH * 100)}%)`;
+
+    els.expandSizePreview.textContent = (exp.left + exp.right + exp.top + exp.bottom === 0)
+      ? `${sw}×${sh}`
+      : `${sw}×${sh} → ${fw}×${fh}`;
+
+    this.drawFinalPreview(cw, ch, sw, sh, crop, exp);
+  },
+
+  drawFinalPreview(cw, ch, sw, sh, crop, exp) {
+    if (!state.previewImageObj) return;
+    
+    const { w: fw, h: fh } = calculator.getFinalSize(sw, sh);
+    const canvas = document.createElement('canvas');
+    canvas.width = fw; canvas.height = fh;
+    const ctx = canvas.getContext('2d');
+    
+    // 只填充扩充出来的区域
+    if (exp.alpha > 0) {
+      const r = parseInt(exp.color.slice(1, 3), 16);
+      const g = parseInt(exp.color.slice(3, 5), 16);
+      const b = parseInt(exp.color.slice(5, 7), 16);
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${exp.alpha})`;
+      
+      // 上
+      if (exp.top > 0) ctx.fillRect(0, 0, fw, exp.top);
+      // 下
+      if (exp.bottom > 0) ctx.fillRect(0, fh - exp.bottom, fw, exp.bottom);
+      // 左
+      if (exp.left > 0) ctx.fillRect(0, exp.top, exp.left, sh);
+      // 右
+      if (exp.right > 0) ctx.fillRect(fw - exp.right, exp.top, exp.right, sh);
+    }
+
+    // 绘制图片
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(state.previewImageObj, crop.left, crop.top, cw, ch, exp.left, exp.top, sw, sh);
+
+    
+    els.scalePreviewImg.src = canvas.toDataURL('image/png');
+    els.scalePreviewImg.style.display = 'block';
+    els.scalePlaceholder.style.display = 'none';
+  }
+
+};
+
+// --- 7. 核心处理逻辑 ---
+
+const processor = {
+  async handleFiles(files) {
+    state.selectedFiles = Array.from(files);
+    state.fileInfoMap.clear();
+    state.baseImageInfo = null;
+
+    if (!state.selectedFiles.length) {
+      ui.renderTable([]);
+      ui.updateAllPreviews();
+      return;
+    }
+
+    ui.setStatus('解析图片中...');
+    
+    const infos = [];
+    for (const file of state.selectedFiles) {
+      try {
+        const decoded = await utils.decodeImage(file);
+        infos.push({ file, w: decoded.w, h: decoded.h });
+        if (decoded.bmp?.close) decoded.bmp.close();
+      } catch (e) {
+        state.fileInfoMap.set(file, { valid: false });
+      }
+    }
+
+    if (!infos.length) {
+      ui.setStatus('无法读取所选图片');
+      return;
+    }
+
+    // 计算基准尺寸
+    const skip = els.skipMismatch.checked;
+    const baseW = skip ? infos[0].w : Math.min(...infos.map(i => i.w));
+    const baseH = skip ? infos[0].h : Math.min(...infos.map(i => i.h));
+    state.baseImageInfo = { w: baseW, h: baseH };
+
+    // 更新状态图
+    infos.forEach(info => {
+      const isMismatch = info.w !== baseW || info.h !== baseH;
+      state.fileInfoMap.set(info.file, {
+        w: info.w, h: info.h,
+        valid: !skip || !isMismatch,
+        mismatch: isMismatch
+      });
+    });
+
+    // 加载第一张图作为预览
+    const firstValid = infos.find(i => i.file === state.selectedFiles[0]);
+    if (firstValid) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        state.previewImageObj = new Image();
+        state.previewImageObj.onload = () => {
+          els.editor.preview.src = e.target.result;
+          this.initEditor();
+        };
+        state.previewImageObj.src = e.target.result;
+      };
+      reader.readAsDataURL(firstValid.file);
+    }
+
+    this.refreshUIStatus(infos.length, baseW, baseH);
+  },
+
+  initEditor() {
+    els.editor.preview.style.display = 'block';
+    els.editor.placeholder.style.display = 'none';
+    this.zoomFit();
+    ui.updateAllPreviews();
+  },
+
+  refreshUIStatus(count, bw, bh) {
+    els.imageCount.textContent = `${count} 张`;
+    els.imageSizeInfo.textContent = `基准尺寸：${bw}×${bh}`;
+    
+    const rows = state.selectedFiles.map(f => {
+      const info = state.fileInfoMap.get(f);
+      if (!info) return { name: f.name, statusText: '未知错误', statusType: 'bad' };
+      if (!info.valid) return { name: f.name, origW: info.w, origH: info.h, statusText: '尺寸不一已跳过', statusType: 'bad' };
+      
+      return {
+        name: f.name, origW: info.w, origH: info.h,
+        statusText: info.mismatch ? '将自动裁切后处理' : '待处理',
+        statusType: info.mismatch ? 'info' : ''
+      };
+    });
+    ui.renderTable(rows);
+    ui.setStatus('准备就绪');
+  },
+
+  zoomFit() {
+    if (!state.baseImageInfo) return;
+    const wrap = els.editor.wrapper.getBoundingClientRect();
+    const pad = 40;
+    const z = Math.min((wrap.width - pad) / state.baseImageInfo.w, (wrap.height - pad) / state.baseImageInfo.h, 1);
+    this.setZoom(z);
+  },
+
+  setZoom(z) {
+    state.currentZoom = utils.clamp(z, CONFIG.MIN_ZOOM, CONFIG.MAX_ZOOM);
+    els.editor.zoom.label.textContent = `${Math.round(state.currentZoom * 100)}%`;
+    ui.refreshEditorCanvas();
+  },
+
+  async processAll() {
+    const validFiles = state.selectedFiles.filter(f => state.fileInfoMap.get(f)?.valid);
+    if (!validFiles.length) return alert('没有可处理的图片');
+
+    els.processBtn.disabled = true;
+    ui.setStatus('处理中...');
+
+    const zip = window.JSZip ? new JSZip() : null;
+    const format = els.outFormat.value;
+    const ext = utils.mimeToExt(format);
+
+    const rows = [...els.tableBody.rows].map((row, idx) => {
+        const file = state.selectedFiles[idx];
+        const info = state.fileInfoMap.get(file);
+        return { 
+            name: file.name, 
+            origW: info.w, 
+            origH: info.h, 
+            statusText: info.valid ? '排队中' : '已跳过',
+            statusType: info.valid ? '' : 'bad'
+        };
+    });
+
+    let success = 0;
+    for (let i = 0; i < state.selectedFiles.length; i++) {
+      const file = state.selectedFiles[i];
+      if (!state.fileInfoMap.get(file)?.valid) continue;
+
+      rows[i].statusText = '进行中...';
+      ui.renderTable(rows);
+
+      try {
+        const result = await this.processOne(file);
+        Object.assign(rows[i], result, { statusText: '完成', statusType: 'ok' });
+        success++;
+
+        const outName = `${utils.baseName(file.name)}_result.${ext}`;
+        if (zip) zip.file(outName, result.blob);
+        else this.downloadBlob(result.blob, outName);
+      } catch (e) {
+        rows[i].statusText = `失败: ${e.message}`;
+        rows[i].statusType = 'bad';
+      }
+      ui.renderTable(rows);
+    }
+
+    if (zip && success > 0) {
+      ui.setStatus('正在生成压缩包...');
+      const content = await zip.generateAsync({ type: 'blob' });
+      this.downloadBlob(content, `batch_process_${Date.now()}.zip`);
+    }
+
+    ui.setStatus(`处理结束：成功 ${success} 张`);
+    els.processBtn.disabled = false;
+  },
+
+  async processOne(file) {
+    const { bmp, img, w: ow, h: oh } = await utils.decodeImage(file);
+    const source = bmp || img;
+    const base = state.baseImageInfo;
+
+    // 自动对齐基准尺寸（若不跳过不匹配）
+    let cl = 0, ct = 0, cr = 0, cb = 0;
+    if (!els.skipMismatch.checked && (ow !== base.w || oh !== base.h)) {
+        cl = Math.floor(Math.max(0, ow - base.w) / 2);
+        cr = ow - base.w - cl;
+        ct = Math.floor(Math.max(0, oh - base.h) / 2);
+        cb = oh - base.h - ct;
+    } else {
+        const crop = calculator.getCropValues();
+        cl = crop.left; cr = crop.right; ct = crop.top; cb = crop.bottom;
+    }
+
+    const cw = ow - cl - cr, ch = oh - ct - cb;
+    if (cw <= 0 || ch <= 0) throw new Error('裁切区域无效');
+
+    // 1. 裁切
+    const cCanvas = document.createElement('canvas');
+    cCanvas.width = cw; cCanvas.height = ch;
+    cCanvas.getContext('2d').drawImage(source, cl, ct, cw, ch, 0, 0, cw, ch);
+
+    // 2. 缩放
+    const { w: sw, h: sh } = calculator.getScaledSize(cw, ch);
+    const sCanvas = document.createElement('canvas');
+    sCanvas.width = sw; sCanvas.height = sh;
+    const sCtx = sCanvas.getContext('2d');
+    sCtx.imageSmoothingEnabled = true;
+    sCtx.imageSmoothingQuality = 'high';
+    sCtx.drawImage(cCanvas, 0, 0, cw, ch, 0, 0, sw, sh);
+
+    // 3. 扩充
+    const { w: fw, h: fh, exp } = calculator.getFinalSize(sw, sh);
+    const fCanvas = document.createElement('canvas');
+    fCanvas.width = fw; fCanvas.height = fh;
+    const fCtx = fCanvas.getContext('2d');
+
+    // 只填充扩充出来的区域
+    if (exp.alpha > 0) {
+        const r = parseInt(exp.color.slice(1, 3), 16);
+        const g = parseInt(exp.color.slice(3, 5), 16);
+        const b = parseInt(exp.color.slice(5, 7), 16);
+        fCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${exp.alpha})`;
+        
+        // 分块填充以避开中心图像区域
+        if (exp.top > 0) fCtx.fillRect(0, 0, fw, exp.top);
+        if (exp.bottom > 0) fCtx.fillRect(0, fh - exp.bottom, fw, exp.bottom);
+        if (exp.left > 0) fCtx.fillRect(0, exp.top, exp.left, sh);
+        if (exp.right > 0) fCtx.fillRect(fw - exp.right, exp.top, exp.right, sh);
+    }
+
+    fCtx.drawImage(sCanvas, exp.left, exp.top);
+
+
+
+    const blob = await new Promise(res => fCanvas.toBlob(res, els.outFormat.value, utils.safeNum(els.jpegQuality.value)));
+    if (bmp?.close) bmp.close();
+
+    return { blob, croppedW: cw, croppedH: ch, scaledW: sw, scaledH: sh, finalW: fw, finalH: fh };
+  },
+
+  downloadBlob(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+};
+
+// --- 8. 事件处理 ---
+
+const handlers = {
+  onDragStart(e, handle) {
+    e.preventDefault();
+    state.isDragging = true;
+    state.dragState = {
+      handle,
+      startX: e.clientX || e.touches?.[0].clientX,
+      startY: e.clientY || e.touches?.[0].clientY,
+      startValue: utils.safeInt(els.cropInputs[handle].value)
+    };
+    document.addEventListener('mousemove', this.onDragging);
+    document.addEventListener('mouseup', this.onDragEnd);
+    document.addEventListener('touchmove', this.onDragging);
+    document.addEventListener('touchend', this.onDragEnd);
+  },
+
+  onDragging: (e) => {
+    if (!state.isDragging || !state.baseImageInfo) return;
+    const cx = e.clientX || e.touches?.[0].clientX;
+    const cy = e.clientY || e.touches?.[0].clientY;
+    const { handle, startX, startY, startValue } = state.dragState;
+    const { w, h } = state.baseImageInfo;
+    const z = state.currentZoom;
+
+    let newVal;
+    if (handle === 'top') {
+        newVal = utils.clamp(startValue + Math.round((cy - startY) / z), 0, h - utils.safeInt(els.cropInputs.bottom.value) - 1);
+    } else if (handle === 'bottom') {
+        newVal = utils.clamp(startValue - Math.round((cy - startY) / z), 0, h - utils.safeInt(els.cropInputs.top.value) - 1);
+    } else if (handle === 'left') {
+        newVal = utils.clamp(startValue + Math.round((cx - startX) / z), 0, w - utils.safeInt(els.cropInputs.right.value) - 1);
+    } else if (handle === 'right') {
+        newVal = utils.clamp(startValue - Math.round((cx - startX) / z), 0, w - utils.safeInt(els.cropInputs.left.value) - 1);
+    }
+    
+    els.cropInputs[handle].value = newVal;
+    ui.updateAllPreviews();
+  },
+
+  onDragEnd: () => {
+    state.isDragging = false;
+    document.removeEventListener('mousemove', handlers.onDragging);
+    document.removeEventListener('mouseup', handlers.onDragEnd);
+    document.removeEventListener('touchmove', handlers.onDragging);
+    document.removeEventListener('touchend', handlers.onDragEnd);
+  }
+};
+
+// --- 9. 初始化与绑定 ---
+
+function init() {
+  // 文件上传
+  els.fileInput.onchange = (e) => processor.handleFiles(e.target.files);
+  els.dropZone.onclick = () => els.fileInput.click();
+  els.dropZone.ondragover = (e) => { e.preventDefault(); els.dropZone.classList.add('dragover'); };
+  els.dropZone.ondragleave = () => els.dropZone.classList.remove('dragover');
+  els.dropZone.ondrop = (e) => {
+    e.preventDefault();
+    els.dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) processor.handleFiles(e.dataTransfer.files);
+  };
+
+  // 按钮
+  els.clearBtn.onclick = () => window.location.reload();
+  els.processBtn.onclick = () => processor.processAll();
+
+  // 裁切手柄
+  Object.entries(els.editor.handles).forEach(([k, el]) => {
+    el.onmousedown = (e) => handlers.onDragStart(e, k);
+    el.ontouchstart = (e) => handlers.onDragStart(e, k);
+  });
+
+  // 预览缩放
+  els.editor.zoom.in.onclick = () => processor.setZoom(state.currentZoom + CONFIG.ZOOM_STEP);
+  els.editor.zoom.out.onclick = () => processor.setZoom(state.currentZoom - CONFIG.ZOOM_STEP);
+  els.editor.zoom.fit.onclick = () => processor.zoomFit();
+  els.editor.wrapper.onwheel = (e) => {
+    if (!state.baseImageInfo) return;
+    e.preventDefault();
+    processor.setZoom(state.currentZoom + (e.deltaY > 0 ? -CONFIG.ZOOM_STEP : CONFIG.ZOOM_STEP));
+  };
+
+  // 选项联动
+  els.lockAspect.onchange = () => { ui.updateScaleUI(); ui.updateScalePreview(); };
+  els.outFormat.onchange = () => ui.updateOutputUI();
+  els.skipMismatch.onchange = () => processor.handleFiles(els.fileInput.files);
+
+  // 输入实时预览
+  [...Object.values(els.cropInputs), ...Object.values(els.scaleInputs), ...Object.values(els.expandInputs), els.jpegQuality].forEach(el => {
+    el.oninput = () => {
+      if (el === els.expandInputs.alpha) {
+        els.expandInputs.alphaVal.textContent = el.value;
+      }
+      ui.updateAllPreviews();
     };
   });
-  renderTable(rows);
 
-  let okCount = 0;
-  let processedCount = 0;
-  
-  for (let i = 0; i < selectedFiles.length; i++) {
-    const f = selectedFiles[i];
-    const info = fileInfoMap.get(f);
-    
-    // 跳过无效文件
-    if (!info || !info.valid) {
-      continue;
-    }
 
-    rows[i].statusText = '处理中…';
-    renderTable(rows);
-
-    try {
-      const r = await processOne(f);
-      rows[i].origW = r.origW;
-      rows[i].origH = r.origH;
-      rows[i].croppedW = r.croppedW;
-      rows[i].croppedH = r.croppedH;
-      rows[i].scaledW = r.scaledW;
-      rows[i].scaledH = r.scaledH;
-      rows[i].finalW = r.finalW;
-      rows[i].finalH = r.finalH;
-
-      if (!r.ok) {
-        rows[i].statusText = `失败：${r.reason}`;
-        rows[i].statusType = 'bad';
-        renderTable(rows);
-        processedCount++;
-        continue;
-      }
-
-      const outName = `${baseName(f.name)}_crop_${r.croppedW}x${r.croppedH}_scale_${r.scaledW}x${r.scaledH}_expand_${r.finalW}x${r.finalH}.${outExt}`;
-
-      if (canZip) {
-        zip.file(outName, r.blob);
-      } else {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(r.blob);
-        a.download = outName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-        await new Promise((res) => setTimeout(res, 80));
-      }
-
-      rows[i].statusText = '完成';
-      rows[i].statusType = 'ok';
-      okCount++;
-      processedCount++;
-      renderTable(rows);
-    } catch (e) {
-      rows[i].statusText = `失败：${e?.message || e}`;
-      rows[i].statusType = 'bad';
-      processedCount++;
-      renderTable(rows);
-    }
-
-    setStatus(`处理中… ${processedCount}/${validFiles.length}（成功 ${okCount}）`);
-  }
-
-  if (!okCount) {
-    setStatus('全部失败（请检查裁切/缩放设置）');
-    els.processBtn.disabled = false;
-    els.clearBtn.disabled = false;
-    els.fileInput.disabled = false;
-    return;
-  }
-
-  if (canZip) {
-    setStatus('打包 ZIP…');
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-    const ts = new Date();
-    const stamp = `${ts.getFullYear()}${String(ts.getMonth() + 1).padStart(2, '0')}${String(ts.getDate()).padStart(2, '0')}_${String(ts.getHours()).padStart(2, '0')}${String(ts.getMinutes()).padStart(2, '0')}${String(ts.getSeconds()).padStart(2, '0')}`;
-    const zipName = `cropped_scaled_${stamp}.zip`;
-
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(zipBlob);
-    a.download = zipName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-
-    const skippedCount = selectedFiles.length - validFiles.length;
-    const skippedText = skippedCount > 0 ? `，跳过 ${skippedCount} 张` : '';
-    setStatus(`完成：成功 ${okCount}/${validFiles.length}${skippedText}，已下载 ${zipName}`);
-  } else {
-    const skippedCount = selectedFiles.length - validFiles.length;
-    const skippedText = skippedCount > 0 ? `，跳过 ${skippedCount} 张` : '';
-    setStatus(`完成：成功 ${okCount}/${validFiles.length}${skippedText}（已逐个下载）`);
-  }
-
-  els.processBtn.disabled = false;
-  els.clearBtn.disabled = false;
-  els.fileInput.disabled = false;
+  // 初始状态
+  ui.updateScaleUI();
+  ui.updateOutputUI();
+  ui.renderTable([]);
 }
 
-function clearAll() {
-  els.fileInput.value = '';
-  selectedFiles = [];
-  firstImageInfo = null;
-  firstImageElement = null;
-  fileInfoMap.clear();
-  els.imageCount.textContent = '未选择';
-  els.imageSizeInfo.textContent = '';
-  els.previewImage.style.display = 'none';
-  els.cropPlaceholder.style.display = 'block';
-  els.cropPlaceholder.textContent = '请先选择图片';
-  hideOverlaysAndHandles();
-  currentZoom = 1;
-  els.zoomLabel.textContent = '100%';
-  renderTable([]);
-  updateAllPreviews();
-  setStatus('未开始');
-}
-
-// 事件绑定
-els.fileInput.addEventListener('change', refreshSelection);
-els.skipMismatch.addEventListener('change', refreshSelection);
-els.clearBtn.addEventListener('click', clearAll);
-els.processBtn.addEventListener('click', processAll);
-
-// 裁切输入变化
-els.cropTop.addEventListener('input', updateAllPreviews);
-els.cropBottom.addEventListener('input', updateAllPreviews);
-els.cropLeft.addEventListener('input', updateAllPreviews);
-els.cropRight.addEventListener('input', updateAllPreviews);
-
-// 缩放按钮
-els.zoomInBtn.addEventListener('click', zoomIn);
-els.zoomOutBtn.addEventListener('click', zoomOut);
-els.zoomFitBtn.addEventListener('click', zoomFit);
-
-// 滚轮缩放
-els.cropEditorWrapper.addEventListener('wheel', onWheelZoom, { passive: false });
-
-// 拖拽基准线
-els.handleTop.addEventListener('mousedown', (e) => startDrag(e, 'top'));
-els.handleBottom.addEventListener('mousedown', (e) => startDrag(e, 'bottom'));
-els.handleLeft.addEventListener('mousedown', (e) => startDrag(e, 'left'));
-els.handleRight.addEventListener('mousedown', (e) => startDrag(e, 'right'));
-
-els.handleTop.addEventListener('touchstart', (e) => startDrag(e, 'top'));
-els.handleBottom.addEventListener('touchstart', (e) => startDrag(e, 'bottom'));
-els.handleLeft.addEventListener('touchstart', (e) => startDrag(e, 'left'));
-els.handleRight.addEventListener('touchstart', (e) => startDrag(e, 'right'));
-
-// 缩放输入变化
-els.lockAspect.addEventListener('change', () => {
-  updateScaleFieldsUI();
-  updateScalePreview();
-});
-els.scalePercent.addEventListener('input', updateScalePreview);
-els.scaleWidth.addEventListener('input', updateScalePreview);
-els.scaleHeight.addEventListener('input', updateScalePreview);
-
-// 扩充透明像素输入变化
-els.expandLeft.addEventListener('input', updateScalePreview);
-els.expandRight.addEventListener('input', updateScalePreview);
-els.expandTop.addEventListener('input', updateScalePreview);
-els.expandBottom.addEventListener('input', updateScalePreview);
-
-// 输出格式
-els.outFormat.addEventListener('change', updateJpegUI);
-
-// 初始化
-updateScaleFieldsUI();
-updateJpegUI();
-updateAllPreviews();
-renderTable([]);
-setStatus('未开始');
-hideOverlaysAndHandles();
+init();
