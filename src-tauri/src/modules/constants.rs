@@ -72,7 +72,7 @@ pub const ANIMATION_WINDOW_BASE_HEIGHT: f64 = ANIMATION_AREA_HEIGHT + BUBBLE_ARE
 pub const SHORT_TEXT_THRESHOLD: u32 = 5;
 
 /// 单行最大按钮数量（并排显示时）
-pub const MAX_BUTTONS_PER_ROW: u32 = 3;
+pub const MAX_BUTTONS_PER_ROW: u32 = 2;
 
 /// 单行最大字符数，超过此值且未遇到换行符时自动换行
 pub const MAX_CHARS_PER_LINE: u32 = 15;

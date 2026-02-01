@@ -62,7 +62,7 @@
   let SHORT_TEXT_THRESHOLD = 6;
 
   /** 单行最大按钮数量 */
-  let MAX_BUTTONS_PER_ROW = 3;
+  let MAX_BUTTONS_PER_ROW = 2;
 
   /** 按钮文本最大字符数，超过此值自动换行 */
   let MAX_CHARS_PER_BUTTON = 8;
