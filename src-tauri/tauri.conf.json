@@ -24,7 +24,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": "nsis",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -40,14 +40,9 @@
     },
     "windows": {
       "nsis": {
-        "languages": ["English", "ChineseSimplified", "Japanese"],
+        "languages": ["SimpChinese", "TradChinese", "English", "Japanese"],
         "displayLanguageSelector": true,
         "installerIcon": "icons/icon.ico"
-      },
-      "wix": {
-        "language": ["zh-CN", "en-US", "ja-JP"],
-        "bannerPath": "icons/banner.bmp",
-        "dialogImagePath": "icons/dialog.bmp"
       }
     }
   }
