@@ -3,446 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TrayBuddy Mod Editor 使用教程</title>
-  <style>
-    :root {
-      --color-primary: #6366f1;
-      --color-primary-light: #818cf8;
-      --bg-primary: #0f172a;
-      --bg-secondary: #1e293b;
-      --bg-tertiary: #334155;
-      --bg-code: #0d1117;
-      --text-primary: #f1f5f9;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --border-color: #334155;
-      --color-success: #22c55e;
-      --color-warning: #f59e0b;
-      --color-info: #3b82f6;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.8;
-    }
-
-    /* 导航栏 */
-    .navbar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 60px;
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 24px;
-      z-index: 100;
-    }
-
-    .navbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text-primary);
-      text-decoration: none;
-    }
-
-    .navbar-links {
-      display: flex;
-      gap: 24px;
-    }
-
-    .navbar-links a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
-      transition: color 0.2s;
-    }
-
-    .navbar-links a:hover {
-      color: var(--color-primary-light);
-    }
-
-    /* 侧边目录 */
-    .sidebar {
-      position: fixed;
-      top: 60px;
-      left: 0;
-      width: 260px;
-      height: calc(100vh - 60px);
-      background: var(--bg-secondary);
-      border-right: 1px solid var(--border-color);
-      padding: 24px 0;
-      overflow-y: auto;
-    }
-
-    .sidebar-title {
-      padding: 0 20px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 12px;
-    }
-
-    .sidebar-nav {
-      list-style: none;
-    }
-
-    .sidebar-nav a {
-      display: block;
-      padding: 10px 20px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
-      border-left: 3px solid transparent;
-      transition: all 0.2s;
-    }
-
-    .sidebar-nav a:hover {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-    }
-
-    .sidebar-nav a.active {
-      background: var(--bg-tertiary);
-      color: var(--color-primary-light);
-      border-left-color: var(--color-primary);
-    }
-
-    .sidebar-nav .sub-item a {
-      padding-left: 36px;
-      font-size: 13px;
-    }
-
-    /* 主内容区 */
-    .main-content {
-      margin-left: 260px;
-      margin-top: 60px;
-      padding: 40px 60px;
-      max-width: 900px;
-    }
-
-    /* 标题样式 */
-    h1 {
-      font-size: 36px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      color: var(--text-primary);
-    }
-
-    h2 {
-      font-size: 28px;
-      font-weight: 600;
-      margin-top: 60px;
-      margin-bottom: 20px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-color);
-      color: var(--text-primary);
-    }
-
-    h3 {
-      font-size: 20px;
-      font-weight: 600;
-      margin-top: 40px;
-      margin-bottom: 16px;
-      color: var(--text-primary);
-    }
-
-    h4 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-top: 24px;
-      margin-bottom: 12px;
-      color: var(--text-secondary);
-    }
-
-    p {
-      margin-bottom: 16px;
-      color: var(--text-secondary);
-    }
-
-    .lead {
-      font-size: 18px;
-      color: var(--text-secondary);
-      margin-bottom: 32px;
-    }
-
-    /* 列表 */
-    ul, ol {
-      margin-bottom: 16px;
-      padding-left: 24px;
-    }
-
-    li {
-      margin-bottom: 8px;
-      color: var(--text-secondary);
-    }
-
-    /* 代码 */
-    code {
-      background: var(--bg-code);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-family: 'Monaco', 'Consolas', monospace;
-      font-size: 14px;
-      color: var(--color-primary-light);
-    }
-
-    pre {
-      background: var(--bg-code);
-      padding: 20px;
-      border-radius: 8px;
-      overflow-x: auto;
-      margin-bottom: 20px;
-      border: 1px solid var(--border-color);
-    }
-
-    pre code {
-      background: none;
-      padding: 0;
-      color: var(--text-primary);
-    }
-
-    /* 提示框 */
-    .callout {
-      padding: 16px 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      border-left: 4px solid;
-    }
-
-    .callout-info {
-      background: rgba(59, 130, 246, 0.1);
-      border-color: var(--color-info);
-    }
-
-    .callout-warning {
-      background: rgba(245, 158, 11, 0.1);
-      border-color: var(--color-warning);
-    }
-
-    .callout-success {
-      background: rgba(34, 197, 94, 0.1);
-      border-color: var(--color-success);
-    }
-
-    .callout-title {
-      font-weight: 600;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .callout-info .callout-title { color: var(--color-info); }
-    .callout-warning .callout-title { color: var(--color-warning); }
-    .callout-success .callout-title { color: var(--color-success); }
-
-    /* 图片 */
-    .img-container {
-      margin: 24px 0;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid var(--border-color);
-    }
-
-    .img-container img {
-      width: 100%;
-      display: block;
-    }
-
-    .img-caption {
-      padding: 12px 16px;
-      background: var(--bg-secondary);
-      font-size: 13px;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
-    /* 步骤 */
-    .steps {
-      counter-reset: step;
-      margin: 24px 0;
-    }
-
-    .step {
-      position: relative;
-      padding-left: 48px;
-      padding-bottom: 32px;
-      border-left: 2px solid var(--border-color);
-      margin-left: 15px;
-    }
-
-    .step:last-child {
-      border-left-color: transparent;
-      padding-bottom: 0;
-    }
-
-    .step::before {
-      counter-increment: step;
-      content: counter(step);
-      position: absolute;
-      left: -16px;
-      top: 0;
-      width: 30px;
-      height: 30px;
-      background: var(--color-primary);
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 14px;
-    }
-
-    .step-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 12px;
-    }
-
-    /* 表格 */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 14px;
-    }
-
-    th, td {
-      padding: 12px 16px;
-      text-align: left;
-      border: 1px solid var(--border-color);
-    }
-
-    th {
-      background: var(--bg-secondary);
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    td {
-      color: var(--text-secondary);
-    }
-
-    /* 按钮示例 */
-    .btn-demo {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      background: var(--color-primary);
-      color: white;
-      margin-right: 8px;
-      margin-bottom: 8px;
-    }
-
-    .btn-demo.secondary {
-      background: var(--bg-tertiary);
-    }
-
-    /* 功能卡片 */
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 20px;
-      margin: 24px 0;
-    }
-
-    .feature-card {
-      background: var(--bg-secondary);
-      border-radius: 12px;
-      padding: 24px;
-      border: 1px solid var(--border-color);
-    }
-
-    .feature-icon {
-      font-size: 32px;
-      margin-bottom: 16px;
-    }
-
-    .feature-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 8px;
-    }
-
-    .feature-desc {
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-
-    /* 快捷键 */
-    kbd {
-      display: inline-block;
-      padding: 4px 8px;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      font-family: 'Monaco', 'Consolas', monospace;
-      font-size: 12px;
-      color: var(--text-primary);
-      box-shadow: 0 2px 0 var(--border-color);
-    }
-
-    /* 响应式 */
-    @media (max-width: 1024px) {
-      .sidebar {
-        display: none;
-      }
-      .main-content {
-        margin-left: 0;
-        padding: 24px;
-      }
-    }
-
-    /* 滚动条 */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--bg-primary);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--bg-tertiary);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--text-muted);
-    }
-
-    /* 锚点偏移 */
-    [id] {
-      scroll-margin-top: 80px;
-    }
-  </style>
+  <title data-i18n="tutorial_title">TrayBuddy Mod Editor 使用教程</title>
+  <link rel="stylesheet" href="tutorial-styles.css">
 </head>
 <body>
   <!-- 导航栏 -->
@@ -451,633 +13,291 @@
       <span>🎨</span>
       <span>TrayBuddy Mod Editor</span>
     </a>
-    <div class="navbar-links">
-      <a href="index.html">打开编辑器</a>
-      <a href="tutorial.html">使用教程</a>
+    <div class="navbar-right">
+      <div class="navbar-links">
+        <a href="index.html" data-i18n="nav_editor">打开编辑器</a>
+        <a href="tutorial.html" data-i18n="nav_tutorial">使用教程</a>
+      </div>
+      <div class="lang-switcher">
+        <button class="lang-btn" data-lang="zh">ZH</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="ja">JA</button>
+      </div>
     </div>
   </nav>
 
   <!-- 侧边目录 -->
   <aside class="sidebar">
-    <div class="sidebar-title">目录</div>
+    <div class="sidebar-title" data-i18n="sidebar_toc">目录</div>
     <ul class="sidebar-nav">
-      <li><a href="#intro">简介</a></li>
-      <li><a href="#quickstart">快速开始</a></li>
-      <li class="sub-item"><a href="#open-mod">打开现有 Mod</a></li>
-      <li class="sub-item"><a href="#create-mod">创建新 Mod</a></li>
-      <li class="sub-item"><a href="#tbuddy">使用 .tbuddy 文件</a></li>
-      <li><a href="#manifest">基础信息配置</a></li>
-      <li><a href="#states-triggers">状态和触发</a></li>
-      <li><a href="#bubble">气泡样式配置</a></li>
-      <li><a href="#assets">动画管理</a></li>
-      <li><a href="#texts">多语言文本</a></li>
-      <li><a href="#audio">多语言音频</a></li>
-      <li><a href="#save">保存与导出</a></li>
-      <li><a href="#structure">Mod 目录结构</a></li>
+      <li><a href="#intro" data-i18n="toc_intro">简介</a></li>
+      <li><a href="#requirements" data-i18n="toc_requirements">环境要求</a></li>
+      <li><a href="#quickstart" data-i18n="toc_quickstart">快速开始</a></li>
+      <li><a href="#manifest" data-i18n="toc_manifest">基础信息配置</a></li>
+      <li><a href="#states-triggers" data-i18n="toc_states_triggers">状态和触发</a></li>
+      <li><a href="#bubble" data-i18n="toc_bubble">气泡样式配置</a></li>
+      <li><a href="#assets" data-i18n="toc_assets">动画管理</a></li>
+      <li><a href="#texts" data-i18n="toc_texts">多语言文本</a></li>
+      <li><a href="#audio" data-i18n="toc_audio">多语言音频</a></li>
+      <li><a href="#save-export" data-i18n="toc_save_export">保存与导出</a></li>
+      <li><a href="#structure" data-i18n="toc_structure">Mod 目录结构</a></li>
+      <li><a href="#faq" data-i18n="toc_faq">常见问题</a></li>
     </ul>
   </aside>
 
   <!-- 主内容 -->
   <main class="main-content">
-    <h1>📖 Mod Editor 使用教程</h1>
-    <p class="lead">本教程将指导你如何使用 TrayBuddy Mod Editor 创建和编辑角色 Mod 包（文件夹或 .tbuddy）。</p>
+    <h1 data-i18n="page_title">📖 Mod Editor 使用教程</h1>
+    <p class="lead" data-i18n="page_lead">本教程将指导你如何使用 TrayBuddy Mod Editor 创建和编辑角色 Mod 包。</p>
 
     <!-- 简介 -->
     <section id="intro">
-      <h2>简介</h2>
-      <p>TrayBuddy Mod Editor 是一个可视化的 Mod 编辑工具，采用顶部标签页设计，让你更直观地管理角色的各种数据。</p>
+      <h2 data-i18n="section_intro">简介</h2>
+      <p data-i18n="intro_desc">TrayBuddy Mod Editor 是一个可视化的 Mod 编辑工具，让你更直观地管理角色的各种数据。</p>
       
       <div class="feature-grid">
         <div class="feature-card">
           <div class="feature-icon">📋</div>
-          <div class="feature-title">基础信息</div>
-          <div class="feature-desc">配置 Mod ID、版本、作者、角色渲染参数等</div>
+          <div class="feature-title" data-i18n="feature_manifest">基础信息</div>
+          <div class="feature-desc" data-i18n="feature_manifest_desc">配置 Mod ID、版本、作者、角色渲染参数、Mod 数据面板等</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🎭</div>
-          <div class="feature-title">状态和触发</div>
-          <div class="feature-desc">管理动作状态、对话分支、事件响应逻辑以及数据计数器（Mod Data Counter）</div>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🧼</div>
-          <div class="feature-title">气泡样式</div>
-          <div class="feature-desc">自定义对话气泡样式，支持背景滤镜、装饰文字和阴影效果</div>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🖼️</div>
-          <div class="feature-title">动画</div>
-          <div class="feature-desc">管理序列帧动画和静态图片配置</div>
+          <div class="feature-title" data-i18n="feature_states">状态和触发</div>
+          <div class="feature-desc" data-i18n="feature_states_desc">管理动作状态、对话分支、事件响应逻辑以及数据计数器</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">💬</div>
-          <div class="feature-title">文本管理</div>
-          <div class="feature-desc">多语言文本编辑，支持简易 Markdown</div>
+          <div class="feature-title" data-i18n="feature_bubble">气泡样式</div>
+          <div class="feature-desc" data-i18n="feature_bubble_desc">自定义对话气泡样式，支持实时预览效果</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🖼️</div>
+          <div class="feature-title" data-i18n="feature_assets">动画</div>
+          <div class="feature-desc" data-i18n="feature_assets_desc">管理序列帧动画和静态图片配置</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <div class="feature-title" data-i18n="feature_texts">文本管理</div>
+          <div class="feature-desc" data-i18n="feature_texts_desc">多语言文本编辑，支持简易 Markdown</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🔊</div>
-          <div class="feature-title">音频管理</div>
-          <div class="feature-desc">管理多语言语音资源配置</div>
+          <div class="feature-title" data-i18n="feature_audio">音频管理</div>
+          <div class="feature-desc" data-i18n="feature_audio_desc">管理多语言语音资源配置</div>
         </div>
       </div>
     </section>
 
+    <!-- 环境要求 -->
+    <section id="requirements">
+      <h2 data-i18n="section_requirements">环境要求</h2>
+      <div class="callout callout-warning">
+        <div class="callout-title" data-i18n="callout_browser_title">⚠️ 浏览器要求</div>
+        <p data-i18n="callout_browser_desc">请使用 Chrome 86+ 或 Edge 86+ 浏览器，其他浏览器暂不支持文件夹读写功能。</p>
+      </div>
+      <p data-i18n="requirements_run_desc">推荐运行方式：双击 mod-tool/打开-mod编辑器.bat 启动本地服务器，然后访问 http://127.0.0.1:4173/</p>
+    </section>
+
     <!-- 快速开始 -->
     <section id="quickstart">
-      <h2>快速开始</h2>
+      <h2 data-i18n="section_quickstart">快速开始</h2>
       
-      <h3 id="open-mod">打开现有 Mod</h3>
-      <p>现在支持两种方式打开 Mod：</p>
-      <ul>
-        <li><strong>打开文件夹</strong>：直接选择电脑上的 Mod 目录。</li>
-        <li><strong>打开 .tbuddy</strong>：选择打包好的 <code>.tbuddy</code> 文件，编辑器会自动解压读取。</li>
-      </ul>
+      <h3 data-i18n="section_open_folder">打开现有 Mod 文件夹</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-title" data-i18n="step_click_open">点击「打开 Mod」下拉菜单</div>
+          <p data-i18n="step_click_open_desc">在工具栏点击「📂 打开 Mod」按钮，选择「📂 打开文件夹」</p>
+        </div>
+        <div class="step">
+          <div class="step-title" data-i18n="step_select_folder">选择 Mod 文件夹</div>
+          <p data-i18n="step_select_folder_desc">在弹出的选择器中，选择一个 Mod 文件夹（如 ema）</p>
+        </div>
+        <div class="step">
+          <div class="step-title" data-i18n="step_grant_permission">授予访问权限</div>
+          <p data-i18n="step_grant_permission_desc">浏览器会询问是否允许读写该文件夹，点击「允许」</p>
+        </div>
+      </div>
 
-      <h3 id="tbuddy">什么是 .tbuddy？</h3>
-      <p><code>.tbuddy</code> 是 TrayBuddy 专用的 Mod 包格式，本质上是一个包含 Mod 完整目录结构的 ZIP 压缩包。你可以通过编辑器的「导出」功能生成它。</p>
+      <h3 data-i18n="section_open_tbuddy">打开 .tbuddy 文件</h3>
+      <p data-i18n="tbuddy_desc">.tbuddy 是 TrayBuddy 专用的 Mod 包格式，本质上是一个 ZIP 压缩包。点击「📦 打开 .tbuddy」选择文件后自动加载。</p>
+
+      <h3 data-i18n="section_create_mod">创建新 Mod</h3>
+      <p data-i18n="create_mod_desc">点击「➕ 新建 Mod」，填写 Mod ID、名称和作者，系统会创建一个包含默认配置的新 Mod。</p>
+    </section>
+
+    <!-- 基础信息配置 -->
+    <section id="manifest">
+      <h2 data-i18n="section_manifest">📋 基础信息配置</h2>
+      <p data-i18n="manifest_desc">在「基础信息」标签页中配置 Mod 的核心参数。</p>
+
+      <h4 data-i18n="section_mod_info">Mod 信息</h4>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>Mod ID</td><td data-i18n="field_mod_id_desc">唯一标识符，只允许英文和数字</td></tr>
+        <tr><td data-i18n="field_version">版本号</td><td data-i18n="field_version_desc">Mod 版本</td></tr>
+        <tr><td data-i18n="field_author">作者</td><td data-i18n="field_author_desc">创作者名称</td></tr>
+        <tr><td data-i18n="field_default_audio">默认音频语言</td><td data-i18n="field_default_audio_desc">找不到对应语言音频时的备选</td></tr>
+        <tr><td data-i18n="field_default_text">默认文本语言</td><td data-i18n="field_default_text_desc">找不到对应语言文本时的备选</td></tr>
+      </table>
+
+      <h4 data-i18n="section_mod_data">Mod 数据面板</h4>
+      <p data-i18n="mod_data_desc">可在角色窗口左上角显示自定义数据（如好感度）。配置 show_mod_data_panel 开关和 mod_data_default_int 默认值。</p>
+
+      <h4 data-i18n="section_preview_icon">预览图与图标</h4>
+      <p data-i18n="preview_icon_desc">预览图支持 PNG/JPG/JPEG/WebP 格式，图标支持 ICO/PNG 格式。</p>
     </section>
 
     <!-- 状态和触发 -->
     <section id="states-triggers">
-      <h2>🎭 状态和触发</h2>
-      <p>我们将状态管理和触发器配置整合到了同一个页面，左侧管理状态，右侧管理事件响应。</p>
+      <h2 data-i18n="section_states_triggers">🎭 状态和触发</h2>
       
-      <div class="callout callout-info">
-        <div class="callout-title">💡 提示</div>
-        <p>现在可以在「可触发子状态」中设置权重，格式为 <code>state_name:weight</code>，例如 <code>happy:2, normal:1</code> 表示 happy 触发概率是 normal 的两倍。</p>
-      </div>
+      <h3 data-i18n="section_important_states">重要状态</h3>
+      <p data-i18n="important_states_desc">系统内置的关键状态：</p>
+      <table>
+        <tr><th data-i18n="table_state_name">状态名称</th><th data-i18n="table_persistent">持久</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>idle</td><td>✅</td><td data-i18n="state_idle_desc">默认空闲状态，必须存在</td></tr>
+        <tr><td>silence</td><td>✅</td><td data-i18n="state_silence_desc">静默/免打扰状态</td></tr>
+        <tr><td>music</td><td>✅</td><td data-i18n="state_music_desc">音乐播放状态</td></tr>
+      </table>
 
-      <h4>数据计数器 (Mod Data Counter)</h4>
-      <p>你可以在状态激活时对角色的自定义变量进行操作，支持 <code>set</code>、<code>add</code>、<code>sub</code>、<code>mul</code>、<code>div</code>。这些变量可以被程序其他部分引用（如显示好感度）。</p>
+      <h3 data-i18n="section_state_fields">状态字段</h3>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td data-i18n="field_state_name">状态名称</td><td data-i18n="field_state_name_desc">唯一标识符</td></tr>
+        <tr><td data-i18n="field_persistent">是否持久</td><td data-i18n="field_persistent_desc">持久状态循环播放</td></tr>
+        <tr><td data-i18n="field_anima">关联动画</td><td data-i18n="field_anima_desc">要播放的动画</td></tr>
+        <tr><td data-i18n="field_audio">关联音频</td><td data-i18n="field_audio_desc">音频资源名称</td></tr>
+        <tr><td data-i18n="field_text">关联文本</td><td data-i18n="field_text_desc">显示为气泡对话</td></tr>
+        <tr><td data-i18n="field_priority">优先级</td><td data-i18n="field_priority_desc">数值越大优先级越高</td></tr>
+        <tr><td data-i18n="field_next_state">下一状态</td><td data-i18n="field_next_state_desc">播放完成后跳转</td></tr>
+        <tr><td data-i18n="field_can_trigger">可触发子状态</td><td data-i18n="field_can_trigger_desc">支持权重格式 state:weight</td></tr>
+      </table>
+
+      <h3 data-i18n="section_branches">对话分支</h3>
+      <p data-i18n="branches_desc">对话分支允许用户通过点击选项来决定对话走向。每个分支包含显示文本和跳转目标状态。</p>
+
+      <h3 data-i18n="section_triggers">触发器配置</h3>
+      <p data-i18n="triggers_desc">触发器定义事件与状态的关联。预设事件：</p>
+      <table>
+        <tr><th data-i18n="table_event">事件名</th><th data-i18n="table_timing">触发时机</th></tr>
+        <tr><td>click</td><td data-i18n="event_click">用户点击角色</td></tr>
+        <tr><td>login</td><td data-i18n="event_login">程序启动</td></tr>
+        <tr><td>music_start</td><td data-i18n="event_music_start">音乐开始播放</td></tr>
+        <tr><td>music_end</td><td data-i18n="event_music_end">音乐停止播放</td></tr>
+      </table>
+
+      <h3 data-i18n="section_data_counter">数据计数器</h3>
+      <p data-i18n="data_counter_desc">状态激活时对 Mod 数据执行操作：set(设置)、add(加)、sub(减)、mul(乘)、div(除)。</p>
     </section>
 
     <!-- 气泡样式 -->
     <section id="bubble">
-      <h2>🧼 气泡样式配置</h2>
-      <p>在「气泡样式」标签页中，你可以通过可视化表单修改 <code>bubble_style.json</code>。这些设置会直接影响桌面角色的对话气泡外观。</p>
+      <h2 data-i18n="section_bubble">💬 气泡样式配置</h2>
+      <p data-i18n="bubble_desc">可视化配置对话气泡外观，支持实时预览。</p>
       <ul>
-        <li><strong>背景</strong>：支持颜色代码或 CSS 渐变。</li>
-        <li><strong>背景滤镜</strong>：支持 CSS <code>backdrop-filter</code>，如 <code>blur(8px)</code> 实现毛玻璃效果。</li>
-        <li><strong>装饰文字</strong>：可以在气泡上方或下方显示固定的装饰字符。</li>
-        <li><strong>尾巴阴影</strong>：为气泡小尾巴添加阴影，增强立体感。</li>
-        <li><strong>分支按钮</strong>：支持配置普通、悬浮、点击（Active）三种状态的颜色。</li>
+        <li data-i18n="bubble_main"><strong>气泡主体</strong>：背景、边框、圆角、阴影、背景滤镜</li>
+        <li data-i18n="bubble_text"><strong>文字样式</strong>：颜色、字体大小、行高、字体</li>
+        <li data-i18n="bubble_tail"><strong>尾巴样式</strong>：大小、颜色、阴影</li>
+        <li data-i18n="bubble_deco"><strong>装饰文字</strong>：上方/下方装饰字符</li>
+        <li data-i18n="bubble_branch"><strong>分支按钮</strong>：正常/悬浮/点击状态样式</li>
       </ul>
     </section>
 
-
-    <!-- 环境要求 -->
-    <section id="requirements">
-      <h2>环境要求</h2>
-      <p>Mod Editor 使用了现代浏览器的 <code>File System Access API</code>，需要以下环境：</p>
-      
-      <div class="callout callout-warning">
-        <div class="callout-title">⚠️ 浏览器要求</div>
-        <p>请使用 <strong>Chrome 86+</strong> 或 <strong>Edge 86+</strong> 浏览器，其他浏览器（如 Firefox、Safari）暂不支持文件夹读写功能。</p>
-      </div>
-
-      <h4>推荐运行方式</h4>
-      <ol>
-        <li>直接双击 <code>index.html</code> 在浏览器中打开</li>
-        <li>或使用本地服务器：
-          <pre><code>cd mod-tool
-npx serve .</code></pre>
-        </li>
-      </ol>
-    </section>
-
-    <!-- 快速开始 -->
-    <section id="quickstart">
-      <h2>快速开始</h2>
-      
-      <h3 id="open-mod">打开现有 Mod</h3>
-      <div class="steps">
-        <div class="step">
-          <div class="step-title">点击「打开 Mod」按钮</div>
-          <p>在工具栏右侧点击 <button class="btn-demo secondary">📂 打开 Mod</button> 按钮</p>
-        </div>
-        <div class="step">
-          <div class="step-title">选择 Mod 文件夹</div>
-          <p>在弹出的文件夹选择器中，导航到 <code>mods</code> 目录，选择一个 Mod 文件夹（如 <code>ema</code>）</p>
-        </div>
-        <div class="step">
-          <div class="step-title">授予访问权限</div>
-          <p>浏览器会询问是否允许读写该文件夹，点击「允许」</p>
-        </div>
-        <div class="step">
-          <div class="step-title">开始编辑</div>
-          <p>Mod 加载成功后，所有配置会自动填充到对应的编辑面板中</p>
-        </div>
-      </div>
-
-      <h3 id="create-mod">创建新 Mod</h3>
-      <div class="steps">
-        <div class="step">
-          <div class="step-title">点击「新建 Mod」按钮</div>
-          <p>在工具栏右侧点击 <button class="btn-demo">➕ 新建 Mod</button> 按钮</p>
-        </div>
-        <div class="step">
-          <div class="step-title">填写基本信息</div>
-          <p>在弹窗中输入：</p>
-          <ul>
-            <li><strong>Mod ID</strong>：唯一标识符，只能包含英文、数字和下划线（如 <code>my_character</code>）</li>
-            <li><strong>Mod 名称</strong>：角色的显示名称</li>
-            <li><strong>作者</strong>：你的名字</li>
-          </ul>
-        </div>
-        <div class="step">
-          <div class="step-title">配置内容</div>
-          <p>系统会创建一个包含默认配置的新 Mod，你可以在各个面板中进行编辑</p>
-        </div>
-        <div class="step">
-          <div class="step-title">保存 Mod</div>
-          <p>编辑完成后，点击「保存」并选择保存位置（建议保存到 <code>mods</code> 目录下）</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 基本信息配置 -->
-    <section id="manifest">
-      <h2>📋 基本信息配置</h2>
-      <p>在「基本信息」面板中配置 Mod 的核心参数。</p>
-
-      <h4>Mod 信息</h4>
-      <table>
-        <tr>
-          <th>字段</th>
-          <th>说明</th>
-          <th>示例</th>
-        </tr>
-        <tr>
-          <td>Mod ID</td>
-          <td>唯一标识符，用于程序识别</td>
-          <td><code>ema</code></td>
-        </tr>
-        <tr>
-          <td>版本号</td>
-          <td>Mod 版本，用于更新检测</td>
-          <td><code>1.0.0</code></td>
-        </tr>
-        <tr>
-          <td>作者</td>
-          <td>创作者名称</td>
-          <td><code>Cafel</code></td>
-        </tr>
-      </table>
-
-      <h4>语言设置</h4>
-      <table>
-        <tr>
-          <th>字段</th>
-          <th>说明</th>
-          <th>示例</th>
-        </tr>
-        <tr>
-          <td>默认音频语言</td>
-          <td>找不到对应语言音频时使用的备选语言</td>
-          <td><code>jp</code></td>
-        </tr>
-        <tr>
-          <td>默认文本语言</td>
-          <td>找不到对应语言文本时使用的备选语言</td>
-          <td><code>zh</code></td>
-        </tr>
-      </table>
-
-      <h4>角色配置</h4>
-      <ul>
-        <li><strong>Z轴偏移</strong>：角色的渲染层级，数值越大越靠前</li>
-      </ul>
-
-      <h4>边框配置</h4>
-      <ul>
-        <li><strong>边框动画</strong>：选择用于边框的动画资源名称</li>
-        <li><strong>启用边框</strong>：是否显示角色边框</li>
-        <li><strong>Z轴偏移</strong>：边框的渲染层级</li>
-      </ul>
-
-      <div class="callout callout-info">
-        <div class="callout-title">💡 提示</div>
-        <p>预览图建议使用 PNG 格式，尺寸推荐 512×512 像素。</p>
-      </div>
-    </section>
-
-    <!-- 状态管理 -->
-    <section id="states">
-      <h2>🎭 状态管理</h2>
-      <p>状态（State）定义了角色在特定情况下的表现，包括播放的动画、音频和显示的文本。</p>
-
-      <h3>重要状态 (Idle)</h3>
-      <p><code>idle</code> 是角色的默认待机状态，当没有其他状态激活时，角色会回到此状态。这个状态必须存在且为持久状态。</p>
-
-      <h3>普通状态</h3>
-      <p>点击「➕ 添加状态」可以创建新的状态。每个状态可以设置不同的动画、音频和对话内容。</p>
-
-      <h3 id="state-fields">状态字段说明</h3>
-      <table>
-        <tr>
-          <th>字段</th>
-          <th>类型</th>
-          <th>说明</th>
-        </tr>
-        <tr>
-          <td>状态名称</td>
-          <td>文本</td>
-          <td>唯一标识符，用于触发器和分支跳转</td>
-        </tr>
-        <tr>
-          <td>是否持久</td>
-          <td>开关</td>
-          <td>持久状态会循环播放，非持久状态播放一次后结束</td>
-        </tr>
-        <tr>
-          <td>关联动画</td>
-          <td>下拉选择</td>
-          <td>从动画资源中选择要播放的动画</td>
-        </tr>
-        <tr>
-          <td>关联音频</td>
-          <td>文本</td>
-          <td>填写音频资源名称（需要在音频管理中配置）</td>
-        </tr>
-        <tr>
-          <td>关联文本</td>
-          <td>文本</td>
-          <td>填写文本名称（需要在文本管理中配置），将显示为气泡对话</td>
-        </tr>
-        <tr>
-          <td>优先级</td>
-          <td>数字</td>
-          <td>数值越大优先级越高，高优先级状态会打断低优先级状态</td>
-        </tr>
-        <tr>
-          <td>日期范围</td>
-          <td>MM-DD</td>
-          <td>该状态生效的日期范围（可选）</td>
-        </tr>
-        <tr>
-          <td>时间范围</td>
-          <td>HH:MM</td>
-          <td>该状态生效的时间范围（可选）</td>
-        </tr>
-        <tr>
-          <td>下一状态</td>
-          <td>文本</td>
-          <td>播放完成后自动跳转到的状态名称</td>
-        </tr>
-        <tr>
-          <td>可触发子状态</td>
-          <td>文本列表</td>
-          <td>处于该状态时可能随机触发的状态，逗号分隔</td>
-        </tr>
-        <tr>
-          <td>触发间隔</td>
-          <td>秒</td>
-          <td>随机触发的最小间隔时间</td>
-        </tr>
-        <tr>
-          <td>触发概率</td>
-          <td>0-1</td>
-          <td>每次检测时触发的概率</td>
-        </tr>
-      </table>
-
-      <h3 id="branches">对话分支</h3>
-      <p>对话分支允许用户通过点击选项来决定对话走向。气泡显示文本后会出现分支按钮供用户选择。</p>
-
-      <div class="callout callout-success">
-        <div class="callout-title">✅ 分支示例</div>
-        <p>状态 <code>hello1_1</code> 设置了两个分支：</p>
-        <ul>
-          <li>「好的！」→ 跳转到 <code>hello1_2</code></li>
-          <li>「再说一次」→ 跳转到 <code>hello1_1</code>（重复当前状态）</li>
-        </ul>
-      </div>
-
-      <p>添加分支的步骤：</p>
-      <ol>
-        <li>在状态编辑弹窗底部找到「对话分支」区域</li>
-        <li>点击「➕ 添加分支」按钮</li>
-        <li>填写选项文本（用户看到的按钮文字）</li>
-        <li>填写跳转状态（点击后切换到的状态名称）</li>
-      </ol>
-    </section>
-
-    <!-- 触发器配置 -->
-    <section id="triggers">
-      <h2>⚡ 触发器配置</h2>
-      <p>触发器定义了当特定事件发生时，角色可能切换到哪些状态。</p>
-
-      <h4>预设事件</h4>
-      <table>
-        <tr>
-          <th>事件名</th>
-          <th>触发时机</th>
-        </tr>
-        <tr>
-          <td><code>click</code></td>
-          <td>用户点击角色时</td>
-        </tr>
-        <tr>
-          <td><code>login</code></td>
-          <td>程序启动或用户登录时</td>
-        </tr>
-        <tr>
-          <td><code>music_start</code></td>
-          <td>检测到系统音乐播放时</td>
-        </tr>
-        <tr>
-          <td><code>music_end</code></td>
-          <td>检测到系统音乐停止时</td>
-        </tr>
-      </table>
-
-      <h4>配置方法</h4>
-      <ol>
-        <li>点击「➕ 添加触发器」或编辑现有触发器</li>
-        <li>输入可触发的状态列表（逗号分隔多个状态名）</li>
-        <li>当事件触发时，系统会从列表中随机选择一个状态执行</li>
-      </ol>
-
-      <div class="callout callout-info">
-        <div class="callout-title">💡 示例</div>
-        <p><code>login</code> 触发器配置了 <code>morning, noon, evening, night</code>，程序会根据当前时间自动选择合适的问候状态。</p>
-      </div>
-    </section>
-
-    <!-- 动画资源 -->
+    <!-- 动画管理 -->
     <section id="assets">
-      <h2>🖼️ 动画资源</h2>
-      <p>动画资源定义了如何解析和播放图片。分为两类：</p>
-
-      <ul>
-        <li><strong>序列帧动画 (sequence.json)</strong>：复杂的动作动画，如眨眼、挥手</li>
-        <li><strong>杂图资源 (img.json)</strong>：简单的图片，如边框</li>
-      </ul>
-
-      <h4>动画配置字段</h4>
+      <h2 data-i18n="section_assets">🖼️ 动画管理</h2>
+      <p data-i18n="assets_desc">动画资源分为序列帧动画(sequence.json)和杂图(img.json)两类。</p>
       <table>
-        <tr>
-          <th>字段</th>
-          <th>说明</th>
-        </tr>
-        <tr>
-          <td>名称</td>
-          <td>资源名称，供状态引用</td>
-        </tr>
-        <tr>
-          <td>图片路径</td>
-          <td>相对于 <code>asset/</code> 目录的路径</td>
-        </tr>
-        <tr>
-          <td>是否序列帧</td>
-          <td>是否为多帧动画</td>
-        </tr>
-        <tr>
-          <td>原始反向</td>
-          <td>图片中的帧是否是反向排列的</td>
-        </tr>
-        <tr>
-          <td>需要反向播放</td>
-          <td>播放完成后是否反向播放回起始帧</td>
-        </tr>
-        <tr>
-          <td>帧间隔 (秒)</td>
-          <td>每帧显示的时间</td>
-        </tr>
-        <tr>
-          <td>帧宽度/高度</td>
-          <td>单帧的尺寸（像素）</td>
-        </tr>
-        <tr>
-          <td>横向/纵向帧数</td>
-          <td>图片中横向和纵向排列的帧数量</td>
-        </tr>
-        <tr>
-          <td>X/Y偏移</td>
-          <td>渲染时的位置偏移（像素）</td>
-        </tr>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td data-i18n="asset_name">名称</td><td data-i18n="asset_name_desc">资源名称，供状态引用</td></tr>
+        <tr><td data-i18n="asset_img">图片路径</td><td data-i18n="asset_img_desc">相对于 asset/ 目录</td></tr>
+        <tr><td data-i18n="asset_sequence">是否序列帧</td><td data-i18n="asset_sequence_desc">是否为多帧动画</td></tr>
+        <tr><td data-i18n="asset_frame_time">帧间隔</td><td data-i18n="asset_frame_time_desc">每帧显示时间(秒)</td></tr>
+        <tr><td data-i18n="asset_frame_size">帧尺寸</td><td data-i18n="asset_frame_size_desc">单帧宽高(像素)</td></tr>
+        <tr><td data-i18n="asset_frame_num">帧数</td><td data-i18n="asset_frame_num_desc">横向/纵向帧数量</td></tr>
       </table>
-
       <div class="callout callout-warning">
-        <div class="callout-title">⚠️ 注意</div>
-        <p>动画图片需要手动放置到 <code>asset/sequence/</code> 或 <code>asset/img/</code> 目录中，编辑器只负责配置元数据。</p>
+        <div class="callout-title" data-i18n="callout_asset_warning_title">⚠️ 注意</div>
+        <p data-i18n="callout_asset_warning_desc">动画图片需要手动放置到 asset/sequence/ 或 asset/img/ 目录。</p>
       </div>
     </section>
 
     <!-- 文本管理 -->
     <section id="texts">
-      <h2>💬 文本管理</h2>
-      <p>文本管理用于配置多语言的角色信息和对话内容。</p>
-
-      <h4>角色信息 (info.json)</h4>
+      <h2 data-i18n="section_texts">📝 多语言文本</h2>
+      <p data-i18n="texts_desc">配置多语言的角色信息和对话内容。</p>
+      <h4 data-i18n="texts_info_title">角色信息 (info.json)</h4>
+      <p data-i18n="texts_info_desc">语言ID、语言名称、角色名称、角色描述</p>
+      <h4 data-i18n="texts_speech_title">对话文本 (speech.json)</h4>
+      <p data-i18n="texts_speech_desc">名称、内容(支持Markdown)、持续时间(秒)</p>
+      <h4 data-i18n="texts_markdown_title">Markdown 语法</h4>
       <ul>
-        <li><strong>语言ID</strong>：语言的标识符（如 <code>zh</code>、<code>jp</code>、<code>en</code>）</li>
-        <li><strong>语言名称</strong>：语言的显示名称（如「简体中文」「日本語」）</li>
-        <li><strong>角色名称</strong>：角色在该语言下的名字</li>
-        <li><strong>角色描述</strong>：角色的介绍文字</li>
+        <li><code>**文本**</code> → <span data-i18n="md_bold">加粗</span></li>
+        <li><code>[文本](链接)</code> → <span data-i18n="md_link">超链接</span></li>
+        <li><code>\n</code> → <span data-i18n="md_newline">换行</span></li>
       </ul>
-
-      <h4>对话文本 (speech.json)</h4>
-      <p>对话文本与状态中的 <code>text</code> 字段关联。当状态触发时，会根据文本名称查找并显示对应的对话内容。</p>
-
-      <h3 id="markdown">Markdown 语法支持</h3>
-      <p>对话文本支持简易 Markdown 语法：</p>
-      <table>
-        <tr>
-          <th>语法</th>
-          <th>效果</th>
-          <th>示例</th>
-        </tr>
-        <tr>
-          <td><code>**文本**</code></td>
-          <td>加粗</td>
-          <td><code>**你好！**</code> → <strong>你好！</strong></td>
-        </tr>
-        <tr>
-          <td><code>[文本](链接)</code></td>
-          <td>超链接</td>
-          <td><code>[点我](https://example.com)</code></td>
-        </tr>
-        <tr>
-          <td><code>\n</code></td>
-          <td>换行</td>
-          <td><code>第一行\n第二行</code></td>
-        </tr>
-      </table>
-
-      <pre><code>{
-  "name": "greeting",
-  "text": "**你好呀！** 我是你的桌面伙伴～\n有什么可以帮助你的吗？"
-}</code></pre>
     </section>
 
     <!-- 音频管理 -->
     <section id="audio">
-      <h2>🔊 音频管理</h2>
-      <p>音频管理用于配置多语言的语音资源。</p>
-
-      <h4>配置字段</h4>
-      <ul>
-        <li><strong>名称</strong>：音频的标识符，供状态的 <code>audio</code> 字段引用</li>
-        <li><strong>文件路径</strong>：相对于 <code>audio/</code> 目录的路径（如 <code>jp/speech/morning.wav</code>）</li>
-      </ul>
-
-      <div class="callout callout-info">
-        <div class="callout-title">💡 提示</div>
-        <p>音频文件支持 <code>.wav</code> 格式。文件需要手动放置到对应目录中。</p>
-      </div>
+      <h2 data-i18n="section_audio">🔊 多语言音频</h2>
+      <p data-i18n="audio_desc">配置多语言的语音资源。音频文件支持 .wav 格式，需要手动放置到对应目录。</p>
     </section>
 
     <!-- 保存与导出 -->
-    <section id="save">
-      <h2>💾 保存与导出</h2>
-
-      <h4>保存 Mod</h4>
-      <p>点击工具栏的 <button class="btn-demo" style="background: #22c55e;">💾 保存</button> 按钮：</p>
+    <section id="save-export">
+      <h2 data-i18n="section_save_export">💾 保存与导出</h2>
+      <h4 data-i18n="save_folder_title">保存到文件夹</h4>
+      <p data-i18n="save_folder_desc">点击「💾 保存到文件夹」按钮，每次都会弹出文件夹选择器。</p>
+      <h4 data-i18n="export_tbuddy_title">导出为 .tbuddy</h4>
+      <p data-i18n="export_tbuddy_desc">点击「📦 导出」→「📦 到 .tbuddy」生成压缩包。</p>
+      <h4 data-i18n="saved_files_title">保存的文件</h4>
       <ul>
-        <li>如果是打开的现有 Mod，会直接覆盖保存到原文件夹</li>
-        <li>如果是新建的 Mod，会弹出文件夹选择器让你选择保存位置</li>
+        <li><code>manifest.json</code>, <code>bubble_style.json</code></li>
+        <li><code>asset/sequence.json</code>, <code>asset/img.json</code></li>
+        <li><code>text/[lang]/info.json</code>, <code>text/[lang]/speech.json</code></li>
+        <li><code>audio/[lang]/speech.json</code></li>
+        <li><code>preview.*</code> (png/jpg/jpeg/webp), <code>icon.*</code> (ico/png)</li>
       </ul>
-
-      <h4>保存的文件</h4>
-      <p>保存操作会写入以下文件：</p>
-      <ul>
-        <li><code>manifest.json</code> - 主配置文件</li>
-        <li><code>asset/sequence.json</code> - 序列帧动画配置</li>
-        <li><code>asset/img.json</code> - 杂图配置</li>
-        <li><code>text/[lang]/info.json</code> - 各语言角色信息</li>
-        <li><code>text/[lang]/speech.json</code> - 各语言对话文本</li>
-        <li><code>audio/[lang]/speech.json</code> - 各语言音频配置</li>
-        <li><code>preview.png</code> - 预览图（如果有上传）</li>
-      </ul>
-
-      <div class="callout callout-warning">
-        <div class="callout-title">⚠️ 注意</div>
-        <p>图片文件（动画图、音频文件）不会被编辑器自动复制，需要手动放置到对应目录。</p>
-      </div>
     </section>
 
     <!-- Mod 目录结构 -->
     <section id="structure">
-      <h2>📁 Mod 目录结构</h2>
-      <p>一个完整的 Mod 文件夹结构如下：</p>
-
+      <h2 data-i18n="section_structure">📁 Mod 目录结构</h2>
       <pre><code>mods/my_mod/
 ├── manifest.json            # Mod 主配置文件
 ├── preview.png              # 预览图
-├── asset/                   # 动画图像资源
-│   ├── img.json             # 杂图索引
-│   ├── sequence.json        # 序列帧动画索引
-│   ├── img/                 # 杂图存放目录
-│   │   └── border.png
-│   └── sequence/            # 序列帧动画图片
-│       ├── wink.png
-│       └── wave.png
-├── audio/                   # 音频资源
-│   └── jp/                  # 日语音频
-│       ├── speech.json      # 音频索引
-│       └── speech/          # 音频文件
-│           └── morning.wav
-└── text/                    # 文本资源
-    ├── zh/                  # 中文
-    │   ├── info.json        # 角色信息
-    │   └── speech.json      # 对话文本
-    └── jp/                  # 日语
-        ├── info.json
-        └── speech.json</code></pre>
+├── icon.ico                 # 图标
+├── bubble_style.json        # [可选] 气泡样式
+├── asset/
+│   ├── img.json, sequence.json
+│   ├── img/, sequence/
+├── audio/[lang]/
+│   ├── speech.json, speech/
+└── text/[lang]/
+    ├── info.json, speech.json</code></pre>
     </section>
 
     <!-- 常见问题 -->
     <section id="faq">
-      <h2>❓ 常见问题</h2>
-
-      <h4>Q: 为什么无法打开文件夹？</h4>
-      <p>A: 请确保使用 Chrome 86+ 或 Edge 86+ 浏览器，其他浏览器不支持 File System Access API。</p>
-
-      <h4>Q: 保存后动画不显示？</h4>
-      <p>A: 检查以下几点：</p>
-      <ol>
-        <li>动画图片是否放在了正确的目录（<code>asset/sequence/</code> 或 <code>asset/img/</code>）</li>
-        <li>动画配置中的图片路径是否正确</li>
-        <li>帧数和帧尺寸设置是否与实际图片匹配</li>
-      </ol>
-
-      <h4>Q: 如何添加新语言？</h4>
-      <p>A: 在「文本管理」或「音频管理」页面，点击语言标签旁边的「➕ 添加语言」按钮，输入语言 ID（如 <code>en</code>）即可。</p>
-
-      <h4>Q: 对话气泡不显示？</h4>
-      <p>A: 确保：</p>
-      <ol>
-        <li>状态的 <code>text</code> 字段填写了文本名称</li>
-        <li>在「文本管理」中添加了对应名称的对话文本</li>
-        <li>选择了正确的语言</li>
-      </ol>
-
-      <h4>Q: 标题栏显示 * 是什么意思？</h4>
-      <p>A: 星号表示有未保存的更改，请及时点击「保存」按钮。</p>
+      <h2 data-i18n="section_faq">❓ 常见问题</h2>
+      <h4 data-i18n="faq_browser_q">Q: 为什么无法打开文件夹？</h4>
+      <p data-i18n="faq_browser_a">A: 请使用 Chrome 86+ 或 Edge 86+ 浏览器。</p>
+      <h4 data-i18n="faq_anima_q">Q: 动画不显示？</h4>
+      <p data-i18n="faq_anima_a">A: 检查图片是否在正确目录，路径和帧配置是否正确。</p>
+      <h4 data-i18n="faq_lang_q">Q: 如何添加新语言？</h4>
+      <p data-i18n="faq_lang_a">A: 在「文本管理」或「音频管理」中点击「➕ 添加语言」。</p>
+      <h4 data-i18n="faq_preview_q">Q: 预览图支持哪些格式？</h4>
+      <p data-i18n="faq_preview_a">A: 支持 PNG、JPG、JPEG、WebP 四种格式。</p>
     </section>
 
-    <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-muted);">
+    <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid #334155; text-align: center; color: #64748b;">
       <p>TrayBuddy Mod Editor &copy; 2024</p>
-      <p><a href="index.html" style="color: var(--color-primary);">返回编辑器</a></p>
+      <p><a href="index.html" style="color: #6366f1;" data-i18n="back_to_editor">返回编辑器</a></p>
     </div>
   </main>
 
-  <script>
-    // 高亮当前章节
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const id = entry.target.id;
-          document.querySelectorAll('.sidebar-nav a').forEach(a => {
-            a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
-          });
-        }
-      });
-    }, { rootMargin: '-80px 0px -80% 0px' });
-
-    document.querySelectorAll('section[id]').forEach(section => {
-      observer.observe(section);
-    });
-  </script>
+  <script src="tutorial-i18n.js"></script>
 </body>
 </html>
