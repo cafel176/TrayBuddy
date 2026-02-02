@@ -35,7 +35,8 @@
       "../mods": "mods",
       "../i18n": "i18n",
       "../mod-tool": "mod-tool",
-      "../other-tool": "other-tool"
+      "../other-tool": "other-tool",
+      "icons": "icons"
     },
     "windows": {
       "nsis": {

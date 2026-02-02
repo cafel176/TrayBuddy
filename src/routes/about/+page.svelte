@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { getVersion } from "@tauri-apps/api/app";
+  import { convertFileSrc } from "@tauri-apps/api/core";
+  import { resolveResource } from "@tauri-apps/api/path";
   import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 
   // ======================================================================= //
@@ -10,6 +12,7 @@
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
   let appVersion = $state("...");
+  let appIconSrc = $state("");
   const window = getCurrentWindow();
 
   function _(key: string, params?: Record<string, string | number>): string {
@@ -37,6 +40,16 @@
         console.error("Failed to get version:", e);
         appVersion = "0.1.0";
       }
+
+      // About 页应用图标：使用 `icons/128x128.png`
+      try {
+        const iconPath = await resolveResource("icons/128x128.png");
+        if (iconPath) {
+          appIconSrc = convertFileSrc(iconPath);
+        }
+      } catch (e) {
+        console.warn("Failed to resolve app icon:", e);
+      }
     };
     init().catch(console.error);
   });
@@ -50,7 +63,13 @@
 <div class="about-container">
   <div class="about-card">
     <div class="header">
-      <div class="logo">TB</div>
+      <div class="logo">
+        {#if appIconSrc}
+          <img class="logo-img" src={appIconSrc} alt="TrayBuddy" />
+        {:else}
+          <div class="logo-fallback">TB</div>
+        {/if}
+      </div>
       <div class="app-info">
         <h1 class="app-name">{_("about.appName")}</h1>
         <div class="app-version">{_("about.appVersion", { version: appVersion })}</div>
@@ -69,8 +88,8 @@
           <div class="feature-item">{_("about.featureEngine")}</div>
           <div class="feature-item">{_("about.featureMedia")}</div>
           <div class="feature-item">{_("about.featureEnv")}</div>
-          <div class="feature-item">{_("about.featureMod")}</div>
-          <div class="feature-item">{_("about.featureStats")}</div>
+          <!-- <div class="feature-item">{_("about.featureMod")}</div>
+          <div class="feature-item">{_("about.featureStats")}</div> -->
         </div>
       </div>
 
@@ -87,7 +106,7 @@
             <div class="contact-item">{_("about.bilibili")}</div>
             <div class="contact-item">{_("about.heyBox")}</div>
             <div class="contact-item">{_("about.xiaohongshu")}</div>
-            <div class="contact-item">{_("about.weibo")}</div>
+            <!-- <div class="contact-item">{_("about.weibo")}</div> -->
           </div>
         </div>
       </div>
@@ -146,13 +165,27 @@
     height: 64px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 16px;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+
+  .logo-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .logo-fallback {
+    width: 100%;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
     color: white;
     font-size: 24px;
     font-weight: 800;
-    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
   }
 
   .app-name {
