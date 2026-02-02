@@ -110,18 +110,21 @@ function initDatePickers() {
 
 /**
  * 防止点击可折叠分组（details/summary）里的按钮导致误触折叠
+ *
+ * 注意：不能在“捕获阶段”对 `.section-actions` 做 stopPropagation，
+ * 否则会导致按钮自身的 `onclick` 收不到事件（表现为列表头部按钮失效）。
  */
 function initSectionDetailsClickGuards() {
+  // 使用冒泡阶段：先让按钮自身的 click handler 正常执行，再取消 summary 的默认 toggle 行为
   document.addEventListener('click', (e) => {
     const summary = e.target.closest('details.section-details > summary');
     if (!summary) return;
 
-    // 如果点击发生在 summary 内的操作按钮区域，阻止 details toggle
+    // 如果点击发生在 summary 内的操作按钮区域，阻止 details toggle（但不阻断按钮事件）
     if (e.target.closest('.section-actions')) {
       e.preventDefault();
-      e.stopPropagation();
     }
-  }, true);
+  });
 }
 
 function getContentPanelElement() {
