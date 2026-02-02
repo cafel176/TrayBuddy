@@ -642,6 +642,15 @@ impl StateManager {
         let timer_enabled = Arc::new(AtomicBool::new(false));
         self.timer_enabled = Some(timer_enabled.clone());
 
+        // 启动线程前：同步一次当前状态对应的启停开关。
+        // 否则会出现“启动阶段已进入 idle（持久状态）但 timer_enabled 尚未初始化”，
+        // 导致后续一直处于禁用状态，无法按 trigger_time 定时触发子状态。
+        let should_enable = match self.current_state.as_ref() {
+            Some(s) => s.persistent,
+            None => self.persistent_state.is_some(),
+        };
+        self.set_timer_enabled(should_enable);
+
         std::thread::spawn(move || {
             #[cfg(debug_assertions)]
             println!("[StateManager] 定时触发器线程启动");

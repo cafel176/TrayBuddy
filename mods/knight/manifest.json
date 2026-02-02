@@ -5,7 +5,8 @@
   "default_audio_lang_id": "zh",
   "default_text_lang_id": "zh",
   "character": {
-    "z_offset": 1
+    "z_offset": 1,
+    "canvas_fit_preference": "legacy"
   },
   "border": {
     "anima": "",

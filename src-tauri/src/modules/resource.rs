@@ -519,17 +519,42 @@ impl Default for TriggerInfo {
 // 角色配置定义
 // ========================================================================= //
 
+/// 角色 Canvas 显示适配偏好
+///
+/// - long: 优先适配长边（完整显示，类似 contain）
+/// - short: 优先适配短边（尽量填满，类似 cover，可能裁切）
+/// - legacy: 旧版逻辑（仅按高度缩放，宽度随图片比例自适应）
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum CanvasFitPreference {
+    Long,
+    Short,
+    Legacy,
+}
+
+impl Default for CanvasFitPreference {
+    fn default() -> Self {
+        Self::Legacy
+    }
+}
+
 /// 角色渲染配置
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct CharacterConfig {
     /// Z轴偏移（渲染层级）
     pub z_offset: i32,
+
+    /// 角色 Canvas 适配偏好（可选项；旧 Mod 不填写时默认 short）
+    pub canvas_fit_preference: CanvasFitPreference,
 }
 
 impl Default for CharacterConfig {
     fn default() -> Self {
-        Self { z_offset: 1 }
+        Self {
+            z_offset: 1,
+            canvas_fit_preference: CanvasFitPreference::Short,
+        }
     }
 }
 

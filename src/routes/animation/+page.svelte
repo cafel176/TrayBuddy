@@ -39,6 +39,7 @@
   import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
   import {
     SpriteAnimator,
+    type CanvasFitPreference,
     getMemoryLogs,
     exportMemoryLogsCSV,
     getCacheStats,
@@ -191,6 +192,27 @@
   let unlistenModData: (() => void) | null = null;
 
 
+
+
+  // =========================================================================
+  // Character Canvas 显示适配（从 Mod 配置读取）
+  // =========================================================================
+
+  const CHARACTER_CANVAS_FIT_SCALE = 0.8; // 匹配旧的 .character-canvas height: 80%
+
+  /** 角色 Canvas 播放时的图片适配偏好（由 Mod 决定） */
+  let characterCanvasFitPreference = $state<CanvasFitPreference>("short");
+
+  function applyCharacterCanvasFit() {
+    if (!characterCanvas || !characterAnimator) return;
+    characterAnimator.setCanvasFit(characterCanvasFitPreference, {
+      container: characterCanvas.parentElement as HTMLElement | null,
+      scale: CHARACTER_CANVAS_FIT_SCALE,
+    });
+  }
+
+
+
   /** 布局调试边框启用状态 */
   let debugBordersEnabled = $state(false);
   /** 布局调试边框颜色 */
@@ -315,6 +337,8 @@
       });
       await initI18n();
 
+
+
       // 加载用户设置
       const settings: UserSettings = await invoke("get_settings");
       showCharacter = settings.show_character;
@@ -353,7 +377,17 @@
       );
       if (characterConfig) {
         characterZOffset = characterConfig.z_offset ?? 1;
+
+        // 从 Mod 配置读取 character canvas 适配偏好
+        if (
+          characterConfig.canvas_fit_preference === "long" ||
+          characterConfig.canvas_fit_preference === "short" ||
+          characterConfig.canvas_fit_preference === "legacy"
+        ) {
+          characterCanvasFitPreference = characterConfig.canvas_fit_preference;
+        }
       }
+
 
       // 获取边框配置并初始化边框动画
       const borderConfig: BorderConfig | null =
@@ -393,6 +427,8 @@
           }
           if ("animation_scale" in payload) {
             animationScale = payload.animation_scale;
+            // 布局变化后刷新一次 character canvas 显示适配
+            setTimeout(() => applyCharacterCanvasFit(), 0);
           }
           if ("nickname" in payload) {
             userNickname = payload.nickname || "User";
@@ -846,6 +882,9 @@
         : undefined,
     );
 
+    // 应用当前的显示适配策略（依赖已知的帧尺寸）
+    applyCharacterCanvasFit();
+
     // 加载失败，标记完成
     if (!success) {
       animationComplete = true;
@@ -1131,6 +1170,8 @@
       bind:this={borderCanvas}
     ></canvas>
 
+
+
     <!-- 当前 Mod 数据（左上角，仅数值 + 变化上漂提示） -->
     {#if showModDataPanel}
       <div class="mod-data-hud" aria-label="mod-data-value">
@@ -1315,10 +1356,12 @@
     left: 50%;
     top: 45%;
     transform: translate(-50%, -50%); /* 完美居中 */
-    height: 80%; /* 高度占动画区域 80% */
+    /* 由 JS 动态设置 style.width/style.height 以控制长边/短边适配 */
     pointer-events: auto; /* Canvas 接收鼠标事件 */
     cursor: grab; /* 提示可拖拽 */
   }
+
+
 
   .character-canvas:active {
     cursor: grabbing;

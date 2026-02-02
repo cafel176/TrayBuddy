@@ -5,7 +5,8 @@
   "default_audio_lang_id": "zh",
   "default_text_lang_id": "zh",
   "character": {
-    "z_offset": 1
+    "z_offset": 1,
+    "canvas_fit_preference": "long"
   },
   "border": {
     "anima": "",
@@ -33,7 +34,7 @@
           "weight": 1
         }
       ],
-      "trigger_time": 2,
+      "trigger_time": 1,
       "trigger_rate": 0.5,
       "branch_show_bubble": false,
       "mod_data_counter": null,
@@ -200,27 +201,31 @@
   "states": [
     {
       "name": "event",
-      "persistent": true,
+      "persistent": false,
       "anima": "event",
       "audio": "",
       "text": "",
-      "priority": 1,
+      "priority": 2,
       "date_start": "",
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [
-        {
-          "state": "none",
-          "weight": 1
-        }
-      ],
-      "trigger_time": 1,
-      "trigger_rate": 1,
-      "branch_show_bubble": true,
+      "next_state": "none",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch": []
+      "branch": [
+        {
+          "text": "",
+          "next_state": "jump"
+        },
+        {
+          "text": "",
+          "next_state": "none"
+        }
+      ]
     },
     {
       "name": "event_start",
@@ -257,7 +262,10 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch_show_bubble": true,
-      "mod_data_counter": null,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 1
+      },
       "branch": []
     },
     {
@@ -278,31 +286,36 @@
       "branch_show_bubble": true,
       "mod_data_counter": null,
       "branch": []
+    },
+    {
+      "name": "login",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "login",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
     }
   ],
   "triggers": [
     {
-      "event": "click",
+      "event": "login",
       "can_trigger_states": [
         {
-          "persistent_state": "event",
+          "persistent_state": "idle",
           "states": [
             {
-              "state": "jump",
-              "weight": 1
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "event": "keydown:Space",
-      "can_trigger_states": [
-        {
-          "persistent_state": "event",
-          "states": [
-            {
-              "state": "jump",
+              "state": "login",
               "weight": 1
             }
           ]

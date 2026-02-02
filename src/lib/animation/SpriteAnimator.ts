@@ -29,6 +29,25 @@ import { getModPath, clearModPathCache } from "../utils/modPath";
 import type { AssetInfo, AnimationConfig } from "../types/asset";
 
 // ============================================================================
+// Canvas 显示适配（仅影响元素显示尺寸，不改变内部绘制逻辑）
+// ============================================================================
+
+/**
+ * Canvas 适配偏好：
+ * - long: 优先适配图片长边（类似 contain，不裁切）
+ * - short: 优先适配图片短边（类似 cover，可能裁切）
+ * - legacy: 旧版逻辑（仅按高度缩放，宽度随图片比例自适应）
+ */
+export type CanvasFitPreference = "long" | "short" | "legacy";
+
+export type CanvasFitOptions = {
+  /** 默认取 canvas.parentElement */
+  container?: HTMLElement | null;
+  /** 适配容器的比例（默认 0.8，用于匹配旧的 character-canvas: height 80% 逻辑） */
+  scale?: number;
+};
+
+// ============================================================================
 // 常量定义
 // ============================================================================
 
@@ -318,6 +337,11 @@ export class SpriteAnimator {
   private ctx: CanvasRenderingContext2D | null = null; // 2D 渲染上下文
   private img: HTMLImageElement | null = null; // 当前加载的精灵图
   private currentImgSrc = "";                  // 当前图片 URL（用于判断是否需要重新加载）
+
+  // --- Canvas 显示适配（仅影响元素显示尺寸） ---
+  private fitPreference: CanvasFitPreference | null = null;
+  private fitScale = 0.8;
+  private fitContainer: HTMLElement | null = null;
   
   // --- 帧布局参数 ---
   private frameX = 0;              // 当前帧的 X 索引（列）
@@ -554,7 +578,10 @@ export class SpriteAnimator {
     // 优化：仅在尺寸变化时重置宽高度，避免不必要的缓冲区重分配
     if (this.canvas.width !== this.frameWidth) this.canvas.width = this.frameWidth;
     if (this.canvas.height !== this.frameHeight) this.canvas.height = this.frameHeight;
-    
+
+    // 资源或帧尺寸变化后，尝试刷新显示适配
+    this.applyCanvasFit();
+
     this.drawCurrentFrame();
     
     // 启动动画循环
@@ -706,6 +733,10 @@ export class SpriteAnimator {
     // 设置 Canvas 尺寸并绘制首帧
     this.canvas.width = this.frameWidth;
     this.canvas.height = this.frameHeight;
+
+    // 首次加载后，尝试刷新显示适配
+    this.applyCanvasFit();
+
     this.drawCurrentFrame();
     
     return true;
@@ -776,12 +807,77 @@ export class SpriteAnimator {
   }
 
   /**
+   * 设置 Canvas 显示适配策略
+   *
+   * 说明：这是对 DOM 元素 `style.width/height` 的调整，
+   * 不会改变 `canvas.width/height`（也不会改变 drawImage 的裁剪/绘制逻辑）。
+   */
+  setCanvasFit(prefer: CanvasFitPreference | null, options?: CanvasFitOptions): void {
+    this.fitPreference = prefer;
+    this.fitScale = options?.scale ?? this.fitScale;
+    this.fitContainer = options?.container ?? this.fitContainer;
+
+    // prefer=null 表示清空适配，交还给 CSS
+    if (!this.fitPreference) {
+      this.canvas.style.width = "";
+      this.canvas.style.height = "";
+      return;
+    }
+
+    this.applyCanvasFit();
+  }
+
+  /**
    * 获取当前帧尺寸
    * @returns 帧的宽度和高度
    */
   getSize(): { width: number; height: number } {
     return { width: this.frameWidth, height: this.frameHeight };
   }
+
+  private applyCanvasFit(): void {
+    if (!this.fitPreference) return;
+
+    const container = this.fitContainer ?? (this.canvas.parentElement as HTMLElement | null);
+    if (!container) return;
+
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+    if (!containerW || !containerH) return;
+
+    if (!this.frameWidth || !this.frameHeight) return;
+
+    const targetW = containerW * this.fitScale;
+    const targetH = containerH * this.fitScale;
+
+    // legacy：旧版逻辑，只按高度缩放，宽度随图片比例自适应
+    if (this.fitPreference === "legacy") {
+      this.canvas.style.width = "";
+      this.canvas.style.height = `${Math.max(1, Math.round(targetH))}px`;
+      return;
+    }
+
+    const isWide = this.frameWidth >= this.frameHeight;
+    const longSideIsWidth = isWide;
+
+    // 选择“用宽还是用高”来做适配基准
+    const fitBy: "width" | "height" = (() => {
+      if (this.fitPreference === "long") {
+        return longSideIsWidth ? "width" : "height";
+      }
+      // short
+      return longSideIsWidth ? "height" : "width";
+    })();
+
+    const scale = fitBy === "width" ? targetW / this.frameWidth : targetH / this.frameHeight;
+
+    const displayW = Math.max(1, Math.round(this.frameWidth * scale));
+    const displayH = Math.max(1, Math.round(this.frameHeight * scale));
+
+    this.canvas.style.width = `${displayW}px`;
+    this.canvas.style.height = `${displayH}px`;
+  }
+
 
   /**
    * 销毁播放器

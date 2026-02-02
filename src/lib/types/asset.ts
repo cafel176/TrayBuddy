@@ -234,6 +234,13 @@ export interface TriggerInfo {
 export interface CharacterConfig {
   /** z-index 偏移值 */
   z_offset: number;
+
+  /**
+   * 角色 Canvas 显示适配偏好：
+   * - long: 优先适配长边（完整显示）
+   * - short: 优先适配短边（尽量填满，可能裁切）
+   */
+  canvas_fit_preference?: "long" | "short" | "legacy";
 }
 
 /**

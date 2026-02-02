@@ -5,7 +5,8 @@
   "default_audio_lang_id": "jp",
   "default_text_lang_id": "zh",
   "character": {
-    "z_offset": 1
+    "z_offset": 1,
+    "canvas_fit_preference": "legacy"
   },
   "border": {
     "anima": "border",
@@ -530,7 +531,7 @@
           "states": [
             {
               "state": "random1_1",
-              "weight": 2
+              "weight": 1
             },
             {
               "state": "amazing",
@@ -561,7 +562,7 @@
           "states": [
             {
               "state": "random1_1",
-              "weight": 2
+              "weight": 1
             },
             {
               "state": "amazing",

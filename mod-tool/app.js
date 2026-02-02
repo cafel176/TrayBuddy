@@ -1126,6 +1126,13 @@ function normalizeManifestForEditor(manifest) {
   manifest.character = manifest.character || { z_offset: 1 };
   if (!Number.isFinite(Number(manifest.character.z_offset))) manifest.character.z_offset = 1;
 
+  // 角色 Canvas 适配偏好（short/long/legacy）
+  const validFitPrefs = ['short', 'long', 'legacy'];
+  if (!validFitPrefs.includes(manifest.character.canvas_fit_preference)) {
+    manifest.character.canvas_fit_preference = 'short';
+  }
+
+
   manifest.border = manifest.border || { anima: '', enable: false, z_offset: 2 };
   if (typeof manifest.border.enable !== 'boolean') manifest.border.enable = false;
   if (!Number.isFinite(Number(manifest.border.z_offset))) manifest.border.z_offset = 2;
@@ -1741,6 +1748,7 @@ function populateManifestForm() {
   document.getElementById('default-audio-lang').value = m.default_audio_lang_id || '';
   document.getElementById('default-text-lang').value = m.default_text_lang_id || '';
   document.getElementById('character-z-offset').value = m.character?.z_offset || 1;
+  document.getElementById('character-canvas-fit-preference').value = m.character?.canvas_fit_preference || 'short';
   document.getElementById('border-enable').checked = m.border?.enable || false;
   document.getElementById('border-z-offset').value = m.border?.z_offset || 2;
 
@@ -1792,7 +1800,8 @@ function collectManifestData() {
   m.default_audio_lang_id = document.getElementById('default-audio-lang').value.trim();
   m.default_text_lang_id = document.getElementById('default-text-lang').value.trim();
   m.character = {
-    z_offset: parseInt(document.getElementById('character-z-offset').value) || 1
+    z_offset: parseInt(document.getElementById('character-z-offset').value) || 1,
+    canvas_fit_preference: document.getElementById('character-canvas-fit-preference').value
   };
   m.border = {
     anima: document.getElementById('border-anima').value,
