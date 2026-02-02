@@ -18,7 +18,7 @@ let modFolderHandle = null;
 let currentTextLang = 'zh';
 
 /** 当前选中的音频语言 */
-let currentAudioLang = 'jp';
+let currentAudioLang = 'zh';
 
 /** 当前编辑的状态索引 (-1 表示重要状态，>= 0 表示 states 数组索引，-2 表示新建) */
 let editingStateIndex = -2;
@@ -89,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initBubbleListeners();
   initLanguageChangeListener();
   initDatePickers();
+  initSectionDetailsClickGuards();
+  initGlobalScrollActions();
 });
 
 /**
@@ -104,6 +106,45 @@ function initDatePickers() {
   document.getElementById('state-date-end-month')?.addEventListener('change', () => {
     updateDayOptions('state-date-end-month', 'state-date-end-day');
   });
+}
+
+/**
+ * 防止点击可折叠分组（details/summary）里的按钮导致误触折叠
+ */
+function initSectionDetailsClickGuards() {
+  document.addEventListener('click', (e) => {
+    const summary = e.target.closest('details.section-details > summary');
+    if (!summary) return;
+
+    // 如果点击发生在 summary 内的操作按钮区域，阻止 details toggle
+    if (e.target.closest('.section-actions')) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+}
+
+function getContentPanelElement() {
+  return document.querySelector('.content-panel');
+}
+
+function scrollContentToTop() {
+  const el = getContentPanelElement();
+  if (!el) return;
+  el.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function scrollContentToBottom() {
+  const el = getContentPanelElement();
+  if (!el) return;
+  el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+}
+
+function initGlobalScrollActions() {
+  const actions = document.getElementById('global-scroll-actions');
+  if (!actions) return;
+  // 始终显示（按需可在这里增加“根据滚动位置隐藏/禁用”的逻辑）
+  actions.style.display = 'flex';
 }
 
 /**
@@ -431,6 +472,95 @@ function toggleBubbleStyle() {
 }
 
 /**
+ * 切换对话文本 speech.json 启用状态
+ */
+function toggleTextSpeech() {
+  const enabled = document.getElementById('text-speech-enable')?.checked === true;
+  const fields = document.getElementById('text-speech-fields');
+  const addBtn = document.getElementById('text-speech-add-btn');
+
+  if (fields) {
+    if (enabled) {
+      fields.classList.remove('feature-disabled');
+      fields.classList.add('feature-enabled');
+    } else {
+      fields.classList.remove('feature-enabled');
+      fields.classList.add('feature-disabled');
+    }
+  }
+  if (addBtn) addBtn.disabled = !enabled;
+
+  if (currentMod) {
+    currentMod.textSpeechEnabled = enabled;
+    markUnsaved();
+  }
+
+  // 立即刷新列表
+  if (enabled) {
+    renderSpeechTexts();
+  } else {
+    const list = document.getElementById('speech-text-list');
+    if (list) list.innerHTML = '';
+  }
+}
+
+/**
+ * 切换音频 speech.json 启用状态
+ */
+function toggleAudioSpeech() {
+  const enabled = document.getElementById('audio-speech-enable')?.checked === true;
+  const fields = document.getElementById('audio-speech-fields');
+
+  if (fields) {
+    if (enabled) {
+      fields.classList.remove('feature-disabled');
+      fields.classList.add('feature-enabled');
+    } else {
+      fields.classList.remove('feature-enabled');
+      fields.classList.add('feature-disabled');
+    }
+  }
+
+  if (currentMod) {
+    currentMod.audioSpeechEnabled = enabled;
+    markUnsaved();
+  }
+
+  // 立即刷新
+  renderAudio();
+}
+
+function populateTextSpeechToggle() {
+  if (!currentMod) return;
+  const enabled = currentMod.textSpeechEnabled === true;
+  const checkbox = document.getElementById('text-speech-enable');
+  const fields = document.getElementById('text-speech-fields');
+  const addBtn = document.getElementById('text-speech-add-btn');
+
+  if (checkbox) checkbox.checked = enabled;
+  if (fields) {
+    fields.classList.toggle('feature-enabled', enabled);
+    fields.classList.toggle('feature-disabled', !enabled);
+  }
+  if (addBtn) addBtn.disabled = !enabled;
+}
+
+function populateAudioSpeechToggle() {
+  if (!currentMod) return;
+  const enabled = currentMod.audioSpeechEnabled === true;
+  const checkbox = document.getElementById('audio-speech-enable');
+  const fields = document.getElementById('audio-speech-fields');
+  const addBtn = document.getElementById('audio-speech-add-btn');
+
+  if (checkbox) checkbox.checked = enabled;
+  if (fields) {
+    fields.classList.toggle('feature-enabled', enabled);
+    fields.classList.toggle('feature-disabled', !enabled);
+  }
+  if (addBtn) addBtn.disabled = !enabled;
+}
+
+/**
  * 切换标签页
  */
 function switchTab(tab) {
@@ -442,6 +572,14 @@ function switchTab(tab) {
     // 如果是气泡页，填充数据
     if (tab === 'bubble') {
       populateBubbleStyle();
+    }
+
+    if (tab === 'texts') {
+      populateTextSpeechToggle();
+    }
+
+    if (tab === 'audio') {
+      populateAudioSpeechToggle();
     }
   }
 }
@@ -489,6 +627,8 @@ async function loadModTbuddy() {
       audio: {},
       bubbleStyle: null,
       bubbleEnabled: false,
+      textSpeechEnabled: false,
+      audioSpeechEnabled: false,
       previewData: null,
       iconData: null
     };
@@ -510,6 +650,8 @@ async function loadModTbuddy() {
     }
     
     // 读取 text 和 audio
+    let foundTextSpeech = false;
+    let foundAudioSpeech = false;
     for (const fileName in zipData.files) {
       if (fileName.startsWith(`${rootPath}text/`) && fileName.endsWith('info.json')) {
         const parts = fileName.split('/');
@@ -518,15 +660,21 @@ async function loadModTbuddy() {
         currentMod.texts[lang].info = JSON.parse(await zipData.file(fileName).async('string'));
         
         const speechFile = zipData.file(`${rootPath}text/${lang}/speech.json`);
-        if (speechFile) currentMod.texts[lang].speech = JSON.parse(await speechFile.async('string'));
+        if (speechFile) {
+          currentMod.texts[lang].speech = JSON.parse(await speechFile.async('string'));
+          foundTextSpeech = true;
+        }
       }
       
       if (fileName.startsWith(`${rootPath}audio/`) && fileName.endsWith('speech.json')) {
         const parts = fileName.split('/');
         const lang = parts[parts.length - 2];
         currentMod.audio[lang] = JSON.parse(await zipData.file(fileName).async('string'));
+        foundAudioSpeech = true;
       }
     }
+    currentMod.textSpeechEnabled = foundTextSpeech;
+    currentMod.audioSpeechEnabled = foundAudioSpeech;
     
     // 读取预览图（支持多种格式）
     currentPreviewExt = 'png'; // 默认
@@ -623,6 +771,8 @@ async function loadModFolder() {
       audio: {},
       bubbleStyle: null,
       bubbleEnabled: false,
+      textSpeechEnabled: false,
+      audioSpeechEnabled: false,
       previewData: null,
       iconData: null
     };
@@ -661,6 +811,7 @@ async function loadModFolder() {
     }
     
     // 读取 text 目录
+    let foundTextSpeech = false;
     try {
       const textDir = await modFolderHandle.getDirectoryHandle('text');
       for await (const entry of textDir.values()) {
@@ -683,14 +834,17 @@ async function loadModFolder() {
             const speechHandle = await langDir.getFileHandle('speech.json');
             const speechFile = await speechHandle.getFile();
             currentMod.texts[entry.name].speech = JSON.parse(await speechFile.text());
+            foundTextSpeech = true;
           } catch (e) {}
         }
       }
     } catch (e) {
       console.log('No text directory found');
     }
+    currentMod.textSpeechEnabled = foundTextSpeech;
     
     // 读取 audio 目录
+    let foundAudioSpeech = false;
     try {
       const audioDir = await modFolderHandle.getDirectoryHandle('audio');
       for await (const entry of audioDir.values()) {
@@ -703,12 +857,14 @@ async function loadModFolder() {
             const speechHandle = await langDir.getFileHandle('speech.json');
             const speechFile = await speechHandle.getFile();
             currentMod.audio[entry.name] = JSON.parse(await speechFile.text());
+            foundAudioSpeech = true;
           } catch (e) {}
         }
       }
     } catch (e) {
       console.log('No audio directory found');
     }
+    currentMod.audioSpeechEnabled = foundAudioSpeech;
     
     // 读取预览图（支持多种格式）
     currentPreviewExt = 'png'; // 默认
@@ -890,6 +1046,11 @@ async function createModFromTemplate(modId, modName, modAuthor) {
     audio,
     bubbleStyle: (bubbleStyle && typeof bubbleStyle === 'object') ? deepClone(bubbleStyle) : null,
     bubbleEnabled: !!(bubbleStyle && typeof bubbleStyle === 'object'),
+
+    // 与气泡样式类似：新建 Mod 默认关闭，未启用则不生成对应 speech.json
+    textSpeechEnabled: false,
+    audioSpeechEnabled: false,
+
     previewData: null,
     iconData: null
   };
@@ -1144,23 +1305,28 @@ async function saveMod() {
         await infoWritable.write(stringifyForSave(data.info));
         await infoWritable.close();
       }
-      
-      const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
-      const speechWritable = await speechHandle.createWritable();
-      await speechWritable.write(stringifyForSave(data.speech));
-      await speechWritable.close();
+
+      // 仅当启用时生成 text/<lang>/speech.json
+      if (currentMod.textSpeechEnabled === true) {
+        const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
+        const speechWritable = await speechHandle.createWritable();
+        await speechWritable.write(stringifyForSave(data.speech));
+        await speechWritable.close();
+      }
     }
-    
-    // 保存 audio 目录
-    const audioDir = await modFolderHandle.getDirectoryHandle('audio', { create: true });
-    for (const [lang, data] of Object.entries(currentMod.audio)) {
-      const langDir = await audioDir.getDirectoryHandle(lang, { create: true });
-      await langDir.getDirectoryHandle('speech', { create: true });
-      
-      const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
-      const speechWritable = await speechHandle.createWritable();
-      await speechWritable.write(stringifyForSave(data));
-      await speechWritable.close();
+
+    // 保存 audio 目录（仅当启用时生成 audio/<lang>/speech.json）
+    if (currentMod.audioSpeechEnabled === true) {
+      const audioDir = await modFolderHandle.getDirectoryHandle('audio', { create: true });
+      for (const [lang, data] of Object.entries(currentMod.audio)) {
+        const langDir = await audioDir.getDirectoryHandle(lang, { create: true });
+        await langDir.getDirectoryHandle('speech', { create: true });
+        
+        const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
+        const speechWritable = await speechHandle.createWritable();
+        await speechWritable.write(stringifyForSave(data));
+        await speechWritable.close();
+      }
     }
     
     // 保存预览图（根据实际格式保存）
@@ -1236,14 +1402,18 @@ async function exportMod() {
     for (const [lang, data] of Object.entries(currentMod.texts)) {
       const langDir = text.folder(lang);
       if (data.info) langDir.file('info.json', stringifyForSave(data.info));
-      langDir.file('speech.json', stringifyForSave(data.speech));
+      if (currentMod.textSpeechEnabled === true) {
+        langDir.file('speech.json', stringifyForSave(data.speech));
+      }
     }
-    
-    const audio = root.folder('audio');
-    for (const [lang, data] of Object.entries(currentMod.audio)) {
-      const langDir = audio.folder(lang);
-      langDir.file('speech.json', stringifyForSave(data));
-      langDir.folder('speech');
+
+    if (currentMod.audioSpeechEnabled === true) {
+      const audio = root.folder('audio');
+      for (const [lang, data] of Object.entries(currentMod.audio)) {
+        const langDir = audio.folder(lang);
+        langDir.file('speech.json', stringifyForSave(data));
+        langDir.folder('speech');
+      }
     }
     
     // 预览图（根据实际格式保存）
@@ -1808,35 +1978,48 @@ function getStateSelectOptions(currentValue = '', excludeState = '') {
  * 渲染状态列表
  */
 function renderStates() {
+  if (!currentMod) return;
+
+  // 渲染核心状态列表
+  renderCoreStates();
+
   // 渲染重要状态列表
   renderImportantStates();
-  
-  // 渲染普通状态列表
+
+  // 渲染普通状态列表（卡片网格）
   const stateList = document.getElementById('state-list');
   stateList.innerHTML = '';
-  
+
+  const filters = {
+    name: (document.getElementById('states-normal-filter-name')?.value || '').trim(),
+    anima: (document.getElementById('states-normal-filter-anima')?.value || '').trim(),
+    audio: (document.getElementById('states-normal-filter-audio')?.value || '').trim(),
+    text: (document.getElementById('states-normal-filter-text')?.value || '').trim()
+  };
+
+  const nameNeedle = filters.name.toLowerCase();
+  const animaNeedle = filters.anima.toLowerCase();
+  const audioNeedle = filters.audio.toLowerCase();
+  const textNeedle = filters.text.toLowerCase();
+
   currentMod.manifest.states.forEach((state, index) => {
-    const item = document.createElement('div');
-    item.className = 'state-item';
-    item.innerHTML = `
-      <div class="state-item-info">
-        <span class="state-item-name">${state.name}</span>
-        <div class="state-item-meta">
-          ${state.persistent ? `<span class="state-item-tag persistent">${window.i18n.t('persistent_label')}</span>` : ''}
-          ${state.anima ? `<span class="state-item-tag">${window.i18n.t('anima_label')}: ${state.anima}</span>` : ''}
-          ${state.text ? `<span class="state-item-tag">${window.i18n.t('text_label')}: ${state.text}</span>` : ''}
-          ${state.branch?.length ? `<span class="state-item-tag">${window.i18n.t('section_branches')}: ${state.branch.length}</span>` : ''}
-        </div>
-      </div>
-      <div class="state-item-actions">
-        <button class="btn btn-sm btn-ghost" onclick="copyStateToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
-        <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
-        <button class="btn btn-sm btn-ghost" onclick="deleteState(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
-      </div>
-    `;
-    stateList.appendChild(item);
+    const stateName = String(state?.name || '');
+    const stateAnima = String(state?.anima || '');
+    const stateAudio = String(state?.audio || '');
+    const stateText = String(state?.text || '');
+
+    const matchName = !nameNeedle || stateName.toLowerCase().includes(nameNeedle);
+    const matchAnima = !animaNeedle || stateAnima.toLowerCase().includes(animaNeedle);
+    const matchAudio = !audioNeedle || stateAudio.toLowerCase().includes(audioNeedle);
+    const matchText = !textNeedle || stateText.toLowerCase().includes(textNeedle);
+    if (!matchName || !matchAnima || !matchAudio || !matchText) return;
+
+    const card = document.createElement('div');
+    card.className = 'state-card';
+    card.innerHTML = renderNormalStateCard(state, index, filters);
+    stateList.appendChild(card);
   });
-  
+
   // 底部添加按钮
   const footer = document.createElement('div');
   footer.className = 'section-footer';
@@ -1848,32 +2031,86 @@ function renderStates() {
 }
 
 /**
+ * 渲染核心状态列表（idle / music）
+ */
+function renderCoreStates() {
+  const container = document.getElementById('core-states-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const coreKeys = ['idle', 'music'];
+  const importantStates = currentMod.manifest.important_states || {};
+
+  coreKeys.forEach(key => {
+    const state = importantStates[key];
+    if (!state) return;
+
+    const card = document.createElement('div');
+    card.className = 'state-card';
+    card.innerHTML = renderImportantStateCard(state, key, {});
+    container.appendChild(card);
+  });
+}
+
+/**
  * 渲染重要状态列表
  */
 function renderImportantStates() {
   const container = document.getElementById('important-states-list');
   container.innerHTML = '';
-  
+
+
+  const filters = {
+    name: (document.getElementById('states-important-filter-name')?.value || '').trim(),
+    anima: (document.getElementById('states-important-filter-anima')?.value || '').trim(),
+    audio: (document.getElementById('states-important-filter-audio')?.value || '').trim(),
+    text: (document.getElementById('states-important-filter-text')?.value || '').trim()
+  };
+
+  const nameNeedle = filters.name.toLowerCase();
+  const animaNeedle = filters.anima.toLowerCase();
+  const audioNeedle = filters.audio.toLowerCase();
+  const textNeedle = filters.text.toLowerCase();
+
   const importantStates = currentMod.manifest.important_states || {};
-  const stateOrder = ['idle', 'silence', 'silence_start', 'silence_end', 'music', 'music_start', 'music_end', 'birthday', 'firstday'];
-  
+  const coreKeys = ['idle', 'music'];
+  const stateOrder = ['silence', 'silence_start', 'silence_end', 'music_start', 'music_end', 'birthday', 'firstday'];
+
+  const shouldRender = (key, state) => {
+    const displayName = String(state?.name || key);
+    const stateAnima = String(state?.anima || '');
+    const stateAudio = String(state?.audio || '');
+    const stateText = String(state?.text || '');
+
+    const matchName = !nameNeedle || displayName.toLowerCase().includes(nameNeedle);
+    const matchAnima = !animaNeedle || stateAnima.toLowerCase().includes(animaNeedle);
+    const matchAudio = !audioNeedle || stateAudio.toLowerCase().includes(audioNeedle);
+    const matchText = !textNeedle || stateText.toLowerCase().includes(textNeedle);
+    return matchName && matchAnima && matchAudio && matchText;
+  };
+
   stateOrder.forEach(key => {
     const state = importantStates[key];
     if (!state) return;
-    
+    if (!shouldRender(key, state)) return;
+
     const card = document.createElement('div');
     card.className = 'state-card';
-    card.innerHTML = renderImportantStateCard(state, key);
+    card.innerHTML = renderImportantStateCard(state, key, filters);
     container.appendChild(card);
   });
-  
+
   // 添加其他自定义重要状态
   Object.keys(importantStates).forEach(key => {
     if (stateOrder.includes(key)) return;
+    if (coreKeys.includes(key)) return;
     const state = importantStates[key];
+    if (!shouldRender(key, state)) return;
+
+
     const card = document.createElement('div');
     card.className = 'state-card';
-    card.innerHTML = renderImportantStateCard(state, key);
+    card.innerHTML = renderImportantStateCard(state, key, filters);
     container.appendChild(card);
   });
 }
@@ -1881,13 +2118,23 @@ function renderImportantStates() {
 /**
  * 渲染重要状态卡片 HTML
  */
-function renderImportantStateCard(state, key) {
+function renderImportantStateCard(state, key, filters = {}) {
   const canTriggerCount = (state.can_trigger_states || []).length;
   const branchCount = (state.branch || []).length;
-  
+
+  const nameNeedle = String(filters.name || '');
+  const animaNeedle = String(filters.anima || '');
+  const audioNeedle = String(filters.audio || '');
+  const textNeedle = String(filters.text || '');
+
+  const displayName = String(state?.name || key);
+  const animaValue = state?.anima ? String(state.anima) : '-';
+  const audioValue = state?.audio ? String(state.audio) : '-';
+  const textValue = state?.text ? String(state.text) : '-';
+
   return `
     <div class="state-card-header">
-      <span class="state-card-title">${state.name || key}</span>
+      <span class="state-card-title">${highlightNeedleHtml(displayName, nameNeedle)}</span>
       <div class="state-card-actions">
         <button class="btn btn-sm btn-ghost" onclick="copyImportantStateToClipboard('${key}')" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
         <button class="btn btn-sm btn-ghost" onclick="pasteImportantStateFromClipboard('${key}')" title="${window.i18n.t('btn_paste_from_clipboard')}">📥</button>
@@ -1896,32 +2143,99 @@ function renderImportantStateCard(state, key) {
     </div>
     <div class="state-card-body">
       <div class="state-card-field">
-        <span class="label">${window.i18n.t('anima_label')}: </span>
-        <span class="value">${state.anima || '-'}</span>
+        <span class="label">${window.i18n.t('persistent_label')}: </span>
+        <span class="value">${state.persistent ? window.i18n.t('yes') : window.i18n.t('no')}</span>
       </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('priority_label')}: </span>
+        <span class="value">${escapeHtml(state.priority)}</span>
+      </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('anima_label')}: </span>
+        <span class="value">${highlightNeedleHtml(animaValue, animaNeedle)}</span>
+      </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('audio_label')}: </span>
+        <span class="value">${highlightNeedleHtml(audioValue, audioNeedle)}</span>
+      </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('text_label')}: </span>
+        <span class="value">${highlightNeedleHtml(textValue, textNeedle)}</span>
+      </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('next_state_label')}: </span>
+        <span class="value">${escapeHtml(state.next_state || '-')}</span>
+      </div>
+      ${canTriggerCount > 0 ? `<div class="state-card-field">
+        <span class="label">${window.i18n.t('can_trigger_states_label')}: </span>
+        <span class="value">${escapeHtml(`${canTriggerCount} ${window.i18n.t('count_unit')}`)}</span>
+      </div>` : ''}
+      ${branchCount > 0 ? `<div class="state-card-field">
+        <span class="label">${window.i18n.t('section_branches')}: </span>
+        <span class="value">${escapeHtml(`${branchCount} ${window.i18n.t('count_unit')}`)}</span>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+/**
+ * 渲染普通状态卡片 HTML
+ */
+function renderNormalStateCard(state, index, filters = {}) {
+  const canTriggerCount = (state.can_trigger_states || []).length;
+  const branchCount = (state.branch || []).length;
+
+  const nameNeedle = String(filters.name || '');
+  const animaNeedle = String(filters.anima || '');
+  const audioNeedle = String(filters.audio || '');
+  const textNeedle = String(filters.text || '');
+
+  const displayName = String(state?.name || '');
+  const animaValue = state?.anima ? String(state.anima) : '-';
+  const audioValue = state?.audio ? String(state.audio) : '-';
+  const textValue = state?.text ? String(state.text) : '-';
+
+  return `
+    <div class="state-card-header">
+      <span class="state-card-title">${highlightNeedleHtml(displayName, nameNeedle)}</span>
+      <div class="state-card-actions">
+        <button class="btn btn-sm btn-ghost" onclick="copyStateToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+        <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
+        <button class="btn btn-sm btn-ghost" onclick="deleteState(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
+      </div>
+    </div>
+    <div class="state-card-body">
       <div class="state-card-field">
         <span class="label">${window.i18n.t('persistent_label')}: </span>
         <span class="value">${state.persistent ? window.i18n.t('yes') : window.i18n.t('no')}</span>
       </div>
       <div class="state-card-field">
         <span class="label">${window.i18n.t('priority_label')}: </span>
-        <span class="value">${state.priority}</span>
+        <span class="value">${escapeHtml(Number.isFinite(state.priority) ? state.priority : 2)}</span>
       </div>
       <div class="state-card-field">
-        <span class="label">${window.i18n.t('trigger_rate_label')}: </span>
-        <span class="value">${state.trigger_rate}</span>
+        <span class="label">${window.i18n.t('anima_label')}: </span>
+        <span class="value">${highlightNeedleHtml(animaValue, animaNeedle)}</span>
+      </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('audio_label')}: </span>
+        <span class="value">${highlightNeedleHtml(audioValue, audioNeedle)}</span>
+      </div>
+      <div class="state-card-field">
+        <span class="label">${window.i18n.t('text_label')}: </span>
+        <span class="value">${highlightNeedleHtml(textValue, textNeedle)}</span>
       </div>
       <div class="state-card-field">
         <span class="label">${window.i18n.t('next_state_label')}: </span>
-        <span class="value">${state.next_state || '-'}</span>
+        <span class="value">${escapeHtml(state.next_state || '-')}</span>
       </div>
       ${canTriggerCount > 0 ? `<div class="state-card-field">
         <span class="label">${window.i18n.t('can_trigger_states_label')}: </span>
-        <span class="value">${canTriggerCount} ${window.i18n.t('count_unit')}</span>
+        <span class="value">${escapeHtml(`${canTriggerCount} ${window.i18n.t('count_unit')}`)}</span>
       </div>` : ''}
       ${branchCount > 0 ? `<div class="state-card-field">
         <span class="label">${window.i18n.t('section_branches')}: </span>
-        <span class="value">${branchCount} ${window.i18n.t('count_unit')}</span>
+        <span class="value">${escapeHtml(`${branchCount} ${window.i18n.t('count_unit')}`)}</span>
       </div>` : ''}
     </div>
   `;
@@ -1931,7 +2245,7 @@ function renderImportantStateCard(state, key) {
  * 渲染状态卡片 HTML（旧版兼容）
  */
 function renderStateCard(state, index) {
-  return renderImportantStateCard(state, state.name);
+  return renderNormalStateCard(state, index);
 }
 
 /**
@@ -1968,10 +2282,19 @@ function editImportantState(key) {
  */
 function openStateModal(title, state) {
   document.getElementById('state-modal-title').textContent = title;
+
+  // 默认折叠各折叠签
+  ['state-limits-options', 'state-can-trigger-options', 'state-data-counter-options', 'state-branch-options'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && el.tagName === 'DETAILS') {
+      el.open = false;
+    }
+  });
   
   document.getElementById('state-name').value = state.name || '';
   document.getElementById('state-persistent').checked = state.persistent || false;
   document.getElementById('state-priority').value = state.priority || 2;
+
   
   // 设置日期选择器
   setDatePicker('state-date-start', state.date_start || '');
@@ -1982,7 +2305,12 @@ function openStateModal(title, state) {
   document.getElementById('state-time-end').value = state.time_end || '';
   
   document.getElementById('state-trigger-time').value = state.trigger_time || 0;
-  document.getElementById('state-trigger-rate').value = state.trigger_rate || 0;
+
+  // UI 使用百分比(0-100)，底层仍存 0-1
+  const rawRate01 = Number(state.trigger_rate);
+  const rate01 = Number.isFinite(rawRate01) ? rawRate01 : 0;
+  document.getElementById('state-trigger-rate').value = String(rate01 * 100);
+
   document.getElementById('state-branch-show-bubble').checked = state.branch_show_bubble !== false;
   
   // 更新动画下拉列表
@@ -2214,7 +2542,15 @@ function saveState() {
     next_state: document.getElementById('state-next-state').value.trim(),
     can_trigger_states: collectCanTriggerStates(),
     trigger_time: parseInt(document.getElementById('state-trigger-time').value) || 0,
-    trigger_rate: parseFloat(document.getElementById('state-trigger-rate').value) || 0,
+
+    // UI 输入为百分比(0-100)，保存为 0-1
+    trigger_rate: (() => {
+      const percent = parseFloat(document.getElementById('state-trigger-rate').value);
+      const p = Number.isFinite(percent) ? percent : 0;
+      const r = p / 100;
+      return Math.max(0, Math.min(1, r));
+    })(),
+
     branch_show_bubble: document.getElementById('state-branch-show-bubble').checked,
     mod_data_counter: collectDataCounter(),
     branch: collectBranches()
@@ -2331,34 +2667,24 @@ function collectBranches() {
  * 渲染触发器列表
  */
 function renderTriggers() {
+  if (!currentMod) return;
+
   const triggerList = document.getElementById('trigger-list');
   triggerList.innerHTML = '';
-  
+
+  const triggerNameNeedle = (document.getElementById('triggers-filter-name')?.value || '').trim().toLowerCase();
+
   currentMod.manifest.triggers.forEach((trigger, index) => {
-    const item = document.createElement('div');
-    item.className = 'trigger-item';
-    
-    // 渲染触发状态的摘要
-    const statesSummary = renderTriggerStatesSummary(trigger.can_trigger_states || []);
-    
-    item.innerHTML = `
-      <div class="trigger-item-header">
-        <div class="trigger-event">
-          <code>${trigger.event}</code>
-        </div>
-        <div class="trigger-actions">
-          <button class="btn btn-sm btn-ghost" onclick="copyTriggerToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
-          <button class="btn btn-sm btn-ghost" onclick="editTriggerFull(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
-          <button class="btn btn-sm btn-ghost" onclick="deleteTrigger(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
-        </div>
-      </div>
-      <div class="trigger-states">
-        ${statesSummary}
-      </div>
-    `;
-    triggerList.appendChild(item);
+    const eventName = String(trigger?.event || '');
+    const matchName = !triggerNameNeedle || eventName.toLowerCase().includes(triggerNameNeedle);
+    if (!matchName) return;
+
+    const card = document.createElement('div');
+    card.className = 'state-card trigger-card';
+    card.innerHTML = renderTriggerCard(trigger, index);
+    triggerList.appendChild(card);
   });
-  
+
   // 底部添加按钮
   const footer = document.createElement('div');
   footer.className = 'section-footer';
@@ -2370,35 +2696,86 @@ function renderTriggers() {
 }
 
 /**
+ * 渲染触发器卡片 HTML
+ */
+function renderTriggerCard(trigger, index) {
+  const statesSummary = renderTriggerStatesSummary(trigger.can_trigger_states || []);
+  const nameNeedle = (document.getElementById('triggers-filter-name')?.value || '').trim();
+  const eventName = String(trigger?.event || '');
+
+  return `
+    <div class="state-card-header">
+      <span class="state-card-title"><code class="trigger-event-code">${highlightNeedleHtml(eventName, nameNeedle)}</code></span>
+      <div class="state-card-actions">
+        <button class="btn btn-sm btn-ghost" onclick="copyTriggerToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+        <button class="btn btn-sm btn-ghost" onclick="editTriggerFull(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
+        <button class="btn btn-sm btn-ghost" onclick="deleteTrigger(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
+      </div>
+    </div>
+    <div class="state-card-body">
+      <div class="state-card-field full-width">
+        <span class="label">${window.i18n.t('can_trigger_states_label')}: </span>
+        <div class="trigger-states">${statesSummary}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * 渲染触发状态摘要
  */
 function renderTriggerStatesSummary(canTriggerStates) {
   if (!canTriggerStates || canTriggerStates.length === 0) {
     return `<span class="trigger-state-tag">${window.i18n.t('no_trigger_states')}</span>`;
   }
-  
-  return canTriggerStates.map(s => {
-    if (typeof s === 'string') {
-      return `<span class="trigger-state-tag">${s}</span>`;
+
+  const normalizeGroup = (g) => {
+    if (typeof g === 'string') {
+      return { persistent_state: '', states: [{ state: g, weight: 1 }] };
     }
-    if (s && typeof s === 'object') {
-      // 复杂结构：{ persistent_state, states: [{state, weight}] }
-      const persistent = typeof s.persistent_state === 'string' ? s.persistent_state : '';
-      const states = Array.isArray(s.states) ? s.states : [];
-      const list = states
+    if (g && typeof g === 'object') {
+      const persistent_state = typeof g.persistent_state === 'string' ? g.persistent_state : '';
+      const rawStates = Array.isArray(g.states) ? g.states : [];
+      const states = rawStates
         .map(x => {
+          if (typeof x === 'string') return { state: x, weight: 1 };
           if (x && typeof x === 'object' && typeof x.state === 'string') {
-            const w = Number.isFinite(x.weight) && x.weight !== 1 ? `:${x.weight}` : '';
-            return x.state + w;
+            const w = Number.isFinite(x.weight) ? x.weight : 1;
+            return { state: x.state, weight: w };
           }
-          return '';
+          return null;
         })
-        .filter(Boolean)
-        .join(', ');
-      const label = persistent ? `[${persistent}] ${list || '-'}` : (list || '[complex]');
-      return `<span class="trigger-state-tag">${label}</span>`;
+        .filter(Boolean);
+
+      return { persistent_state, states };
     }
-    return `<span class="trigger-state-tag">${String(s)}</span>`;
+    return { persistent_state: '', states: [] };
+  };
+
+  const groups = canTriggerStates.map(normalizeGroup);
+
+  return groups.map(g => {
+    const title = g.persistent_state
+      ? `<div class="trigger-state-group-title">${escapeHtml(window.i18n.t('persistent_state_label'))}: <code>${escapeHtml(g.persistent_state)}</code></div>`
+      : '';
+
+    const chips = (g.states.length ? g.states : [{ state: '-', weight: 1 }]).map(s => {
+      const name = escapeHtml(s.state);
+      const weight = Number.isFinite(s.weight) ? s.weight : 1;
+      return `
+        <span class="trigger-state-chip">
+          <span class="trigger-state-name">${name}</span>
+          <span class="trigger-state-weight">×${escapeHtml(weight)}</span>
+        </span>
+      `;
+    }).join('');
+
+    return `
+      <div class="trigger-state-group">
+        ${title}
+        <div class="trigger-state-chips">${chips}</div>
+      </div>
+    `;
   }).join('');
 }
 
@@ -2682,9 +3059,101 @@ function deleteTrigger(index) {
 // ============================================================================
 
 /**
+ * HTML 转义（用于 innerHTML 拼接）
+ */
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * 将 needle 在 text 中高亮（大小写不敏感）
+ * 返回可直接塞进 innerHTML 的字符串
+ */
+function highlightNeedleHtml(text, needle) {
+  const rawText = String(text ?? '');
+  const rawNeedle = String(needle ?? '').trim();
+  if (!rawNeedle) return escapeHtml(rawText);
+
+  const hay = rawText.toLowerCase();
+  const ndl = rawNeedle.toLowerCase();
+
+  let out = '';
+  let i = 0;
+  while (i <= rawText.length) {
+    const idx = hay.indexOf(ndl, i);
+    if (idx === -1) break;
+    out += escapeHtml(rawText.slice(i, idx));
+    out += `<mark class="filter-highlight">${escapeHtml(rawText.slice(idx, idx + ndl.length))}</mark>`;
+    i = idx + ndl.length;
+  }
+  out += escapeHtml(rawText.slice(i));
+  return out;
+}
+
+/**
+ * 同步高亮输入框（单行 input 覆盖层）
+ */
+function syncHighlightInput(inputEl) {
+  const wrap = inputEl?.closest?.('.hl-input-wrap');
+  const layer = wrap?.querySelector?.('.hl-layer');
+  if (!wrap || !layer) return;
+  const needle = wrap.dataset?.hlNeedle || '';
+
+  // input value 改变时更新高亮层内容
+  layer.innerHTML = highlightNeedleHtml(inputEl.value, needle) || '&nbsp;';
+
+  // 同步横向滚动
+  layer.scrollLeft = inputEl.scrollLeft || 0;
+}
+
+function syncHighlightInputScroll(inputEl) {
+  const wrap = inputEl?.closest?.('.hl-input-wrap');
+  const layer = wrap?.querySelector?.('.hl-layer');
+  if (!wrap || !layer) return;
+  layer.scrollLeft = inputEl.scrollLeft || 0;
+}
+
+/**
+ * 同步高亮多行编辑框（textarea 覆盖层）
+ */
+function syncHighlightTextarea(textareaEl) {
+  const wrap = textareaEl?.closest?.('.hl-textarea-wrap');
+  const layer = wrap?.querySelector?.('.hl-layer');
+  if (!wrap || !layer) return;
+
+  const needle = wrap.dataset?.hlNeedle || '';
+  const value = String(textareaEl.value ?? '');
+  let html = highlightNeedleHtml(value, needle);
+  if (!value) {
+    html = '&nbsp;';
+  } else if (value.endsWith('\n')) {
+    html += '<br>';
+  }
+  layer.innerHTML = html;
+
+  // 同步滚动
+  layer.scrollTop = textareaEl.scrollTop || 0;
+  layer.scrollLeft = textareaEl.scrollLeft || 0;
+}
+
+function syncHighlightTextareaScroll(textareaEl) {
+  const wrap = textareaEl?.closest?.('.hl-textarea-wrap');
+  const layer = wrap?.querySelector?.('.hl-layer');
+  if (!wrap || !layer) return;
+  layer.scrollTop = textareaEl.scrollTop || 0;
+  layer.scrollLeft = textareaEl.scrollLeft || 0;
+}
+
+/**
  * 渲染资源列表
  */
 function renderAssets() {
+  if (!currentMod) return;
   renderAssetList('sequence', currentMod.assets.sequence);
   renderAssetList('img', currentMod.assets.img);
   updateAnimaSelects();
@@ -2694,15 +3163,30 @@ function renderAssets() {
  * 渲染单个资源列表
  */
 function renderAssetList(type, assets) {
+  if (!currentMod) return;
   const list = document.getElementById(`${type}-list`);
   list.innerHTML = '';
-  
+
+  const nameNeedleRaw = (document.getElementById(`assets-${type}-filter-name`)?.value || '').trim();
+  const pathNeedleRaw = (document.getElementById(`assets-${type}-filter-path`)?.value || '').trim();
+  const nameNeedle = nameNeedleRaw.toLowerCase();
+  const pathNeedle = pathNeedleRaw.toLowerCase();
+
   assets.forEach((asset, index) => {
+    const assetName = String(asset?.name || '');
+    const assetImg = String(asset?.img || '');
+
+    const nameHay = assetName.toLowerCase();
+    const pathHay = assetImg.toLowerCase();
+    const matchName = !nameNeedle || nameHay.includes(nameNeedle);
+    const matchPath = !pathNeedle || pathHay.includes(pathNeedle);
+    if (!matchName || !matchPath) return;
+
     const card = document.createElement('div');
     card.className = 'asset-card';
     card.innerHTML = `
       <div class="asset-card-header">
-        <span class="asset-card-name">${asset.name}</span>
+        <span class="asset-card-name">${highlightNeedleHtml(assetName, nameNeedleRaw)}</span>
         <div class="asset-card-actions">
           <button class="btn btn-sm btn-ghost" onclick="copyAssetToClipboard('${type}', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
           <button class="btn btn-sm btn-ghost" onclick="editAsset('${type}', ${index})">✏️</button>
@@ -2710,15 +3194,15 @@ function renderAssetList(type, assets) {
         </div>
       </div>
       <div class="asset-card-body">
-        <div class="asset-field"><span class="label">${window.i18n.t('asset_path_label')}:</span> ${asset.img}</div>
-        <div class="asset-field"><span class="label">${window.i18n.t('asset_frames_label')}:</span> ${asset.frame_num_x}×${asset.frame_num_y}</div>
-        <div class="asset-field"><span class="label">${window.i18n.t('asset_size_label')}:</span> ${asset.frame_size_x}×${asset.frame_size_y}</div>
-        <div class="asset-field"><span class="label">${window.i18n.t('asset_frame_time_label')}:</span> ${asset.frame_time}s</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('asset_path_label')}:</span> ${highlightNeedleHtml(assetImg, pathNeedleRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('origin_reverse_label')}:</span> ${asset.origin_reverse ? window.i18n.t('yes') : window.i18n.t('no')}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('asset_frames_label')}:</span> ${escapeHtml(`${asset.frame_num_x}×${asset.frame_num_y}`)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('asset_size_label')}:</span> ${escapeHtml(`${asset.frame_size_x}×${asset.frame_size_y}`)}</div>
       </div>
     `;
     list.appendChild(card);
   });
-  
+
   // 底部添加按钮
   const footer = document.createElement('div');
   footer.className = 'section-footer';
@@ -2767,6 +3251,12 @@ function editAsset(type, index) {
  */
 function openAssetModal(title, asset) {
   document.getElementById('asset-modal-title').textContent = title;
+
+  // 默认折叠高级选项
+  const advanced = document.getElementById('asset-advanced-options');
+  if (advanced && advanced.tagName === 'DETAILS') {
+    advanced.open = false;
+  }
   
   document.getElementById('asset-name').value = asset.name || '';
   document.getElementById('asset-img').value = asset.img || '';
@@ -3025,6 +3515,8 @@ async function pasteTriggerFromClipboard() {
  * 渲染文本管理
  */
 function renderTexts() {
+  populateTextSpeechToggle();
+
   // 渲染语言标签
   const langTabs = document.getElementById('text-lang-tabs');
   langTabs.innerHTML = '';
@@ -3077,36 +3569,82 @@ function renderTexts() {
     };
   });
   
-  // 渲染对话文本列表
-  renderSpeechTexts();
+  // 渲染对话文本列表（仅当启用 speech.json 时）
+  if (currentMod.textSpeechEnabled === true) {
+    renderSpeechTexts();
+  } else {
+    const list = document.getElementById('speech-text-list');
+    if (list) list.innerHTML = '';
+  }
 }
 
 /**
  * 渲染对话文本列表
  */
 function renderSpeechTexts() {
+  if (!currentMod) return;
+  if (currentMod.textSpeechEnabled !== true) return;
   const list = document.getElementById('speech-text-list');
   list.innerHTML = '';
-  
+
+
   const speeches = currentMod.texts[currentTextLang]?.speech || [];
-  
+  const nameNeedleRaw = (document.getElementById('speech-filter-name')?.value || '').trim();
+  const containsNeedleRaw = (document.getElementById('speech-filter-contains')?.value || '').trim();
+  const nameNeedle = nameNeedleRaw.toLowerCase();
+  const containsNeedle = containsNeedleRaw.toLowerCase();
+
   speeches.forEach((speech, index) => {
+    const speechName = String(speech?.name || '');
+    const speechText = String(speech?.text || '');
+
+    const nameHay = speechName.toLowerCase();
+    const textHay = speechText.toLowerCase();
+    const matchName = !nameNeedle || nameHay.includes(nameNeedle);
+    const matchContains = !containsNeedle || textHay.includes(containsNeedle);
+    if (!matchName || !matchContains) return;
+
     const item = document.createElement('div');
     item.className = 'speech-item';
+
+    const nameFieldHtml = nameNeedleRaw
+      ? `
+        <div class="hl-wrap hl-input-wrap speech-item-name-wrap" data-hl-needle="${escapeHtml(nameNeedleRaw)}">
+          <div class="speech-item-name hl-layer">${highlightNeedleHtml(speechName, nameNeedleRaw) || '&nbsp;'}</div>
+          <input type="text" class="speech-item-name hl-input" value="${escapeHtml(speechName)}"
+            placeholder="${window.i18n.t('text_name_placeholder')}" onchange="updateSpeechText(${index}, 'name', this.value)" oninput="syncHighlightInput(this)" onscroll="syncHighlightInputScroll(this)">
+        </div>
+      `
+      : `
+        <input type="text" class="speech-item-name" value="${escapeHtml(speechName)}" 
+          placeholder="${window.i18n.t('text_name_placeholder')}" onchange="updateSpeechText(${index}, 'name', this.value)">
+      `;
+
+    const textFieldHtml = containsNeedleRaw
+      ? `
+        <div class="hl-wrap hl-textarea-wrap speech-item-text-wrap" data-hl-needle="${escapeHtml(containsNeedleRaw)}">
+          <div class="speech-item-text hl-layer hl-textarea-highlight">${highlightNeedleHtml(speechText, containsNeedleRaw) || '&nbsp;'}</div>
+          <textarea class="speech-item-text hl-textarea" rows="3" placeholder="${window.i18n.t('text_content_placeholder')}"
+            onchange="updateSpeechText(${index}, 'text', this.value)" oninput="syncHighlightTextarea(this)" onscroll="syncHighlightTextareaScroll(this)">${escapeHtml(speechText)}</textarea>
+        </div>
+      `
+      : `
+        <textarea class="speech-item-text" rows="3" placeholder="${window.i18n.t('text_content_placeholder')}"
+          onchange="updateSpeechText(${index}, 'text', this.value)">${escapeHtml(speechText)}</textarea>
+      `;
+
     item.innerHTML = `
       <div class="speech-item-header">
-        <input type="text" class="speech-item-name" value="${speech.name || ''}" 
-          placeholder="${window.i18n.t('text_name_placeholder')}" onchange="updateSpeechText(${index}, 'name', this.value)">
+        ${nameFieldHtml}
         <div class="speech-item-actions">
           <button class="btn btn-sm btn-ghost" onclick="deleteSpeechText(${index})">🗑️</button>
         </div>
       </div>
-      <textarea class="speech-item-text" rows="3" placeholder="${window.i18n.t('text_content_placeholder')}"
-        onchange="updateSpeechText(${index}, 'text', this.value)">${speech.text || ''}</textarea>
+      ${textFieldHtml}
     `;
     list.appendChild(item);
   });
-  
+
   // 底部添加按钮
   const footer = document.createElement('div');
   footer.className = 'section-footer';
@@ -3163,6 +3701,7 @@ function deleteTextLanguage(langId) {
  * 复制文本语言到剪切板
  */
 function copyTextLanguage() {
+  if (!currentMod) return;
   const langData = currentMod.texts[currentTextLang];
   if (!langData) {
     showToast(window.i18n.t('msg_no_data_to_copy'), 'error');
@@ -3228,6 +3767,7 @@ async function pasteTextLanguage() {
  * 添加对话文本
  */
 function addSpeechText() {
+  if (!currentMod || currentMod.textSpeechEnabled !== true) return;
   if (!currentMod.texts[currentTextLang]) {
     currentMod.texts[currentTextLang] = { info: {}, speech: [] };
   }
@@ -3240,6 +3780,7 @@ function addSpeechText() {
  * 更新对话文本
  */
 function updateSpeechText(index, field, value) {
+  if (!currentMod || currentMod.textSpeechEnabled !== true) return;
   currentMod.texts[currentTextLang].speech[index][field] = value;
   markUnsaved();
 }
@@ -3248,6 +3789,7 @@ function updateSpeechText(index, field, value) {
  * 删除对话文本
  */
 function deleteSpeechText(index) {
+  if (!currentMod || currentMod.textSpeechEnabled !== true) return;
   currentMod.texts[currentTextLang].speech.splice(index, 1);
   renderSpeechTexts();
   markUnsaved();
@@ -3261,6 +3803,15 @@ function deleteSpeechText(index) {
  * 渲染音频管理
  */
 function renderAudio() {
+  populateAudioSpeechToggle();
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) {
+    const langTabs = document.getElementById('audio-lang-tabs');
+    if (langTabs) langTabs.innerHTML = '';
+    const list = document.getElementById('audio-list');
+    if (list) list.innerHTML = '';
+    return;
+  }
+
   // 渲染语言标签
   const langTabs = document.getElementById('audio-lang-tabs');
   langTabs.innerHTML = '';
@@ -3297,20 +3848,61 @@ function renderAudio() {
  * 渲染音频列表
  */
 function renderAudioList() {
+  if (!currentMod) return;
+  if (currentMod.audioSpeechEnabled !== true) return;
   const list = document.getElementById('audio-list');
   list.innerHTML = '';
-  
+
+
   const audios = currentMod.audio[currentAudioLang] || [];
-  
+  const nameNeedleRaw = (document.getElementById('audio-filter-name')?.value || '').trim();
+  const pathNeedleRaw = (document.getElementById('audio-filter-path')?.value || '').trim();
+  const nameNeedle = nameNeedleRaw.toLowerCase();
+  const pathNeedle = pathNeedleRaw.toLowerCase();
+
   audios.forEach((audio, index) => {
+    const audioName = String(audio?.name || '');
+    const audioPath = String(audio?.audio || '');
+
+    const nameHay = audioName.toLowerCase();
+    const pathHay = audioPath.toLowerCase();
+    const matchName = !nameNeedle || nameHay.includes(nameNeedle);
+    const matchPath = !pathNeedle || pathHay.includes(pathNeedle);
+    if (!matchName || !matchPath) return;
+
     const item = document.createElement('div');
     item.className = 'audio-item';
+
+    const nameFieldHtml = nameNeedleRaw
+      ? `
+        <div class="hl-wrap hl-input-wrap audio-item-name-wrap" data-hl-needle="${escapeHtml(nameNeedleRaw)}">
+          <div class="audio-item-name hl-layer">${highlightNeedleHtml(audioName, nameNeedleRaw) || '&nbsp;'}</div>
+          <input type="text" class="audio-item-name hl-input" value="${escapeHtml(audioName)}" 
+            placeholder="${window.i18n.t('audio_name_placeholder')}" onchange="updateAudioEntry(${index}, 'name', this.value)" oninput="syncHighlightInput(this)" onscroll="syncHighlightInputScroll(this)">
+        </div>
+      `
+      : `
+        <input type="text" class="audio-item-name" value="${escapeHtml(audioName)}" 
+          placeholder="${window.i18n.t('audio_name_placeholder')}" onchange="updateAudioEntry(${index}, 'name', this.value)">
+      `;
+
+    const pathFieldHtml = pathNeedleRaw
+      ? `
+        <div class="hl-wrap hl-input-wrap audio-item-path-wrap" data-hl-needle="${escapeHtml(pathNeedleRaw)}">
+          <div class="audio-item-path hl-layer">${highlightNeedleHtml(audioPath, pathNeedleRaw) || '&nbsp;'}</div>
+          <input type="text" class="audio-item-path hl-input" value="${escapeHtml(audioPath)}" 
+            placeholder="${window.i18n.t('audio_path_placeholder')}" onchange="updateAudioEntry(${index}, 'audio', this.value)" oninput="syncHighlightInput(this)" onscroll="syncHighlightInputScroll(this)">
+        </div>
+      `
+      : `
+        <input type="text" class="audio-item-path" value="${escapeHtml(audioPath)}" 
+          placeholder="${window.i18n.t('audio_path_placeholder')}" onchange="updateAudioEntry(${index}, 'audio', this.value)">
+      `;
+
     item.innerHTML = `
       <div class="audio-item-info">
-        <input type="text" class="audio-item-name" value="${audio.name || ''}" 
-          placeholder="${window.i18n.t('audio_name_placeholder')}" onchange="updateAudioEntry(${index}, 'name', this.value)">
-        <input type="text" class="audio-item-path" value="${audio.audio || ''}" 
-          placeholder="${window.i18n.t('audio_path_placeholder')}" onchange="updateAudioEntry(${index}, 'audio', this.value)">
+        ${nameFieldHtml}
+        ${pathFieldHtml}
       </div>
       <div class="audio-item-actions">
         <button class="btn btn-sm btn-ghost" onclick="deleteAudioEntry(${index})">🗑️</button>
@@ -3318,7 +3910,7 @@ function renderAudioList() {
     `;
     list.appendChild(item);
   });
-  
+
   // 底部添加按钮
   const footer = document.createElement('div');
   footer.className = 'section-footer';
@@ -3332,6 +3924,7 @@ function renderAudioList() {
  * 添加音频语言
  */
 function addAudioLanguage() {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
   const langId = prompt(window.i18n.t('msg_enter_lang_id'));
   if (langId && !currentMod.audio[langId]) {
     currentMod.audio[langId] = [];
@@ -3346,6 +3939,7 @@ function addAudioLanguage() {
  * 删除音频语言
  */
 function deleteAudioLanguage(langId) {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
   const langs = Object.keys(currentMod.audio);
   if (langs.length <= 1) {
     showToast(window.i18n.t('msg_cannot_delete_last_lang'), 'error');
@@ -3372,6 +3966,7 @@ function deleteAudioLanguage(langId) {
  * 复制音频语言到剪切板
  */
 function copyAudioLanguage() {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
   const langData = currentMod.audio[currentAudioLang];
   if (!langData) {
     showToast(window.i18n.t('msg_no_data_to_copy'), 'error');
@@ -3397,6 +3992,7 @@ function copyAudioLanguage() {
  * 从剪切板粘贴音频语言
  */
 async function pasteAudioLanguage() {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
   try {
     const text = await navigator.clipboard.readText();
     const parsed = JSON.parse(text);
@@ -3432,12 +4028,13 @@ async function pasteAudioLanguage() {
  * 添加音频条目
  */
 function addAudioEntry() {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
   if (!currentMod.audio[currentAudioLang]) {
     currentMod.audio[currentAudioLang] = [];
   }
-  currentMod.audio[currentAudioLang].push({ 
-    name: '', 
-    audio: `${currentAudioLang}/speech/` 
+  currentMod.audio[currentAudioLang].push({
+    name: '',
+    audio: `${currentAudioLang}/speech/`
   });
   renderAudioList();
   markUnsaved();
@@ -3447,6 +4044,7 @@ function addAudioEntry() {
  * 更新音频条目
  */
 function updateAudioEntry(index, field, value) {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
   currentMod.audio[currentAudioLang][index][field] = value;
   markUnsaved();
 }
@@ -3455,6 +4053,7 @@ function updateAudioEntry(index, field, value) {
  * 删除音频条目
  */
 function deleteAudioEntry(index) {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
   currentMod.audio[currentAudioLang].splice(index, 1);
   renderAudioList();
   markUnsaved();

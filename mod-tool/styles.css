@@ -426,6 +426,162 @@ body {
   gap: 8px;
 }
 
+/* 列表筛选器 */
+.list-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+
+.list-filters .form-group {
+  margin: 0;
+}
+
+/* 筛选高亮 */
+mark.filter-highlight {
+  background: rgba(245, 158, 11, 0.35);
+  color: var(--text-primary);
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+/* 编辑框内高亮（覆盖层方案：高亮层 + 透明文字输入层） */
+.hl-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.hl-input-wrap {
+  min-width: 0;
+}
+
+.speech-item-name-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.speech-item-text-wrap {
+  width: 100%;
+}
+
+.audio-item-name-wrap {
+  width: 180px;
+  flex: 0 0 180px;
+}
+
+.audio-item-path-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.hl-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: transparent;
+  border-color: transparent;
+  overflow: auto;
+  scrollbar-width: auto;
+  white-space: pre;
+  word-break: normal;
+  font: inherit;
+}
+
+/* 单行 input：隐藏高亮层滚动条（不占 gutter），避免视觉干扰 */
+.hl-input-wrap .hl-layer {
+  scrollbar-width: none;
+}
+
+.hl-input-wrap .hl-layer::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* 透明文字输入层：必须压过后续 .audio-item-* / .speech-item-* 的 color 定义 */
+.hl-input,
+.hl-textarea {
+  position: relative;
+  z-index: 1;
+
+  /* 关键：上层输入框必须透明，否则会盖住下层高亮层 */
+  background: transparent !important;
+  border-color: transparent !important;
+
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: var(--text-primary);
+}
+
+.hl-input::placeholder,
+.hl-textarea::placeholder {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: var(--text-muted);
+  opacity: 1;
+}
+
+/* textarea：允许换行 */
+.hl-textarea-highlight {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 右下角全局滚动按钮 */
+.global-scroll-actions {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 500;
+}
+
+.scroll-action-btn {
+  box-shadow: var(--shadow-lg);
+}
+
+/* 可折叠分组（用于动画资源页面） */
+.section-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.section-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.section-details > summary.section-header {
+  margin-bottom: 0;
+}
+
+.section-details[open] > summary.section-header {
+  margin-bottom: 16px;
+}
+
+.section-details > summary.section-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-collapse-arrow {
+  display: inline-flex;
+  width: 12px;
+  justify-content: center;
+}
+
+.section-collapse-arrow::before {
+  content: '▸';
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.section-details[open] .section-collapse-arrow::before {
+  transform: rotate(90deg);
+}
+
 .section-footer {
   display: flex;
   align-items: center;
@@ -486,6 +642,45 @@ body {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* 高级选项折叠（用于资源编辑等弹窗） */
+.advanced-options {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.advanced-options > summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+  list-style: none;
+}
+
+.advanced-options > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-options > summary::after {
+  content: '▸';
+  float: right;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.advanced-options[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.advanced-options-content {
+  padding: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
 
 /* 日期选择器组 */
 .date-picker-group {
@@ -604,6 +799,11 @@ input:checked + .slider::before {
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   padding: 16px;
+  transition: border-color 0.2s;
+}
+
+.state-card:hover {
+  border-color: var(--color-primary);
 }
 
 .state-card-header {
@@ -633,6 +833,10 @@ input:checked + .slider::before {
   font-size: 13px;
 }
 
+.state-card-field.full-width {
+  grid-column: 1 / -1;
+}
+
 .state-card-field .label {
   color: var(--text-muted);
 }
@@ -643,96 +847,32 @@ input:checked + .slider::before {
 }
 
 /* --------------------------------------------------------------------------
-   状态列表
+   状态列表（卡片网格）
    -------------------------------------------------------------------------- */
 .state-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.state-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: 12px 16px;
-  transition: border-color 0.2s;
-}
-
-.state-item:hover {
-  border-color: var(--color-primary);
-}
-
-.state-item-info {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
-  flex: 1;
 }
 
-.state-item-name {
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 120px;
-}
-
-.state-item-meta {
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.state-item-tag {
-  padding: 2px 8px;
-  background: var(--bg-tertiary);
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.state-item-tag.persistent {
-  background: var(--color-primary);
-  color: white;
-}
-
-.state-item-actions {
-  display: flex;
-  gap: 8px;
+.state-list .section-footer {
+  grid-column: 1 / -1;
 }
 
 /* --------------------------------------------------------------------------
-   触发器列表
+   触发器列表（卡片网格）
    -------------------------------------------------------------------------- */
 .trigger-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 
-.trigger-item {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: 16px;
+.trigger-list .section-footer {
+  grid-column: 1 / -1;
 }
 
-.trigger-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.trigger-event {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.trigger-event code {
+.trigger-event-code {
   background: var(--color-primary);
   color: white;
   padding: 4px 10px;
@@ -740,12 +880,70 @@ input:checked + .slider::before {
   font-size: 14px;
 }
 
+.trigger-card .state-card-field.full-width {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.trigger-card .trigger-states {
+  margin-top: 2px;
+}
+
 .trigger-states {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 触发器卡片：可触发子状态分组展示 */
+.trigger-state-group {
+  padding: 10px 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.trigger-state-group-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.trigger-state-group-title code {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.trigger-state-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+.trigger-state-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.trigger-state-weight {
+  font-size: 12px;
+  font-family: 'Monaco', 'Consolas', monospace;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.25);
+  color: var(--text-primary);
+}
+
+/* 空状态：沿用旧 tag */
 .trigger-state-tag {
   padding: 4px 10px;
   background: var(--bg-tertiary);
@@ -927,6 +1125,7 @@ input:checked + .slider::before {
 .speech-item-text {
   width: 100%;
   font-size: 14px;
+  line-height: 1.6;
   color: var(--text-primary);
   white-space: pre-wrap;
   padding: 10px 12px;
@@ -942,6 +1141,7 @@ input:checked + .slider::before {
   border-color: var(--color-primary);
 }
 
+
 .speech-item-name {
   font-weight: 600;
   background: transparent;
@@ -950,6 +1150,7 @@ input:checked + .slider::before {
   padding: 4px 8px;
   color: var(--text-primary);
   font-size: 14px;
+  line-height: 1.6;
 }
 
 .speech-item-name:focus {
@@ -979,9 +1180,12 @@ input:checked + .slider::before {
 
 .audio-item-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
+  flex: 1;
+  min-width: 0;
 }
+
 
 .audio-item-name {
   font-weight: 600;
@@ -991,7 +1195,9 @@ input:checked + .slider::before {
   border-radius: var(--border-radius);
   padding: 4px 8px;
   font-size: 14px;
-  min-width: 120px;
+  line-height: 1.6;
+  width: 180px;
+  flex: 0 0 180px;
 }
 
 .audio-item-name:focus {
@@ -1002,6 +1208,7 @@ input:checked + .slider::before {
 
 .audio-item-path {
   font-size: 13px;
+  line-height: 1.6;
   color: var(--text-muted);
   font-family: 'Monaco', 'Consolas', monospace;
   background: transparent;
@@ -1009,6 +1216,8 @@ input:checked + .slider::before {
   border-radius: var(--border-radius);
   padding: 4px 8px;
   flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .audio-item-path:focus {
@@ -1305,6 +1514,32 @@ input:checked + .slider::before {
   opacity: 1;
   pointer-events: auto;
   filter: none;
+}
+
+/* 通用功能开关（用于 speech.json 等可选模块） */
+.feature-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(50%);
+}
+
+.feature-enabled {
+  opacity: 1;
+  pointer-events: auto;
+  filter: none;
+}
+
+.feature-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feature-toggle > label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* --------------------------------------------------------------------------

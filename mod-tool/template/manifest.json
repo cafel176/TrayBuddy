@@ -196,30 +196,6 @@
     {
       "event": "keydown:Space",
       "can_trigger_states": []
-    },
-    {
-      "event": "login",
-      "can_trigger_states": []
-    },
-    {
-      "event": "birthday",
-      "can_trigger_states": []
-    },
-    {
-      "event": "firstday",
-      "can_trigger_states": []
-    },
-    {
-      "event": "login_silence",
-      "can_trigger_states": []
-    },
-    {
-      "event": "music_start",
-      "can_trigger_states": []
-    },
-    {
-      "event": "music_end",
-      "can_trigger_states": []
     }
   ]
 }

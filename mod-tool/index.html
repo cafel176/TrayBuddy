@@ -208,59 +208,116 @@
             <p class="panel-desc" data-i18n="states_triggers_desc">管理角色的各种状态、对话分支以及事件触发逻辑</p>
           </div>
           <div class="panel-body">
-            <div class="two-column-layout">
-              <div class="left-column">
-                <!-- 重要状态 -->
-                <section class="form-section">
-                  <div class="section-header">
-                    <h3 data-i18n="section_important_states">重要状态</h3>
-                  </div>
-                  <div class="important-states-list" id="important-states-list">
-                    <!-- 由 JS 动态填充 -->
-                  </div>
-                </section>
+            <!-- 核心状态 -->
+            <details class="form-section section-details" id="states-core-details" open>
+              <summary class="section-header">
+                <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_core_states">核心状态</span></h3>
+              </summary>
 
-                <!-- 状态列表 -->
-                <section class="form-section">
-                  <div class="section-header">
-                    <h3 data-i18n="section_state_list">普通状态列表</h3>
-                    <div class="section-actions">
-                      <button class="btn btn-sm btn-ghost" onclick="pasteStateFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
-                      <button class="btn btn-sm btn-primary" onclick="addState()">➕ <span data-i18n="btn_add_state">添加状态</span></button>
-                    </div>
-                  </div>
-                  <div class="state-list" id="state-list">
-                    <!-- 由 JS 动态填充 -->
-                  </div>
-                </section>
+              <div class="important-states-list" id="core-states-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </details>
+
+            <!-- 重要状态 -->
+            <details class="form-section section-details" id="states-important-details">
+              <summary class="section-header">
+                <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_important_states">重要状态</span></h3>
+              </summary>
+
+              <div class="list-filters">
+                <div class="form-group">
+                  <label data-i18n="filter_by_name">按名称筛选</label>
+                  <input type="text" id="states-important-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderStates()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_anima">按关联动画筛选</label>
+                  <input type="text" id="states-important-filter-anima" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_audio">按关联音频筛选</label>
+                  <input type="text" id="states-important-filter-audio" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_text">按关联文本筛选</label>
+                  <input type="text" id="states-important-filter-text" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                </div>
               </div>
 
-              <div class="right-column">
-                <!-- 触发器 -->
-                <section class="form-section">
-                  <div class="section-header">
-                    <h3 data-i18n="section_triggers">触发器 (事件响应)</h3>
-                    <div class="section-actions">
-                      <button class="btn btn-sm btn-ghost" onclick="pasteTriggerFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
-                      <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ <span data-i18n="btn_add_trigger">添加触发器</span></button>
-                    </div>
-                  </div>
-                  <div class="trigger-list" id="trigger-list">
-                    <!-- 由 JS 动态填充 -->
-                  </div>
-                </section>
-
-                <section class="form-section">
-                  <h3 data-i18n="section_event_docs">事件类型说明</h3>
-                  <div class="event-docs">
-                    <div class="event-doc-item"><code>click</code> <span data-i18n="event_click">点击角色</span></div>
-                    <div class="event-doc-item"><code>login</code> <span data-i18n="event_login">启动/登录</span></div>
-                    <div class="event-doc-item"><code>music_start</code> <span data-i18n="event_music_start">音乐播放</span></div>
-                    <div class="event-doc-item"><code>music_end</code> <span data-i18n="event_music_end">音乐停止</span></div>
-                  </div>
-                </section>
+              <div class="important-states-list" id="important-states-list">
+                <!-- 由 JS 动态填充 -->
               </div>
-            </div>
+            </details>
+
+            <!-- 状态列表 -->
+            <details class="form-section section-details" id="states-normal-details" open>
+              <summary class="section-header">
+                <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_state_list">普通状态列表</span></h3>
+                <div class="section-actions">
+                  <button class="btn btn-sm btn-ghost" onclick="pasteStateFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                  <button class="btn btn-sm btn-primary" onclick="addState()">➕ <span data-i18n="btn_add_state">添加状态</span></button>
+                </div>
+              </summary>
+
+              <div class="list-filters">
+                <div class="form-group">
+                  <label data-i18n="filter_by_name">按名称筛选</label>
+                  <input type="text" id="states-normal-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderStates()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_anima">按关联动画筛选</label>
+                  <input type="text" id="states-normal-filter-anima" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_audio">按关联音频筛选</label>
+                  <input type="text" id="states-normal-filter-audio" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_text">按关联文本筛选</label>
+                  <input type="text" id="states-normal-filter-text" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                </div>
+              </div>
+
+              <div class="state-list" id="state-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </details>
+
+            <!-- 触发器 -->
+            <details class="form-section section-details" id="triggers-details" open>
+              <summary class="section-header">
+                <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_triggers">触发器 (事件响应)</span></h3>
+                <div class="section-actions">
+                  <button class="btn btn-sm btn-ghost" onclick="pasteTriggerFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                  <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ <span data-i18n="btn_add_trigger">添加触发器</span></button>
+                </div>
+              </summary>
+
+              <div class="list-filters">
+                <div class="form-group">
+                  <label data-i18n="filter_by_name">按名称筛选</label>
+                  <input type="text" id="triggers-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderTriggers()">
+                </div>
+              </div>
+
+              <div class="trigger-list" id="trigger-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </details>
+
+            <section class="form-section">
+              <h3 data-i18n="section_event_docs">事件类型说明</h3>
+              <div class="event-docs">
+                <div class="event-doc-item"><code>click</code> <span data-i18n="event_click">点击角色</span></div>
+                <div class="event-doc-item"><code>keydown:&lt;Key&gt;</code> <span data-i18n="event_keydown_space">按键触发（例如：keydown:Space）</span></div>
+                <div class="event-doc-item"><code>login</code> <span data-i18n="event_login">启动/登录</span></div>
+                <div class="event-doc-item"><code>birthday</code> <span data-i18n="event_birthday">生日事件</span></div>
+                <div class="event-doc-item"><code>firstday</code> <span data-i18n="event_firstday">首次启动事件</span></div>
+                <div class="event-doc-item"><code>login_silence</code> <span data-i18n="event_login_silence">启动后进入静默/无声状态</span></div>
+                <div class="event-doc-item"><code>music_start</code> <span data-i18n="event_music_start">音乐播放</span></div>
+                <div class="event-doc-item"><code>music_end</code> <span data-i18n="event_music_end">音乐停止</span></div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -272,32 +329,56 @@
           </div>
           <div class="panel-body">
             <!-- 序列帧动画 -->
-            <section class="form-section">
-              <div class="section-header">
-                <h3 data-i18n="section_sequence">序列帧动画 (sequence.json)</h3>
+            <details class="form-section section-details" id="assets-sequence-details" open>
+              <summary class="section-header">
+                <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_sequence">序列帧动画 (sequence.json)</span></h3>
                 <div class="section-actions">
                   <button class="btn btn-sm btn-ghost" onclick="pasteAssetFromClipboard('sequence')">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
                   <button class="btn btn-sm btn-primary" onclick="addAsset('sequence')">➕ <span data-i18n="btn_add_animation">添加动画</span></button>
                 </div>
+              </summary>
+
+              <div class="list-filters">
+                <div class="form-group">
+                  <label data-i18n="filter_by_name">按名称筛选</label>
+                  <input type="text" id="assets-sequence-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderAssets()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_path">路径包含</label>
+                  <input type="text" id="assets-sequence-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="输入路径关键字..." oninput="renderAssets()">
+                </div>
               </div>
+
               <div class="asset-list" id="sequence-list">
                 <!-- 由 JS 动态填充 -->
               </div>
-            </section>
+            </details>
 
             <!-- 杂图 -->
-            <section class="form-section">
-              <div class="section-header">
-                <h3 data-i18n="section_img">杂图资源 (img.json)</h3>
+            <details class="form-section section-details" id="assets-img-details" open>
+              <summary class="section-header">
+                <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_img">杂图资源 (img.json)</span></h3>
                 <div class="section-actions">
                   <button class="btn btn-sm btn-ghost" onclick="pasteAssetFromClipboard('img')">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
                   <button class="btn btn-sm btn-primary" onclick="addAsset('img')">➕ <span data-i18n="btn_add_img">添加图片</span></button>
                 </div>
+              </summary>
+
+              <div class="list-filters">
+                <div class="form-group">
+                  <label data-i18n="filter_by_name">按名称筛选</label>
+                  <input type="text" id="assets-img-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderAssets()">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="filter_by_path">路径包含</label>
+                  <input type="text" id="assets-img-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="输入路径关键字..." oninput="renderAssets()">
+                </div>
               </div>
+
               <div class="asset-list" id="img-list">
                 <!-- 由 JS 动态填充 -->
               </div>
-            </section>
+            </details>
           </div>
         </div>
 
@@ -609,10 +690,34 @@
             <section class="form-section">
               <div class="section-header">
                 <h3 data-i18n="section_speech_texts">对话文本 (speech.json)</h3>
-                <button class="btn btn-sm btn-primary" onclick="addSpeechText()">➕ <span data-i18n="btn_add_text">添加文本</span></button>
+                <div class="section-actions">
+                  <div class="feature-toggle">
+                    <label for="text-speech-enable" data-i18n="text_speech_enable_label">启用对话文本</label>
+                    <label class="switch">
+                      <input type="checkbox" id="text-speech-enable" onchange="toggleTextSpeech()">
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <button class="btn btn-sm btn-primary" id="text-speech-add-btn" onclick="addSpeechText()">➕ <span data-i18n="btn_add_text">添加文本</span></button>
+                </div>
               </div>
-              <div class="speech-list" id="speech-text-list">
-                <!-- 由 JS 动态填充 -->
+              <small class="section-hint" data-i18n="text_speech_enable_hint">关闭后将不会生成 text/&lt;lang&gt;/speech.json</small>
+
+              <div id="text-speech-fields" class="feature-disabled">
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="speech-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderSpeechTexts()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_content">内容包含</label>
+                    <input type="text" id="speech-filter-contains" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderSpeechTexts()">
+                  </div>
+                </div>
+
+                <div class="speech-list" id="speech-text-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
               </div>
             </section>
           </div>
@@ -625,35 +730,69 @@
             <p class="panel-desc" data-i18n="audio_desc">管理多语言音频资源</p>
           </div>
           <div class="panel-body">
-            <!-- 语言选择 -->
             <section class="form-section">
-              <div class="section-header">
-                <h3 data-i18n="section_languages">语言</h3>
-                <div class="section-actions">
-                  <button class="btn btn-sm btn-ghost" onclick="pasteAudioLanguage()">📋 <span data-i18n="btn_paste_lang">粘贴语言</span></button>
-                  <button class="btn btn-sm btn-ghost" onclick="copyAudioLanguage()">📄 <span data-i18n="btn_copy_lang">复制语言</span></button>
-                  <button class="btn btn-sm btn-primary" onclick="addAudioLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
-                </div>
-              </div>
-              <div class="lang-tabs" id="audio-lang-tabs">
-                <!-- 由 JS 动态填充 -->
+              <div class="form-group">
+                <label for="audio-speech-enable" data-i18n="audio_speech_enable_label">启用音频</label>
+                <label class="switch">
+                  <input type="checkbox" id="audio-speech-enable" onchange="toggleAudioSpeech()">
+                  <span class="slider"></span>
+                </label>
+                <small class="section-hint" data-i18n="audio_speech_enable_hint">关闭后将不会生成 audio/&lt;lang&gt;/speech.json</small>
               </div>
             </section>
 
-            <!-- 音频列表 -->
-            <section class="form-section">
-              <div class="section-header">
-                <h3 data-i18n="section_audio_files">音频文件 (speech.json)</h3>
-                <button class="btn btn-sm btn-primary" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">添加音频</span></button>
-              </div>
-              <div class="audio-list" id="audio-list">
-                <!-- 由 JS 动态填充 -->
-              </div>
-            </section>
+            <div id="audio-speech-fields" class="feature-disabled">
+              <!-- 语言选择 -->
+              <section class="form-section">
+                <div class="section-header">
+                  <h3 data-i18n="section_languages">语言</h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-ghost" onclick="pasteAudioLanguage()">📋 <span data-i18n="btn_paste_lang">粘贴语言</span></button>
+                    <button class="btn btn-sm btn-ghost" onclick="copyAudioLanguage()">📄 <span data-i18n="btn_copy_lang">复制语言</span></button>
+                    <button class="btn btn-sm btn-primary" onclick="addAudioLanguage()">➕ <span data-i18n="btn_add_lang">添加语言</span></button>
+                  </div>
+                </div>
+                <div class="lang-tabs" id="audio-lang-tabs">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </section>
+
+              <!-- 音频列表 -->
+              <section class="form-section">
+                <div class="section-header">
+                  <h3 data-i18n="section_audio_files">音频文件 (speech.json)</h3>
+                  <button class="btn btn-sm btn-primary" id="audio-speech-add-btn" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">添加音频</span></button>
+                </div>
+
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="audio-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderAudioList()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_path">路径包含</label>
+                    <input type="text" id="audio-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="输入路径关键字..." oninput="renderAudioList()">
+                  </div>
+                </div>
+
+                <div class="audio-list" id="audio-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </section>
+            </div>
           </div>
         </div>
       </div>
     </main>
+  </div>
+
+  <div class="global-scroll-actions" id="global-scroll-actions">
+    <button class="btn btn-secondary scroll-action-btn" onclick="scrollContentToTop()" type="button">
+      ⬆ <span data-i18n="scroll_to_top">回到顶部</span>
+    </button>
+    <button class="btn btn-secondary scroll-action-btn" onclick="scrollContentToBottom()" type="button">
+      ⬇ <span data-i18n="scroll_to_bottom">回到底部</span>
+    </button>
   </div>
 
   <!-- 状态编辑弹窗 -->
@@ -700,131 +839,147 @@
             <input type="number" id="state-priority" value="2" min="0">
           </div>
           <div class="form-group">
-            <label data-i18n="date_start_label">开始日期 (MM-DD)</label>
-            <div class="date-picker-group">
-              <select id="state-date-start-month" class="date-month-select">
-                <option value="">--</option>
-                <option value="01">01</option>
-                <option value="02">02</option>
-                <option value="03">03</option>
-                <option value="04">04</option>
-                <option value="05">05</option>
-                <option value="06">06</option>
-                <option value="07">07</option>
-                <option value="08">08</option>
-                <option value="09">09</option>
-                <option value="10">10</option>
-                <option value="11">11</option>
-                <option value="12">12</option>
-              </select>
-              <span class="date-separator">-</span>
-              <select id="state-date-start-day" class="date-day-select">
-                <option value="">--</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label data-i18n="date_end_label">结束日期 (MM-DD)</label>
-            <div class="date-picker-group">
-              <select id="state-date-end-month" class="date-month-select">
-                <option value="">--</option>
-                <option value="01">01</option>
-                <option value="02">02</option>
-                <option value="03">03</option>
-                <option value="04">04</option>
-                <option value="05">05</option>
-                <option value="06">06</option>
-                <option value="07">07</option>
-                <option value="08">08</option>
-                <option value="09">09</option>
-                <option value="10">10</option>
-                <option value="11">11</option>
-                <option value="12">12</option>
-              </select>
-              <span class="date-separator">-</span>
-              <select id="state-date-end-day" class="date-day-select">
-                <option value="">--</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label data-i18n="time_start_label">开始时间 (HH:MM)</label>
-            <input type="time" id="state-time-start">
-          </div>
-          <div class="form-group">
-            <label data-i18n="time_end_label">结束时间 (HH:MM)</label>
-            <input type="time" id="state-time-end">
-          </div>
-          <div class="form-group">
             <label data-i18n="next_state_label">下一状态</label>
             <select id="state-next-state">
               <option value="" data-i18n="select_state_placeholder">-- 选择状态 --</option>
             </select>
           </div>
-          <div class="form-group">
-            <label data-i18n="trigger_time_label">触发间隔 (秒)</label>
-            <input type="number" id="state-trigger-time" value="0" min="0">
-          </div>
-          <div class="form-group">
-            <label data-i18n="trigger_rate_label">触发概率 (0-1)</label>
-            <input type="number" id="state-trigger-rate" value="0" min="0" max="1" step="0.1">
-          </div>
-          <div class="form-group">
-            <label data-i18n="show_bubble_label">显示气泡</label>
-            <label class="switch">
-              <input type="checkbox" id="state-branch-show-bubble" checked>
-              <span class="slider"></span>
-            </label>
+
+          <div class="form-group full-width">
+            <details class="advanced-options" id="state-limits-options">
+              <summary><span data-i18n="state_limits">状态限制</span></summary>
+              <div class="advanced-options-content">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label data-i18n="date_start_label">开始日期 (MM-DD)</label>
+                    <div class="date-picker-group">
+                      <select id="state-date-start-month" class="date-month-select">
+                        <option value="">--</option>
+                        <option value="01">01</option>
+                        <option value="02">02</option>
+                        <option value="03">03</option>
+                        <option value="04">04</option>
+                        <option value="05">05</option>
+                        <option value="06">06</option>
+                        <option value="07">07</option>
+                        <option value="08">08</option>
+                        <option value="09">09</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                      </select>
+                      <span class="date-separator">-</span>
+                      <select id="state-date-start-day" class="date-day-select">
+                        <option value="">--</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="date_end_label">结束日期 (MM-DD)</label>
+                    <div class="date-picker-group">
+                      <select id="state-date-end-month" class="date-month-select">
+                        <option value="">--</option>
+                        <option value="01">01</option>
+                        <option value="02">02</option>
+                        <option value="03">03</option>
+                        <option value="04">04</option>
+                        <option value="05">05</option>
+                        <option value="06">06</option>
+                        <option value="07">07</option>
+                        <option value="08">08</option>
+                        <option value="09">09</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                      </select>
+                      <span class="date-separator">-</span>
+                      <select id="state-date-end-day" class="date-day-select">
+                        <option value="">--</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="time_start_label">开始时间 (HH:MM)</label>
+                    <input type="time" id="state-time-start">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="time_end_label">结束时间 (HH:MM)</label>
+                    <input type="time" id="state-time-end">
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
-        
-        <!-- 可触发子状态 -->
-        <div class="can-trigger-section">
-          <div class="section-header">
-            <h4 data-i18n="section_can_trigger_states">可触发子状态</h4>
-            <button class="btn btn-sm btn-secondary" onclick="addCanTriggerState()">➕ <span data-i18n="btn_add_trigger_state">添加状态</span></button>
-          </div>
-          <small class="section-hint" data-i18n="can_trigger_states_hint">配置该状态可随机触发的子状态及权重</small>
-          <div class="can-trigger-list" id="can-trigger-list">
-            <!-- 由 JS 动态填充 -->
-          </div>
-        </div>
-        
-        <!-- 数据操作 -->
-        <div class="data-counter-section">
-          <div class="section-header">
-            <h4 data-i18n="section_data_counters">数据计数器 (Mod Data Counter)</h4>
-          </div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label data-i18n="counter_op_label">操作类型</label>
-              <select id="state-counter-op">
-                <option value="" data-i18n="counter_op_none">-- 无操作 --</option>
-                <option value="set">= (set)</option>
-                <option value="add">+ (add)</option>
-                <option value="sub">- (sub)</option>
-                <option value="mul">* (mul)</option>
-                <option value="div">/ (div)</option>
-              </select>
+
+        <details class="advanced-options" id="state-can-trigger-options">
+          <summary><span data-i18n="section_can_trigger_states">可触发子状态</span></summary>
+          <div class="advanced-options-content">
+            <div class="form-grid">
+              <div class="form-group">
+                <label data-i18n="trigger_time_label">触发间隔 (秒)</label>
+                <input type="number" id="state-trigger-time" value="0" min="0">
+              </div>
+              <div class="form-group">
+                <label data-i18n="trigger_rate_label">触发概率 (%)</label>
+                <input type="number" id="state-trigger-rate" value="0" min="0" max="100" step="0.1">
+              </div>
+              <div class="form-group">
+                <label data-i18n="show_bubble_label">显示气泡</label>
+                <label class="switch">
+                  <input type="checkbox" id="state-branch-show-bubble" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
             </div>
-            <div class="form-group">
-              <label data-i18n="counter_value_label">操作值</label>
-              <input type="number" id="state-counter-value" value="0">
+
+            <div class="section-header" style="margin-top: 12px;">
+              <h4 data-i18n="section_can_trigger_states">可触发子状态</h4>
+              <button class="btn btn-sm btn-secondary" onclick="addCanTriggerState()">➕ <span data-i18n="btn_add_trigger_state">添加状态</span></button>
+            </div>
+            <small class="section-hint" data-i18n="can_trigger_states_hint">配置该状态可随机触发的子状态及权重</small>
+            <div class="can-trigger-list" id="can-trigger-list">
+              <!-- 由 JS 动态填充 -->
             </div>
           </div>
-          <small class="section-hint" data-i18n="data_counter_hint">进入该状态时对 Mod 数据执行的操作（如好感度 +1）</small>
-        </div>
-        
-        <!-- 分支选项 -->
-        <div class="branch-section">
-          <div class="section-header">
-            <h4 data-i18n="section_branches">对话分支</h4>
-            <button class="btn btn-sm btn-secondary" onclick="addBranch()">➕ <span data-i18n="btn_add_branch">添加分支</span></button>
+        </details>
+
+        <details class="advanced-options" id="state-data-counter-options" style="margin-top: 12px;">
+          <summary><span data-i18n="section_data_counters">数据计数器 (Mod Data Counter)</span></summary>
+          <div class="advanced-options-content">
+            <div class="form-grid">
+              <div class="form-group">
+                <label data-i18n="counter_op_label">操作类型</label>
+                <select id="state-counter-op">
+                  <option value="" data-i18n="counter_op_none">-- 无操作 --</option>
+                  <option value="set">= (set)</option>
+                  <option value="add">+ (add)</option>
+                  <option value="sub">- (sub)</option>
+                  <option value="mul">* (mul)</option>
+                  <option value="div">/ (div)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label data-i18n="counter_value_label">操作值</label>
+                <input type="number" id="state-counter-value" value="0">
+              </div>
+            </div>
+            <small class="section-hint" data-i18n="data_counter_hint">进入该状态时对 Mod 数据执行的操作（如好感度 +1）</small>
           </div>
-          <div class="branch-list" id="branch-list">
-            <!-- 由 JS 动态填充 -->
+        </details>
+
+        <details class="advanced-options" id="state-branch-options" style="margin-top: 12px;">
+          <summary><span data-i18n="section_branches">对话分支</span></summary>
+          <div class="advanced-options-content">
+            <div class="section-header" style="margin-top: 0;">
+              <h4 data-i18n="section_branches">对话分支</h4>
+              <button class="btn btn-sm btn-secondary" onclick="addBranch()">➕ <span data-i18n="btn_add_branch">添加分支</span></button>
+            </div>
+            <div class="branch-list" id="branch-list">
+              <!-- 由 JS 动态填充 -->
+            </div>
           </div>
-        </div>
+        </details>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeStateModal()" data-i18n="btn_cancel">取消</button>
@@ -866,17 +1021,6 @@
             </label>
           </div>
           <div class="form-group">
-            <label data-i18n="need_reverse_label">需要反向播放</label>
-            <label class="switch">
-              <input type="checkbox" id="asset-need-reverse">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="form-group">
-            <label data-i18n="frame_time_label">帧间隔 (秒)</label>
-            <input type="number" id="asset-frame-time" value="0.1" min="0.01" step="0.01">
-          </div>
-          <div class="form-group">
             <label data-i18n="frame_size_x_label">帧宽度 (px)</label>
             <input type="number" id="asset-frame-size-x" value="260" min="1">
           </div>
@@ -892,13 +1036,34 @@
             <label data-i18n="frame_num_y_label">纵向帧数</label>
             <input type="number" id="asset-frame-num-y" value="1" min="1">
           </div>
-          <div class="form-group">
-            <label data-i18n="offset_x_label">X偏移 (px)</label>
-            <input type="number" id="asset-offset-x" value="0">
-          </div>
-          <div class="form-group">
-            <label data-i18n="offset_y_label">Y偏移 (px)</label>
-            <input type="number" id="asset-offset-y" value="0">
+
+          <div class="form-group full-width">
+            <details class="advanced-options" id="asset-advanced-options">
+              <summary><span data-i18n="advanced_options">高级选项</span></summary>
+              <div class="advanced-options-content">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label data-i18n="need_reverse_label">需要反向播放</label>
+                    <label class="switch">
+                      <input type="checkbox" id="asset-need-reverse">
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="frame_time_label">帧间隔 (秒)</label>
+                    <input type="number" id="asset-frame-time" value="0.1" min="0.01" step="0.01">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="offset_x_label">X偏移 (px)</label>
+                    <input type="number" id="asset-offset-x" value="0">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="offset_y_label">Y偏移 (px)</label>
+                    <input type="number" id="asset-offset-y" value="0">
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       </div>

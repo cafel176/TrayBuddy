@@ -501,7 +501,7 @@
     {
       "name": "music_random1_1",
       "persistent": false,
-      "anima": "",
+      "anima": "music_idle",
       "audio": "music_random1_1",
       "text": "music_random1_1",
       "priority": 2,
