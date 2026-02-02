@@ -141,6 +141,23 @@
         <tr><td data-i18n="field_default_text">默认文本语言</td><td data-i18n="field_default_text_desc">找不到对应语言文本时的备选</td></tr>
       </table>
 
+      <h4 data-i18n="section_char_config_tutorial">角色配置</h4>
+      <p data-i18n="char_config_desc">配置角色渲染相关参数（manifest.character）。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>z_offset</td><td data-i18n="char_z_offset_desc">角色画布的渲染层级偏移</td></tr>
+        <tr><td>canvas_fit_preference</td><td data-i18n="char_canvas_fit_desc">角色 Canvas 显示适配：short(短边优先)/long(长边优先)/legacy(旧版按高度缩放)</td></tr>
+      </table>
+
+      <h4 data-i18n="section_border_config_tutorial">边框配置</h4>
+      <p data-i18n="border_config_desc">配置边框开关、边框动画与层级（manifest.border）。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>enable</td><td data-i18n="border_enable_desc">是否启用边框</td></tr>
+        <tr><td>anima</td><td data-i18n="border_anima_desc">边框使用的动画名称（从动画资源中选择）</td></tr>
+        <tr><td>z_offset</td><td data-i18n="border_z_offset_desc">边框画布的渲染层级偏移</td></tr>
+      </table>
+
       <h4 data-i18n="section_mod_data">Mod 数据面板</h4>
       <p data-i18n="mod_data_desc">可在角色窗口左上角显示自定义数据（如好感度）。配置 show_mod_data_panel 开关和 mod_data_default_int 默认值。</p>
 
@@ -158,7 +175,13 @@
         <tr><th data-i18n="table_state_name">状态名称</th><th data-i18n="table_persistent">持久</th><th data-i18n="table_desc">说明</th></tr>
         <tr><td>idle</td><td>✅</td><td data-i18n="state_idle_desc">默认空闲状态，必须存在</td></tr>
         <tr><td>silence</td><td>✅</td><td data-i18n="state_silence_desc">静默/免打扰状态</td></tr>
+        <tr><td>silence_start</td><td>❌</td><td data-i18n="state_silence_start_desc">进入免打扰时播放一次，然后跳转到 silence</td></tr>
+        <tr><td>silence_end</td><td>❌</td><td data-i18n="state_silence_end_desc">退出免打扰时播放一次，然后跳转到 idle</td></tr>
         <tr><td>music</td><td>✅</td><td data-i18n="state_music_desc">音乐播放状态</td></tr>
+        <tr><td>music_start</td><td>❌</td><td data-i18n="state_music_start_desc">开始听歌时播放一次，然后跳转到 music</td></tr>
+        <tr><td>music_end</td><td>❌</td><td data-i18n="state_music_end_desc">停止听歌时播放一次，然后跳转到 idle</td></tr>
+        <tr><td>birthday</td><td>❌</td><td data-i18n="state_birthday_desc">生日事件状态（通常播放一次）</td></tr>
+        <tr><td>firstday</td><td>❌</td><td data-i18n="state_firstday_desc">首次启动事件状态（通常播放一次）</td></tr>
       </table>
 
       <h3 data-i18n="section_state_fields">状态字段</h3>
@@ -171,11 +194,14 @@
         <tr><td data-i18n="field_text">关联文本</td><td data-i18n="field_text_desc">显示为气泡对话</td></tr>
         <tr><td data-i18n="field_priority">优先级</td><td data-i18n="field_priority_desc">数值越大优先级越高</td></tr>
         <tr><td data-i18n="field_next_state">下一状态</td><td data-i18n="field_next_state_desc">播放完成后跳转</td></tr>
-        <tr><td data-i18n="field_can_trigger">可触发子状态</td><td data-i18n="field_can_trigger_desc">支持权重格式 state:weight</td></tr>
+        <tr><td data-i18n="field_trigger_time">触发间隔</td><td data-i18n="field_trigger_time_desc">定时触发检查间隔（秒），0 表示不启用</td></tr>
+        <tr><td data-i18n="field_trigger_rate">触发概率</td><td data-i18n="field_trigger_rate_desc">每次检查的触发概率（编辑器以百分比显示，保存到 manifest 为 0-1）</td></tr>
+        <tr><td data-i18n="field_can_trigger">可触发子状态</td><td data-i18n="field_can_trigger_desc">在编辑器内以“状态 + 权重”列表配置（权重越大越容易被选中）</td></tr>
       </table>
 
       <h3 data-i18n="section_branches">对话分支</h3>
       <p data-i18n="branches_desc">对话分支允许用户通过点击选项来决定对话走向。每个分支包含显示文本和跳转目标状态。</p>
+      <p data-i18n="branch_show_bubble_desc">“显示气泡”(branch_show_bubble) 用于控制分支选项是否以气泡形式展示；该选项位于「对话分支」折叠区内。</p>
 
       <h3 data-i18n="section_triggers">触发器配置</h3>
       <p data-i18n="triggers_desc">触发器定义事件与状态的关联。预设事件：</p>
@@ -216,6 +242,9 @@
         <tr><td data-i18n="asset_frame_time">帧间隔</td><td data-i18n="asset_frame_time_desc">每帧显示时间(秒)</td></tr>
         <tr><td data-i18n="asset_frame_size">帧尺寸</td><td data-i18n="asset_frame_size_desc">单帧宽高(像素)</td></tr>
         <tr><td data-i18n="asset_frame_num">帧数</td><td data-i18n="asset_frame_num_desc">横向/纵向帧数量</td></tr>
+        <tr><td data-i18n="asset_need_reverse">需要反向播放</td><td data-i18n="asset_need_reverse_desc">开启后会以乒乓方式播放（默认关闭，可在高级选项中设置）</td></tr>
+        <tr><td data-i18n="asset_origin_reverse">原始反向</td><td data-i18n="asset_origin_reverse_desc">图片序列本身为反向时可开启，用于纠正方向</td></tr>
+        <tr><td data-i18n="asset_offset">偏移</td><td data-i18n="asset_offset_desc">X/Y 偏移（像素），用于微调渲染位置</td></tr>
       </table>
       <div class="callout callout-warning">
         <div class="callout-title" data-i18n="callout_asset_warning_title">⚠️ 注意</div>
