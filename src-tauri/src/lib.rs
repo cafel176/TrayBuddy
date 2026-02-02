@@ -1828,6 +1828,10 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
             .build()
             .map_err(|e| e.to_string())?;
 
+    // 为动画窗口应用当前 Mod 的图标（用于 Alt-Tab / 任务管理器等显示）
+    apply_window_icon(app, &animation_window);
+
+
     // 性能优化：动画窗口拦截关闭事件，改为隐藏，以保持后台渲染进程常驻
     // 其他工具窗口则遵循“关闭即销毁”策略以节省内存
     let w_clone = animation_window.clone();
@@ -2103,14 +2107,13 @@ async fn update_window_icons_async(app: tauri::AppHandle) {
         let icon = icon_to_use.unwrap();
 
         // 锁已释放，现在执行 UI 操作
-        // 更新所有窗口的任务栏图标（跳过 animation 窗口，它设置了 skip_taskbar: true）
+        // 更新所有窗口的图标
         let windows = app_handle.webview_windows();
-        for (label, window) in windows {
-            if label != WINDOW_LABEL_ANIMATION {
-                // clone 图标用于每个窗口设置
-                let _ = window.set_icon(icon.clone());
-            }
+        for (_label, window) in windows {
+            // clone 图标用于每个窗口设置
+            let _ = window.set_icon(icon.clone());
         }
+
     });
 }
 
@@ -2131,14 +2134,13 @@ async fn restore_window_icons_async(app: tauri::AppHandle) {
         let icon = default_icon.unwrap();
 
         // 锁已释放，现在执行 UI 操作
-        // 恢复所有窗口的默认图标（跳过 animation 窗口）
+        // 恢复所有窗口的默认图标
         let windows = app_handle.webview_windows();
-        for (label, window) in windows {
-            if label != WINDOW_LABEL_ANIMATION {
-                // clone 图标用于每个窗口设置
-                let _ = window.set_icon(icon.clone());
-            }
+        for (_label, window) in windows {
+            // clone 图标用于每个窗口设置
+            let _ = window.set_icon(icon.clone());
         }
+
     });
 }
 
@@ -2251,14 +2253,13 @@ fn update_tray_icon_sync(app: &tauri::AppHandle) {
 /// 用途：在同步上下文中恢复窗口图标（如卸载 mod 时）
 fn restore_window_icons_sync(app: &tauri::AppHandle) {
     if let Some(default_icon) = app.default_window_icon() {
-        // 恢复所有窗口的默认图标（跳过 animation 窗口）
+        // 恢复所有窗口的默认图标
         let windows = app.webview_windows();
-        for (label, window) in windows {
-            if label != WINDOW_LABEL_ANIMATION {
-                let _ = window.set_icon(default_icon.clone());
-            }
+        for (_label, window) in windows {
+            let _ = window.set_icon(default_icon.clone());
         }
     }
+
 }
 
 /// 内部函数：构建国际化托盘菜单
