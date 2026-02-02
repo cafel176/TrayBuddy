@@ -9,7 +9,7 @@
     "canvas_fit_preference": "legacy"
   },
   "border": {
-    "anima": "",
+    "anima": "border",
     "enable": true,
     "z_offset": 2
   },
@@ -28,20 +28,12 @@
       "time_start": "",
       "time_end": "",
       "next_state": "",
-      "can_trigger_states": [
-        {
-          "state": "hello1_1",
-          "weight": 1
-        }
-      ],
-      "trigger_time": 600,
-      "trigger_rate": 0.3,
-      "branch": [],
-      "mod_data_counter": {
-        "op": "add",
-        "value": 0
-      },
-      "branch_show_bubble": true
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0.1,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
     },
     "silence": {
       "name": "silence",
@@ -103,7 +95,7 @@
     "music": {
       "name": "music",
       "persistent": true,
-      "anima": "",
+      "anima": "idle",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -115,9 +107,9 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0.1,
-      "branch": [],
+      "branch_show_bubble": true,
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch": []
     },
     "music_start": {
       "name": "music_start",
@@ -196,6 +188,324 @@
       "branch_show_bubble": true
     }
   },
-  "states": [],
-  "triggers": []
+  "states": [
+    {
+      "name": "talk1",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk2",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk3",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk4",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk5",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk5",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text5",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk6",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk6",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text6",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk7",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk7",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text7",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk8",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk8",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text8",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk9",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk9",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text9",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk10",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk10",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text10",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk11",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk11",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text11",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk12",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk12",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text12",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "talk13",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "talk13",
+      "persistent": false,
+      "anima": "talk",
+      "audio": "",
+      "text": "text13",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    }
+  ],
+  "triggers": [
+    {
+      "event": "click",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "talk1",
+              "weight": 1
+            }
+          ]
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "talk1",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "keydown:Space",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "talk1",
+              "weight": 1
+            }
+          ]
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "talk1",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "login",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "talk1",
+              "weight": 1
+            }
+          ]
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "talk1",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

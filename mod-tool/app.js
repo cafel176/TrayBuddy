@@ -1129,7 +1129,7 @@ function normalizeManifestForEditor(manifest) {
   // 角色 Canvas 适配偏好（short/long/legacy）
   const validFitPrefs = ['short', 'long', 'legacy'];
   if (!validFitPrefs.includes(manifest.character.canvas_fit_preference)) {
-    manifest.character.canvas_fit_preference = 'short';
+    manifest.character.canvas_fit_preference = 'legacy';
   }
 
 
@@ -1748,7 +1748,7 @@ function populateManifestForm() {
   document.getElementById('default-audio-lang').value = m.default_audio_lang_id || '';
   document.getElementById('default-text-lang').value = m.default_text_lang_id || '';
   document.getElementById('character-z-offset').value = m.character?.z_offset || 1;
-  document.getElementById('character-canvas-fit-preference').value = m.character?.canvas_fit_preference || 'short';
+  document.getElementById('character-canvas-fit-preference').value = m.character?.canvas_fit_preference || 'legacy';
   document.getElementById('border-enable').checked = m.border?.enable || false;
   document.getElementById('border-z-offset').value = m.border?.z_offset || 2;
 

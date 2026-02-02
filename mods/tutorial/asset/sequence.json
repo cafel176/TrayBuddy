@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "name": "idle",
+    "img": "sequence/idle.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 288,
+    "frame_size_y": 383,
+    "frame_num_x": 6,
+    "frame_num_y": 4,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
+    "name": "talk",
+    "img": "sequence/talk.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 288,
+    "frame_size_y": 383,
+    "frame_num_x": 6,
+    "frame_num_y": 4,
+    "offset_x": 0,
+    "offset_y": 0
+  }
+]

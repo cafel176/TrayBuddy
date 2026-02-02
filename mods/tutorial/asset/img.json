@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "name": "border",
+    "img": "img/border.webp",
+    "sequence": false,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 265,
+    "frame_size_y": 110,
+    "frame_num_x": 1,
+    "frame_num_y": 1,
+    "offset_x": 0,
+    "offset_y": 0
+  }
+]
