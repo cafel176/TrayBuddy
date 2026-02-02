@@ -284,7 +284,9 @@ impl StateManager {
 
         // 如果当前状态与目标状态相同，跳过
         if self.current_state.as_ref().map(|s| &s.name) == Some(&state.name) {
-            return Ok(false);
+            if !force {
+                return Ok(false);
+            }
         }
 
         // 非强制模式下检查优先级
@@ -368,7 +370,9 @@ impl StateManager {
 
         // 如果当前状态与目标状态相同，跳过
         if self.current_state.as_ref().map(|s| &s.name) == Some(&state.name) {
-            return Ok(false);
+            if !force {
+                return Ok(false);
+            }
         }
 
         // 非强制模式下的检查
