@@ -1430,47 +1430,43 @@ impl ResourceManager {
 
     /// 获取气泡样式配置
     ///
-    /// 从当前加载的 Mod 缓存中获取，如果 Mod 未配置则返回默认样式
+    /// 从当前加载的 Mod 缓存中获取，如果 Mod 未配置则返回默认样式。
+    /// 默认样式文件放在 `mods/bubble_style.json`（跟随内置 mods 资源一起打包）。
     pub fn get_bubble_style(&self) -> Option<serde_json::Value> {
         let mod_info = self.current_mod.as_ref()?;
-        
+
         // 如果 Mod 配置了 bubble_style，则返回
         if mod_info.bubble_style.is_some() {
             return mod_info.bubble_style.clone();
         }
-        
-        // 否则，尝试加载默认的 src/bubble_style.json
-        Self::load_default_bubble_style()
+
+        // 否则，加载默认气泡样式（mods/bubble_style.json）
+        self.load_default_bubble_style()
     }
-    
-    /// 加载默认的气泡样式（src/bubble_style.json）
-    fn load_default_bubble_style() -> Option<serde_json::Value> {
-        // 尝试从资源目录读取（打包后的情况）
-        if let Ok(mut src_path) = std::env::current_exe() {
-            // 向上查找 src 目录
-            for _level in 0..=3 {
-                if let Some(parent) = src_path.parent() {
-                    let bubble_style_path = parent.join("src").join("bubble_style.json");
-                    if bubble_style_path.exists() {
-                        #[cfg(debug_assertions)]
-                        println!("[ResourceManager] 加载默认 bubble_style: {:?}", bubble_style_path);
-                        return crate::modules::utils::fs::load_json_obj(&bubble_style_path);
-                    }
-                    src_path = parent.to_path_buf();
-                }
+
+    /// 加载默认的气泡样式（mods/bubble_style.json）
+    fn load_default_bubble_style(&self) -> Option<serde_json::Value> {
+        // 1) 优先从已发现的 mods 根目录（配置目录 / 资源目录）中查找
+        for mods_root in &self.search_paths {
+            let bubble_style_path = mods_root.join("bubble_style.json");
+            if bubble_style_path.exists() {
+                #[cfg(debug_assertions)]
+                println!("[ResourceManager] 加载默认 bubble_style: {:?}", bubble_style_path);
+                return crate::modules::utils::fs::load_json_obj(&bubble_style_path);
             }
         }
-        
-        // 如果找不到，尝试从当前工作目录读取（开发环境）
-        let default_path = PathBuf::from("src").join("bubble_style.json");
+
+        // 2) 兜底：开发环境下从当前工作目录查找
+        let default_path = PathBuf::from("mods").join("bubble_style.json");
         if default_path.exists() {
             #[cfg(debug_assertions)]
             println!("[ResourceManager] 从工作目录加载默认 bubble_style: {:?}", default_path);
             return crate::modules::utils::fs::load_json_obj(&default_path);
         }
-        
+
         #[cfg(debug_assertions)]
         println!("[ResourceManager] 未找到默认 bubble_style.json");
         None
     }
+
 }
