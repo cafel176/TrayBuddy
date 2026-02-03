@@ -106,7 +106,7 @@
             <div class="contact-item">{_("about.bilibili")}</div>
             <div class="contact-item">{_("about.heyBox")}</div>
             <div class="contact-item">{_("about.xiaohongshu")}</div>
-            <!-- <div class="contact-item">{_("about.weibo")}</div> -->
+            <div class="contact-item">{_("about.weibo")}</div>
           </div>
         </div>
       </div>
