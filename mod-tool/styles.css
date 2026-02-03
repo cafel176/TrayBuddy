@@ -510,7 +510,17 @@ mark.filter-highlight {
 .speech-item-name-wrap {
   flex: 1;
   min-width: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
 }
+
+.speech-item-name-wrap:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
 
 .speech-item-text-wrap {
   width: 100%;
@@ -519,12 +529,32 @@ mark.filter-highlight {
 .audio-item-name-wrap {
   width: 180px;
   flex: 0 0 180px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
 }
+
+.audio-item-name-wrap:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
 
 .audio-item-path-wrap {
   flex: 1;
   min-width: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
 }
+
+.audio-item-path-wrap:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
 
 .hl-layer {
   position: absolute;
@@ -1168,10 +1198,7 @@ input:checked + .slider::before {
   margin-bottom: 8px;
 }
 
-.speech-item-name {
-  font-weight: 600;
-  color: var(--text-primary);
-}
+
 
 .speech-item-text {
   width: 100%;
@@ -1194,21 +1221,27 @@ input:checked + .slider::before {
 
 
 .speech-item-name {
-  font-weight: 600;
+  font-weight: 700;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--border-radius);
-  padding: 4px 8px;
+  padding: 8px 10px;
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.4;
 }
 
-.speech-item-name:focus {
+input.speech-item-name {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+input.speech-item-name:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: var(--bg-tertiary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
 }
+
 
 /* --------------------------------------------------------------------------
    音频列表
@@ -1239,43 +1272,56 @@ input:checked + .slider::before {
 
 
 .audio-item-name {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--border-radius);
-  padding: 4px 8px;
-  font-size: 14px;
-  line-height: 1.6;
+  padding: 8px 10px;
+  font-size: 15px;
+  line-height: 1.4;
   width: 180px;
   flex: 0 0 180px;
 }
 
-.audio-item-name:focus {
-  outline: none;
-  border-color: var(--color-primary);
+input.audio-item-name {
   background: var(--bg-tertiary);
+  border-color: var(--border-color);
 }
 
+input.audio-item-name:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
+
 .audio-item-path {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-muted);
-  font-family: 'Monaco', 'Consolas', monospace;
+  font-weight: 700;
+  color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--border-radius);
-  padding: 4px 8px;
+  padding: 8px 10px;
+  font-size: 15px;
+  line-height: 1.4;
   flex: 1;
   width: 100%;
   min-width: 0;
 }
 
-.audio-item-path:focus {
+input.audio-item-path {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+input.audio-item-path:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: var(--bg-tertiary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
 }
+
+
 
 /* --------------------------------------------------------------------------
    弹窗
