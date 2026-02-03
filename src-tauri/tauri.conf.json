@@ -42,7 +42,8 @@
       "nsis": {
         "languages": ["SimpChinese", "TradChinese", "English", "Japanese"],
         "displayLanguageSelector": true,
-        "installerIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine"
       }
     }
   }
