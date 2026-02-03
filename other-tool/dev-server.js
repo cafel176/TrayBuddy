@@ -26,13 +26,30 @@ const MIME = {
 };
 
 function safeJoin(root, requestPath) {
-  // Remove leading slash so path.resolve doesn't treat it as absolute
-  const rel = requestPath.replace(/^\/+/, '');
-  const joined = path.resolve(root, rel);
-  // Prevent path traversal
-  if (!joined.startsWith(root)) return null;
-  return joined;
+  const rootAbs = path.resolve(root);
+  const rel = String(requestPath || '/')
+    .replace(/^\/+/, '')
+    .replace(/\\/g, '/');
+
+  const joined = path.resolve(rootAbs, rel);
+
+  // Prevent path traversal (Windows is case-insensitive)
+  if (process.platform === 'win32') {
+    const rootLower = rootAbs.toLowerCase();
+    const joinedLower = joined.toLowerCase();
+    const rootWithSep = rootLower.endsWith(path.sep) ? rootLower : rootLower + path.sep;
+
+    if (joinedLower === rootLower) return joined;
+    if (joinedLower.startsWith(rootWithSep)) return joined;
+    return null;
+  }
+
+  const rootWithSep = rootAbs.endsWith(path.sep) ? rootAbs : rootAbs + path.sep;
+  if (joined === rootAbs) return joined;
+  if (joined.startsWith(rootWithSep)) return joined;
+  return null;
 }
+
 
 function send(res, status, body, headers = {}) {
   res.statusCode = status;
@@ -55,8 +72,10 @@ const server = http.createServer((req, res) => {
 
     fs.readFile(filePath, (err, data) => {
       if (err) {
+        console.error(`[404] ${urlPath} -> ${filePath}`);
         return send(res, 404, '404 Not Found', { 'Content-Type': 'text/plain; charset=utf-8' });
       }
+
 
       const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME[ext] || 'application/octet-stream';

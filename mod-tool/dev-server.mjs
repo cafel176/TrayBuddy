@@ -26,18 +26,24 @@ const MIME = {
 };
 
 function safeJoin(root, requestPath) {
-  const rel = requestPath.replace(/^\/+/, '');
-  const joined = path.resolve(root, rel);
+  const rootAbs = path.resolve(root);
+  const rel = String(requestPath || '/')
+    .replace(/^\/+/, '')
+    .replace(/\\/g, '/');
+
+  const joined = path.resolve(rootAbs, rel);
+
   // Case-insensitive check for Windows
-  const rootLower = root.toLowerCase();
+  const rootLower = rootAbs.toLowerCase();
   const joinedLower = joined.toLowerCase();
-  
-  // Ensure joined is within root
+
+  const rootWithSep = rootLower.endsWith(path.sep) ? rootLower : rootLower + path.sep;
   if (joinedLower === rootLower) return joined;
-  if (joinedLower.startsWith(rootLower.endsWith(path.sep) ? rootLower : rootLower + path.sep)) return joined;
-  
+  if (joinedLower.startsWith(rootWithSep)) return joined;
+
   return null;
 }
+
 
 function send(res, status, body, headers = {}) {
   res.statusCode = status;

@@ -67,31 +67,36 @@ pub fn http_get(
         // 强制启用 TLS 1.2（Windows 7 需要 KB3140245 补丁）
         // 同时尝试启用 TLS 1.1 和 TLS 1.0 作为回退（更好的兼容性）
         let use_tls = url.starts_with("https");
+        // PowerShell 通过环境变量传参，避免 url 中包含引号/特殊符号导致解析失败
+        // 也避免把外部输入拼进 -Command 字符串引发注入风险。
         let ps_command = if use_tls {
-            format!(
-                "try {{ \
-                    [Net.ServicePointManager]::SecurityProtocol = \
-                        [Net.SecurityProtocolType]::Tls12 -bor \
-                        [Net.SecurityProtocolType]::Tls11 -bor \
-                        [Net.SecurityProtocolType]::Tls \
-                }} catch {{ }}; \
-                [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-                (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
-                url, timeout_secs
-            )
+            "try { \
+                [Net.ServicePointManager]::SecurityProtocol = \
+                    [Net.SecurityProtocolType]::Tls12 -bor \
+                    [Net.SecurityProtocolType]::Tls11 -bor \
+                    [Net.SecurityProtocolType]::Tls \
+            } catch { }; \
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+            $u = $env:TRAYBUDDY_URL; \
+            $t = [int]$env:TRAYBUDDY_TIMEOUT; \
+            (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec $t).Content"
+                .to_string()
         } else {
-            format!(
-                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-                 (Invoke-WebRequest -Uri '{}' -UseBasicParsing -TimeoutSec {}).Content",
-                url, timeout_secs
-            )
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+             $u = $env:TRAYBUDDY_URL; \
+             $t = [int]$env:TRAYBUDDY_TIMEOUT; \
+             (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec $t).Content"
+                .to_string()
         };
 
         let output = Command::new("powershell")
             .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
+            .env("TRAYBUDDY_URL", url)
+            .env("TRAYBUDDY_TIMEOUT", timeout_secs.to_string())
             .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| format!("Failed to execute request: {}", e))?;
+
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

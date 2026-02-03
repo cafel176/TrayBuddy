@@ -558,11 +558,18 @@ fn path_exists(path: String, state: State<'_, AppState>) -> bool {
         return false;
     };
 
-    let base = &mod_info.path;
-    let p = PathBuf::from(path);
+    // 注意：Path::starts_with 是词法比较，`..` 可能绕过；这里 canonicalize 后再比较。
+    let Ok(base) = dunce::canonicalize(&mod_info.path) else {
+        return false;
+    };
 
-    // 安全限制：仅允许检查当前 Mod 根目录下的文件
-    if !p.starts_with(base) {
+    let p = PathBuf::from(path);
+    let Ok(p) = dunce::canonicalize(&p) else {
+        // canonicalize 失败通常表示路径不存在/无权限
+        return false;
+    };
+
+    if !p.starts_with(&base) {
         return false;
     }
 
@@ -1524,6 +1531,37 @@ fn extract_tbuddy_to_mods_dir(app: &tauri::AppHandle, tbuddy_path: &std::path::P
     use std::io;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    fn sanitize_windows_folder_name(input: &str) -> String {
+        // Windows 文件名非法字符：< > : " / \ | ? *
+        let mut s: String = input
+            .trim()
+            .chars()
+            .map(|c| if "<>:\"/\\|?*".contains(c) { '_' } else { c })
+            .collect();
+
+        // Windows 不允许尾随空格/点
+        while s.ends_with(' ') || s.ends_with('.') {
+            s.pop();
+        }
+
+        if s.is_empty() {
+            s = "imported".into();
+        }
+
+        // Windows 保留设备名（不区分大小写）
+        let upper = s.to_uppercase();
+        let reserved = [
+            "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+            "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        ];
+        if reserved.contains(&upper.as_str()) {
+            s = format!("_{}", s);
+        }
+
+        s
+    }
+
+
     // 1) 目标 mods 目录
     let config_dir = app
         .path()
@@ -1540,13 +1578,19 @@ fn extract_tbuddy_to_mods_dir(app: &tauri::AppHandle, tbuddy_path: &std::path::P
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
 
-    // 3) 根目录名 + 时间戳（毫秒）
+    // 3) 根目录名（用于 strip_prefix） + manifest.id（用于落盘目录名） + 时间戳（毫秒）
     let root_folder = get_tbuddy_root_folder(&mut archive)?;
+    let manifest = read_tbuddy_manifest(&mut archive, &root_folder)?;
+
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_millis();
-    let new_root = format!("{}_{}", root_folder, ts);
+
+    // 用 manifest.id 作为目录基名更稳定，并对 Windows 非法字符做清理
+    let base_name = sanitize_windows_folder_name(manifest.id.as_ref());
+    let new_root = format!("{}_{}", base_name, ts);
+
 
     // 4) 解压（替换顶层目录名，避免冲突）
     let root_prefix = std::path::PathBuf::from(&root_folder);
@@ -1590,18 +1634,14 @@ fn extract_tbuddy_to_mods_dir(app: &tauri::AppHandle, tbuddy_path: &std::path::P
         }
     }
 
-    // 5) 读取 manifest.id 作为返回值
+    // 5) 返回 manifest.id 与实际落盘目录
     let extracted_dir = mods_dir.join(&new_root);
-    let manifest_path = extracted_dir.join("manifest.json");
-    let manifest_content = fs::read_to_string(&manifest_path)
-        .map_err(|e| format!("Failed to read manifest: {}", e))?;
-    let manifest: modules::resource::ModManifest = serde_json::from_str(&manifest_content)
-        .map_err(|e| format!("Failed to parse manifest: {}", e))?;
 
     Ok(ImportedModDisk {
         id: manifest.id.to_string(),
         extracted_dir,
     })
+
 }
 
 /// 预解析 Mod (.tbuddy 文件) 的 manifest（不落盘，用于前端冲突提示）
