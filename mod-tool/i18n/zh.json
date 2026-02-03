@@ -335,5 +335,9 @@
   "msg_lang_copied": "语言 \"{lang}\" 已复制到剪切板",
   "msg_lang_pasted": "语言 \"{lang}\" 已粘贴",
   "msg_enter_new_lang_id": "请输入新语言ID",
-  "msg_lang_exists_overwrite": "语言 \"{lang}\" 已存在，是否覆盖？"
+  "msg_lang_exists_overwrite": "语言 \"{lang}\" 已存在，是否覆盖？",
+
+  "drag_to_reorder": "拖拽排序",
+  "msg_clear_filters_to_reorder": "请先清空筛选条件再排序"
 }
+

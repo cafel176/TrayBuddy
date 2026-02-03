@@ -80,8 +80,157 @@ function getExtensionFromDataUrl(dataUrl) {
 }
 
 // ============================================================================
+// 拖拽排序（通用）
+// ============================================================================
+
+const __tbUidMap = new WeakMap();
+let __tbUidCounter = 1;
+
+function ensureTbUid(obj) {
+  if (!obj || typeof obj !== 'object') return '';
+
+  const existing = __tbUidMap.get(obj);
+  if (existing) return existing;
+
+  const uid = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `tbuid_${Date.now()}_${__tbUidCounter++}`;
+
+  __tbUidMap.set(obj, uid);
+  return uid;
+}
+
+
+function reorderArrayInPlaceByKeys(arr, orderedKeys, keyFn) {
+  if (!Array.isArray(arr)) return;
+  const getKey = typeof keyFn === 'function' ? keyFn : ensureTbUid;
+  const map = new Map();
+  for (const item of arr) {
+    map.set(getKey(item), item);
+  }
+
+  const used = new Set();
+  const next = [];
+  for (const k of orderedKeys) {
+    const item = map.get(k);
+    if (item) {
+      next.push(item);
+      used.add(k);
+    }
+  }
+
+  // 兜底：如果有未包含的元素，按旧顺序追加
+  for (const item of arr) {
+    const k = getKey(item);
+    if (!used.has(k)) next.push(item);
+  }
+
+  arr.length = 0;
+  arr.push(...next);
+}
+
+function renderSortHandleHtml() {
+  const title = (window?.i18n?.t?.('drag_to_reorder') || '拖拽排序');
+  const safeTitle = typeof escapeHtml === 'function' ? escapeHtml(title) : String(title);
+  return `<span class="tb-drag-handle" draggable="true" title="${safeTitle}" aria-label="${safeTitle}">⋮⋮</span>`;
+}
+
+const __tbSortableInited = new WeakSet();
+
+function enableTbSortable(container, {
+  itemSelector = '.tb-sort-item',
+  handleSelector = '.tb-drag-handle',
+  canStart = () => true,
+  onSortedKeys = () => {}
+} = {}) {
+  if (!container || __tbSortableInited.has(container)) return;
+  __tbSortableInited.add(container);
+
+  let dragItem = null;
+  let dragKey = '';
+
+  function cleanup() {
+    if (dragItem) dragItem.classList.remove('tb-sort-dragging');
+    dragItem = null;
+    dragKey = '';
+
+    container.querySelectorAll('.tb-sort-drop-target').forEach(el => {
+      el.classList.remove('tb-sort-drop-target');
+    });
+  }
+
+  container.addEventListener('dragstart', (e) => {
+    const handle = e.target?.closest?.(handleSelector);
+    if (!handle) return;
+
+    if (!canStart()) {
+      e.preventDefault();
+      return;
+    }
+
+    const item = handle.closest(itemSelector);
+    if (!item) return;
+
+    dragItem = item;
+    dragKey = String(item.dataset.sortKey || '');
+
+    item.classList.add('tb-sort-dragging');
+
+    // Firefox 需要 setData 才会触发拖拽
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragKey || '');
+    } catch (err) {}
+  });
+
+  container.addEventListener('dragover', (e) => {
+    if (!dragItem) return;
+
+    const overItem = e.target?.closest?.(itemSelector);
+    if (!overItem || overItem === dragItem) return;
+
+    // 仅允许同一个容器内拖动
+    if (overItem.parentElement !== container) return;
+
+    e.preventDefault();
+
+    const rect = overItem.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+
+    // 可视化提示
+    container.querySelectorAll('.tb-sort-drop-target').forEach(el => {
+      el.classList.remove('tb-sort-drop-target');
+    });
+    overItem.classList.add('tb-sort-drop-target');
+
+    if (before) {
+      container.insertBefore(dragItem, overItem);
+    } else {
+      container.insertBefore(dragItem, overItem.nextSibling);
+    }
+  });
+
+  container.addEventListener('drop', (e) => {
+    if (!dragItem) return;
+    e.preventDefault();
+
+    const orderedKeys = Array.from(container.querySelectorAll(itemSelector))
+      .map(el => String(el.dataset.sortKey || ''))
+      .filter(Boolean);
+
+    cleanup();
+    onSortedKeys(orderedKeys);
+  });
+
+  container.addEventListener('dragend', () => {
+    cleanup();
+  });
+}
+
+// ============================================================================
 // 初始化
 // ============================================================================
+
 
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
@@ -2027,7 +2176,8 @@ function renderStates() {
     if (!matchName || !matchAnima || !matchAudio || !matchText) return;
 
     const card = document.createElement('div');
-    card.className = 'state-card';
+    card.className = 'state-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(state);
     card.innerHTML = renderNormalStateCard(state, index, filters);
     stateList.appendChild(card);
   });
@@ -2040,6 +2190,32 @@ function renderStates() {
     <button class="btn btn-sm btn-primary" onclick="addState()">➕ <span data-i18n="btn_add_state">${window.i18n.t('btn_add_state')}</span></button>
   `;
   stateList.appendChild(footer);
+
+  // 允许拖拽排序（仅在未开启筛选时）
+  enableTbSortable(stateList, {
+    canStart: () => {
+      if (!currentMod) return false;
+      const ids = [
+        'states-normal-filter-name',
+        'states-normal-filter-anima',
+        'states-normal-filter-audio',
+        'states-normal-filter-text'
+      ];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder') || '请先清空筛选条件再排序', 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      reorderArrayInPlaceByKeys(currentMod.manifest.states, orderedKeys, ensureTbUid);
+      renderStates();
+      markUnsaved();
+    }
+  });
+
 }
 
 /**
@@ -2209,13 +2385,17 @@ function renderNormalStateCard(state, index, filters = {}) {
 
   return `
     <div class="state-card-header">
-      <span class="state-card-title">${highlightNeedleHtml(displayName, nameNeedle)}</span>
+      <div class="tb-title-with-handle">
+        ${renderSortHandleHtml()}
+        <span class="state-card-title">${highlightNeedleHtml(displayName, nameNeedle)}</span>
+      </div>
       <div class="state-card-actions">
         <button class="btn btn-sm btn-ghost" onclick="copyStateToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
         <button class="btn btn-sm btn-ghost" onclick="editState(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
         <button class="btn btn-sm btn-ghost" onclick="deleteState(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
       </div>
     </div>
+
     <div class="state-card-body">
       <div class="state-card-field">
         <span class="label">${window.i18n.t('persistent_label')}: </span>
@@ -2692,7 +2872,8 @@ function renderTriggers() {
     if (!matchName) return;
 
     const card = document.createElement('div');
-    card.className = 'state-card trigger-card';
+    card.className = 'state-card trigger-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(trigger);
     card.innerHTML = renderTriggerCard(trigger, index);
     triggerList.appendChild(card);
   });
@@ -2705,6 +2886,26 @@ function renderTriggers() {
     <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ <span data-i18n="btn_add_trigger">${window.i18n.t('btn_add_trigger')}</span></button>
   `;
   triggerList.appendChild(footer);
+
+  // 允许拖拽排序（仅在未开启筛选时）
+  enableTbSortable(triggerList, {
+    canStart: () => {
+      if (!currentMod) return false;
+      const hasFilter = (document.getElementById('triggers-filter-name')?.value || '').trim();
+      if (hasFilter) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder') || '请先清空筛选条件再排序', 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      reorderArrayInPlaceByKeys(currentMod.manifest.triggers, orderedKeys, ensureTbUid);
+      renderTriggers();
+      markUnsaved();
+    }
+  });
+
 }
 
 /**
@@ -2717,13 +2918,17 @@ function renderTriggerCard(trigger, index) {
 
   return `
     <div class="state-card-header">
-      <span class="state-card-title"><code class="trigger-event-code">${highlightNeedleHtml(eventName, nameNeedle)}</code></span>
+      <div class="tb-title-with-handle">
+        ${renderSortHandleHtml()}
+        <span class="state-card-title"><code class="trigger-event-code">${highlightNeedleHtml(eventName, nameNeedle)}</code></span>
+      </div>
       <div class="state-card-actions">
         <button class="btn btn-sm btn-ghost" onclick="copyTriggerToClipboard(${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
         <button class="btn btn-sm btn-ghost" onclick="editTriggerFull(${index})">✏️ <span data-i18n="btn_edit">${window.i18n.t('btn_edit')}</span></button>
         <button class="btn btn-sm btn-ghost" onclick="deleteTrigger(${index})">🗑️ <span data-i18n="btn_delete">${window.i18n.t('btn_delete')}</span></button>
       </div>
     </div>
+
     <div class="state-card-body">
       <div class="state-card-field full-width">
         <span class="label">${window.i18n.t('can_trigger_states_label')}: </span>
@@ -3195,10 +3400,14 @@ function renderAssetList(type, assets) {
     if (!matchName || !matchPath) return;
 
     const card = document.createElement('div');
-    card.className = 'asset-card';
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(asset);
     card.innerHTML = `
       <div class="asset-card-header">
-        <span class="asset-card-name">${highlightNeedleHtml(assetName, nameNeedleRaw)}</span>
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(assetName, nameNeedleRaw)}</span>
+        </div>
         <div class="asset-card-actions">
           <button class="btn btn-sm btn-ghost" onclick="copyAssetToClipboard('${type}', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
           <button class="btn btn-sm btn-ghost" onclick="editAsset('${type}', ${index})">✏️</button>
@@ -3224,6 +3433,27 @@ function renderAssetList(type, assets) {
     <button class="btn btn-sm btn-primary" onclick="addAsset('${type}')">➕ <span>${btnLabel}</span></button>
   `;
   list.appendChild(footer);
+
+  // 允许拖拽排序（仅在未开启筛选时）
+  enableTbSortable(list, {
+    canStart: () => {
+      if (!currentMod) return false;
+      const ids = [`assets-${type}-filter-name`, `assets-${type}-filter-path`];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder') || '请先清空筛选条件再排序', 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      reorderArrayInPlaceByKeys(assets, orderedKeys, ensureTbUid);
+      renderAssets();
+      markUnsaved();
+    }
+  });
+
 }
 
 /**
@@ -3617,7 +3847,8 @@ function renderSpeechTexts() {
     if (!matchName || !matchContains) return;
 
     const item = document.createElement('div');
-    item.className = 'speech-item';
+    item.className = 'speech-item tb-sort-item';
+    item.dataset.sortKey = ensureTbUid(speech);
 
     const nameFieldHtml = nameNeedleRaw
       ? `
@@ -3647,7 +3878,10 @@ function renderSpeechTexts() {
 
     item.innerHTML = `
       <div class="speech-item-header">
-        ${nameFieldHtml}
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          ${nameFieldHtml}
+        </div>
         <div class="speech-item-actions">
           <button class="btn btn-sm btn-ghost" onclick="deleteSpeechText(${index})">🗑️</button>
         </div>
@@ -3655,6 +3889,7 @@ function renderSpeechTexts() {
       ${textFieldHtml}
     `;
     list.appendChild(item);
+
   });
 
   // 底部添加按钮
@@ -3664,7 +3899,30 @@ function renderSpeechTexts() {
     <button class="btn btn-sm btn-primary" onclick="addSpeechText()">➕ <span data-i18n="btn_add_text">${window.i18n.t('btn_add_text')}</span></button>
   `;
   list.appendChild(footer);
+
+  // 允许拖拽排序（仅在未开启筛选时）
+  enableTbSortable(list, {
+    canStart: () => {
+      if (!currentMod || currentMod.textSpeechEnabled !== true) return false;
+      const hasFilters = ['speech-filter-name', 'speech-filter-contains']
+        .some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder') || '请先清空筛选条件再排序', 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod || currentMod.textSpeechEnabled !== true) return;
+      const arr = currentMod.texts[currentTextLang]?.speech;
+      if (!Array.isArray(arr)) return;
+      reorderArrayInPlaceByKeys(arr, orderedKeys, ensureTbUid);
+      renderSpeechTexts();
+      markUnsaved();
+    }
+  });
 }
+
 
 /**
  * 添加语言
@@ -3883,7 +4141,8 @@ function renderAudioList() {
     if (!matchName || !matchPath) return;
 
     const item = document.createElement('div');
-    item.className = 'audio-item';
+    item.className = 'audio-item tb-sort-item';
+    item.dataset.sortKey = ensureTbUid(audio);
 
     const nameFieldHtml = nameNeedleRaw
       ? `
@@ -3913,6 +4172,7 @@ function renderAudioList() {
 
     item.innerHTML = `
       <div class="audio-item-info">
+        ${renderSortHandleHtml()}
         ${nameFieldHtml}
         ${pathFieldHtml}
       </div>
@@ -3921,6 +4181,7 @@ function renderAudioList() {
       </div>
     `;
     list.appendChild(item);
+
   });
 
   // 底部添加按钮
@@ -3930,7 +4191,30 @@ function renderAudioList() {
     <button class="btn btn-sm btn-primary" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">${window.i18n.t('btn_add_audio')}</span></button>
   `;
   list.appendChild(footer);
+
+  // 允许拖拽排序（仅在未开启筛选时）
+  enableTbSortable(list, {
+    canStart: () => {
+      if (!currentMod || currentMod.audioSpeechEnabled !== true) return false;
+      const hasFilters = ['audio-filter-name', 'audio-filter-path']
+        .some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder') || '请先清空筛选条件再排序', 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
+      const arr = currentMod.audio[currentAudioLang];
+      if (!Array.isArray(arr)) return;
+      reorderArrayInPlaceByKeys(arr, orderedKeys, ensureTbUid);
+      renderAudioList();
+      markUnsaved();
+    }
+  });
 }
+
 
 /**
  * 添加音频语言

@@ -426,7 +426,58 @@ body {
   gap: 8px;
 }
 
+/* --------------------------------------------------------------------------
+   拖拽排序（通用）
+-------------------------------------------------------------------------- */
+.tb-title-with-handle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tb-title-with-handle > * {
+  min-width: 0;
+}
+
+.tb-drag-handle {
+  flex: 0 0 auto;
+  cursor: grab;
+  user-select: none;
+  color: var(--text-muted);
+  opacity: 0.9;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+.tb-drag-handle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.tb-drag-handle:active {
+  cursor: grabbing;
+}
+
+.tb-sort-item.tb-sort-dragging {
+  opacity: 0.55;
+  border-color: var(--color-info);
+}
+
+.tb-sort-item.tb-sort-dragging .tb-drag-handle {
+  cursor: grabbing;
+}
+
+.tb-sort-drop-target {
+  outline: 2px dashed rgba(59, 130, 246, 0.7);
+  outline-offset: 2px;
+}
+
 /* 列表筛选器 */
+
 .list-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

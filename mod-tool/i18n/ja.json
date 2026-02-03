@@ -335,5 +335,9 @@
   "msg_lang_copied": "言語 \"{lang}\" がクリップボードにコピーされました",
   "msg_lang_pasted": "言語 \"{lang}\" が貼り付けられました",
   "msg_enter_new_lang_id": "新しい言語IDを入力してください",
-  "msg_lang_exists_overwrite": "言語 \"{lang}\" は既に存在します。上書きしますか？"
+  "msg_lang_exists_overwrite": "言語 \"{lang}\" は既に存在します。上書きしますか？",
+
+  "drag_to_reorder": "ドラッグして並べ替え",
+  "msg_clear_filters_to_reorder": "並べ替える前にフィルターをクリアしてください"
 }
+

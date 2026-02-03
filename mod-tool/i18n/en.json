@@ -335,5 +335,9 @@
   "msg_lang_copied": "Language \"{lang}\" copied to clipboard",
   "msg_lang_pasted": "Language \"{lang}\" pasted",
   "msg_enter_new_lang_id": "Please enter new language ID",
-  "msg_lang_exists_overwrite": "Language \"{lang}\" already exists. Overwrite?"
+  "msg_lang_exists_overwrite": "Language \"{lang}\" already exists. Overwrite?",
+
+  "drag_to_reorder": "Drag to reorder",
+  "msg_clear_filters_to_reorder": "Please clear filters before reordering"
 }
+
