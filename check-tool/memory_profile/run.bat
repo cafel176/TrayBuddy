@@ -5,16 +5,18 @@ setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
 
 :: Request admin privileges
->nul 2>&1 net session
+>nul 2>&1 "%SystemRoot%\System32\fltmc.exe"
 if %errorlevel% neq 0 goto :elevate
 goto :gotAdmin
 
 :elevate
 echo Requesting administrative privileges...
 set "SELF=%~f0"
+set "CWD=%CD%"
 set "ARGS=%*"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath $env:SELF -ArgumentList $env:ARGS -Verb RunAs"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:SELF; $cwd=$env:CWD; $a=$env:ARGS; $q=[char]34; $cmd=$q+$bat+$q; if($a){$cmd+=' '+$a}; Start-Process -FilePath 'cmd.exe' -WorkingDirectory $cwd -ArgumentList @('/d','/c',$cmd) -Verb RunAs"
 exit /b
+
 
 :gotAdmin
 pushd "%~dp0"
