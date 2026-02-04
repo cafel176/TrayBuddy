@@ -520,6 +520,314 @@
         "value": 0
       },
       "branch_show_bubble": true
+    },
+    {
+      "name": "random2_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "random2_1",
+      "text": "random2_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random2_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random2_2",
+      "persistent": false,
+      "anima": "",
+      "audio": "random2_2",
+      "text": "random2_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random2_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random2_3",
+      "persistent": false,
+      "anima": "",
+      "audio": "random2_3",
+      "text": "random2_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random3_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "random3_1",
+      "text": "random3_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random3_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random3_2",
+      "persistent": false,
+      "anima": "",
+      "audio": "random3_2",
+      "text": "random3_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random3_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random3_3",
+      "persistent": false,
+      "anima": "",
+      "audio": "random3_3",
+      "text": "random3_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_1",
+      "text": "random4_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random4_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_2",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_2",
+      "text": "random4_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random4_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_3",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_3",
+      "text": "random4_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random4_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_4",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_4",
+      "text": "random4_4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "ema_birthday_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "ema_birthday_1",
+      "text": "ema_birthday_1",
+      "priority": 2,
+      "date_start": "03-05",
+      "date_end": "03-05",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "ema_birthday_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "ema_birthday_2",
+      "persistent": false,
+      "anima": "amazing",
+      "audio": "ema_birthday_2",
+      "text": "ema_birthday_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "ema_birthday_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "ema_birthday_3",
+      "persistent": false,
+      "anima": "idle",
+      "audio": "ema_birthday_3",
+      "text": "ema_birthday_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "ema_birthday_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "ema_birthday_4",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "ema_birthday_4",
+      "text": "ema_birthday_4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
     }
   ],
   "triggers": [
@@ -539,6 +847,22 @@
             },
             {
               "state": "cry",
+              "weight": 1
+            },
+            {
+              "state": "random2_1",
+              "weight": 1
+            },
+            {
+              "state": "random3_1",
+              "weight": 1
+            },
+            {
+              "state": "random4_1",
+              "weight": 1
+            },
+            {
+              "state": "ema_birthday_1",
               "weight": 1
             }
           ]
@@ -570,6 +894,22 @@
             },
             {
               "state": "cry",
+              "weight": 1
+            },
+            {
+              "state": "random2_1",
+              "weight": 1
+            },
+            {
+              "state": "random3_1",
+              "weight": 1
+            },
+            {
+              "state": "random4_1",
+              "weight": 1
+            },
+            {
+              "state": "ema_birthday_1",
               "weight": 1
             }
           ]
