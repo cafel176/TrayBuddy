@@ -6,7 +6,7 @@ chcp 65001 >nul
 
 :: Request admin privileges (optional)
 >nul 2>&1 "%SystemRoot%\System32\fltmc.exe"
-if %errorlevel% neq 0 goto :elevate
+if errorlevel 1 goto :elevate
 goto :gotAdmin
 
 :elevate

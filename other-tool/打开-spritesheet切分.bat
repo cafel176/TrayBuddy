@@ -1,9 +1,12 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
+:: Ensure UTF-8 for Chinese path/args
+chcp 65001 >nul
+
 :: 启动时申请管理员权限（使用 fltmc 检测，避免 net session 在部分系统下失效）
 >nul 2>&1 "%SystemRoot%\System32\fltmc.exe"
-if %errorlevel% neq 0 goto :_tb_elevate
+if errorlevel 1 goto :_tb_elevate
 
 goto :_tb_got_admin
 
@@ -17,6 +20,5 @@ exit /b
 :_tb_got_admin
 
 
-chcp 65001 >nul
 call "%~dp0open-tool.bat" "spritesheet切分"
 

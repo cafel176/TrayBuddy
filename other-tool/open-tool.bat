@@ -1,9 +1,12 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
+REM Ensure UTF-8 for Chinese path/args
+chcp 65001 >nul
+
 REM 启动时申请管理员权限（使用 fltmc 检测，避免 net session 在部分系统下失效）
 >nul 2>&1 "%SystemRoot%\System32\fltmc.exe"
-if %errorlevel% neq 0 goto :_tb_elevate
+if errorlevel 1 goto :_tb_elevate
 
 goto :_tb_got_admin
 
@@ -15,10 +18,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:TB_SELF; $cwd=
 exit /b
 
 :_tb_got_admin
-
-
-REM Ensure UTF-8 for Chinese path args
-chcp 65001 >nul
 
 
 REM Open tools via HTTP instead of file:// to avoid fetch(CORS) issues for i18n JSON
@@ -64,7 +63,7 @@ set "TB_LOG=%LOG%"
 set "TB_LOG_ERR=%LOG_ERR%"
 set "TB_HOST=%HOST%"
 set "TB_PORT=%PORT%"
-powershell -NoProfile -Command "$wd=$env:TB_ROOT; $out=$env:TB_LOG; $err=$env:TB_LOG_ERR; $h=$env:TB_HOST; $p=[int]$env:TB_PORT; Start-Process -WindowStyle Hidden -FilePath 'powershell' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File','dev-server.ps1','-ListenHost',$h,'-Port',$p,'-Root',$wd) -WorkingDirectory $wd -RedirectStandardOutput $out -RedirectStandardError $err" >nul
+powershell -NoProfile -Command "$wd=$env:TB_ROOT; $wd=$wd.TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar); $out=$env:TB_LOG; $err=$env:TB_LOG_ERR; $h=$env:TB_HOST; $p=[int]$env:TB_PORT; $q=[char]34; $ps1=(Join-Path $wd 'dev-server.ps1'); $ps1q=$q+$ps1+$q; $wdq=$q+$wd+$q; Start-Process -WindowStyle Hidden -FilePath 'powershell' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$ps1q,'-ListenHost',$h,'-Port',$p,'-Root',$wdq) -WorkingDirectory $wd -RedirectStandardOutput $out -RedirectStandardError $err" >nul
 goto :waitServer
 
 :waitServer

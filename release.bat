@@ -1,9 +1,12 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
+:: Ensure UTF-8 for Chinese path/args
+chcp 65001 >nul
+
 :: 检查管理员权限（使用 fltmc 检测，避免 net session 在部分系统下失效）
 >nul 2>&1 "%SystemRoot%\System32\fltmc.exe"
-if %errorlevel% neq 0 goto :_tb_elevate
+if errorlevel 1 goto :_tb_elevate
 
 goto :_tb_got_admin
 
@@ -28,8 +31,8 @@ rmdir /s /q "%~dp0src-tauri\target\release\mods"
 :_tb_after_clean
 
 echo Building Tauri app...
-pnpm tauri build --verbose > tauri-build.log 2>&1
-if %errorlevel% neq 0 goto :_tb_build_failed
+call pnpm tauri build --verbose > tauri-build.log 2>&1
+if errorlevel 1 goto :_tb_build_failed
 
 echo Build successful! Log saved to tauri-build.log.
 pause
@@ -38,6 +41,7 @@ exit /b 0
 :_tb_build_failed
 echo.
 echo [ERROR] Build failed! Check tauri-build.log for details.
+set "TB_EXITCODE=%errorlevel%"
 pause
-exit /b %errorlevel%
+exit /b %TB_EXITCODE%
 
