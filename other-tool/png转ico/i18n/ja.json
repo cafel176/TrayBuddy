@@ -1,0 +1,37 @@
+{
+  "title": "PNG→ICO 一括変換",
+  "header_title": "🧩 PNG → ICO 一括生成",
+  "header_subtitle": "PNG を選択し、任意サイズで ICO を一括生成します（推奨：1 つの ICO に複数サイズを含める）。",
+
+  "import_title": "📁 PNG を読み込む",
+  "drop_zone_text": "PNG ファイルをここにドラッグ<br>またはクリックして選択（複数選択可）",
+  "drop_zone_hint": "PNG のみ対応",
+  "selected_files": "選択済みファイル",
+  "clear_btn": "クリア",
+
+  "settings_title": "⚙️ 変換設定",
+  "sizes_label": "サイズ一覧（px、カンマ区切り）",
+  "sizes_placeholder": "例：16,24,32,48,64,128,256",
+  "sizes_help": "範囲は 1-256。重複は除外され、サイズは昇順に並び替えられます。",
+
+  "mode_label": "出力モード",
+  "mode_multi": "単一 ICO（複数サイズ入り）",
+  "mode_single": "サイズごとに ICO を作成",
+
+  "fit_label": "拡大縮小",
+  "fit_contain": "全体を収める（比率維持・透明余白）",
+  "fit_cover": "埋める（トリミング）",
+
+  "convert_btn": "生成してダウンロード",
+  "download_zip_btn": "📦 ZIP をダウンロード",
+
+  "footer_tip": "ヒント：Windows では 16/24/32/48/64/128/256 を含む ICO が推奨です。",
+
+  "msg_only_png": "PNG ファイルのみ対応しています。",
+  "msg_ready": "準備完了。",
+  "msg_invalid_sizes": "サイズが無効です。1〜256 の数字をカンマ区切りで入力してください。",
+  "msg_processing_file": "処理中 ({i}/{total})：{name}",
+  "msg_zipping": "ZIP を作成中...",
+  "msg_done": "完了。ダウンロードを開始しました。",
+  "msg_failed": "失敗："
+}

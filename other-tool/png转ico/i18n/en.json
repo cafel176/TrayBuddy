@@ -1,0 +1,37 @@
+{
+  "title": "PNG to ICO (Batch)",
+  "header_title": "🧩 PNG → ICO Batch Generator",
+  "header_subtitle": "Select PNG files and generate ICOs with custom sizes (recommended: one ICO containing multiple sizes).",
+
+  "import_title": "📁 Import PNG",
+  "drop_zone_text": "Drag PNG files here<br>or click to select (multi-select supported)",
+  "drop_zone_hint": "PNG only",
+  "selected_files": "Selected files",
+  "clear_btn": "Clear",
+
+  "settings_title": "⚙️ Conversion Settings",
+  "sizes_label": "Sizes (px, comma-separated)",
+  "sizes_placeholder": "e.g.: 16,24,32,48,64,128,256",
+  "sizes_help": "Valid range: 1-256. Duplicates will be removed and sizes will be sorted.",
+
+  "mode_label": "Output mode",
+  "mode_multi": "Single ICO (multi-size)",
+  "mode_single": "One ICO per size",
+
+  "fit_label": "Fit mode",
+  "fit_contain": "Contain (keep aspect, pad transparent)",
+  "fit_cover": "Cover (crop to fill)",
+
+  "convert_btn": "Generate & Download",
+  "download_zip_btn": "📦 Download ZIP",
+
+  "footer_tip": "Tip: On Windows, an ICO with 16/24/32/48/64/128/256 sizes is recommended for better compatibility.",
+
+  "msg_only_png": "PNG files only.",
+  "msg_ready": "Ready.",
+  "msg_invalid_sizes": "Invalid sizes. Please enter numbers between 1 and 256 (comma-separated).",
+  "msg_processing_file": "Processing ({i}/{total}): {name}",
+  "msg_zipping": "Creating ZIP...",
+  "msg_done": "Done. Download started.",
+  "msg_failed": "Failed:"
+}

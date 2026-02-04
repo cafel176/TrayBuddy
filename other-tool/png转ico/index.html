@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="title">PNG 转 ICO 批量工具</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="../i18n-helper.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1 data-i18n="header_title">🧩 PNG → ICO 批量生成</h1>
+      <p class="subtitle" data-i18n="header_subtitle">选择 PNG，按自定义尺寸批量生成 ICO（推荐：单个 ICO 内包含多尺寸）</p>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2 data-i18n="import_title">📁 导入 PNG</h2>
+
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-icon">📂</div>
+          <p data-i18n="drop_zone_text">拖拽 PNG 文件到这里<br>或点击选择（支持多选）</p>
+          <span class="hint" data-i18n="drop_zone_hint">仅支持 PNG</span>
+        </div>
+        <input id="fileInput" type="file" accept="image/png" multiple hidden>
+
+        <div class="file-list" id="fileList" style="display:none;">
+          <div class="file-list-header">
+            <div class="file-list-title" data-i18n="selected_files">已选择文件</div>
+            <button class="btn btn-ghost" id="clearBtn" type="button" data-i18n="clear_btn">清空</button>
+          </div>
+          <ul class="files" id="filesUl"></ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="settings_title">⚙️ 转换设置</h2>
+
+        <div class="form-row">
+          <label class="label" for="sizesInput" data-i18n="sizes_label">尺寸列表（像素，逗号分隔）</label>
+          <input id="sizesInput" type="text" value="16,24,32,48,64,128,256" data-i18n-placeholder="sizes_placeholder" placeholder="例如：16,24,32,48,64,128,256">
+          <div class="help" data-i18n="sizes_help">尺寸范围 1-256，会自动去重并排序。</div>
+        </div>
+
+        <div class="form-row">
+          <div class="label" data-i18n="mode_label">输出模式</div>
+          <div class="radio-group">
+            <label class="radio">
+              <input type="radio" name="mode" value="multi" checked>
+              <span data-i18n="mode_multi">单个 ICO（内含多尺寸）</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="mode" value="single">
+              <span data-i18n="mode_single">每个尺寸单独一个 ICO</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="label" data-i18n="fit_label">缩放方式</div>
+          <div class="radio-group">
+            <label class="radio">
+              <input type="radio" name="fit" value="contain" checked>
+              <span data-i18n="fit_contain">包含（保留比例，留透明边）</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="fit" value="cover">
+              <span data-i18n="fit_cover">裁切（填满正方形）</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="convertBtn" type="button" disabled data-i18n="convert_btn">生成并下载</button>
+          <button class="btn btn-secondary" id="downloadZipBtn" type="button" style="display:none;" data-i18n="download_zip_btn">📦 打包下载 (ZIP)</button>
+        </div>
+
+        <div class="status" id="status" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="tip" data-i18n="footer_tip">提示：Windows 推荐 ICO 包含 16/24/32/48/64/128/256 多尺寸，以适配不同显示场景。</div>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

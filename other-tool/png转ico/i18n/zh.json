@@ -1,0 +1,37 @@
+{
+  "title": "PNG 转 ICO 批量工具",
+  "header_title": "🧩 PNG → ICO 批量生成",
+  "header_subtitle": "选择 PNG，按自定义尺寸批量生成 ICO（推荐：单个 ICO 内包含多尺寸）",
+
+  "import_title": "📁 导入 PNG",
+  "drop_zone_text": "拖拽 PNG 文件到这里<br>或点击选择（支持多选）",
+  "drop_zone_hint": "仅支持 PNG",
+  "selected_files": "已选择文件",
+  "clear_btn": "清空",
+
+  "settings_title": "⚙️ 转换设置",
+  "sizes_label": "尺寸列表（像素，逗号分隔）",
+  "sizes_placeholder": "例如：16,24,32,48,64,128,256",
+  "sizes_help": "尺寸范围 1-256，会自动去重并排序。",
+
+  "mode_label": "输出模式",
+  "mode_multi": "单个 ICO（内含多尺寸）",
+  "mode_single": "每个尺寸单独一个 ICO",
+
+  "fit_label": "缩放方式",
+  "fit_contain": "包含（保留比例，留透明边）",
+  "fit_cover": "裁切（填满正方形）",
+
+  "convert_btn": "生成并下载",
+  "download_zip_btn": "📦 打包下载 (ZIP)",
+
+  "footer_tip": "提示：Windows 推荐 ICO 包含 16/24/32/48/64/128/256 多尺寸，以适配不同显示场景。",
+
+  "msg_only_png": "只支持 PNG 文件。",
+  "msg_ready": "已就绪。",
+  "msg_invalid_sizes": "尺寸列表无效，请输入 1-256 的数字（逗号分隔）。",
+  "msg_processing_file": "正在处理 ({i}/{total})：{name}",
+  "msg_zipping": "正在打包 ZIP...",
+  "msg_done": "完成，已开始下载。",
+  "msg_failed": "失败："
+}
