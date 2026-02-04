@@ -93,7 +93,7 @@
         <div class="callout-title" data-i18n="callout_browser_title">⚠️ 浏览器要求</div>
         <p data-i18n="callout_browser_desc">请使用 Chrome 86+ 或 Edge 86+ 浏览器，其他浏览器暂不支持文件夹读写功能。</p>
       </div>
-      <p data-i18n="requirements_run_desc">推荐运行方式：双击 mod-tool/打开-mod编辑器.bat 启动本地服务器，然后访问 http://127.0.0.1:4173/</p>
+      <p data-i18n="requirements_run_desc">推荐运行方式：双击 mod-tool/打开-mod编辑器.bat 启动本地服务器（会自动打开浏览器），然后访问 http://127.0.0.1:4174/</p>
     </section>
 
     <!-- 快速开始 -->
@@ -201,11 +201,15 @@
       <p data-i18n="branch_show_bubble_desc">“显示气泡”(branch_show_bubble) 用于控制分支选项是否以气泡形式展示；该选项位于「对话分支」折叠区内。</p>
 
       <h3 data-i18n="section_triggers">触发器配置</h3>
-      <p data-i18n="triggers_desc">触发器定义事件与状态的关联。预设事件：</p>
+      <p data-i18n="triggers_desc">触发器定义事件与状态的关联。常用事件（支持 <code>keydown:&lt;Key&gt;</code>）：</p>
       <table>
         <tr><th data-i18n="table_event">事件名</th><th data-i18n="table_timing">触发时机</th></tr>
         <tr><td>click</td><td data-i18n="event_click">用户点击角色</td></tr>
         <tr><td>login</td><td data-i18n="event_login">程序启动</td></tr>
+        <tr><td><code>keydown:&lt;Key&gt;</code></td><td data-i18n="event_keydown_space">按键触发（例如：keydown:Space）</td></tr>
+        <tr><td>birthday</td><td data-i18n="event_birthday">生日事件</td></tr>
+        <tr><td>firstday</td><td data-i18n="event_firstday">首次启动事件</td></tr>
+        <tr><td>login_silence</td><td data-i18n="event_login_silence">启动后进入静默/无声状态</td></tr>
         <tr><td>music_start</td><td data-i18n="event_music_start">音乐开始播放</td></tr>
         <tr><td>music_end</td><td data-i18n="event_music_end">音乐停止播放</td></tr>
       </table>
@@ -275,16 +279,17 @@
     <section id="save-export">
       <h2 data-i18n="section_save_export">💾 保存与导出</h2>
       <h4 data-i18n="save_folder_title">保存到文件夹</h4>
-      <p data-i18n="save_folder_desc">点击「💾 保存到文件夹」按钮，每次都会弹出文件夹选择器。</p>
+      <p data-i18n="save_folder_desc">点击「💾 保存」（或「📦 导出」→「📂 到文件夹」），选择目标文件夹后写入。当前版本每次保存都会弹出文件夹选择器。</p>
       <h4 data-i18n="export_tbuddy_title">导出为 .tbuddy</h4>
-      <p data-i18n="export_tbuddy_desc">点击「📦 导出」→「📦 到 .tbuddy」生成压缩包。</p>
-      <h4 data-i18n="saved_files_title">保存的文件</h4>
+      <p data-i18n="export_tbuddy_desc">点击「📦 导出」→「📦 到 .tbuddy」生成压缩包（包内会以 Mod ID 作为根目录）。</p>
+      <h4 data-i18n="saved_files_title">保存/导出的文件</h4>
       <ul>
-        <li><code>manifest.json</code>, <code>bubble_style.json</code></li>
+        <li><code>manifest.json</code></li>
+        <li><code>bubble_style.json</code>（开启气泡样式时生成）</li>
         <li><code>asset/sequence.json</code>, <code>asset/img.json</code></li>
-        <li><code>text/[lang]/info.json</code>, <code>text/[lang]/speech.json</code></li>
-        <li><code>audio/[lang]/speech.json</code></li>
-        <li><code>preview.*</code> (png/jpg/jpeg/webp), <code>icon.*</code> (ico/png)</li>
+        <li><code>text/[lang]/info.json</code>, <code>text/[lang]/speech.json</code>（开启文本对话时生成）</li>
+        <li><code>audio/[lang]/speech.json</code>（开启音频对话时生成）</li>
+        <li><code>preview.(png/jpg/jpeg/webp)</code>, <code>icon.ico</code></li>
       </ul>
     </section>
 
@@ -316,6 +321,8 @@
       <p data-i18n="faq_lang_a">A: 在「文本管理」或「音频管理」中点击「➕ 添加语言」。</p>
       <h4 data-i18n="faq_preview_q">Q: 预览图支持哪些格式？</h4>
       <p data-i18n="faq_preview_a">A: 支持 PNG、JPG、JPEG、WebP 四种格式。</p>
+      <h4 data-i18n="faq_file_protocol_q">Q: 为什么提示 i18n 资源加载失败 / file:// 被拦截？</h4>
+      <p data-i18n="faq_file_protocol_a">A: 请不要用 file:// 直接打开页面。双击 mod-tool/打开-mod编辑器.bat 启动本地服务器，再用浏览器访问 http://127.0.0.1:4174/。</p>
     </section>
 
     <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid #334155; text-align: center; color: #64748b;">
