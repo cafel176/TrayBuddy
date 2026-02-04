@@ -58,5 +58,61 @@
   {
     "name": "music_random1_1",
     "audio": "jp/speech/music_random1_1.wav"
+  },
+  {
+    "name": "random2_1",
+    "audio": "jp/speech/random2_1.wav"
+  },
+  {
+    "name": "random2_2",
+    "audio": "jp/speech/random2_2.wav"
+  },
+  {
+    "name": "random2_3",
+    "audio": "jp/speech/random2_3.wav"
+  },
+  {
+    "name": "random3_1",
+    "audio": "jp/speech/random3_1.wav"
+  },
+  {
+    "name": "random3_2",
+    "audio": "jp/speech/random3_2.wav"
+  },
+  {
+    "name": "random3_3",
+    "audio": "jp/speech/random3_3.wav"
+  },
+  {
+    "name": "random4_1",
+    "audio": "jp/speech/random4_1.wav"
+  },
+  {
+    "name": "random4_2",
+    "audio": "jp/speech/random4_2.wav"
+  },
+  {
+    "name": "random4_3",
+    "audio": "jp/speech/random4_3.wav"
+  },
+  {
+    "name": "random4_4",
+    "audio": "jp/speech/random4_4.wav"
+  },
+  {
+    "name": "ema_birthday_1",
+    "audio": "jp/speech/ema_birthday_1.wav"
+  },
+  {
+    "name": "ema_birthday_2",
+    "audio": "jp/speech/ema_birthday_2.wav"
+  },
+  {
+    "name": "ema_birthday_3",
+    "audio": "jp/speech/ema_birthday_3.wav"
+  },
+  {
+    "name": "ema_birthday_4",
+    "audio": "jp/speech/ema_birthday_4.wav"
   }
 ]
