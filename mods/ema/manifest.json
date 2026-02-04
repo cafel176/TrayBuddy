@@ -761,7 +761,12 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [
+        {
+          "text": "ema_birthday_button",
+          "next_state": "ema_birthday_2"
+        }
+      ]
     },
     {
       "name": "ema_birthday_2",

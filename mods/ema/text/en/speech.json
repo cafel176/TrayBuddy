@@ -88,5 +88,9 @@
     "name": "music_random1_1",
     "text": "This song feels very special, I like it.",
     "duration": 3
+  },
+  {
+    "name": "ema_birthday_button",
+    "text": "Today is your birthday."
   }
 ]

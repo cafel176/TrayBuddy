@@ -144,5 +144,9 @@
   {
     "name": "ema_birthday_4",
     "text": "诶嘿嘿，我真的很开心。"
+  },
+  {
+    "name": "ema_birthday_button",
+    "text": "今天是你的生日"
   }
 ]
