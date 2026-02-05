@@ -32,6 +32,18 @@
         {
           "state": "random1_1",
           "weight": 1
+        },
+        {
+          "state": "random2_1",
+          "weight": 1
+        },
+        {
+          "state": "random3_1",
+          "weight": 1
+        },
+        {
+          "state": "random4_1",
+          "weight": 1
         }
       ],
       "trigger_time": 600,
