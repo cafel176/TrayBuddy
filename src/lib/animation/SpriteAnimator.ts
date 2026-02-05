@@ -401,7 +401,21 @@ export class SpriteAnimator {
 
         // 窗口恢复可见：重新加载图片并恢复动画
         if (this.hiddenImgSrc) {
-          this.loadImage(this.hiddenImgSrc).then(() => {
+          const restoreSrc = this.hiddenImgSrc;
+          this.loadImage(restoreSrc).then((ok) => {
+            if (!ok) {
+              // 图片恢复失败：避免动画线程空转。
+              // 单次播放模式下直接视为播放完成，让状态机继续。
+              if (this.isPlayOnce) {
+                this.stop();
+                this.onCompleteCallback?.();
+              } else {
+                this.stop();
+              }
+              // 保留 hiddenImgSrc，便于后续可能的再次恢复/诊断
+              return;
+            }
+
             this.hiddenImgSrc = null;
             if (this.isPlaying && this.animationId === null) {
               this.animate(0);
@@ -410,6 +424,7 @@ export class SpriteAnimator {
         } else if (this.isPlaying && this.animationId === null) {
           this.animate(0);
         }
+
       }
     };
     document.addEventListener('visibilitychange', this.visibilityHandler);
@@ -557,17 +572,26 @@ export class SpriteAnimator {
   async switchWithConfig(config: AnimationConfig, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
     // 仅当图片 URL 变化时才重新加载
     if (this.currentImgSrc !== config.imgSrc) {
-      // 切换图片前，仅断开当前图片引用。由 LRUCache 的 setOnEvict 负责真正的显存回收。
-      if (this.img && !alwaysImageCache.has(this.currentImgSrc)) {
-         this.img = null;
-      }
-      
+      // 重要：切换时先保留旧图。
+      // 如果新图加载失败，则不改变当前显示（满足“找不到图片就不做任何事”），同时避免动画空转。
+      const prevImg = this.img;
+      const prevImgSrc = this.currentImgSrc;
+      const wasPlaying = this.isPlaying;
+
       const loaded = await this.loadImage(config.imgSrc);
+      if (!loaded) {
+        this.img = prevImg;
+        // 若原本在播放但当前没有可用图片，停止以避免 requestAnimationFrame 空转
+        if (wasPlaying && !this.img) {
+          this.stop();
+        }
+        this.currentImgSrc = prevImgSrc;
+        return false;
+      }
 
-
-      if (!loaded) return false;
       this.currentImgSrc = config.imgSrc;
     }
+
     
     // 应用新配置
     this.applyConfig(config);
@@ -618,7 +642,7 @@ export class SpriteAnimator {
       
       // 尝试从缓存获取
       const cached = cache.get(imgSrc);
-      if (cached && cached.complete) {
+      if (cached && cached.complete && cached.naturalWidth > 0) {
         if (debugMode) {
           cacheStats.hits++;
           const cacheType = isBorder ? 'Always' : 'Normal';
@@ -628,6 +652,14 @@ export class SpriteAnimator {
         resolve(true);
         return;
       }
+
+      // 如果缓存里存在“已完成但实际加载失败”的坏条目（naturalWidth=0），剔除避免后续误用
+      if (cached && cached.complete && cached.naturalWidth === 0) {
+        try {
+          cache.delete(imgSrc);
+        } catch {}
+      }
+
       
       // 缓存未命中，创建新图片加载
       if (debugMode) {
@@ -937,6 +969,18 @@ export class SpriteAnimator {
       this.animationId = requestAnimationFrame(this.animate);
       return;
     }
+
+    // 图片已完成但无有效尺寸：视为加载失败，避免 drawImage 抛错/空转
+    if (this.img.naturalWidth === 0) {
+      if (this.isPlayOnce) {
+        this.stop();
+        this.onCompleteCallback?.();
+      } else {
+        this.stop();
+      }
+      return;
+    }
+
 
     // 检查是否到达帧切换时间
     if (time - this.lastTime > this.frameTime) {
