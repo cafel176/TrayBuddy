@@ -749,10 +749,14 @@ fn get_all_triggers(state: State<'_, AppState>) -> Vec<TriggerInfo> {
 
 /// 触发事件
 #[tauri::command]
-fn trigger_event(event_name: String, state: State<'_, AppState>) -> Result<bool, String> {
+fn trigger_event(
+    event_name: String,
+    force: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
     let rm = state.resource_manager.lock().unwrap();
     let mut sm = state.state_manager.lock().unwrap();
-    TriggerManager::trigger_event(&event_name, &rm, &mut sm)
+    TriggerManager::trigger_event(&event_name, force.unwrap_or(false), &rm, &mut sm)
 }
 
 // ========================================================================= //
@@ -2035,12 +2039,12 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
                     MediaPlaybackStatus::Playing => {
                         let rm = app_state.resource_manager.lock().unwrap();
                         let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_START, &rm, &mut sm);
+                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_START, false, &rm, &mut sm);
                     }
                     MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped | MediaPlaybackStatus::Unknown => {
                         let rm = app_state.resource_manager.lock().unwrap();
                         let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_END, &rm, &mut sm);
+                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_END, false, &rm, &mut sm);
                     }
                     _ => {}
                 }
@@ -3158,7 +3162,7 @@ fn trigger_login_events(app_handle: &tauri::AppHandle) {
     let rm = app_state.resource_manager.lock().unwrap();
     let mut sm = app_state.state_manager.lock().unwrap();
 
-    match TriggerManager::trigger_event(&event_name, &rm, &mut sm) {
+    match TriggerManager::trigger_event(&event_name, false, &rm, &mut sm) {
         Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
         Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
         Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),
@@ -3266,7 +3270,7 @@ fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
     let rm = app_state.resource_manager.lock().unwrap();
     let mut sm = app_state.state_manager.lock().unwrap();
 
-    match TriggerManager::trigger_event(&event_name, &rm, &mut sm) {
+    match TriggerManager::trigger_event(&event_name, false, &rm, &mut sm) {
         Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
         Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
         Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),

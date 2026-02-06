@@ -82,9 +82,10 @@ export class TriggerManager {
    * 将事件发送到后端，由后端根据 Mod 配置决定是否切换状态。
    *
    * @param eventName - 事件名称
+   * @param force - 是否使用强制模式切换（忽略锁定/优先级等限制）
    * @returns 是否成功触发状态切换
    */
-  async trigger(eventName: string): Promise<boolean> {
+  async trigger(eventName: string, force = false): Promise<boolean> {
     // 验证事件名称
     if (!this.isEventSupported(eventName)) {
       console.warn(`[TriggerManager] Unknown event: '${eventName}'`);
@@ -93,7 +94,7 @@ export class TriggerManager {
 
     try {
       // 调用后端触发命令
-      return await invoke("trigger_event", { eventName });
+      return await invoke("trigger_event", { eventName, force });
     } catch (e) {
       console.error(`[TriggerManager] Failed to trigger event '${eventName}':`, e);
       return false;

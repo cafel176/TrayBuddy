@@ -30,6 +30,7 @@ impl TriggerManager {
     ///
     /// # 参数
     /// - `event_name`: 事件名称（如 "login", "music_start"）
+    /// - `force`: true 时使用强制模式切换（忽略优先级与锁定检查）
     /// - `resource_manager`: 资源管理器引用
     /// - `state_manager`: 状态管理器可变引用
     ///
@@ -39,6 +40,7 @@ impl TriggerManager {
     /// - `Err`: 切换过程中发生错误
     pub fn trigger_event(
         event_name: &str,
+        force: bool,
         resource_manager: &ResourceManager,
         state_manager: &mut StateManager,
     ) -> Result<bool, String> {
@@ -109,7 +111,9 @@ impl TriggerManager {
         };
 
         // 直接切换到选中的状态（避免再做一次无权重随机）
-        state_manager.change_state(selected, resource_manager)
+        // force=true 时忽略优先级与锁定检查
+        state_manager.change_state_ex(selected, force, resource_manager)
+
 
     }
 }
