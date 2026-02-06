@@ -249,6 +249,9 @@
   /** 判定为拖拽的移动阈值（像素） */
   const DRAG_THRESHOLD = 5;
 
+  /** 拖拽结束检测轮询间隔（毫秒） */
+  const DRAG_END_POLL_INTERVAL_MS = 30;
+
   // =========================================================================
   // 初始化
   // =========================================================================
@@ -1000,18 +1003,114 @@
     startCursorPolling();
   }
 
+  // -------------------------------------------------------------------------
+  // 拖拽/点击：可靠捕获 mouseup 的实现
+  //
+  // 关键点：
+  // 1) `startDragging()` 会进入原生拖拽模式，WebView 可能收不到 `mouseup`。
+  // 2) 本页面还有“鼠标穿透轮询”，拖拽过程中可能把窗口切回穿透，导致后续事件全部丢失。
+  //
+  // 解决：
+  // - `mousedown` 时暂停轮询 + 强制取消穿透 + 绑定 window 级 move/up
+  // - 触发 drag_start / drag_end
+  // - drag_end 使用 `mouseup` 和 `startDragging()` 返回双保险
+  // -------------------------------------------------------------------------
+
+  let hasGlobalMouseListeners = false;
+  let dragSessionSeq = 0;
+  let activeDragSession = 0;
+
+  // 拖拽结束检测轮询（用于原生拖拽期间 WebView 收不到 mouseup 的情况）
+  let dragEndPollTimer: ReturnType<typeof setInterval> | null = null;
+  let dragEndPollSawDown = false;
+
+  function stopDragEndPoll() {
+    if (dragEndPollTimer) {
+      clearInterval(dragEndPollTimer);
+      dragEndPollTimer = null;
+    }
+    dragEndPollSawDown = false;
+  }
+
+  function startDragEndPoll(session: number) {
+    stopDragEndPoll();
+
+    // 轮询频率不需要太高，30ms 足够及时且开销小
+    dragEndPollTimer = setInterval(async () => {
+      // 会话变化/已结束则停止
+      if (!isDragging || activeDragSession !== session) {
+        stopDragEndPoll();
+        return;
+      }
+
+      try {
+        const down = await invoke<boolean>("is_left_mouse_down");
+
+        // 某些平台/实现可能始终返回 false：必须先看到一次 true 才允许触发结束，避免“立即 drag_end”
+        if (down) {
+          dragEndPollSawDown = true;
+          return;
+        }
+
+        if (dragEndPollSawDown && !down) {
+          finishDrag();
+        }
+      } catch {
+        // 如果命令不可用/失败，不要影响拖拽；保留 mouseup 路径
+        stopDragEndPoll();
+      }
+    }, DRAG_END_POLL_INTERVAL_MS);
+  }
+
+  function addGlobalMouseListeners() {
+    if (hasGlobalMouseListeners) return;
+    hasGlobalMouseListeners = true;
+    window.addEventListener("mousemove", handleMouseMove, true);
+    window.addEventListener("mouseup", handleMouseUp, true);
+  }
+
+  function removeGlobalMouseListeners() {
+    if (!hasGlobalMouseListeners) return;
+    hasGlobalMouseListeners = false;
+    window.removeEventListener("mousemove", handleMouseMove, true);
+    window.removeEventListener("mouseup", handleMouseUp, true);
+  }
+
+  function resumeCursorHandling() {
+    // 恢复“是否穿透”的正常逻辑
+    startCursorPolling();
+  }
+
+  function finishDrag() {
+    if (!isDragging) return;
+    stopDragEndPoll();
+    triggerManager?.trigger("drag_end", true);
+    isDragging = false;
+    isMouseDown = false;
+    removeGlobalMouseListeners();
+    resumeCursorHandling();
+  }
+
   /**
    * 鼠标按下事件处理
    *
    * 记录按下位置，用于后续判断是拖拽还是点击
    */
   function handleMouseDown(e: MouseEvent) {
-    if (e.button === 0) {
-      // 仅处理左键
-      isDragging = false;
-      isMouseDown = true;
-      mouseDownPos = { x: e.screenX, y: e.screenY };
-    }
+    if (e.button !== 0) return;
+
+    // 仅处理左键
+    isDragging = false;
+    isMouseDown = true;
+    mouseDownPos = { x: e.screenX, y: e.screenY };
+    activeDragSession = ++dragSessionSeq;
+
+    // 拖拽/点击过程中，先别让轮询把窗口切回穿透
+    stopCursorPolling();
+    void setClickThrough(false);
+
+    // 提升到 window 级，避免鼠标离开 canvas 后丢事件
+    addGlobalMouseListeners();
   }
 
   /**
@@ -1020,16 +1119,30 @@
    * 检测移动距离是否超过阈值：
    * - 超过则开始拖拽窗口
    * - 使用 Tauri 的 startDragging API 实现原生拖拽
+   * - 触发 drag_start
    */
-  async function handleMouseMove(e: MouseEvent) {
-    if (isMouseDown && !isDragging) {
-      const dx = Math.abs(e.screenX - mouseDownPos.x);
-      const dy = Math.abs(e.screenY - mouseDownPos.y);
-      if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
-        isDragging = true;
-        await getCurrentWindow().startDragging();
-      }
-    }
+  function handleMouseMove(e: MouseEvent) {
+    if (!isMouseDown || isDragging) return;
+
+    const dx = Math.abs(e.screenX - mouseDownPos.x);
+    const dy = Math.abs(e.screenY - mouseDownPos.y);
+    if (dx <= DRAG_THRESHOLD && dy <= DRAG_THRESHOLD) return;
+
+    isDragging = true;
+    const session = activeDragSession;
+
+    triggerManager?.trigger("drag_start", true);
+
+    // 进入原生拖拽：WebView 可能收不到 mouseup，因此用“左键按下状态轮询”来判定真正的拖拽结束
+    startDragEndPoll(session);
+
+    void getCurrentWindow().startDragging().catch((err) => {
+      console.warn("[startDragging] Failed:", err);
+      // 启动失败则认为不是拖拽，清理并恢复
+      stopDragEndPoll();
+      isDragging = false;
+      // 若仍按下，继续等待 mouseup 走点击/恢复逻辑
+    });
   }
 
   /**
@@ -1037,23 +1150,32 @@
    *
    * 判断是点击还是拖拽结束：
    * - 未移动过阈值 → 触发点击事件
-   * - 已开始拖拽 → 拖拽结束，无操作
+   * - 已开始拖拽 → 触发 drag_end
    */
   async function handleMouseUp(e: MouseEvent) {
-    if (e.button === 0) {
-      if (isMouseDown && !isDragging) {
-        // 点击事件：触发 click 触发器
-        triggerManager?.trigger("click");
-        // 记录点击事件到统计
-        try {
-          await invoke("record_click_event");
-        } catch (err) {
-          console.error("Failed to record click event:", err);
-        }
-      }
-      isMouseDown = false;
-      isDragging = false;
+    if (e.button !== 0) return;
+
+    // 如果正在拖拽，直接结束（原生拖拽期间 mouseup 可能收不到，但这里能收到就立即结束）
+    if (isDragging) {
+      finishDrag();
+      return;
     }
+
+    if (isMouseDown) {
+      // 点击事件：触发 click 触发器
+      triggerManager?.trigger("click");
+
+      // 记录点击事件到统计
+      try {
+        await invoke("record_click_event");
+      } catch (err) {
+        console.error("Failed to record click event:", err);
+      }
+    }
+
+    isMouseDown = false;
+    removeGlobalMouseListeners();
+    resumeCursorHandling();
   }
 
   /**
@@ -1080,6 +1202,8 @@
   // 组件销毁时清理资源
   onDestroy(() => {
     window.removeEventListener("keydown", handleGlobalKeydown);
+    removeGlobalMouseListeners();
+    stopDragEndPoll();
     stopCursorPolling();
     characterAnimator?.destroy();
     borderAnimator?.destroy();
@@ -1156,8 +1280,6 @@
         : 'none'}; outline-offset: -2px;"
       bind:this={characterCanvas}
       onmousedown={handleMouseDown}
-      onmousemove={handleMouseMove}
-      onmouseup={handleMouseUp}
     ></canvas>
 
     <!-- 边框动画 Canvas -->
