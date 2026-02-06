@@ -6,10 +6,13 @@
  * ## 支持的事件
  * - `click` - 点击桌面宠物
  * - `login` - 应用启动（登录）
+ * - `drag_start` - 开始拖动 Animation window
+ * - `drag_end` - 结束拖动 Animation window
+
  *
  * ## 触发流程
- * 1. 前端检测到用户交互（如点击）
- * 2. 调用 `TriggerManager.trigger("click")`
+ * 1. 前端检测到用户交互（如点击/拖动）
+ * 2. 调用 `TriggerManager.trigger("...")`
  * 3. TriggerManager 调用后端 `trigger_event` 命令
  * 4. 后端根据 Mod 配置执行状态切换
  *
@@ -23,10 +26,26 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /** 支持的触发事件类型 */
-export type TriggerEvent = "click" | "login" | "login_silence" | "firstday" | "birthday";
+export type TriggerEvent =
+  | "click"
+  | "login"
+  | "login_silence"
+  | "firstday"
+  | "birthday"
+  | "drag_start"
+  | "drag_end"
+;
 
 /** 已支持的事件列表 */
-const SUPPORTED_EVENTS: readonly TriggerEvent[] = ["click", "login", "login_silence", "firstday", "birthday"];
+const SUPPORTED_EVENTS: readonly TriggerEvent[] = [
+  "click",
+  "login",
+  "login_silence",
+  "firstday",
+  "birthday",
+  "drag_start",
+  "drag_end"
+];
 
 /**
  * 触发器管理器
@@ -85,7 +104,7 @@ export class TriggerManager {
    * 销毁触发器管理器
    * 目前无需清理资源，保留以备将来扩展
    */
-  destroy(): void { }
+  destroy(): void {}
 }
 
 // ============================================================================

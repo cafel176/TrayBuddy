@@ -98,6 +98,14 @@ pub const STATE_SILENCE: &str = "silence";
 pub const STATE_SILENCE_START: &str = "silence_start";
 pub const STATE_SILENCE_END: &str = "silence_end";
 
+/// 拖动中状态名称（持续状态）
+///
+pub const STATE_DRAGGING: &str = "dragging";
+/// 开始拖动状态名称（通常 play_once）
+pub const STATE_DRAG_START: &str = "drag_start";
+/// 结束拖动状态名称（通常 play_once）
+pub const STATE_DRAG_END: &str = "drag_end";
+
 pub const STATE_MUSIC: &str = "music";
 pub const STATE_MUSIC_START: &str = "music_start";
 pub const STATE_MUSIC_END: &str = "music_end";
@@ -120,6 +128,13 @@ pub const EVENT_MUSIC_START: &str = "music_start";
 
 /// 音乐结束事件
 pub const EVENT_MUSIC_END: &str = "music_end";
+
+/// Animation 窗口开始拖动事件
+pub const EVENT_ANIMATION_DRAG_START: &str = "drag_start";
+
+/// Animation 窗口结束拖动事件
+pub const EVENT_ANIMATION_DRAG_END: &str = "drag_end";
+
 
 // ========================================================================= //
 // 媒体监听常量

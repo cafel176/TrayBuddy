@@ -48,7 +48,7 @@
 
 use super::constants::{
     STATE_IDLE, STATE_MUSIC, STATE_MUSIC_END, STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END,
-    STATE_SILENCE_START,
+    STATE_SILENCE_START, STATE_DRAGGING, STATE_DRAG_END, STATE_DRAG_START,
 };
 use super::event_manager::{emit, events};
 use super::media_observer::{get_cached_media_state, MediaPlaybackStatus};
@@ -196,6 +196,13 @@ impl StateManager {
         if self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_SILENCE) ||
         self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_SILENCE_END) {
             if state.name.as_ref() == STATE_SILENCE_START {
+                return Ok(false);
+            }
+        }
+
+        if self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_DRAGGING) ||
+        self.current_state.as_ref().map(|s| s.name.as_ref()) == Some(STATE_DRAG_END) {
+            if state.name.as_ref() == STATE_DRAG_START {
                 return Ok(false);
             }
         }

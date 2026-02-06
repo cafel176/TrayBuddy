@@ -47,6 +47,7 @@ windows = { version = "0.58", features = [
     "Win32_Foundation",
     # 鼠标位置
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
     # 钩子 Hook (SetWinEventHook)
     "Win32_UI_Accessibility",
     # Shell API (SHQueryUserNotificationState)

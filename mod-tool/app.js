@@ -1293,6 +1293,12 @@ function normalizeManifestForEditor(manifest) {
   ensureImportantState(manifest, 'silence', { persistent: true, priority: 1, trigger_rate: 0, next_state: '' });
   ensureImportantState(manifest, 'silence_start', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'silence' });
   ensureImportantState(manifest, 'silence_end', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'idle' });
+
+  // 拖拽相关内置状态（前端事件为 animation_drag_start / animation_drag_end）
+  ensureImportantState(manifest, 'dragging', { persistent: true, priority: 1, trigger_rate: 0, next_state: '' });
+  ensureImportantState(manifest, 'drag_start', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'dragging' });
+  ensureImportantState(manifest, 'drag_end', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'idle' });
+
   ensureImportantState(manifest, 'music', { persistent: true, priority: 1, trigger_rate: 0.1, next_state: '' });
   ensureImportantState(manifest, 'music_start', { persistent: false, priority: 2, trigger_rate: 0, next_state: 'music' });
   ensureImportantState(manifest, 'music_end', { persistent: false, priority: 2, trigger_rate: 0, next_state: 'idle' });
@@ -1311,6 +1317,11 @@ function normalizeManifestForEditor(manifest) {
   manifest.triggers.forEach((t) => {
     if (!t || typeof t !== 'object') return;
     if (typeof t.event !== 'string') t.event = '';
+
+    // 兼容旧 mod：把“状态名式”的 drag_start/drag_end 事件迁移到正确事件名
+    if (t.event === 'drag_start') t.event = 'animation_drag_start';
+    if (t.event === 'drag_end') t.event = 'animation_drag_end';
+
     if (!Array.isArray(t.can_trigger_states)) t.can_trigger_states = [];
   });
 }
@@ -2262,7 +2273,7 @@ function renderImportantStates() {
 
   const importantStates = currentMod.manifest.important_states || {};
   const coreKeys = ['idle', 'music'];
-  const stateOrder = ['silence', 'silence_start', 'silence_end', 'music_start', 'music_end', 'birthday', 'firstday'];
+  const stateOrder = ['silence', 'silence_start', 'silence_end', 'dragging', 'drag_start', 'drag_end', 'music_start', 'music_end', 'birthday', 'firstday'];
 
   const shouldRender = (key, state) => {
     const displayName = String(state?.name || key);

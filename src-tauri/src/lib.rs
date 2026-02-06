@@ -36,7 +36,7 @@ use modules::constants::{
     MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
     STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MODS,
-    WINDOW_LABEL_SETTINGS,
+    WINDOW_LABEL_SETTINGS, EVENT_MUSIC_END, EVENT_MUSIC_START
 };
 use modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
 use modules::environment::{
@@ -772,6 +772,23 @@ fn set_ignore_cursor_events(ignore: bool, app: tauri::AppHandle) -> Result<(), S
     Ok(())
 }
 
+/// 检测当前左键是否按下（用于原生拖拽期间的 drag_end 判定）
+#[tauri::command]
+fn is_left_mouse_down() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+        // GetAsyncKeyState 返回 i16：若最高位为 1 则表示按键处于按下状态
+        let down = unsafe { GetAsyncKeyState(VK_LBUTTON.0 as i32) < 0 };
+        Ok(down)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("is_left_mouse_down not implemented for this platform".to_string())
+    }
+}
+
 /// 获取当前鼠标位置（屏幕坐标）
 #[tauri::command]
 fn get_cursor_position() -> Result<(i32, i32), String> {
@@ -1404,6 +1421,7 @@ pub fn run() {
             set_mute,
             set_animation_scale,
             set_ignore_cursor_events,
+            is_left_mouse_down,
             get_cursor_position,
             is_cursor_in_interact_area,
             open_path,
@@ -2017,12 +2035,12 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
                     MediaPlaybackStatus::Playing => {
                         let rm = app_state.resource_manager.lock().unwrap();
                         let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_music_start(&rm, &mut sm);
+                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_START, &rm, &mut sm);
                     }
                     MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped | MediaPlaybackStatus::Unknown => {
                         let rm = app_state.resource_manager.lock().unwrap();
                         let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_music_end(&rm, &mut sm);
+                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_END, &rm, &mut sm);
                     }
                     _ => {}
                 }

@@ -112,26 +112,4 @@ impl TriggerManager {
         state_manager.change_state(selected, resource_manager)
 
     }
-
-    // ========================================================================= //
-    // 便捷触发方法
-    // ========================================================================= //
-
-    /// 触发音乐开始事件
-    #[inline]
-    pub fn trigger_music_start(
-        resource_manager: &ResourceManager,
-        state_manager: &mut StateManager,
-    ) -> Result<bool, String> {
-        Self::trigger_event(EVENT_MUSIC_START, resource_manager, state_manager)
-    }
-
-    /// 触发音乐结束事件
-    #[inline]
-    pub fn trigger_music_end(
-        resource_manager: &ResourceManager,
-        state_manager: &mut StateManager,
-    ) -> Result<bool, String> {
-        Self::trigger_event(EVENT_MUSIC_END, resource_manager, state_manager)
-    }
 }
