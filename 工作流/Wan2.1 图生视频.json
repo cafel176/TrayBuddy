@@ -1,0 +1,1094 @@
+{
+  "last_node_id": 77,
+  "last_link_id": 173,
+  "nodes": [
+    {
+      "id": 38,
+      "type": "CLIPLoader",
+      "pos": [
+        -320,
+        -135
+      ],
+      "size": [
+        440,
+        98.00000762939453
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "localized_name": "CLIP",
+          "label": "CLIP",
+          "type": "CLIP",
+          "links": [
+            171,
+            172
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "wan",
+        "default"
+      ]
+    },
+    {
+      "id": 54,
+      "type": "ImageResizeKJ",
+      "pos": [
+        -290,
+        760
+      ],
+      "size": [
+        315,
+        286
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "localized_name": "image",
+          "label": "图像",
+          "type": "IMAGE",
+          "link": 110
+        },
+        {
+          "name": "get_image_size",
+          "localized_name": "get_image_size",
+          "label": "参考图像",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "width_input",
+          "label": "宽度",
+          "type": "INT",
+          "shape": 7,
+          "widget": {
+            "name": "width_input"
+          },
+          "link": null
+        },
+        {
+          "name": "height_input",
+          "label": "高度",
+          "type": "INT",
+          "shape": 7,
+          "widget": {
+            "name": "height_input"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "localized_name": "图像",
+          "label": "图像",
+          "type": "IMAGE",
+          "links": [
+            111,
+            112
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "width",
+          "localized_name": "width",
+          "label": "宽度",
+          "type": "INT",
+          "links": [
+            113
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "height",
+          "localized_name": "height",
+          "label": "高度",
+          "type": "INT",
+          "links": [
+            114
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "46f9ec2c24c2642d3c468b69d910a8a1b05f0ea5",
+        "Node name for S&R": "ImageResizeKJ"
+      },
+      "widgets_values": [
+        720,
+        720,
+        "lanczos",
+        false,
+        2,
+        0,
+        0,
+        "center"
+      ]
+    },
+    {
+      "id": 37,
+      "type": "UNETLoader",
+      "pos": [
+        -320,
+        -280
+      ],
+      "size": [
+        450,
+        95
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "localized_name": "模型",
+          "label": "模型",
+          "type": "MODEL",
+          "links": [
+            173
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "Wan2.1\\wan2.1_i2v_720p_14B_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 52,
+      "type": "LoadImage",
+      "pos": [
+        -315,
+        125
+      ],
+      "size": [
+        385,
+        470
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "localized_name": "图像",
+          "label": "图像",
+          "type": "IMAGE",
+          "links": [
+            110
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "localized_name": "遮罩",
+          "label": "遮罩",
+          "type": "MASK",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ailittleprince_Realistic_photo_of_the_character_Dhalsim_from_St_d6431799-e4c8-41f4-aff4-c553d2130d53.png",
+        "image"
+      ]
+    },
+    {
+      "id": 49,
+      "type": "CLIPVisionLoader",
+      "pos": [
+        -320,
+        10
+      ],
+      "size": [
+        440,
+        58
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP_VISION",
+          "localized_name": "CLIP视觉",
+          "label": "CLIP视觉",
+          "type": "CLIP_VISION",
+          "links": [
+            94
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPVisionLoader"
+      },
+      "widgets_values": [
+        "clip_vision_h.safetensors"
+      ]
+    },
+    {
+      "id": 51,
+      "type": "CLIPVisionEncode",
+      "pos": [
+        -300,
+        635
+      ],
+      "size": [
+        400,
+        80
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_vision",
+          "localized_name": "clip视觉",
+          "label": "CLIP视觉",
+          "type": "CLIP_VISION",
+          "link": 94
+        },
+        {
+          "name": "image",
+          "localized_name": "图像",
+          "label": "图像",
+          "type": "IMAGE",
+          "link": 111
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP_VISION_OUTPUT",
+          "localized_name": "CLIP视觉输出",
+          "label": "CLIP视觉输出",
+          "type": "CLIP_VISION_OUTPUT",
+          "links": [
+            107
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPVisionEncode"
+      },
+      "widgets_values": [
+        "none"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        140,
+        -45
+      ],
+      "size": [
+        475,
+        345
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "localized_name": "clip",
+          "label": "CLIP",
+          "type": "CLIP",
+          "link": 171
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "localized_name": "条件",
+          "label": "条件",
+          "type": "CONDITIONING",
+          "links": [
+            97
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "Realistic photo of the character Dhalsim from Street Fighter, as an anthropomorphic cartoon fox dressed in a brown hoodie and blue shoes performing a Kung Fu move with his right hand forming a glowing sphere of energy that he casts at enemies. The image has vibrant colors and cinematic lighting, with a full-body shot taken from a wide angle",
+        [
+          false,
+          true
+        ]
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        140,
+        355
+      ],
+      "size": [
+        505,
+        340
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "localized_name": "clip",
+          "label": "CLIP",
+          "type": "CLIP",
+          "link": 172
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "localized_name": "条件",
+          "label": "条件",
+          "type": "CONDITIONING",
+          "links": [
+            98
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "Overexposure, static, blurred details, subtitles, paintings, pictures, still, overall gray, worst quality, low quality, JPEG compression residue, ugly, mutilated, redundant fingers, poorly painted hands, poorly painted faces, deformed, disfigured, deformed limbs, fused fingers, cluttered background, three legs, a lot of people in the background, upside down",
+        [
+          false,
+          true
+        ]
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 50,
+      "type": "WanImageToVideo",
+      "pos": [
+        140,
+        740
+      ],
+      "size": [
+        342.5999755859375,
+        250
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "localized_name": "正面",
+          "label": "positive",
+          "type": "CONDITIONING",
+          "link": 97
+        },
+        {
+          "name": "negative",
+          "localized_name": "负面",
+          "label": "negative",
+          "type": "CONDITIONING",
+          "link": 98
+        },
+        {
+          "name": "vae",
+          "localized_name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "link": 99
+        },
+        {
+          "name": "clip_vision_output",
+          "localized_name": "clip视觉输出",
+          "label": "clip_vision_output",
+          "type": "CLIP_VISION_OUTPUT",
+          "shape": 7,
+          "link": 107
+        },
+        {
+          "name": "start_image",
+          "localized_name": "开始图像",
+          "label": "start_image",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 112
+        },
+        {
+          "name": "width",
+          "label": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 113
+        },
+        {
+          "name": "height",
+          "label": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 114
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "localized_name": "正面",
+          "label": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            101
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "negative",
+          "localized_name": "负面",
+          "label": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            102
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "latent",
+          "localized_name": "潜在",
+          "label": "latent",
+          "type": "LATENT",
+          "links": [
+            103,
+            118
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "WanImageToVideo"
+      },
+      "widgets_values": [
+        512,
+        512,
+        45,
+        1
+      ]
+    },
+    {
+      "id": 56,
+      "type": "WanVideoTeaCacheKJ",
+      "pos": [
+        140,
+        -245
+      ],
+      "size": [
+        340.20001220703125,
+        154
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "localized_name": "model",
+          "label": "model",
+          "type": "MODEL",
+          "link": 173
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "localized_name": "model",
+          "label": "model",
+          "type": "MODEL",
+          "links": [
+            119
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "46f9ec2c24c2642d3c468b69d910a8a1b05f0ea5",
+        "Node name for S&R": "WanVideoTeaCacheKJ"
+      },
+      "widgets_values": [
+        0.15,
+        0.1,
+        1,
+        "offload_device",
+        "i2v_720"
+      ]
+    },
+    {
+      "id": 57,
+      "type": "WanVideoEnhanceAVideoKJ",
+      "pos": [
+        515,
+        -240
+      ],
+      "size": [
+        415.8000183105469,
+        78
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "localized_name": "model",
+          "label": "model",
+          "type": "MODEL",
+          "link": 119
+        },
+        {
+          "name": "latent",
+          "localized_name": "latent",
+          "label": "latent",
+          "type": "LATENT",
+          "link": 118
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "localized_name": "model",
+          "label": "model",
+          "type": "MODEL",
+          "links": [
+            120
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "46f9ec2c24c2642d3c468b69d910a8a1b05f0ea5",
+        "Node name for S&R": "WanVideoEnhanceAVideoKJ"
+      },
+      "widgets_values": [
+        2
+      ]
+    },
+    {
+      "id": 39,
+      "type": "VAELoader",
+      "pos": [
+        630,
+        -95
+      ],
+      "size": [
+        306.36004638671875,
+        58
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "localized_name": "VAE",
+          "label": "VAE",
+          "type": "VAE",
+          "links": [
+            76,
+            99
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        640,
+        30
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "localized_name": "Latent",
+          "label": "Latent",
+          "type": "LATENT",
+          "link": 35
+        },
+        {
+          "name": "vae",
+          "localized_name": "vae",
+          "label": "VAE",
+          "type": "VAE",
+          "link": 76
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "localized_name": "图像",
+          "label": "图像",
+          "type": "IMAGE",
+          "links": [
+            115
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 3,
+      "type": "KSampler",
+      "pos": [
+        660,
+        135
+      ],
+      "size": [
+        345,
+        605
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "localized_name": "模型",
+          "label": "模型",
+          "type": "MODEL",
+          "link": 120
+        },
+        {
+          "name": "positive",
+          "localized_name": "正面条件",
+          "label": "正面条件",
+          "type": "CONDITIONING",
+          "link": 101
+        },
+        {
+          "name": "negative",
+          "localized_name": "负面条件",
+          "label": "负面条件",
+          "type": "CONDITIONING",
+          "link": 102
+        },
+        {
+          "name": "latent_image",
+          "localized_name": "Latent图像",
+          "label": "Latent",
+          "type": "LATENT",
+          "link": 103
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "localized_name": "Latent",
+          "label": "Latent",
+          "type": "LATENT",
+          "links": [
+            35
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        518508209146224,
+        "randomize",
+        20,
+        6,
+        "uni_pc",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 55,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1025,
+        -205
+      ],
+      "size": [
+        615,
+        943
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "localized_name": "images",
+          "label": "图像",
+          "type": "IMAGE",
+          "link": 115
+        },
+        {
+          "name": "audio",
+          "localized_name": "audio",
+          "label": "音频",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "localized_name": "meta_batch",
+          "label": "批次管理",
+          "type": "VHS_BatchManager",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "vae",
+          "localized_name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "localized_name": "Filenames",
+          "label": "文件名",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "73418575ca842f5f7575c48f17f45181e14715c1",
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "w2",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "w2_00012.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16,
+            "workflow": "w2_00012.png",
+            "fullpath": "J:\\ComfyUI-aki-v1.4\\output\\w2_00012.mp4"
+          },
+          "muted": false
+        }
+      }
+    }
+  ],
+  "links": [
+    [
+      35,
+      3,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      76,
+      39,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      94,
+      49,
+      0,
+      51,
+      0,
+      "CLIP_VISION"
+    ],
+    [
+      97,
+      6,
+      0,
+      50,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      98,
+      7,
+      0,
+      50,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      99,
+      39,
+      0,
+      50,
+      2,
+      "VAE"
+    ],
+    [
+      101,
+      50,
+      0,
+      3,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      102,
+      50,
+      1,
+      3,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      103,
+      50,
+      2,
+      3,
+      3,
+      "LATENT"
+    ],
+    [
+      107,
+      51,
+      0,
+      50,
+      3,
+      "CLIP_VISION_OUTPUT"
+    ],
+    [
+      110,
+      52,
+      0,
+      54,
+      0,
+      "IMAGE"
+    ],
+    [
+      111,
+      54,
+      0,
+      51,
+      1,
+      "IMAGE"
+    ],
+    [
+      112,
+      54,
+      0,
+      50,
+      4,
+      "IMAGE"
+    ],
+    [
+      113,
+      54,
+      1,
+      50,
+      5,
+      "INT"
+    ],
+    [
+      114,
+      54,
+      2,
+      50,
+      6,
+      "INT"
+    ],
+    [
+      115,
+      8,
+      0,
+      55,
+      0,
+      "IMAGE"
+    ],
+    [
+      118,
+      50,
+      2,
+      57,
+      1,
+      "LATENT"
+    ],
+    [
+      119,
+      56,
+      0,
+      57,
+      0,
+      "MODEL"
+    ],
+    [
+      120,
+      57,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      171,
+      38,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      172,
+      38,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      173,
+      37,
+      0,
+      56,
+      0,
+      "MODEL"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Wan2.1 图生视频",
+      "bounding": [
+        -340,
+        -390,
+        2070,
+        1445
+      ],
+      "color": "#b06634",
+      "font_size": 50,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6588450000000007,
+      "offset": [
+        858.5633737382436,
+        413.292029869723
+      ]
+    },
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "node_versions": {
+      "comfy-core": "0.3.26",
+      "ComfyUI-VideoHelperSuite": "c47b10ca1798b4925ff5a5f07d80c51ca80a837d",
+      "ComfyUI-KJNodes": "46f9ec2c24c2642d3c468b69d910a8a1b05f0ea5"
+    },
+    "workspace_info": {
+      "id": "w8Ot6d5JOQ3c0KmuL8n5B",
+      "saveLock": false,
+      "cloudID": null,
+      "coverMediaPath": null
+    }
+  },
+  "version": 0.4
+}
