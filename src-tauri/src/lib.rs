@@ -249,7 +249,21 @@ fn update_settings(
 
     // --- 执行副作用 ---
 
+    // 0. 主播模式副作用：用于窗口捕捉
+    // 开启时让 animation window 进入任务栏/可枚举窗口列表（skip_taskbar = false）
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
+        let should_skip_taskbar = !settings.streamer_mode;
+        if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
+            eprintln!(
+                "[StreamerMode] set_skip_taskbar({}) failed: {}",
+                should_skip_taskbar,
+                e
+            );
+        }
+    }
+
     // 1. 开机自启动副作用
+
     // 注意：由于安全和权限原因，开机自启动逻辑仅在 Release 构建下生效
     let autostart_manager = app.autolaunch();
     if settings.auto_start {
@@ -1855,7 +1869,7 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
     let state: State<'_, AppState> = app.state();
 
     // 1. 获取缩放和位置设置
-    let (scale, saved_position, is_silence) = {
+    let (scale, saved_position, is_silence, streamer_mode) = {
         let storage = state.storage.lock().unwrap();
         (
             storage.data.settings.animation_scale as f64,
@@ -1864,8 +1878,10 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
                 storage.data.info.animation_window_y,
             ),
             storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
         )
     };
+
 
     // 2. 计算窗口尺寸
     let bubble_area_height = BUBBLE_AREA_HEIGHT;
@@ -1891,8 +1907,9 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
             .always_on_top(true)
             .resizable(false)
             .shadow(false)
-            .skip_taskbar(true)
+            .skip_taskbar(!streamer_mode)
             .build()
+
             .map_err(|e| e.to_string())?;
 
     // 为动画窗口应用当前 Mod 的图标（用于 Alt-Tab / 任务管理器等显示）
@@ -2335,14 +2352,16 @@ fn restore_window_icons_sync(app: &tauri::AppHandle) {
 fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let app_state: State<AppState> = app.state();
     // 内存优化：只提取需要的字段，避免克隆整个 settings 结构体
-    let (no_audio_mode, silence_mode, show_character) = {
+    let (no_audio_mode, silence_mode, streamer_mode, show_character) = {
         let storage = app_state.storage.lock().unwrap();
         (
             storage.data.settings.no_audio_mode,
             storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
             storage.data.settings.show_character,
         )
     };
+
 
     let about_i = MenuItem::with_id(
         app,
@@ -2406,7 +2425,18 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         silence_mode,
         None::<&str>,
     )?;
+
+    let streamer_mode_i = CheckMenuItem::with_id(
+        app,
+        "toggle_streamer_mode",
+        get_i18n_text(app, "menu.streamerMode"),
+        true,
+        streamer_mode,
+        None::<&str>,
+    )?;
+
     let show_widget_i = CheckMenuItem::with_id(
+
         app,
         "toggle_show_widget",
         get_i18n_text(app, "menu.showCharacter"),
@@ -2438,6 +2468,7 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
             &mod_i,
             &settings_i,
             &sep2,
+            &streamer_mode_i,
             &show_widget_i,
             &mute_i,
             &silence_i,
@@ -2549,7 +2580,8 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             show_or_create_window(app, config);
         }
 
-        "toggle_mute" | "toggle_silence" | "toggle_show_widget" => {
+        "toggle_mute" | "toggle_silence" | "toggle_streamer_mode" | "toggle_show_widget" => {
+
             // 提取 settings 和需要的字段
             let (settings) = {
                 let app_state: State<AppState> = app.state();
@@ -2561,9 +2593,13 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                     "toggle_silence" => {
                         storage.data.settings.silence_mode = !storage.data.settings.silence_mode
                     }
+                    "toggle_streamer_mode" => {
+                        storage.data.settings.streamer_mode = !storage.data.settings.streamer_mode
+                    }
                     "toggle_show_widget" => {
                         storage.data.settings.show_character = !storage.data.settings.show_character
                     }
+
                     _ => {}
                 }
                 let settings = storage.data.settings.clone();
@@ -2581,8 +2617,23 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 let _ = emit(&app, events::MUTE_CHANGE, settings.no_audio_mode);
             }
 
-            // 2. 免打扰模式副作用 (修复死锁：提前释放锁)
+            // 2. 主播模式副作用：用于窗口捕捉（开启时不再 skip_taskbar）
+            if id == "toggle_streamer_mode" {
+                if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
+                    let should_skip_taskbar = !settings.streamer_mode;
+                    if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
+                        eprintln!(
+                            "[StreamerMode] set_skip_taskbar({}) failed: {}",
+                            should_skip_taskbar,
+                            e
+                        );
+                    }
+                }
+            }
+
+            // 3. 免打扰模式副作用 (修复死锁：提前释放锁)
             if id == "toggle_silence" {
+
 
                 let target_state = if get_media_status() {
                     // 后面可能增加从music到silence的特殊动画

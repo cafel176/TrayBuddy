@@ -284,8 +284,11 @@ export interface UserSettings {
   silence_mode: boolean;
   /** 全屏时是否自动进入免打扰 */
   auto_silence_when_fullscreen: boolean;
+  /** 是否启用主播模式（窗口捕捉兼容：关闭 skip_taskbar） */
+  streamer_mode: boolean;
   /** 是否显示桌面角色 */
   show_character: boolean;
+
   /** 是否显示边框装饰 */
   show_border: boolean;
   /** 动画窗口缩放比例（0.5 - 2.0） */

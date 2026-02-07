@@ -41,6 +41,10 @@ pub struct UserSettings {
     pub silence_mode: bool,                 // 免打扰模式
     pub auto_silence_when_fullscreen: bool, // 开启全屏应用自动进入免打扰模式
 
+    /// 主播模式：用于窗口捕捉兼容（开启时 animation 不再 skip_taskbar）
+    pub streamer_mode: bool,
+
+
     pub show_character: bool, // 显示桌面挂件
     pub show_border: bool,    // 显示桌面挂件边框
     pub animation_scale: f32, // 动画窗口缩放比例 (0.5 到 2.0, 默认 1.0 即 100%)
@@ -60,6 +64,8 @@ impl Default for UserSettings {
 
             silence_mode: false,
             auto_silence_when_fullscreen: true,
+            streamer_mode: false,
+
 
             show_character: true,
             show_border: true,

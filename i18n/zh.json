@@ -80,7 +80,9 @@
     "dnd": "免打扰",
     "dndMode": "免打扰模式",
     "dndFullscreen": "全屏时自动进入免打扰",
+    "streamerMode": "主播模式",
     "saveBtn": "保存设置",
+
     "statusLoading": "正在加载设置...",
     "statusLoaded": "设置已加载",
     "statusSaving": "正在保存...",
@@ -500,7 +502,9 @@
     "debugger": "调试器",
     "mute": "静音模式",
     "silence": "免打扰模式",
+    "streamerMode": "主播模式",
     "showCharacter": "显示桌面挂件",
+
     "quit": "退出"
   },
   "about": {

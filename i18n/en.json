@@ -80,7 +80,9 @@
     "dnd": "Do Not Disturb",
     "dndMode": "DND mode",
     "dndFullscreen": "Auto DND when fullscreen",
+    "streamerMode": "Streamer Mode",
     "saveBtn": "Save Settings",
+
     "statusLoading": "Loading settings...",
     "statusLoaded": "Settings loaded",
     "statusSaving": "Saving...",
@@ -502,7 +504,9 @@
     "debugger": "Debugger",
     "mute": "Mute Mode",
     "silence": "Silence Mode",
+    "streamerMode": "Streamer Mode",
     "showCharacter": "Show Character",
+
     "quit": "Quit"
   },
   "about": {

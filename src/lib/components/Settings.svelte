@@ -54,8 +54,11 @@
     silence_mode: boolean;
     /** 全屏时是否自动进入免打扰 */
     auto_silence_when_fullscreen: boolean;
+    /** 是否启用主播模式（窗口捕捉兼容：关闭 skip_taskbar） */
+    streamer_mode: boolean;
     /** 是否显示桌面角色 */
     show_character: boolean;
+
     /** 是否显示边框 */
     show_border: boolean;
     /** 角色缩放比例 */
@@ -251,7 +254,11 @@
       case "silence_mode":
         await applySilenceEffect(value);
         break;
+      case "streamer_mode":
+        await applyStreamerModeEffect(value);
+        break;
       // show_character 和 show_border 主要通过设置广播同步，此处可扩展
+
     }
 
     // 3. 保存并广播变更 (触发其他窗口同步)
@@ -292,6 +299,17 @@
       );
     }
   }
+
+  /**
+   * 应用主播模式副作用
+   *
+   * 目前主播模式的核心副作用（切换 animation window 的 skip_taskbar）在后端 `update_settings`
+   * 中统一处理，这里保留入口用于未来扩展（例如提示/联动其它选项）。
+   */
+  async function applyStreamerModeEffect(_enabled: boolean) {
+    // no-op
+  }
+
 
   /**
    * 处理语言切换
@@ -511,10 +529,29 @@
     </div>
 
     <!-- ================================================================= -->
+    <!-- 主播模式 -->
+    <!-- ================================================================= -->
+
+    <div class="divider">{_("settings.streamerMode")}</div>
+
+    <div class="checkbox-group">
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.streamer_mode}
+          onchange={(e) =>
+            handleToggle("streamer_mode", e.currentTarget.checked)}
+        />
+        {_("settings.streamerMode")}
+      </label>
+    </div>
+
+    <!-- ================================================================= -->
     <!-- 高级选项 -->
     <!-- ================================================================= -->
 
     <div class="divider">{_("settings.advancedOptions")}</div>
+
 
     <button type="button" class="secondary-button" onclick={openStorageDir}>
       {_("settings.openStorageDir")}

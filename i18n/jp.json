@@ -80,7 +80,9 @@
     "dnd": "おやすみモード",
     "dndMode": "おやすみモード",
     "dndFullscreen": "全画面時に自動でおやすみモード",
+    "streamerMode": "配信者モード",
     "saveBtn": "設定を保存",
+
     "statusLoading": "設定を読み込み中...",
     "statusLoaded": "設定を読み込みました",
     "statusSaving": "保存中...",
@@ -502,7 +504,9 @@
     "debugger": "デバッガー",
     "mute": "ミュートモード",
     "silence": "集中モード",
+    "streamerMode": "配信者モード",
     "showCharacter": "キャラクターを表示",
+
     "quit": "終了"
   },
   "about": {
