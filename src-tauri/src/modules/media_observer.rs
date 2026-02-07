@@ -6,12 +6,14 @@
 
 #![allow(unused)]
 
-use super::event_manager::{DEBUG_EVENT_TYPE_MEDIA, emit_debug_update};
-use serde::Serialize;
-use std::sync::{Arc, Mutex};
+use super::event_manager::{emit_debug_update, DEBUG_EVENT_TYPE_MEDIA};
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 use tauri::Manager;
 use tokio::sync::mpsc;
+
 
 // ========================================================================= //
 // 字符串常量
@@ -88,6 +90,106 @@ static OBSERVER_START_TIME: Mutex<Option<Instant>> = Mutex::new(None);
 
 /// 缓存的媒体状态
 static CACHED_MEDIA_STATE: Mutex<Option<MediaStateEvent>> = Mutex::new(None);
+
+// ========================================================================= //
+// 可配置关键词（用于音乐应用识别）
+// ========================================================================= //
+
+const MEDIA_OBSERVER_KEYWORDS_CONFIG_FILENAME: &str = "media_observer_keywords.json";
+
+#[derive(Debug, Deserialize)]
+struct MediaObserverKeywordsConfig {
+    #[serde(default)]
+    music_keywords: Vec<String>,
+}
+
+fn default_music_keywords() -> Vec<Box<str>> {
+    vec![
+        "music".into(),
+        "音乐".into(),
+        "player".into(),
+        "qqmusic".into(),
+        "kugou".into(),
+        "kuwo".into(),
+        "cloudmusic".into()
+    ]
+}
+
+lazy_static::lazy_static! {
+    static ref MUSIC_KEYWORDS: RwLock<Vec<Box<str>>> = RwLock::new(default_music_keywords());
+}
+
+fn load_music_keywords_from_file(path: &Path) -> Option<Vec<Box<str>>> {
+    if !path.exists() {
+        return None;
+    }
+
+    let content = std::fs::read_to_string(path).ok()?;
+    let cfg: MediaObserverKeywordsConfig = serde_json::from_str(&content).ok()?;
+
+    let keywords: Vec<Box<str>> = cfg
+        .music_keywords
+        .into_iter()
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.into_boxed_str())
+        .collect();
+
+    if keywords.is_empty() {
+        return None;
+    }
+
+    Some(keywords)
+}
+
+fn get_music_keywords_config_candidates() -> Vec<PathBuf> {
+    // 优先：exe 同目录 / config
+    let mut candidates = Vec::new();
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        let mut current_dir = exe_path.parent();
+        // 额外向上回退若干层，兼容开发模式（target/debug 等目录）
+        for _ in 0..=6 {
+            if let Some(dir) = current_dir {
+                candidates.push(dir.join("config").join(MEDIA_OBSERVER_KEYWORDS_CONFIG_FILENAME));
+                current_dir = dir.parent();
+            } else {
+                break;
+            }
+        }
+    }
+
+    // 兜底：工作目录 / config
+    candidates.push(
+        PathBuf::from("config").join(MEDIA_OBSERVER_KEYWORDS_CONFIG_FILENAME),
+    );
+
+    candidates
+}
+
+/// 启动时加载音乐关键词配置。
+///
+/// - 首选：`exe_dir/config/media_observer_keywords.json`
+/// - 兼容开发模式：向上回退若干层父目录查找 `config/`
+/// - 兜底：工作目录 `config/`
+pub fn init_music_keywords_from_config() {
+    for path in get_music_keywords_config_candidates() {
+        if let Some(keywords) = load_music_keywords_from_file(&path) {
+            if let Ok(mut guard) = MUSIC_KEYWORDS.write() {
+                *guard = keywords;
+            }
+            #[cfg(debug_assertions)]
+            println!("[MediaObserver] 已加载 music_keywords: {:?}", path);
+            return;
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    println!(
+        "[MediaObserver] 未找到/解析 media_observer_keywords.json，使用内置默认 music_keywords"
+    );
+}
+
 
 /// 获取缓存的媒体状态
 pub fn get_cached_media_state() -> Option<MediaStateEvent> {
@@ -176,36 +278,18 @@ fn update_cached_debug_info(info: MediaDebugInfo) {
 pub fn is_music_app(app_id: &str) -> bool {
     let app_lower = app_id.to_lowercase();
 
-    // 常见音乐播放器关键字
-    let music_keywords = [
-        "music",      // 通用：Apple Music, Windows Media Player 等
-        "音乐",       // 中文音乐应用
-        "player",     // 通用播放器：PotPlayer, MPC-HC Player 等
-        "spotify",    // Spotify
-        "qqmusic",    // QQ音乐
-        "kugou",      // 酷狗音乐
-        "kuwo",       // 酷我音乐
-        "foobar",     // foobar2000
-        "aimp",       // AIMP
-        "winamp",     // Winamp
-        "vlc",        // VLC
-        "musicbee",   // MusicBee
-        "groove",     // Groove Music
-        "itunes",     // iTunes
-        "netease",    // 网易云音乐 (NetEase Cloud Music)
-        "cloudmusic", // 网易云音乐进程名
-        "mpv",        // mpv 播放器
-        "mpc-hc",     // Media Player Classic
-        "wmplayer",   // Windows Media Player
-    ];
-
     // 检查关键字（支持带空格的名称如 "cloud music"）
     let app_no_space = app_lower.replace(" ", "");
 
-    music_keywords
+    let keywords_guard = MUSIC_KEYWORDS
+        .read()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    keywords_guard
         .iter()
-        .any(|&keyword| app_lower.contains(keyword) || app_no_space.contains(keyword))
+        .any(|keyword| app_lower.contains(keyword.as_ref()) || app_no_space.contains(keyword.as_ref()))
 }
+
 
 // ========================================================================= //
 // 类型定义

@@ -1095,6 +1095,11 @@ pub fn run() {
             let mut sm = StateManager::new();
             let mut storage = Storage::new(app.handle());
 
+            // ========== 加载可配置资源（exe 同目录 config） ==========
+            // 目前用于音乐应用识别关键字（MediaObserver）
+            modules::media_observer::init_music_keywords_from_config();
+
+
             // 记录登录时间和启动次数
             let dt = get_current_datetime();
             let current_time = dt.timestamp as i64;
@@ -2426,8 +2431,8 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         app,
         &[
             &about_i,
-            &mod_editor_i,
             &other_tools_i,
+            &mod_editor_i,
             &sep3,
             &debugger_i,
             &mod_i,
