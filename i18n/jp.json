@@ -497,6 +497,8 @@
     "about": "このアプリについて",
     "settings": "設定",
     "mods": "Mod 管理",
+    "modEditor": "Mod エディター",
+    "otherTools": "その他のツール",
     "debugger": "デバッガー",
     "mute": "ミュートモード",
     "silence": "集中モード",

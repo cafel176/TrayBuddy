@@ -2346,6 +2346,21 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         true,
         None::<&str>,
     )?;
+    let other_tools_i = MenuItem::with_id(
+        app,
+        "open_other_tool_dir",
+        get_i18n_text(app, "menu.otherTools"),
+        true,
+        None::<&str>,
+    )?;
+
+    let mod_editor_i = MenuItem::with_id(
+        app,
+        "open_mod_tool_dir",
+        get_i18n_text(app, "menu.modEditor"),
+        true,
+        None::<&str>,
+    )?;
     let settings_i = MenuItem::with_id(
         app,
         "settings",
@@ -2411,6 +2426,8 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         app,
         &[
             &about_i,
+            &mod_editor_i,
+            &other_tools_i,
             &sep3,
             &debugger_i,
             &mod_i,
@@ -2436,6 +2453,31 @@ fn show_context_menu(app: tauri::AppHandle, window: WebviewWindow) -> Result<(),
 /// 统一渲染/托盘菜单事件处理
 fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
     match id {
+        "open_mod_tool_dir" | "open_other_tool_dir" => {
+            let subdir = if id == "open_mod_tool_dir" {
+                "mod-tool"
+            } else {
+                "other-tool"
+            };
+
+            // 优先使用可执行文件所在目录（发布版符合预期），开发模式下回退到工作目录
+            let resolved = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.join(subdir)))
+                .filter(|p| p.exists())
+                .or_else(|| {
+                    let p = std::path::PathBuf::from(subdir);
+                    if p.exists() { Some(p) } else { None }
+                });
+
+            if let Some(path) = resolved {
+                if let Err(e) = open_dir(path.to_string_lossy().to_string()) {
+                    eprintln!("[Menu] Failed to open dir '{}': {}", subdir, e);
+                }
+            } else {
+                eprintln!("[Menu] Tool dir not found: {}", subdir);
+            }
+        }
         "quit" => {
             let app_state: State<AppState> = app.state();
             let mut storage = app_state.storage.lock().unwrap();

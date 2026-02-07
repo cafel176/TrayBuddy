@@ -497,6 +497,8 @@
     "about": "About",
     "settings": "Settings",
     "mods": "Mods",
+    "modEditor": "Mod Editor",
+    "otherTools": "Other Tools",
     "debugger": "Debugger",
     "mute": "Mute Mode",
     "silence": "Silence Mode",
