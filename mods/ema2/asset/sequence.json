@@ -19,11 +19,11 @@
     "sequence": true,
     "origin_reverse": false,
     "need_reverse": true,
-    "frame_time": 0.15,
+    "frame_time": 0.1,
     "frame_size_x": 180,
     "frame_size_y": 243,
     "frame_num_x": 6,
-    "frame_num_y": 3,
+    "frame_num_y": 5,
     "offset_x": 0,
     "offset_y": 0
   },

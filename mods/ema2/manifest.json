@@ -19,7 +19,7 @@
     "idle": {
       "name": "idle",
       "persistent": true,
-      "anima": "idle",
+      "anima": "idle2",
       "audio": "",
       "text": "",
       "priority": 1,
