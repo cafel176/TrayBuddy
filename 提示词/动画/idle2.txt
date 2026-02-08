@@ -1,3 +1,16 @@
-Generate an 8-second seamless idle loop animation from the reference image of an anime character. Preserve the exact character identity (same face, eyes, hairstyle, outfit, colors, and 2D anime art style). Front-facing bust portrait, centered, symmetrical framing. Locked static camera (no pan/tilt/zoom), no perspective change.
-Subtle natural idle motion only: the character blinks naturally about 2 times over 8 seconds, with short eyelid closure (a quick blink, eyes closed for ~0.08–0.15 seconds, not held). Add a gentle breeze so bangs and hair tips sway slightly, and the collar/neckwear flutters subtly (small amplitude, smooth continuous motion). Add very slight breathing / micro body sway (minimal, steady, not exaggerated, no head turn).
-Background: solid pure chroma green screen (#00FF00), flat and uniform, no gradients, no texture, no shadows, no background movement, clean edges for keying. Motion should be smooth, no jitter or flicker, and the first and last frames match for perf
+角色描述: 严格保持与参考图完全一致的动漫少女角色形象。 
+画风一致性: 动画风格、线条细节、上色方式完全遵循参考图，无任何风格变化。 
+关键配色: 眼睛颜色与参考图严格一致；嘴颜色与参考图严格一致，保持自然、不突兀。
+
+背景: 透明背景。 
+光影: 禁止添加任何非原图的额外光影效果，画面保持平铺、均匀，无高光、无阴影、无反射。
+
+眼神: 角色面朝镜头，眼睛进行缓慢、自然且周期性的双眼眨动。 
+笑容: 微微张开嘴巴，展现出含蓄的笑容，嘴部开合幅度小，保持优雅。
+
+头部动态 (可选): 头部可以进行极其轻微、柔和的向左倾斜。 
+头发物理 (可选): 头发（特别是发梢）随头部的微动产生明显的、自然的物理晃动。 
+身体动态 (可选): 身体可被头部带动，出现小幅度的、不夸张的向左倾斜。 
+
+流畅度: 动态节奏平滑流畅，无闪烁感，无任何笔触抖动。 
+一致性: 画面角色无变形，无画风漂移。 风格: 呈现出Live2D待机动画（Idle Animation）的专业级风格和质感。 
