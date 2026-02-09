@@ -1384,6 +1384,97 @@ function stringifyForSave(obj) {
   return JSON.stringify(obj, null, 2).replace(/\\\\n/g, '\\n');
 }
 
+/**
+ * 递归遍历目录，获取所有非 .json 文件
+ * @param {FileSystemDirectoryHandle} dirHandle
+ * @param {string} basePath
+ * @returns {Promise<Array<{relPath: string, file: File}>>}
+ */
+async function collectNonJsonFilesFromDirectory(dirHandle, basePath = '') {
+  const out = [];
+  if (!dirHandle) return out;
+
+  for await (const entry of dirHandle.values()) {
+    const name = entry.name;
+    const relPath = basePath ? `${basePath}/${name}` : name;
+
+    if (entry.kind === 'directory') {
+      const nested = await collectNonJsonFilesFromDirectory(entry, relPath);
+      out.push(...nested);
+      continue;
+    }
+
+    if (entry.kind === 'file') {
+      if (name.toLowerCase().endsWith('.json')) continue;
+      try {
+        const file = await entry.getFile();
+        out.push({ relPath, file });
+      } catch (e) {
+        // 忽略无法读取的文件
+      }
+    }
+  }
+
+  return out;
+}
+
+function shouldSkipCopiedNonJson(relPath, { preferPreviewFromEditor = true, preferIconFromEditor = true } = {}) {
+  const p = String(relPath || '').replace(/\\/g, '/').toLowerCase();
+
+  // 如果用户在编辑器里选了新的预览图/图标，则不覆盖它
+  if (preferPreviewFromEditor && currentMod?.previewData) {
+    if (p.startsWith('preview.') && PREVIEW_EXTENSIONS.some(ext => p === `preview.${ext}`)) {
+      return true;
+    }
+  }
+  if (preferIconFromEditor && currentMod?.iconData) {
+    if (p === 'icon.ico') return true;
+  }
+
+  return false;
+}
+
+async function ensureDirectoryForPath(rootDirHandle, relPath) {
+  const parts = String(relPath).split('/').filter(Boolean);
+  let dir = rootDirHandle;
+  for (let i = 0; i < parts.length - 1; i++) {
+    dir = await dir.getDirectoryHandle(parts[i], { create: true });
+  }
+  return { dir, fileName: parts[parts.length - 1] };
+}
+
+async function copyNonJsonFilesBetweenDirectories(sourceDirHandle, targetDirHandle, options = {}) {
+  if (!sourceDirHandle || !targetDirHandle) return;
+
+  const files = await collectNonJsonFilesFromDirectory(sourceDirHandle);
+  for (const { relPath, file } of files) {
+    if (shouldSkipCopiedNonJson(relPath, options)) continue;
+
+    const { dir, fileName } = await ensureDirectoryForPath(targetDirHandle, relPath);
+    const fileHandle = await dir.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(file);
+    await writable.close();
+  }
+}
+
+async function addNonJsonFilesToZipFromDirectory(sourceDirHandle, zipRootFolder, options = {}) {
+  if (!sourceDirHandle || !zipRootFolder) return;
+
+  const files = await collectNonJsonFilesFromDirectory(sourceDirHandle);
+  for (const { relPath, file } of files) {
+    if (shouldSkipCopiedNonJson(relPath, options)) continue;
+
+    try {
+      const buf = await file.arrayBuffer();
+      zipRootFolder.file(relPath, buf);
+    } catch (e) {
+      // 忽略无法读取的文件
+    }
+  }
+}
+
+
 
 /**
  * 创建默认状态对象
@@ -1417,6 +1508,9 @@ async function saveMod() {
   // 从表单收集数据
   collectManifestData();
   collectBubbleStyle();
+
+  // 如果是从文件夹加载的 Mod，保存/导出时把该目录下的非 json 资源一并带上
+  const sourceFolderHandle = modFolderHandle;
   
   // 每次保存都弹窗选择目标文件夹
   try {
@@ -1533,6 +1627,11 @@ async function saveMod() {
       await iconWritable.write(blob);
       await iconWritable.close();
     }
+
+    // 复制源目录中的所有非 json 资源文件（音频/图片等）到目标目录
+    if (sourceFolderHandle) {
+      await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
+    }
     
     hasUnsavedChanges = false;
     document.getElementById('currentModName').textContent = currentMod.manifest.id;
@@ -1599,6 +1698,11 @@ async function exportMod() {
     if (currentMod.iconData) {
       const base64Data = currentMod.iconData.split(',')[1];
       root.file('icon.ico', base64Data, { base64: true });
+    }
+
+    // 把当前 Mod 目录下的非 json 文件（音频/图片等资产）也打包进去
+    if (modFolderHandle) {
+      await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
     }
     
     // 生成并保存
