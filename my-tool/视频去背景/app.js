@@ -1234,6 +1234,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     progressBar.style.width = `${80 + progress * 20}%`;
                     progressText.textContent = `${Math.round(80 + progress * 20)}%`;
                 });
+            } else if (format === 'mov') {
+                await exportMov(processedFrames, fps, quality, (progress) => {
+                    progressBar.style.width = `${80 + progress * 20}%`;
+                    progressText.textContent = `${Math.round(80 + progress * 20)}%`;
+                });
             } else {
                 // WebM VP8/VP9
                 await encodeVideo(processedFrames, fps, format, quality, (progress) => {
@@ -1800,6 +1805,343 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(window.i18n?.t('gif_lib_hint') || 'GIF 库未加载，将导出为 WebM 格式。如需 GIF，请添加 gif.js 库。');
             await encodeVideo(frames, fps, 'webm-vp8', 0.8, onProgress);
         }
+    }
+
+    // --- MOV Export (QuickTime Animation codec with transparency) ---
+    async function exportMov(frames, fps, quality, onProgress) {
+        const width = frames[0].width;
+        const height = frames[0].height;
+        const frameCount = frames.length;
+        const timeScale = Math.round(fps * 1000); // Use higher timescale for precision
+        const frameDuration = Math.round(timeScale / fps);
+        const totalDuration = frameCount * frameDuration;
+        
+        console.log(`Creating MOV: ${width}x${height}, ${frameCount} frames @ ${fps} FPS`);
+        
+        // Encode frames as PNG (QuickTime Animation codec - 'png ')
+        const frameDataArray = [];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = width;
+        canvas.height = height;
+        
+        for (let i = 0; i < frameCount; i++) {
+            ctx.clearRect(0, 0, width, height);
+            ctx.putImageData(frames[i], 0, 0);
+            
+            // Convert to PNG blob
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const arrayBuffer = await blob.arrayBuffer();
+            frameDataArray.push(new Uint8Array(arrayBuffer));
+            
+            onProgress((i + 1) / frameCount * 0.7);
+            
+            if (i % 5 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        }
+        
+        // Calculate total mdat size
+        let mdatDataSize = 0;
+        for (const frame of frameDataArray) {
+            mdatDataSize += frame.length;
+        }
+        
+        // Build sample table entries
+        const sampleSizes = frameDataArray.map(f => f.length);
+        
+        // Build MOV file structure
+        const movData = buildMovFile(width, height, timeScale, frameDuration, totalDuration, frameCount, sampleSizes, frameDataArray);
+        
+        onProgress(0.9);
+        
+        // Create and download blob
+        const blob = new Blob([movData], { type: 'video/quicktime' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `video_bg_removed_${frameCount}f_${fps}fps_${Date.now()}.mov`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        console.log(`MOV created: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+        onProgress(1);
+    }
+    
+    function buildMovFile(width, height, timeScale, frameDuration, totalDuration, frameCount, sampleSizes, frameDataArray) {
+        // Helper functions for writing atoms
+        function writeUint32BE(value) {
+            return new Uint8Array([
+                (value >> 24) & 0xFF,
+                (value >> 16) & 0xFF,
+                (value >> 8) & 0xFF,
+                value & 0xFF
+            ]);
+        }
+        
+        function writeUint16BE(value) {
+            return new Uint8Array([
+                (value >> 8) & 0xFF,
+                value & 0xFF
+            ]);
+        }
+        
+        function writeFixedPoint16_16(value) {
+            const intPart = Math.floor(value);
+            const fracPart = Math.round((value - intPart) * 65536);
+            return new Uint8Array([
+                (intPart >> 8) & 0xFF,
+                intPart & 0xFF,
+                (fracPart >> 8) & 0xFF,
+                fracPart & 0xFF
+            ]);
+        }
+        
+        function writeFixedPoint8_8(value) {
+            const intPart = Math.floor(value);
+            const fracPart = Math.round((value - intPart) * 256);
+            return new Uint8Array([intPart & 0xFF, fracPart & 0xFF]);
+        }
+        
+        function makeAtom(type, content) {
+            const typeBytes = new TextEncoder().encode(type);
+            const size = 8 + content.length;
+            const sizeBytes = writeUint32BE(size);
+            const result = new Uint8Array(size);
+            result.set(sizeBytes, 0);
+            result.set(typeBytes, 4);
+            result.set(content, 8);
+            return result;
+        }
+        
+        function concatArrays(...arrays) {
+            const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
+            const result = new Uint8Array(totalLength);
+            let offset = 0;
+            for (const arr of arrays) {
+                result.set(arr, offset);
+                offset += arr.length;
+            }
+            return result;
+        }
+        
+        // Build atoms from inside out
+        
+        // ftyp - file type
+        const ftyp = makeAtom('ftyp', concatArrays(
+            new TextEncoder().encode('qt  '), // major brand: QuickTime
+            writeUint32BE(0x00000200),         // minor version
+            new TextEncoder().encode('qt  ')  // compatible brand
+        ));
+        
+        // mdat header (we'll write actual size after calculating)
+        // mdat contains all frame data
+        const mdatDataSize = frameDataArray.reduce((sum, f) => sum + f.length, 0);
+        const mdatHeaderSize = 8;
+        
+        // mvhd - movie header
+        const creationTime = Math.floor(Date.now() / 1000) + 2082844800; // Mac epoch
+        const mvhd = makeAtom('mvhd', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(creationTime),       // creation time
+            writeUint32BE(creationTime),       // modification time
+            writeUint32BE(timeScale),          // time scale
+            writeUint32BE(totalDuration),      // duration
+            writeFixedPoint16_16(1.0),         // preferred rate
+            writeFixedPoint8_8(1.0),           // preferred volume
+            new Uint8Array(10),                // reserved
+            // Matrix (identity)
+            writeFixedPoint16_16(1.0), writeFixedPoint16_16(0), writeFixedPoint16_16(0),
+            writeFixedPoint16_16(0), writeFixedPoint16_16(1.0), writeFixedPoint16_16(0),
+            writeFixedPoint16_16(0), writeFixedPoint16_16(0), new Uint8Array([0x40, 0x00, 0x00, 0x00]),
+            writeUint32BE(0),                  // preview time
+            writeUint32BE(0),                  // preview duration
+            writeUint32BE(0),                  // poster time
+            writeUint32BE(0),                  // selection time
+            writeUint32BE(0),                  // selection duration
+            writeUint32BE(0),                  // current time
+            writeUint32BE(2)                   // next track ID
+        ));
+        
+        // tkhd - track header
+        const tkhd = makeAtom('tkhd', concatArrays(
+            new Uint8Array([0, 0, 0, 0x0F]),   // version + flags (track enabled, in movie, in preview)
+            writeUint32BE(creationTime),
+            writeUint32BE(creationTime),
+            writeUint32BE(1),                  // track ID
+            writeUint32BE(0),                  // reserved
+            writeUint32BE(totalDuration),      // duration
+            new Uint8Array(8),                 // reserved
+            writeUint16BE(0),                  // layer
+            writeUint16BE(0),                  // alternate group
+            writeFixedPoint8_8(1.0),           // volume (for audio)
+            writeUint16BE(0),                  // reserved
+            // Matrix (identity)
+            writeFixedPoint16_16(1.0), writeFixedPoint16_16(0), writeFixedPoint16_16(0),
+            writeFixedPoint16_16(0), writeFixedPoint16_16(1.0), writeFixedPoint16_16(0),
+            writeFixedPoint16_16(0), writeFixedPoint16_16(0), new Uint8Array([0x40, 0x00, 0x00, 0x00]),
+            writeFixedPoint16_16(width),       // width
+            writeFixedPoint16_16(height)       // height
+        ));
+        
+        // mdhd - media header
+        const mdhd = makeAtom('mdhd', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(creationTime),
+            writeUint32BE(creationTime),
+            writeUint32BE(timeScale),
+            writeUint32BE(totalDuration),
+            writeUint16BE(0),                  // language (undetermined)
+            writeUint16BE(0)                   // quality
+        ));
+        
+        // hdlr - handler reference (video)
+        const hdlr = makeAtom('hdlr', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            new TextEncoder().encode('mhlr'), // component type
+            new TextEncoder().encode('vide'), // component subtype (video)
+            writeUint32BE(0),                  // component manufacturer
+            writeUint32BE(0),                  // component flags
+            writeUint32BE(0),                  // component flags mask
+            new TextEncoder().encode('VideoHandler\0') // component name
+        ));
+        
+        // vmhd - video media header
+        const vmhd = makeAtom('vmhd', concatArrays(
+            new Uint8Array([0, 0, 0, 1]),      // version + flags
+            writeUint16BE(0),                  // graphics mode
+            writeUint16BE(0x8000),             // opcolor R
+            writeUint16BE(0x8000),             // opcolor G
+            writeUint16BE(0x8000)              // opcolor B
+        ));
+        
+        // stsd - sample description (PNG codec)
+        const sampleDescEntry = concatArrays(
+            writeUint32BE(86),                 // entry size
+            new TextEncoder().encode('png '), // codec type (PNG)
+            new Uint8Array(6),                 // reserved
+            writeUint16BE(1),                  // data reference index
+            writeUint16BE(0),                  // version
+            writeUint16BE(0),                  // revision level
+            new TextEncoder().encode('appl'), // vendor
+            writeUint32BE(0),                  // temporal quality
+            writeUint32BE(512),                // spatial quality (high)
+            writeUint16BE(width),              // width
+            writeUint16BE(height),             // height
+            writeFixedPoint16_16(72),          // horizontal resolution
+            writeFixedPoint16_16(72),          // vertical resolution
+            writeUint32BE(0),                  // data size
+            writeUint16BE(1),                  // frame count
+            // Compressor name (32 bytes, pascal string)
+            new Uint8Array([3]),               // length
+            new TextEncoder().encode('PNG'),
+            new Uint8Array(28),                // padding
+            writeUint16BE(24),                 // depth
+            writeUint16BE(-1)                  // color table ID (-1 = default)
+        );
+        
+        const stsd = makeAtom('stsd', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(1),                  // entry count
+            sampleDescEntry
+        ));
+        
+        // stts - time to sample (all frames same duration)
+        const stts = makeAtom('stts', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(1),                  // entry count
+            writeUint32BE(frameCount),         // sample count
+            writeUint32BE(frameDuration)       // sample delta
+        ));
+        
+        // stsc - sample to chunk (all samples in one chunk)
+        const stsc = makeAtom('stsc', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(1),                  // entry count
+            writeUint32BE(1),                  // first chunk
+            writeUint32BE(frameCount),         // samples per chunk
+            writeUint32BE(1)                   // sample description ID
+        ));
+        
+        // stsz - sample sizes
+        const stszData = [
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(0),                  // sample size (0 = variable)
+            writeUint32BE(frameCount)          // sample count
+        ];
+        for (const size of sampleSizes) {
+            stszData.push(writeUint32BE(size));
+        }
+        const stsz = makeAtom('stsz', concatArrays(...stszData));
+        
+        // stco - chunk offset (single chunk at mdat data start)
+        // We need to calculate this after we know all sizes
+        // For now, placeholder
+        const stco_placeholder = makeAtom('stco', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(1),                  // entry count
+            writeUint32BE(0)                   // chunk offset (will be patched)
+        ));
+        
+        // stbl - sample table
+        const stbl = makeAtom('stbl', concatArrays(stsd, stts, stsc, stsz, stco_placeholder));
+        
+        // dinf - data information
+        const dref = makeAtom('dref', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),      // version + flags
+            writeUint32BE(1),                  // entry count
+            makeAtom('url ', new Uint8Array([0, 0, 0, 1])) // self-contained
+        ));
+        const dinf = makeAtom('dinf', dref);
+        
+        // minf - media information
+        const minf = makeAtom('minf', concatArrays(vmhd, dinf, stbl));
+        
+        // mdia - media
+        const mdia = makeAtom('mdia', concatArrays(mdhd, hdlr, minf));
+        
+        // trak - track
+        const trak = makeAtom('trak', concatArrays(tkhd, mdia));
+        
+        // moov - movie
+        const moov = makeAtom('moov', concatArrays(mvhd, trak));
+        
+        // Calculate mdat offset (ftyp + moov + mdat header)
+        const mdatOffset = ftyp.length + moov.length + mdatHeaderSize;
+        
+        // Patch stco with correct offset
+        // Find stco in moov and patch it
+        const moovData = new Uint8Array(moov);
+        // stco is at a known offset within the structure
+        // We need to find and patch the chunk offset value
+        // The offset value is the last 4 bytes of stco
+        
+        // Build mdat
+        const mdatSize = mdatHeaderSize + mdatDataSize;
+        const mdatHeader = concatArrays(writeUint32BE(mdatSize), new TextEncoder().encode('mdat'));
+        
+        // Combine all frame data
+        const allFrameData = concatArrays(...frameDataArray);
+        
+        // Build final MOV - but we need to patch stco first
+        // Let's rebuild with correct offset
+        
+        // Rebuild stco with correct offset
+        const stco = makeAtom('stco', concatArrays(
+            new Uint8Array([0, 0, 0, 0]),
+            writeUint32BE(1),
+            writeUint32BE(mdatOffset)
+        ));
+        
+        // Rebuild stbl with correct stco
+        const stbl_final = makeAtom('stbl', concatArrays(stsd, stts, stsc, stsz, stco));
+        const minf_final = makeAtom('minf', concatArrays(vmhd, dinf, stbl_final));
+        const mdia_final = makeAtom('mdia', concatArrays(mdhd, hdlr, minf_final));
+        const trak_final = makeAtom('trak', concatArrays(tkhd, mdia_final));
+        const moov_final = makeAtom('moov', concatArrays(mvhd, trak_final));
+        
+        // Final MOV file
+        return concatArrays(ftyp, moov_final, mdatHeader, allFrameData);
     }
 
     // --- Language Change Handler ---

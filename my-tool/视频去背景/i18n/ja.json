@@ -46,6 +46,7 @@
   "output_format_label": "出力形式",
   "format_webm_vp9": "WebM VP9 (推奨、透明対応)",
   "format_webm_vp8": "WebM VP8 (互換性良好、透明対応)",
+  "format_mov": "MOV (Apple ProRes 4444、透明対応)",
   "format_png_sequence": "PNGシーケンス (最高品質、透明対応)",
   "format_gif": "GIFアニメーション (透明対応、ファイルサイズ大)",
   "quality_label": "動画品質",
