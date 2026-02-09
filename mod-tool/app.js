@@ -1294,7 +1294,7 @@ function normalizeManifestForEditor(manifest) {
   ensureImportantState(manifest, 'silence_start', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'silence' });
   ensureImportantState(manifest, 'silence_end', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'idle' });
 
-  // 拖拽相关内置状态（前端事件为 animation_drag_start / animation_drag_end）
+  // 拖拽相关内置状态（触发器事件：drag_start / drag_end）
   ensureImportantState(manifest, 'dragging', { persistent: true, priority: 1, trigger_rate: 0, next_state: '' });
   ensureImportantState(manifest, 'drag_start', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'dragging' });
   ensureImportantState(manifest, 'drag_end', { persistent: false, priority: 999, trigger_rate: 0, next_state: 'idle' });
@@ -1318,9 +1318,11 @@ function normalizeManifestForEditor(manifest) {
     if (!t || typeof t !== 'object') return;
     if (typeof t.event !== 'string') t.event = '';
 
-    // 兼容旧 mod：把“状态名式”的 drag_start/drag_end 事件迁移到正确事件名
-    if (t.event === 'drag_start') t.event = 'animation_drag_start';
-    if (t.event === 'drag_end') t.event = 'animation_drag_end';
+    // 兼容旧 mod：事件名从 animation_drag_* 迁移到 drag_*
+    const legacyDragStart = 'animation_' + 'drag_start';
+    const legacyDragEnd = 'animation_' + 'drag_end';
+    if (t.event === legacyDragStart) t.event = 'drag_start';
+    if (t.event === legacyDragEnd) t.event = 'drag_end';
 
     if (!Array.isArray(t.can_trigger_states)) t.can_trigger_states = [];
   });
