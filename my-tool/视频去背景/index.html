@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">视频去背景工具</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- JSZip for PNG sequence export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- gif.js for GIF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <!-- webm-muxer for precise WebM encoding with exact frame timing -->
+    <script src="https://cdn.jsdelivr.net/npm/webm-muxer@4.0.1/build/webm-muxer.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">Video Background Remover</div>
+        <div class="header-actions">
+            <button id="reset-btn" class="secondary hidden" data-i18n="reset_btn">重新开始</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Step 1: Upload -->
+        <section id="upload-section" class="upload-section">
+            <i data-lucide="upload-cloud" class="upload-icon"></i>
+            <h2 data-i18n="upload_title">点击或拖拽视频文件到这里</h2>
+            <p style="color: var(--text-muted); margin-top: 0.5rem;" data-i18n="upload_hint">支持 MP4, WebM, MOV 等格式</p>
+            <input type="file" id="video-input" accept="video/*" class="hidden">
+        </section>
+
+        <!-- Step 2: Processing -->
+        <section id="editor-section" class="hidden">
+            <div class="card">
+                <div class="video-container">
+                    <video id="video-player" controls></video>
+                </div>
+                
+                <div class="range-slider" id="range-slider">
+                    <div class="range-fill" id="range-fill"></div>
+                    <div class="handle" id="handle-start"></div>
+                    <div class="handle" id="handle-end"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8rem;">
+                    <span id="start-time-label">00:00</span>
+                    <span id="end-time-label">00:00</span>
+                </div>
+
+                <div class="controls-grid">
+                    <div class="input-group">
+                        <label><span data-i18n="video_info_label">视频信息</span></label>
+                        <div class="video-info-display">
+                            <span id="video-fps-display">--</span> FPS | 
+                            <span id="video-duration-display">--</span> | 
+                            <span id="video-resolution-display">--</span>
+                        </div>
+                    </div>
+                    <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 0.5rem;">
+                        <button id="set-start-btn" class="secondary" data-i18n="set_start">设为起点</button>
+                        <button id="set-end-btn" class="secondary" data-i18n="set_end">设为终点</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Picker & Settings -->
+            <div id="settings-card" class="card">
+                <h3 style="margin-bottom: 1.5rem;" data-i18n="settings_title">去背景设置</h3>
+                
+                <!-- Mode Selection -->
+                <div class="mode-selector">
+                    <button id="mode-chroma" class="mode-btn active" data-mode="chroma">
+                        <i data-lucide="palette"></i>
+                        <span data-i18n="mode_chroma">色度键 (绿幕)</span>
+                    </button>
+                    <button id="mode-wand" class="mode-btn" data-mode="wand">
+                        <i data-lucide="wand-2"></i>
+                        <span data-i18n="mode_wand">魔棒 (连通区域)</span>
+                    </button>
+                    <button id="mode-perframe" class="mode-btn" data-mode="perframe">
+                        <i data-lucide="layers"></i>
+                        <span data-i18n="mode_perframe">逐帧魔棒</span>
+                    </button>
+                </div>
+
+                <div class="preview-row">
+                    <div class="preview-box">
+                        <h4 id="preview-left-title" data-i18n="preview_first_frame">首帧预览 (点击拾取颜色)</h4>
+                        <canvas id="first-frame-canvas"></canvas>
+                    </div>
+                    <div class="preview-box">
+                        <h4 data-i18n="preview_result">去背效果预览</h4>
+                        <canvas id="preview-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chroma Key Settings -->
+                <div id="chroma-settings" class="controls-grid" style="margin-top: 1.5rem;">
+                    <div class="input-group">
+                        <label data-i18n="bg_color_label">背景颜色</label>
+                        <div class="color-picker-container">
+                            <div id="color-preview" class="color-preview" style="background: #00ff00;"></div>
+                            <input type="text" id="color-hex" value="#00ff00" style="width: 100px;">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="tolerance_label">容差 (0-100)</label>
+                        <input type="range" id="tolerance-input" value="30" min="0" max="100">
+                        <span id="tolerance-value" class="slider-value">30</span>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="feather_label">边缘平滑 (羽化)</label>
+                        <input type="range" id="feather-input" value="15" min="0" max="100">
+                        <span id="feather-value" class="slider-value">15</span>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="spill_label">溢色移除 (抑制)</label>
+                        <input type="range" id="spill-input" value="20" min="0" max="100">
+                        <span id="spill-value" class="slider-value">20</span>
+                    </div>
+                </div>
+
+                <!-- Magic Wand Settings -->
+                <div id="wand-settings" class="controls-grid hidden" style="margin-top: 1.5rem;">
+                    <div class="input-group" style="grid-column: 1 / -1;">
+                        <label data-i18n="wand_hint">点击左侧图片选择要删除的区域，可多次点击添加多个区域</label>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="wand_tolerance_label">魔棒容差 (0-100)</label>
+                        <input type="range" id="wand-tolerance-input" value="32" min="0" max="100">
+                        <span id="wand-tolerance-value" class="slider-value">32</span>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="wand_feather_label">边缘羽化</label>
+                        <input type="range" id="wand-feather-input" value="2" min="0" max="20">
+                        <span id="wand-feather-value" class="slider-value">2</span>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="wand_contiguous_label">仅连续区域</label>
+                        <div class="toggle-container">
+                            <input type="checkbox" id="wand-contiguous" checked>
+                            <label for="wand-contiguous" class="toggle-label"></label>
+                        </div>
+                    </div>
+                    <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 0.5rem;">
+                        <button id="wand-clear-btn" class="secondary" data-i18n="wand_clear">清除选区</button>
+                        <span id="wand-selection-count" class="selection-count" data-i18n="wand_selection_count">已选择 0 个区域</span>
+                    </div>
+                </div>
+
+                <!-- Per-Frame Wand Settings -->
+                <div id="perframe-settings" class="hidden" style="margin-top: 1.5rem;">
+                    <!-- Frame Navigator -->
+                    <div class="frame-navigator">
+                        <div class="frame-nav-controls">
+                            <button id="perframe-first-btn" class="nav-btn" title="第一帧">
+                                <i data-lucide="chevrons-left"></i>
+                            </button>
+                            <button id="perframe-prev-btn" class="nav-btn" title="上一帧">
+                                <i data-lucide="chevron-left"></i>
+                            </button>
+                            <div class="frame-counter">
+                                <input type="number" id="perframe-current" value="1" min="1">
+                                <span>/</span>
+                                <span id="perframe-total">--</span>
+                            </div>
+                            <button id="perframe-next-btn" class="nav-btn" title="下一帧">
+                                <i data-lucide="chevron-right"></i>
+                            </button>
+                            <button id="perframe-last-btn" class="nav-btn" title="最后一帧">
+                                <i data-lucide="chevrons-right"></i>
+                            </button>
+                        </div>
+                        <div class="frame-timeline" id="frame-timeline">
+                            <div class="timeline-track" id="timeline-track"></div>
+                            <div class="timeline-cursor" id="timeline-cursor"></div>
+                        </div>
+                    </div>
+
+                    <!-- Per-Frame Wand Controls -->
+                    <div class="controls-grid">
+                        <div class="input-group" style="grid-column: 1 / -1;">
+                            <label data-i18n="perframe_hint">点击左侧图片选择当前帧要删除的区域，每帧可有不同选区</label>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="perframe_tolerance_label">魔棒容差 (0-100)</label>
+                            <input type="range" id="perframe-tolerance-input" value="32" min="0" max="100">
+                            <span id="perframe-tolerance-value" class="slider-value">32</span>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="perframe_feather_label">边缘羽化</label>
+                            <input type="range" id="perframe-feather-input" value="2" min="0" max="20">
+                            <span id="perframe-feather-value" class="slider-value">2</span>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="perframe_contiguous_label">仅连续区域</label>
+                            <div class="toggle-container">
+                                <input type="checkbox" id="perframe-contiguous" checked>
+                                <label for="perframe-contiguous" class="toggle-label"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Per-Frame Actions -->
+                    <div class="perframe-actions">
+                        <div class="action-group">
+                            <button id="perframe-clear-btn" class="secondary">
+                                <i data-lucide="eraser"></i>
+                                <span data-i18n="perframe_clear">清除当前帧选区</span>
+                            </button>
+                            <span id="perframe-selection-count" class="selection-count" data-i18n="perframe_selection_count">当前帧: 0 个选区</span>
+                        </div>
+                        <div class="action-group">
+                            <button id="perframe-copy-to-all-btn" class="secondary">
+                                <i data-lucide="copy"></i>
+                                <span data-i18n="perframe_copy_to_all">复制到所有帧</span>
+                            </button>
+                            <button id="perframe-copy-to-range-btn" class="secondary">
+                                <i data-lucide="arrow-right-left"></i>
+                                <span data-i18n="perframe_copy_to_range">复制到指定范围</span>
+                            </button>
+                        </div>
+                        <div class="action-group">
+                            <button id="perframe-clear-all-btn" class="secondary danger">
+                                <i data-lucide="trash-2"></i>
+                                <span data-i18n="perframe_clear_all">清除所有帧选区</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Copy Range Modal (inline) -->
+                    <div id="copy-range-panel" class="copy-range-panel hidden">
+                        <div class="copy-range-content">
+                            <label data-i18n="perframe_copy_range_label">复制当前帧选区到帧范围:</label>
+                            <div class="range-inputs">
+                                <input type="number" id="copy-range-start" min="1" value="1" placeholder="起始帧">
+                                <span>-</span>
+                                <input type="number" id="copy-range-end" min="1" value="1" placeholder="结束帧">
+                            </div>
+                            <div class="range-actions">
+                                <button id="copy-range-confirm-btn" data-i18n="perframe_confirm">确定</button>
+                                <button id="copy-range-cancel-btn" class="secondary" data-i18n="perframe_cancel">取消</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Frame Extraction Progress -->
+                    <div id="perframe-extract-progress" class="hidden">
+                        <div class="extract-status">
+                            <span id="perframe-extract-text" data-i18n="perframe_extracting">正在提取帧...</span>
+                            <span id="perframe-extract-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-container small">
+                            <div id="perframe-extract-bar" class="progress-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Settings -->
+            <div id="output-card" class="card">
+                <h3 style="margin-bottom: 1.5rem;" data-i18n="output_title">输出设置</h3>
+                
+                <div class="controls-grid">
+                    <div class="input-group">
+                        <label data-i18n="output_format_label">输出格式</label>
+                        <select id="output-format">
+                            <option value="webm-vp9" data-i18n="format_webm_vp9">WebM VP9 (推荐，支持透明)</option>
+                            <option value="webm-vp8" data-i18n="format_webm_vp8">WebM VP8 (兼容性好，支持透明)</option>
+                            <option value="png-sequence" data-i18n="format_png_sequence">PNG 序列 (最高质量，支持透明)</option>
+                            <option value="gif" data-i18n="format_gif">GIF 动图 (支持透明，文件较大)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="quality_label">视频质量</label>
+                        <select id="video-quality">
+                            <option value="0.95" data-i18n="quality_high">高质量</option>
+                            <option value="0.8" selected data-i18n="quality_medium">中等质量</option>
+                            <option value="0.6" data-i18n="quality_low">低质量 (文件更小)</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 1rem; grid-column: 1 / -1;">
+                        <button id="process-btn" data-i18n="process_btn">开始处理并导出视频</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="loading-overlay" class="hidden">
+        <div class="loading-spinner"></div>
+        <p id="loading-text" data-i18n="processing">正在处理...</p>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <p id="progress-text">0%</p>
+    </div>
+
+    <script src="../i18n-helper.js"></script>
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
