@@ -36,6 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const spillInput = document.getElementById('spill-input');
     const spillValue = document.getElementById('spill-value');
     
+    // Multi-color chroma elements
+    const chromaColorList = document.getElementById('chroma-color-list');
+    const chromaColorCount = document.getElementById('chroma-color-count');
+    const chromaAddColorBtn = document.getElementById('chroma-add-color-btn');
+    const chromaClearAllBtn = document.getElementById('chroma-clear-all-btn');
+    
     // Wand mode elements
     const wandToleranceInput = document.getElementById('wand-tolerance-input');
     const wandToleranceValue = document.getElementById('wand-tolerance-value');
@@ -75,6 +81,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const perframeExtractPercent = document.getElementById('perframe-extract-percent');
     const perframeExtractBar = document.getElementById('perframe-extract-bar');
     
+    // Hybrid mode elements
+    const modeHybridBtn = document.getElementById('mode-hybrid');
+    const hybridSettings = document.getElementById('hybrid-settings');
+    const hybridOperationList = document.getElementById('hybrid-operation-list');
+    const hybridOperationCount = document.getElementById('hybrid-operation-count');
+    const hybridAddChromaBtn = document.getElementById('hybrid-add-chroma-btn');
+    const hybridAddWandBtn = document.getElementById('hybrid-add-wand-btn');
+    const hybridClearAllBtn = document.getElementById('hybrid-clear-all-btn');
+    
+    // Hybrid chroma panel elements
+    const hybridChromaPanel = document.getElementById('hybrid-chroma-panel');
+    const hybridColorPreview = document.getElementById('hybrid-color-preview');
+    const hybridColorHex = document.getElementById('hybrid-color-hex');
+    const hybridToleranceInput = document.getElementById('hybrid-tolerance-input');
+    const hybridToleranceValue = document.getElementById('hybrid-tolerance-value');
+    const hybridFeatherInput = document.getElementById('hybrid-feather-input');
+    const hybridFeatherValue = document.getElementById('hybrid-feather-value');
+    const hybridSpillInput = document.getElementById('hybrid-spill-input');
+    const hybridSpillValue = document.getElementById('hybrid-spill-value');
+    const hybridChromaCancelBtn = document.getElementById('hybrid-chroma-cancel-btn');
+    const hybridChromaConfirmBtn = document.getElementById('hybrid-chroma-confirm-btn');
+    
+    // Hybrid wand panel elements
+    const hybridWandPanel = document.getElementById('hybrid-wand-panel');
+    const hybridWandToleranceInput = document.getElementById('hybrid-wand-tolerance-input');
+    const hybridWandToleranceValue = document.getElementById('hybrid-wand-tolerance-value');
+    const hybridWandFeatherInput = document.getElementById('hybrid-wand-feather-input');
+    const hybridWandFeatherValue = document.getElementById('hybrid-wand-feather-value');
+    const hybridWandContiguous = document.getElementById('hybrid-wand-contiguous');
+    const hybridWandSelectionCount = document.getElementById('hybrid-wand-selection-count');
+    const hybridWandClearBtn = document.getElementById('hybrid-wand-clear-btn');
+    const hybridWandCancelBtn = document.getElementById('hybrid-wand-cancel-btn');
+    const hybridWandConfirmBtn = document.getElementById('hybrid-wand-confirm-btn');
+    
     // Preview canvases
     const firstFrameCanvas = document.getElementById('first-frame-canvas');
     const previewCanvas = document.getElementById('preview-canvas');
@@ -82,6 +122,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Output elements
     const outputFormat = document.getElementById('output-format');
     const videoQuality = document.getElementById('video-quality');
+    const keepAudioCheckbox = document.getElementById('keep-audio');
+    const keepAudioHint = document.getElementById('keep-audio-hint');
     const processBtn = document.getElementById('process-btn');
     
     // Loading elements
@@ -102,12 +144,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let videoWidth = 0;
     let videoHeight = 0;
     
-    // Current mode: 'chroma' or 'wand' or 'perframe'
+    // Current mode: 'chroma' or 'wand' or 'perframe' or 'hybrid'
     let currentMode = 'chroma';
+    
+    // Multi-color chroma key state
+    let chromaColors = []; // Array of {hex, tolerance, feather, spill}
+    let selectedChromaIndex = -1; // Currently selected color for editing (-1 = none/new)
     
     // Wand mode state
     let wandMask = null; // Uint8Array storing alpha mask (0 = remove, 255 = keep)
     let wandSelectionPoints = []; // Array of {x, y} click points
+    
+    // Hybrid mode state
+    let hybridOperations = []; // Array of {type: 'chroma'|'wand', params: {...}}
+    let hybridEditMode = null; // 'chroma' or 'wand' when adding new operation
+    let hybridTempWandPoints = []; // Temporary wand points while editing
+    let hybridTempWandMask = null; // Temporary mask while editing
     
     // Per-frame wand mode state
     let perframeData = {
@@ -117,6 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
         selectionsByFrame: {},// Map: frameIndex -> [{x, y}, ...] selection points
         extractionDone: false // Whether frames have been extracted
     };
+
+    // Audio state
+    let audioBuffer = null; // AudioBuffer from original video
 
     // --- Initialization ---
     uploadSection.addEventListener('click', () => videoInput.click());
@@ -286,23 +341,51 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
     });
 
+    // --- Output Format Change Handler ---
+    outputFormat.addEventListener('change', () => {
+        updateAudioHint();
+    });
+
+    function updateAudioHint() {
+        const format = outputFormat.value;
+        const supportsAudio = format === 'webm-vp9' || format === 'webm-vp8';
+        keepAudioCheckbox.disabled = !supportsAudio;
+        keepAudioHint.textContent = supportsAudio 
+            ? (window.i18n?.t('keep_audio_hint') || '仅 WebM 格式支持')
+            : (window.i18n?.t('keep_audio_not_supported') || '当前格式不支持音频');
+        if (!supportsAudio) {
+            keepAudioCheckbox.checked = false;
+        }
+    }
+
+    // Initialize audio hint
+    updateAudioHint();
+
     // --- Mode Selection ---
     modeChromaBtn.addEventListener('click', () => switchMode('chroma'));
     modeWandBtn.addEventListener('click', () => switchMode('wand'));
     modePerframeBtn.addEventListener('click', () => switchMode('perframe'));
+    modeHybridBtn.addEventListener('click', () => switchMode('hybrid'));
 
     function switchMode(mode) {
         currentMode = mode;
+        
+        // Reset hybrid edit mode when switching
+        hybridEditMode = null;
+        hybridChromaPanel.classList.add('hidden');
+        hybridWandPanel.classList.add('hidden');
         
         // Update button states
         modeChromaBtn.classList.toggle('active', mode === 'chroma');
         modeWandBtn.classList.toggle('active', mode === 'wand');
         modePerframeBtn.classList.toggle('active', mode === 'perframe');
+        modeHybridBtn.classList.toggle('active', mode === 'hybrid');
         
         // Show/hide settings
         chromaSettings.classList.toggle('hidden', mode !== 'chroma');
         wandSettings.classList.toggle('hidden', mode !== 'wand');
         perframeSettings.classList.toggle('hidden', mode !== 'perframe');
+        hybridSettings.classList.toggle('hidden', mode !== 'hybrid');
         
         // Update preview title
         if (mode === 'chroma') {
@@ -311,9 +394,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (mode === 'wand') {
             previewLeftTitle.setAttribute('data-i18n', 'preview_wand_frame');
             previewLeftTitle.textContent = window.i18n?.t('preview_wand_frame') || '首帧预览 (点击选择区域)';
-        } else {
+        } else if (mode === 'perframe') {
             previewLeftTitle.setAttribute('data-i18n', 'preview_perframe');
             previewLeftTitle.textContent = window.i18n?.t('preview_perframe') || '当前帧预览 (点击选择区域)';
+        } else if (mode === 'hybrid') {
+            previewLeftTitle.setAttribute('data-i18n', 'preview_hybrid');
+            previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
         }
         
         // Re-render icons
@@ -398,20 +484,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const y = Math.floor((e.clientY - rect.top) * scaleY);
         
         if (currentMode === 'chroma') {
-            // Chroma mode: pick color
+            // Chroma mode: pick color and add to list
             const ctx = firstFrameCanvas.getContext('2d');
             const pixel = ctx.getImageData(x, y, 1, 1).data;
             const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
             
+            // Update the color input for preview
             colorHex.value = hex;
             colorPreview.style.background = hex;
-            updatePreview();
+            
+            // Automatically add the color to the list with current settings
+            addChromaColor(hex);
         } else if (currentMode === 'wand') {
             // Wand mode: flood fill selection
             addWandSelection(x, y);
         } else if (currentMode === 'perframe') {
             // Per-frame mode: add selection to current frame
             addPerframeSelection(x, y);
+        } else if (currentMode === 'hybrid') {
+            // Hybrid mode: depends on current edit mode
+            handleHybridCanvasClick(x, y);
         }
     });
 
@@ -419,24 +511,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const hex = colorHex.value;
         if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
             colorPreview.style.background = hex;
-            debouncedUpdatePreview();
+            updateSelectedChromaColor();
         }
     });
 
     // Slider value displays - Chroma mode
     toleranceInput.addEventListener('input', () => {
         toleranceValue.textContent = toleranceInput.value;
-        debouncedUpdatePreview();
+        updateSelectedChromaColor();
     });
 
     featherInput.addEventListener('input', () => {
         featherValue.textContent = featherInput.value;
-        debouncedUpdatePreview();
+        updateSelectedChromaColor();
     });
 
     spillInput.addEventListener('input', () => {
         spillValue.textContent = spillInput.value;
-        debouncedUpdatePreview();
+        updateSelectedChromaColor();
     });
 
     // Slider value displays - Wand mode
@@ -496,6 +588,682 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return { h, s, v };
     }
+
+    // --- Multi-Color Chroma Key Management ---
+    function addChromaColor(hex) {
+        const tolerance = parseInt(toleranceInput.value);
+        const feather = parseInt(featherInput.value);
+        const spill = parseInt(spillInput.value);
+        
+        // Check if this color already exists (within a small tolerance)
+        const existingIndex = chromaColors.findIndex(c => {
+            const existing = hexToRgb(c.hex);
+            const newColor = hexToRgb(hex);
+            if (!existing || !newColor) return false;
+            const dist = Math.sqrt(
+                Math.pow(existing.r - newColor.r, 2) +
+                Math.pow(existing.g - newColor.g, 2) +
+                Math.pow(existing.b - newColor.b, 2)
+            );
+            return dist < 10; // Colors within 10 units are considered the same
+        });
+        
+        if (existingIndex >= 0) {
+            // Update existing color's parameters
+            chromaColors[existingIndex] = { hex, tolerance, feather, spill };
+            selectedChromaIndex = existingIndex;
+        } else {
+            // Add new color
+            chromaColors.push({ hex, tolerance, feather, spill });
+            selectedChromaIndex = chromaColors.length - 1;
+        }
+        
+        renderChromaColorList();
+        updatePreview();
+    }
+    
+    function removeChromaColor(index) {
+        if (index >= 0 && index < chromaColors.length) {
+            chromaColors.splice(index, 1);
+            if (selectedChromaIndex >= chromaColors.length) {
+                selectedChromaIndex = chromaColors.length - 1;
+            }
+            renderChromaColorList();
+            updatePreview();
+        }
+    }
+    
+    function selectChromaColor(index) {
+        if (index >= 0 && index < chromaColors.length) {
+            selectedChromaIndex = index;
+            const color = chromaColors[index];
+            
+            // Update input fields with selected color's parameters
+            colorHex.value = color.hex;
+            colorPreview.style.background = color.hex;
+            toleranceInput.value = color.tolerance;
+            toleranceValue.textContent = color.tolerance;
+            featherInput.value = color.feather;
+            featherValue.textContent = color.feather;
+            spillInput.value = color.spill;
+            spillValue.textContent = color.spill;
+            
+            renderChromaColorList();
+        }
+    }
+    
+    function updateSelectedChromaColor() {
+        if (selectedChromaIndex >= 0 && selectedChromaIndex < chromaColors.length) {
+            chromaColors[selectedChromaIndex] = {
+                hex: colorHex.value,
+                tolerance: parseInt(toleranceInput.value),
+                feather: parseInt(featherInput.value),
+                spill: parseInt(spillInput.value)
+            };
+            renderChromaColorList();
+            debouncedUpdatePreview();
+        }
+    }
+    
+    function clearAllChromaColors() {
+        chromaColors = [];
+        selectedChromaIndex = -1;
+        renderChromaColorList();
+        updatePreview();
+    }
+    
+    function renderChromaColorList() {
+        const countText = window.i18n?.t('chroma_color_count') || '{n} 个颜色';
+        chromaColorCount.textContent = countText.replace('{n}', chromaColors.length);
+        
+        if (chromaColors.length === 0) {
+            chromaColorList.innerHTML = `<div class="chroma-color-empty" data-i18n="chroma_color_empty">点击左侧图片拾取颜色，或手动输入</div>`;
+            return;
+        }
+        
+        chromaColorList.innerHTML = chromaColors.map((color, index) => `
+            <div class="chroma-color-item ${index === selectedChromaIndex ? 'active' : ''}" data-index="${index}">
+                <div class="chroma-color-swatch" style="background: ${color.hex};"></div>
+                <div class="chroma-color-info">
+                    <span class="chroma-color-hex">${color.hex.toUpperCase()}</span>
+                    <span class="chroma-color-params">容差:${color.tolerance} 羽化:${color.feather} 溢色:${color.spill}</span>
+                </div>
+                <div class="chroma-color-actions">
+                    <button class="edit-btn" title="编辑" data-action="edit" data-index="${index}">
+                        <i data-lucide="pencil"></i>
+                    </button>
+                    <button class="delete-btn" title="删除" data-action="delete" data-index="${index}">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Re-render icons
+        if (window.lucide) lucide.createIcons();
+        
+        // Add event listeners
+        chromaColorList.querySelectorAll('.chroma-color-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const index = parseInt(item.dataset.index);
+                const action = e.target.closest('button')?.dataset.action;
+                
+                if (action === 'delete') {
+                    e.stopPropagation();
+                    removeChromaColor(index);
+                } else if (action === 'edit' || !action) {
+                    selectChromaColor(index);
+                }
+            });
+        });
+    }
+    
+    // Chroma button event listeners
+    chromaAddColorBtn.addEventListener('click', () => {
+        const hex = colorHex.value;
+        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+            addChromaColor(hex);
+        } else {
+            alert(window.i18n?.t('alert_invalid_color') || '请输入有效的颜色值 (例如: #00ff00)');
+        }
+    });
+    
+    chromaClearAllBtn.addEventListener('click', () => {
+        if (chromaColors.length === 0) return;
+        if (confirm(window.i18n?.t('confirm_clear_all_colors') || '确定要清除所有颜色吗？')) {
+            clearAllChromaColors();
+        }
+    });
+
+    // --- Hybrid Mode Functions ---
+    function handleHybridCanvasClick(x, y) {
+        if (!firstFrameImageData) return;
+        
+        if (hybridEditMode === 'chroma') {
+            // Pick color for chroma panel
+            const ctx = firstFrameCanvas.getContext('2d');
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+            
+            hybridColorHex.value = hex;
+            hybridColorPreview.style.background = hex;
+            updateHybridPreview();
+        } else if (hybridEditMode === 'wand') {
+            // Add wand selection point
+            addHybridWandSelection(x, y);
+        }
+    }
+    
+    function addHybridWandSelection(x, y) {
+        if (!firstFrameImageData) return;
+        
+        hybridTempWandPoints.push({ x, y });
+        
+        // Initialize temp mask if needed
+        if (!hybridTempWandMask) {
+            hybridTempWandMask = new Uint8Array(firstFrameImageData.width * firstFrameImageData.height).fill(255);
+        }
+        
+        const tolerance = parseInt(hybridWandToleranceInput.value);
+        const contiguous = hybridWandContiguous.checked;
+        const width = firstFrameImageData.width;
+        const height = firstFrameImageData.height;
+        const data = firstFrameImageData.data;
+        
+        // Get seed color
+        const seedIdx = (y * width + x) * 4;
+        const seedR = data[seedIdx];
+        const seedG = data[seedIdx + 1];
+        const seedB = data[seedIdx + 2];
+        
+        if (contiguous) {
+            hybridFloodFillSelection(x, y, seedR, seedG, seedB, tolerance, hybridTempWandMask);
+        } else {
+            hybridGlobalColorSelection(seedR, seedG, seedB, tolerance, hybridTempWandMask);
+        }
+        
+        updateHybridWandSelectionCount();
+        updateHybridPreview();
+    }
+    
+    function hybridFloodFillSelection(startX, startY, seedR, seedG, seedB, tolerance, mask) {
+        const width = firstFrameImageData.width;
+        const height = firstFrameImageData.height;
+        const data = firstFrameImageData.data;
+        
+        const visited = new Uint8Array(width * height);
+        const stack = [[startX, startY]];
+        const toleranceSq = tolerance * tolerance;
+        
+        while (stack.length > 0) {
+            const [x, y] = stack.pop();
+            
+            if (x < 0 || x >= width || y < 0 || y >= height) continue;
+            
+            const idx = y * width + x;
+            if (visited[idx]) continue;
+            visited[idx] = 1;
+            
+            const pixelIdx = idx * 4;
+            const r = data[pixelIdx];
+            const g = data[pixelIdx + 1];
+            const b = data[pixelIdx + 2];
+            
+            const dr = r - seedR;
+            const dg = g - seedG;
+            const db = b - seedB;
+            const distSq = dr * dr + dg * dg + db * db;
+            
+            if (distSq <= toleranceSq * 3) {
+                mask[idx] = 0;
+                stack.push([x + 1, y]);
+                stack.push([x - 1, y]);
+                stack.push([x, y + 1]);
+                stack.push([x, y - 1]);
+            }
+        }
+    }
+    
+    function hybridGlobalColorSelection(seedR, seedG, seedB, tolerance, mask) {
+        const width = firstFrameImageData.width;
+        const height = firstFrameImageData.height;
+        const data = firstFrameImageData.data;
+        const toleranceSq = tolerance * tolerance;
+        
+        for (let i = 0; i < width * height; i++) {
+            const pixelIdx = i * 4;
+            const r = data[pixelIdx];
+            const g = data[pixelIdx + 1];
+            const b = data[pixelIdx + 2];
+            
+            const dr = r - seedR;
+            const dg = g - seedG;
+            const db = b - seedB;
+            const distSq = dr * dr + dg * dg + db * db;
+            
+            if (distSq <= toleranceSq * 3) {
+                mask[i] = 0;
+            }
+        }
+    }
+    
+    function recalculateHybridWandMask() {
+        if (!firstFrameImageData || hybridTempWandPoints.length === 0) return;
+        
+        hybridTempWandMask = new Uint8Array(firstFrameImageData.width * firstFrameImageData.height).fill(255);
+        
+        const tolerance = parseInt(hybridWandToleranceInput.value);
+        const contiguous = hybridWandContiguous.checked;
+        const width = firstFrameImageData.width;
+        const data = firstFrameImageData.data;
+        
+        for (const point of hybridTempWandPoints) {
+            const seedIdx = (point.y * width + point.x) * 4;
+            const seedR = data[seedIdx];
+            const seedG = data[seedIdx + 1];
+            const seedB = data[seedIdx + 2];
+            
+            if (contiguous) {
+                hybridFloodFillSelection(point.x, point.y, seedR, seedG, seedB, tolerance, hybridTempWandMask);
+            } else {
+                hybridGlobalColorSelection(seedR, seedG, seedB, tolerance, hybridTempWandMask);
+            }
+        }
+        
+        updateHybridPreview();
+    }
+    
+    function clearHybridWandSelection() {
+        hybridTempWandPoints = [];
+        hybridTempWandMask = null;
+        updateHybridWandSelectionCount();
+        updateHybridPreview();
+    }
+    
+    function updateHybridWandSelectionCount() {
+        const count = hybridTempWandPoints.length;
+        const template = window.i18n?.t('wand_selection_count') || '已选择 {n} 个区域';
+        hybridWandSelectionCount.textContent = template.replace('{n}', count);
+    }
+    
+    // Add hybrid operation
+    function addHybridChromaOperation() {
+        const hex = hybridColorHex.value;
+        if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+            alert(window.i18n?.t('alert_invalid_color') || '请输入有效的颜色值');
+            return;
+        }
+        
+        hybridOperations.push({
+            type: 'chroma',
+            params: {
+                hex: hex,
+                tolerance: parseInt(hybridToleranceInput.value),
+                feather: parseInt(hybridFeatherInput.value),
+                spill: parseInt(hybridSpillInput.value)
+            }
+        });
+        
+        // Reset panel
+        hybridEditMode = null;
+        hybridChromaPanel.classList.add('hidden');
+        
+        renderHybridOperationList();
+        updatePreview();
+    }
+    
+    function addHybridWandOperation() {
+        if (hybridTempWandPoints.length === 0) {
+            alert(window.i18n?.t('alert_no_wand_selection') || '请先点击图片选择要删除的区域');
+            return;
+        }
+        
+        hybridOperations.push({
+            type: 'wand',
+            params: {
+                points: JSON.parse(JSON.stringify(hybridTempWandPoints)),
+                tolerance: parseInt(hybridWandToleranceInput.value),
+                feather: parseInt(hybridWandFeatherInput.value),
+                contiguous: hybridWandContiguous.checked
+            }
+        });
+        
+        // Reset panel
+        hybridEditMode = null;
+        hybridWandPanel.classList.add('hidden');
+        clearHybridWandSelection();
+        
+        renderHybridOperationList();
+        updatePreview();
+    }
+    
+    function removeHybridOperation(index) {
+        if (index >= 0 && index < hybridOperations.length) {
+            hybridOperations.splice(index, 1);
+            renderHybridOperationList();
+            updatePreview();
+        }
+    }
+    
+    function moveHybridOperation(index, direction) {
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= hybridOperations.length) return;
+        
+        const temp = hybridOperations[index];
+        hybridOperations[index] = hybridOperations[newIndex];
+        hybridOperations[newIndex] = temp;
+        
+        renderHybridOperationList();
+        updatePreview();
+    }
+    
+    function clearAllHybridOperations() {
+        hybridOperations = [];
+        renderHybridOperationList();
+        updatePreview();
+    }
+    
+    function renderHybridOperationList() {
+        const countText = window.i18n?.t('hybrid_operation_count') || '{n} 个操作';
+        hybridOperationCount.textContent = countText.replace('{n}', hybridOperations.length);
+        
+        if (hybridOperations.length === 0) {
+            hybridOperationList.innerHTML = `<div class="hybrid-operation-empty" data-i18n="hybrid_operation_empty">暂无操作，点击下方按钮添加</div>`;
+            return;
+        }
+        
+        hybridOperationList.innerHTML = hybridOperations.map((op, index) => {
+            const isChroma = op.type === 'chroma';
+            const iconClass = isChroma ? 'chroma' : 'wand';
+            const iconName = isChroma ? 'palette' : 'wand-2';
+            const typeText = isChroma 
+                ? (window.i18n?.t('mode_chroma') || '色度键')
+                : (window.i18n?.t('mode_wand') || '魔棒');
+            
+            let detail;
+            if (isChroma) {
+                detail = `${op.params.hex.toUpperCase()} | 容差:${op.params.tolerance} 羽化:${op.params.feather}`;
+            } else {
+                detail = `${op.params.points.length}个选区 | 容差:${op.params.tolerance} 羽化:${op.params.feather}`;
+            }
+            
+            return `
+                <div class="hybrid-operation-item" data-index="${index}">
+                    <div class="hybrid-operation-order">${index + 1}</div>
+                    <div class="hybrid-operation-icon ${iconClass}">
+                        <i data-lucide="${iconName}"></i>
+                    </div>
+                    ${isChroma ? `<div class="chroma-color-swatch" style="background: ${op.params.hex};"></div>` : ''}
+                    <div class="hybrid-operation-info">
+                        <span class="hybrid-operation-type">${typeText}</span>
+                        <span class="hybrid-operation-detail">${detail}</span>
+                    </div>
+                    <div class="hybrid-operation-actions">
+                        ${index > 0 ? `<button class="move-btn" title="上移" data-action="up" data-index="${index}"><i data-lucide="chevron-up"></i></button>` : ''}
+                        ${index < hybridOperations.length - 1 ? `<button class="move-btn" title="下移" data-action="down" data-index="${index}"><i data-lucide="chevron-down"></i></button>` : ''}
+                        <button class="delete-btn" title="删除" data-action="delete" data-index="${index}">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Re-render icons
+        if (window.lucide) lucide.createIcons();
+        
+        // Add event listeners
+        hybridOperationList.querySelectorAll('.hybrid-operation-item').forEach(item => {
+            const buttons = item.querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const action = btn.dataset.action;
+                    const index = parseInt(btn.dataset.index);
+                    
+                    if (action === 'delete') {
+                        removeHybridOperation(index);
+                    } else if (action === 'up') {
+                        moveHybridOperation(index, -1);
+                    } else if (action === 'down') {
+                        moveHybridOperation(index, 1);
+                    }
+                });
+            });
+        });
+    }
+    
+    function updateHybridPreview() {
+        if (!firstFrameImageData) return;
+        
+        const ctx = previewCanvas.getContext('2d');
+        const imageData = new ImageData(
+            new Uint8ClampedArray(firstFrameImageData.data),
+            firstFrameImageData.width,
+            firstFrameImageData.height
+        );
+        
+        // First apply all existing operations
+        processHybridOperations(imageData.data, hybridOperations);
+        
+        // Then apply current editing operation preview
+        if (hybridEditMode === 'chroma') {
+            const hex = hybridColorHex.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                processMultiChromaKey(imageData.data, [{
+                    hex: hex,
+                    tolerance: parseInt(hybridToleranceInput.value),
+                    feather: parseInt(hybridFeatherInput.value),
+                    spill: parseInt(hybridSpillInput.value)
+                }]);
+            }
+        } else if (hybridEditMode === 'wand' && hybridTempWandMask) {
+            const feather = parseInt(hybridWandFeatherInput.value);
+            const width = firstFrameImageData.width;
+            const height = firstFrameImageData.height;
+            
+            let finalMask = hybridTempWandMask;
+            if (feather > 0) {
+                finalMask = applyFeatherToMask(hybridTempWandMask, width, height, feather);
+            }
+            
+            // Apply mask (blend with existing alpha)
+            for (let i = 0; i < finalMask.length; i++) {
+                imageData.data[i * 4 + 3] = Math.min(imageData.data[i * 4 + 3], finalMask[i]);
+            }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+    }
+    
+    // Process all hybrid operations in order
+    function processHybridOperations(data, operations) {
+        const width = firstFrameImageData.width;
+        const height = firstFrameImageData.height;
+        
+        for (const op of operations) {
+            if (op.type === 'chroma') {
+                // Apply chroma key
+                processMultiChromaKey(data, [op.params]);
+            } else if (op.type === 'wand') {
+                // Calculate and apply wand mask
+                const mask = calculateHybridWandMask(op.params, width, height, data);
+                let finalMask = mask;
+                
+                if (op.params.feather > 0) {
+                    finalMask = applyFeatherToMask(mask, width, height, op.params.feather);
+                }
+                
+                // Apply mask (blend with existing alpha - take minimum)
+                for (let i = 0; i < finalMask.length; i++) {
+                    data[i * 4 + 3] = Math.min(data[i * 4 + 3], finalMask[i]);
+                }
+            }
+        }
+    }
+    
+    // Calculate wand mask for hybrid operation
+    function calculateHybridWandMask(params, width, height, data) {
+        const mask = new Uint8Array(width * height).fill(255);
+        const tolerance = params.tolerance;
+        const toleranceSq = tolerance * tolerance;
+        
+        for (const point of params.points) {
+            const seedIdx = (point.y * width + point.x) * 4;
+            const seedR = data[seedIdx];
+            const seedG = data[seedIdx + 1];
+            const seedB = data[seedIdx + 2];
+            
+            if (params.contiguous) {
+                // Flood fill
+                const visited = new Uint8Array(width * height);
+                const stack = [[point.x, point.y]];
+                
+                while (stack.length > 0) {
+                    const [x, y] = stack.pop();
+                    
+                    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+                    
+                    const idx = y * width + x;
+                    if (visited[idx]) continue;
+                    visited[idx] = 1;
+                    
+                    const pixelIdx = idx * 4;
+                    const r = data[pixelIdx];
+                    const g = data[pixelIdx + 1];
+                    const b = data[pixelIdx + 2];
+                    
+                    const dr = r - seedR;
+                    const dg = g - seedG;
+                    const db = b - seedB;
+                    const distSq = dr * dr + dg * dg + db * db;
+                    
+                    if (distSq <= toleranceSq * 3) {
+                        mask[idx] = 0;
+                        stack.push([x + 1, y]);
+                        stack.push([x - 1, y]);
+                        stack.push([x, y + 1]);
+                        stack.push([x, y - 1]);
+                    }
+                }
+            } else {
+                // Global selection
+                for (let j = 0; j < width * height; j++) {
+                    const pixelIdx = j * 4;
+                    const r = data[pixelIdx];
+                    const g = data[pixelIdx + 1];
+                    const b = data[pixelIdx + 2];
+                    
+                    const dr = r - seedR;
+                    const dg = g - seedG;
+                    const db = b - seedB;
+                    const distSq = dr * dr + dg * dg + db * db;
+                    
+                    if (distSq <= toleranceSq * 3) {
+                        mask[j] = 0;
+                    }
+                }
+            }
+        }
+        
+        return mask;
+    }
+    
+    // Hybrid mode event listeners
+    hybridAddChromaBtn.addEventListener('click', () => {
+        hybridEditMode = 'chroma';
+        hybridChromaPanel.classList.remove('hidden');
+        hybridWandPanel.classList.add('hidden');
+        
+        // Update preview title
+        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_chroma') || '首帧预览 (点击拾取颜色)';
+        
+        if (window.lucide) lucide.createIcons();
+    });
+    
+    hybridAddWandBtn.addEventListener('click', () => {
+        hybridEditMode = 'wand';
+        hybridWandPanel.classList.remove('hidden');
+        hybridChromaPanel.classList.add('hidden');
+        clearHybridWandSelection();
+        
+        // Update preview title
+        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_wand') || '首帧预览 (点击选择区域)';
+        
+        if (window.lucide) lucide.createIcons();
+    });
+    
+    hybridChromaCancelBtn.addEventListener('click', () => {
+        hybridEditMode = null;
+        hybridChromaPanel.classList.add('hidden');
+        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
+        updatePreview();
+    });
+    
+    hybridWandCancelBtn.addEventListener('click', () => {
+        hybridEditMode = null;
+        hybridWandPanel.classList.add('hidden');
+        clearHybridWandSelection();
+        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
+        updatePreview();
+    });
+    
+    hybridChromaConfirmBtn.addEventListener('click', () => {
+        addHybridChromaOperation();
+    });
+    
+    hybridWandConfirmBtn.addEventListener('click', () => {
+        addHybridWandOperation();
+    });
+    
+    hybridClearAllBtn.addEventListener('click', () => {
+        if (hybridOperations.length === 0) return;
+        if (confirm(window.i18n?.t('confirm_clear_all_hybrid') || '确定要清除所有操作吗？')) {
+            clearAllHybridOperations();
+        }
+    });
+    
+    hybridWandClearBtn.addEventListener('click', () => {
+        clearHybridWandSelection();
+    });
+    
+    // Hybrid panel slider event listeners
+    hybridToleranceInput.addEventListener('input', () => {
+        hybridToleranceValue.textContent = hybridToleranceInput.value;
+        if (hybridEditMode === 'chroma') updateHybridPreview();
+    });
+    
+    hybridFeatherInput.addEventListener('input', () => {
+        hybridFeatherValue.textContent = hybridFeatherInput.value;
+        if (hybridEditMode === 'chroma') updateHybridPreview();
+    });
+    
+    hybridSpillInput.addEventListener('input', () => {
+        hybridSpillValue.textContent = hybridSpillInput.value;
+        if (hybridEditMode === 'chroma') updateHybridPreview();
+    });
+    
+    hybridColorHex.addEventListener('input', () => {
+        const hex = hybridColorHex.value;
+        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+            hybridColorPreview.style.background = hex;
+            if (hybridEditMode === 'chroma') updateHybridPreview();
+        }
+    });
+    
+    hybridWandToleranceInput.addEventListener('input', () => {
+        hybridWandToleranceValue.textContent = hybridWandToleranceInput.value;
+        recalculateHybridWandMask();
+    });
+    
+    hybridWandFeatherInput.addEventListener('input', () => {
+        hybridWandFeatherValue.textContent = hybridWandFeatherInput.value;
+        if (hybridEditMode === 'wand') updateHybridPreview();
+    });
+    
+    hybridWandContiguous.addEventListener('change', () => {
+        recalculateHybridWandMask();
+    });
 
     // --- Magic Wand Algorithm ---
     function addWandSelection(x, y) {
@@ -1001,6 +1769,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        if (currentMode === 'hybrid') {
+            updateHybridPreview();
+            return;
+        }
+        
         if (!firstFrameImageData) return;
         
         const ctx = previewCanvas.getContext('2d');
@@ -1011,16 +1784,10 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         
         if (currentMode === 'chroma') {
-            const targetHex = colorHex.value;
-            const targetRgb = hexToRgb(targetHex);
-            if (!targetRgb) return;
-            
-            const targetHsv = rgbToHsv(targetRgb.r, targetRgb.g, targetRgb.b);
-            const tolerance = parseInt(toleranceInput.value) / 100;
-            const feather = parseInt(featherInput.value) / 100;
-            const spill = parseInt(spillInput.value) / 100;
-
-            processChromaKey(imageData.data, targetHsv, tolerance, feather, spill);
+            // Process all chroma colors
+            if (chromaColors.length > 0) {
+                processMultiChromaKey(imageData.data, chromaColors);
+            }
         } else {
             // Wand mode
             const feather = parseInt(wandFeatherInput.value);
@@ -1097,6 +1864,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Multi-color chroma key processing
+    function processMultiChromaKey(data, colors) {
+        // Process all colors - for each pixel, find the minimum alpha across all color keys
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i+1], b = data[i+2];
+            const hsv = rgbToHsv(r, g, b);
+            
+            let minAlpha = 255;
+            let totalSpillFactor = 0;
+            
+            for (const colorConfig of colors) {
+                const targetRgb = hexToRgb(colorConfig.hex);
+                if (!targetRgb) continue;
+                
+                const targetHsv = rgbToHsv(targetRgb.r, targetRgb.g, targetRgb.b);
+                const tolerance = colorConfig.tolerance / 100;
+                const feather = colorConfig.feather / 100;
+                const spill = colorConfig.spill / 100;
+                
+                let dh = Math.abs(hsv.h - targetHsv.h);
+                if (dh > 0.5) dh = 1 - dh;
+                const ds = Math.abs(hsv.s - targetHsv.s);
+                const dv = Math.abs(hsv.v - targetHsv.v);
+                
+                const distance = Math.sqrt(Math.pow(dh * 2.0, 2) + Math.pow(ds * 0.5, 2) + Math.pow(dv * 0.2, 2));
+                
+                if (distance < tolerance) {
+                    const innerBoundary = tolerance * (1 - feather);
+                    let alpha;
+                    if (distance > innerBoundary && feather > 0) {
+                        alpha = Math.floor(255 * (distance - innerBoundary) / (tolerance - innerBoundary));
+                    } else {
+                        alpha = 0;
+                    }
+                    minAlpha = Math.min(minAlpha, alpha);
+                }
+                
+                // Accumulate spill suppression
+                if (distance < tolerance * 1.5 && spill > 0) {
+                    const spillAmount = Math.max(0, 1 - (distance / (tolerance * 1.5))) * spill;
+                    totalSpillFactor = Math.max(totalSpillFactor, spillAmount);
+                }
+            }
+            
+            // Apply the minimum alpha (most transparent wins)
+            data[i+3] = minAlpha;
+            
+            // Apply combined spill suppression
+            if (minAlpha > 0 && totalSpillFactor > 0) {
+                const gray = (r + g + b) / 3;
+                data[i] = r * (1 - totalSpillFactor) + gray * totalSpillFactor;
+                data[i+1] = g * (1 - totalSpillFactor) + gray * totalSpillFactor;
+                data[i+2] = b * (1 - totalSpillFactor) + gray * totalSpillFactor;
+            }
+        }
+    }
+
     function processWandMask(data, featherRadius) {
         if (!wandMask) return;
         
@@ -1146,10 +1970,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Video Processing ---
     processBtn.addEventListener('click', async () => {
         if (currentMode === 'chroma') {
-            const targetHex = colorHex.value;
-            const targetRgb = hexToRgb(targetHex);
-            if (!targetRgb) {
-                alert(window.i18n?.t('alert_no_color') || '请先选择背景颜色');
+            if (chromaColors.length === 0) {
+                alert(window.i18n?.t('alert_no_color') || '请先选择要去除的背景颜色');
                 return;
             }
         } else if (currentMode === 'wand') {
@@ -1164,15 +1986,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(window.i18n?.t('alert_no_perframe_selection') || '请先在帧上添加选区');
                 return;
             }
+        } else if (currentMode === 'hybrid') {
+            if (hybridOperations.length === 0) {
+                alert(window.i18n?.t('alert_no_hybrid_operation') || '请先添加至少一个操作');
+                return;
+            }
         }
 
         const fps = detectedFps; // Use detected FPS to match input video
         const format = outputFormat.value;
         const quality = parseFloat(videoQuality.value);
+        const keepAudio = keepAudioCheckbox.checked && (format === 'webm-vp9' || format === 'webm-vp8');
 
         loadingOverlay.classList.remove('hidden');
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
+        
+        // Extract audio first if needed
+        let audioData = null;
+        if (keepAudio) {
+            loadingText.textContent = window.i18n?.t('extracting_audio') || '正在提取音频...';
+            audioData = await extractAudio();
+        }
+        
         loadingText.textContent = window.i18n?.t('extracting_frames') || '正在提取帧...';
 
         try {
@@ -1196,13 +2032,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Step 2: Process frames based on mode
             let processedFrames;
             if (currentMode === 'chroma') {
-                const targetRgb = hexToRgb(colorHex.value);
-                const targetHsv = rgbToHsv(targetRgb.r, targetRgb.g, targetRgb.b);
-                const tolerance = parseInt(toleranceInput.value) / 100;
-                const feather = parseInt(featherInput.value) / 100;
-                const spill = parseInt(spillInput.value) / 100;
-                
-                processedFrames = await processFramesChroma(frames, targetHsv, tolerance, feather, spill, (progress) => {
+                // Use multi-color processing
+                processedFrames = await processFramesMultiChroma(frames, chromaColors, (progress) => {
                     progressBar.style.width = `${50 + progress * 30}%`;
                     progressText.textContent = `${Math.round(50 + progress * 30)}%`;
                 });
@@ -1212,10 +2043,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     progressBar.style.width = `${50 + progress * 30}%`;
                     progressText.textContent = `${Math.round(50 + progress * 30)}%`;
                 });
-            } else {
+            } else if (currentMode === 'perframe') {
                 // Per-frame mode
                 const featherRadius = parseInt(perframeFeatherInput.value);
                 processedFrames = await processFramesPerframe(frames, featherRadius, (progress) => {
+                    progressBar.style.width = `${50 + progress * 30}%`;
+                    progressText.textContent = `${Math.round(50 + progress * 30)}%`;
+                });
+            } else if (currentMode === 'hybrid') {
+                // Hybrid mode
+                processedFrames = await processFramesHybrid(frames, hybridOperations, (progress) => {
                     progressBar.style.width = `${50 + progress * 30}%`;
                     progressText.textContent = `${Math.round(50 + progress * 30)}%`;
                 });
@@ -1241,7 +2078,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 // WebM VP8/VP9
-                await encodeVideo(processedFrames, fps, format, quality, (progress) => {
+                await encodeVideo(processedFrames, fps, format, quality, audioData, (progress) => {
                     progressBar.style.width = `${80 + progress * 20}%`;
                     progressText.textContent = `${Math.round(80 + progress * 20)}%`;
                 });
@@ -1254,6 +2091,45 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingOverlay.classList.add('hidden');
         }
     });
+
+    // Extract audio from video file
+    async function extractAudio() {
+        if (!videoFile) return null;
+        
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuffer = await videoFile.arrayBuffer();
+            const audioData = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // Calculate the audio segment corresponding to the selected time range
+            const sampleRate = audioData.sampleRate;
+            const startSample = Math.floor(startTime * sampleRate);
+            const endSample = Math.floor(endTime * sampleRate);
+            const duration = endSample - startSample;
+            
+            // Create a new AudioBuffer for the segment
+            const segmentBuffer = audioContext.createBuffer(
+                audioData.numberOfChannels,
+                duration,
+                sampleRate
+            );
+            
+            // Copy the relevant portion of each channel
+            for (let channel = 0; channel < audioData.numberOfChannels; channel++) {
+                const channelData = audioData.getChannelData(channel);
+                const segmentData = segmentBuffer.getChannelData(channel);
+                for (let i = 0; i < duration; i++) {
+                    segmentData[i] = channelData[startSample + i];
+                }
+            }
+            
+            await audioContext.close();
+            return segmentBuffer;
+        } catch (e) {
+            console.warn('Failed to extract audio:', e.message);
+            return null;
+        }
+    }
 
     async function extractFrames(fps, onProgress) {
         const frames = [];
@@ -1310,6 +2186,146 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return processedFrames;
+    }
+
+    async function processFramesMultiChroma(frames, colors, onProgress) {
+        const processedFrames = [];
+        
+        for (let i = 0; i < frames.length; i++) {
+            const imageData = new ImageData(
+                new Uint8ClampedArray(frames[i].data),
+                frames[i].width,
+                frames[i].height
+            );
+            
+            processMultiChromaKey(imageData.data, colors);
+            processedFrames.push(imageData);
+            
+            onProgress((i + 1) / frames.length);
+            
+            if (i % 10 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        }
+
+        return processedFrames;
+    }
+
+    async function processFramesHybrid(frames, operations, onProgress) {
+        const processedFrames = [];
+        
+        for (let i = 0; i < frames.length; i++) {
+            const imageData = new ImageData(
+                new Uint8ClampedArray(frames[i].data),
+                frames[i].width,
+                frames[i].height
+            );
+            
+            // Apply all hybrid operations in order
+            processHybridOperationsForFrame(imageData.data, operations, frames[i].width, frames[i].height);
+            processedFrames.push(imageData);
+            
+            onProgress((i + 1) / frames.length);
+            
+            if (i % 10 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        }
+
+        return processedFrames;
+    }
+
+    // Process hybrid operations for a single frame (used during export)
+    function processHybridOperationsForFrame(data, operations, width, height) {
+        for (const op of operations) {
+            if (op.type === 'chroma') {
+                // Apply chroma key
+                processMultiChromaKey(data, [op.params]);
+            } else if (op.type === 'wand') {
+                // Calculate mask based on current frame's pixel data
+                const mask = calculateHybridWandMaskForFrame(op.params, width, height, data);
+                let finalMask = mask;
+                
+                if (op.params.feather > 0) {
+                    finalMask = applyFeatherToMask(mask, width, height, op.params.feather);
+                }
+                
+                // Apply mask (blend with existing alpha - take minimum)
+                for (let i = 0; i < finalMask.length; i++) {
+                    data[i * 4 + 3] = Math.min(data[i * 4 + 3], finalMask[i]);
+                }
+            }
+        }
+    }
+
+    // Calculate wand mask for a frame during export
+    function calculateHybridWandMaskForFrame(params, width, height, data) {
+        const mask = new Uint8Array(width * height).fill(255);
+        const tolerance = params.tolerance;
+        const toleranceSq = tolerance * tolerance;
+        
+        for (const point of params.points) {
+            // Ensure point is within bounds
+            if (point.x < 0 || point.x >= width || point.y < 0 || point.y >= height) continue;
+            
+            const seedIdx = (point.y * width + point.x) * 4;
+            const seedR = data[seedIdx];
+            const seedG = data[seedIdx + 1];
+            const seedB = data[seedIdx + 2];
+            
+            if (params.contiguous) {
+                // Flood fill
+                const visited = new Uint8Array(width * height);
+                const stack = [[point.x, point.y]];
+                
+                while (stack.length > 0) {
+                    const [x, y] = stack.pop();
+                    
+                    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+                    
+                    const idx = y * width + x;
+                    if (visited[idx]) continue;
+                    visited[idx] = 1;
+                    
+                    const pixelIdx = idx * 4;
+                    const r = data[pixelIdx];
+                    const g = data[pixelIdx + 1];
+                    const b = data[pixelIdx + 2];
+                    
+                    const dr = r - seedR;
+                    const dg = g - seedG;
+                    const db = b - seedB;
+                    const distSq = dr * dr + dg * dg + db * db;
+                    
+                    if (distSq <= toleranceSq * 3) {
+                        mask[idx] = 0;
+                        stack.push([x + 1, y]);
+                        stack.push([x - 1, y]);
+                        stack.push([x, y + 1]);
+                        stack.push([x, y - 1]);
+                    }
+                }
+            } else {
+                // Global selection
+                for (let j = 0; j < width * height; j++) {
+                    const pixelIdx = j * 4;
+                    const r = data[pixelIdx];
+                    const g = data[pixelIdx + 1];
+                    const b = data[pixelIdx + 2];
+                    
+                    const dr = r - seedR;
+                    const dg = g - seedG;
+                    const db = b - seedB;
+                    const distSq = dr * dr + dg * dg + db * db;
+                    
+                    if (distSq <= toleranceSq * 3) {
+                        mask[j] = 0;
+                    }
+                }
+            }
+        }
+        
+        return mask;
     }
 
     async function processFramesWand(frames, featherRadius, onProgress) {
@@ -1462,7 +2478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return mask;
     }
 
-    async function encodeVideo(frames, fps, format, quality, onProgress) {
+    async function encodeVideo(frames, fps, format, quality, audioBuffer, onProgress) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = frames[0].width;
@@ -1477,7 +2493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Try WebCodecs + webm-muxer (most accurate) if available
         if (typeof VideoEncoder !== 'undefined' && window.WebMMuxer) {
             try {
-                await encodeWithWebCodecsMuxer(frames, fps, quality, canvas, ctx, onProgress);
+                await encodeWithWebCodecsMuxer(frames, fps, quality, audioBuffer, canvas, ctx, onProgress);
                 return;
             } catch (e) {
                 console.warn('WebCodecs+Muxer encoding failed:', e.message);
@@ -1485,11 +2501,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Fallback to MediaRecorder
+        // Fallback to MediaRecorder (no audio support)
         await encodeWithMediaRecorder(frames, fps, format, quality, canvas, ctx, onProgress);
     }
 
-    async function encodeWithWebCodecsMuxer(frames, fps, quality, canvas, ctx, onProgress) {
+    async function encodeWithWebCodecsMuxer(frames, fps, quality, audioBuffer, canvas, ctx, onProgress) {
         const width = frames[0].width;
         const height = frames[0].height;
         const frameDurationUs = Math.round(1000000 / fps);
@@ -1497,8 +2513,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Collect all encoded chunks
         const fileChunks = [];
         
-        // Create WebM muxer with precise timing
-        const muxer = new WebMMuxer.Muxer({
+        // Muxer configuration
+        const muxerConfig = {
             target: {
                 write: (data, position) => {
                     fileChunks.push({ data: new Uint8Array(data), position });
@@ -1514,10 +2530,22 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             type: 'webm',
             firstTimestampBehavior: 'offset'
-        });
+        };
+        
+        // Add audio configuration if we have audio
+        if (audioBuffer) {
+            muxerConfig.audio = {
+                codec: 'A_OPUS',
+                numberOfChannels: audioBuffer.numberOfChannels,
+                sampleRate: audioBuffer.sampleRate
+            };
+        }
+        
+        // Create WebM muxer with precise timing
+        const muxer = new WebMMuxer.Muxer(muxerConfig);
 
         // Configure video encoder
-        const encoder = new VideoEncoder({
+        const videoEncoder = new VideoEncoder({
             output: (chunk, metadata) => {
                 muxer.addVideoChunk(chunk, metadata);
             },
@@ -1552,7 +2580,40 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('No supported video codec found');
         }
         
-        encoder.configure(codecConfig);
+        videoEncoder.configure(codecConfig);
+        
+        // Configure audio encoder if we have audio
+        let audioEncoder = null;
+        if (audioBuffer && typeof AudioEncoder !== 'undefined') {
+            try {
+                audioEncoder = new AudioEncoder({
+                    output: (chunk, metadata) => {
+                        muxer.addAudioChunk(chunk, metadata);
+                    },
+                    error: (e) => {
+                        console.warn('AudioEncoder error:', e.message);
+                    }
+                });
+                
+                const audioConfig = {
+                    codec: 'opus',
+                    numberOfChannels: audioBuffer.numberOfChannels,
+                    sampleRate: audioBuffer.sampleRate,
+                    bitrate: 128000
+                };
+                
+                const audioSupport = await AudioEncoder.isConfigSupported(audioConfig);
+                if (audioSupport.supported) {
+                    audioEncoder.configure(audioConfig);
+                } else {
+                    console.warn('Opus audio codec not supported');
+                    audioEncoder = null;
+                }
+            } catch (e) {
+                console.warn('Failed to setup audio encoder:', e.message);
+                audioEncoder = null;
+            }
+        }
 
         // Encode each frame with precise timestamps
         for (let i = 0; i < frames.length; i++) {
@@ -1567,23 +2628,65 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Encode (keyframe every ~2 seconds)
             const isKeyFrame = i === 0 || (i % Math.round(fps * 2)) === 0;
-            encoder.encode(videoFrame, { keyFrame: isKeyFrame });
+            videoEncoder.encode(videoFrame, { keyFrame: isKeyFrame });
             videoFrame.close();
             
-            onProgress((i + 1) / frames.length * 0.95);
+            onProgress((i + 1) / frames.length * 0.90);
             
             // Yield to UI periodically
             if (i % 5 === 0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
+        
+        // Encode audio if we have an encoder
+        if (audioEncoder && audioBuffer) {
+            const numberOfChannels = audioBuffer.numberOfChannels;
+            const sampleRate = audioBuffer.sampleRate;
+            const length = audioBuffer.length;
+            
+            // Encode audio in chunks to avoid memory issues
+            const chunkSize = sampleRate; // 1 second chunks
+            for (let offset = 0; offset < length; offset += chunkSize) {
+                const chunkLength = Math.min(chunkSize, length - offset);
+                
+                // For f32-planar format, data should be arranged by channel (not interleaved)
+                // [ch0_sample0, ch0_sample1, ..., ch1_sample0, ch1_sample1, ...]
+                const chunkData = new Float32Array(chunkLength * numberOfChannels);
+                
+                for (let ch = 0; ch < numberOfChannels; ch++) {
+                    const channelData = audioBuffer.getChannelData(ch);
+                    const channelOffset = ch * chunkLength;
+                    for (let i = 0; i < chunkLength; i++) {
+                        chunkData[channelOffset + i] = channelData[offset + i];
+                    }
+                }
+                
+                const audioData = new AudioData({
+                    format: 'f32-planar',
+                    sampleRate: sampleRate,
+                    numberOfFrames: chunkLength,
+                    numberOfChannels: numberOfChannels,
+                    timestamp: Math.round(offset / sampleRate * 1000000), // microseconds
+                    data: chunkData
+                });
+                
+                audioEncoder.encode(audioData);
+                audioData.close();
+            }
+            
+            await audioEncoder.flush();
+            audioEncoder.close();
+        }
 
-        // Wait for encoder to finish
-        await encoder.flush();
-        encoder.close();
+        // Wait for video encoder to finish
+        await videoEncoder.flush();
+        videoEncoder.close();
         
         // Finalize muxer
         muxer.finalize();
+        
+        onProgress(0.95);
         
         // Combine all chunks into final file
         // Sort by position and concatenate
@@ -1602,7 +2705,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create blob and download
         const blob = new Blob([finalBuffer], { type: 'video/webm' });
         
-        console.log(`WebM created: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`WebM created: ${(blob.size / 1024 / 1024).toFixed(2)} MB, audio: ${audioBuffer ? 'yes' : 'no'}`);
         
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1803,7 +2906,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Fallback: Export as WebM with note about GIF
             alert(window.i18n?.t('gif_lib_hint') || 'GIF 库未加载，将导出为 WebM 格式。如需 GIF，请添加 gif.js 库。');
-            await encodeVideo(frames, fps, 'webm-vp8', 0.8, onProgress);
+            await encodeVideo(frames, fps, 'webm-vp8', 0.8, null, onProgress);
         }
     }
 
@@ -2148,13 +3251,22 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('languageChanged', () => {
         updateSelectionCount();
         updatePerframeSelectionCount();
+        renderHybridOperationList();
         // Update mode-specific titles
         if (currentMode === 'chroma') {
             previewLeftTitle.textContent = window.i18n?.t('preview_first_frame') || '首帧预览 (点击拾取颜色)';
         } else if (currentMode === 'wand') {
             previewLeftTitle.textContent = window.i18n?.t('preview_wand_frame') || '首帧预览 (点击选择区域)';
-        } else {
+        } else if (currentMode === 'perframe') {
             previewLeftTitle.textContent = window.i18n?.t('preview_perframe') || '当前帧预览 (点击选择区域)';
+        } else if (currentMode === 'hybrid') {
+            if (hybridEditMode === 'chroma') {
+                previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_chroma') || '首帧预览 (点击拾取颜色)';
+            } else if (hybridEditMode === 'wand') {
+                previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_wand') || '首帧预览 (点击选择区域)';
+            } else {
+                previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
+            }
         }
     });
 });

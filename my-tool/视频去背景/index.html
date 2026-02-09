@@ -81,6 +81,10 @@
                         <i data-lucide="layers"></i>
                         <span data-i18n="mode_perframe">逐帧魔棒</span>
                     </button>
+                    <button id="mode-hybrid" class="mode-btn" data-mode="hybrid">
+                        <i data-lucide="blend"></i>
+                        <span data-i18n="mode_hybrid">混合模式</span>
+                    </button>
                 </div>
 
                 <div class="preview-row">
@@ -95,28 +99,52 @@
                 </div>
 
                 <!-- Chroma Key Settings -->
-                <div id="chroma-settings" class="controls-grid" style="margin-top: 1.5rem;">
-                    <div class="input-group">
-                        <label data-i18n="bg_color_label">背景颜色</label>
-                        <div class="color-picker-container">
-                            <div id="color-preview" class="color-preview" style="background: #00ff00;"></div>
-                            <input type="text" id="color-hex" value="#00ff00" style="width: 100px;">
+                <div id="chroma-settings" style="margin-top: 1.5rem;">
+                    <!-- Color List -->
+                    <div class="chroma-color-list-container">
+                        <div class="chroma-color-list-header">
+                            <label data-i18n="chroma_color_list_label">要去除的颜色列表</label>
+                            <span id="chroma-color-count" class="selection-count">0 个颜色</span>
+                        </div>
+                        <div id="chroma-color-list" class="chroma-color-list">
+                            <!-- Color items will be added here dynamically -->
+                            <div class="chroma-color-empty" data-i18n="chroma_color_empty">点击左侧图片拾取颜色，或手动输入</div>
                         </div>
                     </div>
-                    <div class="input-group">
-                        <label data-i18n="tolerance_label">容差 (0-100)</label>
-                        <input type="range" id="tolerance-input" value="30" min="0" max="100">
-                        <span id="tolerance-value" class="slider-value">30</span>
+                    
+                    <!-- Add/Edit Color Panel -->
+                    <div class="controls-grid" style="margin-top: 1rem;">
+                        <div class="input-group">
+                            <label data-i18n="bg_color_label">背景颜色</label>
+                            <div class="color-picker-container">
+                                <div id="color-preview" class="color-preview" style="background: #00ff00;"></div>
+                                <input type="text" id="color-hex" value="#00ff00" style="width: 100px;">
+                                <button id="chroma-add-color-btn" class="secondary small" data-i18n="chroma_add_color">添加颜色</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="tolerance_label">容差 (0-100)</label>
+                            <input type="range" id="tolerance-input" value="30" min="0" max="100">
+                            <span id="tolerance-value" class="slider-value">30</span>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="feather_label">边缘平滑 (羽化)</label>
+                            <input type="range" id="feather-input" value="15" min="0" max="100">
+                            <span id="feather-value" class="slider-value">15</span>
+                        </div>
+                        <div class="input-group">
+                            <label data-i18n="spill_label">溢色移除 (抑制)</label>
+                            <input type="range" id="spill-input" value="20" min="0" max="100">
+                            <span id="spill-value" class="slider-value">20</span>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label data-i18n="feather_label">边缘平滑 (羽化)</label>
-                        <input type="range" id="feather-input" value="15" min="0" max="100">
-                        <span id="feather-value" class="slider-value">15</span>
-                    </div>
-                    <div class="input-group">
-                        <label data-i18n="spill_label">溢色移除 (抑制)</label>
-                        <input type="range" id="spill-input" value="20" min="0" max="100">
-                        <span id="spill-value" class="slider-value">20</span>
+                    
+                    <!-- Chroma Actions -->
+                    <div class="chroma-actions" style="margin-top: 1rem;">
+                        <button id="chroma-clear-all-btn" class="secondary danger" data-i18n="chroma_clear_all">
+                            <i data-lucide="trash-2"></i>
+                            清除所有颜色
+                        </button>
                     </div>
                 </div>
 
@@ -255,6 +283,117 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Hybrid Mode Settings -->
+                <div id="hybrid-settings" class="hidden" style="margin-top: 1.5rem;">
+                    <div class="input-group" style="margin-bottom: 1rem;">
+                        <label data-i18n="hybrid_hint">混合模式：按顺序添加色度键或魔棒操作，依次处理叠加效果</label>
+                    </div>
+                    
+                    <!-- Operation List -->
+                    <div class="hybrid-operation-list-container">
+                        <div class="hybrid-operation-list-header">
+                            <label data-i18n="hybrid_operation_list_label">操作列表</label>
+                            <span id="hybrid-operation-count" class="selection-count">0 个操作</span>
+                        </div>
+                        <div id="hybrid-operation-list" class="hybrid-operation-list">
+                            <div class="hybrid-operation-empty" data-i18n="hybrid_operation_empty">暂无操作，点击下方按钮添加</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Operation Buttons -->
+                    <div class="hybrid-add-buttons">
+                        <button id="hybrid-add-chroma-btn" class="secondary">
+                            <i data-lucide="palette"></i>
+                            <span data-i18n="hybrid_add_chroma">添加色度键</span>
+                        </button>
+                        <button id="hybrid-add-wand-btn" class="secondary">
+                            <i data-lucide="wand-2"></i>
+                            <span data-i18n="hybrid_add_wand">添加魔棒选区</span>
+                        </button>
+                        <button id="hybrid-clear-all-btn" class="secondary danger">
+                            <i data-lucide="trash-2"></i>
+                            <span data-i18n="hybrid_clear_all">清除所有操作</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Add Chroma Panel (hidden by default) -->
+                    <div id="hybrid-chroma-panel" class="hybrid-edit-panel hidden">
+                        <div class="hybrid-panel-header">
+                            <h4 data-i18n="hybrid_chroma_title">添加色度键操作</h4>
+                            <button id="hybrid-chroma-cancel-btn" class="secondary small">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <div class="controls-grid">
+                            <div class="input-group">
+                                <label data-i18n="bg_color_label">背景颜色</label>
+                                <div class="color-picker-container">
+                                    <div id="hybrid-color-preview" class="color-preview" style="background: #00ff00;"></div>
+                                    <input type="text" id="hybrid-color-hex" value="#00ff00" style="width: 100px;">
+                                </div>
+                                <small class="hint-text" data-i18n="hybrid_pick_color_hint">点击左侧图片拾取颜色</small>
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="tolerance_label">容差 (0-100)</label>
+                                <input type="range" id="hybrid-tolerance-input" value="30" min="0" max="100">
+                                <span id="hybrid-tolerance-value" class="slider-value">30</span>
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="feather_label">边缘平滑 (羽化)</label>
+                                <input type="range" id="hybrid-feather-input" value="15" min="0" max="100">
+                                <span id="hybrid-feather-value" class="slider-value">15</span>
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="spill_label">溢色移除 (抑制)</label>
+                                <input type="range" id="hybrid-spill-input" value="20" min="0" max="100">
+                                <span id="hybrid-spill-value" class="slider-value">20</span>
+                            </div>
+                        </div>
+                        <div class="hybrid-panel-actions">
+                            <button id="hybrid-chroma-confirm-btn" data-i18n="hybrid_confirm_add">确认添加</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Wand Panel (hidden by default) -->
+                    <div id="hybrid-wand-panel" class="hybrid-edit-panel hidden">
+                        <div class="hybrid-panel-header">
+                            <h4 data-i18n="hybrid_wand_title">添加魔棒选区操作</h4>
+                            <button id="hybrid-wand-cancel-btn" class="secondary small">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <div class="input-group" style="margin-bottom: 1rem;">
+                            <label data-i18n="hybrid_wand_hint">点击左侧图片选择要删除的区域</label>
+                        </div>
+                        <div class="controls-grid">
+                            <div class="input-group">
+                                <label data-i18n="wand_tolerance_label">魔棒容差 (0-100)</label>
+                                <input type="range" id="hybrid-wand-tolerance-input" value="32" min="0" max="100">
+                                <span id="hybrid-wand-tolerance-value" class="slider-value">32</span>
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="wand_feather_label">边缘羽化</label>
+                                <input type="range" id="hybrid-wand-feather-input" value="2" min="0" max="20">
+                                <span id="hybrid-wand-feather-value" class="slider-value">2</span>
+                            </div>
+                            <div class="input-group">
+                                <label data-i18n="wand_contiguous_label">仅连续区域</label>
+                                <div class="toggle-container">
+                                    <input type="checkbox" id="hybrid-wand-contiguous" checked>
+                                    <label for="hybrid-wand-contiguous" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hybrid-wand-selection-info">
+                            <span id="hybrid-wand-selection-count" class="selection-count" data-i18n="wand_selection_count">已选择 0 个区域</span>
+                            <button id="hybrid-wand-clear-btn" class="secondary small" data-i18n="wand_clear">清除选区</button>
+                        </div>
+                        <div class="hybrid-panel-actions">
+                            <button id="hybrid-wand-confirm-btn" data-i18n="hybrid_confirm_add">确认添加</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Output Settings -->
@@ -266,8 +405,8 @@
                         <label data-i18n="output_format_label">输出格式</label>
                         <select id="output-format">
                             <option value="mov" selected data-i18n="format_mov">MOV (Apple ProRes 4444，支持透明)</option>
-                            <option value="webm-vp9" data-i18n="format_webm_vp9">WebM VP9 (推荐，支持透明)</option>
-                            <option value="webm-vp8" data-i18n="format_webm_vp8">WebM VP8 (兼容性好，支持透明)</option>
+                            <option value="webm-vp9" data-i18n="format_webm_vp9">WebM VP9 (推荐，支持透明和音频)</option>
+                            <option value="webm-vp8" data-i18n="format_webm_vp8">WebM VP8 (兼容性好，支持透明和音频)</option>
                             <option value="png-sequence" data-i18n="format_png_sequence">PNG 序列 (最高质量，支持透明)</option>
                             <option value="gif" data-i18n="format_gif">GIF 动图 (支持透明，文件较大)</option>
                         </select>
@@ -279,6 +418,14 @@
                             <option value="0.8" data-i18n="quality_medium">中等质量</option>
                             <option value="0.6" data-i18n="quality_low">低质量 (文件更小)</option>
                         </select>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="keep_audio_label">保留原视频声音</label>
+                        <div class="toggle-container">
+                            <input type="checkbox" id="keep-audio">
+                            <label for="keep-audio" class="toggle-label"></label>
+                        </div>
+                        <small class="hint-text" id="keep-audio-hint" data-i18n="keep_audio_hint">仅 WebM 格式支持</small>
                     </div>
                     <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 1rem; grid-column: 1 / -1;">
                         <button id="process-btn" data-i18n="process_btn">开始处理并导出视频</button>

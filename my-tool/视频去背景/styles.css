@@ -746,3 +746,395 @@ button.danger:hover {
     flex-direction: column;
   }
 }
+
+/* Chroma Multi-Color List */
+.chroma-color-list-container {
+  background: var(--bg-dark);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+}
+
+.chroma-color-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.chroma-color-list-header label {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.chroma-color-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chroma-color-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chroma-color-list::-webkit-scrollbar-track {
+  background: var(--bg-card);
+  border-radius: 3px;
+}
+
+.chroma-color-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.chroma-color-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.chroma-color-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.chroma-color-item:hover {
+  border-color: var(--primary);
+}
+
+.chroma-color-item.active {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.chroma-color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 0.25rem;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chroma-color-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.chroma-color-hex {
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.chroma-color-params {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chroma-color-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.chroma-color-actions button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+
+.chroma-color-actions button:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.chroma-color-actions button.delete-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.chroma-color-actions button i {
+  width: 14px;
+  height: 14px;
+}
+
+/* Chroma Actions */
+.chroma-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.chroma-actions button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.chroma-actions button i {
+  width: 16px;
+  height: 16px;
+}
+
+/* Small button variant */
+button.small {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* Hybrid Mode Styles */
+.hybrid-operation-list-container {
+  background: var(--bg-dark);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+}
+
+.hybrid-operation-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.hybrid-operation-list-header label {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.hybrid-operation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.hybrid-operation-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.hybrid-operation-list::-webkit-scrollbar-track {
+  background: var(--bg-card);
+  border-radius: 3px;
+}
+
+.hybrid-operation-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.hybrid-operation-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.hybrid-operation-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-card);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.hybrid-operation-item:hover {
+  border-color: var(--primary);
+}
+
+.hybrid-operation-item.active {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.hybrid-operation-order {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.hybrid-operation-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.hybrid-operation-icon.chroma {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent);
+}
+
+.hybrid-operation-icon.wand {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+}
+
+.hybrid-operation-icon i {
+  width: 18px;
+  height: 18px;
+}
+
+.hybrid-operation-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.hybrid-operation-type {
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.hybrid-operation-detail {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hybrid-operation-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.hybrid-operation-actions button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+
+.hybrid-operation-actions button:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.hybrid-operation-actions button.delete-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.hybrid-operation-actions button.move-btn:hover {
+  background: var(--border);
+}
+
+.hybrid-operation-actions button i {
+  width: 14px;
+  height: 14px;
+}
+
+/* Hybrid Add Buttons */
+.hybrid-add-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.hybrid-add-buttons button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+.hybrid-add-buttons button i {
+  width: 18px;
+  height: 18px;
+}
+
+/* Hybrid Edit Panel */
+.hybrid-edit-panel {
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid var(--primary);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.hybrid-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.hybrid-panel-header h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.hybrid-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.hybrid-wand-selection-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-dark);
+  border-radius: 0.5rem;
+}
+
+.hint-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
