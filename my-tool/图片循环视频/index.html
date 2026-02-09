@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">图片循环视频生成器</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- webm-muxer for precise WebM encoding -->
+    <script src="https://cdn.jsdelivr.net/npm/webm-muxer@4.0.1/build/webm-muxer.min.js"></script>
+</head>
+<body>
+    <main>
+        <!-- Step 1: Upload -->
+        <section id="upload-section" class="upload-section">
+            <i data-lucide="image" class="upload-icon"></i>
+            <h2 data-i18n="upload_title">点击或拖拽图片文件到这里</h2>
+            <p style="color: var(--text-muted); margin-top: 0.5rem;" data-i18n="upload_hint">支持 PNG, JPG, WebP 等格式</p>
+            <input type="file" id="image-input" accept="image/*" class="hidden">
+        </section>
+
+        <!-- Step 2: Settings & Preview -->
+        <section id="editor-section" class="hidden">
+            <!-- Preview Card -->
+            <div class="card">
+                <h3 data-i18n="preview_title">预览</h3>
+                <div class="preview-container">
+                    <canvas id="preview-canvas"></canvas>
+                </div>
+                <div class="preview-controls">
+                    <button id="play-btn" class="secondary">
+                        <i data-lucide="play"></i>
+                        <span data-i18n="play_btn">播放预览</span>
+                    </button>
+                    <button id="pause-btn" class="secondary hidden">
+                        <i data-lucide="pause"></i>
+                        <span data-i18n="pause_btn">暂停</span>
+                    </button>
+                    <button id="reset-btn" class="secondary">
+                        <i data-lucide="rotate-ccw"></i>
+                        <span data-i18n="reset_btn">重新选择图片</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Card -->
+            <div class="card">
+                <h3 data-i18n="settings_title">视频设置</h3>
+                
+                <div class="controls-grid">
+                    <!-- Direction -->
+                    <div class="input-group">
+                        <label data-i18n="direction_label">移动方向</label>
+                        <div class="direction-selector">
+                            <button id="dir-left" class="dir-btn active" data-dir="left" title="向左">
+                                <i data-lucide="arrow-left"></i>
+                            </button>
+                            <button id="dir-right" class="dir-btn" data-dir="right" title="向右">
+                                <i data-lucide="arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Speed -->
+                    <div class="input-group">
+                        <label data-i18n="speed_label">移动速度 (像素/秒)</label>
+                        <input type="range" id="speed-input" value="200" min="10" max="1000" step="10">
+                        <div class="slider-info">
+                            <span id="speed-value" class="slider-value">200</span>
+                            <span class="slider-unit">px/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Duration -->
+                    <div class="input-group">
+                        <label data-i18n="duration_label">视频时长 (秒)</label>
+                        <input type="range" id="duration-input" value="5" min="1" max="60" step="0.5">
+                        <div class="slider-info">
+                            <span id="duration-value" class="slider-value">5</span>
+                            <span class="slider-unit">s</span>
+                        </div>
+                    </div>
+
+                    <!-- FPS -->
+                    <div class="input-group">
+                        <label data-i18n="fps_label">帧率 (FPS)</label>
+                        <select id="fps-select">
+                            <option value="24">24 FPS</option>
+                            <option value="30" selected>30 FPS</option>
+                            <option value="60">60 FPS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Info Display -->
+                <div class="info-display">
+                    <div class="info-item">
+                        <span class="info-label" data-i18n="info_image_size">图片尺寸</span>
+                        <span id="image-size-value" class="info-value">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" data-i18n="info_total_frames">总帧数</span>
+                        <span id="total-frames-value" class="info-value">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" data-i18n="info_loop_time">单次循环时间</span>
+                        <span id="loop-time-value" class="info-value">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Card -->
+            <div class="card">
+                <h3 data-i18n="output_title">输出设置</h3>
+                
+                <div class="controls-grid">
+                    <div class="input-group">
+                        <label data-i18n="output_format_label">输出格式</label>
+                        <select id="output-format">
+                            <option value="webm-vp9" data-i18n="format_webm_vp9">WebM VP9 (推荐)</option>
+                            <option value="webm-vp8" data-i18n="format_webm_vp8">WebM VP8 (兼容性好)</option>
+                            <option value="gif" data-i18n="format_gif">GIF 动图</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="quality_label">视频质量</label>
+                        <select id="video-quality">
+                            <option value="0.95" data-i18n="quality_high">高质量</option>
+                            <option value="0.8" selected data-i18n="quality_medium">中等质量</option>
+                            <option value="0.6" data-i18n="quality_low">低质量 (文件更小)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="export-actions">
+                    <button id="export-btn">
+                        <i data-lucide="download"></i>
+                        <span data-i18n="export_btn">生成并导出视频</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden">
+        <div class="loading-spinner"></div>
+        <p id="loading-text" data-i18n="processing">正在处理...</p>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <p id="progress-text">0%</p>
+    </div>
+
+    <script src="../i18n-helper.js"></script>
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
