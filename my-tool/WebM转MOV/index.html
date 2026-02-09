@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">WebM 转 MOV (保留透明)</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">WebM to MOV Converter</div>
+        <div class="header-actions">
+            <button id="reset-btn" class="secondary hidden" data-i18n="reset_btn">重新开始</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Step 1: Upload -->
+        <section id="upload-section" class="upload-section">
+            <i data-lucide="file-video" class="upload-icon"></i>
+            <h2 data-i18n="upload_title">点击或拖拽 WebM 视频文件到这里</h2>
+            <p style="color: var(--text-muted); margin-top: 0.5rem;" data-i18n="upload_hint">支持带透明通道的 WebM (VP8/VP9) 视频</p>
+            <input type="file" id="video-input" accept=".webm,video/webm" class="hidden">
+        </section>
+
+        <!-- Step 2: Preview & Convert -->
+        <section id="editor-section" class="hidden">
+            <div class="card">
+                <h3 style="margin-bottom: 1rem;" data-i18n="preview_title">视频预览</h3>
+                <div class="preview-container">
+                    <div class="preview-box">
+                        <h4 data-i18n="preview_original">原始视频 (带透明)</h4>
+                        <div class="video-wrapper checkerboard">
+                            <video id="video-player" loop muted></video>
+                        </div>
+                    </div>
+                    <div class="preview-box">
+                        <h4 data-i18n="preview_frame">当前帧预览</h4>
+                        <div class="canvas-wrapper checkerboard">
+                            <canvas id="preview-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="video-controls">
+                    <button id="play-btn" class="secondary">
+                        <i data-lucide="play"></i>
+                        <span data-i18n="play">播放</span>
+                    </button>
+                    <button id="pause-btn" class="secondary hidden">
+                        <i data-lucide="pause"></i>
+                        <span data-i18n="pause">暂停</span>
+                    </button>
+                    <div class="video-info">
+                        <span id="video-info-text">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversion Settings -->
+            <div class="card">
+                <h3 style="margin-bottom: 1.5rem;" data-i18n="settings_title">转换设置</h3>
+                
+                <div class="controls-grid">
+                    <div class="input-group">
+                        <label data-i18n="fps_label">输出帧率 (FPS)</label>
+                        <select id="output-fps">
+                            <option value="auto" data-i18n="fps_auto">自动检测</option>
+                            <option value="24">24 FPS</option>
+                            <option value="25">25 FPS</option>
+                            <option value="30">30 FPS</option>
+                            <option value="60">60 FPS</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="codec_label">编码格式</label>
+                        <select id="output-codec">
+                            <option value="png" data-i18n="codec_png">PNG (无损，支持透明)</option>
+                            <option value="rgba" data-i18n="codec_rgba">RGBA 原始 (无损，文件较大)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="transparency-info">
+                    <i data-lucide="info"></i>
+                    <p data-i18n="transparency_info">此工具会像素级保留视频中的所有透明像素，生成的 MOV 文件可在 Final Cut Pro、After Effects、DaVinci Resolve 等专业软件中使用。</p>
+                </div>
+
+                <div class="action-row">
+                    <button id="convert-btn" data-i18n="convert_btn">开始转换为 MOV</button>
+                </div>
+            </div>
+
+            <!-- Alpha Channel Analysis -->
+            <div class="card">
+                <h3 style="margin-bottom: 1rem;" data-i18n="alpha_analysis_title">透明通道分析</h3>
+                <div class="alpha-stats">
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stat_transparent">透明像素</span>
+                        <span id="stat-transparent" class="stat-value">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stat_semi">半透明像素</span>
+                        <span id="stat-semi" class="stat-value">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stat_opaque">不透明像素</span>
+                        <span id="stat-opaque" class="stat-value">--</span>
+                    </div>
+                </div>
+                <div class="alpha-preview">
+                    <h4 data-i18n="alpha_preview">Alpha 通道可视化</h4>
+                    <canvas id="alpha-canvas"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="loading-overlay" class="hidden">
+        <div class="loading-spinner"></div>
+        <p id="loading-text" data-i18n="processing">正在处理...</p>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <p id="progress-text">0%</p>
+    </div>
+
+    <script src="../i18n-helper.js"></script>
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
