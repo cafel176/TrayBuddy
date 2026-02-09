@@ -1095,13 +1095,12 @@
         }
       ]
     },
-        {
+    {
       "event": "drag_start",
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": [
-          ]
+          "states": []
         }
       ]
     },
@@ -1110,8 +1109,7 @@
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": [
-          ]
+          "states": []
         }
       ]
     }
