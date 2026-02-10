@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Live2D Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #fff; }
+        pre { background: #2a2a4e; padding: 15px; border-radius: 8px; }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        canvas { border: 1px solid #444; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Live2D Library Test</h1>
+    <pre id="output">Loading libraries...</pre>
+    <canvas id="canvas" width="400" height="400"></canvas>
+    
+    <!-- Load scripts in correct order (all local) -->
+    <script src="pixi.min.js"></script>
+    <script src="live2dcubismcore.min.js"></script>
+    <script src="pixi-live2d-display.min.js"></script>
+    <script>
+        const output = document.getElementById('output');
+        const lines = [];
+        
+        function log(msg, isError = false) {
+            lines.push(`<span class="${isError ? 'error' : 'success'}">${msg}</span>`);
+            output.innerHTML = lines.join('\n');
+        }
+        
+        // Check PIXI
+        if (typeof PIXI !== 'undefined') {
+            log(`✓ PIXI loaded: v${PIXI.VERSION}`);
+        } else {
+            log('✗ PIXI not loaded', true);
+        }
+        
+        // Check Cubism Core
+        if (typeof Live2DCubismCore !== 'undefined') {
+            log(`✓ Live2DCubismCore loaded`);
+        } else {
+            log('✗ Live2DCubismCore not loaded', true);
+        }
+        
+        // Check pixi-live2d-display
+        if (PIXI && PIXI.live2d) {
+            log(`✓ PIXI.live2d namespace exists`);
+            log(`  Keys: ${Object.keys(PIXI.live2d).slice(0, 10).join(', ')}...`);
+            
+            if (PIXI.live2d.Live2DModel) {
+                log(`✓ Live2DModel class available`);
+            } else {
+                log('✗ Live2DModel not found in PIXI.live2d', true);
+            }
+        } else {
+            log('✗ PIXI.live2d namespace not found', true);
+        }
+        
+        // Try to create a simple PIXI app
+        try {
+            const app = new PIXI.Application({
+                view: document.getElementById('canvas'),
+                width: 400,
+                height: 400,
+                backgroundColor: 0x1a1a2e
+            });
+            log('✓ PIXI Application created');
+            
+            // Add some text to show it's working
+            const text = new PIXI.Text('PIXI is working!', {
+                fill: 0x4ade80,
+                fontSize: 24
+            });
+            text.x = 100;
+            text.y = 180;
+            app.stage.addChild(text);
+            
+        } catch (e) {
+            log(`✗ PIXI Application error: ${e.message}`, true);
+        }
+    </script>
+</body>
+</html>

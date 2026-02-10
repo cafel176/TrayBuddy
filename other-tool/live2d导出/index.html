@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">Live2D 预览工具</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../i18n-helper.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 data-i18n="header_title">🎭 Live2D 导出工具</h1>
+        
+        <div class="main-content">
+            <!-- Left Panel - Controls -->
+            <div class="panel control-panel">
+                <h2 data-i18n="import_title">📁 加载模型</h2>
+                
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">📂</div>
+                    <p data-i18n="drop_zone_text">拖拽 Live2D 模型文件夹到这里<br>或点击选择文件夹</p>
+                </div>
+                <input type="file" id="folderInput" webkitdirectory directory multiple>
+                
+                <div class="model-info" id="modelInfo">
+                    <div class="info-item">
+                        <span class="label" data-i18n="model_name_label">模型名称:</span>
+                        <span class="value" id="modelName">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label" data-i18n="model_version_label">版本:</span>
+                        <span class="value" id="modelVersion">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label" data-i18n="model_size_label">文件数:</span>
+                        <span class="value" id="modelFileCount">-</span>
+                    </div>
+                </div>
+
+                <!-- Expressions -->
+                <div class="section" id="expressionSection" style="display: none;">
+                    <h3 data-i18n="expressions_title">😊 表情</h3>
+                    <div class="button-list" id="expressionList"></div>
+                </div>
+
+                <!-- Motions -->
+                <div class="section" id="motionSection" style="display: none;">
+                    <h3 data-i18n="motions_title">🎬 动作</h3>
+                    <div class="button-list" id="motionList"></div>
+                </div>
+
+                <!-- Parameters -->
+                <div class="section" id="parameterSection" style="display: none;">
+                    <h3 data-i18n="parameters_title">🎛️ 参数调节</h3>
+                    <div class="parameter-list" id="parameterList"></div>
+                </div>
+
+                <!-- Settings -->
+                <div class="section">
+                    <h3 data-i18n="settings_title">⚙️ 显示设置</h3>
+                    
+                    <div class="form-group">
+                        <label data-i18n="bg_color_label">背景颜色</label>
+                        <div class="color-row">
+                            <input type="color" id="bgColor" value="#1a1a2e">
+                            <button class="btn-small" id="transparentBg" data-i18n="transparent_btn">透明</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label data-i18n="scale_label">缩放比例</label>
+                        <div class="scale-row">
+                            <input type="range" id="scaleSlider" min="0.1" max="3" step="0.1" value="1">
+                            <span class="range-value" id="scaleValue">1.0x</span>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="mouseLookAt" checked>
+                        <label for="mouseLookAt" data-i18n="mouse_look_at_label">鼠标追踪视线</label>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="resetBtn" data-i18n="reset_btn">🔄 重置视图</button>
+                </div>
+
+                <!-- Tips -->
+                <div class="tips-section">
+                    <h4>💡 操作提示</h4>
+                    <ul>
+                        <li>🖱️ 左键拖动：移动模型位置</li>
+                        <li>🔄 滚轮：缩放模型大小</li>
+                        <li>👆 双击：重置视图</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right Panel - Preview -->
+            <div class="panel preview-panel">
+                <h2 data-i18n="preview_title">👁️ 模型预览</h2>
+                <div class="canvas-container" id="canvasContainer">
+                    <div class="preview-placeholder" id="placeholder">
+                        <div class="icon">🎭</div>
+                        <p data-i18n="preview_placeholder">加载 Live2D 模型后预览</p>
+                        <span class="hint">支持 Cubism 3/4 格式 (.model3.json)</span>
+                    </div>
+                    <canvas id="live2dCanvas"></canvas>
+                </div>
+                <div class="preview-controls">
+                    <button class="btn-icon" id="playPauseBtn" title="播放/暂停动画">
+                        <span id="playIcon">⏸️</span>
+                    </button>
+                    <button class="btn-icon" id="screenshotBtn" title="保存截图">📸</button>
+                    <button class="btn-icon" id="fullscreenBtn" title="全屏预览">🔲</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <p data-i18n="loading_text">正在加载模型...</p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Load scripts in correct order at end of body (all local) -->
+    <!-- 1. PIXI.js v6 -->
+    <script src="pixi.min.js"></script>
+    <!-- 2. Live2D Cubism Core SDK -->
+    <script src="live2dcubismcore.min.js"></script>
+    <!-- 3. pixi-live2d-display (Cubism 4 support) -->
+    <script src="pixi-live2d-display.min.js"></script>
+    <!-- 4. Main application -->
+    <script src="app.js"></script>
+</body>
+</html>
