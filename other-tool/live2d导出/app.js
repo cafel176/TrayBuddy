@@ -907,4 +907,882 @@ document.addEventListener('DOMContentLoaded', () => {
             centerModel();
         }
     });
+
+    // ========================================
+    // Export Frame Sequence Feature
+    // ========================================
+    
+    // Export DOM Elements
+    const exportFramesBtn = document.getElementById('exportFramesBtn');
+    const exportModal = document.getElementById('exportModal');
+    const exportModalClose = document.getElementById('exportModalClose');
+    const exportExpressionList = document.getElementById('exportExpressionList');
+    const exportMotionList = document.getElementById('exportMotionList');
+    const exportFps = document.getElementById('exportFps');
+    const exportDuration = document.getElementById('exportDuration');
+    const exportWidth = document.getElementById('exportWidth');
+    const exportHeight = document.getElementById('exportHeight');
+    const exportTotalFrames = document.getElementById('exportTotalFrames');
+    const exportCancel = document.getElementById('exportCancel');
+    const exportPreviewBtn = document.getElementById('exportPreviewBtn');
+    
+    // Preview Modal Elements
+    const previewModal = document.getElementById('previewModal');
+    const previewModalClose = document.getElementById('previewModalClose');
+    const previewCanvasContainer = document.getElementById('previewCanvasContainer');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const previewInfoText = document.getElementById('previewInfoText');
+    const previewBackBtn = document.getElementById('previewBackBtn');
+    const previewConfirmBtn = document.getElementById('previewConfirmBtn');
+    
+    // Progress Modal Elements
+    const exportProgressModal = document.getElementById('exportProgressModal');
+    const exportProgressText = document.getElementById('exportProgressText');
+    const exportProgressBar = document.getElementById('exportProgressBar');
+    const exportProgressDetail = document.getElementById('exportProgressDetail');
+    const exportCancelProgress = document.getElementById('exportCancelProgress');
+    
+    // Size preset buttons
+    const size256 = document.getElementById('size256');
+    const size512 = document.getElementById('size512');
+    const size1024 = document.getElementById('size1024');
+    
+    // Export State
+    let selectedExportExpression = null;
+    let selectedExportMotionGroup = null;
+    let selectedExportMotionIndex = null;
+    let selectedExportMotionFile = null; // For standalone motions
+    let exportCancelled = false;
+    
+    // Preview State
+    let previewApp = null;
+    let previewModel = null;
+    let previewAnimationId = null;
+    let previewMotionLoopTimer = null;
+    
+    // Helper
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    
+    function updateProgress(percent, detail) {
+        exportProgressText.textContent = percent + '%';
+        exportProgressBar.style.width = percent + '%';
+        if (detail) exportProgressDetail.textContent = detail;
+    }
+    
+    // Update export preview info
+    function updateExportPreview() {
+        const fps = parseInt(exportFps.value) || 30;
+        const duration = parseFloat(exportDuration.value) || 3;
+        const totalFrames = Math.ceil(fps * duration);
+        exportTotalFrames.textContent = totalFrames;
+    }
+    
+    exportFps.addEventListener('input', updateExportPreview);
+    exportDuration.addEventListener('input', updateExportPreview);
+    
+    // Size presets
+    size256.addEventListener('click', () => { exportWidth.value = 256; exportHeight.value = 256; });
+    size512.addEventListener('click', () => { exportWidth.value = 512; exportHeight.value = 512; });
+    size1024.addEventListener('click', () => { exportWidth.value = 1024; exportHeight.value = 1024; });
+    
+    // Populate expression list in export modal
+    function populateExportExpressions() {
+        exportExpressionList.innerHTML = '';
+        
+        // Add "no expression" option
+        const noneBtn = document.createElement('button');
+        noneBtn.className = 'export-select-btn selected';
+        noneBtn.textContent = window.i18n?.t('export_no_expression') || '无表情';
+        noneBtn.addEventListener('click', () => {
+            selectedExportExpression = null;
+            exportExpressionList.querySelectorAll('.export-select-btn').forEach(b => b.classList.remove('selected'));
+            noneBtn.classList.add('selected');
+        });
+        exportExpressionList.appendChild(noneBtn);
+        
+        if (!model?.internalModel) return;
+        
+        const expressionManager = model.internalModel.motionManager?.expressionManager;
+        let definitions = expressionManager?.definitions || [];
+        
+        if (definitions.length === 0 && modelJsonData?.FileReferences?.Expressions) {
+            definitions = modelJsonData.FileReferences.Expressions;
+        }
+        
+        definitions.forEach((exp, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'export-select-btn';
+            btn.textContent = exp.Name || exp.name || `表情 ${index + 1}`;
+            btn.addEventListener('click', () => {
+                selectedExportExpression = index;
+                exportExpressionList.querySelectorAll('.export-select-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+            exportExpressionList.appendChild(btn);
+        });
+    }
+    
+    // Populate motion list in export modal
+    function populateExportMotions() {
+        exportMotionList.innerHTML = '';
+        
+        // Add "idle" option
+        const noneBtn = document.createElement('button');
+        noneBtn.className = 'export-select-btn selected';
+        noneBtn.textContent = window.i18n?.t('export_no_motion') || '静止';
+        noneBtn.addEventListener('click', () => {
+            selectedExportMotionGroup = null;
+            selectedExportMotionIndex = null;
+            selectedExportMotionFile = null;
+            exportMotionList.querySelectorAll('.export-select-btn').forEach(b => b.classList.remove('selected'));
+            noneBtn.classList.add('selected');
+        });
+        exportMotionList.appendChild(noneBtn);
+        
+        if (!model?.internalModel) return;
+        
+        const motionManager = model.internalModel.motionManager;
+        let definitions = motionManager?.definitions || {};
+        let groups = Object.keys(definitions);
+        
+        if (groups.length === 0 && modelJsonData?.FileReferences?.Motions) {
+            definitions = modelJsonData.FileReferences.Motions;
+            groups = Object.keys(definitions);
+        }
+        
+        // Add defined motions
+        groups.forEach(group => {
+            const motions = definitions[group];
+            if (!Array.isArray(motions)) return;
+            
+            motions.forEach((motion, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'export-select-btn';
+                
+                let btnText = motion.Name || motion.name;
+                if (!btnText && motion.File) {
+                    btnText = motion.File.replace('.motion3.json', '').split('/').pop();
+                }
+                if (!btnText) {
+                    btnText = `${group} ${index + 1}`;
+                }
+                btn.textContent = btnText;
+                
+                btn.addEventListener('click', () => {
+                    selectedExportMotionGroup = group;
+                    selectedExportMotionIndex = index;
+                    selectedExportMotionFile = null; // Clear standalone file
+                    exportMotionList.querySelectorAll('.export-select-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    
+                    // Update duration based on motion
+                    const duration = getMotionDuration(group, index);
+                    console.log('Motion duration for', group, index, ':', duration);
+                    exportDuration.value = duration.toFixed(1);
+                    updateExportPreview();
+                });
+                exportMotionList.appendChild(btn);
+            });
+        });
+        
+        // Add standalone motion files
+        const motionFiles = Object.keys(modelFiles).filter(f => f.endsWith('.motion3.json'));
+        motionFiles.forEach((file) => {
+            let isDefined = false;
+            for (const group of groups) {
+                if (Array.isArray(definitions[group]) && 
+                    definitions[group].some(m => {
+                        const motionFile = m.File || m.file || '';
+                        return motionFile === file || motionFile.endsWith(file) || file.endsWith(motionFile);
+                    })) {
+                    isDefined = true;
+                    break;
+                }
+            }
+            
+            if (!isDefined) {
+                const btn = document.createElement('button');
+                btn.className = 'export-select-btn';
+                btn.textContent = '📁 ' + file.replace('.motion3.json', '').split('/').pop();
+                btn.addEventListener('click', () => {
+                    selectedExportMotionGroup = 'Standalone';
+                    selectedExportMotionIndex = null;
+                    selectedExportMotionFile = file; // Store the file path
+                    exportMotionList.querySelectorAll('.export-select-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    
+                    // Get duration from motion file
+                    let duration = 3; // Default
+                    try {
+                        const motionData = JSON.parse(cachedFileData[file]);
+                        if (motionData.Meta?.Duration) {
+                            duration = motionData.Meta.Duration;
+                        }
+                    } catch (e) {}
+                    console.log('Standalone motion duration:', duration);
+                    exportDuration.value = duration.toFixed(1);
+                    updateExportPreview();
+                });
+                exportMotionList.appendChild(btn);
+            }
+        });
+    }
+    
+    // Get motion duration
+    function getMotionDuration(group, index) {
+        if (!model?.internalModel?.motionManager) return 0;
+        
+        const motionManager = model.internalModel.motionManager;
+        const definitions = motionManager.definitions || {};
+        
+        if (definitions[group] && definitions[group][index]) {
+            const motionDef = definitions[group][index];
+            const motionFile = motionDef.File || motionDef.file;
+            if (motionFile) {
+                // Try exact match first
+                if (cachedFileData[motionFile]) {
+                    try {
+                        const motionData = JSON.parse(cachedFileData[motionFile]);
+                        if (motionData.Meta?.Duration) {
+                            return motionData.Meta.Duration;
+                        }
+                    } catch (e) {}
+                }
+                
+                // Try to find matching file in cache
+                const matchingKey = Object.keys(cachedFileData).find(key => 
+                    key === motionFile || 
+                    key.endsWith(motionFile) || 
+                    motionFile.endsWith(key) ||
+                    key.endsWith('/' + motionFile.split('/').pop())
+                );
+                
+                if (matchingKey && cachedFileData[matchingKey]) {
+                    try {
+                        const motionData = JSON.parse(cachedFileData[matchingKey]);
+                        if (motionData.Meta?.Duration) {
+                            return motionData.Meta.Duration;
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+        
+        return 3; // Default 3 seconds
+    }
+    
+    // Open export modal
+    exportFramesBtn.addEventListener('click', () => {
+        if (!model) {
+            showToast(window.i18n?.t('export_load_model_first') || '请先加载模型', 'error');
+            return;
+        }
+        
+        // Reset selections
+        selectedExportExpression = null;
+        selectedExportMotionGroup = null;
+        selectedExportMotionIndex = null;
+        selectedExportMotionFile = null;
+        
+        // Populate lists
+        populateExportExpressions();
+        populateExportMotions();
+        
+        updateExportPreview();
+        exportModal.classList.add('show');
+    });
+    
+    // Close export modal
+    exportModalClose.addEventListener('click', () => exportModal.classList.remove('show'));
+    exportCancel.addEventListener('click', () => exportModal.classList.remove('show'));
+    
+    // Cancel export progress
+    exportCancelProgress.addEventListener('click', () => {
+        exportCancelled = true;
+    });
+    
+    // ========================================
+    // Preview Window - Use Main Model Directly
+    // ========================================
+    
+    // Store preview state for restoration
+    let previewSavedState = null;
+    let previewImageUrls = {};
+    
+    // Destroy preview resources and restore main model state
+    function destroyPreview() {
+        // Clear motion loop timer
+        if (previewMotionLoopTimer) {
+            clearTimeout(previewMotionLoopTimer);
+            previewMotionLoopTimer = null;
+        }
+        if (previewAnimationId) {
+            cancelAnimationFrame(previewAnimationId);
+            previewAnimationId = null;
+        }
+        
+        // Restore main model state if saved
+        if (previewSavedState && model && app) {
+            // Restore model position and scale
+            model.scale.set(previewSavedState.scale);
+            model.x = previewSavedState.x;
+            model.y = previewSavedState.y;
+            
+            // Resize renderer back to container size
+            app.renderer.resize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            centerModel();
+            
+            // Reset expression if needed
+            if (previewSavedState.expression === null) {
+                const expressionManager = model.internalModel?.motionManager?.expressionManager;
+                expressionManager?.resetExpression();
+            }
+            
+            previewSavedState = null;
+        }
+        
+        previewModel = null;
+        previewApp = null;
+        
+        // Revoke preview image URLs
+        for (const url of Object.values(previewImageUrls)) {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (e) {}
+        }
+        previewImageUrls = {};
+    }
+    
+    // Create preview using the main model and renderer
+    async function createPreview() {
+        destroyPreview();
+        
+        if (!model || !app) {
+            throw new Error('No model loaded');
+        }
+        
+        const width = parseInt(exportWidth.value) || 512;
+        const height = parseInt(exportHeight.value) || 512;
+        
+        // Save current state
+        previewSavedState = {
+            scale: model.scale.x,
+            x: model.x,
+            y: model.y,
+            expression: null // Will track if we need to reset
+        };
+        
+        // Set up preview canvas size info (not actually used for rendering)
+        previewCanvas.width = width;
+        previewCanvas.height = height;
+        
+        // Use main app and model for preview
+        previewApp = app;
+        previewModel = model;
+        
+        // Resize main renderer to preview size
+        app.renderer.resize(width, height);
+        
+        // Scale model to fit preview size
+        const modelWidth = previewModel.width / previewModel.scale.x;
+        const modelHeight = previewModel.height / previewModel.scale.y;
+        const padding = 0.9;
+        const scaleX = (width * padding) / modelWidth;
+        const scaleY = (height * padding) / modelHeight;
+        const previewScale = Math.min(scaleX, scaleY);
+        
+        previewModel.scale.set(previewScale);
+        previewModel.x = width / 2;
+        previewModel.y = height / 2;
+        
+        // Apply expression if selected
+        if (selectedExportExpression !== null) {
+            previewModel.expression(selectedExportExpression);
+            previewSavedState.expression = selectedExportExpression;
+        } else {
+            // Reset expression
+            const expressionManager = previewModel.internalModel?.motionManager?.expressionManager;
+            expressionManager?.resetExpression();
+        }
+        
+        // Play motion in loop if selected
+        const hasMotionSelected = (selectedExportMotionGroup !== null && selectedExportMotionGroup !== undefined) && 
+                                  (selectedExportMotionIndex !== null || selectedExportMotionFile);
+        if (hasMotionSelected) {
+            console.log('Will play motion:', selectedExportMotionGroup, selectedExportMotionIndex, selectedExportMotionFile);
+            // For Standalone motions, need to register them first
+            if (selectedExportMotionGroup === 'Standalone' && selectedExportMotionFile) {
+                await registerStandaloneMotion(previewModel);
+            }
+            // Start motion loop with a small delay to ensure model is ready
+            setTimeout(() => {
+                console.log('Starting motion loop now');
+                playMotionLoop();
+            }, 200);
+        } else {
+            console.log('No motion selected:', selectedExportMotionGroup, selectedExportMotionIndex, selectedExportMotionFile);
+        }
+        
+        // Update info text
+        const fps = parseInt(exportFps.value) || 30;
+        const duration = parseFloat(exportDuration.value) || 3;
+        const totalFrames = Math.ceil(fps * duration);
+        previewInfoText.textContent = `${width}×${height} | ${fps} FPS | ${duration}s | ${totalFrames} ${window.i18n?.t('export_frames_unit') || '帧'}`;
+        
+        // Copy frame to preview canvas for display
+        const copyToPreviewCanvas = () => {
+            if (!previewApp || !previewModel) return;
+            
+            const ctx = previewCanvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, width, height);
+                ctx.drawImage(live2dCanvas, 0, 0, width, height);
+            }
+            
+            previewAnimationId = requestAnimationFrame(copyToPreviewCanvas);
+        };
+        
+        copyToPreviewCanvas();
+    }
+    
+    // Register standalone motion to a model
+    async function registerStandaloneMotion(targetModel) {
+        if (!selectedExportMotionFile) return;
+        
+        const file = selectedExportMotionFile;
+        const motionMgr = targetModel.internalModel.motionManager;
+        
+        // Initialize Standalone group
+        if (!motionMgr.definitions['Standalone']) {
+            motionMgr.definitions['Standalone'] = [];
+        }
+        if (!motionMgr.motionGroups['Standalone']) {
+            motionMgr.motionGroups['Standalone'] = [];
+        }
+        
+        // Check if already registered
+        let idx = motionMgr.definitions['Standalone'].findIndex(m => 
+            (m.File || m.file) === file
+        );
+        
+        if (idx === -1) {
+            motionMgr.definitions['Standalone'].push({ 
+                File: file,
+                FadeInTime: 0.5,
+                FadeOutTime: 0.5
+            });
+            idx = motionMgr.definitions['Standalone'].length - 1;
+            motionMgr.motionGroups['Standalone'][idx] = null;
+        }
+        
+        // Update the selectedExportMotionIndex to the actual index in Standalone group
+        selectedExportMotionIndex = idx;
+        console.log('Registered standalone motion:', file, 'at index:', idx);
+    }
+    
+    // Play motion in loop
+    function playMotionLoop() {
+        if (!previewModel || (selectedExportMotionGroup === null || selectedExportMotionGroup === undefined)) {
+            console.log('playMotionLoop: No model or motion group', previewModel, selectedExportMotionGroup);
+            return;
+        }
+        
+        // Clear any existing timer
+        if (previewMotionLoopTimer) {
+            clearTimeout(previewMotionLoopTimer);
+            previewMotionLoopTimer = null;
+        }
+        
+        const playOnce = async () => {
+            if (!previewModel) return;
+            
+            try {
+                console.log('Playing motion:', selectedExportMotionGroup, selectedExportMotionIndex, selectedExportMotionFile);
+                
+                // Get motion duration for proper loop timing
+                let duration = 3000; // default 3 seconds
+                
+                if (selectedExportMotionGroup === 'Standalone' && selectedExportMotionFile) {
+                    try {
+                        const motionData = JSON.parse(cachedFileData[selectedExportMotionFile]);
+                        if (motionData.Meta?.Duration) {
+                            duration = motionData.Meta.Duration * 1000;
+                        }
+                    } catch (e) {}
+                } else {
+                    const d = getMotionDuration(selectedExportMotionGroup, selectedExportMotionIndex);
+                    if (d > 0) duration = d * 1000;
+                }
+                
+                console.log('Motion duration:', duration);
+                
+                // Start motion with priority 3 (highest) to ensure it plays
+                const motionResult = await previewModel.motion(selectedExportMotionGroup, selectedExportMotionIndex, 3);
+                console.log('Motion started:', motionResult);
+                
+                // Schedule next play slightly before motion ends to ensure smooth loop
+                if (previewModel) {
+                    previewMotionLoopTimer = setTimeout(playOnce, Math.max(duration - 100, 500));
+                }
+            } catch (e) {
+                console.warn('Motion play error:', e);
+                // Retry after a delay
+                if (previewModel) {
+                    previewMotionLoopTimer = setTimeout(playOnce, 1000);
+                }
+            }
+        };
+        
+        playOnce();
+    }
+    
+    // Preview button click
+    exportPreviewBtn.addEventListener('click', async () => {
+        if (!model) {
+            showToast(window.i18n?.t('export_load_model_first') || '请先加载模型', 'error');
+            return;
+        }
+        
+        exportModal.classList.remove('show');
+        
+        try {
+            await createPreview();
+            previewModal.classList.add('show');
+        } catch (error) {
+            console.error('Preview error:', error);
+            showToast((window.i18n?.t('export_error') || '预览失败:') + ' ' + error.message, 'error');
+        }
+    });
+    
+    // Preview modal close
+    previewModalClose.addEventListener('click', () => {
+        destroyPreview();
+        previewModal.classList.remove('show');
+    });
+    
+    // Back to settings
+    previewBackBtn.addEventListener('click', () => {
+        destroyPreview();
+        previewModal.classList.remove('show');
+        exportModal.classList.add('show');
+    });
+    
+    // Confirm export
+    previewConfirmBtn.addEventListener('click', async () => {
+        destroyPreview();
+        previewModal.classList.remove('show');
+        exportProgressModal.classList.add('show');
+        exportCancelled = false;
+        
+        try {
+            await exportFrameSequence();
+        } catch (error) {
+            console.error('Export error:', error);
+            showToast((window.i18n?.t('export_error') || '导出失败:') + ' ' + error.message, 'error');
+        }
+        
+        exportProgressModal.classList.remove('show');
+    });
+    
+    // ========================================
+    // Export Frame Sequence - Use Main Model
+    // ========================================
+    
+    async function exportFrameSequence() {
+        const fps = parseInt(exportFps.value) || 30;
+        const duration = parseFloat(exportDuration.value) || 3;
+        const width = parseInt(exportWidth.value) || 512;
+        const height = parseInt(exportHeight.value) || 512;
+        const totalFrames = Math.ceil(fps * duration);
+        
+        if (!model || !app) {
+            showToast('No model loaded', 'error');
+            return;
+        }
+        
+        // Save current state
+        const savedState = {
+            scale: model.scale.x,
+            x: model.x,
+            y: model.y,
+            rendererWidth: app.renderer.width,
+            rendererHeight: app.renderer.height,
+            isPlaying: isPlaying
+        };
+        
+        // Pause main animation
+        if (isPlaying && originalModelUpdate) {
+            model.update = function() {};
+        }
+        
+        // Set up export dimensions
+        app.renderer.resize(width, height);
+        
+        // Scale model to fit export size
+        const modelWidth = model.width / model.scale.x;
+        const modelHeight = model.height / model.scale.y;
+        const padding = 0.9;
+        const scaleX = (width * padding) / modelWidth;
+        const scaleY = (height * padding) / modelHeight;
+        const exportScale = Math.min(scaleX, scaleY);
+        
+        model.scale.set(exportScale);
+        model.x = width / 2;
+        model.y = height / 2;
+        
+        // Apply expression if selected
+        if (selectedExportExpression !== null) {
+            model.expression(selectedExportExpression);
+        } else {
+            const expressionManager = model.internalModel?.motionManager?.expressionManager;
+            expressionManager?.resetExpression();
+        }
+        
+        // Start motion if selected
+        const hasMotion = (selectedExportMotionGroup !== null && selectedExportMotionGroup !== undefined) && 
+                          (selectedExportMotionIndex !== null || selectedExportMotionFile);
+        
+        console.log('=== Export Debug ===');
+        console.log('hasMotion:', hasMotion);
+        console.log('selectedExportMotionGroup:', JSON.stringify(selectedExportMotionGroup));
+        console.log('selectedExportMotionIndex:', selectedExportMotionIndex);
+        console.log('selectedExportMotionFile:', selectedExportMotionFile);
+        
+        if (hasMotion) {
+            if (selectedExportMotionGroup === 'Standalone' && selectedExportMotionFile) {
+                await registerStandaloneMotion(model);
+            }
+            
+            updateProgress(0, window.i18n?.t('export_preparing') || '准备中，重置动作...');
+            
+            const motionManager = model.internalModel?.motionManager;
+            console.log('MotionManager:', motionManager);
+            
+            // Explore the motionManager structure
+            if (motionManager) {
+                console.log('MotionManager keys:', Object.keys(motionManager));
+                console.log('MotionManager.state:', motionManager.state);
+                if (motionManager.state) {
+                    console.log('State keys:', Object.keys(motionManager.state));
+                }
+                
+                // Try to find and reset the current motion
+                console.log('motionManager.currentGroup:', motionManager.currentGroup);
+                console.log('motionManager.currentIndex:', motionManager.currentIndex);
+                console.log('motionManager._currentMotion:', motionManager._currentMotion);
+                
+                // Look for queueManager
+                if (motionManager.queueManager) {
+                    console.log('queueManager:', motionManager.queueManager);
+                    console.log('queueManager keys:', Object.keys(motionManager.queueManager));
+                }
+                
+                // Try to access the actual motion being played
+                const groups = motionManager.motionGroups;
+                if (groups && groups[selectedExportMotionGroup]) {
+                    const motionArray = groups[selectedExportMotionGroup];
+                    console.log('Motion group array:', motionArray);
+                    if (motionArray[selectedExportMotionIndex]) {
+                        const currentMotion = motionArray[selectedExportMotionIndex];
+                        console.log('Current motion object:', currentMotion);
+                        console.log('Current motion keys:', Object.keys(currentMotion || {}));
+                        if (currentMotion) {
+                            // Try to find time-related properties
+                            for (const key of Object.keys(currentMotion)) {
+                                if (key.toLowerCase().includes('time') || key.includes('_t')) {
+                                    console.log(`  ${key}:`, currentMotion[key]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Strategy: Reset by stopping all motions first, then starting fresh
+            // Try to call stopAllMotions if available
+            if (motionManager?.stopAllMotions) {
+                console.log('Calling stopAllMotions');
+                motionManager.stopAllMotions();
+                await sleep(100);
+            }
+            
+            // Alternative: Try to reset via expressionManager approach - reset to idle first
+            // Then start the motion
+            console.log('Starting fresh motion...');
+            
+            // Wait for motion to start from beginning using event
+            let motionStartFired = false;
+            await new Promise((resolve) => {
+                const onMotionStart = (group, index) => {
+                    console.log('motionStart event fired! group:', group, 'index:', index);
+                    motionStartFired = true;
+                    model.off('motionStart', onMotionStart);
+                    resolve();
+                };
+                
+                model.on('motionStart', onMotionStart);
+                
+                console.log('Calling model.motion with:', selectedExportMotionGroup, selectedExportMotionIndex);
+                
+                // Start the motion with force flag by using priority 3
+                model.motion(selectedExportMotionGroup, selectedExportMotionIndex, 3);
+                
+                // Timeout fallback
+                setTimeout(() => {
+                    console.log('Timeout reached, motionStartFired:', motionStartFired);
+                    if (!motionStartFired) {
+                        model.off('motionStart', onMotionStart);
+                    }
+                    resolve();
+                }, 500);
+            });
+            
+            console.log('After motion call, motionStartFired:', motionStartFired);
+            
+            // If motion didn't restart, we need to manually reset the motion time
+            if (!motionStartFired && motionManager) {
+                console.log('Motion did not restart, trying manual reset...');
+                
+                const groups = motionManager.motionGroups;
+                if (groups && groups[selectedExportMotionGroup]) {
+                    const motionObj = groups[selectedExportMotionGroup][selectedExportMotionIndex];
+                    if (motionObj) {
+                        console.log('Resetting motion object time properties...');
+                        // Reset all time-related properties we can find
+                        if (motionObj._time !== undefined) {
+                            console.log('Resetting _time from', motionObj._time, 'to 0');
+                            motionObj._time = 0;
+                        }
+                        if (motionObj._globalTime !== undefined) {
+                            console.log('Resetting _globalTime from', motionObj._globalTime, 'to 0');
+                            motionObj._globalTime = 0;
+                        }
+                        if (motionObj._currentTime !== undefined) {
+                            console.log('Resetting _currentTime from', motionObj._currentTime, 'to 0');
+                            motionObj._currentTime = 0;
+                        }
+                        // Check for _motionData
+                        if (motionObj._motionData) {
+                            console.log('_motionData:', motionObj._motionData);
+                        }
+                    }
+                }
+                
+                // Also check state object
+                if (motionManager.state) {
+                    for (const key of Object.keys(motionManager.state)) {
+                        if (key.toLowerCase().includes('time')) {
+                            console.log(`State.${key}:`, motionManager.state[key]);
+                            if (typeof motionManager.state[key] === 'number') {
+                                console.log(`Resetting state.${key} to 0`);
+                                motionManager.state[key] = 0;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            await sleep(50);
+        }
+        
+        updateProgress(0, window.i18n?.t('export_preparing') || '准备中...');
+        
+        const frames = [];
+        const canvas = app.view;
+        
+        console.log('Starting capture, totalFrames:', totalFrames, 'duration:', duration, 'fps:', fps);
+        
+        // Use real-time capture with requestAnimationFrame
+        const captureStartTime = performance.now();
+        const totalDurationMs = duration * 1000;
+        
+        await new Promise((resolve) => {
+            let framesCaptured = 0;
+            const frameIntervalMs = (1 / fps) * 1000;
+            
+            const captureFrame = () => {
+                if (exportCancelled) {
+                    showToast(window.i18n?.t('export_cancelled') || '已取消导出', 'info');
+                    resolve();
+                    return;
+                }
+                
+                const elapsed = performance.now() - captureStartTime;
+                
+                // Check if we should capture a frame at this time
+                const expectedFrame = Math.floor(elapsed / frameIntervalMs);
+                
+                if (expectedFrame > framesCaptured && framesCaptured < totalFrames) {
+                    // Render and capture
+                    app.renderer.render(app.stage);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    frames.push(dataUrl);
+                    framesCaptured++;
+                    
+                    const progress = Math.round((framesCaptured / totalFrames) * 100);
+                    updateProgress(progress, (window.i18n?.t('export_capturing') || '正在捕获帧...') + ` (${framesCaptured}/${totalFrames})`);
+                }
+                
+                // Continue or finish
+                if (framesCaptured >= totalFrames || elapsed >= totalDurationMs + 100) {
+                    resolve();
+                } else {
+                    requestAnimationFrame(captureFrame);
+                }
+            };
+            
+            // Capture first frame immediately
+            app.renderer.render(app.stage);
+            frames.push(canvas.toDataURL('image/png'));
+            framesCaptured = 1;
+            updateProgress(1, (window.i18n?.t('export_capturing') || '正在捕获帧...') + ` (1/${totalFrames})`);
+            
+            if (totalFrames > 1) {
+                requestAnimationFrame(captureFrame);
+            } else {
+                resolve();
+            }
+        });
+        
+        // Restore state
+        app.renderer.resize(savedState.rendererWidth, savedState.rendererHeight);
+        model.scale.set(savedState.scale);
+        model.x = savedState.x;
+        model.y = savedState.y;
+        
+        // Restore animation state
+        if (savedState.isPlaying && originalModelUpdate) {
+            model.update = originalModelUpdate;
+        }
+        
+        // Resize to fit container
+        app.renderer.resize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+        centerModel();
+        
+        if (exportCancelled) {
+            return;
+        }
+        
+        // Package into ZIP
+        updateProgress(100, window.i18n?.t('export_packing') || '正在打包下载...');
+        await sleep(100);
+        
+        const zip = new JSZip();
+        const padLength = String(frames.length).length;
+        
+        for (let i = 0; i < frames.length; i++) {
+            const frameNum = String(i + 1).padStart(padLength, '0');
+            const base64Data = frames[i].split(',')[1];
+            zip.file(`frame_${frameNum}.png`, base64Data, { base64: true });
+        }
+        
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `live2d_frames_${Date.now()}.zip`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        
+        showToast((window.i18n?.t('export_success') || '成功导出') + ` ${frames.length} ${window.i18n?.t('export_frames_unit') || '帧'}`, 'success');
+    }
 });
