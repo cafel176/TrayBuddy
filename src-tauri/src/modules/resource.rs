@@ -482,14 +482,20 @@ pub struct TriggerStateGroup {
     /// 可触发的状态列表（加权随机）
     #[serde(default, deserialize_with = "deserialize_can_trigger_states")]
     pub states: Vec<CanTriggerState>,
+    /// 是否允许连续两次触发同一个状态（默认 true）
+    /// 
+    /// - `true`：允许重复触发同一状态
+    /// - `false`：如果上次触发的状态与本次随机选中的状态相同，则会重新随机选择，直到选出与上次不同的状态为止
+    /// - 如果 `states` 内只有一个状态，则忽略此限制
+    pub allow_repeat: bool,
 }
-
 
 impl Default for TriggerStateGroup {
     fn default() -> Self {
         Self {
             persistent_state: "".into(),
             states: Vec::new(),
+            allow_repeat: true,
         }
     }
 }

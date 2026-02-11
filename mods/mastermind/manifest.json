@@ -359,7 +359,8 @@
               "state": "random3",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -376,7 +377,8 @@
               "state": "random3",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -398,7 +400,8 @@
               "state": "random3",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -415,7 +418,8 @@
               "state": "random3",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     }

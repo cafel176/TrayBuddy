@@ -505,7 +505,8 @@
               "state": "talk1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -514,7 +515,8 @@
               "state": "talk1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -528,7 +530,8 @@
               "state": "talk1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -537,7 +540,8 @@
               "state": "talk1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -551,7 +555,8 @@
               "state": "talk1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -560,7 +565,8 @@
               "state": "talk1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     }

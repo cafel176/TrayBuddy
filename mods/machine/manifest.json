@@ -443,7 +443,8 @@
               "state": "Initiate_No",
               "weight": 2
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "Prize_Idle",
@@ -456,7 +457,8 @@
               "state": "Initiate_No",
               "weight": 2
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -469,7 +471,8 @@
               "state": "Initiate_No",
               "weight": 2
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -487,7 +490,8 @@
               "state": "Initiate_No",
               "weight": 2
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "Prize_Idle",
@@ -500,7 +504,8 @@
               "state": "Initiate_No",
               "weight": 2
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -513,7 +518,8 @@
               "state": "Initiate_No",
               "weight": 2
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     }

@@ -40,7 +40,8 @@
       "../mods/mastermind": "mods/mastermind",
       "../mods/sunflower": "mods/sunflower",
       "../mods/tutorial": "mods/tutorial",
-      
+
+       "../mods/bubble_style.json": "mods/bubble_style.json",     
       "../config": "config",
       "../i18n": "i18n",
       "../mod-tool": "mod-tool",

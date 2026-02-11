@@ -3065,10 +3065,11 @@ function renderTriggerStatesSummary(canTriggerStates) {
 
   const normalizeGroup = (g) => {
     if (typeof g === 'string') {
-      return { persistent_state: '', states: [{ state: g, weight: 1 }] };
+      return { persistent_state: '', states: [{ state: g, weight: 1 }], allow_repeat: true };
     }
     if (g && typeof g === 'object') {
       const persistent_state = typeof g.persistent_state === 'string' ? g.persistent_state : '';
+      const allow_repeat = g.allow_repeat !== false; // 默认 true
       const rawStates = Array.isArray(g.states) ? g.states : [];
       const states = rawStates
         .map(x => {
@@ -3081,16 +3082,23 @@ function renderTriggerStatesSummary(canTriggerStates) {
         })
         .filter(Boolean);
 
-      return { persistent_state, states };
+      return { persistent_state, states, allow_repeat };
     }
-    return { persistent_state: '', states: [] };
+    return { persistent_state: '', states: [], allow_repeat: true };
   };
 
   const groups = canTriggerStates.map(normalizeGroup);
 
   return groups.map(g => {
-    const title = g.persistent_state
-      ? `<div class="trigger-state-group-title">${escapeHtml(window.i18n.t('persistent_state_label'))}: <code>${escapeHtml(g.persistent_state)}</code></div>`
+    const titleParts = [];
+    if (g.persistent_state) {
+      titleParts.push(`${escapeHtml(window.i18n.t('persistent_state_label'))}: <code>${escapeHtml(g.persistent_state)}</code>`);
+    }
+    if (!g.allow_repeat) {
+      titleParts.push(`<span style="color: var(--warning-color);">🔄❌</span>`);
+    }
+    const title = titleParts.length > 0
+      ? `<div class="trigger-state-group-title">${titleParts.join(' | ')}</div>`
       : '';
 
     const chips = (g.states.length ? g.states : [{ state: '-', weight: 1 }]).map(s => {
@@ -3153,6 +3161,7 @@ function closeTriggerModal() {
   document.getElementById('trigger-modal').classList.remove('show');
 }
 
+
 /**
  * 渲染触发状态组
  */
@@ -3167,12 +3176,15 @@ function renderTriggerGroups(canTriggerStates) {
     // 兼容简单格式（字符串）和复杂格式（对象）
     let persistentState = '';
     let states = [];
+    let allowRepeat = true; // 默认 true
     
     if (typeof group === 'string') {
       states = [{ state: group, weight: 1 }];
     } else if (group && typeof group === 'object') {
       persistentState = group.persistent_state || '';
       states = Array.isArray(group.states) ? group.states : [];
+      // allow_repeat 默认为 true
+      allowRepeat = group.allow_repeat !== false;
     }
     
     const statesHtml = states.map((s, stateIndex) => {
@@ -3192,6 +3204,12 @@ function renderTriggerGroups(canTriggerStates) {
         <div class="form-group" style="flex: 1; margin: 0;">
           <label>${window.i18n.t('persistent_state_label')}</label>
           <select data-trigger-persistent="${groupIndex}">${getStateSelectOptions(persistentState)}</select>
+        </div>
+        <div class="form-group" style="margin: 0; margin-left: 12px;">
+          <label title="${window.i18n.t('allow_repeat_hint')}" style="cursor: help;">
+            <input type="checkbox" data-trigger-allow-repeat="${groupIndex}" ${allowRepeat ? 'checked' : ''}>
+            ${window.i18n.t('allow_repeat_label')}
+          </label>
         </div>
         <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ <span data-i18n="btn_delete_group">${window.i18n.t('btn_delete_group')}</span></button>
       </div>
@@ -3219,6 +3237,12 @@ function addTriggerGroup() {
       <div class="form-group" style="flex: 1; margin: 0;">
         <label>${window.i18n.t('persistent_state_label')}</label>
         <select data-trigger-persistent="${groupIndex}">${getStateSelectOptions()}</select>
+      </div>
+      <div class="form-group" style="margin: 0; margin-left: 12px;">
+        <label title="${window.i18n.t('allow_repeat_hint')}" style="cursor: help;">
+          <input type="checkbox" data-trigger-allow-repeat="${groupIndex}" checked>
+          ${window.i18n.t('allow_repeat_label')}
+        </label>
       </div>
       <button class="btn btn-sm btn-ghost" onclick="removeTriggerGroup(${groupIndex})">🗑️ <span data-i18n="btn_delete_group">${window.i18n.t('btn_delete_group')}</span></button>
     </div>
@@ -3292,6 +3316,12 @@ function reindexTriggerGroups() {
   Array.from(list.children).forEach((groupDiv, groupIndex) => {
     groupDiv.querySelector('[data-trigger-persistent]').dataset.triggerPersistent = groupIndex;
     
+    // 重新索引 allow_repeat checkbox
+    const allowRepeatCheckbox = groupDiv.querySelector('[data-trigger-allow-repeat]');
+    if (allowRepeatCheckbox) {
+      allowRepeatCheckbox.dataset.triggerAllowRepeat = groupIndex;
+    }
+    
     const statesList = groupDiv.querySelector('[data-trigger-group]');
     statesList.dataset.triggerGroup = groupIndex;
     
@@ -3322,6 +3352,8 @@ function collectTriggerData() {
   
   Array.from(list.children).forEach((groupDiv, groupIndex) => {
     const persistentState = groupDiv.querySelector(`[data-trigger-persistent="${groupIndex}"]`)?.value.trim() || '';
+    const allowRepeatCheckbox = groupDiv.querySelector(`[data-trigger-allow-repeat="${groupIndex}"]`);
+    const allowRepeat = allowRepeatCheckbox ? allowRepeatCheckbox.checked : true;
     const statesList = groupDiv.querySelector(`[data-trigger-group="${groupIndex}"]`);
     const states = [];
     
@@ -3336,7 +3368,8 @@ function collectTriggerData() {
     if (states.length > 0) {
       canTriggerStates.push({
         persistent_state: persistentState,
-        states: states
+        states: states,
+        allow_repeat: allowRepeat
       });
     }
   });

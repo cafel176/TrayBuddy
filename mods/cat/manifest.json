@@ -307,7 +307,8 @@
               "state": "click",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -316,7 +317,8 @@
               "state": "click",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -330,7 +332,8 @@
               "state": "click",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
@@ -339,7 +342,8 @@
               "state": "click",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     }

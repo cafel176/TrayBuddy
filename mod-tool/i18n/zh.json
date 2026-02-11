@@ -214,6 +214,8 @@
   "branch_state_placeholder": "跳转状态",
   "persistent_state_label": "持久状态",
   "persistent_state_hint": "例如: idle, music（留空表示任意状态）",
+  "allow_repeat_label": "允许重复触发",
+  "allow_repeat_hint": "关闭后，同一状态不会连续触发两次（仅当该组状态数>1时生效）",
   "asset_path_label": "路径",
   "asset_frames_label": "帧",
   "asset_size_label": "尺寸",

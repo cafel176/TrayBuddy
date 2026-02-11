@@ -214,6 +214,8 @@
   "branch_state_placeholder": "ジャンプ先状態",
   "persistent_state_label": "持続状態",
   "persistent_state_hint": "例: idle, music（空欄で任意の状態）",
+  "allow_repeat_label": "連続トリガーを許可",
+  "allow_repeat_hint": "オフにすると、同じ状態が連続で2回トリガーされません（グループの状態数が2以上の場合のみ有効）",
   "asset_path_label": "パス",
   "asset_frames_label": "フレーム",
   "asset_size_label": "サイズ",

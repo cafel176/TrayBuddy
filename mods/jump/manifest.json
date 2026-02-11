@@ -375,7 +375,8 @@
               "state": "login",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     }

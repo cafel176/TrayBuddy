@@ -214,6 +214,8 @@
   "branch_state_placeholder": "Jump to State",
   "persistent_state_label": "Persistent State",
   "persistent_state_hint": "e.g., idle, music (leave empty for any state)",
+  "allow_repeat_label": "Allow Repeat",
+  "allow_repeat_hint": "When off, the same state won't trigger twice in a row (only applies when group has >1 states)",
   "asset_path_label": "Path",
   "asset_frames_label": "Frames",
   "asset_size_label": "Size",

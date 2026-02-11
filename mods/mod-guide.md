@@ -113,6 +113,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| :--- | :--- | :--- |
 ||| `persistent_state` | String | 持久状态名称，只有处于该持久状态时才能触发。为空字符串时表示任意持久状态都可触发 |
 ||| `states` | Array | 可触发的状态列表。支持字符串数组 `['state1']` 或对象数组 `[{'state': 'state1', 'weight': 1}]` 以支持权重随机。 |
+||| `allow_repeat` | Boolean | 是否允许连续两次触发同一个状态（默认 `true`）。设为 `false` 时，如果上次触发的状态与本次随机选中的状态相同，则会重新随机选择，直到选出与上次不同的状态为止。如果 `states` 内只有一个状态则忽略此限制。 |
 
 #### 2.1.7 数据计数器对象 (ModDataCounter Object)
 用于状态对象的 `mod_data_counter` 字段。
@@ -133,11 +134,13 @@ mod主要信息清单文件，决定了程序如何加载该mod。
       "can_trigger_states": [
         {
           "persistent_state": "idle",
-          "states": ["hello1_1"]
+          "states": ["hello1_1"],
+          "allow_repeat": true
         },
         {
           "persistent_state": "music",
-          "states": ["music_hello1_1"]
+          "states": ["music_hello1_1", "music_hello1_2"],
+          "allow_repeat": false
         }
       ]
     },
@@ -155,7 +158,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ```
 
 在上述示例中：
-- `click` 事件在 `idle` 持久状态下可触发 `hello1_1`，在 `music` 持久状态下可触发 `music_hello1_1`
+- `click` 事件在 `idle` 持久状态下可触发 `hello1_1`，在 `music` 持久状态下可触发 `music_hello1_1` 或 `music_hello1_2`
+- `music` 持久状态下的状态组设置了 `allow_repeat: false`，所以连续点击不会重复触发同一个状态
 - `music_start` 事件的 `persistent_state` 为空，表示在任意持久状态下都可触发 `music_start` 状态
 
 ### 2.2 `asset/img.json`

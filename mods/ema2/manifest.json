@@ -939,7 +939,8 @@
               "state": "ema_birthday_1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": false
         },
         {
           "persistent_state": "music",
@@ -948,7 +949,8 @@
               "state": "music_random1_1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": false
         }
       ]
     },
@@ -986,7 +988,8 @@
               "state": "ema_birthday_1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": false
         },
         {
           "persistent_state": "music",
@@ -995,7 +998,8 @@
               "state": "music_random1_1",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": false
         }
       ]
     },
@@ -1021,7 +1025,8 @@
               "state": "night",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -1035,7 +1040,8 @@
               "state": "birthday",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -1049,7 +1055,8 @@
               "state": "firstday",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -1063,7 +1070,8 @@
               "state": "silence_start",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -1077,7 +1085,8 @@
               "state": "music_start",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -1091,7 +1100,8 @@
               "state": "music_end",
               "weight": 1
             }
-          ]
+          ],
+          "allow_repeat": true
         }
       ]
     },
@@ -1100,7 +1110,8 @@
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": []
+          "states": [],
+          "allow_repeat": true
         }
       ]
     },
@@ -1109,7 +1120,8 @@
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": []
+          "states": [],
+          "allow_repeat": true
         }
       ]
     }
