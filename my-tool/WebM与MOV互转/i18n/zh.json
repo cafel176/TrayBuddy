@@ -1,0 +1,61 @@
+{
+  "title": "WebM ↔ MOV 互转",
+  "logo": "WebM ↔ MOV 互转",
+  "mode_webm2mov": "WebM → MOV",
+  "mode_mov2webm": "MOV → WebM",
+
+  "reset_btn": "重新开始",
+
+  "upload_title_webm2mov": "点击或拖拽 WebM 视频文件到这里",
+  "upload_hint_webm2mov": "支持带透明通道的 WebM (VP8/VP9) 视频",
+  "upload_title_mov2webm": "点击或拖拽 MOV 视频文件到这里",
+  "upload_hint_mov2webm": "将 MOV 转为 WebM（支持读取“视频去背景”导出的 PNG MOV；优先 VP9，兼容性可选 VP8）",
+
+  "preview_title": "视频预览",
+  "preview_original": "原始视频",
+  "preview_frame": "当前帧预览",
+
+  "play": "播放",
+  "pause": "暂停",
+
+  "settings_title": "转换设置",
+  "fps_label": "输出帧率 (FPS)",
+  "fps_auto": "自动检测",
+
+  "mov_codec_label": "MOV 编码格式",
+  "codec_png": "PNG (无损，支持透明)",
+  "codec_rgba": "RGBA 原始 (无损，文件较大)",
+
+  "webm_format_label": "WebM 编码",
+  "format_webm_vp9": "WebM VP9 (推荐)",
+  "format_webm_vp8": "WebM VP8 (兼容性好)",
+
+  "quality_label": "视频质量",
+  "quality_high": "高质量",
+  "quality_medium": "中等质量",
+  "quality_low": "低质量 (文件更小)",
+
+  "transparency_info_webm2mov": "此工具会像素级保留视频中的所有透明像素，生成的 MOV 文件可在 Final Cut Pro、After Effects、DaVinci Resolve 等专业软件中使用。",
+  "transparency_info_mov2webm": "浏览器需要能解码你上传的 MOV（常见 H.264/H.265 才更可能支持）。如果是“视频去背景”导出的 PNG MOV，本工具会自动走逐帧解析路径进行转换。",
+
+  "convert_btn_webm2mov": "开始转换为 MOV",
+  "convert_btn_mov2webm": "开始转换为 WebM",
+
+  "alpha_analysis_title": "透明通道分析",
+  "stat_transparent": "透明像素",
+  "stat_semi": "半透明像素",
+  "stat_opaque": "不透明像素",
+  "alpha_preview": "Alpha 通道可视化",
+
+  "processing": "正在处理...",
+  "extracting_frames": "正在提取帧...",
+  "encoding_mov": "正在编码 MOV...",
+  "encoding_webm": "正在编码 WebM...",
+
+  "alert_webm_only": "请上传 WebM 格式的视频文件",
+  "alert_mov_only": "请上传 MOV 格式的视频文件",
+  "alert_decode_failed": "浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264 MOV），或用 ffmpeg/专业软件先转码。",
+  "mov_preview_unavailable": "该 MOV 浏览器无法预览，但仍可转换",
+
+  "error_processing": "处理出错："
+}

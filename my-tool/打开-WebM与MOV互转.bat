@@ -19,5 +19,4 @@ exit /b
 
 :_tb_got_admin
 
-
-call "%~dp0open-tool.bat" "WebM转MOV"
+call "%~dp0open-tool.bat" "WebM与MOV互转"

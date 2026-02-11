@@ -1,0 +1,61 @@
+{
+  "title": "WebM ↔ MOV 変換",
+  "logo": "WebM ↔ MOV 変換",
+  "mode_webm2mov": "WebM → MOV",
+  "mode_mov2webm": "MOV → WebM",
+
+  "reset_btn": "最初から",
+
+  "upload_title_webm2mov": "WebM 動画ファイルをクリックまたはドラッグ＆ドロップ",
+  "upload_hint_webm2mov": "透明チャンネル付き WebM (VP8/VP9) に対応",
+  "upload_title_mov2webm": "MOV 動画ファイルをクリックまたはドラッグ＆ドロップ",
+  "upload_hint_mov2webm": "MOV を WebM に変換（背景削除ツールが出力した PNG MOV に対応。基本は VP9、互換性重視は VP8）",
+
+  "preview_title": "動画プレビュー",
+  "preview_original": "元の動画",
+  "preview_frame": "現在のフレームプレビュー",
+
+  "play": "再生",
+  "pause": "一時停止",
+
+  "settings_title": "変換設定",
+  "fps_label": "出力フレームレート (FPS)",
+  "fps_auto": "自動検出",
+
+  "mov_codec_label": "MOV コーデック",
+  "codec_png": "PNG (ロスレス、透明対応)",
+  "codec_rgba": "RGBA 生データ (ロスレス、ファイルサイズ大)",
+
+  "webm_format_label": "WebM コーデック",
+  "format_webm_vp9": "WebM VP9 (推奨)",
+  "format_webm_vp8": "WebM VP8 (互換性高)",
+
+  "quality_label": "画質",
+  "quality_high": "高画質",
+  "quality_medium": "標準",
+  "quality_low": "低画質 (小さいサイズ)",
+
+  "transparency_info_webm2mov": "このツールは動画内の透明ピクセルをピクセル単位で保持します。生成された MOV は Final Cut Pro、After Effects、DaVinci Resolve などで使用できます。",
+  "transparency_info_mov2webm": "アップロードした MOV をブラウザがデコードできる必要があります（H.264/H.265 の方が成功しやすいです）。背景削除ツールが出力した PNG MOV は、自動的にフレーム解析して変換します。",
+
+  "convert_btn_webm2mov": "MOV に変換",
+  "convert_btn_mov2webm": "WebM に変換",
+
+  "alpha_analysis_title": "アルファチャンネル分析",
+  "stat_transparent": "透明ピクセル",
+  "stat_semi": "半透明ピクセル",
+  "stat_opaque": "不透明ピクセル",
+  "alpha_preview": "アルファチャンネル可視化",
+
+  "processing": "処理中...",
+  "extracting_frames": "フレーム抽出中...",
+  "encoding_mov": "MOV エンコード中...",
+  "encoding_webm": "WebM エンコード中...",
+
+  "alert_webm_only": "WebM 形式の動画ファイルをアップロードしてください",
+  "alert_mov_only": "MOV 形式の動画ファイルをアップロードしてください",
+  "alert_decode_failed": "この動画はブラウザでデコードできません。より一般的なエンコード（例: H.264 MOV）にするか、ffmpeg/編集ソフトで再エンコードしてください。",
+  "mov_preview_unavailable": "この MOV はブラウザでプレビューできませんが、変換は可能です",
+
+  "error_processing": "処理エラー："
+}

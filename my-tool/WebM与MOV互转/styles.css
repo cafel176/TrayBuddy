@@ -33,6 +33,8 @@ header {
     padding: 1rem 2rem;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .logo {
@@ -42,6 +44,34 @@ header {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.mode-btn {
+    padding: 0.55rem 1rem;
+}
+
+.mode-btn.active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #fff !important;
+}
+
+.mode-btn.active:hover {
+    background: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
 }
 
 main {
@@ -354,15 +384,23 @@ button.secondary:hover {
 }
 
 @media (max-width: 768px) {
+    main {
+        padding: 1.25rem;
+    }
+
     .preview-container {
         grid-template-columns: 1fr;
     }
-    
+
     .controls-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .alpha-stats {
         grid-template-columns: 1fr;
+    }
+
+    header {
+        padding: 1rem 1.25rem;
     }
 }
