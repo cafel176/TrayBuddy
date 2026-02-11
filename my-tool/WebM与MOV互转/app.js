@@ -35,9 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const convertBtn = document.getElementById('convert-btn');
 
     const alphaCard = document.getElementById('alpha-card');
+    const alphaHint = document.getElementById('alpha-hint');
     const statTransparent = document.getElementById('stat-transparent');
     const statSemi = document.getElementById('stat-semi');
     const statOpaque = document.getElementById('stat-opaque');
+
 
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingText = document.getElementById('loading-text');
@@ -287,6 +289,64 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Probe video duration for files that report Infinity (common with some WebM files)
+    // This works by seeking to a very large time, which forces the browser to determine the actual duration
+    async function probeVideoDurationFromElement(video) {
+        return new Promise((resolve) => {
+            const originalTime = video.currentTime;
+            let resolved = false;
+            
+            const onTimeUpdate = () => {
+                if (resolved) return;
+                // After seeking to a huge value, currentTime will be clamped to actual duration
+                if (Number.isFinite(video.currentTime) && video.currentTime > 0) {
+                    const probedDuration = video.currentTime;
+                    resolved = true;
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    // Seek back to original position
+                    video.currentTime = originalTime;
+                    resolve(probedDuration);
+                }
+            };
+            
+            const onSeeked = () => {
+                if (resolved) return;
+                if (Number.isFinite(video.duration) && video.duration > 0) {
+                    resolved = true;
+                    video.removeEventListener('seeked', onSeeked);
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    video.currentTime = originalTime;
+                    resolve(video.duration);
+                } else if (Number.isFinite(video.currentTime) && video.currentTime > 0) {
+                    resolved = true;
+                    video.removeEventListener('seeked', onSeeked);
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    const probedDuration = video.currentTime;
+                    video.currentTime = originalTime;
+                    resolve(probedDuration);
+                }
+            };
+            
+            video.addEventListener('timeupdate', onTimeUpdate);
+            video.addEventListener('seeked', onSeeked);
+            
+            // Seek to a very large time - browser will clamp to actual duration
+            video.currentTime = Number.MAX_SAFE_INTEGER;
+            
+            // Timeout fallback - if we can't determine duration, use a default
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    video.removeEventListener('seeked', onSeeked);
+                    video.currentTime = originalTime;
+                    // Return 0 to indicate unknown duration - UI will show '--:--'
+                    resolve(0);
+                }
+            }, 3000);
+        });
+    }
+
     // --- Helpers ---
     function t(key, fallback) {
         const v = window.i18n && typeof window.i18n.t === 'function' ? window.i18n.t(key) : null;
@@ -318,6 +378,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function formatTime(seconds) {
+        // Handle Infinity or NaN (common with some WebM files that lack duration metadata)
+        if (!Number.isFinite(seconds) || seconds < 0) {
+            return '--:--';
+        }
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         const ms = Math.floor((seconds % 1) * 100);
@@ -376,7 +440,17 @@ document.addEventListener('DOMContentLoaded', () => {
         playBtn.classList.remove('hidden');
         videoInfoText.textContent = '--';
         videoInput.value = '';
+
+        // Reset alpha UI
+        statTransparent.textContent = '--';
+        statSemi.textContent = '--';
+        statOpaque.textContent = '--';
+        try {
+            const aCtx = alphaCanvas.getContext('2d');
+            aCtx.clearRect(0, 0, alphaCanvas.width || 1, alphaCanvas.height || 1);
+        } catch (e) {}
     }
+
 
     function applyModeUI() {
         const isWebm2Mov = mode === 'webm2mov';
@@ -386,11 +460,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         groupMovCodec.classList.toggle('hidden', !isWebm2Mov);
         infoWebm2Mov.classList.toggle('hidden', !isWebm2Mov);
-        alphaCard.classList.toggle('hidden', !isWebm2Mov);
+        alphaCard.classList.remove('hidden');
 
         groupWebmFormat.classList.toggle('hidden', isWebm2Mov);
         groupWebmQuality.classList.toggle('hidden', isWebm2Mov);
         infoMov2Webm.classList.toggle('hidden', isWebm2Mov);
+
+        setI18nKey(alphaHint, isWebm2Mov ? 'alpha_hint_webm2mov' : 'alpha_hint_mov2webm');
+
 
         setI18nKey(uploadTitle, isWebm2Mov ? 'upload_title_webm2mov' : 'upload_title_mov2webm');
         setI18nKey(uploadHint, isWebm2Mov ? 'upload_hint_webm2mov' : 'upload_hint_mov2webm');
@@ -497,6 +574,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const first = await decodeMovSampleToImageData(parsed, parsed.samples[0]);
                 const ctx = previewCanvas.getContext('2d', { willReadFrequently: true });
                 ctx.putImageData(first, 0, 0);
+
+                // Update alpha analysis for MOV->WebM fallback preview
+                updateAlphaFromImageData(first);
             }
         } catch (e) {
             console.warn('MOV fallback parse failed:', e && e.message ? e.message : e);
@@ -582,6 +662,14 @@ document.addEventListener('DOMContentLoaded', () => {
             duration = videoPlayer.duration || duration || 0;
             videoWidth = videoPlayer.videoWidth || videoWidth || 0;
             videoHeight = videoPlayer.videoHeight || videoHeight || 0;
+
+            // Handle WebM files with missing duration metadata (Infinity duration)
+            // This commonly happens with MediaRecorder-generated WebM files
+            if (!Number.isFinite(duration) || duration <= 0) {
+                dbg('Duration is Infinity or invalid, attempting to probe real duration...', { rawDuration: videoPlayer.duration });
+                duration = await probeVideoDurationFromElement(videoPlayer);
+                dbg('Probed duration:', { duration });
+            }
 
             if (!videoWidth || !videoHeight || !duration) {
                 console.warn('Loaded metadata but size/duration is empty', { videoWidth, videoHeight, duration });
@@ -856,13 +944,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
         ctx.drawImage(videoPlayer, 0, 0);
 
-        if (mode !== 'webm2mov') return;
-
-        // Analyze alpha in WebM->MOV mode
         const imageData = ctx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
+        updateAlphaFromImageData(imageData);
+    }
+
+    function updateAlphaFromImageData(imageData) {
+        // Alpha analysis is always available; for MOV, browser support varies.
         analyzeAlpha(imageData);
         renderAlphaVisualization(imageData);
     }
+
 
     function analyzeAlpha(imageData) {
         const data = imageData.data;
@@ -1714,9 +1805,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const frameDurationMs = 1000 / safeFps;
+        const expectedDurationMs = frames.length * frameDurationMs;
+        
         // Use timeslice so we can observe dataavailable cadence in logs
         recorder.start(250);
 
+        // Use a more precise timing approach
+        // Record the start time and calculate expected end time
+        const recordingStartTime = performance.now();
 
         const t0 = performance.now();
         for (let i = 0; i < frames.length; i++) {
@@ -1724,12 +1820,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.putImageData(frames[i], 0, 0);
 
             if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-
                 videoTrack.requestFrame();
             }
-
-            // Yield so the browser can paint / commit the frame into the capture stream
-            await new Promise(r => requestAnimationFrame(r));
 
             if (i === 0 || (i + 1) % 30 === 0 || i === frames.length - 1) {
                 const elapsed = Math.round(performance.now() - t0);
@@ -1738,13 +1830,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             onProgress((i + 1) / frames.length);
 
-            // Keep a soft cadence without blocking the main thread
-            await new Promise(r => setTimeout(r, frameDurationMs));
+            // Calculate when the next frame should be submitted based on start time
+            // This ensures consistent timing regardless of processing delays
+            const nextFrameTime = recordingStartTime + (i + 1) * frameDurationMs;
+            const now = performance.now();
+            const waitTime = Math.max(0, nextFrameTime - now);
+            
+            if (waitTime > 0) {
+                await new Promise(r => setTimeout(r, waitTime));
+            } else {
+                // Yield to allow the browser to process
+                await new Promise(r => setTimeout(r, 0));
+            }
         }
 
-
-        // Give encoder a short tail time
-        await new Promise(r => setTimeout(r, Math.max(50, frameDurationMs)));
+        // Calculate exact remaining time to reach expected duration
+        const elapsedSinceStart = performance.now() - recordingStartTime;
+        const remainingTime = Math.max(0, expectedDurationMs - elapsedSinceStart);
+        
+        // Add a small buffer (half a frame) to ensure the last frame is captured
+        const tailWait = Math.max(frameDurationMs * 0.5, remainingTime);
+        dbg('MediaRecorder tail wait', { elapsedSinceStart, expectedDurationMs, remainingTime, tailWait });
+        await new Promise(r => setTimeout(r, tailWait));
+        
         dbg('MediaRecorder stopping...');
         recorder.stop();
 

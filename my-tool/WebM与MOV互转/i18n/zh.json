@@ -46,6 +46,9 @@
   "stat_semi": "半透明像素",
   "stat_opaque": "不透明像素",
   "alpha_preview": "Alpha 通道可视化",
+  "alpha_hint_webm2mov": "提示：下方统计与可视化来自“当前帧预览”的像素数据（灰黑棋盘格代表透明背景）。",
+  "alpha_hint_mov2webm": "提示：下方统计与可视化用于检查 MOV 的 Alpha；若浏览器无法读取 MOV 的透明通道，这里会显示为 100% 不透明。对于“视频去背景”导出的 PNG MOV，本工具可正确读取 Alpha。",
+
 
   "processing": "正在处理...",
   "extracting_frames": "正在提取帧...",

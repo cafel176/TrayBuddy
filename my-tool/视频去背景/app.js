@@ -144,6 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let videoWidth = 0;
     let videoHeight = 0;
     
+    // MOV fallback support (for PNG-in-MOV files from WebM->MOV conversion)
+    let movFallback = null; // Parsed MOV data
+    let movFallbackPromise = null;
+    let videoDecodable = true; // Whether browser can decode the video
+    
     // Current mode: 'chroma' or 'wand' or 'perframe' or 'hybrid'
     let currentMode = 'chroma';
     
@@ -192,20 +197,450 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
+    // --- MOV Parsing Functions (for PNG-in-MOV files from WebM->MOV conversion) ---
+    function readFourCC(view, offset) {
+        return String.fromCharCode(
+            view.getUint8(offset),
+            view.getUint8(offset + 1),
+            view.getUint8(offset + 2),
+            view.getUint8(offset + 3)
+        );
+    }
+
+    function parseAtoms(view, start, end) {
+        const atoms = [];
+        let off = start;
+        while (off + 8 <= end) {
+            const size = view.getUint32(off);
+            const type = readFourCC(view, off + 4);
+            let atomSize = size;
+            if (atomSize === 0) atomSize = end - off;
+            if (atomSize < 8) break;
+            const atomEnd = Math.min(end, off + atomSize);
+            atoms.push({
+                type,
+                start: off,
+                size: atomSize,
+                headerSize: 8,
+                dataStart: off + 8,
+                end: atomEnd
+            });
+            off = off + atomSize;
+        }
+        return atoms;
+    }
+
+    function findChildAtom(view, parentAtom, type) {
+        const children = parseAtoms(view, parentAtom.dataStart, parentAtom.end);
+        return children.find(a => a.type === type) || null;
+    }
+
+    function findChildAtoms(view, parentAtom, type) {
+        const children = parseAtoms(view, parentAtom.dataStart, parentAtom.end);
+        return children.filter(a => a.type === type);
+    }
+
+    function parsePngMov(arrayBuffer) {
+        const view = new DataView(arrayBuffer);
+        const top = parseAtoms(view, 0, view.byteLength);
+        const moov = top.find(a => a.type === 'moov');
+        if (!moov) return null;
+
+        const traks = findChildAtoms(view, moov, 'trak');
+        if (!traks.length) return null;
+
+        // pick the first track
+        const trak = traks[0];
+        const mdia = findChildAtom(view, trak, 'mdia');
+        if (!mdia) return null;
+
+        const mdhd = findChildAtom(view, mdia, 'mdhd');
+        if (!mdhd) return null;
+
+        // mdhd: version/flags(4) + creation(4) + modification(4) + timescale(4) + duration(4)
+        const timeScale = view.getUint32(mdhd.dataStart + 12);
+        const mdDuration = view.getUint32(mdhd.dataStart + 16);
+        const durationSeconds = timeScale ? mdDuration / timeScale : 0;
+
+        const minf = findChildAtom(view, mdia, 'minf');
+        if (!minf) return null;
+
+        const stbl = findChildAtom(view, minf, 'stbl');
+        if (!stbl) return null;
+
+        const stsd = findChildAtom(view, stbl, 'stsd');
+        const stsz = findChildAtom(view, stbl, 'stsz');
+        const stco = findChildAtom(view, stbl, 'stco');
+        const stts = findChildAtom(view, stbl, 'stts');
+        if (!stsd || !stsz || !stco || !stts) return null;
+
+        // stsd: version/flags(4) + entryCount(4) + sampleEntry
+        const entryCount = view.getUint32(stsd.dataStart + 4);
+        if (entryCount < 1) return null;
+        const entryStart = stsd.dataStart + 8;
+        const codecFourCC = readFourCC(view, entryStart + 4);
+        const width = view.getUint16(entryStart + 32);
+        const height = view.getUint16(entryStart + 34);
+
+        // stts: version/flags(4) + entryCount(4) + (sampleCount(4), sampleDelta(4))...
+        const sttsEntryCount = view.getUint32(stts.dataStart + 4);
+        if (sttsEntryCount < 1) return null;
+        const sampleDelta = view.getUint32(stts.dataStart + 12);
+        const fps = (timeScale && sampleDelta) ? (timeScale / sampleDelta) : 30;
+
+        // stsz: version/flags(4) + sampleSize(4) + sampleCount(4) + sizes...
+        const sampleSize = view.getUint32(stsz.dataStart + 4);
+        const sampleCount = view.getUint32(stsz.dataStart + 8);
+        if (sampleCount <= 0) return null;
+
+        // stco: version/flags(4) + entryCount(4) + offsets...
+        const stcoCount = view.getUint32(stco.dataStart + 4);
+        if (stcoCount < 1) return null;
+        const chunkOffset = view.getUint32(stco.dataStart + 8);
+
+        if (sampleCount > 12000) {
+            throw new Error(`帧数过多（${sampleCount}），请降低 FPS 或缩短视频时长再试。`);
+        }
+
+        const samples = [];
+        if (sampleSize !== 0) {
+            // fixed size samples
+            let pos = chunkOffset;
+            for (let i = 0; i < sampleCount; i++) {
+                samples.push(new Uint8Array(arrayBuffer, pos, sampleSize));
+                pos += sampleSize;
+            }
+        } else {
+            // per-sample sizes
+            let pos = chunkOffset;
+            let tablePos = stsz.dataStart + 12;
+            for (let i = 0; i < sampleCount; i++) {
+                const sz = view.getUint32(tablePos + i * 4);
+                samples.push(new Uint8Array(arrayBuffer, pos, sz));
+                pos += sz;
+            }
+        }
+
+        return { codecFourCC, width, height, timeScale, durationSeconds, fps, samples, arrayBuffer };
+    }
+
+    async function decodeMovSampleToImageData(parsed, sampleBytes) {
+        if (parsed.codecFourCC === 'raw ') {
+            const expected = parsed.width * parsed.height * 4;
+            if (sampleBytes.byteLength < expected) {
+                throw new Error(`RAW 帧数据长度不正确：${sampleBytes.byteLength} < ${expected}`);
+            }
+            const src = new Uint8ClampedArray(sampleBytes.buffer, sampleBytes.byteOffset, expected);
+            const copy = new Uint8ClampedArray(src);
+            return new ImageData(copy, parsed.width, parsed.height);
+        }
+
+        if (parsed.codecFourCC === 'png ') {
+            const blob = new Blob([sampleBytes], { type: 'image/png' });
+            const bitmap = await createImageBitmap(blob);
+            const canvas = document.createElement('canvas');
+            canvas.width = parsed.width;
+            canvas.height = parsed.height;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
+            if (bitmap.close) bitmap.close();
+            return ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        throw new Error(`暂不支持的 MOV codec: ${parsed.codecFourCC}`);
+    }
+
+    async function extractFramesFromMovFallback(parsed, startIdx, endIdx, onProgress) {
+        const frames = [];
+        const total = endIdx - startIdx;
+        for (let i = startIdx; i < endIdx; i++) {
+            const imageData = await decodeMovSampleToImageData(parsed, parsed.samples[i]);
+            frames.push(imageData);
+            onProgress((i - startIdx + 1) / total);
+            if ((i - startIdx) % 3 === 0) await new Promise(r => setTimeout(r, 0));
+        }
+        return frames;
+    }
+
+    async function initMovFallbackIfPossible(file) {
+        try {
+            // Skip extremely large MOV to avoid heavy memory use
+            if (file.size > 1024 * 1024 * 1024) return null;
+
+            const buf = await file.arrayBuffer();
+            const parsed = parsePngMov(buf);
+            if (!parsed) return null;
+
+            movFallback = parsed;
+
+            // Fill basic metadata for UI (even if <video> cannot decode)
+            videoWidth = parsed.width;
+            videoHeight = parsed.height;
+            duration = parsed.durationSeconds;
+            detectedFps = parsed.fps;
+            endTime = duration;
+
+            console.log(`MOV fallback: ${parsed.width}x${parsed.height}, ${parsed.durationSeconds}s, ${parsed.fps} FPS, codec: ${parsed.codecFourCC}`);
+
+            return movFallback;
+        } catch (e) {
+            console.warn('MOV fallback parse failed:', e && e.message ? e.message : e);
+            return null;
+        }
+    }
+
+    function isMovFile(file) {
+        const name = (file.name || '').toLowerCase();
+        return name.endsWith('.mov') || file.type === 'video/quicktime';
+    }
+
+    // Probe video duration for files that report Infinity (common with some WebM files)
+    // This works by seeking to a very large time, which forces the browser to determine the actual duration
+    async function probeVideoDuration(video) {
+        return new Promise((resolve) => {
+            const originalTime = video.currentTime;
+            let resolved = false;
+            
+            const onTimeUpdate = () => {
+                if (resolved) return;
+                // After seeking to a huge value, currentTime will be clamped to actual duration
+                if (Number.isFinite(video.currentTime) && video.currentTime > 0) {
+                    const probedDuration = video.currentTime;
+                    resolved = true;
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    // Seek back to original position
+                    video.currentTime = originalTime;
+                    resolve(probedDuration);
+                }
+            };
+            
+            const onSeeked = () => {
+                if (resolved) return;
+                if (Number.isFinite(video.duration) && video.duration > 0) {
+                    resolved = true;
+                    video.removeEventListener('seeked', onSeeked);
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    video.currentTime = originalTime;
+                    resolve(video.duration);
+                } else if (Number.isFinite(video.currentTime) && video.currentTime > 0) {
+                    resolved = true;
+                    video.removeEventListener('seeked', onSeeked);
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    const probedDuration = video.currentTime;
+                    video.currentTime = originalTime;
+                    resolve(probedDuration);
+                }
+            };
+            
+            video.addEventListener('timeupdate', onTimeUpdate);
+            video.addEventListener('seeked', onSeeked);
+            
+            // Seek to a very large time - browser will clamp to actual duration
+            video.currentTime = Number.MAX_SAFE_INTEGER;
+            
+            // Timeout fallback - if we can't determine duration, use a default
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    video.removeEventListener('timeupdate', onTimeUpdate);
+                    video.removeEventListener('seeked', onSeeked);
+                    video.currentTime = originalTime;
+                    // Return 0 to indicate unknown duration - UI will show '--:--'
+                    resolve(0);
+                }
+            }, 3000);
+        });
+    }
+
     function handleFile(file) {
-        if (!file.type.startsWith('video/')) {
+        // Check if it's a video file (also accept MOV files which may have empty or different MIME types)
+        const isVideo = file.type.startsWith('video/') || isMovFile(file);
+        if (!isVideo) {
             alert(window.i18n?.t('alert_upload_video') || '请上传视频文件');
             return;
         }
         videoFile = file;
+        videoDecodable = true;
+        movFallback = null;
+        movFallbackPromise = null;
+        
         const url = URL.createObjectURL(file);
         videoPlayer.src = url;
         
-        videoPlayer.onloadedmetadata = () => {
-            duration = videoPlayer.duration;
+        // For MOV files: try parsing PNG-in-MOV (e.g. from "WebM与MOV互转" tool)
+        // Start parsing in parallel with browser loading
+        if (isMovFile(file)) {
+            console.log('Detected MOV file, attempting to parse in parallel...');
+            movFallbackPromise = initMovFallbackIfPossible(file);
+        }
+        
+        // Error handler for undecodable videos
+        const onError = () => {
+            videoDecodable = false;
+            console.log('Video decode error, trying MOV fallback...');
+            
+            // Try MOV fallback parsing first
+            (async () => {
+                try {
+                    if (!movFallback && movFallbackPromise) {
+                        await movFallbackPromise;
+                    }
+                    if (!movFallback && isMovFile(file)) {
+                        // One more try
+                        console.log('Retrying MOV fallback parse...');
+                        movFallbackPromise = initMovFallbackIfPossible(file);
+                        await movFallbackPromise;
+                    }
+                    
+                    if (movFallback) {
+                        // Success - show editor with MOV fallback
+                        console.log('Using MOV fallback mode (browser cannot decode, but we can parse PNG/RAW frames)');
+                        console.log('MOV info:', { 
+                            codec: movFallback.codecFourCC, 
+                            width: videoWidth, 
+                            height: videoHeight, 
+                            duration, 
+                            fps: detectedFps,
+                            samples: movFallback.samples?.length 
+                        });
+                        
+                        // Set canvas sizes before drawing
+                        firstFrameCanvas.width = videoWidth;
+                        firstFrameCanvas.height = videoHeight;
+                        previewCanvas.width = videoWidth;
+                        previewCanvas.height = videoHeight;
+                        
+                        updateSliderUI();
+                        uploadSection.classList.add('hidden');
+                        editorSection.classList.remove('hidden');
+                        resetBtn.classList.remove('hidden');
+                        updateVideoInfoDisplay();
+                        
+                        // Draw first frame for preview from MOV fallback
+                        if (movFallback.samples && movFallback.samples.length > 0) {
+                            const first = await decodeMovSampleToImageData(movFallback, movFallback.samples[0]);
+                            firstFrameImageData = first;
+                            
+                            // Draw first frame with transparency visualization
+                            const ctx = firstFrameCanvas.getContext('2d', { willReadFrequently: true });
+                            drawCheckerboard(ctx, videoWidth, videoHeight);
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = first.width;
+                            tempCanvas.height = first.height;
+                            const tempCtx = tempCanvas.getContext('2d');
+                            tempCtx.putImageData(first, 0, 0);
+                            ctx.drawImage(tempCanvas, 0, 0);
+                            
+                            // Also update preview canvas with transparency visualization
+                            updatePreviewWithAlpha(first);
+                            
+                            // Initialize wand mask
+                            wandMask = new Uint8Array(videoWidth * videoHeight).fill(255);
+                            
+                            // Hide video player in MOV fallback mode (browser can't play it)
+                            videoPlayer.style.display = 'none';
+                        }
+                        return;
+                    }
+                    
+                    alert(window.i18n?.t('alert_decode_failed') || '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264），或用 ffmpeg/专业软件先转码。');
+                } catch (e) {
+                    console.error('MOV fallback failed:', e);
+                    alert(window.i18n?.t('alert_decode_failed') || '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264），或用 ffmpeg/专业软件先转码。');
+                }
+            })();
+        };
+        videoPlayer.addEventListener('error', onError, { once: true });
+        
+        videoPlayer.onloadedmetadata = async () => {
+            // Browser successfully loaded metadata
+            // But for MOV files, we should still wait for fallback parsing to complete
+            // because browser may not be able to render the actual frames
+            
+            let browserDuration = videoPlayer.duration;
+            let browserWidth = videoPlayer.videoWidth;
+            let browserHeight = videoPlayer.videoHeight;
+            
+            // Handle WebM files with missing duration metadata (Infinity duration)
+            if (!Number.isFinite(browserDuration) || browserDuration <= 0) {
+                console.log('Duration is Infinity or invalid, attempting to probe real duration...');
+                browserDuration = await probeVideoDuration(videoPlayer);
+                console.log('Probed duration:', browserDuration);
+            }
+            
+            // For MOV files: wait for fallback parsing and use its data if available
+            if (isMovFile(file) && movFallbackPromise) {
+                console.log('Waiting for MOV fallback parsing to complete...');
+                await movFallbackPromise;
+                
+                if (movFallback) {
+                    console.log('MOV fallback available, using parsed data for frame extraction');
+                    // Use MOV fallback data (which is more accurate for PNG-in-MOV)
+                    // But browser's metadata may still be useful as fallback
+                    duration = movFallback.durationSeconds || browserDuration;
+                    videoWidth = movFallback.width || browserWidth;
+                    videoHeight = movFallback.height || browserHeight;
+                    detectedFps = movFallback.fps || 30;
+                    endTime = duration;
+                    
+                    // Mark as not decodable by browser (use fallback for frame extraction)
+                    videoDecodable = false;
+                    
+                    // Set canvas sizes
+                    firstFrameCanvas.width = videoWidth;
+                    firstFrameCanvas.height = videoHeight;
+                    previewCanvas.width = videoWidth;
+                    previewCanvas.height = videoHeight;
+                    
+                    updateSliderUI();
+                    uploadSection.classList.add('hidden');
+                    editorSection.classList.remove('hidden');
+                    resetBtn.classList.remove('hidden');
+                    updateVideoInfoDisplay();
+                    
+                    // Draw first frame from MOV fallback
+                    if (movFallback.samples && movFallback.samples.length > 0) {
+                        const first = await decodeMovSampleToImageData(movFallback, movFallback.samples[0]);
+                        firstFrameImageData = first;
+                        
+                        // Draw first frame with transparency visualization
+                        const ctx = firstFrameCanvas.getContext('2d', { willReadFrequently: true });
+                        drawCheckerboard(ctx, videoWidth, videoHeight);
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = first.width;
+                        tempCanvas.height = first.height;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCtx.putImageData(first, 0, 0);
+                        ctx.drawImage(tempCanvas, 0, 0);
+                        
+                        // Update preview with transparency visualization
+                        updatePreviewWithAlpha(first);
+                        
+                        wandMask = new Uint8Array(videoWidth * videoHeight).fill(255);
+                        
+                        // Hide video player in MOV fallback mode (browser can't play it)
+                        videoPlayer.style.display = 'none';
+                    }
+                    
+                    console.log('MOV fallback mode initialized:', {
+                        codec: movFallback.codecFourCC,
+                        width: videoWidth,
+                        height: videoHeight,
+                        duration,
+                        fps: detectedFps,
+                        samples: movFallback.samples?.length
+                    });
+                    return;
+                }
+            }
+            
+            // Normal video loading (browser can decode)
+            videoDecodable = true;
+            duration = browserDuration;
+            videoWidth = browserWidth;
+            videoHeight = browserHeight;
             endTime = duration;
-            videoWidth = videoPlayer.videoWidth;
-            videoHeight = videoPlayer.videoHeight;
             
             // Detect FPS using requestVideoFrameCallback if available
             detectVideoFps().then(fps => {
@@ -223,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         videoPlayer.onseeked = () => {
-            if (!firstFrameImageData) {
+            if (!firstFrameImageData && videoDecodable) {
                 captureFirstFrame();
             }
         };
@@ -321,10 +756,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function captureFirstFrame() {
+        // For MOV fallback mode, firstFrameImageData is already set in handleFile
+        if (movFallback && !videoDecodable && firstFrameImageData) {
+            const canvas = firstFrameCanvas;
+            const ctx = canvas.getContext('2d');
+            canvas.width = videoWidth;
+            canvas.height = videoHeight;
+            ctx.putImageData(firstFrameImageData, 0, 0);
+            
+            // Initialize wand mask
+            wandMask = new Uint8Array(canvas.width * canvas.height).fill(255);
+            
+            // Also init preview canvas
+            previewCanvas.width = videoWidth;
+            previewCanvas.height = videoHeight;
+            updatePreview();
+            return;
+        }
+        
         const canvas = firstFrameCanvas;
         const ctx = canvas.getContext('2d');
-        canvas.width = videoPlayer.videoWidth;
-        canvas.height = videoPlayer.videoHeight;
+        canvas.width = videoPlayer.videoWidth || videoWidth;
+        canvas.height = videoPlayer.videoHeight || videoHeight;
         ctx.drawImage(videoPlayer, 0, 0);
         firstFrameImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         
@@ -332,8 +785,8 @@ document.addEventListener('DOMContentLoaded', () => {
         wandMask = new Uint8Array(canvas.width * canvas.height).fill(255);
         
         // Also init preview canvas
-        previewCanvas.width = videoPlayer.videoWidth;
-        previewCanvas.height = videoPlayer.videoHeight;
+        previewCanvas.width = videoPlayer.videoWidth || videoWidth;
+        previewCanvas.height = videoPlayer.videoHeight || videoHeight;
         updatePreview();
     }
 
@@ -417,8 +870,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeHandle = null;
 
     function updateSliderUI() {
-        const startPct = (startTime / duration) * 100;
-        const endPct = (endTime / duration) * 100;
+        // Handle invalid duration (0, Infinity, NaN)
+        const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 1;
+        const startPct = (startTime / safeDuration) * 100;
+        const endPct = (endTime / safeDuration) * 100;
         
         handleStart.style.left = `${startPct}%`;
         handleEnd.style.left = `${endPct}%`;
@@ -446,6 +901,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function formatTime(seconds) {
+        // Handle Infinity or NaN (common with some WebM files that lack duration metadata)
+        if (!Number.isFinite(seconds) || seconds < 0) {
+            return '--:--';
+        }
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         const ms = Math.floor((seconds % 1) * 100);
@@ -457,7 +916,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const rect = rangeSlider.getBoundingClientRect();
         let pct = (e.clientX - rect.left) / rect.width;
         pct = Math.max(0, Math.min(1, pct));
-        const time = pct * duration;
+        const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 1;
+        const time = pct * safeDuration;
 
         if (activeHandle === handleStart) {
             startTime = Math.min(time, endTime - 0.1);
@@ -485,9 +945,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (currentMode === 'chroma') {
             // Chroma mode: pick color and add to list
-            const ctx = firstFrameCanvas.getContext('2d');
-            const pixel = ctx.getImageData(x, y, 1, 1).data;
-            const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+            // Get pixel from firstFrameImageData directly (not from canvas which may have checkerboard)
+            const pixelIndex = (y * firstFrameImageData.width + x) * 4;
+            const r = firstFrameImageData.data[pixelIndex];
+            const g = firstFrameImageData.data[pixelIndex + 1];
+            const b = firstFrameImageData.data[pixelIndex + 2];
+            const hex = rgbToHex(r, g, b);
             
             // Update the color input for preview
             colorHex.value = hex;
@@ -740,10 +1203,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!firstFrameImageData) return;
         
         if (hybridEditMode === 'chroma') {
-            // Pick color for chroma panel
-            const ctx = firstFrameCanvas.getContext('2d');
-            const pixel = ctx.getImageData(x, y, 1, 1).data;
-            const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+            // Pick color for chroma panel from firstFrameImageData directly
+            const pixelIndex = (y * firstFrameImageData.width + x) * 4;
+            const r = firstFrameImageData.data[pixelIndex];
+            const g = firstFrameImageData.data[pixelIndex + 1];
+            const b = firstFrameImageData.data[pixelIndex + 2];
+            const hex = rgbToHex(r, g, b);
             
             hybridColorHex.value = hex;
             hybridColorPreview.style.background = hex;
@@ -1073,7 +1538,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        ctx.putImageData(imageData, 0, 0);
+        // Draw with transparency visualization (checkerboard background)
+        drawCheckerboard(ctx, imageData.width, imageData.height);
+        
+        // Use temp canvas for proper alpha compositing
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = imageData.width;
+        tempCanvas.height = imageData.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0);
     }
     
     // Process all hybrid operations in order
@@ -1510,33 +1984,65 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log(`Extracting ${totalFrames} frames for per-frame editing`);
         
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = videoPlayer.videoWidth;
-        canvas.height = videoPlayer.videoHeight;
-        
         perframeData.frames = [];
         perframeData.frameCount = totalFrames;
         perframeData.selectionsByFrame = {};
         
-        for (let i = 0; i < totalFrames; i++) {
-            const time = startTime + (i * interval);
-            videoPlayer.currentTime = time;
-            await new Promise(resolve => {
-                videoPlayer.onseeked = resolve;
-            });
+        // Check if we should use MOV fallback
+        if (movFallback && !videoDecodable) {
+            console.log('Using MOV fallback for per-frame extraction');
             
-            ctx.drawImage(videoPlayer, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            perframeData.frames.push(imageData);
+            // Calculate frame indices for the selected time range
+            const movFps = movFallback.fps || fps;
+            const startFrameIdx = Math.floor(startTime * movFps);
+            const endFrameIdx = Math.min(
+                Math.ceil(endTime * movFps),
+                movFallback.samples.length
+            );
             
-            const progress = (i + 1) / totalFrames;
-            perframeExtractBar.style.width = `${progress * 100}%`;
-            perframeExtractPercent.textContent = `${Math.round(progress * 100)}%`;
+            const movTotalFrames = endFrameIdx - startFrameIdx;
             
-            // Yield to UI
-            if (i % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
+            for (let i = startFrameIdx; i < endFrameIdx; i++) {
+                const imageData = await decodeMovSampleToImageData(movFallback, movFallback.samples[i]);
+                perframeData.frames.push(imageData);
+                
+                const progress = (i - startFrameIdx + 1) / movTotalFrames;
+                perframeExtractBar.style.width = `${progress * 100}%`;
+                perframeExtractPercent.textContent = `${Math.round(progress * 100)}%`;
+                
+                // Yield to UI
+                if ((i - startFrameIdx) % 5 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+            
+            perframeData.frameCount = perframeData.frames.length;
+        } else {
+            // Normal extraction from video element
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = videoPlayer.videoWidth || videoWidth;
+            canvas.height = videoPlayer.videoHeight || videoHeight;
+            
+            for (let i = 0; i < totalFrames; i++) {
+                const time = startTime + (i * interval);
+                videoPlayer.currentTime = time;
+                await new Promise(resolve => {
+                    videoPlayer.onseeked = resolve;
+                });
+                
+                ctx.drawImage(videoPlayer, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                perframeData.frames.push(imageData);
+                
+                const progress = (i + 1) / totalFrames;
+                perframeExtractBar.style.width = `${progress * 100}%`;
+                perframeExtractPercent.textContent = `${Math.round(progress * 100)}%`;
+                
+                // Yield to UI
+                if (i % 5 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
             }
         }
         
@@ -1547,11 +2053,12 @@ document.addEventListener('DOMContentLoaded', () => {
         perframeExtractProgress.classList.add('hidden');
         
         // Update UI
-        perframeTotalSpan.textContent = totalFrames;
+        const actualFrameCount = perframeData.frames.length;
+        perframeTotalSpan.textContent = actualFrameCount;
         perframeCurrentInput.value = 1;
-        perframeCurrentInput.max = totalFrames;
-        copyRangeEnd.max = totalFrames;
-        copyRangeEnd.value = totalFrames;
+        perframeCurrentInput.max = actualFrameCount;
+        copyRangeEnd.max = actualFrameCount;
+        copyRangeEnd.value = actualFrameCount;
         
         // Build timeline
         buildFrameTimeline();
@@ -1763,6 +2270,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Preview Update ---
+    
+    // Update preview with transparency visualization (checkerboard pattern for transparent areas)
+    async function updatePreviewWithAlpha(imageData) {
+        const ctx = previewCanvas.getContext('2d');
+        const w = imageData.width;
+        const h = imageData.height;
+        
+        // First draw checkerboard pattern for transparency
+        drawCheckerboard(ctx, w, h);
+        
+        // Convert ImageData to ImageBitmap for proper alpha compositing
+        // putImageData doesn't do alpha blending, it replaces pixels directly
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = h;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(imageData, 0, 0);
+        
+        // Draw with alpha compositing
+        ctx.drawImage(tempCanvas, 0, 0);
+    }
+    
+    // Draw checkerboard pattern (standard transparency visualization)
+    function drawCheckerboard(ctx, width, height, squareSize = 8) {
+        const colors = ['#ffffff', '#cccccc'];
+        for (let y = 0; y < height; y += squareSize) {
+            for (let x = 0; x < width; x += squareSize) {
+                const colorIndex = ((Math.floor(x / squareSize) + Math.floor(y / squareSize)) % 2);
+                ctx.fillStyle = colors[colorIndex];
+                ctx.fillRect(x, y, squareSize, squareSize);
+            }
+        }
+    }
+    
     function updatePreview() {
         if (currentMode === 'perframe') {
             updatePerframePreview();
@@ -1794,7 +2335,16 @@ document.addEventListener('DOMContentLoaded', () => {
             processWandMask(imageData.data, feather);
         }
         
-        ctx.putImageData(imageData, 0, 0);
+        // Draw with transparency visualization (checkerboard background)
+        drawCheckerboard(ctx, previewCanvas.width, previewCanvas.height);
+        
+        // Use temp canvas for proper alpha compositing
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = imageData.width;
+        tempCanvas.height = imageData.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0);
     }
     
     function updatePerframePreview() {
@@ -1823,17 +2373,27 @@ document.addEventListener('DOMContentLoaded', () => {
             finalMask = applyFeatherToMask(mask, frame.width, frame.height, featherRadius);
         }
         
-        // Apply mask to image
+        // Apply mask to image - preserve original transparency (take minimum)
         for (let i = 0; i < finalMask.length; i++) {
-            imageData.data[i * 4 + 3] = finalMask[i];
+            imageData.data[i * 4 + 3] = Math.min(imageData.data[i * 4 + 3], finalMask[i]);
         }
         
-        ctx.putImageData(imageData, 0, 0);
+        // Draw with transparency visualization (checkerboard background)
+        drawCheckerboard(ctx, frame.width, frame.height);
+        
+        // Use temp canvas for proper alpha compositing
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = imageData.width;
+        tempCanvas.height = imageData.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0);
     }
 
     function processChromaKey(data, targetHsv, tolerance, feather, spill) {
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i], g = data[i+1], b = data[i+2];
+            const originalAlpha = data[i+3];
             const hsv = rgbToHsv(r, g, b);
             
             let dh = Math.abs(hsv.h - targetHsv.h);
@@ -1845,12 +2405,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (distance < tolerance) {
                 const innerBoundary = tolerance * (1 - feather);
+                let computedAlpha;
                 if (distance > innerBoundary && feather > 0) {
                     const alpha = (distance - innerBoundary) / (tolerance - innerBoundary);
-                    data[i+3] = Math.floor(255 * alpha);
+                    computedAlpha = Math.floor(255 * alpha);
                 } else {
-                    data[i+3] = 0;
+                    computedAlpha = 0;
                 }
+                // Preserve original transparency (take minimum)
+                data[i+3] = Math.min(originalAlpha, computedAlpha);
             }
 
             // Spill suppression
@@ -1909,7 +2472,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // Apply the minimum alpha (most transparent wins)
-            data[i+3] = minAlpha;
+            // Preserve original transparency - take the minimum of computed alpha and original alpha
+            data[i+3] = Math.min(data[i+3], minAlpha);
             
             // Apply combined spill suppression
             if (minAlpha > 0 && totalSpillFactor > 0) {
@@ -1933,9 +2497,9 @@ document.addEventListener('DOMContentLoaded', () => {
             finalMask = applyFeatherToMask(wandMask, width, height, featherRadius);
         }
         
-        // Apply mask to image data
+        // Apply mask to image data - preserve original transparency (take minimum)
         for (let i = 0; i < finalMask.length; i++) {
-            data[i * 4 + 3] = finalMask[i];
+            data[i * 4 + 3] = Math.min(data[i * 4 + 3], finalMask[i]);
         }
     }
 
@@ -2132,6 +2696,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function extractFrames(fps, onProgress) {
+        // If using MOV fallback (browser can't decode the video), extract from parsed MOV data
+        if (movFallback && !videoDecodable) {
+            console.log('Using MOV fallback for frame extraction');
+            const segmentDuration = endTime - startTime;
+            const totalFrames = Math.round(segmentDuration * fps);
+            
+            // Calculate frame indices for the selected time range
+            const movFps = movFallback.fps || fps;
+            const startFrameIdx = Math.floor(startTime * movFps);
+            const endFrameIdx = Math.min(
+                Math.ceil(endTime * movFps),
+                movFallback.samples.length
+            );
+            
+            console.log(`Extracting frames ${startFrameIdx} to ${endFrameIdx} from MOV fallback (${movFallback.samples.length} total samples)`);
+            
+            const frames = await extractFramesFromMovFallback(movFallback, startFrameIdx, endFrameIdx, onProgress);
+            console.log(`Extracted ${frames.length} frames from MOV fallback`);
+            return frames;
+        }
+        
+        // Normal extraction from video element
         const frames = [];
         const segmentDuration = endTime - startTime;
         // Calculate exact frame count based on duration and fps
@@ -2142,8 +2728,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = videoPlayer.videoWidth;
-        canvas.height = videoPlayer.videoHeight;
+        canvas.width = videoPlayer.videoWidth || videoWidth;
+        canvas.height = videoPlayer.videoHeight || videoHeight;
 
         for (let i = 0; i < totalFrames; i++) {
             // Calculate exact time for this frame
@@ -2358,9 +2944,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalMask = applyFeatherToMask(frameMask, width, height, featherRadius);
             }
             
-            // Apply mask
+            // Apply mask - preserve original transparency (take minimum)
             for (let j = 0; j < finalMask.length; j++) {
-                imageData.data[j * 4 + 3] = finalMask[j];
+                imageData.data[j * 4 + 3] = Math.min(imageData.data[j * 4 + 3], finalMask[j]);
             }
             
             processedFrames.push(imageData);
@@ -2396,9 +2982,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalMask = applyFeatherToMask(frameMask, width, height, featherRadius);
             }
             
-            // Apply mask
+            // Apply mask - preserve original transparency (take minimum)
             for (let j = 0; j < finalMask.length; j++) {
-                imageData.data[j * 4 + 3] = finalMask[j];
+                imageData.data[j * 4 + 3] = Math.min(imageData.data[j * 4 + 3], finalMask[j]);
             }
             
             processedFrames.push(imageData);
@@ -2792,23 +3378,69 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Hold last frame for one more frame duration
-        await new Promise(resolve => setTimeout(resolve, frameDurationMs));
+        // Hold last frame for half a frame duration (reduced from full frame)
+        await new Promise(resolve => setTimeout(resolve, frameDurationMs * 0.5));
         recorder.stop();
 
         const blob = await recordingPromise;
         const recordDuration = performance.now() - recordStartTime;
         
         console.log(`MediaRecorder: target=${targetTotalMs.toFixed(1)}ms, actual=${recordDuration.toFixed(1)}ms`);
-        console.log(`Note: MediaRecorder timing may not be precise. Use a browser that supports WebCodecs for exact timing.`);
+        
+        // Fix WebM duration metadata (MediaRecorder often doesn't write it correctly)
+        const fixedBlob = await fixWebmDuration(blob, targetTotalMs);
         
         // Download the video
-        const url = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(fixedBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `video_bg_removed_${Date.now()}.webm`;
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    // Fix WebM duration metadata in EBML header
+    // MediaRecorder-generated WebM files often have Infinity duration
+    async function fixWebmDuration(blob, durationMs) {
+        try {
+            const buffer = await blob.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            
+            // WebM/EBML Duration element ID: 0x4489
+            // We need to find the Duration element in the Segment > Info section
+            // and update its value
+            const durationElementId = [0x44, 0x89];
+            
+            for (let i = 0; i < bytes.length - 12; i++) {
+                if (bytes[i] === durationElementId[0] && bytes[i + 1] === durationElementId[1]) {
+                    // Found Duration element ID
+                    // Next byte(s) indicate the size
+                    const sizeIndicator = bytes[i + 2];
+                    
+                    // Check if it's an 8-byte float (0x88 = size 8)
+                    if (sizeIndicator === 0x88) {
+                        // Write duration as float64 (big-endian)
+                        const dataView = new DataView(new ArrayBuffer(8));
+                        dataView.setFloat64(0, durationMs, false); // false = big-endian
+                        const durationBytes = new Uint8Array(dataView.buffer);
+                        
+                        // Patch the duration value
+                        for (let j = 0; j < 8; j++) {
+                            bytes[i + 3 + j] = durationBytes[j];
+                        }
+                        
+                        console.log(`Fixed WebM duration metadata: ${durationMs}ms at position ${i}`);
+                        return new Blob([bytes], { type: blob.type });
+                    }
+                }
+            }
+            
+            console.log('Duration element not found in WebM, returning original blob');
+            return blob;
+        } catch (e) {
+            console.error('Failed to fix WebM duration:', e);
+            return blob;
+        }
     }
 
     async function exportPngSequence(frames, onProgress) {

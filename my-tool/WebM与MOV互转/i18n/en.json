@@ -46,6 +46,9 @@
   "stat_semi": "Semi-transparent",
   "stat_opaque": "Opaque",
   "alpha_preview": "Alpha Channel Visualization",
+  "alpha_hint_webm2mov": "Tip: The stats and visualization below are computed from the pixel data of the current preview frame (checkerboard indicates transparency).",
+  "alpha_hint_mov2webm": "Tip: The stats and visualization below are for checking MOV alpha. If your browser can't read alpha from the MOV, it may show as 100% opaque. PNG-in-MOV exported by the Background Remover tool is supported.",
+
 
   "processing": "Processing...",
   "extracting_frames": "Extracting frames...",

@@ -290,12 +290,20 @@ button.secondary:hover {
     font-size: 1rem;
 }
 
+.alpha-hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0 0 1rem 0;
+}
+
 .alpha-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin-bottom: 1.5rem;
 }
+
 
 .stat-item {
     background: var(--bg-tertiary);
