@@ -1006,14 +1006,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const format = outputWebmFormat.value;
             const quality = parseFloat(outputWebmQuality.value);
 
-            const blob = await encodeWebmFromFrames(frames, fps, format, quality, (p) => {
+            const encoded = await encodeWebmFromFrames(frames, fps, format, quality, (p) => {
                 setLoading(0.5 + p * 0.5, t('encoding_webm', '正在编码 WebM...'));
             });
+
+            const blob = encoded.blob;
+            const usedFormat = encoded.usedFormat;
+            const usedPath = encoded.usedPath;
+            const hasAlpha = encoded.hasAlpha;
 
             const expectedDuration = frames.length / Math.max(1, fps || 30);
             const probedDuration = await probeVideoDurationSeconds(blob);
             dbg('webm export done', {
-                format,
+                requestedFormat: format,
+                usedFormat,
+                usedPath,
+                hasAlpha,
                 quality,
                 blobBytes: blob.size,
                 expectedFrames: frames.length,
@@ -1023,6 +1031,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const baseName = videoFile.name.replace(/\.mov$/i, '');
             downloadBlob(blob, `${baseName}.webm`);
+
 
             loadingOverlay.classList.add('hidden');
         } catch (e) {
@@ -1376,14 +1385,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- WebM encoding (borrowed from existing tools) ---
+    function detectHasAlphaInFrames(frames) {
+        try {
+            if (!frames || !frames.length) return false;
+
+            // Sample a few frames & pixels only (fast heuristic)
+            const sampleFrameCount = Math.min(8, frames.length);
+            const frameIdxs = [];
+            for (let i = 0; i < sampleFrameCount; i++) {
+                frameIdxs.push(Math.floor(i * (frames.length - 1) / Math.max(1, sampleFrameCount - 1)));
+            }
+
+            for (const fi of frameIdxs) {
+                const f = frames[fi];
+                if (!f || !f.data) continue;
+                const d = f.data;
+
+                // Sample up to 256 pixels
+                const pixels = Math.min(256, Math.floor(d.length / 4));
+                if (pixels <= 0) continue;
+                const step = Math.max(1, Math.floor((d.length / 4) / pixels));
+                for (let p = 0; p < pixels; p++) {
+                    const idx = (p * step * 4) + 3;
+                    const a = d[idx];
+                    if (a !== 255) return true;
+                }
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
+
     async function encodeWebmFromFrames(frames, fps, format, quality, onProgress) {
         const width = frames[0].width;
         const height = frames[0].height;
 
+        const hasAlpha = detectHasAlphaInFrames(frames);
+        let usedFormat = format;
+
+        // VP8 transparency support is inconsistent across browsers/paths.
+        // If we detect alpha, prefer VP9 to keep transparency.
+        if (hasAlpha && usedFormat === 'webm-vp8') {
+            dbg('[WARN] alpha detected; overriding format to VP9 to preserve transparency', { requestedFormat: format });
+            usedFormat = 'webm-vp9';
+        }
+
         dbg('encodeWebmFromFrames', {
             frames: frames.length,
             fps,
-            format,
+            requestedFormat: format,
+            usedFormat,
+            hasAlpha,
             quality,
             size: `${width}x${height}`,
             hasVideoEncoder: typeof VideoEncoder !== 'undefined',
@@ -1394,24 +1447,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof VideoEncoder !== 'undefined' && window.WebMMuxer) {
             try {
                 dbg('webm path: WebCodecs+Muxer');
-                const blob = await encodeWithWebCodecsMuxer(frames, fps, format, quality, onProgress);
+                const blob = await encodeWithWebCodecsMuxer(frames, fps, usedFormat, quality, hasAlpha, onProgress);
                 dbg('webm path done: WebCodecs+Muxer', { blobBytes: blob.size });
-                return blob;
+                return { blob, usedFormat, usedPath: 'WebCodecs+Muxer', hasAlpha };
             } catch (e) {
                 dbgError('WebCodecs+Muxer failed, falling back to MediaRecorder', e && e.message ? e.message : e);
             }
         }
 
         dbg('webm path: MediaRecorder');
-        const blob = await encodeWithMediaRecorder(frames, fps, format, quality, onProgress);
+        const blob = await encodeWithMediaRecorder(frames, fps, usedFormat, quality, hasAlpha, onProgress);
         dbg('webm path done: MediaRecorder', { blobBytes: blob.size });
-        return blob;
+        return { blob, usedFormat, usedPath: 'MediaRecorder', hasAlpha };
     }
 
-    async function encodeWithWebCodecsMuxer(frames, fps, format, quality, onProgress) {
+
+    async function encodeWithWebCodecsMuxer(frames, fps, format, quality, hasAlpha, onProgress) {
         const width = frames[0].width;
         const height = frames[0].height;
         const frameDurationUs = Math.round(1000000 / fps);
+
 
         dbg('encodeWithWebCodecsMuxer start', {
             frames: frames.length,
@@ -1459,11 +1514,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 width,
                 height,
                 frameRate: fps,
-                alpha: true
+                alpha: !!hasAlpha
             },
             type: 'webm',
             firstTimestampBehavior: 'offset'
         });
+
 
 
         const encoder = new VideoEncoder({
@@ -1475,47 +1531,43 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        let codecConfig;
-        if (format === 'webm-vp8') {
-            codecConfig = {
-                codec: 'vp8',
-                width,
-                height,
-                bitrate: Math.round(quality * 8000000),
-                framerate: fps
-            };
-        } else {
-            // VP9 (try alpha-friendly profiles first)
-            codecConfig = {
-                codec: 'vp09.00.10.08.01',
-                width,
-                height,
-                bitrate: Math.round(quality * 8000000),
-                framerate: fps
-            };
+        const bitrate = Math.round(quality * 8000000);
 
-            let support = await VideoEncoder.isConfigSupported(codecConfig);
-            if (!support.supported) {
-                codecConfig.codec = 'vp09.00.10.08';
-                support = await VideoEncoder.isConfigSupported(codecConfig);
+        const codecCandidates = (format === 'webm-vp8')
+            ? ['vp8']
+            : ['vp09.00.10.08.01', 'vp09.00.10.08', 'vp09.00.10.08.00', 'vp9', 'vp8'];
+
+        let codecConfig = null;
+
+        for (const codec of codecCandidates) {
+            // Try keeping alpha first (if requested), then fallback to discard.
+            const tries = [];
+            if (hasAlpha) {
+                tries.push({ codec, width, height, bitrate, framerate: fps, alpha: 'keep' });
             }
-            if (!support.supported) {
-                codecConfig.codec = 'vp09.00.10.08.00';
-                support = await VideoEncoder.isConfigSupported(codecConfig);
+            tries.push({ codec, width, height, bitrate, framerate: fps });
+
+            for (const cfg of tries) {
+                try {
+                    const support = await VideoEncoder.isConfigSupported(cfg);
+                    if (support && support.supported) {
+                        codecConfig = cfg;
+                        break;
+                    }
+                } catch (e) {
+                    // ignore and continue
+                }
             }
-            if (!support.supported) {
-                codecConfig.codec = 'vp9';
-                support = await VideoEncoder.isConfigSupported(codecConfig);
-            }
-            if (!support.supported) {
-                // last resort
-                codecConfig.codec = 'vp8';
-                codecConfig.bitrate = Math.round(quality * 6000000);
-            }
+
+            if (codecConfig) break;
         }
 
-        const supported = await VideoEncoder.isConfigSupported(codecConfig);
-        if (!supported.supported) {
+        // If we need alpha but no "alpha: keep" config is supported, force fallback path.
+        if (hasAlpha && (!codecConfig || codecConfig.alpha !== 'keep')) {
+            throw new Error('WebCodecs alpha encoding not supported; fallback to MediaRecorder');
+        }
+
+        if (!codecConfig) {
             throw new Error('No supported video codec found');
         }
 
@@ -1523,14 +1575,18 @@ document.addEventListener('DOMContentLoaded', () => {
         encoder.configure(codecConfig);
 
 
+
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
         canvas.width = width;
         canvas.height = height;
 
+
         const t0 = performance.now();
         for (let i = 0; i < frames.length; i++) {
+            ctx.clearRect(0, 0, width, height);
             ctx.putImageData(frames[i], 0, 0);
+
 
             const timestamp = i * frameDurationUs;
             const videoFrame = new VideoFrame(canvas, {
@@ -1596,14 +1652,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }
 
-    async function encodeWithMediaRecorder(frames, fps, format, quality, onProgress) {
+    async function encodeWithMediaRecorder(frames, fps, format, quality, hasAlpha, onProgress) {
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
+
         canvas.width = frames[0].width;
         canvas.height = frames[0].height;
 
-        let mimeType = format === 'webm-vp8' ? 'video/webm;codecs=vp8' : 'video/webm;codecs=vp9';
+        // Prefer VP9 when alpha is present; VP8 alpha support is less consistent.
+        let mimeType;
+        if (hasAlpha) {
+            mimeType = 'video/webm;codecs=vp9';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+        } else {
+            mimeType = format === 'webm-vp8' ? 'video/webm;codecs=vp8' : 'video/webm;codecs=vp9';
+        }
         if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
 
         // IMPORTANT:
         // - Use captureStream(fps) so the browser has a target rate.
@@ -1655,9 +1720,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const t0 = performance.now();
         for (let i = 0; i < frames.length; i++) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.putImageData(frames[i], 0, 0);
 
             if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+
                 videoTrack.requestFrame();
             }
 
