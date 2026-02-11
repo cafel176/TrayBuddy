@@ -482,11 +482,11 @@ pub struct TriggerStateGroup {
     /// 可触发的状态列表（加权随机）
     #[serde(default, deserialize_with = "deserialize_can_trigger_states")]
     pub states: Vec<CanTriggerState>,
-    /// 是否允许连续两次触发同一个状态（默认 true）
+    /// 是否允许连续多次触发相同或相近的状态（默认 true）
     /// 
     /// - `true`：允许重复触发同一状态
-    /// - `false`：如果上次触发的状态与本次随机选中的状态相同，则会重新随机选择，直到选出与上次不同的状态为止
-    /// - 如果 `states` 内只有一个状态，则忽略此限制
+    /// - `false`：会排除最近触发过的状态，避免重复。排除的历史状态数量为 `min(3, 可用状态数-1)`
+    /// - 如果 `states` 内只有一个可用状态，则忽略此限制
     pub allow_repeat: bool,
 }
 

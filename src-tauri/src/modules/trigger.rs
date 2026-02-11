@@ -10,34 +10,59 @@
 use super::constants::{EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START};
 use super::resource::{ResourceManager, StateInfo};
 use super::state::StateManager;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 
 // ========================================================================= //
-// 上次触发状态缓存
+// 常量定义
 // ========================================================================= //
 
-/// 用于存储每个触发器组上次触发的状态名
-/// Key: (event_name, persistent_state) -> 上次触发的状态名
-static LAST_TRIGGERED_STATE: Mutex<Option<HashMap<(String, String), String>>> = Mutex::new(None);
+/// 最大缓存的历史触发状态数量
+/// 当 allow_repeat=false 时，会排除最近 N 个已触发的状态
+/// 实际排除数量为 min(MAX_HISTORY_SIZE, 候选状态数 - 1)
+const MAX_HISTORY_SIZE: usize = 3;
 
-/// 获取上次触发的状态名
-fn get_last_triggered_state(event_name: &str, persistent_state: &str) -> Option<String> {
-    let guard = LAST_TRIGGERED_STATE.lock().ok()?;
+// ========================================================================= //
+// 触发状态历史缓存
+// ========================================================================= //
+
+/// 用于存储每个触发器组最近触发的状态名列表
+/// Key: (event_name, persistent_state) -> 最近触发的状态名队列（最新的在队尾）
+static TRIGGERED_STATE_HISTORY: Mutex<Option<HashMap<(String, String), VecDeque<String>>>> =
+    Mutex::new(None);
+
+/// 获取最近触发的状态名列表
+/// 
+/// # 返回
+/// 返回最近触发的状态名列表，最新的在最后
+fn get_triggered_state_history(event_name: &str, persistent_state: &str) -> Vec<String> {
+    let guard = match TRIGGERED_STATE_HISTORY.lock() {
+        Ok(g) => g,
+        Err(_) => return Vec::new(),
+    };
     guard
         .as_ref()
         .and_then(|map| map.get(&(event_name.to_string(), persistent_state.to_string())))
-        .cloned()
+        .map(|deque| deque.iter().cloned().collect())
+        .unwrap_or_default()
 }
 
-/// 设置上次触发的状态名
-fn set_last_triggered_state(event_name: &str, persistent_state: &str, state_name: &str) {
-    if let Ok(mut guard) = LAST_TRIGGERED_STATE.lock() {
+/// 添加新触发的状态到历史记录
+/// 
+/// 会自动维护队列长度不超过 MAX_HISTORY_SIZE
+fn add_triggered_state_to_history(event_name: &str, persistent_state: &str, state_name: &str) {
+    if let Ok(mut guard) = TRIGGERED_STATE_HISTORY.lock() {
         let map = guard.get_or_insert_with(HashMap::new);
-        map.insert(
-            (event_name.to_string(), persistent_state.to_string()),
-            state_name.to_string(),
-        );
+        let key = (event_name.to_string(), persistent_state.to_string());
+        let history = map.entry(key).or_insert_with(VecDeque::new);
+        
+        // 添加新状态到队尾
+        history.push_back(state_name.to_string());
+        
+        // 如果超过最大长度，移除最旧的记录
+        while history.len() > MAX_HISTORY_SIZE {
+            history.pop_front();
+        }
     }
 }
 
@@ -98,10 +123,9 @@ impl TriggerManager {
         );
 
         // 根据当前持久状态筛选可触发的状态名列表，并按权重聚合
-        // 同时记录该组是否允许重复触发以及组内状态数量
+        // 同时记录该组是否允许重复触发
         let mut weight_map: HashMap<String, u64> = HashMap::new();
         let mut allow_repeat = true;
-        let mut total_states_in_matching_groups = 0usize;
 
         for group in trigger.can_trigger_states.iter().filter(|group| {
             // persistent_state 为空表示任意持久状态都可触发
@@ -112,7 +136,6 @@ impl TriggerManager {
             if !group.allow_repeat {
                 allow_repeat = false;
             }
-            total_states_in_matching_groups += group.states.len();
 
             for s in &group.states {
                 if s.weight == 0 || s.state.as_ref().is_empty() {
@@ -142,61 +165,67 @@ impl TriggerManager {
             })
             .collect();
 
-        // 获取上次触发的状态名（用于避免重复）
-        let last_state = if !allow_repeat && candidates.len() > 1 {
-            get_last_triggered_state(event_name, current_persistent_name)
-        } else {
-            None
-        };
+        let candidates_count = candidates.len();
 
-        // 随机选择状态，如果不允许重复且选中的状态与上次相同，则重新选择
-        let selected = if let Some(ref last) = last_state {
-            // 不允许重复且有上次状态记录，需要循环选择直到选到不同的状态
-            let mut attempts = 0;
-            let max_attempts = 100; // 防止无限循环
-            loop {
-                let Some(picked) = StateManager::pick_weighted_state(candidates.clone()) else {
-                    #[cfg(debug_assertions)]
-                    println!("[TriggerManager] 没有找到任何有效状态");
-                    return Ok(false);
-                };
+        #[cfg(debug_assertions)]
+        println!(
+            "[TriggerManager] allow_repeat={}, candidates.len()={}",
+            allow_repeat, candidates_count
+        );
+
+        // 如果不允许重复且候选状态数量大于 1，从候选列表中排除历史触发的状态
+        if !allow_repeat && candidates_count > 1 {
+            let history = get_triggered_state_history(event_name, current_persistent_name);
+            
+            // 计算实际要排除的历史记录数量：min(MAX_HISTORY_SIZE, 候选数 - 1)
+            // 确保至少保留 1 个可选状态
+            let exclude_count = MAX_HISTORY_SIZE.min(candidates_count - 1);
+            
+            #[cfg(debug_assertions)]
+            println!(
+                "[TriggerManager] 不允许重复触发，历史记录: {:?}, 排除数量: {}",
+                history, exclude_count
+            );
+            
+            // 从历史记录中取最近的 exclude_count 个状态进行排除
+            // 历史记录中最新的在最后，所以从后往前取
+            let states_to_exclude: Vec<&str> = history
+                .iter()
+                .rev()
+                .take(exclude_count)
+                .map(|s| s.as_str())
+                .collect();
+            
+            if !states_to_exclude.is_empty() {
+                let original_len = candidates.len();
+                candidates.retain(|(st, _)| !states_to_exclude.contains(&st.name.as_ref()));
                 
-                // 如果选中的状态与上次不同，或者已经尝试了太多次，就使用这个状态
-                if picked.name.as_ref() != last || attempts >= max_attempts {
-                    #[cfg(debug_assertions)]
-                    if attempts > 0 {
-                        println!(
-                            "[TriggerManager] allow_repeat=false, 重新选择了 {} 次后选中: '{}'",
-                            attempts, picked.name.as_ref()
-                        );
-                    }
-                    break picked;
-                }
-                
-                attempts += 1;
                 #[cfg(debug_assertions)]
                 println!(
-                    "[TriggerManager] allow_repeat=false, 选中与上次相同的状态 '{}', 重新选择 (尝试 {})",
-                    last, attempts
+                    "[TriggerManager] 排除状态 {:?} 后，候选数量从 {} 变为 {}",
+                    states_to_exclude, original_len, candidates.len()
                 );
             }
-        } else {
-            // 允许重复或没有上次状态记录，直接选择
-            let Some(picked) = StateManager::pick_weighted_state(candidates) else {
-                #[cfg(debug_assertions)]
-                println!("[TriggerManager] 没有找到任何有效状态");
-                return Ok(false);
-            };
-            picked
+        }
+
+        // 从剩余候选中随机选择一个状态
+        let Some(selected) = StateManager::pick_weighted_state(candidates) else {
+            #[cfg(debug_assertions)]
+            println!("[TriggerManager] 没有找到任何有效状态");
+            return Ok(false);
         };
 
-        // 记录本次触发的状态名
-        set_last_triggered_state(event_name, current_persistent_name, selected.name.as_ref());
+        #[cfg(debug_assertions)]
+        println!(
+            "[TriggerManager] 最终选中状态: '{}'",
+            selected.name.as_ref()
+        );
+
+        // 记录本次触发的状态到历史
+        add_triggered_state_to_history(event_name, current_persistent_name, selected.name.as_ref());
 
         // 直接切换到选中的状态（避免再做一次无权重随机）
         // force=true 时忽略优先级与锁定检查
         state_manager.change_state_ex(selected, force, resource_manager)
-
-
     }
 }
