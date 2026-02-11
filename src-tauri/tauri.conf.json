@@ -41,7 +41,8 @@
       "../mods/sunflower": "mods/sunflower",
       "../mods/tutorial": "mods/tutorial",
 
-       "../mods/bubble_style.json": "mods/bubble_style.json",     
+      "../mods/bubble_style.json": "mods/bubble_style.json",     
+      "../mods/mod-guide.md": "mods/mod-guide.md",   
       "../config": "config",
       "../i18n": "i18n",
       "../mod-tool": "mod-tool",
