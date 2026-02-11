@@ -88,8 +88,8 @@
           <div class="feature-item">{_("about.featureEngine")}</div>
           <div class="feature-item">{_("about.featureMedia")}</div>
           <div class="feature-item">{_("about.featureEnv")}</div>
-          <!-- <div class="feature-item">{_("about.featureMod")}</div>
-          <div class="feature-item">{_("about.featureStats")}</div> -->
+          <div class="feature-item">{_("about.featureMod")}</div>
+          <div class="feature-item">{_("about.featureStats")}</div>
         </div>
       </div>
 
