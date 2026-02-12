@@ -1,0 +1,347 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-deep: #12091f;
+    --bg-mid: #1a1129;
+    --bg-panel: rgba(32, 20, 50, 0.95);
+    --bg-panel-soft: rgba(255, 255, 255, 0.04);
+    --bg-panel-border: rgba(200, 180, 255, 0.18);
+    --accent-main: #c8a6ff;
+    --accent-soft: #e6d7ff;
+    --accent-pink: #f3c0ff;
+    --accent-ink: #b48bff;
+    --text-main: #f5f2ff;
+    --text-muted: #b9a9d8;
+    --stroke-soft: rgba(255, 255, 255, 0.12);
+    --shadow-strong: rgba(12, 6, 20, 0.6);
+}
+
+body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #140b22 0%, #221238 60%, #2b1842 100%);
+    min-height: 100vh;
+    color: var(--text-main);
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* 控制面板 */
+.control-panel {
+    width: 320px;
+    background: var(--bg-panel);
+    padding: 20px;
+    overflow-y: auto;
+    border-right: 1px solid var(--bg-panel-border);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
+    flex-shrink: 0;
+}
+
+.control-panel h1 {
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    text-align: center;
+    background: linear-gradient(90deg, var(--accent-soft), var(--accent-main), var(--accent-pink));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.control-section {
+    background: var(--bg-panel-soft);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 1px solid var(--bg-panel-border);
+    box-shadow: 0 6px 16px rgba(15, 8, 24, 0.25);
+}
+
+.control-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--accent-soft);
+    border-bottom: 1px solid rgba(200, 180, 255, 0.25);
+    padding-bottom: 8px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.control-row label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    min-width: 70px;
+}
+
+.control-row input[type="number"] {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid rgba(200, 180, 255, 0.25);
+    border-radius: 6px;
+    background: rgba(10, 6, 18, 0.35);
+    color: var(--text-main);
+    font-size: 0.85rem;
+}
+
+.control-row input[type="color"] {
+    width: 50px;
+    height: 30px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+}
+
+.control-row input[type="range"] {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(200, 180, 255, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.control-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-main);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(200, 166, 255, 0.6);
+}
+
+.control-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent-main);
+}
+
+.control-row select {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid rgba(200, 180, 255, 0.25);
+    border-radius: 6px;
+    background: rgba(10, 6, 18, 0.35);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.control-row select option {
+    background: #1c102c;
+}
+
+.control-row input[type="file"] {
+    flex: 1;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.control-row span {
+    font-size: 0.8rem;
+    color: var(--accent-main);
+    min-width: 35px;
+    text-align: right;
+}
+
+.preset-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.preset-buttons button {
+    flex: 1;
+    min-width: 60px;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+    background: rgba(200, 166, 255, 0.12);
+    border: 1px solid rgba(200, 166, 255, 0.35);
+    border-radius: 6px;
+    color: var(--accent-soft);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.preset-buttons button:hover {
+    background: rgba(200, 166, 255, 0.28);
+    color: #fff;
+}
+
+/* 四角独立样式网格 */
+.corner-style-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.corner-style-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.corner-style-item span {
+    font-size: 0.75rem;
+    color: #a798c6;
+}
+
+.corner-style-select {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid rgba(200, 180, 255, 0.25);
+    border-radius: 6px;
+    background: rgba(10, 6, 18, 0.35);
+    color: var(--text-main);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.corner-style-select option {
+    background: #1c102c;
+}
+
+/* 导出区域 */
+.export-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.export-section button {
+    padding: 12px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #8b6fd6 0%, #a08bef 50%, #c1a3ff 100%);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(124, 94, 199, 0.35);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(124, 94, 199, 0.5);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #5f4b8b 0%, #7b5bb2 50%, #b084ff 100%);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(117, 88, 177, 0.35);
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(117, 88, 177, 0.5);
+}
+
+/* 预览区域 */
+.preview-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: radial-gradient(circle at top, #1b122b, #0f0818 70%);
+    overflow: hidden;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px 10px 0 0;
+    border: 1px solid var(--stroke-soft);
+    border-bottom: none;
+}
+
+.preview-header span:first-child {
+    font-weight: bold;
+    color: var(--accent-soft);
+}
+
+#previewSize {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.preview-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: repeating-conic-gradient(#2b1f3d 0% 25%, #241a33 0% 50%) 50% / 20px 20px;
+    border: 1px solid var(--stroke-soft);
+    border-radius: 0 0 10px 10px;
+    overflow: auto;
+    padding: 20px;
+}
+
+#previewCanvas {
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 12px 36px var(--shadow-strong);
+    border-radius: 6px;
+}
+
+/* 滚动条样式 */
+.control-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.control-panel::-webkit-scrollbar-track {
+    background: rgba(8, 5, 14, 0.4);
+}
+
+.control-panel::-webkit-scrollbar-thumb {
+    background: rgba(200, 166, 255, 0.45);
+    border-radius: 4px;
+}
+
+.control-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 166, 255, 0.7);
+}
+
+/* 响应式 */
+@media (max-width: 900px) {
+    .app-container {
+        flex-direction: column;
+    }
+    
+    .control-panel {
+        width: 100%;
+        height: auto;
+        max-height: 50vh;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .preview-area {
+        flex: 1;
+        min-height: 50vh;
+    }
+}

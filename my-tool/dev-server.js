@@ -60,23 +60,49 @@ function send(res, status, body, headers = {}) {
 const server = http.createServer((req, res) => {
   try {
     const rawUrl = req.url || '/';
-    const urlPath = decodeURIComponent(rawUrl.split('?')[0]);
+    
+    // 详细日志：原始 URL
+    console.log(`[REQ] Raw URL: ${rawUrl}`);
+    console.log(`[REQ] Raw URL bytes: ${Buffer.from(rawUrl).toString('hex')}`);
+    
+    // 正确解码 URL（处理中文路径）
+    let urlPath;
+    try {
+      // 先尝试标准 UTF-8 解码
+      urlPath = decodeURIComponent(rawUrl.split('?')[0]);
+      console.log(`[REQ] Decoded URL path: ${urlPath}`);
+    } catch (e) {
+      // 如果解码失败，使用原始路径
+      urlPath = rawUrl.split('?')[0];
+      console.log(`[REQ] Decode failed, using raw: ${urlPath}`);
+    }
 
     let filePath = safeJoin(ROOT, urlPath);
-    if (!filePath) return send(res, 400, 'Bad Request', { 'Content-Type': 'text/plain; charset=utf-8' });
+    console.log(`[REQ] ROOT: ${ROOT}`);
+    console.log(`[REQ] Resolved file path: ${filePath}`);
+    
+    if (!filePath) {
+      console.log(`[REQ] Bad request - safeJoin returned null`);
+      return send(res, 400, 'Bad Request', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
 
     // Directory -> index.html
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+    const exists = fs.existsSync(filePath);
+    console.log(`[REQ] File exists: ${exists}`);
+    
+    if (exists && fs.statSync(filePath).isDirectory()) {
       filePath = path.join(filePath, 'index.html');
+      console.log(`[REQ] Is directory, trying index.html: ${filePath}`);
     }
 
     fs.readFile(filePath, (err, data) => {
       if (err) {
         console.error(`[404] ${urlPath} -> ${filePath}`);
-        return send(res, 404, '404 Not Found', { 'Content-Type': 'text/plain; charset=utf-8' });
+        console.error(`[404] Error: ${err.message}`);
+        return send(res, 404, `404 Not Found: ${filePath}\nError: ${err.message}`, { 'Content-Type': 'text/plain; charset=utf-8' });
       }
 
-
+      console.log(`[200] ${urlPath} -> ${filePath}`);
       const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME[ext] || 'application/octet-stream';
       send(res, 200, data, {
@@ -85,6 +111,7 @@ const server = http.createServer((req, res) => {
       });
     });
   } catch (e) {
+    console.error(`[500] Error: ${e && e.stack ? e.stack : e}`);
     send(res, 500, String(e && e.stack ? e.stack : e), { 'Content-Type': 'text/plain; charset=utf-8' });
   }
 });
