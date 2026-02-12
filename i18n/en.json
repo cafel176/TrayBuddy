@@ -139,7 +139,9 @@
     "locationUnavailable": "Location unavailable",
     "weather": "Weather",
     "getWeather": "Get Weather",
+    "conditionCode": "Condition code:",
     "feelsLike": "Feels like:",
+
     "humidity": "Humidity:",
     "windSpeed": "Wind:",
     "weatherHint": "Click \"Get Weather\" to load weather info",
@@ -186,6 +188,8 @@
     "totalClicks": "Total clicks:",
     "modData": "Mod Specific Data",
     "modDataValue": "Value",
+    "modDataModId": "mod_id",
+
     "times": "times",
 
     "durationSeconds": "{count} seconds",
@@ -235,7 +239,9 @@
     "runningStatus": "Running status:",
     "lastCheck": "Last check:",
     "autoDndSetting": "Auto DND:",
+    "sessionLocked": "Session locked:",
     "autoUpdate": "Auto Update",
+
     "detectionResult": "Detection Result",
     "fullscreenState": "Fullscreen/Busy",
     "fullscreenDetected": "Fullscreen Detected",
@@ -277,8 +283,12 @@
     "id": "ID",
     "version": "Version",
     "author": "Author",
+    "bubbleStyle": "Bubble Style",
+    "iconPath": "Icon Path",
+    "previewPath": "Preview Path",
     "modName": "Mod Name",
     "defaultAudio": "Default Audio",
+
     "defaultText": "Default Text",
     "showModDataPanel": "Show Data Panel",
     "modDataDefaultInt": "Default Data Value",
@@ -313,8 +323,10 @@
     "group": "Group {num}",
     "persistentLabel": "Persistent:",
     "anyPersistent": "Any persistent state",
+    "noRepeat": "No repeat",
     "noTriggerableStates": "(no triggerable states)",
     "noStateGroup": "(no state group)",
+
     "staticImages": "Static Images",
     "clickToEnlarge": "Click to enlarge",
     "openFile": "Open file",
@@ -431,7 +443,9 @@
     "triggerBtn": "Trigger",
     "whenCondition": "When {state}",
     "anyPersistent": "Any persistent state",
+    "noRepeat": "No repeat",
     "noTriggerableStates": "(no triggerable states)",
+
     "noTriggers": "No triggers defined in current Mod",
     "manualTrigger": "Manual Trigger",
     "inputPlaceholder": "Enter event name (e.g. click, login)",

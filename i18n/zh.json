@@ -139,7 +139,9 @@
     "locationUnavailable": "无法获取位置信息",
     "weather": "天气信息",
     "getWeather": "获取天气",
+    "conditionCode": "天气代码:",
     "feelsLike": "体感:",
+
     "humidity": "湿度:",
     "windSpeed": "风速:",
     "weatherHint": "点击\"获取天气\"按钮加载天气信息",
@@ -186,6 +188,8 @@
     "totalClicks": "点击次数:",
     "modData": "Mod 专属数据",
     "modDataValue": "数值",
+    "modDataModId": "mod_id",
+
     "times": "次",
 
     "durationSeconds": "{count} 秒",
@@ -235,7 +239,9 @@
     "runningStatus": "运行状态:",
     "lastCheck": "最后检查时间:",
     "autoDndSetting": "自动免打扰:",
+    "sessionLocked": "锁屏状态:",
     "autoUpdate": "自动更新",
+
     "detectionResult": "检测结果",
     "fullscreenState": "全屏/繁忙状态",
     "fullscreenDetected": "已检测到全屏",
@@ -277,7 +283,11 @@
     "id": "ID",
     "version": "版本",
     "author": "作者",
+    "bubbleStyle": "气泡样式",
+    "iconPath": "图标路径",
+    "previewPath": "预览图路径",
     "defaultAudio": "默认语音",
+
     "defaultText": "默认文本",
     "showModDataPanel": "显示数据面板",
     "modDataDefaultInt": "初始数据值",
@@ -312,8 +322,10 @@
     "group": "组 {num}",
     "persistentLabel": "持久:",
     "anyPersistent": "任意持久状态",
+    "noRepeat": "不重复",
     "noTriggerableStates": "(无可触发状态)",
     "noStateGroup": "(无状态组)",
+
     "staticImages": "静态图片",
     "clickToEnlarge": "点击放大",
     "openFile": "打开文件",
@@ -430,7 +442,9 @@
     "triggerBtn": "触发",
     "whenCondition": "当 {state} 时",
     "anyPersistent": "任意持久状态",
+    "noRepeat": "不重复",
     "noTriggerableStates": "(无可触发状态)",
+
     "noTriggers": "当前 Mod 未定义触发器",
     "manualTrigger": "手动触发事件",
     "inputPlaceholder": "输入事件名称 (如 click, login)",

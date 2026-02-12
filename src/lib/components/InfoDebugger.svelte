@@ -17,6 +17,9 @@
   import { listen } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
   import { t, onLangChange } from "$lib/i18n";
+  import type { ModData, UserInfo } from "$lib/types/asset";
+
+
 
   // ======================================================================= //
   // i18n 响应式支持
@@ -39,30 +42,7 @@
   // 类型定义
   // ======================================================================= //
 
-  /**
-   * 用户信息接口
-   * 对应后端的 UserInfo 结构体
-   */
-  interface UserInfo {
-    /** 首次登录时间戳（秒） */
-    first_login: number | null;
-    /** 上次登录时间戳（秒） */
-    last_login: number | null;
-    /** 当前加载的 Mod 名称 */
-    current_mod: string;
-    /** 动画窗口 X 坐标 */
-    animation_window_x: number | null;
-    /** 动画窗口 Y 坐标 */
-    animation_window_y: number | null;
-    /** 总启动次数 */
-    launch_count: number;
-    /** 累计使用时长（秒） */
-    total_usage_seconds: number;
-    /** 总点击次数 */
-    total_click_count: number;
-    /** 各 Mod 的数据 */
-    mod_data: Record<string, { mod_id: string; value: number }>;
-  }
+
 
 
   // ======================================================================= //
@@ -179,6 +159,11 @@
     });
   }
 
+  function getModDataEntries(data: Record<string, ModData>) {
+    return Object.entries(data) as [string, ModData][];
+  }
+
+
   // ======================================================================= //
   // 生命周期
   // ======================================================================= //
@@ -287,11 +272,16 @@
     <!-- Mod 专属数据 -->
     {#if info.mod_data && Object.keys(info.mod_data).length > 0}
       <div class="divider">{_("info.modData")}</div>
-      {#each Object.entries(info.mod_data) as [modId, data]}
+      {#each getModDataEntries(info.mod_data) as [modId, data]}
+
         <div class="data-row">
           <span class="label">{modId}</span>
-          <span class="value">{_("info.modDataValue")}: {data.value}</span>
+          <span class="value"
+            >{_("info.modDataValue")}: {data.value}
+            · {_("info.modDataModId")}: {data.mod_id ?? modId}</span
+          >
         </div>
+
       {/each}
     {/if}
 

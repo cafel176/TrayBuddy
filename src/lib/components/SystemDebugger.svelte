@@ -44,7 +44,9 @@
         auto_dnd_enabled: boolean;
         is_auto_dnd_active: boolean;
         current_silence_mode: boolean;
+        session_locked: boolean;
     }
+
 
     // ======================================================================= //
     // 响应式状态
@@ -157,6 +159,13 @@
                             : _("common.disabled")}
                     </span>
                 </div>
+                <div class="info-item">
+                    <span class="label">{_("system.sessionLocked")}</span>
+                    <span class="value">
+                        {debugInfo.session_locked ? _("common.on") : _("common.off")}
+                    </span>
+                </div>
+
             </div>
         </section>
 

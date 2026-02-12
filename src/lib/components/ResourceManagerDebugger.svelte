@@ -29,67 +29,19 @@
   import { onMount, onDestroy } from "svelte";
   import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
   import { t, onLangChange } from "$lib/i18n";
+  import type {
+    AssetInfo,
+    AudioInfo,
+    BorderConfig,
+    CharacterConfig,
+    StateInfo,
+    TriggerInfo,
+  } from "$lib/types/asset";
+
 
   // ======================================================================= //
   // 类型定义
   // ======================================================================= //
-
-  interface AssetInfo {
-    name: string;
-    img: string;
-    sequence: boolean;
-    origin_reverse: boolean;
-    need_reverse: boolean;
-    frame_time: number;
-    frame_size_x: number;
-    frame_size_y: number;
-    frame_num_x: number;
-    frame_num_y: number;
-    offset_x: number;
-    offset_y: number;
-  }
-
-  interface StateInfo {
-    name: string;
-    persistent: boolean;
-    anima: string;
-    audio: string;
-    text: string;
-    priority: number;
-    date_start: string;
-    date_end: string;
-    time_start: string;
-    time_end: string;
-    next_state: string;
-    can_trigger_states: { state: string; weight: number }[];
-    trigger_time: number;
-    trigger_rate: number;
-    mod_data_counter: { op: string; value: number } | null;
-    branch_show_bubble: boolean;
-    branch: { text: string; next_state: string }[];
-  }
-
-
-  interface TriggerStateGroup {
-    persistent_state: string;
-    states: { state: string; weight: number }[];
-  }
-
-
-  interface TriggerInfo {
-    event: string;
-    can_trigger_states: TriggerStateGroup[];
-  }
-
-  interface CharacterConfig {
-    z_offset: number;
-  }
-
-  interface BorderConfig {
-    anima: string;
-    enable: boolean;
-    z_offset: number;
-  }
 
   interface ModManifest {
     id: string;
@@ -106,13 +58,8 @@
     triggers: TriggerInfo[];
   }
 
-
-  interface AudioInfo {
-    name: string;
-    audio: string;
-  }
-
   interface TextInfo {
+
     name: string;
     text: string;
     duration: number;
@@ -127,6 +74,9 @@
 
   interface ModInfo {
     path: string;
+    bubble_style?: string;
+    icon_path?: string;
+    preview_path?: string;
     manifest: ModManifest;
     imgs: AssetInfo[];
     sequences: AssetInfo[];
@@ -134,6 +84,7 @@
     texts: Record<string, TextInfo[]>;
     info: Record<string, CharacterInfo>;
   }
+
 
   // ======================================================================= //
   // 响应式状态
@@ -460,7 +411,26 @@
                 <span class="info-value">{currentModInfo.manifest.author}</span>
               </div>
               <div class="info-row">
+                <span class="info-label">{_("resource.bubbleStyle")}</span>
+                <span class="info-value"
+                  >{currentModInfo.bubble_style || _("resource.notSet")}</span
+                >
+              </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.iconPath")}</span>
+                <span class="info-value"
+                  >{currentModInfo.icon_path || _("resource.notSet")}</span
+                >
+              </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.previewPath")}</span>
+                <span class="info-value"
+                  >{currentModInfo.preview_path || _("resource.notSet")}</span
+                >
+              </div>
+              <div class="info-row">
                 <span class="info-label">{_("resource.defaultAudio")}</span>
+
                 <span class="info-value"
                   >{currentModInfo.manifest.default_audio_lang_id}</span
                 >
@@ -494,6 +464,14 @@
                   >{currentModInfo.manifest.character.z_offset}</span
                 >
               </div>
+              <div class="info-row">
+                <span class="info-label">canvas_fit_preference</span>
+                <span class="info-value"
+                  >{currentModInfo.manifest.character.canvas_fit_preference ??
+                    _("resource.notSet")}</span
+                >
+              </div>
+
             </div>
 
             <h5>{_("resource.borderConfig")}</h5>
@@ -627,7 +605,7 @@
                             >
                             {_("resource.timerDesc", {
                               interval: state.trigger_time,
-                              chance: (state.trigger_rate * 100).toFixed(0),
+                              chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                             })}
                           </div>
                         {/if}
@@ -637,12 +615,13 @@
                             <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                           </div>
                         {/if}
-                        {#if !state.branch_show_bubble}
+                        {#if state.branch_show_bubble === false}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.branchShowBubble")}</span>
                             {_("common.no")}
                           </div>
                         {/if}
+
                         {#if state.can_trigger_states && state.can_trigger_states.length > 0}
 
                           <div class="detail-item">
@@ -745,7 +724,7 @@
                             >
                             {_("resource.timerDesc", {
                               interval: state.trigger_time,
-                              chance: (state.trigger_rate * 100).toFixed(0),
+                              chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                             })}
                           </div>
                         {/if}
@@ -755,12 +734,13 @@
                             <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                           </div>
                         {/if}
-                        {#if !state.branch_show_bubble}
+                        {#if state.branch_show_bubble === false}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.branchShowBubble")}</span>
                             {_("common.no")}
                           </div>
                         {/if}
+
                         {#if state.can_trigger_states && state.can_trigger_states.length > 0}
 
                           <div class="detail-item">
@@ -878,7 +858,7 @@
                               >
                               {_("resource.timerDesc", {
                                 interval: state.trigger_time,
-                                chance: (state.trigger_rate * 100).toFixed(0),
+                                chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                               })}
                             </div>
                           {/if}
@@ -888,12 +868,13 @@
                               <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                             </div>
                           {/if}
-                          {#if !state.branch_show_bubble}
+                          {#if state.branch_show_bubble === false}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.branchShowBubble")}</span>
                               {_("common.no")}
                             </div>
                           {/if}
+
                           {#if state.can_trigger_states && state.can_trigger_states.length > 0}
 
                             <div class="detail-item">
@@ -999,7 +980,7 @@
                               >
                               {_("resource.timerDesc", {
                                 interval: state.trigger_time,
-                                chance: (state.trigger_rate * 100).toFixed(0),
+                                chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                               })}
                             </div>
                           {/if}
@@ -1009,12 +990,13 @@
                               <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                             </div>
                           {/if}
-                          {#if !state.branch_show_bubble}
+                          {#if state.branch_show_bubble === false}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.branchShowBubble")}</span>
                               {_("common.no")}
                             </div>
                           {/if}
+
                           {#if state.can_trigger_states && state.can_trigger_states.length > 0}
 
                             <div class="detail-item">
@@ -1086,7 +1068,11 @@
                                   >{_("resource.anyPersistent")}</span
                                 >
                               {/if}
+                              {#if group.allow_repeat === false}
+                                <span class="tag state-tag">{_("resource.noRepeat")}</span>
+                              {/if}
                             </div>
+
                             {#if group.states.length > 0}
                               <div class="trigger-states">
                                 {#each group.states as s}

@@ -207,7 +207,10 @@ export interface TriggerStateGroup {
   persistent_state: string;
   /** 可触发的状态列表（加权随机） */
   states: CanTriggerState[];
+  /** 是否允许重复触发（默认 true） */
+  allow_repeat?: boolean;
 }
+
 
 
 /**

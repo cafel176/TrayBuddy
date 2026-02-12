@@ -428,7 +428,14 @@
             <span class="condition">{envInfo.weather.condition}</span>
           </div>
           <div class="weather-details">
+            {#if envInfo.weather.condition_code}
+              <div class="detail-item">
+                <span class="label">{_("environment.conditionCode")}</span>
+                <span class="value">{envInfo.weather.condition_code}</span>
+              </div>
+            {/if}
             {#if envInfo.weather.feels_like !== null}
+
               <div class="detail-item">
                 <span class="label">{_("environment.feelsLike")}</span>
                 <span class="value"

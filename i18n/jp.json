@@ -139,7 +139,9 @@
     "locationUnavailable": "位置情報を取得できません",
     "weather": "天気情報",
     "getWeather": "天気を取得",
+    "conditionCode": "天気コード:",
     "feelsLike": "体感温度:",
+
     "humidity": "湿度:",
     "windSpeed": "風速:",
     "weatherHint": "「天気を取得」をクリックして天気情報を読み込む",
@@ -186,6 +188,8 @@
     "totalClicks": "総クリック数:",
     "modData": "Mod 固有データ",
     "modDataValue": "数値",
+    "modDataModId": "mod_id",
+
     "times": "回",
 
     "durationSeconds": "{count} 秒",
@@ -235,7 +239,9 @@
     "runningStatus": "実行状態:",
     "lastCheck": "最終チェック:",
     "autoDndSetting": "自動おやすみ:",
+    "sessionLocked": "ロック状態:",
     "autoUpdate": "自動更新",
+
     "detectionResult": "検出結果",
     "fullscreenState": "全画面/ビジー状態",
     "fullscreenDetected": "検出あり",
@@ -277,8 +283,12 @@
     "id": "ID",
     "version": "バージョン",
     "author": "作者",
+    "bubbleStyle": "吹き出しスタイル",
+    "iconPath": "アイコンパス",
+    "previewPath": "プレビューパス",
     "modName": "Mod名",
     "defaultAudio": "デフォルト音声",
+
     "defaultText": "デフォルトテキスト",
     "showModDataPanel": "データパネルを表示",
     "modDataDefaultInt": "初期データ値",
@@ -313,8 +323,10 @@
     "group": "グループ {num}",
     "persistentLabel": "永続:",
     "anyPersistent": "任意の永続状態",
+    "noRepeat": "繰り返し禁止",
     "noTriggerableStates": "(トリガー可能な状態なし)",
     "noStateGroup": "(状態グループなし)",
+
     "staticImages": "静止画像",
     "clickToEnlarge": "クリックで拡大",
     "openFile": "ファイルを開く",
@@ -431,7 +443,9 @@
     "triggerBtn": "トリガー",
     "whenCondition": "{state} の時",
     "anyPersistent": "任意の永続状態",
+    "noRepeat": "繰り返し禁止",
     "noTriggerableStates": "(トリガー可能な状態なし)",
+
     "noTriggers": "現在の Mod にトリガーが定義されていません",
     "manualTrigger": "手動トリガー",
     "inputPlaceholder": "イベント名を入力 (例: click, login)",

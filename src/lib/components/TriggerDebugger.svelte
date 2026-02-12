@@ -482,7 +482,11 @@
                         {_("trigger.anyPersistent")}
                       {/if}
                     </span>
+                    {#if group.allow_repeat === false}
+                      <span class="tag state-tag">{_("trigger.noRepeat")}</span>
+                    {/if}
                     <div class="group-states">
+
                       {#each group.states as s}
                         <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
                       {/each}
