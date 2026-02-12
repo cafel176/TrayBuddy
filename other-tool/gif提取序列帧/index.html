@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="title">GIF 分解为 PNG</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="../i18n-helper.js"></script>
+  <script src="vendor/jszip.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 data-i18n="header_title">🧩 GIF 分解为 PNG</h1>
+      <p class="subtitle" data-i18n="header_subtitle">上传 GIF，自动拆分为 PNG 序列帧并打包下载</p>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2 data-i18n="import_title">📁 导入 GIF</h2>
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-icon">🎞️</div>
+          <p data-i18n="drop_zone_text">拖拽 GIF 到这里<br>或点击选择</p>
+          <span class="hint" data-i18n="drop_zone_hint">仅支持 GIF</span>
+        </div>
+        <input id="fileInput" type="file" accept="image/gif" hidden>
+
+        <div class="info" id="fileInfo" style="display:none;">
+          <div><strong data-i18n="info_name">文件名</strong>: <span id="fileName">-</span></div>
+          <div><strong data-i18n="info_size">尺寸</strong>: <span id="fileSize">-</span></div>
+          <div><strong data-i18n="info_frames">帧数</strong>: <span id="frameCount">-</span></div>
+          <div><strong data-i18n="info_duration">总时长</strong>: <span id="totalDuration">-</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="settings_title">⚙️ 导出设置</h2>
+
+        <div class="form-row">
+          <label for="stepInput" data-i18n="step_label">每 N 帧导出一张</label>
+          <input id="stepInput" type="number" min="1" value="1">
+          <div class="help" data-i18n="step_hint">设置为 1 表示全部导出</div>
+        </div>
+
+        <label class="checkbox">
+          <input id="includeDelay" type="checkbox" checked>
+          <span data-i18n="include_delay_label">文件名包含延迟（ms）</span>
+        </label>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="extractBtn" disabled data-i18n="start_btn">开始分解</button>
+          <button class="btn btn-secondary" id="downloadBtn" disabled data-i18n="download_btn">下载 ZIP</button>
+        </div>
+
+        <div class="status" id="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card preview-card" id="previewCard" style="display:none;">
+        <h2 data-i18n="preview_title">👁️ 预览</h2>
+        <canvas id="previewCanvas"></canvas>
+        <div class="preview-info" id="previewInfo"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <div id="loadingText" data-i18n="processing">正在处理...</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
