@@ -3989,6 +3989,9 @@ function renderSpeechTexts() {
   speeches.forEach((speech, index) => {
     const speechName = String(speech?.name || '');
     const speechText = String(speech?.text || '');
+    const rawDuration = speech?.duration;
+    const speechDuration = Number.isFinite(Number(rawDuration)) ? Number(rawDuration) : 5;
+
 
     const nameHay = speechName.toLowerCase();
     const textHay = speechText.toLowerCase();
@@ -4026,6 +4029,16 @@ function renderSpeechTexts() {
           onchange="updateSpeechText(${index}, 'text', this.value)">${escapeHtml(speechText)}</textarea>
       `;
 
+    const durationFieldHtml = `
+      <div class="speech-item-duration">
+        <label>${window.i18n.t('text_duration_label')}</label>
+        <input type="number" min="0" step="0.1" value="${escapeHtml(String(speechDuration))}"
+          placeholder="${window.i18n.t('text_duration_placeholder')}"
+          onchange="updateSpeechText(${index}, 'duration', this.value)">
+      </div>
+    `;
+
+
     item.innerHTML = `
       <div class="speech-item-header">
         <div class="tb-title-with-handle">
@@ -4037,7 +4050,9 @@ function renderSpeechTexts() {
         </div>
       </div>
       ${textFieldHtml}
+      ${durationFieldHtml}
     `;
+
     list.appendChild(item);
 
   });
@@ -4191,7 +4206,8 @@ function addSpeechText() {
   if (!currentMod.texts[currentTextLang]) {
     currentMod.texts[currentTextLang] = { info: {}, speech: [] };
   }
-  currentMod.texts[currentTextLang].speech.push({ name: '', text: '' });
+  currentMod.texts[currentTextLang].speech.push({ name: '', text: '', duration: 5 });
+
   renderSpeechTexts();
   markUnsaved();
 }
@@ -4201,9 +4217,16 @@ function addSpeechText() {
  */
 function updateSpeechText(index, field, value) {
   if (!currentMod || currentMod.textSpeechEnabled !== true) return;
+  if (field === 'duration') {
+    const parsed = Number(value);
+    currentMod.texts[currentTextLang].speech[index][field] = Number.isFinite(parsed) ? parsed : 5;
+    markUnsaved();
+    return;
+  }
   currentMod.texts[currentTextLang].speech[index][field] = value;
   markUnsaved();
 }
+
 
 /**
  * 删除对话文本

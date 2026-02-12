@@ -78,7 +78,8 @@ const tutorialTranslations = {
     section_mod_data: "Mod 数据面板",
     mod_data_desc: "可在角色窗口左上角显示自定义数据（如好感度）。配置 show_mod_data_panel 开关和 mod_data_default_int 默认值。",
     section_preview_icon: "预览图与图标",
-    preview_icon_desc: "预览图支持 PNG/JPG/JPEG/WebP 格式，图标支持 ICO/PNG 格式。",
+    preview_icon_desc: "预览图支持 PNG/JPG/JPEG/WebP 格式，图标支持 ICO 格式。",
+
     section_states_triggers: "🎭 状态和触发",
     section_important_states: "重要状态",
     important_states_desc: "系统内置的关键状态：",
@@ -279,7 +280,8 @@ const tutorialTranslations = {
     section_mod_data: "Mod Data Panel",
     mod_data_desc: "Display custom data (like affinity) in top-left corner. Configure show_mod_data_panel and mod_data_default_int.",
     section_preview_icon: "Preview & Icon",
-    preview_icon_desc: "Preview supports PNG/JPG/JPEG/WebP. Icon supports ICO/PNG.",
+    preview_icon_desc: "Preview supports PNG/JPG/JPEG/WebP. Icon supports ICO.",
+
     section_states_triggers: "🎭 States & Triggers",
     section_important_states: "Important States",
     important_states_desc: "Built-in key states:",
@@ -478,7 +480,8 @@ const tutorialTranslations = {
     section_mod_data: "Mod データパネル",
     mod_data_desc: "左上隅にカスタムデータ（好感度など）を表示。show_mod_data_panel と mod_data_default_int を設定。",
     section_preview_icon: "プレビューとアイコン",
-    preview_icon_desc: "プレビューは PNG/JPG/JPEG/WebP 対応。アイコンは ICO/PNG 対応。",
+    preview_icon_desc: "プレビューは PNG/JPG/JPEG/WebP 対応。アイコンは ICO 対応。",
+
     section_states_triggers: "🎭 状態とトリガー",
     section_important_states: "重要な状態",
     important_states_desc: "組み込みの主要状態：",

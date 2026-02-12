@@ -281,7 +281,10 @@
   "msg_confirm_delete": "确定要删除吗?",
   "text_name_placeholder": "文本名称",
   "text_content_placeholder": "对话内容（支持 Markdown）",
+  "text_duration_label": "持续时间(秒)",
+  "text_duration_placeholder": "例如: 5",
   "audio_name_placeholder": "音频名称",
+
   "audio_path_placeholder": "文件路径 (如: jp/speech/morning.wav)",
   
   "placeholder_mod_id": "例如: ema",

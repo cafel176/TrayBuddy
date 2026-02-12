@@ -281,7 +281,10 @@
   "msg_confirm_delete": "Are you sure you want to delete?",
   "text_name_placeholder": "Text Name",
   "text_content_placeholder": "Dialogue content (supports Markdown)",
+  "text_duration_label": "Duration (s)",
+  "text_duration_placeholder": "e.g., 5",
   "audio_name_placeholder": "Audio Name",
+
   "audio_path_placeholder": "File path (e.g., jp/speech/morning.wav)",
   
   "placeholder_mod_id": "e.g., ema",
