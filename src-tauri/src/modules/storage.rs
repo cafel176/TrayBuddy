@@ -162,10 +162,17 @@ pub struct Storage {
 }
 
 impl Storage {
+    /// 获取累计使用时长（秒，包含本次运行中尚未落盘的部分）
+    #[inline]
+    pub fn get_total_usage_seconds_now(&self) -> i64 {
+        self.data.info.total_usage_seconds + self.session_start_time.elapsed().as_secs() as i64
+    }
+
     /// 初始化存储管理器
     /// 会自动定位到应用配置目录，如果 storage.json 存在则加载，
     /// 否则创建一个包含默认值的初始环境。
     pub fn new(app_handle: &tauri::AppHandle) -> Self {
+
         let storage_dir = Self::get_storage_dir(app_handle);
         let storage_path = storage_dir.join("storage.json");
         let data = Self::load(&storage_path);

@@ -289,7 +289,9 @@
   "msg_enter_trigger_states": "Please enter triggerable states (comma separated)",
   "msg_confirm_delete": "Are you sure you want to delete?",
   "text_name_placeholder": "Text Name",
-  "text_content_placeholder": "Dialogue content (supports Markdown)",
+  "text_content_placeholder": "Dialogue content (supports Markdown; placeholders: {nickname}/{days_used}/{usage_hours})",
+  "speech_placeholders_hint": "Supported placeholders: {nickname}, {days_used}, {usage_hours}/{total_usage_hours}",
+
   "text_duration_label": "Duration (s)",
   "text_duration_placeholder": "e.g., 3",
   "audio_name_placeholder": "Audio Name",

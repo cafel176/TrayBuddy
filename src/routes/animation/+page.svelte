@@ -138,6 +138,47 @@
   /** 用户昵称（用于气泡占位符替换） */
   let userNickname = $state("User");
 
+  /** 首次启动时间戳（秒） */
+  let firstLoginTs = $state<number | null>(null);
+  /** 后端返回的累计使用秒（获取时刻） */
+  let usageBaseSeconds = $state<number>(0);
+  /** usageBaseSeconds 的获取时刻（ms） */
+  let usageBaseAtMs = $state<number>(Date.now());
+
+  function getTotalUsageSecondsNow(): number {
+    const delta = Math.max(0, Math.floor((Date.now() - usageBaseAtMs) / 1000));
+    return Math.max(0, Math.floor(usageBaseSeconds + delta));
+  }
+
+  /**
+   * 从第一次使用到今天的天数（按“日历天”计数，包含首日：今天首次使用 => 1）
+   */
+  function getDaysUsedNow(): number {
+    if (!firstLoginTs) return 0;
+
+    const first = new Date(firstLoginTs * 1000);
+    const today = new Date();
+
+    const firstMidnight = new Date(first.getFullYear(), first.getMonth(), first.getDate());
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    const diffDays = Math.floor((todayMidnight.getTime() - firstMidnight.getTime()) / 86400000);
+    return Math.max(1, diffDays + 1);
+  }
+
+  function getTotalUsageHoursNow(): number {
+    return Math.floor(getTotalUsageSecondsNow() / 3600);
+  }
+
+  function applySpeechPlaceholders(raw: string): string {
+    let text = raw;
+    text = text.replace(/\{nickname\}/g, userNickname);
+    text = text.replace(/\{days_used\}/g, String(getDaysUsedNow()));
+    text = text.replace(/\{(?:usage_hours|total_usage_hours)\}/g, String(getTotalUsageHoursNow()));
+    return text;
+  }
+
+
   /** 是否未加载任何 Mod */
   let noMod = $state(false);
 
@@ -349,6 +390,21 @@
       animationScale = settings.animation_scale;
       silenceMode = settings.silence_mode;
       userNickname = settings.nickname || "User";
+
+      // 使用统计（用于 speech.json 占位符）
+      try {
+        const usage = await invoke<{ first_login: number | null; total_usage_seconds: number }>(
+          "get_usage_stats",
+        );
+        firstLoginTs = typeof usage.first_login === "number" ? usage.first_login : null;
+        usageBaseSeconds = Number.isFinite(Number(usage.total_usage_seconds))
+          ? Number(usage.total_usage_seconds)
+          : 0;
+        usageBaseAtMs = Date.now();
+      } catch (e) {
+        console.warn("Failed to load usage stats:", e);
+      }
+
 
       // 实时同步初始鼠标穿透状态（不修改逻辑，仅保持之前状态）
       if (silenceMode) {
@@ -705,9 +761,8 @@
           name: state.text,
         });
         if (textInfo) {
-          textContent = textInfo.text;
-          // 替换昵称占位符 {nickname}
-          textContent = textContent.replace(/\{nickname\}/g, userNickname);
+          textContent = applySpeechPlaceholders(textInfo.text);
+
 
           // 使用配置的 duration（秒），转换为毫秒，如果未配置则默认 3 秒
           textDuration = (textInfo.duration ?? 3) * 1000;
@@ -732,11 +787,12 @@
           
           // 如果获取成功，使用实际文本；否则使用原 text
           const actualText = textInfo?.text || branch.text;
-          
+
           processedBranches.push({
-            text: actualText,
+            text: applySpeechPlaceholders(actualText),
             next_state: branch.next_state,
           });
+
         }
       }
 

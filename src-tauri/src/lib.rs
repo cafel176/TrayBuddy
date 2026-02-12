@@ -217,12 +217,33 @@ fn get_build_mode() -> String {
 // 用户设置命令
 // ========================================================================= //
 
+/// 使用时长/首次启动统计
+#[derive(Debug, serde::Serialize)]
+struct UsageStats {
+    pub first_login: Option<i64>,
+    pub total_usage_seconds: i64,
+}
+
 /// 获取用户设置
 #[tauri::command]
 fn get_settings(state: State<'_, AppState>) -> UserSettings {
     let storage = state.storage.lock().unwrap();
     storage.data.settings.clone()
 }
+
+/// 获取使用统计（用于文本占位符等）
+///
+/// - `first_login`: 第一次启动的 Unix 时间戳（秒）
+/// - `total_usage_seconds`: 累计使用时长（秒，包含本次运行中尚未落盘的部分）
+#[tauri::command]
+fn get_usage_stats(state: State<'_, AppState>) -> UsageStats {
+    let storage = state.storage.lock().unwrap();
+    UsageStats {
+        first_login: storage.data.info.first_login,
+        total_usage_seconds: storage.get_total_usage_seconds_now(),
+    }
+}
+
 
 /// 更新用户设置
 ///
@@ -1402,8 +1423,10 @@ pub fn run() {
             get_build_mode,
             // 用户设置
             get_settings,
+            get_usage_stats,
             update_settings,
             get_user_info,
+
             update_user_info,
             get_current_mod_data,
             set_current_mod_data_value,
