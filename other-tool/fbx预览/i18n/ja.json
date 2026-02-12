@@ -1,0 +1,33 @@
+{
+  "title": "FBX ビューア",
+  "header_title": "🧊 FBX プレビュー＆アニメ再生",
+  "header_subtitle": "FBX を読み込み、モデルのプレビューと内蔵アニメーションを再生します（テクスチャも同時にドラッグ/選択可）",
+  "reset_btn": "視点をリセット",
+
+  "import_title": "📁 読み込み",
+  "drop_zone_text": "FBX（テクスチャ同梱可）をここにドラッグ<br>またはクリックして選択",
+  "drop_zone_hint": "対応：.fbx（必須）、.png/.jpg/.jpeg（任意テクスチャ）",
+  "info_model": "モデル",
+  "info_anims": "アニメ",
+
+  "controls_title": "🎬 アニメ制御",
+  "anim_select": "アニメ選択",
+  "playback": "再生",
+  "play_btn": "再生",
+  "pause_btn": "停止",
+  "speed": "速度",
+  "loop": "ループ",
+  "loop_label": "ループ再生",
+  "timeline": "シーク",
+
+  "viewer_title": "👁️ プレビュー",
+  "viewer_hint": "左ドラッグ: 回転 / 中ドラッグ: 平行移動 / ホイール: ズーム",
+
+  "loading": "読み込み中...",
+  "loading_progress": "読み込み中... {p}%",
+
+  "msg_need_fbx": ".fbx ファイルを選択してください",
+  "msg_loaded": "読み込み完了",
+  "msg_no_anim": "モデルは読み込めましたが、アニメが見つかりません",
+  "msg_failed": "読み込み失敗："
+}

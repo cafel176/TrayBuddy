@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title">FBX 预览器</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="../i18n-helper.js"></script>
+
+  <script>
+    // Basic capability check: show a clear message instead of "no response"
+    (function(){
+      var s = document.createElement('script');
+      var supportsModule = ('noModule' in s);
+      if (!supportsModule) {
+        document.addEventListener('DOMContentLoaded', function(){
+          var el = document.getElementById('status');
+          if (el) {
+            el.textContent = '当前浏览器不支持 ES Module，FBX 预览需要新版 Edge/Chrome。';
+            el.classList.remove('ok');
+            el.classList.add('err');
+          }
+        });
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div>
+        <h1 data-i18n="header_title">🧊 FBX 预览与动画播放</h1>
+        <p class="subtitle" data-i18n="header_subtitle">导入 FBX 文件，预览模型并播放内部动画（支持贴图文件同拖拽/同选择）</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="resetBtn" disabled data-i18n="reset_btn">重置视角</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2 data-i18n="import_title">📁 导入</h2>
+
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-icon">📦</div>
+          <p data-i18n="drop_zone_text">拖拽 FBX（可连同贴图一起）到这里<br>或点击选择文件</p>
+          <div class="hint" data-i18n="drop_zone_hint">支持：.fbx（必选）、.png/.jpg/.jpeg（可选贴图）</div>
+        </div>
+        <input id="fileInput" type="file" accept=".fbx,image/png,image/jpeg" multiple hidden />
+
+        <div class="info" id="fileInfo" style="display:none;">
+          <div><strong data-i18n="info_model">模型</strong>: <span id="modelName">-</span></div>
+          <div><strong data-i18n="info_anims">动画</strong>: <span id="animCount">-</span></div>
+        </div>
+
+        <div class="status" id="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="controls_title">🎬 动画控制</h2>
+
+        <div class="grid">
+          <div class="field">
+            <label for="animSelect" data-i18n="anim_select">选择动画</label>
+            <select id="animSelect" disabled></select>
+          </div>
+
+          <div class="field">
+            <label data-i18n="playback">播放</label>
+            <div class="row">
+              <button class="btn btn-primary" id="playBtn" disabled data-i18n="play_btn">播放</button>
+              <button class="btn btn-secondary" id="pauseBtn" disabled data-i18n="pause_btn">暂停</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="speed" data-i18n="speed">倍速</label>
+            <div class="row">
+              <input id="speed" type="range" min="0.1" max="2" step="0.1" value="1" disabled />
+              <span class="mono" id="speedValue">1.0×</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label data-i18n="loop">循环</label>
+            <label class="checkbox">
+              <input type="checkbox" id="loop" checked disabled />
+              <span data-i18n="loop_label">循环播放</span>
+            </label>
+          </div>
+
+          <div class="field span2">
+            <label for="timeline" data-i18n="timeline">进度</label>
+            <input id="timeline" type="range" min="0" max="1" step="0.001" value="0" disabled />
+            <div class="row space-between">
+              <span class="mono" id="timeNow">0.00</span>
+              <span class="mono" id="timeTotal">0.00</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card viewer">
+        <h2 data-i18n="viewer_title">👁️ 预览</h2>
+        <div class="viewer-wrap">
+          <canvas id="canvas"></canvas>
+        </div>
+        <div class="hint" data-i18n="viewer_hint">鼠标左键旋转 / 中键平移 / 滚轮缩放</div>
+      </section>
+    </main>
+  </div>
+
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <div id="loadingText" data-i18n="loading">正在加载...</div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

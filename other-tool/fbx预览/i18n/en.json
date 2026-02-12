@@ -1,0 +1,33 @@
+{
+  "title": "FBX Viewer",
+  "header_title": "🧊 FBX Preview & Animation",
+  "header_subtitle": "Import an FBX file, preview the model and play embedded animations (drop/select textures together).",
+  "reset_btn": "Reset View",
+
+  "import_title": "📁 Import",
+  "drop_zone_text": "Drag FBX here (you can include textures) <br>or click to select files",
+  "drop_zone_hint": "Supported: .fbx (required), .png/.jpg/.jpeg (optional textures)",
+  "info_model": "Model",
+  "info_anims": "Animations",
+
+  "controls_title": "🎬 Animation Controls",
+  "anim_select": "Select Animation",
+  "playback": "Playback",
+  "play_btn": "Play",
+  "pause_btn": "Pause",
+  "speed": "Speed",
+  "loop": "Loop",
+  "loop_label": "Loop",
+  "timeline": "Timeline",
+
+  "viewer_title": "👁️ Viewer",
+  "viewer_hint": "Left: rotate / Middle: pan / Wheel: zoom",
+
+  "loading": "Loading...",
+  "loading_progress": "Loading... {p}%",
+
+  "msg_need_fbx": "Please provide a .fbx file",
+  "msg_loaded": "Loaded",
+  "msg_no_anim": "Model loaded, but no animations found",
+  "msg_failed": "Load failed:"
+}
