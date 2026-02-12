@@ -1,54 +1,67 @@
 [
   {
     "name": "text1",
-    "text": "Welcome to TrayBuddy!\nNext, I'll give you a brief introduction to this app."
+    "text": "Welcome to TrayBuddy!\nNext, I'll give you a brief introduction to this app.",
+    "duration": 3
   },
   {
     "name": "text2",
-    "text": "TrayBuddy is a highly customizable desktop pet app."
+    "text": "TrayBuddy is a highly customizable desktop pet app.",
+    "duration": 3
   },
   {
     "name": "text3",
-    "text": "You can quickly switch Mods from the right-click menu to use all kinds of custom desktop pets."
+    "text": "You can quickly switch Mods from the right-click menu to use all kinds of custom desktop pets.",
+    "duration": 3
   },
   {
     "name": "text4",
-    "text": "Desktop pets support custom animations, voice, and text.\nThey also support various interactions like mouse clicks and keyboard shortcuts."
+    "text": "Desktop pets support custom animations, voice, and text.\nThey also support various interactions like mouse clicks and keyboard shortcuts.",
+    "duration": 3
   },
   {
     "name": "text5",
-    "text": "You can design your own desktop pet and define a dedicated chain of interactions and dialogue events."
+    "text": "You can design your own desktop pet and define a dedicated chain of interactions and dialogue events.",
+    "duration": 3
   },
   {
     "name": "text6",
-    "text": "This program provides comprehensive tools for creating custom Mods.\nThe tools are located in the program's installation directory."
+    "text": "This program provides comprehensive tools for creating custom Mods.\nThe tools are located in the program's installation directory.",
+    "duration": 3
   },
   {
     "name": "text7",
-    "text": "You can start with the built-in Mods to see what this app can do."
+    "text": "You can start with the built-in Mods to see what this app can do.",
+    "duration": 3
   },
   {
     "name": "text8",
-    "text": "Whether you're doing fan creations, making an OC, or just memeing around, TrayBuddy can meet your needs."
+    "text": "Whether you're doing fan creations, making an OC, or just memeing around, TrayBuddy can meet your needs.",
+    "duration": 3
   },
   {
     "name": "text10",
-    "text": "We'll keep improving to bring everyone a better experience."
+    "text": "We'll keep improving to bring everyone a better experience.",
+    "duration": 3
   },
   {
     "name": "text9",
-    "text": "In the future, we may launch on Steam as a free app and make use of the Steam Workshop community."
+    "text": "In the future, we may launch on Steam as a free app and make use of the Steam Workshop community.",
+    "duration": 3
   },
   {
     "name": "text11",
-    "text": "We appreciate your continued support."
+    "text": "We appreciate your continued support.",
+    "duration": 3
   },
   {
     "name": "text12",
-    "text": "We sincerely thank every user of TrayBuddy."
+    "text": "We sincerely thank every user of TrayBuddy.",
+    "duration": 3
   },
   {
     "name": "text13",
-    "text": "Finally, we hope this app can truly bring you joy."
+    "text": "Finally, we hope this app can truly bring you joy.",
+    "duration": 3
   }
 ]

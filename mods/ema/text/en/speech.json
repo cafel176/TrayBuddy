@@ -91,6 +91,7 @@
   },
   {
     "name": "ema_birthday_button",
-    "text": "Today is your birthday."
+    "text": "Today is your birthday.",
+    "duration": 3
   }
 ]

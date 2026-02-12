@@ -91,62 +91,77 @@
   },
   {
     "name": "random2_1",
-    "text": "Hiro 笑的时候，其实只有一瞬间"
+    "text": "Hiro 笑的时候，其实只有一瞬间",
+    "duration": 3
   },
   {
     "name": "random2_2",
-    "text": "马上就会恢复成平静的表情"
+    "text": "马上就会恢复成平静的表情",
+    "duration": 3
   },
   {
     "name": "random2_3",
-    "text": "但是……我很喜欢，那一瞬间"
+    "text": "但是……我很喜欢，那一瞬间",
+    "duration": 3
   },
   {
     "name": "random3_1",
-    "text": "Sherry 她啊……就算很害怕，也会努力去笑"
+    "text": "Sherry 她啊……就算很害怕，也会努力去笑",
+    "duration": 3
   },
   {
     "name": "random3_2",
-    "text": "大概……是想让大家安心吧"
+    "text": "大概……是想让大家安心吧",
+    "duration": 3
   },
   {
     "name": "random3_3",
-    "text": "所以……最难受、最痛苦的心情，她总是一个人悄悄藏起来"
+    "text": "所以……最难受、最痛苦的心情，她总是一个人悄悄藏起来",
+    "duration": 3
   },
   {
     "name": "random4_1",
-    "text": "Hanna 沉默的时候"
+    "text": "Hanna 沉默的时候",
+    "duration": 3
   },
   {
     "name": "random4_2",
-    "text": "我想……不是她什么都没想……"
+    "text": "我想……不是她什么都没想……",
+    "duration": 3
   },
   {
     "name": "random4_3",
-    "text": "而是……想得太多了"
+    "text": "而是……想得太多了",
+    "duration": 3
   },
   {
     "name": "random4_4",
-    "text": "自从意识到这一点之后……我就稍微……想更靠近 Hanna 一点"
+    "text": "自从意识到这一点之后……我就稍微……想更靠近 Hanna 一点",
+    "duration": 3
   },
   {
     "name": "ema_birthday_1",
-    "text": "那、那个，是有什么事吗？"
+    "text": "那、那个，是有什么事吗？",
+    "duration": 3
   },
   {
     "name": "ema_birthday_2",
-    "text": "诶，你居然记得吗？"
+    "text": "诶，你居然记得吗？",
+    "duration": 3
   },
   {
     "name": "ema_birthday_3",
-    "text": "啊，谢谢你！"
+    "text": "啊，谢谢你！",
+    "duration": 3
   },
   {
     "name": "ema_birthday_4",
-    "text": "诶嘿嘿，我真的很开心。"
+    "text": "诶嘿嘿，我真的很开心。",
+    "duration": 3
   },
   {
     "name": "ema_birthday_button",
-    "text": "今天是你的生日"
+    "text": "今天是你的生日",
+    "duration": 3
   }
 ]
