@@ -116,6 +116,19 @@
     );
   }
 
+  const I32_MIN = -2147483648;
+  const I32_MAX = 2147483647;
+
+  function formatTriggerCounterRange(start?: number, end?: number): string {
+    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
+    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
+
+    const sText = s <= I32_MIN ? "*" : String(s);
+    const eText = e >= I32_MAX ? "*" : String(e);
+    return `[${sText}, ${eText}]`;
+  }
+
+
   // 图片查看器状态
   let viewerVisible = $state(false);
   let viewerImageSrc = $state("");
@@ -602,23 +615,28 @@
                             {state.time_start || "*"} ~ {state.time_end || "*"}
                           </div>
                         {/if}
-                        {#if state.trigger_time > 0}
+                        {#if (state.trigger_time ?? 0) > 0}
                           <div class="detail-item">
                             <span class="detail-label"
                               >{_("resource.timerLabel")}</span
                             >
                             {_("resource.timerDesc", {
-                              interval: state.trigger_time,
+                              interval: state.trigger_time ?? 0,
                               chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                             })}
                           </div>
                         {/if}
+
                         {#if state.mod_data_counter}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.modDataCounter")}</span>
                             <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                           </div>
                         {/if}
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.triggerCounterRange")}</span>
+                          <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
+                        </div>
                         {#if state.branch_show_bubble === false}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.branchShowBubble")}</span>
@@ -721,23 +739,28 @@
                             {state.time_start || "*"} ~ {state.time_end || "*"}
                           </div>
                         {/if}
-                        {#if state.trigger_time > 0}
+                        {#if (state.trigger_time ?? 0) > 0}
                           <div class="detail-item">
                             <span class="detail-label"
                               >{_("resource.timerLabel")}</span
                             >
                             {_("resource.timerDesc", {
-                              interval: state.trigger_time,
+                              interval: state.trigger_time ?? 0,
                               chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                             })}
                           </div>
                         {/if}
+
                         {#if state.mod_data_counter}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.modDataCounter")}</span>
                             <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                           </div>
                         {/if}
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.triggerCounterRange")}</span>
+                          <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
+                        </div>
                         {#if state.branch_show_bubble === false}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.branchShowBubble")}</span>
@@ -855,23 +878,28 @@
                                 "*"}
                             </div>
                           {/if}
-                          {#if state.trigger_time > 0}
+                          {#if (state.trigger_time ?? 0) > 0}
                             <div class="detail-item">
                               <span class="detail-label"
                                 >{_("resource.timerLabel")}</span
                               >
                               {_("resource.timerDesc", {
-                                interval: state.trigger_time,
+                                interval: state.trigger_time ?? 0,
                                 chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                               })}
                             </div>
                           {/if}
+
                           {#if state.mod_data_counter}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.modDataCounter")}</span>
                               <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                             </div>
                           {/if}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerCounterRange")}</span>
+                            <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
+                          </div>
                           {#if state.branch_show_bubble === false}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.branchShowBubble")}</span>
@@ -977,23 +1005,28 @@
                                 "*"}
                             </div>
                           {/if}
-                          {#if state.trigger_time > 0}
+                          {#if (state.trigger_time ?? 0) > 0}
                             <div class="detail-item">
                               <span class="detail-label"
                                 >{_("resource.timerLabel")}</span
                               >
                               {_("resource.timerDesc", {
-                                interval: state.trigger_time,
+                                interval: state.trigger_time ?? 0,
                                 chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
                               })}
                             </div>
                           {/if}
+
                           {#if state.mod_data_counter}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.modDataCounter")}</span>
                               <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                             </div>
                           {/if}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerCounterRange")}</span>
+                            <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
+                          </div>
                           {#if state.branch_show_bubble === false}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.branchShowBubble")}</span>

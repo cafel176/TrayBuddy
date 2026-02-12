@@ -81,6 +81,29 @@
     );
   }
 
+  const I32_MIN = -2147483648;
+  const I32_MAX = 2147483647;
+
+  function formatTriggerCounterRange(start?: number, end?: number): string {
+    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
+    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
+
+    const sText = s <= I32_MIN ? "*" : String(s);
+    const eText = e >= I32_MAX ? "*" : String(e);
+    return `[${sText}, ${eText}]`;
+  }
+
+  function isTriggerCounterRangeLimited(state: StateInfo): boolean {
+    const s = Number.isFinite(Number(state.trigger_counter_start))
+      ? Number(state.trigger_counter_start)
+      : I32_MIN;
+    const e = Number.isFinite(Number(state.trigger_counter_end))
+      ? Number(state.trigger_counter_end)
+      : I32_MAX;
+    return s > I32_MIN || e < I32_MAX;
+  }
+
+
   // ======================================================================= //
   // 前端播放状态 (来自 animation 窗口)
   // ======================================================================= //
@@ -293,6 +316,10 @@
               <span class="label">{_("state.modDataCounterLabel")}</span>
               <span class="counter-value">{currentState.mod_data_counter.op} {currentState.mod_data_counter.value}</span>
             </div>{/if}
+          <div class="detail-row">
+            <span class="label">{_("state.triggerCounterRangeLabel")}</span>
+            <span class="counter-value">{formatTriggerCounterRange(currentState.trigger_counter_start, currentState.trigger_counter_end)}</span>
+          </div>
           {#if currentState.branch_show_bubble === false}<div class="detail-row">
               <span class="label">{_("state.branchShowBubbleLabel")}</span>
               <span class="bubble-value">{_("common.no")}</span>
@@ -445,6 +472,15 @@
                 class="extra-tag counter"
                 title={_("state.modDataCounterLabel") + " " + state.mod_data_counter.op + " " + state.mod_data_counter.value}
                 >🔢{state.mod_data_counter.op}</span
+              >
+            {/if}
+            {#if isTriggerCounterRangeLimited(state)}
+              <span
+                class="extra-tag counter-range"
+                title={_("state.triggerCounterRangeTooltip", {
+                  range: formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end),
+                })}
+                >📊</span
               >
             {/if}
             {#if state.branch_show_bubble === false}
@@ -862,6 +898,10 @@
   .extra-tag.counter {
     background: #fdf2e9;
     color: #d35400;
+  }
+  .extra-tag.counter-range {
+    background: #eef2ff;
+    color: #4f46e5;
   }
   .extra-tag.no-bubble {
     background: #fdedec;

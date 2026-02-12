@@ -45,6 +45,19 @@
     return msg.includes(_("common.failed")) || msg.includes("failed");
   }
 
+  const I32_MIN = -2147483648;
+  const I32_MAX = 2147483647;
+
+  function formatTriggerCounterRange(start?: number, end?: number): string {
+    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
+    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
+
+    const sText = s <= I32_MIN ? "*" : String(s);
+    const eText = e >= I32_MAX ? "*" : String(e);
+    return `[${sText}, ${eText}]`;
+  }
+
+
   // ======================================================================= //
   // 响应式状态
   // ======================================================================= //
@@ -298,6 +311,10 @@
               <span class="label">{_("state.modDataCounterLabel")}</span>
               <span class="counter-value">{currentState.mod_data_counter.op} {currentState.mod_data_counter.value}</span>
             </div>{/if}
+          <div class="detail-row">
+            <span class="label">{_("state.triggerCounterRangeLabel")}</span>
+            <span class="counter-value">{formatTriggerCounterRange(currentState.trigger_counter_start, currentState.trigger_counter_end)}</span>
+          </div>
           {#if currentState.branch_show_bubble === false}<div class="detail-row">
               <span class="label">{_("state.branchShowBubbleLabel")}</span>
               <span class="bubble-value">{_("common.no")}</span>

@@ -323,6 +323,7 @@
     "timerLabel": "タイマー:",
     "timerDesc": "{interval}秒ごとに検出、確率 {chance}%",
     "modDataCounter": "データカウンター:",
+    "triggerCounterRange": "トリガー値範囲:",
     "branchShowBubble": "選択肢吹き出しを表示",
     "triggerable": "トリガー可能:",
 
@@ -369,6 +370,7 @@
     "audioLabel": "音声:",
     "textLabel": "テキスト:",
     "modDataCounterLabel": "データカウンター:",
+    "triggerCounterRangeLabel": "トリガー値範囲:",
     "branchShowBubbleLabel": "選択肢吹き出しを表示:",
     "nextStateLabel": "次の状態:",
 
@@ -405,6 +407,7 @@
     "nextTooltip": "次の状態",
     "timerTooltip": "タイマートリガー: {interval}秒ごと、{chance}%確率",
     "triggerableTooltip": "トリガー可能: {states}",
+    "triggerCounterRangeTooltip": "トリガー値範囲: {range}",
     "branchTooltip": "分岐オプション",
     "dateTooltip": "日付: {start} ~ {end}",
     "timeTooltip": "時刻: {start} ~ {end}",

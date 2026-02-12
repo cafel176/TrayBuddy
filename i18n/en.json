@@ -323,6 +323,7 @@
     "timerLabel": "Timer:",
     "timerDesc": "Every {interval}s, {chance}% chance",
     "modDataCounter": "Data Counter:",
+    "triggerCounterRange": "Trigger Counter Range:",
     "branchShowBubble": "Show Branch Bubble",
     "triggerable": "Triggerable:",
 
@@ -369,6 +370,7 @@
     "audioLabel": "Audio:",
     "textLabel": "Text:",
     "modDataCounterLabel": "Data Counter:",
+    "triggerCounterRangeLabel": "Trigger Counter Range:",
     "branchShowBubbleLabel": "Show Branch Bubble:",
     "nextStateLabel": "Next state:",
 
@@ -405,6 +407,7 @@
     "nextTooltip": "Next state",
     "timerTooltip": "Timer trigger: every {interval}s, {chance}% chance",
     "triggerableTooltip": "Triggerable: {states}",
+    "triggerCounterRangeTooltip": "Trigger counter range: {range}",
     "branchTooltip": "Branch options",
     "dateTooltip": "Date: {start} ~ {end}",
     "timeTooltip": "Time: {start} ~ {end}",
