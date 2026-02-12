@@ -1,12 +1,13 @@
 {
-  "title": "FBX Viewer",
-  "header_title": "🧊 FBX Preview & Animation",
-  "header_subtitle": "Import an FBX file, preview the model and play embedded animations (drop/select textures together).",
+  "title": "3D Model Viewer",
+  "header_title": "🧊 3D Model Preview & Animation",
+  "header_subtitle": "Import FBX/VRM/PMX models, preview and play animations (drop/select textures together).",
   "reset_btn": "Reset View",
 
   "import_title": "📁 Import",
-  "drop_zone_text": "Drag FBX here (you can include textures) <br>or click to select files",
-  "drop_zone_hint": "Supported: .fbx (required), .png/.jpg/.jpeg (optional textures)",
+  "drop_zone_text": "Drag FBX / VRM / PMX here (you can include textures) <br>or click to select files",
+  "drop_zone_hint": "Supported: .fbx/.vrm/.pmx (one required), optional textures (.png/.jpg/.jpeg/.bmp/.tga, etc.)",
+
   "info_model": "Model",
   "info_anims": "Animations",
 
@@ -26,7 +27,7 @@
   "loading": "Loading...",
   "loading_progress": "Loading... {p}%",
 
-  "msg_need_fbx": "Please provide a .fbx file",
+  "msg_need_model": "Please provide a .fbx / .vrm / .pmx file",
   "msg_loaded": "Loaded",
   "msg_no_anim": "Model loaded, but no animations found",
   "msg_failed": "Load failed:"

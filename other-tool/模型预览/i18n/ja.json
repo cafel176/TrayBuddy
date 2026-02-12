@@ -1,12 +1,13 @@
 {
-  "title": "FBX ビューア",
-  "header_title": "🧊 FBX プレビュー＆アニメ再生",
-  "header_subtitle": "FBX を読み込み、モデルのプレビューと内蔵アニメーションを再生します（テクスチャも同時にドラッグ/選択可）",
+  "title": "3Dモデルビューア",
+  "header_title": "🧊 3Dモデルプレビュー＆アニメ再生",
+  "header_subtitle": "FBX/VRM/PMX を読み込み、モデルのプレビューとアニメを再生します（テクスチャも同時にドラッグ/選択可）",
   "reset_btn": "視点をリセット",
 
   "import_title": "📁 読み込み",
-  "drop_zone_text": "FBX（テクスチャ同梱可）をここにドラッグ<br>またはクリックして選択",
-  "drop_zone_hint": "対応：.fbx（必須）、.png/.jpg/.jpeg（任意テクスチャ）",
+  "drop_zone_text": "FBX / VRM / PMX（テクスチャ同梱可）をここにドラッグ<br>またはクリックして選択",
+  "drop_zone_hint": "対応：.fbx/.vrm/.pmx（いずれか必須）、任意テクスチャ（.png/.jpg/.jpeg/.bmp/.tga 等）",
+
   "info_model": "モデル",
   "info_anims": "アニメ",
 
@@ -26,7 +27,7 @@
   "loading": "読み込み中...",
   "loading_progress": "読み込み中... {p}%",
 
-  "msg_need_fbx": ".fbx ファイルを選択してください",
+  "msg_need_model": ".fbx / .vrm / .pmx ファイルを選択してください",
   "msg_loaded": "読み込み完了",
   "msg_no_anim": "モデルは読み込めましたが、アニメが見つかりません",
   "msg_failed": "読み込み失敗："

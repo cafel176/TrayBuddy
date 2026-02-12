@@ -1,12 +1,13 @@
 {
-  "title": "FBX 预览器",
-  "header_title": "🧊 FBX 预览与动画播放",
-  "header_subtitle": "导入 FBX 文件，预览模型并播放内部动画（支持贴图文件同拖拽/同选择）",
+  "title": "3D 模型预览器",
+  "header_title": "🧊 3D 模型预览与动画播放",
+  "header_subtitle": "导入 FBX/VRM/PMX 模型，预览并播放动画（支持贴图文件同拖拽/同选择）",
   "reset_btn": "重置视角",
 
   "import_title": "📁 导入",
-  "drop_zone_text": "拖拽 FBX（可连同贴图一起）到这里<br>或点击选择文件",
-  "drop_zone_hint": "支持：.fbx（必选）、.png/.jpg/.jpeg（可选贴图）",
+  "drop_zone_text": "拖拽 FBX / VRM / PMX（可连同贴图一起）到这里<br>或点击选择文件",
+  "drop_zone_hint": "支持：.fbx/.vrm/.pmx（必选其一）、贴图（可选：.png/.jpg/.jpeg/.bmp/.tga 等）",
+
   "info_model": "模型",
   "info_anims": "动画",
 
@@ -26,7 +27,7 @@
   "loading": "正在加载...",
   "loading_progress": "正在加载... {p}%",
 
-  "msg_need_fbx": "请提供 .fbx 文件",
+  "msg_need_model": "请提供 .fbx / .vrm / .pmx 文件",
   "msg_loaded": "已加载",
   "msg_no_anim": "模型已加载，但未发现动画",
   "msg_failed": "加载失败："
