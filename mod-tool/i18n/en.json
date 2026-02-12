@@ -183,6 +183,9 @@
   "trigger_counter_start_label": "Trigger Counter Start",
   "trigger_counter_end_label": "Trigger Counter End",
   "trigger_counter_hint": "This state can trigger only when ModData.value is within [start, end]",
+  "trigger_temp_start_label": "Temperature Trigger Start",
+  "trigger_temp_end_label": "Temperature Trigger End",
+  "trigger_temp_hint": "This state can trigger only when environment.temperature (°C) is within [start, end]",
   "can_trigger_states_label": "Can Trigger States",
   "section_can_trigger_states": "Can Trigger States",
   "can_trigger_states_hint": "Configure sub-states that can be randomly triggered and their weights",
@@ -285,7 +288,7 @@
   "text_name_placeholder": "Text Name",
   "text_content_placeholder": "Dialogue content (supports Markdown)",
   "text_duration_label": "Duration (s)",
-  "text_duration_placeholder": "e.g., 5",
+  "text_duration_placeholder": "e.g., 3",
   "audio_name_placeholder": "Audio Name",
 
   "audio_path_placeholder": "File path (e.g., jp/speech/morning.wav)",

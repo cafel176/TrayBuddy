@@ -928,8 +928,19 @@
                     <label data-i18n="trigger_counter_end_label">触发计数终点</label>
                     <input type="number" id="state-trigger-counter-end" value="2147483647" step="1">
                   </div>
+
+                  <div class="form-group">
+                    <label data-i18n="trigger_temp_start_label">气温触发起点</label>
+                    <input type="number" id="state-trigger-temp-start" value="-2147483648" step="1">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="trigger_temp_end_label">气温触发终点</label>
+                    <input type="number" id="state-trigger-temp-end" value="2147483647" step="1">
+                  </div>
                 </div>
                 <small class="section-hint" data-i18n="trigger_counter_hint">仅当当前 ModData.value 落在 [起点, 终点] 区间内时，该状态才允许触发</small>
+                <small class="section-hint" data-i18n="trigger_temp_hint">仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发</small>
+
               </div>
             </details>
           </div>

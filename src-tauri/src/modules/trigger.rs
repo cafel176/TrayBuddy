@@ -162,11 +162,12 @@ impl TriggerManager {
                     .get_state_by_name(&name)
                     .cloned()
                     .and_then(|st| {
-                        if st.is_enable() && state_manager.is_state_allowed_by_mod_data(&st) {
+                        if st.is_enable() && state_manager.is_state_allowed_by_limits(&st) {
                             Some((st, w))
                         } else {
                             None
                         }
+
                     })
             })
             .collect();

@@ -52,8 +52,10 @@ use super::constants::{
 };
 use super::event_manager::{emit, events};
 use super::media_observer::{get_cached_media_state, MediaPlaybackStatus};
+use super::environment::get_cached_weather;
 use super::resource::{ModDataCounterOp, ResourceManager, StateInfo};
 use super::storage::ModData;
+
 use crate::AppState;
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -522,8 +524,9 @@ impl StateManager {
         // 筛选可用状态（使用引用避免克隆）
         let enabled_states: Vec<&StateInfo> = states
             .iter()
-            .filter(|s| s.is_enable() && self.is_state_allowed_by_mod_data(s))
+            .filter(|s| s.is_enable() && self.is_state_allowed_by_limits(s))
             .collect();
+
 
         if enabled_states.is_empty() {
             #[cfg(debug_assertions)]
@@ -736,6 +739,9 @@ impl StateManager {
                         .unwrap_or(0)
                 };
 
+                // 读取一次当前气温（来自 environment 缓存），避免在过滤时重复取锁
+                let current_temp = get_cached_weather().map(|w| w.temperature);
+
                 // 第一步：获取 ResourceManager 锁
                 // - 筛选可用状态的名称和权重（避免克隆完整的 StateInfo 列表）
                 let rm = app_state.resource_manager.lock().unwrap();
@@ -750,8 +756,7 @@ impl StateManager {
                         rm.get_state_by_name(c.state.as_ref())
                             .and_then(|s| {
                                 if s.is_enable()
-                                    && mod_data_value >= s.trigger_counter_start
-                                    && mod_data_value <= s.trigger_counter_end
+                                    && Self::is_state_allowed_by_limits_static(s, mod_data_value, current_temp)
                                 {
                                     Some((c.state.as_ref(), c.weight as u64))
                                 } else {
@@ -760,6 +765,7 @@ impl StateManager {
                             })
                     })
                     .collect();
+
 
                 if candidate_names.is_empty() {
                     drop(rm);
@@ -844,12 +850,47 @@ impl StateManager {
             .unwrap_or(0)
     }
 
-    /// 判断当前状态是否满足 ModData 触发范围限制
     #[inline]
-    pub(crate) fn is_state_allowed_by_mod_data(&self, state: &StateInfo) -> bool {
-        let value = self.get_current_mod_data_value();
-        value >= state.trigger_counter_start && value <= state.trigger_counter_end
+    fn is_state_allowed_by_temp_range(state: &StateInfo, current_temp: Option<f64>) -> bool {
+        // 默认不限制
+        if state.trigger_temp_start == i32::MIN && state.trigger_temp_end == i32::MAX {
+            return true;
+        }
+
+        // 有限制但没有拿到天气/温度 -> 不允许触发
+        let Some(temp) = current_temp else {
+            return false;
+        };
+
+        // 非法区间：起点 > 终点
+        if state.trigger_temp_start > state.trigger_temp_end {
+            return false;
+        }
+
+        let start = state.trigger_temp_start as f64;
+        let end = state.trigger_temp_end as f64;
+        temp >= start && temp <= end
     }
+
+    #[inline]
+    fn is_state_allowed_by_limits_static(
+        state: &StateInfo,
+        mod_data_value: i32,
+        current_temp: Option<f64>,
+    ) -> bool {
+        (mod_data_value >= state.trigger_counter_start
+            && mod_data_value <= state.trigger_counter_end)
+            && Self::is_state_allowed_by_temp_range(state, current_temp)
+    }
+
+    /// 判断当前状态是否满足触发限制（ModData 触发计数范围 + 气温范围）
+    #[inline]
+    pub(crate) fn is_state_allowed_by_limits(&self, state: &StateInfo) -> bool {
+        let value = self.get_current_mod_data_value();
+        let current_temp = get_cached_weather().map(|w| w.temperature);
+        Self::is_state_allowed_by_limits_static(state, value, current_temp)
+    }
+
 
     /// 进入状态时，按配置异步更新当前 Mod 的数据计数器，并立即落盘
     ///

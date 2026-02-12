@@ -1241,6 +1241,11 @@ function normalizeStateForEditor(state) {
   if (!Number.isFinite(Number(state.trigger_counter_start))) state.trigger_counter_start = -2147483648;
   if (!Number.isFinite(Number(state.trigger_counter_end))) state.trigger_counter_end = 2147483647;
 
+  // 气温触发范围（默认不限制）
+  if (!Number.isFinite(Number(state.trigger_temp_start))) state.trigger_temp_start = -2147483648;
+  if (!Number.isFinite(Number(state.trigger_temp_end))) state.trigger_temp_end = 2147483647;
+
+
   // mod_data_counter 应该是 { op, value } 对象或 null
   // 兼容旧格式：ema 等历史版本里是 { op, value } 或数组
   if (state.mod_data_counter) {
@@ -1355,7 +1360,10 @@ function ensureImportantState(manifest, key, defaults) {
       branch: [],
       trigger_counter_start: -2147483648,
       trigger_counter_end: 2147483647,
+      trigger_temp_start: -2147483648,
+      trigger_temp_end: 2147483647,
       mod_data_counter: [],
+
       branch_show_bubble: true
     };
   }
@@ -1504,7 +1512,10 @@ function createDefaultState(name, persistent = false) {
     branch: [],
     trigger_counter_start: -2147483648,
     trigger_counter_end: 2147483647,
+    trigger_temp_start: -2147483648,
+    trigger_temp_end: 2147483647,
     mod_data_counter: null,
+
     branch_show_bubble: true
   };
 }
@@ -2634,6 +2645,11 @@ function openStateModal(title, state) {
   document.getElementById('state-trigger-counter-start').value = Number.isFinite(Number(state.trigger_counter_start)) ? String(state.trigger_counter_start) : '-2147483648';
   document.getElementById('state-trigger-counter-end').value = Number.isFinite(Number(state.trigger_counter_end)) ? String(state.trigger_counter_end) : '2147483647';
 
+  // 气温触发范围
+  document.getElementById('state-trigger-temp-start').value = Number.isFinite(Number(state.trigger_temp_start)) ? String(state.trigger_temp_start) : '-2147483648';
+  document.getElementById('state-trigger-temp-end').value = Number.isFinite(Number(state.trigger_temp_end)) ? String(state.trigger_temp_end) : '2147483647';
+
+
   document.getElementById('state-branch-show-bubble').checked = state.branch_show_bubble !== false;
   
   // 更新动画下拉列表
@@ -2883,8 +2899,18 @@ function saveState() {
       return Number.isFinite(n) ? n : 2147483647;
     })(),
 
+    trigger_temp_start: (() => {
+      const n = parseInt(document.getElementById('state-trigger-temp-start').value);
+      return Number.isFinite(n) ? n : -2147483648;
+    })(),
+    trigger_temp_end: (() => {
+      const n = parseInt(document.getElementById('state-trigger-temp-end').value);
+      return Number.isFinite(n) ? n : 2147483647;
+    })(),
+
     branch_show_bubble: document.getElementById('state-branch-show-bubble').checked,
     mod_data_counter: collectDataCounter(),
+
     branch: collectBranches()
   };
   
@@ -4013,7 +4039,7 @@ function renderSpeechTexts() {
     const speechName = String(speech?.name || '');
     const speechText = String(speech?.text || '');
     const rawDuration = speech?.duration;
-    const speechDuration = Number.isFinite(Number(rawDuration)) ? Number(rawDuration) : 5;
+    const speechDuration = Number.isFinite(Number(rawDuration)) ? Number(rawDuration) : 3;
 
 
     const nameHay = speechName.toLowerCase();
@@ -4229,7 +4255,7 @@ function addSpeechText() {
   if (!currentMod.texts[currentTextLang]) {
     currentMod.texts[currentTextLang] = { info: {}, speech: [] };
   }
-  currentMod.texts[currentTextLang].speech.push({ name: '', text: '', duration: 5 });
+  currentMod.texts[currentTextLang].speech.push({ name: '', text: '', duration: 3 });
 
   renderSpeechTexts();
   markUnsaved();
@@ -4242,7 +4268,7 @@ function updateSpeechText(index, field, value) {
   if (!currentMod || currentMod.textSpeechEnabled !== true) return;
   if (field === 'duration') {
     const parsed = Number(value);
-    currentMod.texts[currentTextLang].speech[index][field] = Number.isFinite(parsed) ? parsed : 5;
+    currentMod.texts[currentTextLang].speech[index][field] = Number.isFinite(parsed) ? parsed : 3;
     markUnsaved();
     return;
   }

@@ -121,7 +121,12 @@ const tutorialTranslations = {
     field_trigger_counter_start_desc: "仅当当前 ModData.value 落在 [起点, 终点] 区间内时，该状态才允许触发",
     field_trigger_counter_end: "触发计数终点",
     field_trigger_counter_end_desc: "仅当当前 ModData.value 落在 [起点, 终点] 区间内时，该状态才允许触发",
+    field_trigger_temp_start: "气温触发起点",
+    field_trigger_temp_start_desc: "仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发",
+    field_trigger_temp_end: "气温触发终点",
+    field_trigger_temp_end_desc: "仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发",
     field_can_trigger: "可触发子状态",
+
     field_can_trigger_desc: "在编辑器内以“状态 + 权重”列表配置（权重越大越容易被选中）",
 
     section_branches: "对话分支",
@@ -146,7 +151,9 @@ const tutorialTranslations = {
     section_data_counter: "数据计数器",
     data_counter_desc: "状态激活时对 Mod 数据执行操作：set(设置)、add(加)、sub(减)、mul(乘)、div(除)。",
     trigger_counter_desc: "你也可以在编辑器的「状态限制」中，通过 trigger_counter_start / trigger_counter_end 限制该状态在特定 ModData.value 区间内才允许触发。", 
+    trigger_temp_desc: "同样地，你也可以通过 trigger_temp_start / trigger_temp_end 限制该状态仅在气温（environment.temperature，单位 °C）处于区间内才允许触发。",
     section_bubble: "💬 气泡样式配置",
+
     bubble_desc: "可视化配置对话气泡外观，支持实时预览。",
     bubble_main: "气泡主体：背景、边框、圆角、阴影、背景滤镜",
     bubble_text: "文字样式：颜色、字体大小、行高、字体",
@@ -328,7 +335,12 @@ const tutorialTranslations = {
     field_trigger_counter_start_desc: "This state can trigger only when ModData.value is within [start, end]",
     field_trigger_counter_end: "Trigger Counter End",
     field_trigger_counter_end_desc: "This state can trigger only when ModData.value is within [start, end]",
+    field_trigger_temp_start: "Temperature Trigger Start",
+    field_trigger_temp_start_desc: "This state can trigger only when environment.temperature (°C) is within [start, end]",
+    field_trigger_temp_end: "Temperature Trigger End",
+    field_trigger_temp_end_desc: "This state can trigger only when environment.temperature (°C) is within [start, end]",
     field_can_trigger: "Triggerable States",
+
     field_can_trigger_desc: "Configure as a list of (state + weight). Higher weight = more likely",
 
     section_branches: "Dialogue Branches",
@@ -351,7 +363,9 @@ const tutorialTranslations = {
     section_data_counter: "Data Counter",
     data_counter_desc: "Operations on Mod data when state activates: set, add, sub, mul, div.",
     trigger_counter_desc: "You can also (in the editor's \"State Limits\") use trigger_counter_start / trigger_counter_end to limit when this state is allowed to trigger.",
+    trigger_temp_desc: "Similarly, you can use trigger_temp_start / trigger_temp_end to limit when this state is allowed to trigger based on temperature (environment.temperature, °C).",
     section_bubble: "💬 Bubble Style Configuration",
+
     bubble_desc: "Visually configure dialogue bubble appearance with real-time preview.",
     bubble_main: "Bubble body: background, border, radius, shadow, backdrop filter",
     bubble_text: "Text style: color, font size, line height, font family",
@@ -532,7 +546,12 @@ const tutorialTranslations = {
     field_trigger_counter_start_desc: "ModData.value が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
     field_trigger_counter_end: "トリガー値終了",
     field_trigger_counter_end_desc: "ModData.value が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
+    field_trigger_temp_start: "気温トリガー開始",
+    field_trigger_temp_start_desc: "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
+    field_trigger_temp_end: "気温トリガー終了",
+    field_trigger_temp_end_desc: "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
     field_can_trigger: "トリガー可能状態",
+
     field_can_trigger_desc: "（状態 + 重み）のリストで設定。重みが大きいほど選ばれやすい",
     section_branches: "対話分岐",
     branches_desc: "分岐により、ユーザーは選択肢をクリックして対話の方向を決定できます。",
@@ -556,7 +575,9 @@ const tutorialTranslations = {
     section_data_counter: "データカウンター",
     data_counter_desc: "状態がアクティブになったとき Mod データに対する操作：set、add、sub、mul、div。",
     trigger_counter_desc: "エディタの「状態制限」で trigger_counter_start / trigger_counter_end を使って、この状態がトリガー可能な ModData.value 範囲を制限できます。", 
+    trigger_temp_desc: "同様に、trigger_temp_start / trigger_temp_end を使って、気温（environment.temperature、°C）に基づくトリガー可能範囲を制限できます。",
     section_bubble: "💬 吹き出しスタイル設定",
+
     bubble_desc: "リアルタイムプレビューで対話吹き出しの外観を視覚的に設定。",
     bubble_main: "吹き出し本体：背景、枠線、角丸、影、背景フィルター",
     bubble_text: "テキストスタイル：色、フォントサイズ、行高、フォント",

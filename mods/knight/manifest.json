@@ -34,6 +34,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -55,6 +57,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     },
@@ -76,6 +80,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     },
@@ -97,6 +103,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     },
@@ -117,6 +125,8 @@
       "trigger_rate": 0,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -138,6 +148,8 @@
       "trigger_rate": 0,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -159,6 +171,8 @@
       "trigger_rate": 0,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -181,6 +195,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     },
@@ -202,6 +218,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     },
@@ -223,6 +241,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     },
@@ -244,6 +264,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     },
@@ -265,6 +287,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true
     }
@@ -288,6 +312,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -309,6 +335,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -330,6 +358,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": [
         {
@@ -377,6 +407,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -398,6 +430,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -419,6 +453,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -440,6 +476,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -474,6 +512,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -495,6 +535,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -516,6 +558,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -537,6 +581,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -571,6 +617,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -592,6 +640,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -613,6 +663,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -634,6 +686,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -655,6 +709,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 1
@@ -679,6 +735,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -700,6 +758,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -721,6 +781,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     },
@@ -742,6 +804,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch": []
     }

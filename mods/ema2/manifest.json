@@ -51,6 +51,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -75,6 +77,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -99,6 +103,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -123,6 +129,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -146,6 +154,8 @@
       "trigger_rate": 0,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -167,6 +177,8 @@
       "trigger_rate": 0,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -188,6 +200,8 @@
       "trigger_rate": 0,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -210,6 +224,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -234,6 +250,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -258,6 +276,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -282,6 +302,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -311,6 +333,8 @@
       ],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -337,6 +361,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -361,6 +387,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -385,6 +413,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -409,6 +439,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -442,6 +474,8 @@
       ],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -466,6 +500,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -490,6 +526,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -514,6 +552,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -538,6 +578,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -562,6 +604,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -586,6 +630,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -610,6 +656,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -634,6 +682,8 @@
       "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -658,6 +708,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -682,6 +734,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -706,6 +760,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -730,6 +786,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -754,6 +812,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -778,6 +838,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -802,6 +864,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -826,6 +890,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -850,6 +916,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -874,6 +942,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -898,6 +968,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -927,6 +999,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -951,6 +1025,8 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -975,10 +1051,81 @@
       "branch_show_bubble": true,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
       },
+      "branch": []
+    },
+    {
+      "name": "test1",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "test1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "test2",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "test2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "test3",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "test3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
       "branch": []
     }
   ],

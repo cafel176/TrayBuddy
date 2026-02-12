@@ -64,6 +64,17 @@ fn default_trigger_counter_end() -> i32 {
     i32::MAX
 }
 
+#[inline]
+fn default_trigger_temp_start() -> i32 {
+    i32::MIN
+}
+
+#[inline]
+fn default_trigger_temp_end() -> i32 {
+    i32::MAX
+}
+
+
 // ========================================================================= //
 // 资产定义
 // ========================================================================= //
@@ -156,7 +167,7 @@ pub struct TextInfo {
     pub name: Box<str>,
     /// 显示的文本内容
     pub text: Box<str>,
-    /// 文本显示持续时间（秒），默认10秒
+    /// 文本显示持续时间（秒），默认 3 秒
     pub duration: u32,
 }
 
@@ -165,7 +176,7 @@ impl Default for TextInfo {
         Self {
             name: default_name(),
             text: "".into(),
-            duration: 5,
+            duration: 3,
         }
     }
 }
@@ -354,8 +365,19 @@ pub struct StateInfo {
     #[serde(default = "default_trigger_counter_end")]
     pub trigger_counter_end: i32,
 
+    /// 气温触发范围起点（包含，单位：摄氏度）
+    /// 当当前 environment.temperature 落在 [start, end] 范围内时，该状态才允许触发
+    #[serde(default = "default_trigger_temp_start")]
+    pub trigger_temp_start: i32,
+
+    /// 气温触发范围终点（包含，单位：摄氏度）
+    /// 当当前 environment.temperature 落在 [start, end] 范围内时，该状态才允许触发
+    #[serde(default = "default_trigger_temp_end")]
+    pub trigger_temp_end: i32,
+
     /// 计数器副作用：进入该状态时对 Mod 特有的变量执行增减操作（如好感度+1）
     pub mod_data_counter: Option<ModDataCounterConfig>,
+
 
     /// 分支气泡交互控制：标记是否在界面上显示对话分支按钮
     pub branch_show_bubble: bool,
@@ -383,7 +405,10 @@ impl Default for StateInfo {
             trigger_rate: 0.0,
             trigger_counter_start: i32::MIN,
             trigger_counter_end: i32::MAX,
+            trigger_temp_start: i32::MIN,
+            trigger_temp_end: i32::MAX,
             mod_data_counter: None,
+
             branch_show_bubble: true,
             branch: Vec::new(),
         }

@@ -709,8 +709,8 @@
           // 替换昵称占位符 {nickname}
           textContent = textContent.replace(/\{nickname\}/g, userNickname);
 
-          // 使用配置的duration（秒），转换为毫秒，如果未配置则默认10秒
-          textDuration = (textInfo.duration ?? 10) * 1000;
+          // 使用配置的 duration（秒），转换为毫秒，如果未配置则默认 3 秒
+          textDuration = (textInfo.duration ?? 3) * 1000;
         }
       }
 

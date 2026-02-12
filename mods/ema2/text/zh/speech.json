@@ -163,5 +163,20 @@
     "name": "ema_birthday_button",
     "text": "今天是你的生日",
     "duration": 3
+  },
+  {
+    "name": "test1",
+    "text": "测试1",
+    "duration": 3
+  },
+  {
+    "name": "test2",
+    "text": "测试2",
+    "duration": 3
+  },
+  {
+    "name": "test3",
+    "text": "测试3",
+    "duration": 3
   }
 ]

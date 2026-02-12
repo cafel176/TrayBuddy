@@ -183,6 +183,9 @@
   "trigger_counter_start_label": "トリガー値開始",
   "trigger_counter_end_label": "トリガー値終了",
   "trigger_counter_hint": "ModData.value が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
+  "trigger_temp_start_label": "気温トリガー開始",
+  "trigger_temp_end_label": "気温トリガー終了",
+  "trigger_temp_hint": "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
   "can_trigger_states_label": "トリガー可能子状態",
   "section_can_trigger_states": "トリガー可能子状態",
   "can_trigger_states_hint": "この状態からランダムにトリガーできる子状態とその重みを設定",
@@ -285,7 +288,7 @@
   "text_name_placeholder": "テキスト名",
   "text_content_placeholder": "対話内容（Markdownサポート）",
   "text_duration_label": "持続時間(秒)",
-  "text_duration_placeholder": "例: 5",
+  "text_duration_placeholder": "例: 3",
   "audio_name_placeholder": "オーディオ名",
 
   "audio_path_placeholder": "ファイルパス (例: jp/speech/morning.wav)",
