@@ -31,7 +31,9 @@
     "off": "OFF",
     "style": "Style",
     "action": "Action",
+    "close": "Close",
     "noModHint": "No character loaded or Mod is invalid. Please load a Mod via the context menu."
+
   },
   "tabs": {
     "resource": "Resources",
@@ -64,7 +66,11 @@
     "style": "Style",
     "opacity": "Opacity"
   },
+  "animation": {
+    "modDataValueAria": "Mod data"
+  },
   "settings": {
+
     "title": "User Settings",
     "nickname": "Nickname",
     "birthday": "Birthday",
@@ -286,15 +292,18 @@
     "bubbleStyle": "Bubble Style",
     "iconPath": "Icon Path",
     "previewPath": "Preview Path",
-    "modName": "Mod Name",
     "defaultAudio": "Default Audio",
+
 
     "defaultText": "Default Text",
     "showModDataPanel": "Show Data Panel",
     "modDataDefaultInt": "Default Data Value",
     "characterConfig": "Character Config",
+    "zOffset": "z_offset",
+    "canvasFitPreference": "canvas_fit_preference",
 
     "borderConfig": "Border Config",
+
     "enable": "Enable",
     "animation": "Animation",
     "notSet": "(not set)",
@@ -441,7 +450,10 @@
     "noPersistent": "No persistent state",
     "eventTriggers": "Event Triggers",
     "triggerBtn": "Trigger",
+    "quickClick": "Click",
+    "quickLogin": "Login",
     "whenCondition": "When {state}",
+
     "anyPersistent": "Any persistent state",
     "noRepeat": "No repeat",
     "noTriggerableStates": "(no triggerable states)",
@@ -526,7 +538,9 @@
   "about": {
     "title": "About",
     "appName": "TrayBuddy",
+    "appShortName": "TB",
     "appVersion": "Version: {version}",
+
     "description": "A cute desktop pet app with highly customizable Mods and interactive features.",
     "featuresTitle": "Key Features",
     "featureWidget": "✨ Cute desktop character widget",

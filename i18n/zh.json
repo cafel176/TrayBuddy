@@ -31,7 +31,9 @@
     "off": "关闭",
     "style": "样式",
     "action": "操作",
+    "close": "关闭",
     "noModHint": "未加载角色或 Mod 已失效，请在右键菜单中加载一个 Mod"
+
   },
   "tabs": {
     "resource": "资源管理",
@@ -64,7 +66,11 @@
     "style": "样式",
     "opacity": "不透明度"
   },
+  "animation": {
+    "modDataValueAria": "Mod 数据"
+  },
   "settings": {
+
     "title": "用户设置",
     "nickname": "昵称",
     "birthday": "生日",
@@ -292,8 +298,11 @@
     "showModDataPanel": "显示数据面板",
     "modDataDefaultInt": "初始数据值",
     "characterConfig": "角色配置",
+    "zOffset": "z_offset",
+    "canvasFitPreference": "canvas_fit_preference",
 
     "borderConfig": "边框配置",
+
     "enable": "启用",
     "animation": "动画",
     "notSet": "(未设置)",
@@ -440,7 +449,10 @@
     "noPersistent": "无持久状态",
     "eventTriggers": "事件触发器",
     "triggerBtn": "触发",
+    "quickClick": "点击",
+    "quickLogin": "登录",
     "whenCondition": "当 {state} 时",
+
     "anyPersistent": "任意持久状态",
     "noRepeat": "不重复",
     "noTriggerableStates": "(无可触发状态)",
@@ -524,7 +536,9 @@
   "about": {
     "title": "关于本程序",
     "appName": "TrayBuddy",
+    "appShortName": "TB",
     "appVersion": "版本: {version}",
+
     "description": "希望用户能用它来取悦你自己",
     "featuresTitle": "主要功能",
     "featureWidget": "✨ 高度可控的对话分支，融入你的世界观和角色设定",

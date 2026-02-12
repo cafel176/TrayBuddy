@@ -527,12 +527,13 @@
     <!-- 快捷触发按钮 -->
     <div class="quick-triggers">
       <button class="btn-quick" onclick={() => triggerEvent("click")}
-        >click</button
+        >{_("trigger.quickClick")}</button
       >
       <button class="btn-quick" onclick={() => triggerEvent("login")}
-        >login</button
+        >{_("trigger.quickLogin")}</button
       >
     </div>
+
   </div>
 
   <!-- ================================================================= -->

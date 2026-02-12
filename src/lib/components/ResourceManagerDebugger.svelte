@@ -459,18 +459,20 @@
             <h5>{_("resource.characterConfig")}</h5>
             <div class="info-grid compact">
               <div class="info-row">
-                <span class="info-label">z_offset</span>
+                <span class="info-label">{_("resource.zOffset")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.character.z_offset}</span
                 >
               </div>
+
               <div class="info-row">
-                <span class="info-label">canvas_fit_preference</span>
+                <span class="info-label">{_("resource.canvasFitPreference")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.character.canvas_fit_preference ??
                     _("resource.notSet")}</span
                 >
               </div>
+
 
             </div>
 
@@ -492,11 +494,12 @@
                 >
               </div>
               <div class="info-row">
-                <span class="info-label">z_offset</span>
+                <span class="info-label">{_("resource.zOffset")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.border.z_offset}</span
                 >
               </div>
+
             </div>
           </div>
         </details>
@@ -517,8 +520,9 @@
                     <div class="char-name">{info.name}</div>
                     <div class="char-meta">
                       <span>{_("resource.langLabel")} {info.lang}</span>
-                      <span>ID: {info.id}</span>
+                      <span>{_("resource.id")}: {info.id}</span>
                     </div>
+
                     {#if info.description}
                       <div class="char-desc">{info.description}</div>
                     {/if}

@@ -1296,7 +1296,8 @@
 
     <!-- 当前 Mod 数据（左上角，仅数值 + 变化上漂提示） -->
     {#if showModDataPanel}
-      <div class="mod-data-hud" aria-label="mod-data-value">
+      <div class="mod-data-hud" aria-label={_("animation.modDataValueAria")}>
+
         <div class="mod-data-panel">
           {currentModData?.value ?? "-"}
         </div>

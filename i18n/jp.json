@@ -31,7 +31,9 @@
     "off": "オフ",
     "style": "デザイン",
     "action": "アクション",
+    "close": "閉じる",
     "noModHint": "キャラクターが読み込まれていないか、Modが無効です。右クリックメニューからModを読み込んでください。"
+
   },
   "tabs": {
     "resource": "リソース管理",
@@ -64,7 +66,11 @@
     "style": "スタイル",
     "opacity": "不透明度"
   },
+  "animation": {
+    "modDataValueAria": "Mod データ"
+  },
   "settings": {
+
     "title": "ユーザー設定",
     "nickname": "ニックネーム",
     "birthday": "誕生日",
@@ -286,15 +292,18 @@
     "bubbleStyle": "吹き出しスタイル",
     "iconPath": "アイコンパス",
     "previewPath": "プレビューパス",
-    "modName": "Mod名",
     "defaultAudio": "デフォルト音声",
+
 
     "defaultText": "デフォルトテキスト",
     "showModDataPanel": "データパネルを表示",
     "modDataDefaultInt": "初期データ値",
     "characterConfig": "キャラクター設定",
+    "zOffset": "z_offset",
+    "canvasFitPreference": "canvas_fit_preference",
 
     "borderConfig": "枠線設定",
+
     "enable": "有効",
     "animation": "アニメーション",
     "notSet": "(未設定)",
@@ -441,7 +450,10 @@
     "noPersistent": "永続状態なし",
     "eventTriggers": "イベントトリガー",
     "triggerBtn": "トリガー",
+    "quickClick": "クリック",
+    "quickLogin": "ログイン",
     "whenCondition": "{state} の時",
+
     "anyPersistent": "任意の永続状態",
     "noRepeat": "繰り返し禁止",
     "noTriggerableStates": "(トリガー可能な状態なし)",
@@ -526,7 +538,9 @@
   "about": {
     "title": "このアプリについて",
     "appName": "TrayBuddy",
+    "appShortName": "TB",
     "appVersion": "バージョン: {version}",
+
     "description": "かわいいデスクトップペットアプリ。高度にカスタマイズ可能なModとインタラクション機能をサポートします。",
     "featuresTitle": "主な機能",
     "featureWidget": "✨ かわいいデスクトップキャラクター",

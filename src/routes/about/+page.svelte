@@ -65,9 +65,11 @@
     <div class="header">
       <div class="logo">
         {#if appIconSrc}
-          <img class="logo-img" src={appIconSrc} alt="TrayBuddy" />
+          <img class="logo-img" src={appIconSrc} alt={_("about.appName")} />
+
         {:else}
-          <div class="logo-fallback">TB</div>
+          <div class="logo-fallback">{_("about.appShortName")}</div>
+
         {/if}
       </div>
       <div class="app-info">

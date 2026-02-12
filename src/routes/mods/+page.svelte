@@ -332,9 +332,10 @@
 
                     // 显示加载成功消息
                     await message(_("modWindow.importAndLoadSuccess") || _("resource.statusLoadSuccess"), {
-                        title: "TrayBuddy",
+                        title: _("common.appName"),
                         kind: "info",
                     });
+
                 } else {
                     // 如果没有 extractedPath，回退到普通导入流程
                     await doImportFromPath(filePath);
@@ -516,7 +517,8 @@
         class="modal-backdrop"
         role="button"
         tabindex="0"
-        aria-label="Close"
+        aria-label={_("common.close")}
+
         onclick={(e) => {
             if (e.currentTarget === e.target) keepLoadedAndExit();
         }}
