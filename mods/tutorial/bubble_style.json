@@ -1,0 +1,83 @@
+{
+  "bubble": {
+    "background": "linear-gradient(145deg, rgba(255, 255, 255, 0.82) 0%, rgba(245, 240, 255, 0.78) 30%, rgba(236, 225, 248, 0.74) 70%, rgba(224, 210, 242, 0.70) 100%)",
+    "border": "1.5px solid rgba(176, 150, 210, 0.45)",
+    "border_radius": "16px",
+    "padding": "10px 14px",
+    "min_width": "120px",
+    "max_width": "380px",
+    "color": "#3f3a4b",
+    "font_size": "14px",
+    "line_height": "1.55",
+    "font_family": "\"Microsoft YaHei\", \"PingFang SC\", sans-serif",
+    "box_shadow": "0 3px 12px rgba(152, 120, 190, 0.18), 0 1px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.65)",
+    "backdrop_filter": "blur(12px)",
+    "decoration_top": {
+      "content": "♪ ♫ ♪",
+      "top": "4px",
+      "right": "6px",
+      "font_size": "9px",
+      "color": "rgba(160, 120, 205, 0.42)",
+      "letter_spacing": "3px"
+    },
+    "decoration_bottom": {
+      "content": "♩",
+      "bottom": "4px",
+      "left": "8px",
+      "font_size": "12px",
+      "color": "rgba(170, 130, 210, 0.32)"
+    },
+    "tail": {
+      "size": "10px",
+      "color": "rgba(234, 222, 246, 0.78)",
+      "shadow": "0 2px 2px rgba(150, 120, 190, 0.22)"
+    }
+  },
+  "branch": {
+    "container": {
+      "gap": "5px",
+      "margin_top": "8px",
+      "padding_top": "8px",
+      "border_top": "1px dashed rgba(175, 150, 210, 0.38)"
+    },
+    "button": {
+      "padding": "6px 6px 6px 30px",
+      "min_width": "100px",
+      "background": "linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(238, 228, 250, 0.74) 100%)",
+      "border": "1px solid rgba(175, 145, 210, 0.38)",
+      "border_radius": "10px",
+      "color": "#4a4158",
+      "font_size": "13px",
+      "box_shadow": "0 1px 4px rgba(150, 120, 190, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.55)",
+      "backdrop_filter": "blur(8px)"
+    },
+    "button_hover": {
+      "background": "linear-gradient(135deg, rgba(242, 232, 255, 0.90) 0%, rgba(214, 195, 238, 0.86) 100%)",
+      "border_color": "rgba(150, 110, 205, 0.55)",
+      "box_shadow": "0 4px 14px rgba(150, 120, 190, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.65)",
+      "color": "#7a4fa3",
+      "transform": "translateY(-2px)"
+    },
+    "button_active": {
+      "background": "linear-gradient(135deg, rgba(230, 215, 250, 0.90) 0%, rgba(204, 180, 232, 0.86) 100%)",
+      "box_shadow": "0 2px 6px rgba(150, 120, 190, 0.20), inset 0 1px 3px rgba(170, 140, 210, 0.18)",
+      "transform": "translateY(0)"
+    },
+    "decoration_left": {
+      "content": "♪",
+      "left": "8px",
+      "font_size": "11px",
+      "color": "rgba(155, 120, 200, 0.45)",
+      "color_hover": "rgba(130, 95, 190, 0.75)"
+    },
+    "decoration_right": {
+      "content": "·",
+      "content_hover": "♫",
+      "right": "8px",
+      "font_size": "16px",
+      "font_size_hover": "12px",
+      "color": "rgba(165, 135, 205, 0.30)",
+      "color_hover": "rgba(130, 95, 190, 0.65)"
+    }
+  }
+}
