@@ -1237,6 +1237,10 @@ function normalizeStateForEditor(state) {
   if (!Array.isArray(state.can_trigger_states)) state.can_trigger_states = [];
   if (!Array.isArray(state.branch)) state.branch = [];
 
+  // 触发计数范围（默认不限制）
+  if (!Number.isFinite(Number(state.trigger_counter_start))) state.trigger_counter_start = -2147483648;
+  if (!Number.isFinite(Number(state.trigger_counter_end))) state.trigger_counter_end = 2147483647;
+
   // mod_data_counter 应该是 { op, value } 对象或 null
   // 兼容旧格式：ema 等历史版本里是 { op, value } 或数组
   if (state.mod_data_counter) {
@@ -1349,6 +1353,8 @@ function ensureImportantState(manifest, key, defaults) {
       trigger_time: 0,
       trigger_rate: Number.isFinite(Number(defaults?.trigger_rate)) ? Number(defaults.trigger_rate) : (defaults?.persistent ? 0.1 : 0),
       branch: [],
+      trigger_counter_start: -2147483648,
+      trigger_counter_end: 2147483647,
       mod_data_counter: [],
       branch_show_bubble: true
     };
@@ -1495,7 +1501,11 @@ function createDefaultState(name, persistent = false) {
     can_trigger_states: [],
     trigger_time: 0,
     trigger_rate: persistent ? 0.1 : 0,
-    branch: []
+    branch: [],
+    trigger_counter_start: -2147483648,
+    trigger_counter_end: 2147483647,
+    mod_data_counter: null,
+    branch_show_bubble: true
   };
 }
 
@@ -2620,6 +2630,10 @@ function openStateModal(title, state) {
   const rate01 = Number.isFinite(rawRate01) ? rawRate01 : 0;
   document.getElementById('state-trigger-rate').value = String(rate01 * 100);
 
+  // 触发计数范围
+  document.getElementById('state-trigger-counter-start').value = Number.isFinite(Number(state.trigger_counter_start)) ? String(state.trigger_counter_start) : '-2147483648';
+  document.getElementById('state-trigger-counter-end').value = Number.isFinite(Number(state.trigger_counter_end)) ? String(state.trigger_counter_end) : '2147483647';
+
   document.getElementById('state-branch-show-bubble').checked = state.branch_show_bubble !== false;
   
   // 更新动画下拉列表
@@ -2858,6 +2872,15 @@ function saveState() {
       const p = Number.isFinite(percent) ? percent : 0;
       const r = p / 100;
       return Math.max(0, Math.min(1, r));
+    })(),
+
+    trigger_counter_start: (() => {
+      const n = parseInt(document.getElementById('state-trigger-counter-start').value);
+      return Number.isFinite(n) ? n : -2147483648;
+    })(),
+    trigger_counter_end: (() => {
+      const n = parseInt(document.getElementById('state-trigger-counter-end').value);
+      return Number.isFinite(n) ? n : 2147483647;
     })(),
 
     branch_show_bubble: document.getElementById('state-branch-show-bubble').checked,

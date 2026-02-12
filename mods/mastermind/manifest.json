@@ -32,6 +32,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -54,6 +56,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -76,6 +80,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -98,6 +104,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -119,6 +127,8 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -138,6 +148,8 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -157,6 +169,8 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -177,6 +191,8 @@
       "trigger_time": 0,
       "trigger_rate": 0.1,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -199,6 +215,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -221,6 +239,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -243,6 +263,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -265,6 +287,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -289,6 +313,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -311,6 +337,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -333,6 +361,8 @@
       "trigger_time": 0,
       "trigger_rate": 0,
       "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
       "mod_data_counter": {
         "op": "add",
         "value": 0

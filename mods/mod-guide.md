@@ -83,6 +83,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `can_trigger_states` | Array | 可随机触发的子状态候选列表。支持字符串数组 `['state1']` 或权重对象数组 `[{'state': 'state1', 'weight': 1}]` |
 ||| `trigger_time` | Number | 定时触发检查间隔（秒）。0 表示禁用；若 0 < trigger_time < MIN_TRIGGER_TIME_SECS 会被自动修正为最小值（当前为 1 秒） |
 ||| `trigger_rate` | Number | 每次检查的触发概率 (0.0 - 1.0)。编辑器中通常会以百分比显示 |
+||| `trigger_counter_start` | Number | 触发计数范围起点（包含）。当当前 Mod 的 ModData.value 落在 [start, end] 区间内时，该状态才允许触发。默认 -2147483648 |
+||| `trigger_counter_end` | Number | 触发计数范围终点（包含）。当当前 Mod 的 ModData.value 落在 [start, end] 区间内时，该状态才允许触发。默认 2147483647 |
 ||| `mod_data_counter` | Object / null | 进入该状态时对 Mod 数据执行的操作 (可选) |
 ||| `branch_show_bubble` | Boolean | “显示气泡”：控制对话分支选项是否以气泡形式展示（默认 true） |
 ||| `branch` | Array | 固定对话分支选项数组，用于交互式对话（为空则无分支） |

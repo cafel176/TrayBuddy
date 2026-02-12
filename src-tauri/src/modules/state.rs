@@ -520,7 +520,10 @@ impl StateManager {
         }
 
         // 筛选可用状态（使用引用避免克隆）
-        let enabled_states: Vec<&StateInfo> = states.iter().filter(|s| s.is_enable()).collect();
+        let enabled_states: Vec<&StateInfo> = states
+            .iter()
+            .filter(|s| s.is_enable() && self.is_state_allowed_by_mod_data(s))
+            .collect();
 
         if enabled_states.is_empty() {
             #[cfg(debug_assertions)]
@@ -720,6 +723,19 @@ impl StateManager {
                 // 关键：保持锁顺序一致性：ResourceManager → StateManager
                 // 这与 trigger_login_events、get_force_change_handler 等处的锁顺序一致
                 
+                // 先读取当前 ModData 值，避免在持有 ResourceManager 锁时再加锁
+                let mod_data_value = {
+                    let storage = app_state.storage.lock().unwrap();
+                    let mod_id = storage.data.info.current_mod.to_string();
+                    storage
+                        .data
+                        .info
+                        .mod_data
+                        .get(&mod_id)
+                        .map(|m| m.value)
+                        .unwrap_or(0)
+                };
+
                 // 第一步：获取 ResourceManager 锁
                 // - 筛选可用状态的名称和权重（避免克隆完整的 StateInfo 列表）
                 let rm = app_state.resource_manager.lock().unwrap();
@@ -733,7 +749,10 @@ impl StateManager {
                         // 检查状态是否存在且当前可用
                         rm.get_state_by_name(c.state.as_ref())
                             .and_then(|s| {
-                                if s.is_enable() {
+                                if s.is_enable()
+                                    && mod_data_value >= s.trigger_counter_start
+                                    && mod_data_value <= s.trigger_counter_end
+                                {
                                     Some((c.state.as_ref(), c.weight as u64))
                                 } else {
                                     None
@@ -801,6 +820,35 @@ impl StateManager {
             // 发送状态切换事件
             let _ = emit(&app_handle, events::STATE_CHANGE, event);
         }
+    }
+
+    /// 获取当前 ModData 的数值（若不存在则返回 0）
+    pub(crate) fn get_current_mod_data_value(&self) -> i32 {
+        let Some(app_handle) = &self.app_handle else {
+            return 0;
+        };
+        let Some(app_state) = app_handle.try_state::<AppState>() else {
+            return 0;
+        };
+        let storage = match app_state.storage.lock() {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
+        let mod_id = storage.data.info.current_mod.to_string();
+        storage
+            .data
+            .info
+            .mod_data
+            .get(&mod_id)
+            .map(|m| m.value)
+            .unwrap_or(0)
+    }
+
+    /// 判断当前状态是否满足 ModData 触发范围限制
+    #[inline]
+    pub(crate) fn is_state_allowed_by_mod_data(&self, state: &StateInfo) -> bool {
+        let value = self.get_current_mod_data_value();
+        value >= state.trigger_counter_start && value <= state.trigger_counter_end
     }
 
     /// 进入状态时，按配置异步更新当前 Mod 的数据计数器，并立即落盘

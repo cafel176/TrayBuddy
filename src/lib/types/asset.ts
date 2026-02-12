@@ -168,6 +168,11 @@ export interface StateInfo {
   /** 可触发的状态列表（加权随机） */
   can_trigger_states?: CanTriggerState[];
 
+  /** 触发计数范围起点（包含） */
+  trigger_counter_start?: number;
+  /** 触发计数范围终点（包含） */
+  trigger_counter_end?: number;
+
   /** 进入该状态时对当前 Mod 数据计数器执行操作（可选） */
   mod_data_counter?: ModDataCounterConfig;
 

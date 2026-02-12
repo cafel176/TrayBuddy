@@ -54,6 +54,16 @@ fn default_name() -> Box<str> {
     "ERROR".into()
 }
 
+#[inline]
+fn default_trigger_counter_start() -> i32 {
+    i32::MIN
+}
+
+#[inline]
+fn default_trigger_counter_end() -> i32 {
+    i32::MAX
+}
+
 // ========================================================================= //
 // 资产定义
 // ========================================================================= //
@@ -334,6 +344,16 @@ pub struct StateInfo {
     /// 自动触发的基础概率：配合 `trigger_time` 使用。
     pub trigger_rate: f32,
 
+    /// 触发计数范围起点（包含）
+    /// 当当前 ModData.value 落在 [start, end] 范围内时，该状态才允许触发
+    #[serde(default = "default_trigger_counter_start")]
+    pub trigger_counter_start: i32,
+
+    /// 触发计数范围终点（包含）
+    /// 当当前 ModData.value 落在 [start, end] 范围内时，该状态才允许触发
+    #[serde(default = "default_trigger_counter_end")]
+    pub trigger_counter_end: i32,
+
     /// 计数器副作用：进入该状态时对 Mod 特有的变量执行增减操作（如好感度+1）
     pub mod_data_counter: Option<ModDataCounterConfig>,
 
@@ -361,6 +381,8 @@ impl Default for StateInfo {
             can_trigger_states: Vec::new(),
             trigger_time: 0.0,
             trigger_rate: 0.0,
+            trigger_counter_start: i32::MIN,
+            trigger_counter_end: i32::MAX,
             mod_data_counter: None,
             branch_show_bubble: true,
             branch: Vec::new(),
