@@ -549,6 +549,10 @@
     "featureEnv": "🎵 低メモリでずっと寄り添う",
     "featureMod": "",
     "featureStats": "",
+    "specialThanksTitle": "特別な感謝",
+    "specialThanksNames": [
+      "（ここに名前を追加）"
+    ],
     "authorLabel": "著者",
     "authorName": "cafel",
     "contactLabel": "お問い合わせ",

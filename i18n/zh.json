@@ -547,6 +547,11 @@
     "featureEnv": "⚙️ 便捷的mod管理体系，轻松管理多角色和不同衣装",
     "featureMod": "🛠️ 简单的mod编辑工具，让制作易如反掌",
     "featureStats": "🔔 完善的配套工具体系，支持各种动画的转换和导入",
+    "specialThanksTitle": "特别致谢",
+    "specialThanksNames": [
+      "INORGANIC_盐",
+      "Snoworld_"
+    ],
     "authorLabel": "作者",
     "authorName": "cafel",
     "contactLabel": "关注我们",

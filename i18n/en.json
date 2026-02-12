@@ -549,6 +549,10 @@
     "featureEnv": "🎵 Low-memory, always-on companion",
     "featureMod": "",
     "featureStats": "",
+    "specialThanksTitle": "Special Thanks",
+    "specialThanksNames": [
+      "(Add names here)"
+    ],
     "authorLabel": "Author",
     "authorName": "cafel",
     "contactLabel": "Contact Us",

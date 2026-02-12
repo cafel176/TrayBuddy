@@ -4,7 +4,7 @@
   import { getVersion } from "@tauri-apps/api/app";
   import { convertFileSrc } from "@tauri-apps/api/core";
   import { resolveResource } from "@tauri-apps/api/path";
-  import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+  import { t, tArray, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 
   // ======================================================================= //
   // i18n
@@ -18,6 +18,11 @@
   function _(key: string, params?: Record<string, string | number>): string {
     void _langVersion;
     return t(key, params);
+  }
+
+  function tList(key: string): string[] {
+    void _langVersion;
+    return tArray(key);
   }
 
   // ======================================================================= //
@@ -94,6 +99,17 @@
           <div class="feature-item">{_("about.featureStats")}</div>
         </div>
       </div>
+
+      {#if tList("about.specialThanksNames").length > 0}
+        <div class="section">
+          <h2 class="section-title">{_("about.specialThanksTitle")}</h2>
+          <div class="thanks-list">
+            {#each tList("about.specialThanksNames") as name}
+              <div class="thanks-item">{name}</div>
+            {/each}
+          </div>
+        </div>
+      {/if}
 
       <div class="section footer-info">
         <div class="author-row">
@@ -250,6 +266,21 @@
     border-left: 3px solid #667eea;
   }
 
+  .thanks-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .thanks-item {
+    font-size: 13px;
+    color: #4b5563;
+    background: rgba(102, 126, 234, 0.08);
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+  }
+
   .footer-info {
     background: rgba(0, 0, 0, 0.03);
     padding: 16px;
@@ -329,6 +360,12 @@
       background: rgba(255, 255, 255, 0.05);
       color: #dfe6e9;
       border-left-color: #74b9ff;
+    }
+
+    .thanks-item {
+      background: rgba(255, 255, 255, 0.08);
+      color: #dfe6e9;
+      border-color: rgba(116, 185, 255, 0.35);
     }
 
     .footer-info {
