@@ -937,9 +937,70 @@
                     <label data-i18n="trigger_temp_end_label">气温触发终点</label>
                     <input type="number" id="state-trigger-temp-end" value="2147483647" step="1">
                   </div>
+
+                  <div class="form-group">
+                    <label data-i18n="trigger_weather_label">触发天气</label>
+                    <select id="state-trigger-weather" multiple size="8">
+                      <option value="" disabled>(不限制：不选择任何项)</option>
+
+
+                      <option value="113">113 - Clear/Sunny</option>
+                      <option value="116">116 - Partly Cloudy</option>
+                      <option value="119">119 - Cloudy</option>
+                      <option value="122">122 - Overcast</option>
+                      <option value="143">143 - Mist</option>
+                      <option value="176">176 - Patchy rain nearby</option>
+                      <option value="179">179 - Patchy snow nearby</option>
+                      <option value="182">182 - Patchy sleet nearby</option>
+                      <option value="185">185 - Patchy freezing drizzle nearby</option>
+                      <option value="200">200 - Thundery outbreaks in nearby</option>
+                      <option value="227">227 - Blowing snow</option>
+                      <option value="230">230 - Blizzard</option>
+                      <option value="248">248 - Fog</option>
+                      <option value="260">260 - Freezing fog</option>
+                      <option value="263">263 - Patchy light drizzle</option>
+                      <option value="266">266 - Light drizzle</option>
+                      <option value="281">281 - Freezing drizzle</option>
+                      <option value="284">284 - Heavy freezing drizzle</option>
+                      <option value="293">293 - Patchy light rain</option>
+                      <option value="296">296 - Light rain</option>
+                      <option value="299">299 - Moderate rain at times</option>
+                      <option value="302">302 - Moderate rain</option>
+                      <option value="305">305 - Heavy rain at times</option>
+                      <option value="308">308 - Heavy rain</option>
+                      <option value="311">311 - Light freezing rain</option>
+                      <option value="314">314 - Moderate or Heavy freezing rain</option>
+                      <option value="317">317 - Light sleet</option>
+                      <option value="320">320 - Moderate or heavy sleet</option>
+                      <option value="323">323 - Patchy light snow</option>
+                      <option value="326">326 - Light snow</option>
+                      <option value="329">329 - Patchy moderate snow</option>
+                      <option value="332">332 - Moderate snow</option>
+                      <option value="335">335 - Patchy heavy snow</option>
+                      <option value="338">338 - Heavy snow</option>
+                      <option value="350">350 - Ice pellets</option>
+                      <option value="353">353 - Light rain shower</option>
+                      <option value="356">356 - Moderate or heavy rain shower</option>
+                      <option value="359">359 - Torrential rain shower</option>
+                      <option value="362">362 - Light sleet showers</option>
+                      <option value="365">365 - Moderate or heavy sleet showers</option>
+                      <option value="368">368 - Light snow showers</option>
+                      <option value="371">371 - Moderate or heavy snow showers</option>
+                      <option value="374">374 - Light showers of ice pellets</option>
+                      <option value="377">377 - Moderate or heavy showers of ice pellets</option>
+                      <option value="386">386 - Patchy light rain in area with thunder</option>
+                      <option value="389">389 - Moderate or heavy rain in area with thunder</option>
+                      <option value="392">392 - Patchy light snow in area with thunder</option>
+                      <option value="395">395 - Moderate or heavy snow in area with thunder</option>
+                    </select>
+                  </div>
+
+
                 </div>
                 <small class="section-hint" data-i18n="trigger_counter_hint">仅当当前 ModData.value 落在 [起点, 终点] 区间内时，该状态才允许触发</small>
                 <small class="section-hint" data-i18n="trigger_temp_hint">仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发</small>
+                <small class="section-hint" data-i18n="trigger_weather_hint">仅当当前 environment.condition（或 condition_code）与 trigger_weather 精确匹配时，该状态才允许触发</small>
+
 
               </div>
             </details>

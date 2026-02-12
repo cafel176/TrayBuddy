@@ -1245,6 +1245,21 @@ function normalizeStateForEditor(state) {
   if (!Number.isFinite(Number(state.trigger_temp_start))) state.trigger_temp_start = -2147483648;
   if (!Number.isFinite(Number(state.trigger_temp_end))) state.trigger_temp_end = 2147483647;
 
+  // 天气触发条件（默认不限制）
+  if (Array.isArray(state.trigger_weather)) {
+    state.trigger_weather = state.trigger_weather
+      .filter((v) => typeof v === 'string')
+      .map((v) => v.trim())
+      .filter(Boolean);
+  } else if (typeof state.trigger_weather === 'string') {
+    const t = state.trigger_weather.trim();
+    state.trigger_weather = t ? [t] : [];
+  } else {
+    state.trigger_weather = [];
+  }
+
+
+
 
   // mod_data_counter 应该是 { op, value } 对象或 null
   // 兼容旧格式：ema 等历史版本里是 { op, value } 或数组
@@ -1362,7 +1377,10 @@ function ensureImportantState(manifest, key, defaults) {
       trigger_counter_end: 2147483647,
       trigger_temp_start: -2147483648,
       trigger_temp_end: 2147483647,
+      trigger_weather: [],
       mod_data_counter: [],
+
+
 
       branch_show_bubble: true
     };
@@ -1514,7 +1532,10 @@ function createDefaultState(name, persistent = false) {
     trigger_counter_end: 2147483647,
     trigger_temp_start: -2147483648,
     trigger_temp_end: 2147483647,
+    trigger_weather: [],
     mod_data_counter: null,
+
+
 
     branch_show_bubble: true
   };
@@ -2649,6 +2670,50 @@ function openStateModal(title, state) {
   document.getElementById('state-trigger-temp-start').value = Number.isFinite(Number(state.trigger_temp_start)) ? String(state.trigger_temp_start) : '-2147483648';
   document.getElementById('state-trigger-temp-end').value = Number.isFinite(Number(state.trigger_temp_end)) ? String(state.trigger_temp_end) : '2147483647';
 
+  // 天气触发条件（多选）
+  {
+    const el = document.getElementById('state-trigger-weather');
+    const raw = state.trigger_weather;
+    const values = Array.isArray(raw)
+      ? raw.filter((v) => typeof v === 'string').map((v) => v.trim()).filter(Boolean)
+      : (typeof raw === 'string' && raw.trim() ? [raw.trim()] : []);
+
+    if (el && el.tagName === 'SELECT') {
+      // 清理旧的“自定义”选项，避免反复打开弹窗累积
+      Array.from(el.options)
+        .filter((o) => o && o.dataset && o.dataset.custom === '1')
+        .forEach((o) => o.remove());
+
+      // 若现有值不在下拉列表内，动态插入“自定义”选项以避免数据丢失
+      for (const v of values) {
+        if (!Array.from(el.options).some((o) => o.value === v)) {
+          const opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = `${v} - (custom)`;
+          opt.dataset.custom = '1';
+          el.appendChild(opt);
+        }
+      }
+
+      // 先清空选中
+      Array.from(el.options).forEach((o) => {
+        o.selected = false;
+      });
+
+      // 再逐个选中
+      for (const v of values) {
+        const opt = Array.from(el.options).find((o) => o.value === v);
+        if (opt) opt.selected = true;
+      }
+    } else if (el) {
+      // 兼容旧输入框（单值）
+      el.value = values[0] || '';
+    }
+  }
+
+
+
+
 
   document.getElementById('state-branch-show-bubble').checked = state.branch_show_bubble !== false;
   
@@ -2908,8 +2973,26 @@ function saveState() {
       return Number.isFinite(n) ? n : 2147483647;
     })(),
 
+    trigger_weather: (() => {
+      const el = document.getElementById('state-trigger-weather');
+      if (!el) return [];
+
+      // 多选下拉：返回已选项数组
+      if (el.tagName === 'SELECT') {
+        return Array.from(el.selectedOptions)
+          .map((o) => String(o.value || '').trim())
+          .filter(Boolean);
+      }
+
+      // 兼容旧输入框（单值）
+      const t = String(el.value || '').trim();
+      return t ? [t] : [];
+    })(),
+
+
     branch_show_bubble: document.getElementById('state-branch-show-bubble').checked,
     mod_data_counter: collectDataCounter(),
+
 
     branch: collectBranches()
   };

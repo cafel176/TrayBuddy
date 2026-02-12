@@ -36,6 +36,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -62,6 +63,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -88,6 +90,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -114,6 +117,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -139,6 +143,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -162,6 +167,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -185,6 +191,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "branch": []
@@ -209,6 +216,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -235,6 +243,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -261,6 +270,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -287,6 +297,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -313,6 +324,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -341,6 +353,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -367,6 +380,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "sub",
         "value": 1
@@ -393,6 +407,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "sub",
         "value": 1
@@ -419,6 +434,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -445,6 +461,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0
@@ -471,6 +488,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 10
@@ -497,6 +515,7 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
       "mod_data_counter": {
         "op": "add",
         "value": 0

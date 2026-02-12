@@ -74,6 +74,48 @@ fn default_trigger_temp_end() -> i32 {
     i32::MAX
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum TriggerWeatherDe {
+    Str(Box<str>),
+    Arr(Vec<Box<str>>),
+}
+
+#[inline]
+fn deserialize_trigger_weather<'de, D>(deserializer: D) -> Result<Vec<Box<str>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    let raw: Option<TriggerWeatherDe> = Option::deserialize(deserializer)?;
+    let mut out: Vec<Box<str>> = Vec::new();
+
+    match raw {
+        None => {}
+        Some(TriggerWeatherDe::Str(s)) => {
+            let t = s.as_ref().trim();
+            if !t.is_empty() {
+                out.push(t.into());
+            }
+        }
+        Some(TriggerWeatherDe::Arr(arr)) => {
+            for s in arr.into_iter() {
+                let t = s.as_ref().trim();
+                if !t.is_empty() {
+                    out.push(t.into());
+                }
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+
+
+
+
 
 // ========================================================================= //
 // 资产定义
@@ -375,8 +417,19 @@ pub struct StateInfo {
     #[serde(default = "default_trigger_temp_end")]
     pub trigger_temp_end: i32,
 
+    /// 天气触发条件（精确匹配，数组任意匹配）
+    /// - 空数组表示不限制
+    /// - 数组元素为纯数字：与 environment.condition_code（weatherCode）比较
+    /// - 否则：与 environment.condition（中文/英文描述）比较
+    ///
+    /// 兼容旧格式：允许将 trigger_weather 写成字符串
+    #[serde(default, deserialize_with = "deserialize_trigger_weather")]
+    pub trigger_weather: Vec<Box<str>>,
+
+
     /// 计数器副作用：进入该状态时对 Mod 特有的变量执行增减操作（如好感度+1）
     pub mod_data_counter: Option<ModDataCounterConfig>,
+
 
 
     /// 分支气泡交互控制：标记是否在界面上显示对话分支按钮
@@ -407,7 +460,10 @@ impl Default for StateInfo {
             trigger_counter_end: i32::MAX,
             trigger_temp_start: i32::MIN,
             trigger_temp_end: i32::MAX,
+            trigger_weather: Vec::new(),
             mod_data_counter: None,
+
+
 
             branch_show_bubble: true,
             branch: Vec::new(),

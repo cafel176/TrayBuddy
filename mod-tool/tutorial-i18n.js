@@ -125,7 +125,11 @@ const tutorialTranslations = {
     field_trigger_temp_start_desc: "仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发",
     field_trigger_temp_end: "气温触发终点",
     field_trigger_temp_end_desc: "仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发",
+    field_trigger_weather: "触发天气",
+    field_trigger_weather_desc: "仅当当前 environment.condition（或 condition_code）与 trigger_weather 任意一项精确匹配时，该状态才允许触发（数组）",
+
     field_can_trigger: "可触发子状态",
+
 
     field_can_trigger_desc: "在编辑器内以“状态 + 权重”列表配置（权重越大越容易被选中）",
 
@@ -152,7 +156,10 @@ const tutorialTranslations = {
     data_counter_desc: "状态激活时对 Mod 数据执行操作：set(设置)、add(加)、sub(减)、mul(乘)、div(除)。",
     trigger_counter_desc: "你也可以在编辑器的「状态限制」中，通过 trigger_counter_start / trigger_counter_end 限制该状态在特定 ModData.value 区间内才允许触发。", 
     trigger_temp_desc: "同样地，你也可以通过 trigger_temp_start / trigger_temp_end 限制该状态仅在气温（environment.temperature，单位 °C）处于区间内才允许触发。",
+    trigger_weather_desc: "此外，你也可以通过 trigger_weather（数组）限制该状态仅在天气满足条件时才允许触发：数组中任意一项匹配即可；若该项为纯数字则匹配 weatherCode（condition_code），否则匹配天气描述（condition）。",
+
     section_bubble: "💬 气泡样式配置",
+
 
     bubble_desc: "可视化配置对话气泡外观，支持实时预览。",
     bubble_main: "气泡主体：背景、边框、圆角、阴影、背景滤镜",
@@ -339,7 +346,11 @@ const tutorialTranslations = {
     field_trigger_temp_start_desc: "This state can trigger only when environment.temperature (°C) is within [start, end]",
     field_trigger_temp_end: "Temperature Trigger End",
     field_trigger_temp_end_desc: "This state can trigger only when environment.temperature (°C) is within [start, end]",
+    field_trigger_weather: "Weather Trigger",
+    field_trigger_weather_desc: "This state can trigger only when environment.condition (or condition_code) exactly matches any item in trigger_weather (array)",
+
     field_can_trigger: "Triggerable States",
+
 
     field_can_trigger_desc: "Configure as a list of (state + weight). Higher weight = more likely",
 
@@ -364,7 +375,10 @@ const tutorialTranslations = {
     data_counter_desc: "Operations on Mod data when state activates: set, add, sub, mul, div.",
     trigger_counter_desc: "You can also (in the editor's \"State Limits\") use trigger_counter_start / trigger_counter_end to limit when this state is allowed to trigger.",
     trigger_temp_desc: "Similarly, you can use trigger_temp_start / trigger_temp_end to limit when this state is allowed to trigger based on temperature (environment.temperature, °C).",
+    trigger_weather_desc: "Additionally, you can use trigger_weather (array) to allow triggering only when weather matches: any item matches exactly; if an item is digits it matches weatherCode (condition_code), otherwise it matches the weather description (condition).",
+
     section_bubble: "💬 Bubble Style Configuration",
+
 
     bubble_desc: "Visually configure dialogue bubble appearance with real-time preview.",
     bubble_main: "Bubble body: background, border, radius, shadow, backdrop filter",
@@ -550,7 +564,11 @@ const tutorialTranslations = {
     field_trigger_temp_start_desc: "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
     field_trigger_temp_end: "気温トリガー終了",
     field_trigger_temp_end_desc: "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
+    field_trigger_weather: "天気トリガー",
+    field_trigger_weather_desc: "environment.condition（または condition_code）が trigger_weather のいずれかと完全一致するときのみ、この状態をトリガー可能（配列）",
+
     field_can_trigger: "トリガー可能状態",
+
 
     field_can_trigger_desc: "（状態 + 重み）のリストで設定。重みが大きいほど選ばれやすい",
     section_branches: "対話分岐",
@@ -576,7 +594,10 @@ const tutorialTranslations = {
     data_counter_desc: "状態がアクティブになったとき Mod データに対する操作：set、add、sub、mul、div。",
     trigger_counter_desc: "エディタの「状態制限」で trigger_counter_start / trigger_counter_end を使って、この状態がトリガー可能な ModData.value 範囲を制限できます。", 
     trigger_temp_desc: "同様に、trigger_temp_start / trigger_temp_end を使って、気温（environment.temperature、°C）に基づくトリガー可能範囲を制限できます。",
+    trigger_weather_desc: "さらに、trigger_weather（配列）を使って天気が条件に一致するときのみトリガー可能にできます：配列のいずれかが一致すればOK。数字のみの項目は weatherCode（condition_code）に一致、それ以外は天気説明（condition）に一致します。",
+
     section_bubble: "💬 吹き出しスタイル設定",
+
 
     bubble_desc: "リアルタイムプレビューで対話吹き出しの外観を視覚的に設定。",
     bubble_main: "吹き出し本体：背景、枠線、角丸、影、背景フィルター",

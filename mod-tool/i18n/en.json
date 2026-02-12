@@ -186,6 +186,9 @@
   "trigger_temp_start_label": "Temperature Trigger Start",
   "trigger_temp_end_label": "Temperature Trigger End",
   "trigger_temp_hint": "This state can trigger only when environment.temperature (°C) is within [start, end]",
+  "trigger_weather_label": "Weather Trigger",
+  "trigger_weather_hint": "This state can trigger only when environment.condition (or condition_code) exactly matches any item in trigger_weather (select none = no limit)",
+
   "can_trigger_states_label": "Can Trigger States",
   "section_can_trigger_states": "Can Trigger States",
   "can_trigger_states_hint": "Configure sub-states that can be randomly triggered and their weights",

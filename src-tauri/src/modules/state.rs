@@ -52,8 +52,9 @@ use super::constants::{
 };
 use super::event_manager::{emit, events};
 use super::media_observer::{get_cached_media_state, MediaPlaybackStatus};
-use super::environment::get_cached_weather;
+use super::environment::{get_cached_weather, WeatherInfo};
 use super::resource::{ModDataCounterOp, ResourceManager, StateInfo};
+
 use super::storage::ModData;
 
 use crate::AppState;
@@ -739,8 +740,10 @@ impl StateManager {
                         .unwrap_or(0)
                 };
 
-                // 读取一次当前气温（来自 environment 缓存），避免在过滤时重复取锁
-                let current_temp = get_cached_weather().map(|w| w.temperature);
+                // 读取一次当前天气（来自 environment 缓存），避免在过滤时重复取锁
+                let current_weather = get_cached_weather();
+                let current_temp = current_weather.as_ref().map(|w| w.temperature);
+
 
                 // 第一步：获取 ResourceManager 锁
                 // - 筛选可用状态的名称和权重（避免克隆完整的 StateInfo 列表）
@@ -756,7 +759,13 @@ impl StateManager {
                         rm.get_state_by_name(c.state.as_ref())
                             .and_then(|s| {
                                 if s.is_enable()
-                                    && Self::is_state_allowed_by_limits_static(s, mod_data_value, current_temp)
+                                    && Self::is_state_allowed_by_limits_static(
+                                        s,
+                                        mod_data_value,
+                                        current_temp,
+                                        current_weather.as_ref(),
+                                    )
+
                                 {
                                     Some((c.state.as_ref(), c.weight as u64))
                                 } else {
@@ -873,23 +882,70 @@ impl StateManager {
     }
 
     #[inline]
+    fn is_state_allowed_by_weather_any(state: &StateInfo, current_weather: Option<&WeatherInfo>) -> bool {
+        let mut has_rule = false;
+
+        for want_raw in state.trigger_weather.iter() {
+            let want_raw = want_raw.as_ref().trim();
+            if want_raw.is_empty() {
+                continue;
+            }
+
+            has_rule = true;
+
+            // 有限制但没有拿到天气 -> 不允许触发
+            let Some(weather) = current_weather else {
+                return false;
+            };
+
+            // 若填纯数字，则视为 weatherCode
+            if want_raw.chars().all(|c| c.is_ascii_digit()) {
+                if weather.condition_code.as_ref() == want_raw {
+                    return true;
+                }
+                continue;
+            }
+
+            // 否则按 condition 文本精确匹配（忽略首尾空白、忽略大小写）
+            let want = want_raw.to_lowercase();
+            let got = weather.condition.as_ref().trim().to_lowercase();
+            if got == want {
+                return true;
+            }
+        }
+
+        // 数组为空（或全为空白）时，不限制
+        if !has_rule {
+            return true;
+        }
+
+        false
+    }
+
+
+    #[inline]
     fn is_state_allowed_by_limits_static(
         state: &StateInfo,
         mod_data_value: i32,
         current_temp: Option<f64>,
+        current_weather: Option<&WeatherInfo>,
     ) -> bool {
         (mod_data_value >= state.trigger_counter_start
             && mod_data_value <= state.trigger_counter_end)
             && Self::is_state_allowed_by_temp_range(state, current_temp)
+            && Self::is_state_allowed_by_weather_any(state, current_weather)
     }
 
-    /// 判断当前状态是否满足触发限制（ModData 触发计数范围 + 气温范围）
+
+    /// 判断当前状态是否满足触发限制（ModData 触发计数范围 + 气温范围 + 天气精确匹配）
     #[inline]
     pub(crate) fn is_state_allowed_by_limits(&self, state: &StateInfo) -> bool {
         let value = self.get_current_mod_data_value();
-        let current_temp = get_cached_weather().map(|w| w.temperature);
-        Self::is_state_allowed_by_limits_static(state, value, current_temp)
+        let current_weather = get_cached_weather();
+        let current_temp = current_weather.as_ref().map(|w| w.temperature);
+        Self::is_state_allowed_by_limits_static(state, value, current_temp, current_weather.as_ref())
     }
+
 
 
     /// 进入状态时，按配置异步更新当前 Mod 的数据计数器，并立即落盘

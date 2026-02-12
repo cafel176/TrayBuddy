@@ -186,6 +186,9 @@
   "trigger_temp_start_label": "気温トリガー開始",
   "trigger_temp_end_label": "気温トリガー終了",
   "trigger_temp_hint": "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
+  "trigger_weather_label": "天気トリガー",
+  "trigger_weather_hint": "environment.condition（または condition_code）が trigger_weather のいずれかと完全一致するときのみ、この状態をトリガー可能（未選択＝制限なし）",
+
   "can_trigger_states_label": "トリガー可能子状態",
   "section_can_trigger_states": "トリガー可能子状態",
   "can_trigger_states_hint": "この状態からランダムにトリガーできる子状態とその重みを設定",
