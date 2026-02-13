@@ -32,8 +32,9 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
   import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
@@ -73,8 +74,10 @@
 
   /** 角色动画 Canvas 元素引用 */
   let characterCanvas: HTMLCanvasElement;
-  /** 边框动画 Canvas 元素引用 */
-  let borderCanvas: HTMLCanvasElement;
+  /** 边框动画 Canvas 元素引用（仅在 Mod 启用 border 时挂载） */
+  let borderCanvas = $state<HTMLCanvasElement | null>(null);
+
+
 
   // =========================================================================
   // 核心管理器
@@ -125,8 +128,11 @@
 
   /** 是否显示角色 */
   let showCharacter = $state(true);
-  /** 是否显示边框 */
+  /** 是否显示边框（用户设置） */
   let showBorder = $state(true);
+  /** 当前 Mod 是否启用 border（由 Mod 配置决定） */
+  let modBorderEnabled = $state(false);
+
   /** 角色 Canvas 的 z-index */
   let characterZOffset = $state(1);
   /** 边框 Canvas 的 z-index */
@@ -268,18 +274,26 @@
   // Character Canvas 显示适配（从 Mod 配置读取）
   // =========================================================================
 
-  const CHARACTER_CANVAS_FIT_SCALE = 0.8; // 匹配旧的 .character-canvas height: 80%
+  const CHARACTER_CANVAS_FIT_SCALE_WITH_BORDER = 0.8; // 匹配旧的 .character-canvas height: 80%
+  const CHARACTER_CANVAS_FIT_SCALE_NO_BORDER = 1.0;
+
 
   /** 角色 Canvas 播放时的图片适配偏好（由 Mod 决定） */
   let characterCanvasFitPreference = $state<CanvasFitPreference>("short");
 
   function applyCharacterCanvasFit() {
     if (!characterCanvas || !characterAnimator) return;
+
+    const scale = modBorderEnabled
+      ? CHARACTER_CANVAS_FIT_SCALE_WITH_BORDER
+      : CHARACTER_CANVAS_FIT_SCALE_NO_BORDER;
+
     characterAnimator.setCanvasFit(characterCanvasFitPreference, {
       container: characterCanvas.parentElement as HTMLElement | null,
-      scale: CHARACTER_CANVAS_FIT_SCALE,
+      scale,
     });
   }
+
 
 
 
@@ -486,16 +500,24 @@
 
 
       // 获取边框配置并初始化边框动画
-      const borderConfig: BorderConfig | null =
-        await invoke("get_border_config");
-      if (borderConfig && borderConfig.enable && borderConfig.anima) {
-        borderZOffset = borderConfig.z_offset ?? 2;
-        borderAnimator = new SpriteAnimator(borderCanvas);
-        const success = await borderAnimator.loadByAssetName(
-          borderConfig.anima,
-        );
-        if (success) borderAnimator.play();
+      // 重要：若 Mod 未启用 border，则不要挂载 border canvas
+      const borderConfig: BorderConfig | null = await invoke("get_border_config");
+      modBorderEnabled = Boolean(borderConfig && borderConfig.enable && borderConfig.anima);
+
+      if (modBorderEnabled && showBorder) {
+        // 等待 DOM 挂载出 border canvas
+        await tick();
+
+        const borderAnima = borderConfig?.anima;
+        if (borderCanvas && borderAnima) {
+          borderZOffset = borderConfig?.z_offset ?? 2;
+          borderAnimator = new SpriteAnimator(borderCanvas);
+          const success = await borderAnimator.loadByAssetName(borderAnima);
+          if (success) borderAnimator.play();
+        }
+
       }
+
 
       // 注册状态变化事件监听
       unlistenState = await listen<StateChangeEvent>(
@@ -531,18 +553,25 @@
           }
 
           // 动态加载边框 (如果之前未加载且现在启用了)
-          if (showBorder && !borderAnimator && borderCanvas) {
-            const borderConfig: BorderConfig | null =
-              await invoke("get_border_config");
-            if (borderConfig && borderConfig.enable && borderConfig.anima) {
-              borderZOffset = borderConfig.z_offset ?? 2;
-              borderAnimator = new SpriteAnimator(borderCanvas);
-              const success = await borderAnimator.loadByAssetName(
-                borderConfig.anima,
-              );
-              if (success) borderAnimator.play();
+          if (showBorder && !borderAnimator) {
+            const borderConfig: BorderConfig | null = await invoke("get_border_config");
+            modBorderEnabled = Boolean(borderConfig && borderConfig.enable && borderConfig.anima);
+
+            if (modBorderEnabled) {
+              // 等待 DOM 挂载出 border canvas
+              await tick();
+
+              const borderAnima = borderConfig?.anima;
+              if (borderCanvas && borderAnima) {
+                borderZOffset = borderConfig?.z_offset ?? 2;
+                borderAnimator = new SpriteAnimator(borderCanvas);
+                const success = await borderAnimator.loadByAssetName(borderAnima);
+                if (success) borderAnimator.play();
+              }
+
             }
           }
+
           // 重新显示时恢复位置
           await syncDisplayMode(showCharacter);
         },
@@ -594,7 +623,10 @@
       // 响应布局信息请求
       await listen("request-layout-info", () => {
         const info = [];
-        const getInfo = (el: HTMLElement | HTMLCanvasElement, name: string) => {
+        const getInfo = (
+          el: HTMLElement | HTMLCanvasElement | null,
+          name: string,
+        ) => {
           if (!el) return null;
           const style = window.getComputedStyle(el);
           return {
@@ -608,6 +640,7 @@
             opacity: style.opacity,
           };
         };
+
 
         const charInfo = getInfo(characterCanvas, "character");
         if (charInfo) info.push(charInfo);
@@ -1333,6 +1366,7 @@
 <div
   class="container"
   class:debug-border-active={debugBordersEnabled}
+  class:no-border={!modBorderEnabled}
   oncontextmenu={handleContextMenu}
   style="outline: {debugBordersEnabled
     ? '1px dashed ' + debugColors.bubble
@@ -1375,15 +1409,18 @@
       onmousedown={handleMouseDown}
     ></canvas>
 
-    <!-- 边框动画 Canvas -->
-    <canvas
-      class="border-canvas"
-      class:hidden={!showCharacter || !showBorder}
-      style="z-index: {borderZOffset}; outline: {debugBordersEnabled
-        ? '2px solid ' + debugColors.border
-        : 'none'}; outline-offset: -2px;"
-      bind:this={borderCanvas}
-    ></canvas>
+    <!-- 边框动画 Canvas（仅在 Mod 启用 border 时挂载） -->
+    {#if modBorderEnabled}
+      <canvas
+        class="border-canvas"
+        class:hidden={!showCharacter || !showBorder}
+        style="z-index: {borderZOffset}; outline: {debugBordersEnabled
+          ? '2px solid ' + debugColors.border
+          : 'none'}; outline-offset: -2px;"
+        bind:this={borderCanvas}
+      ></canvas>
+    {/if}
+
 
 
 
@@ -1576,6 +1613,12 @@
     pointer-events: auto; /* Canvas 接收鼠标事件 */
     cursor: grab; /* 提示可拖拽 */
   }
+
+  /* 当 Mod 未启用 border 时，让角色在动画区域更居中、可占用更多高度 */
+  .no-border .character-canvas {
+    top: 50%;
+  }
+
 
 
 
