@@ -35,8 +35,9 @@ use modules::constants::{
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
     MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
     STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
-    WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MODS,
-    WINDOW_LABEL_SETTINGS, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK
+    WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MEMO,
+    WINDOW_LABEL_MODS, WINDOW_LABEL_SETTINGS, EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START,
+    EVENT_WORK
 };
 use modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
 use modules::environment::{
@@ -54,7 +55,7 @@ use modules::resource::{
     TriggerInfo,
 };
 use modules::state::StateManager;
-use modules::storage::{ModData, Storage, UserInfo, UserSettings};
+use modules::storage::{MemoItem, ModData, Storage, UserInfo, UserSettings};
 use modules::system_observer::{SystemDebugInfo, SystemObserver};
 use modules::trigger::TriggerManager;
 use modules::utils::i18n::get_i18n_text as get_i18n_text_cached;
@@ -326,6 +327,22 @@ fn update_user_info(info: UserInfo, state: State<'_, AppState>) -> Result<(), St
     let mut storage = state.storage.lock().unwrap();
     storage.update_user_info(info)
 }
+
+/// 获取备忘录（存储于 UserInfo 内）
+#[tauri::command]
+fn get_memos(state: State<'_, AppState>) -> Vec<MemoItem> {
+    let storage = state.storage.lock().unwrap();
+    storage.data.info.memos.clone()
+}
+
+/// 设置备忘录（修改后立刻保存）
+#[tauri::command]
+fn set_memos(memos: Vec<MemoItem>, state: State<'_, AppState>) -> Result<(), String> {
+    let mut storage = state.storage.lock().unwrap();
+    storage.data.info.memos = memos;
+    storage.save()
+}
+
 
 /// 获取当前 Mod 的数据
 #[tauri::command]
@@ -1446,7 +1463,10 @@ pub fn run() {
             get_user_info,
 
             update_user_info,
+            get_memos,
+            set_memos,
             get_current_mod_data,
+
             set_current_mod_data_value,
             record_click_event,
             // Mod 资源管理
@@ -2488,26 +2508,34 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
         None::<&str>,
     )?;
     let settings_i = MenuItem::with_id(
-        app,
-        "settings",
-        get_i18n_text(app, "menu.settings"),
-        true,
-        None::<&str>,
+      app,
+      "settings",
+      get_i18n_text(app, "menu.settings"),
+      true,
+      None::<&str>,
+    )?;
+    let memo_i = MenuItem::with_id(
+      app,
+      "memo",
+      get_i18n_text(app, "menu.memo"),
+      true,
+      None::<&str>,
     )?;
     let mod_i = MenuItem::with_id(
-        app,
-        "mod",
-        get_i18n_text(app, "menu.mods"),
-        true,
-        None::<&str>,
+      app,
+      "mod",
+      get_i18n_text(app, "menu.mods"),
+      true,
+      None::<&str>,
     )?;
     let debugger_i = MenuItem::with_id(
-        app,
-        "debugger",
-        get_i18n_text(app, "menu.debugger"),
-        true,
-        None::<&str>,
+      app,
+      "debugger",
+      get_i18n_text(app, "menu.debugger"),
+      true,
+      None::<&str>,
     )?;
+
 
     let sep1 = PredefinedMenuItem::separator(app)?;
 
@@ -2569,6 +2597,8 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
             &debugger_i,
             &mod_i,
             &settings_i,
+            &memo_i,
+
             &sep2,
             &streamer_mode_i,
             &show_widget_i,
@@ -2623,13 +2653,14 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
             app.exit(0)
         }
-        "about" | "settings" | "mod" | "debugger" => {
+        "about" | "settings" | "mod" | "debugger" | "memo" => {
             // 优化：对于这些工具窗口，如果已经打开，尝试聚焦；
             // 考虑未来改为关闭即销毁，而不是隐藏
             let label = match id {
                 "about" => "about",
                 "settings" => "settings",
                 "mod" => "mods",
+                "memo" => WINDOW_LABEL_MEMO,
                 "debugger" => WINDOW_LABEL_MAIN,
                 _ => id
             };
@@ -2673,6 +2704,16 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                     height: 700.0,
                     resizable: true,
                     center: false,
+                    destroy_on_close: true,
+                },
+                "memo" => WindowConfig {
+                    label: WINDOW_LABEL_MEMO,
+                    url: "memo",
+                    title_key: "common.memoTitle",
+                    width: 720.0,
+                    height: 760.0,
+                    resizable: true,
+                    center: true,
                     destroy_on_close: true,
                 },
 
@@ -3348,12 +3389,20 @@ fn trigger_login_events(app_handle: &tauri::AppHandle) {
 
     // 一次性获取所有需要的设置信息，避免重复获取锁
     // 内存优化：只克隆 birthday 的 Box<str>，而不是整个 settings
-    let (birthday_opt, first_login_timestamp, is_silence_mode) = {
+    // 同时判断是否存在有效备忘录（无备忘录则不弹窗）
+    let (birthday_opt, first_login_timestamp, is_silence_mode, has_any_memo) = {
         let storage = app_state.storage.lock().unwrap();
+        let has_any_memo = storage
+            .data
+            .info
+            .memos
+            .iter()
+            .any(|m| !m.content.as_ref().trim().is_empty());
         (
             storage.data.settings.birthday.clone(),
             storage.data.info.first_login,
             storage.data.settings.silence_mode,
+            has_any_memo,
         )
     };
 
@@ -3375,7 +3424,24 @@ fn trigger_login_events(app_handle: &tauri::AppHandle) {
     // 释放锁
     drop(rm);
     drop(sm);
+
+    // 结束锁屏后，触发 login 时弹出备忘录窗口
+    // 若用户没有任何备忘录，则不弹出
+    if event_name == EVENT_LOGIN && has_any_memo {
+        let config = WindowConfig {
+            label: WINDOW_LABEL_MEMO,
+            url: "memo",
+            title_key: "common.memoTitle",
+            width: 720.0,
+            height: 760.0,
+            resizable: true,
+            center: true,
+            destroy_on_close: true,
+        };
+        show_or_create_window(app_handle, config);
+    }
 }
+
 
 /// 非Windows平台的占位实现
 #[cfg(not(target_os = "windows"))]

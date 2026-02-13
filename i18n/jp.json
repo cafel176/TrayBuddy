@@ -26,6 +26,8 @@
     "animationTitle": "TrayBuddy アニメーション",
     "modsTitle": "TrayBuddy Mod マネージャー",
     "settingsTitle": "TrayBuddy 設定",
+    "memoTitle": "TrayBuddy メモ",
+
     "failed": "失敗",
     "on": "オン",
     "off": "オフ",
@@ -71,7 +73,22 @@
   "animation": {
     "modDataValueAria": "Mod データ"
   },
+  "memo": {
+    "title": "メモ",
+    "loading": "メモを読み込み中...",
+    "loaded": "メモを読み込みました",
+    "saved": "保存しました",
+    "add": "追加",
+    "delete": "削除",
+    "empty": "このカテゴリにはメモがありません",
+    "categoryPlaceholder": "カテゴリ（任意）",
+    "contentPlaceholder": "何か書いて...",
+    "categoryLabel": "カテゴリ：",
+    "quickAdd": "クイック追加",
+    "quickAddDefault": "（新しいメモ）"
+  },
   "settings": {
+
 
     "title": "ユーザー設定",
     "nickname": "ニックネーム",
@@ -555,7 +572,9 @@
     "modEditor": "Mod エディター",
     "otherTools": "その他のツール",
     "debugger": "デバッガー",
+    "memo": "メモ",
     "mute": "ミュートモード",
+
     "silence": "集中モード",
     "streamerMode": "配信者モード",
     "showCharacter": "キャラクターを表示",

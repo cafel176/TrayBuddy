@@ -26,6 +26,8 @@
     "animationTitle": "TrayBuddy 动画",
     "modsTitle": "TrayBuddy Mod 管理器",
     "settingsTitle": "TrayBuddy 用户设置",
+    "memoTitle": "TrayBuddy 备忘录",
+
     "failed": "失败",
     "on": "开启",
     "off": "关闭",
@@ -71,7 +73,22 @@
   "animation": {
     "modDataValueAria": "Mod 数据"
   },
+  "memo": {
+    "title": "备忘录",
+    "loading": "正在加载备忘录...",
+    "loaded": "备忘录已加载",
+    "saved": "已保存",
+    "add": "添加",
+    "delete": "删除",
+    "empty": "该分类暂无备忘录",
+    "categoryPlaceholder": "分类（可选）",
+    "contentPlaceholder": "写点什么...",
+    "categoryLabel": "分类：",
+    "quickAdd": "快速添加",
+    "quickAddDefault": "（新备忘录）"
+  },
   "settings": {
+
 
     "title": "用户设置",
     "nickname": "昵称",
@@ -553,7 +570,9 @@
     "modEditor": "Mod 编辑器",
     "otherTools": "其他工具",
     "debugger": "调试器",
+    "memo": "备忘录",
     "mute": "静音模式",
+
     "silence": "免打扰模式",
     "streamerMode": "主播模式",
     "showCharacter": "显示桌面挂件",

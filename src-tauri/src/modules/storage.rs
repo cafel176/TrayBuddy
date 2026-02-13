@@ -76,10 +76,39 @@ impl Default for UserSettings {
 
 // ========================================================================= //
 
+/// 备忘录条目（保存在 UserInfo 中）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct MemoItem {
+    /// 唯一 ID（前端生成 UUID）
+    pub id: String,
+    /// 分类名称
+    pub category: Box<str>,
+    /// 内容（支持多行）
+    pub content: Box<str>,
+    /// 是否置顶
+    pub pinned: bool,
+    /// 顺序（越小越靠前）
+    pub order: i32,
+}
+
+impl Default for MemoItem {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            category: "默认".into(),
+            content: "".into(),
+            pinned: false,
+            order: 0,
+        }
+    }
+}
+
 /// 每个 Mod 的独立数据（保存在 UserInfo 中）
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct ModData {
+
     /// Mod ID（使用 manifest.json 的 id 作为唯一标识）
     pub mod_id: String,
     /// 一个整型变量（可由 Mod/前端自由定义语义）
@@ -112,6 +141,10 @@ pub struct UserInfo {
 
     /// 各 Mod 的持久化数据（key = manifest.id）
     pub mod_data: HashMap<String, ModData>,
+
+    /// 备忘录（按分类/顺序由前端渲染）
+    pub memos: Vec<MemoItem>,
+
 }
 
 impl Default for UserInfo {
@@ -129,6 +162,8 @@ impl Default for UserInfo {
             total_click_count: 0,
 
             mod_data: HashMap::new(),
+            memos: Vec::new(),
+
         }
     }
 }

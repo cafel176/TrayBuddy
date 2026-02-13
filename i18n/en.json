@@ -26,6 +26,8 @@
     "animationTitle": "TrayBuddy Animation",
     "modsTitle": "TrayBuddy Mod Manager",
     "settingsTitle": "TrayBuddy Settings",
+    "memoTitle": "TrayBuddy Memo",
+
     "failed": "failed",
     "on": "ON",
     "off": "OFF",
@@ -71,7 +73,22 @@
   "animation": {
     "modDataValueAria": "Mod data"
   },
+  "memo": {
+    "title": "Memo",
+    "loading": "Loading memos...",
+    "loaded": "Memos loaded",
+    "saved": "Saved",
+    "add": "Add",
+    "delete": "Delete",
+    "empty": "No memos in this category",
+    "categoryPlaceholder": "Category (optional)",
+    "contentPlaceholder": "Write something...",
+    "categoryLabel": "Category:",
+    "quickAdd": "Quick add",
+    "quickAddDefault": "(New memo)"
+  },
   "settings": {
+
 
     "title": "User Settings",
     "nickname": "Nickname",
@@ -555,7 +572,9 @@
     "modEditor": "Mod Editor",
     "otherTools": "Other Tools",
     "debugger": "Debugger",
+    "memo": "Memo",
     "mute": "Mute Mode",
+
     "silence": "Silence Mode",
     "streamerMode": "Streamer Mode",
     "showCharacter": "Show Character",
