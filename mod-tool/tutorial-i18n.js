@@ -125,8 +125,11 @@ const tutorialTranslations = {
     field_trigger_temp_start_desc: "仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发",
     field_trigger_temp_end: "气温触发终点",
     field_trigger_temp_end_desc: "仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发",
+    field_trigger_uptime: "启动时长触发",
+    field_trigger_uptime_desc: "仅当当前距离程序启动已过分钟数 >= trigger_uptime 时，该状态才允许触发（分钟；0 表示不限制）",
     field_trigger_weather: "触发天气",
     field_trigger_weather_desc: "仅当当前 environment.condition（或 condition_code）与 trigger_weather 任意一项精确匹配时，该状态才允许触发（数组）",
+
 
     field_can_trigger: "可触发子状态",
 
@@ -156,7 +159,9 @@ const tutorialTranslations = {
     data_counter_desc: "状态激活时对 Mod 数据执行操作：set(设置)、add(加)、sub(减)、mul(乘)、div(除)。",
     trigger_counter_desc: "你也可以在编辑器的「状态限制」中，通过 trigger_counter_start / trigger_counter_end 限制该状态在特定 ModData.value 区间内才允许触发。", 
     trigger_temp_desc: "同样地，你也可以通过 trigger_temp_start / trigger_temp_end 限制该状态仅在气温（environment.temperature，单位 °C）处于区间内才允许触发。",
+    trigger_uptime_desc: "此外，你也可以通过 trigger_uptime 限制该状态仅在程序启动后已运行达到一定分钟数时才允许触发（0 表示不限制）。",
     trigger_weather_desc: "此外，你也可以通过 trigger_weather（数组）限制该状态仅在天气满足条件时才允许触发：数组中任意一项匹配即可；若该项为纯数字则匹配 weatherCode（condition_code），否则匹配天气描述（condition）。",
+
 
     section_bubble: "💬 气泡样式配置",
 
@@ -348,8 +353,11 @@ const tutorialTranslations = {
     field_trigger_temp_start_desc: "This state can trigger only when environment.temperature (°C) is within [start, end]",
     field_trigger_temp_end: "Temperature Trigger End",
     field_trigger_temp_end_desc: "This state can trigger only when environment.temperature (°C) is within [start, end]",
+    field_trigger_uptime: "Session Uptime Trigger",
+    field_trigger_uptime_desc: "This state can trigger only when session uptime (minutes) >= trigger_uptime (0 = no limit)",
     field_trigger_weather: "Weather Trigger",
     field_trigger_weather_desc: "This state can trigger only when environment.condition (or condition_code) exactly matches any item in trigger_weather (array)",
+
 
     field_can_trigger: "Triggerable States",
 
@@ -377,7 +385,9 @@ const tutorialTranslations = {
     data_counter_desc: "Operations on Mod data when state activates: set, add, sub, mul, div.",
     trigger_counter_desc: "You can also (in the editor's \"State Limits\") use trigger_counter_start / trigger_counter_end to limit when this state is allowed to trigger.",
     trigger_temp_desc: "Similarly, you can use trigger_temp_start / trigger_temp_end to limit when this state is allowed to trigger based on temperature (environment.temperature, °C).",
+    trigger_uptime_desc: "Additionally, you can use trigger_uptime to allow triggering only after the app has been running for a certain number of minutes (0 = no limit).",
     trigger_weather_desc: "Additionally, you can use trigger_weather (array) to allow triggering only when weather matches: any item matches exactly; if an item is digits it matches weatherCode (condition_code), otherwise it matches the weather description (condition).",
+
 
     section_bubble: "💬 Bubble Style Configuration",
 
@@ -568,8 +578,11 @@ const tutorialTranslations = {
     field_trigger_temp_start_desc: "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
     field_trigger_temp_end: "気温トリガー終了",
     field_trigger_temp_end_desc: "environment.temperature (°C) が [開始, 終了] の範囲内のときのみ、この状態をトリガー可能",
+    field_trigger_uptime: "起動時間トリガー",
+    field_trigger_uptime_desc: "本起動の経過分数 >= trigger_uptime のときのみトリガー可能（0＝制限なし）",
     field_trigger_weather: "天気トリガー",
     field_trigger_weather_desc: "environment.condition（または condition_code）が trigger_weather のいずれかと完全一致するときのみ、この状態をトリガー可能（配列）",
+
 
     field_can_trigger: "トリガー可能状態",
 
@@ -598,7 +611,9 @@ const tutorialTranslations = {
     data_counter_desc: "状態がアクティブになったとき Mod データに対する操作：set、add、sub、mul、div。",
     trigger_counter_desc: "エディタの「状態制限」で trigger_counter_start / trigger_counter_end を使って、この状態がトリガー可能な ModData.value 範囲を制限できます。", 
     trigger_temp_desc: "同様に、trigger_temp_start / trigger_temp_end を使って、気温（environment.temperature、°C）に基づくトリガー可能範囲を制限できます。",
+    trigger_uptime_desc: "さらに、trigger_uptime を使って、起動後に一定分数が経過してからのみトリガー可能にできます（0＝制限なし）。",
     trigger_weather_desc: "さらに、trigger_weather（配列）を使って天気が条件に一致するときのみトリガー可能にできます：配列のいずれかが一致すればOK。数字のみの項目は weatherCode（condition_code）に一致、それ以外は天気説明（condition）に一致します。",
+
 
     section_bubble: "💬 吹き出しスタイル設定",
 

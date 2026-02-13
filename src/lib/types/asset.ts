@@ -173,8 +173,20 @@ export interface StateInfo {
   /** 触发计数范围终点（包含） */
   trigger_counter_end?: number;
 
+  /** 气温触发范围起点（包含，单位：°C） */
+  trigger_temp_start?: number;
+  /** 气温触发范围终点（包含，单位：°C） */
+  trigger_temp_end?: number;
+
+  /** 启动时长触发门槛（分钟；0 表示不限制） */
+  trigger_uptime?: number;
+
+  /** 天气触发条件（数组任意匹配；空数组表示不限制） */
+  trigger_weather?: string[];
+
   /** 进入该状态时对当前 Mod 数据计数器执行操作（可选） */
   mod_data_counter?: ModDataCounterConfig;
+
 
   /** 是否显示对话分支气泡 UI（默认 true） */
   branch_show_bubble?: boolean;

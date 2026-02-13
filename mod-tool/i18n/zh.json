@@ -186,8 +186,11 @@
   "trigger_temp_start_label": "气温触发起点",
   "trigger_temp_end_label": "气温触发终点",
   "trigger_temp_hint": "仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发",
+  "trigger_uptime_label": "启动时长触发（分钟）",
+  "trigger_uptime_hint": "仅当当前距离程序启动已过分钟数 >= trigger_uptime 时，该状态才允许触发（0 表示不限制）",
   "trigger_weather_label": "触发天气",
   "trigger_weather_hint": "仅当当前 environment.condition（或 condition_code）与 trigger_weather 任意一项精确匹配时，该状态才允许触发（不选任何项表示不限制）",
+
 
   "can_trigger_states_label": "可触发子状态",
   "section_can_trigger_states": "可触发子状态",

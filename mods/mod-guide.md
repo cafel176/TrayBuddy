@@ -85,7 +85,12 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `trigger_rate` | Number | 每次检查的触发概率 (0.0 - 1.0)。编辑器中通常会以百分比显示 |
 ||| `trigger_counter_start` | Number | 触发计数范围起点（包含）。当当前 Mod 的 ModData.value 落在 [start, end] 区间内时，该状态才允许触发。默认 -2147483648 |
 ||| `trigger_counter_end` | Number | 触发计数范围终点（包含）。当当前 Mod 的 ModData.value 落在 [start, end] 区间内时，该状态才允许触发。默认 2147483647 |
+||| `trigger_temp_start` | Number | 气温触发范围起点（包含，单位：°C）。当当前 environment.temperature 落在 [start, end] 区间内时，该状态才允许触发。默认 -2147483648 |
+||| `trigger_temp_end` | Number | 气温触发范围终点（包含，单位：°C）。当当前 environment.temperature 落在 [start, end] 区间内时，该状态才允许触发。默认 2147483647 |
+||| `trigger_uptime` | Number | 启动时长触发门槛（分钟）。当“本次程序启动已运行分钟数” >= trigger_uptime 时，该状态才允许触发。默认 0（不限制） |
+||| `trigger_weather` | Array | 天气触发条件（数组任意匹配）。空数组表示不限制；若数组项为纯数字则匹配 environment.condition_code（weatherCode），否则匹配 environment.condition（天气描述，精确匹配）。默认 [] |
 ||| `mod_data_counter` | Object / null | 进入该状态时对 Mod 数据执行的操作 (可选) |
+
 ||| `branch_show_bubble` | Boolean | “显示气泡”：控制对话分支选项是否以气泡形式展示（默认 true） |
 ||| `branch` | Array | 固定对话分支选项数组，用于交互式对话（为空则无分支） |
 

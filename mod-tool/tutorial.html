@@ -201,7 +201,9 @@
         <tr><td data-i18n="field_trigger_counter_end">触发计数终点</td><td data-i18n="field_trigger_counter_end_desc">仅当当前 ModData.value 落在 [起点, 终点] 区间内时，该状态才允许触发</td></tr>
         <tr><td data-i18n="field_trigger_temp_start">气温触发起点</td><td data-i18n="field_trigger_temp_start_desc">仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发</td></tr>
         <tr><td data-i18n="field_trigger_temp_end">气温触发终点</td><td data-i18n="field_trigger_temp_end_desc">仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发</td></tr>
+        <tr><td data-i18n="field_trigger_uptime">启动时长触发</td><td data-i18n="field_trigger_uptime_desc">仅当当前距离程序启动已过分钟数 >= trigger_uptime 时，该状态才允许触发（分钟；0 表示不限制）</td></tr>
         <tr><td data-i18n="field_trigger_weather">触发天气</td><td data-i18n="field_trigger_weather_desc">仅当当前 environment.condition（或 condition_code）与 trigger_weather 任意一项精确匹配时，该状态才允许触发（数组）</td></tr>
+
 
         <tr><td data-i18n="field_can_trigger">可触发子状态</td><td data-i18n="field_can_trigger_desc">在编辑器内以“状态 + 权重”列表配置（权重越大越容易被选中）</td></tr>
 
@@ -235,7 +237,9 @@
       <p data-i18n="data_counter_desc">状态激活时对 Mod 数据执行操作：set(设置)、add(加)、sub(减)、mul(乘)、div(除)。</p>
       <p data-i18n="trigger_counter_desc">你也可以在编辑器的「状态限制」中，通过 trigger_counter_start / trigger_counter_end 限制该状态在特定 ModData.value 区间内才允许触发。</p>
       <p data-i18n="trigger_temp_desc">同样地，你也可以通过 trigger_temp_start / trigger_temp_end 限制该状态仅在气温（environment.temperature，单位 °C）处于区间内才允许触发。</p>
+      <p data-i18n="trigger_uptime_desc">此外，你也可以通过 trigger_uptime 限制该状态仅在程序启动后已运行达到一定分钟数时才允许触发（0 表示不限制）。</p>
       <p data-i18n="trigger_weather_desc">此外，你也可以通过 trigger_weather 限制该状态仅在天气满足条件时才允许触发：若填纯数字则匹配 weatherCode（condition_code），否则匹配天气描述（condition）。</p>
+
 
 
     </section>

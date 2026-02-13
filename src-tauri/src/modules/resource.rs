@@ -74,12 +74,18 @@ fn default_trigger_temp_end() -> i32 {
     i32::MAX
 }
 
+#[inline]
+fn default_trigger_uptime() -> i32 {
+    0
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum TriggerWeatherDe {
     Str(Box<str>),
     Arr(Vec<Box<str>>),
 }
+
 
 #[inline]
 fn deserialize_trigger_weather<'de, D>(deserializer: D) -> Result<Vec<Box<str>>, D::Error>
@@ -417,6 +423,12 @@ pub struct StateInfo {
     #[serde(default = "default_trigger_temp_end")]
     pub trigger_temp_end: i32,
 
+    /// 启动时长触发门槛（分钟）
+    /// 当“本次程序启动已运行分钟数” >= trigger_uptime 时，该状态才允许触发。
+    /// - 0 表示不限制
+    #[serde(default = "default_trigger_uptime")]
+    pub trigger_uptime: i32,
+
     /// 天气触发条件（精确匹配，数组任意匹配）
     /// - 空数组表示不限制
     /// - 数组元素为纯数字：与 environment.condition_code（weatherCode）比较
@@ -425,6 +437,7 @@ pub struct StateInfo {
     /// 兼容旧格式：允许将 trigger_weather 写成字符串
     #[serde(default, deserialize_with = "deserialize_trigger_weather")]
     pub trigger_weather: Vec<Box<str>>,
+
 
 
     /// 计数器副作用：进入该状态时对 Mod 特有的变量执行增减操作（如好感度+1）
@@ -460,8 +473,10 @@ impl Default for StateInfo {
             trigger_counter_end: i32::MAX,
             trigger_temp_start: i32::MIN,
             trigger_temp_end: i32::MAX,
+            trigger_uptime: 0,
             trigger_weather: Vec::new(),
             mod_data_counter: None,
+
 
 
 

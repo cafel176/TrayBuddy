@@ -727,17 +727,24 @@ impl StateManager {
                 // 关键：保持锁顺序一致性：ResourceManager → StateManager
                 // 这与 trigger_login_events、get_force_change_handler 等处的锁顺序一致
                 
-                // 先读取当前 ModData 值，避免在持有 ResourceManager 锁时再加锁
-                let mod_data_value = {
+                // 先读取当前 ModData 值与会话启动时长，避免在持有 ResourceManager 锁时再加锁
+                let (mod_data_value, session_uptime_minutes) = {
                     let storage = app_state.storage.lock().unwrap();
                     let mod_id = storage.data.info.current_mod.to_string();
-                    storage
+
+                    let mod_data_value = storage
                         .data
                         .info
                         .mod_data
                         .get(&mod_id)
                         .map(|m| m.value)
-                        .unwrap_or(0)
+                        .unwrap_or(0);
+
+                    let secs = storage.get_session_uptime_seconds_now();
+                    let mins = secs / 60;
+                    let session_uptime_minutes = i32::try_from(mins).unwrap_or(i32::MAX);
+
+                    (mod_data_value, session_uptime_minutes)
                 };
 
                 // 读取一次当前天气（来自 environment 缓存），避免在过滤时重复取锁
@@ -762,6 +769,7 @@ impl StateManager {
                                     && Self::is_state_allowed_by_limits_static(
                                         s,
                                         mod_data_value,
+                                        session_uptime_minutes,
                                         current_temp,
                                         current_weather.as_ref(),
                                     )
@@ -859,6 +867,25 @@ impl StateManager {
             .unwrap_or(0)
     }
 
+    /// 获取“本次程序启动已运行分钟数”（若取不到则返回 0）
+    pub(crate) fn get_session_uptime_minutes_now(&self) -> i32 {
+        let Some(app_handle) = &self.app_handle else {
+            return 0;
+        };
+        let Some(app_state) = app_handle.try_state::<AppState>() else {
+            return 0;
+        };
+        let storage = match app_state.storage.lock() {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
+
+        let secs = storage.get_session_uptime_seconds_now();
+        let mins = secs / 60;
+        i32::try_from(mins).unwrap_or(i32::MAX)
+    }
+
+
     #[inline]
     fn is_state_allowed_by_temp_range(state: &StateInfo, current_temp: Option<f64>) -> bool {
         // 默认不限制
@@ -882,7 +909,17 @@ impl StateManager {
     }
 
     #[inline]
+    fn is_state_allowed_by_uptime_min(state: &StateInfo, session_uptime_minutes: i32) -> bool {
+        // 0 或负数：不限制
+        if state.trigger_uptime <= 0 {
+            return true;
+        }
+        session_uptime_minutes >= state.trigger_uptime
+    }
+
+    #[inline]
     fn is_state_allowed_by_weather_any(state: &StateInfo, current_weather: Option<&WeatherInfo>) -> bool {
+
         let mut has_rule = false;
 
         for want_raw in state.trigger_weather.iter() {
@@ -927,24 +964,35 @@ impl StateManager {
     fn is_state_allowed_by_limits_static(
         state: &StateInfo,
         mod_data_value: i32,
+        session_uptime_minutes: i32,
         current_temp: Option<f64>,
         current_weather: Option<&WeatherInfo>,
     ) -> bool {
         (mod_data_value >= state.trigger_counter_start
             && mod_data_value <= state.trigger_counter_end)
+            && Self::is_state_allowed_by_uptime_min(state, session_uptime_minutes)
             && Self::is_state_allowed_by_temp_range(state, current_temp)
             && Self::is_state_allowed_by_weather_any(state, current_weather)
     }
 
 
-    /// 判断当前状态是否满足触发限制（ModData 触发计数范围 + 气温范围 + 天气精确匹配）
+
+    /// 判断当前状态是否满足触发限制（ModData 触发计数范围 + 启动时长 + 气温范围 + 天气精确匹配）
     #[inline]
     pub(crate) fn is_state_allowed_by_limits(&self, state: &StateInfo) -> bool {
         let value = self.get_current_mod_data_value();
+        let uptime_minutes = self.get_session_uptime_minutes_now();
         let current_weather = get_cached_weather();
         let current_temp = current_weather.as_ref().map(|w| w.temperature);
-        Self::is_state_allowed_by_limits_static(state, value, current_temp, current_weather.as_ref())
+        Self::is_state_allowed_by_limits_static(
+            state,
+            value,
+            uptime_minutes,
+            current_temp,
+            current_weather.as_ref(),
+        )
     }
+
 
 
 

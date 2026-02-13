@@ -1245,7 +1245,14 @@ function normalizeStateForEditor(state) {
   if (!Number.isFinite(Number(state.trigger_temp_start))) state.trigger_temp_start = -2147483648;
   if (!Number.isFinite(Number(state.trigger_temp_end))) state.trigger_temp_end = 2147483647;
 
+  // 启动时长触发门槛（分钟；0 表示不限制）
+  {
+    const n = parseInt(state.trigger_uptime);
+    state.trigger_uptime = Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
   // 天气触发条件（默认不限制）
+
   if (Array.isArray(state.trigger_weather)) {
     state.trigger_weather = state.trigger_weather
       .filter((v) => typeof v === 'string')
@@ -1377,7 +1384,9 @@ function ensureImportantState(manifest, key, defaults) {
       trigger_counter_end: 2147483647,
       trigger_temp_start: -2147483648,
       trigger_temp_end: 2147483647,
+      trigger_uptime: 0,
       trigger_weather: [],
+
       mod_data_counter: [],
 
 
@@ -1532,8 +1541,10 @@ function createDefaultState(name, persistent = false) {
     trigger_counter_end: 2147483647,
     trigger_temp_start: -2147483648,
     trigger_temp_end: 2147483647,
+    trigger_uptime: 0,
     trigger_weather: [],
     mod_data_counter: null,
+
 
 
 
@@ -2670,7 +2681,11 @@ function openStateModal(title, state) {
   document.getElementById('state-trigger-temp-start').value = Number.isFinite(Number(state.trigger_temp_start)) ? String(state.trigger_temp_start) : '-2147483648';
   document.getElementById('state-trigger-temp-end').value = Number.isFinite(Number(state.trigger_temp_end)) ? String(state.trigger_temp_end) : '2147483647';
 
+  // 启动时长触发门槛（分钟）
+  document.getElementById('state-trigger-uptime').value = Number.isFinite(Number(state.trigger_uptime)) ? String(Math.max(0, parseInt(state.trigger_uptime))) : '0';
+
   // 天气触发条件（多选）
+
   {
     const el = document.getElementById('state-trigger-weather');
     const raw = state.trigger_weather;
@@ -2973,7 +2988,13 @@ function saveState() {
       return Number.isFinite(n) ? n : 2147483647;
     })(),
 
+    trigger_uptime: (() => {
+      const n = parseInt(document.getElementById('state-trigger-uptime').value);
+      return Number.isFinite(n) ? Math.max(0, n) : 0;
+    })(),
+
     trigger_weather: (() => {
+
       const el = document.getElementById('state-trigger-weather');
       if (!el) return [];
 

@@ -941,8 +941,14 @@
                   </div>
 
                   <div class="form-group">
+                    <label data-i18n="trigger_uptime_label">启动时长触发</label>
+                    <input type="number" id="state-trigger-uptime" value="0" min="0" step="1">
+                  </div>
+
+                  <div class="form-group">
                     <label data-i18n="trigger_weather_label">触发天气</label>
                     <select id="state-trigger-weather" multiple size="8">
+
                       <option value="" disabled>(不限制：不选择任何项)</option>
 
 
@@ -1001,7 +1007,9 @@
                 </div>
                 <small class="section-hint" data-i18n="trigger_counter_hint">仅当当前 ModData.value 落在 [起点, 终点] 区间内时，该状态才允许触发</small>
                 <small class="section-hint" data-i18n="trigger_temp_hint">仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发</small>
+                <small class="section-hint" data-i18n="trigger_uptime_hint">仅当当前距离程序启动已过分钟数 >= trigger_uptime 时，该状态才允许触发</small>
                 <small class="section-hint" data-i18n="trigger_weather_hint">仅当当前 environment.condition（或 condition_code）与 trigger_weather 精确匹配时，该状态才允许触发</small>
+
 
 
               </div>
