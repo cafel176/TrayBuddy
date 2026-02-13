@@ -289,8 +289,8 @@
   "msg_enter_trigger_states": "请输入可触发的状态列表 (逗号分隔)",
   "msg_confirm_delete": "确定要删除吗?",
   "text_name_placeholder": "文本名称",
-  "text_content_placeholder": "对话内容（支持 Markdown；占位符：{nickname}/{days_used}/{usage_hours}）",
-  "speech_placeholders_hint": "可用占位符：{nickname}（昵称）、{days_used}（使用天数）、{usage_hours}/{total_usage_hours}（总使用时长，小时）",
+  "text_content_placeholder": "对话内容（支持 Markdown；占位符：{nickname}/{days_used}/{usage_hours}/{uptime}）",
+  "speech_placeholders_hint": "可用占位符：{nickname}（昵称）、{days_used}（使用天数）、{usage_hours}/{total_usage_hours}（总使用时长，小时）、{uptime}（本次启动已运行时长，HH:MM:SS）", 
 
   "text_duration_label": "持续时间(秒)",
   "text_duration_placeholder": "例如: 3",

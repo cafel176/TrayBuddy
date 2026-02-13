@@ -222,7 +222,10 @@ fn get_build_mode() -> String {
 struct UsageStats {
     pub first_login: Option<i64>,
     pub total_usage_seconds: i64,
+    /// 距离本次程序启动已过的秒数
+    pub session_uptime_seconds: i64,
 }
+
 
 /// 获取用户设置
 #[tauri::command]
@@ -241,8 +244,10 @@ fn get_usage_stats(state: State<'_, AppState>) -> UsageStats {
     UsageStats {
         first_login: storage.data.info.first_login,
         total_usage_seconds: storage.get_total_usage_seconds_now(),
+        session_uptime_seconds: storage.get_session_uptime_seconds_now(),
     }
 }
+
 
 
 /// 更新用户设置

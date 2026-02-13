@@ -289,8 +289,8 @@
   "msg_enter_trigger_states": "トリガー可能な状態リストを入力してください (カンマ区切り)",
   "msg_confirm_delete": "本当に削除しますか？",
   "text_name_placeholder": "テキスト名",
-  "text_content_placeholder": "対話内容（Markdown対応；プレースホルダー：{nickname}/{days_used}/{usage_hours}）",
-  "speech_placeholders_hint": "対応プレースホルダー：{nickname}、{days_used}、{usage_hours}/{total_usage_hours}",
+  "text_content_placeholder": "対話内容（Markdown対応；プレースホルダー：{nickname}/{days_used}/{usage_hours}/{uptime}）",
+  "speech_placeholders_hint": "対応プレースホルダー：{nickname}、{days_used}、{usage_hours}/{total_usage_hours}、{uptime}（本起動の稼働時間、HH:MM:SS）",
 
   "text_duration_label": "持続時間(秒)",
   "text_duration_placeholder": "例: 3",

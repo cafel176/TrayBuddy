@@ -156,17 +156,29 @@ impl Default for AppStorageData {
 
 /// 存储管理器：负责数据的内存缓存与磁盘同步
 pub struct Storage {
-    pub data: AppStorageData,               // 内存中的数据缓存
-    storage_path: PathBuf,                  // storage.json 的物理存储路径
-    session_start_time: std::time::Instant, // 应用启动时间（用于计算使用时长）
+    pub data: AppStorageData, // 内存中的数据缓存
+    storage_path: PathBuf,    // storage.json 的物理存储路径
+
+    /// 程序启动时间（只用于“本次启动已运行多久”等实时占位符，**不会**被重置）
+    app_start_time: std::time::Instant,
+
+    /// 使用时长统计的检查点：用于把本次运行的增量累计到 `total_usage_seconds`，会在 `save()` 后重置
+    usage_checkpoint_time: std::time::Instant,
 }
 
 impl Storage {
     /// 获取累计使用时长（秒，包含本次运行中尚未落盘的部分）
     #[inline]
     pub fn get_total_usage_seconds_now(&self) -> i64 {
-        self.data.info.total_usage_seconds + self.session_start_time.elapsed().as_secs() as i64
+        self.data.info.total_usage_seconds + self.usage_checkpoint_time.elapsed().as_secs() as i64
     }
+
+    /// 获取“本次启动”已运行时长（秒）
+    #[inline]
+    pub fn get_session_uptime_seconds_now(&self) -> i64 {
+        self.app_start_time.elapsed().as_secs() as i64
+    }
+
 
     /// 初始化存储管理器
     /// 会自动定位到应用配置目录，如果 storage.json 存在则加载，
@@ -177,13 +189,16 @@ impl Storage {
         let storage_path = storage_dir.join("storage.json");
         let data = Self::load(&storage_path);
 
-        // 记录应用启动时间，用于计算使用时长
-        let session_start_time = std::time::Instant::now();
+        // 记录程序启动时间（不重置）
+        let app_start_time = std::time::Instant::now();
+        // 使用时长统计检查点（会在 save() 后重置，避免重复累计）
+        let usage_checkpoint_time = app_start_time;
 
         Self {
             data,
             storage_path,
-            session_start_time,
+            app_start_time,
+            usage_checkpoint_time,
         }
     }
 
@@ -223,11 +238,11 @@ impl Storage {
     ///
     /// 在保存前会自动计算并累加本次使用时长到 total_usage_seconds
     pub fn save(&mut self) -> Result<(), String> {
-        // 计算并累加本次使用时长
-        let elapsed = self.session_start_time.elapsed().as_secs() as i64;
+        // 计算并累加本次使用时长（从上次检查点到现在）
+        let elapsed = self.usage_checkpoint_time.elapsed().as_secs() as i64;
         self.data.info.total_usage_seconds += elapsed;
-        // 更新 session_start_time 为当前时间，避免重复计算
-        self.session_start_time = std::time::Instant::now();
+        // 更新检查点为当前时间，避免重复累计
+        self.usage_checkpoint_time = std::time::Instant::now();
 
         let content = serde_json::to_string_pretty(&self.data)
             .map_err(|e| format!("序列化存储数据失败: {}", e))?;

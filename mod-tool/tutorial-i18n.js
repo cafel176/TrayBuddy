@@ -195,7 +195,7 @@ const tutorialTranslations = {
     texts_info_desc: "语言ID、语言名称、角色名称、角色描述",
     texts_speech_title: "对话文本 (speech.json)",
     texts_speech_desc: "名称、内容(支持Markdown)、持续时间(秒)",
-    texts_speech_placeholders_desc: "支持占位符：{nickname}（昵称）、{days_used}（使用天数）、{usage_hours}/{total_usage_hours}（总使用时长，小时）",
+    texts_speech_placeholders_desc: "支持占位符：{nickname}（昵称）、{days_used}（使用天数）、{usage_hours}/{total_usage_hours}（总使用时长，小时）、{uptime}（本次启动已运行时长，HH:MM:SS）",
     texts_markdown_title: "Markdown 语法",
 
     md_bold: "加粗",
@@ -416,7 +416,7 @@ const tutorialTranslations = {
     texts_info_desc: "Language ID, language name, character name, description",
     texts_speech_title: "Dialogue Text (speech.json)",
     texts_speech_desc: "Name, content (supports Markdown), duration (seconds)",
-    texts_speech_placeholders_desc: "Supported placeholders: {nickname} (nickname), {days_used} (days since first use), {usage_hours}/{total_usage_hours} (total usage hours)",
+    texts_speech_placeholders_desc: "Supported placeholders: {nickname} (nickname), {days_used} (days since first use), {usage_hours}/{total_usage_hours} (total usage hours), {uptime} (session uptime, HH:MM:SS)",
     texts_markdown_title: "Markdown Syntax",
 
     md_bold: "Bold",
@@ -637,7 +637,7 @@ const tutorialTranslations = {
     texts_info_desc: "言語ID、言語名、キャラクター名、説明",
     texts_speech_title: "対話テキスト (speech.json)",
     texts_speech_desc: "名前、内容(Markdown対応)、持続時間(秒)",
-    texts_speech_placeholders_desc: "対応プレースホルダー：{nickname}（ニックネーム）、{days_used}（初回利用からの日数）、{usage_hours}/{total_usage_hours}（総利用時間、時間）",
+    texts_speech_placeholders_desc: "対応プレースホルダー：{nickname}（ニックネーム）、{days_used}（初回利用からの日数）、{usage_hours}/{total_usage_hours}（総利用時間、時間）、{uptime}（本起動の稼働時間、HH:MM:SS）",
     texts_markdown_title: "Markdown 構文",
 
     md_bold: "太字",

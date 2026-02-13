@@ -224,7 +224,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| 字段 | 类型 | 说明 |
 ||| :--- | :--- | :--- |
 ||| `name` | String | 文本的名称 |
-||| `text` | String | 显示的对话内容（支持简易 Markdown，支持变量如 `{nickname}`） |
+||| `text` | String | 显示的对话内容（支持简易 Markdown，支持变量如 `{nickname}` / `{days_used}` / `{usage_hours}` / `{total_usage_hours}` / `{uptime}`） |
 ||| `duration` | Number | 气泡持续时间（秒，可选）。默认 5 秒，文本显示完成后开始计时 |
 
 #### 2.6.1 简易 Markdown 语法

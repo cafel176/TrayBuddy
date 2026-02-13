@@ -140,15 +140,39 @@
 
   /** 首次启动时间戳（秒） */
   let firstLoginTs = $state<number | null>(null);
+
   /** 后端返回的累计使用秒（获取时刻） */
   let usageBaseSeconds = $state<number>(0);
   /** usageBaseSeconds 的获取时刻（ms） */
   let usageBaseAtMs = $state<number>(Date.now());
 
+  /** 后端返回的“本次启动已运行秒”（获取时刻） */
+  let sessionUptimeBaseSeconds = $state<number>(0);
+  /** sessionUptimeBaseSeconds 的获取时刻（ms） */
+  let sessionUptimeBaseAtMs = $state<number>(Date.now());
+
   function getTotalUsageSecondsNow(): number {
     const delta = Math.max(0, Math.floor((Date.now() - usageBaseAtMs) / 1000));
     return Math.max(0, Math.floor(usageBaseSeconds + delta));
   }
+
+  function getSessionUptimeSecondsNow(): number {
+    const delta = Math.max(
+      0,
+      Math.floor((Date.now() - sessionUptimeBaseAtMs) / 1000),
+    );
+    return Math.max(0, Math.floor(sessionUptimeBaseSeconds + delta));
+  }
+
+  function formatDurationHms(totalSeconds: number): string {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
+  }
+
 
   /**
    * 从第一次使用到今天的天数（按“日历天”计数，包含首日：今天首次使用 => 1）
@@ -174,9 +198,14 @@
     let text = raw;
     text = text.replace(/\{nickname\}/g, userNickname);
     text = text.replace(/\{days_used\}/g, String(getDaysUsedNow()));
-    text = text.replace(/\{(?:usage_hours|total_usage_hours)\}/g, String(getTotalUsageHoursNow()));
+    text = text.replace(
+      /\{(?:usage_hours|total_usage_hours)\}/g,
+      String(getTotalUsageHoursNow()),
+    );
+    text = text.replace(/\{uptime\}/g, formatDurationHms(getSessionUptimeSecondsNow()));
     return text;
   }
+
 
 
   /** 是否未加载任何 Mod */
@@ -393,14 +422,22 @@
 
       // 使用统计（用于 speech.json 占位符）
       try {
-        const usage = await invoke<{ first_login: number | null; total_usage_seconds: number }>(
-          "get_usage_stats",
-        );
+        const usage = await invoke<{
+          first_login: number | null;
+          total_usage_seconds: number;
+          session_uptime_seconds: number;
+        }>("get_usage_stats");
         firstLoginTs = typeof usage.first_login === "number" ? usage.first_login : null;
+
         usageBaseSeconds = Number.isFinite(Number(usage.total_usage_seconds))
           ? Number(usage.total_usage_seconds)
           : 0;
         usageBaseAtMs = Date.now();
+
+        sessionUptimeBaseSeconds = Number.isFinite(Number(usage.session_uptime_seconds))
+          ? Number(usage.session_uptime_seconds)
+          : 0;
+        sessionUptimeBaseAtMs = Date.now();
       } catch (e) {
         console.warn("Failed to load usage stats:", e);
       }
