@@ -36,7 +36,7 @@ use modules::constants::{
     MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
     STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MODS,
-    WINDOW_LABEL_SETTINGS, EVENT_MUSIC_END, EVENT_MUSIC_START
+    WINDOW_LABEL_SETTINGS, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK
 };
 use modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
 use modules::environment::{
@@ -45,6 +45,9 @@ use modules::environment::{
 };
 use modules::media_observer::{
     get_cached_debug_info, MediaDebugInfo, MediaObserver, MediaPlaybackStatus,
+};
+use modules::process_observer::{
+    get_cached_process_debug_info, ProcessDebugInfo, ProcessObserver, ProcessStartEvent,
 };
 use modules::resource::{
     self, AssetInfo, AudioInfo, CharacterInfo, ModInfo, ResourceManager, StateInfo, TextInfo,
@@ -1115,6 +1118,13 @@ fn get_media_debug_info() -> Option<MediaDebugInfo> {
     get_cached_debug_info()
 }
 
+/// 获取进程调试信息
+#[tauri::command]
+fn get_process_debug_info() -> Option<ProcessDebugInfo> {
+    get_cached_process_debug_info()
+}
+
+
 // ========================================================================= //
 // 应用入口
 // ========================================================================= //
@@ -1138,6 +1148,9 @@ pub fn run() {
             // ========== 加载可配置资源（exe 同目录 config） ==========
             // 目前用于音乐应用识别关键字（MediaObserver）
             modules::media_observer::init_music_keywords_from_config();
+            // 进程监测关键字（ProcessObserver）
+            modules::process_observer::init_process_keywords_from_config();
+
 
 
             // 记录登录时间和启动次数
@@ -1490,10 +1503,12 @@ pub fn run() {
             get_season_info,
             get_time_period_info,
             get_weather_info,
-            // 媒体调试
+            // 媒体/进程调试
             get_media_debug_info,
+            get_process_debug_info,
             get_system_debug_info,
             get_media_status,
+
             open_storage_dir,
             open_dir,
             show_context_menu,
@@ -2098,6 +2113,65 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
                     }
                     _ => {}
                 }
+            }
+        });
+    });
+}
+
+/// 启动进程监测器（独立线程）
+///
+/// - 监听“新进程启动”
+/// - 若进程名包含 `config/process_observer_keywords.json` 中的任意关键字，则触发一次 `work` 事件
+fn start_process_observer(app_handle: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        let mut observer = ProcessObserver::new();
+        let rx = observer.start(app_handle.clone());
+
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        rt.block_on(async move {
+            let mut rx = rx;
+
+            while let Some(ProcessStartEvent { pid, process_name, matched_keyword }) = rx.recv().await {
+                let app_state: State<AppState> = app_handle.state();
+
+
+                // 免打扰模式下不触发 work
+                let is_silence = {
+                    let storage = app_state.storage.lock().unwrap();
+                    storage.data.settings.silence_mode
+                };
+                if is_silence {
+                    continue;
+                }
+
+                // 等待状态解锁（避免与 play_once 状态冲突）
+                use crate::modules::constants::{STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS};
+                for _ in 0..STATE_LOCK_MAX_RETRIES {
+                    let is_locked = {
+                        let sm = app_state.state_manager.lock().unwrap();
+                        sm.is_locked()
+                    };
+                    if !is_locked {
+                        break;
+                    }
+                    tokio::time::sleep(tokio::time::Duration::from_millis(
+                        STATE_LOCK_WAIT_INTERVAL_MS,
+                    ))
+                    .await;
+                }
+
+
+
+                #[cfg(debug_assertions)]
+                println!(
+                    "[ProcessObserver] New process matched: pid={}, name={}, keyword={}",
+                    pid, process_name, matched_keyword
+                );
+
+                let rm = app_state.resource_manager.lock().unwrap();
+                let mut sm = app_state.state_manager.lock().unwrap();
+                let _ = TriggerManager::trigger_event(EVENT_WORK, false, &rm, &mut sm);
+
             }
         });
     });
@@ -3247,7 +3321,11 @@ fn start_background_services(app_handle: &tauri::AppHandle) {
     // 启动媒体监听器（独立线程，无锁）
     start_media_observer(app_handle.clone(), is_silence_mode);
 
+    // 启动进程监测器（独立线程，无锁）
+    start_process_observer(app_handle.clone());
+
     // 启动系统状态观察器（独立线程，无锁）
+
     {
         let observer = SystemObserver::new();
         observer.start(app_handle.clone());

@@ -149,7 +149,9 @@ const tutorialTranslations = {
     event_drag_end: "结束拖动窗口",
     event_music_start: "音乐开始播放",
     event_music_end: "音乐停止播放",
+    event_work: "工作事件（进程监测命中关键字时触发）",
     event_keydown_space: "按键触发（例如：keydown:Space）",
+
     event_birthday: "生日事件",
     event_firstday: "首次启动事件",
     event_login_silence: "启动后进入静默/无声状态",
@@ -377,7 +379,9 @@ const tutorialTranslations = {
     event_drag_end: "Window drag end",
     event_music_start: "Music starts playing",
     event_music_end: "Music stops playing",
+    event_work: "Work event (triggered by process monitor match)",
     event_keydown_space: "Key trigger (e.g., keydown:Space)",
+
     event_birthday: "Birthday event",
     event_firstday: "First launch event",
     event_login_silence: "Enter silence state after launch",
@@ -601,7 +605,9 @@ const tutorialTranslations = {
     event_drag_end: "ウィンドウのドラッグ終了",
     event_music_start: "音楽再生開始",
     event_music_end: "音楽再生停止",
+    event_work: "作業イベント（プロセス監視の一致で発火）",
     event_keydown_space: "キー入力（例：keydown:Space）",
+
     event_birthday: "誕生日イベント",
     event_firstday: "初回起動イベント",
     event_login_silence: "起動後にサイレンス状態へ",

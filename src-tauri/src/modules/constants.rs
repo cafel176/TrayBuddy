@@ -129,8 +129,12 @@ pub const EVENT_MUSIC_START: &str = "music_start";
 /// 音乐结束事件
 pub const EVENT_MUSIC_END: &str = "music_end";
 
+/// 工作事件（由“进程监测”等后台功能触发）
+pub const EVENT_WORK: &str = "work";
+
 /// Animation 窗口开始拖动事件
 pub const EVENT_ANIMATION_DRAG_START: &str = "drag_start";
+
 
 /// Animation 窗口结束拖动事件
 pub const EVENT_ANIMATION_DRAG_END: &str = "drag_end";

@@ -79,6 +79,8 @@
   "event_login_silence": "启动后进入静默/无声状态",
   "event_music_start": "音乐播放",
   "event_music_end": "音乐停止",
+  "event_work": "工作事件（进程监测命中）",
+
   "assets_title": "动画资源",
   "assets_desc": "管理序列帧动画和静态图片资源",
   "section_sequence": "序列帧动画 (sequence.json)",

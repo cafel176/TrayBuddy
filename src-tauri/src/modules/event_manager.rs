@@ -38,6 +38,10 @@ pub const DEBUG_EVENT_TYPE_SYSTEM: &str = "system";
 /// 调试事件类型：媒体
 pub const DEBUG_EVENT_TYPE_MEDIA: &str = "media";
 
+/// 调试事件类型：进程
+pub const DEBUG_EVENT_TYPE_PROCESS: &str = "process";
+
+
 /// 事件名称常量定义
 ///
 /// 集中管理所有事件名称，避免字符串散布在代码中。
@@ -69,8 +73,12 @@ pub mod events {
     /// 媒体调试信息更新事件
     pub const MEDIA_DEBUG_UPDATE: &str = "media-debug-update";
 
+    /// 进程调试信息更新事件
+    pub const PROCESS_DEBUG_UPDATE: &str = "process-debug-update";
+
     /// 环境信息更新事件
     pub const ENVIRONMENT_UPDATED: &str = "environment-updated";
+
 
     /// Mod 数据更新事件
     pub const MOD_DATA_CHANGED: &str = "mod-data-changed";
@@ -390,6 +398,7 @@ pub fn emit_debug_update<T: serde::Serialize>(
     let event_name = match event_type {
         DEBUG_EVENT_TYPE_SYSTEM => events::SYSTEM_DEBUG_UPDATE,
         DEBUG_EVENT_TYPE_MEDIA => events::MEDIA_DEBUG_UPDATE,
+        DEBUG_EVENT_TYPE_PROCESS => events::PROCESS_DEBUG_UPDATE,
         _ => {
             eprintln!("[EventManager] Unknown debug event type: {}", event_type);
             return Ok(());

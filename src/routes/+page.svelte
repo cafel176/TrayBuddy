@@ -26,13 +26,15 @@
 
   import { onMount, onDestroy } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { emit } from "@tauri-apps/api/event";
+
   import ResourceManagerDebugger from "$lib/components/ResourceManagerDebugger.svelte";
   import StateDebugger from "$lib/components/StateDebugger.svelte";
   import TriggerDebugger from "$lib/components/TriggerDebugger.svelte";
   import EnvironmentDebugger from "$lib/components/EnvironmentDebugger.svelte";
   import MediaDebugger from "$lib/components/MediaDebugger.svelte";
+  import ProcessDebugger from "$lib/components/ProcessDebugger.svelte";
   import SystemDebugger from "$lib/components/SystemDebugger.svelte";
+
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
   import LayoutDebugger from "$lib/components/LayoutDebugger.svelte";
   import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
@@ -112,9 +114,14 @@
       onclick={() => (activeTab = "media")}>{_("tabs.media")}</button
     >
     <button
+      class:active={activeTab === "process"}
+      onclick={() => (activeTab = "process")}>{_("tabs.process")}</button
+    >
+    <button
       class:active={activeTab === "system"}
       onclick={() => (activeTab = "system")}>{_("tabs.system")}</button
     >
+
     <button
       class:active={activeTab === "info"}
       onclick={() => (activeTab = "info")}>{_("tabs.runtime")}</button
@@ -137,8 +144,11 @@
       <EnvironmentDebugger />
     {:else if activeTab === "media"}
       <MediaDebugger />
+    {:else if activeTab === "process"}
+      <ProcessDebugger />
     {:else if activeTab === "system"}
       <SystemDebugger />
+
     {:else if activeTab === "info"}
       <InfoDebugger />
     {:else if activeTab === "layout"}

@@ -79,6 +79,8 @@
   "event_login_silence": "起動後にサイレンス状態へ",
   "event_music_start": "音楽再生",
   "event_music_end": "音楽停止",
+  "event_work": "作業イベント（プロセス監視の一致）",
+
   "assets_title": "アニメーションリソース",
   "assets_desc": "シーケンスアニメーションと静止画リソースを管理します",
   "section_sequence": "シーケンス (sequence.json)",

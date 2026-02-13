@@ -108,7 +108,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 
 ||| 字段 | 类型 | 说明 |
 ||| :--- | :--- | :--- |
-||| `event` | String | 事件名称（如 `click`, `login`, `birthday`, `firstday`, `login_silence`, `music_start`, `music_end`, `animation_drag_start`, `animation_drag_end`, `keydown:<Key>`） |
+||| `event` | String | 事件名称（如 `click`, `login`, `work`, `birthday`, `firstday`, `login_silence`, `music_start`, `music_end`, `animation_drag_start`, `animation_drag_end`, `keydown:<Key>`） |
 ||| `can_trigger_states` | Array | 触发条件状态组数组，定义在不同持久状态下可触发的状态列表 |
 
 - **提示**：拖拽相关的事件名是 `animation_drag_start` / `animation_drag_end`，不要与状态名 `drag_start` / `drag_end` 混淆。

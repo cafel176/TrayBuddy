@@ -41,7 +41,9 @@
     "trigger": "触发器",
     "environment": "环境",
     "media": "媒体监听",
+    "process": "进程监测",
     "system": "系统观察",
+
     "settings": "用户设置",
     "runtime": "运行状态",
     "layout": "布局渲染"
@@ -235,6 +237,28 @@
     "nowPlaying": "正在播放",
     "noCoreAudioSession": "无 Core Audio 会话",
     "autoUpdate": "自动更新"
+  },
+  "process": {
+    "title": "进程监测调试器",
+    "statusReading": "正在读取...",
+    "statusWaiting": "等待初始化...",
+    "statusUpdated": "更新于",
+    "autoUpdate": "自动更新",
+    "observerStatus": "观察者状态",
+    "runningStatus": "运行状态:",
+    "runtime": "运行时间:",
+    "pollInterval": "轮询间隔:",
+    "keywords": "关键字:",
+    "noKeywords": "未配置关键字（不会触发 work）",
+    "currentPidCount": "当前进程数:",
+    "seenPidCount": "已见PID数:",
+    "lastMatched": "最近命中",
+    "lastMatchedNone": "暂无命中",
+    "lastNewProcesses": "最近新进程",
+    "noNewProcesses": "本轮无新进程",
+    "pid": "PID",
+    "processName": "进程名",
+    "matchedKeyword": "命中关键字"
   },
   "system": {
     "title": "系统观察器调试",

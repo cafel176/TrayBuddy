@@ -41,7 +41,9 @@
     "trigger": "トリガー",
     "environment": "環境",
     "media": "メディア監視",
+    "process": "プロセス監視",
     "system": "システム監視",
+
     "settings": "設定",
     "runtime": "実行状態",
     "layout": "レイアウト"
@@ -235,6 +237,28 @@
     "nowPlaying": "再生中",
     "noCoreAudioSession": "Core Audio セッションなし",
     "autoUpdate": "自動更新"
+  },
+  "process": {
+    "title": "プロセス監視デバッガー",
+    "statusReading": "読み込み中...",
+    "statusWaiting": "初期化待ち...",
+    "statusUpdated": "更新時刻",
+    "autoUpdate": "自動更新",
+    "observerStatus": "オブザーバー状態",
+    "runningStatus": "実行状態:",
+    "runtime": "実行時間:",
+    "pollInterval": "ポーリング間隔:",
+    "keywords": "キーワード:",
+    "noKeywords": "キーワード未設定（work を発火しません）",
+    "currentPidCount": "現在のプロセス数:",
+    "seenPidCount": "既知PID数:",
+    "lastMatched": "直近の一致",
+    "lastMatchedNone": "まだ一致なし",
+    "lastNewProcesses": "最近の新規プロセス",
+    "noNewProcesses": "直近の検出で新規プロセスなし",
+    "pid": "PID",
+    "processName": "プロセス名",
+    "matchedKeyword": "一致キーワード"
   },
   "system": {
     "title": "システム監視デバッガー",

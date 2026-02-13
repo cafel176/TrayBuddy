@@ -79,6 +79,8 @@
   "event_login_silence": "Enter silence state after launch",
   "event_music_start": "Music start",
   "event_music_end": "Music stop",
+  "event_work": "Work event (process monitor match)",
+
   "assets_title": "Animation Assets",
   "assets_desc": "Manage sequence animations and static image resources",
   "section_sequence": "Sequence (sequence.json)",

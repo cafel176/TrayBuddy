@@ -41,7 +41,9 @@
     "trigger": "Triggers",
     "environment": "Environment",
     "media": "Media",
+    "process": "Process",
     "system": "System",
+
     "settings": "Settings",
     "runtime": "Runtime",
     "layout": "Layout"
@@ -235,6 +237,28 @@
     "nowPlaying": "Now Playing",
     "noCoreAudioSession": "No Core Audio sessions",
     "autoUpdate": "Auto Update"
+  },
+  "process": {
+    "title": "Process Monitor Debugger",
+    "statusReading": "Reading...",
+    "statusWaiting": "Waiting for init...",
+    "statusUpdated": "Updated at",
+    "autoUpdate": "Auto Update",
+    "observerStatus": "Observer Status",
+    "runningStatus": "Status:",
+    "runtime": "Runtime:",
+    "pollInterval": "Poll interval:",
+    "keywords": "Keywords:",
+    "noKeywords": "No keywords configured (won't trigger work)",
+    "currentPidCount": "Current processes:",
+    "seenPidCount": "Seen PIDs:",
+    "lastMatched": "Last matched",
+    "lastMatchedNone": "No match yet",
+    "lastNewProcesses": "Recent new processes",
+    "noNewProcesses": "No new processes in last poll",
+    "pid": "PID",
+    "processName": "Process",
+    "matchedKeyword": "Matched keyword"
   },
   "system": {
     "title": "System Observer Debugger",
