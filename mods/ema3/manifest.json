@@ -1,0 +1,1396 @@
+{
+  "id": "ema3",
+  "version": "1.0.0",
+  "author": "Cafel",
+  "default_audio_lang_id": "jp",
+  "default_text_lang_id": "zh",
+  "character": {
+    "z_offset": 1,
+    "canvas_fit_preference": "legacy"
+  },
+  "border": {
+    "anima": "border",
+    "enable": false,
+    "z_offset": 2
+  },
+  "show_mod_data_panel": false,
+  "mod_data_default_int": 0,
+  "important_states": {
+    "idle": {
+      "name": "idle",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [
+        {
+          "state": "random1_1",
+          "weight": 1
+        },
+        {
+          "state": "random2_1",
+          "weight": 1
+        },
+        {
+          "state": "random3_1",
+          "weight": 1
+        },
+        {
+          "state": "random4_1",
+          "weight": 1
+        }
+      ],
+      "trigger_time": 600,
+      "trigger_rate": 0.3,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "silence": {
+      "name": "silence",
+      "persistent": true,
+      "anima": "silence",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "silence_start": {
+      "name": "silence_start",
+      "persistent": false,
+      "anima": "silence_start",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "silence",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "silence_end": {
+      "name": "silence_end",
+      "persistent": false,
+      "anima": "silence_end",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "dragging": {
+      "name": "dragging",
+      "persistent": true,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "branch": []
+    },
+    "drag_start": {
+      "name": "drag_start",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "dragging",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "branch": []
+    },
+    "drag_end": {
+      "name": "drag_end",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "branch": []
+    },
+    "music": {
+      "name": "music",
+      "persistent": true,
+      "anima": "music",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0.1,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "music_start": {
+      "name": "music_start",
+      "persistent": false,
+      "anima": "music_start",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "music",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "music_end": {
+      "name": "music_end",
+      "persistent": false,
+      "anima": "music_end",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "birthday": {
+      "name": "birthday",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "birthday_1",
+      "text": "birthday_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "birthday_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    "firstday": {
+      "name": "firstday",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "firstday_1",
+      "text": "firstday_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "firstday_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [
+        {
+          "text": "firstday_button",
+          "next_state": "firstday_3"
+        }
+      ],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    }
+  },
+  "states": [
+    {
+      "name": "morning",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "morning",
+      "text": "morning",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "06:00",
+      "time_end": "12:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "noon",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "noon",
+      "text": "noon",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "12:00",
+      "time_end": "18:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "evening",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "evening",
+      "text": "evening",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "18:00",
+      "time_end": "22:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "night",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "night",
+      "text": "night",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "22:00",
+      "time_end": "06:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "amazing",
+      "persistent": false,
+      "anima": "amazing",
+      "audio": "amazing",
+      "text": "amazing",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "amaz_cry",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [
+        {
+          "text": "amazing_button1",
+          "next_state": "amaz_cry"
+        },
+        {
+          "text": "amazing_button2",
+          "next_state": "amaz_cry"
+        }
+      ],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "amaz_cry",
+      "persistent": false,
+      "anima": "amaz_cry",
+      "audio": "amaz_cry",
+      "text": "amaz_cry",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "cry",
+      "persistent": false,
+      "anima": "cry",
+      "audio": "cry",
+      "text": "cry",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "birthday_2",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "birthday_2",
+      "text": "birthday_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "firstday_2",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "firstday_2",
+      "text": "firstday_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "firstday_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "firstday_3",
+      "persistent": false,
+      "anima": "amazing",
+      "audio": "firstday_3",
+      "text": "firstday_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "firstday_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "firstday_4",
+      "persistent": false,
+      "anima": "idle",
+      "audio": "firstday_4",
+      "text": "firstday_4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "random1_1",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "random1_1",
+      "text": "random1_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "music_random1_1",
+      "persistent": false,
+      "anima": "music_idle",
+      "audio": "music_random1_1",
+      "text": "music_random1_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch_show_bubble": true
+    },
+    {
+      "name": "random2_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "random2_1",
+      "text": "random2_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random2_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random2_2",
+      "persistent": false,
+      "anima": "",
+      "audio": "random2_2",
+      "text": "random2_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random2_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random2_3",
+      "persistent": false,
+      "anima": "",
+      "audio": "random2_3",
+      "text": "random2_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random3_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "random3_1",
+      "text": "random3_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random3_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random3_2",
+      "persistent": false,
+      "anima": "",
+      "audio": "random3_2",
+      "text": "random3_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random3_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random3_3",
+      "persistent": false,
+      "anima": "",
+      "audio": "random3_3",
+      "text": "random3_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_1",
+      "text": "random4_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random4_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_2",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_2",
+      "text": "random4_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random4_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_3",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_3",
+      "text": "random4_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "random4_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "random4_4",
+      "persistent": false,
+      "anima": "",
+      "audio": "random4_4",
+      "text": "random4_4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "ema_birthday_1",
+      "persistent": false,
+      "anima": "",
+      "audio": "ema_birthday_1",
+      "text": "ema_birthday_1",
+      "priority": 2,
+      "date_start": "03-05",
+      "date_end": "03-05",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "ema_birthday_2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": [
+        {
+          "text": "ema_birthday_button",
+          "next_state": "ema_birthday_2"
+        }
+      ]
+    },
+    {
+      "name": "ema_birthday_2",
+      "persistent": false,
+      "anima": "amazing",
+      "audio": "ema_birthday_2",
+      "text": "ema_birthday_2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "ema_birthday_3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "ema_birthday_3",
+      "persistent": false,
+      "anima": "idle",
+      "audio": "ema_birthday_3",
+      "text": "ema_birthday_3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "ema_birthday_4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "ema_birthday_4",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "ema_birthday_4",
+      "text": "ema_birthday_4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch_show_bubble": true,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": {
+        "op": "add",
+        "value": 0
+      },
+      "branch": []
+    },
+    {
+      "name": "test1",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "test1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "branch_show_bubble": true,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "test2",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "test2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "branch_show_bubble": true,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "test3",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "test3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "branch_show_bubble": true,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch": []
+    }
+  ],
+  "triggers": [
+    {
+      "event": "click",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "random1_1",
+              "weight": 1
+            },
+            {
+              "state": "amazing",
+              "weight": 1
+            },
+            {
+              "state": "cry",
+              "weight": 1
+            },
+            {
+              "state": "random2_1",
+              "weight": 1
+            },
+            {
+              "state": "random3_1",
+              "weight": 1
+            },
+            {
+              "state": "random4_1",
+              "weight": 1
+            },
+            {
+              "state": "ema_birthday_1",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "music_random1_1",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        }
+      ]
+    },
+    {
+      "event": "keydown:Space",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "random1_1",
+              "weight": 1
+            },
+            {
+              "state": "amazing",
+              "weight": 1
+            },
+            {
+              "state": "cry",
+              "weight": 1
+            },
+            {
+              "state": "random2_1",
+              "weight": 1
+            },
+            {
+              "state": "random3_1",
+              "weight": 1
+            },
+            {
+              "state": "random4_1",
+              "weight": 1
+            },
+            {
+              "state": "ema_birthday_1",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "music_random1_1",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        }
+      ]
+    },
+    {
+      "event": "login",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "morning",
+              "weight": 1
+            },
+            {
+              "state": "noon",
+              "weight": 1
+            },
+            {
+              "state": "evening",
+              "weight": 1
+            },
+            {
+              "state": "night",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "birthday",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "birthday",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "firstday",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "firstday",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "login_silence",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "silence_start",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "music_start",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "music_start",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "music_end",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "music_end",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "drag_start",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "drag_end",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [],
+          "allow_repeat": true
+        }
+      ]
+    }
+  ]
+}
