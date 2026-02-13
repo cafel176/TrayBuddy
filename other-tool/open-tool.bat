@@ -23,19 +23,10 @@ exit /b
 REM Open tools via HTTP instead of file:// to avoid fetch(CORS) issues for i18n JSON
 
 set "ROOT=%~dp0"
-set "BASE_PORT=4173"
+set "PORT=4173"
 set "HOST=127.0.0.1"
-
-REM Pick a port. If BASE_PORT is already used by another program, auto-pick a free one.
-set "TB_HOST=%HOST%"
-set "TB_BASE_PORT=%BASE_PORT%"
-for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "$h=$env:TB_HOST; $base=[int]$env:TB_BASE_PORT; function Test-Tcp([int]$p){ $c=New-Object System.Net.Sockets.TcpClient; try{ $t=$c.ConnectAsync($h,$p); if($t.Wait(150) -and $c.Connected){ return $true } } catch {} finally { try{ $c.Dispose() } catch {} }; return $false }; function Test-Our([int]$p){ try{ $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 1 ('http://{0}:{1}/__tb_ping' -f $h,$p); return ($r.StatusCode -eq 200 -and $r.Content -match 'other-tool-dev-server') } catch { return $false } }; for($i=0;$i -le 50;$i++){ $cand=$base+$i; if(Test-Our $cand){ $cand; exit 0 } }; if(-not (Test-Tcp $base)){ $base; exit 0 }; for($i=1;$i -le 50;$i++){ $cand=$base+$i; if(-not (Test-Tcp $cand)){ $cand; exit 0 } }; $base"`) do set "PORT=%%P"
-
-
-
 set "LOG=%TEMP%\other-tool-dev-server-%PORT%.log"
 set "LOG_ERR=%TEMP%\other-tool-dev-server-%PORT%.err.log"
-
 
 REM Tool directory (relative to other-tool). Default: spritesheet切分
 set "TOOL=%~1"
@@ -46,14 +37,10 @@ set "HAS_NODE=1"
 where node >nul 2>nul
 if errorlevel 1 set "HAS_NODE=0"
 
-REM If our dev server is not responding on this port, start it in background.
-set "TB_HOST=%HOST%"
-set "TB_PORT=%PORT%"
-powershell -NoProfile -Command "$h=$env:TB_HOST; $p=[int]$env:TB_PORT; try{ $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 1 ('http://{0}:{1}/__tb_ping' -f $h,$p); if($r.StatusCode -eq 200 -and $r.Content -match 'other-tool-dev-server'){ exit 0 } } catch {} ; exit 1" >nul
-
+REM If port is not listening, start dev server in background
+powershell -NoProfile -Command "$h='%HOST%'; $p=[int]%PORT%; $c=New-Object System.Net.Sockets.TcpClient; try { $t=$c.ConnectAsync($h,$p); if($t.Wait(200) -and $c.Connected){ $c.Close(); exit 0 } } catch {} finally { try { $c.Dispose() } catch {} }; exit 1" >nul
 if errorlevel 1 goto :startServer
 goto :afterServer
-
 
 :startServer
 if "%HAS_NODE%"=="1" goto :startNode
