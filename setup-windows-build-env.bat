@@ -27,9 +27,20 @@ if errorlevel 1 (
 rem Remove the internal elevation flag if present
 if /I "%~1"=="--elevated" shift
 
+rem Mode: (none) | install | build
+set "MODE=%~1"
+set "DO_INSTALL_DEPS=0"
+set "DO_BUILD=0"
+if /I "%MODE%"=="install" set "DO_INSTALL_DEPS=1"
+if /I "%MODE%"=="build" (
+  set "DO_INSTALL_DEPS=1"
+  set "DO_BUILD=1"
+)
+
 echo.
 echo === TrayBuddy Windows Build Env Setup ===
 echo.
+
 
 if not exist "%~dp0package.json" (
   echo [WARN] Cannot find package.json next to this script.
@@ -37,15 +48,26 @@ if not exist "%~dp0package.json" (
   echo.
 )
 
+rem Resolve winget path (can behave differently across sessions/elevation)
+set "WINGET="
 where winget >nul 2>&1
 if errorlevel 1 (
-  echo [ERROR] winget not found.
-  echo         Please install "App Installer" from Microsoft Store (provides winget),
-  echo         then re-run this script.
-  echo.
-  pause
-  exit /b 1
+  if exist "%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe" (
+    set "WINGET=%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe"
+  ) else (
+    echo [ERROR] winget not found.
+    echo         Please install "App Installer" from Microsoft Store ^(provides winget^),
+
+    echo         then re-run this script.
+    echo.
+    pause
+    exit /b 1
+  )
+) else (
+  for /f "delims=" %%i in ('where winget') do set "WINGET=%%i"
 )
+
+
 
 
 call :install "OpenJS.NodeJS.LTS" "Node.js LTS"
@@ -70,18 +92,69 @@ call :ensure_pnpm
 call :ensure_rust
 call :ensure_msvc
 
-:maybe_build
-if /I "%~1"=="build" (
-  echo.
-  echo === Running build (pnpm install + pnpm tauri build) ===
-  echo.
-  pushd "%~dp0"
-  call pnpm install
-  if errorlevel 1 (
-    echo [ERROR] pnpm install failed.
+rem Install JS deps if requested, or if missing
+set "DEPS_INSTALLED="
+if exist "%~dp0package.json" (
+  if "%DO_INSTALL_DEPS%"=="1" (
+    echo.
+    echo === Installing JS deps ^(pnpm install^) ===
+    echo.
+    pushd "%~dp0"
+    call :allow_pnpm_build_scripts
+    call pnpm install
+
+    if errorlevel 1 (
+      echo [ERROR] pnpm install failed.
+      popd
+      pause
+      exit /b 1
+    )
     popd
-    pause
-    exit /b 1
+    set "DEPS_INSTALLED=1"
+  ) else (
+    if not exist "%~dp0node_modules\" (
+      echo.
+      echo === node_modules missing; running pnpm install ===
+      echo.
+      pushd "%~dp0"
+      call :allow_pnpm_build_scripts
+      call pnpm install
+
+      if errorlevel 1 (
+        echo [ERROR] pnpm install failed.
+        popd
+        pause
+        exit /b 1
+      )
+      popd
+      set "DEPS_INSTALLED=1"
+    )
+  )
+)
+
+:maybe_build
+if "%DO_BUILD%"=="1" (
+  echo.
+  echo === Running build ^(pnpm tauri build^) ===
+  echo.
+
+  pushd "%~dp0"
+
+  rem If deps were not installed above, try now.
+  if not defined DEPS_INSTALLED (
+    if exist "%~dp0package.json" (
+      if not exist "%~dp0node_modules\" (
+        call :allow_pnpm_build_scripts
+        call pnpm install
+        if errorlevel 1 (
+
+          echo [ERROR] pnpm install failed.
+          popd
+          pause
+          exit /b 1
+        )
+      )
+    )
   )
 
   rem Use vcvars64 if available to ensure MSVC env for this session
@@ -94,8 +167,10 @@ if /I "%~1"=="build" (
     pause
     exit /b 1
   )
+
   popd
 )
+
 
 
 echo.
@@ -111,9 +186,11 @@ set "PKG=%~1"
 set "NAME=%~2"
 echo [INFO] Installing %NAME% ...
 rem Use --accept-package-agreements / --accept-source-agreements for non-interactive
-winget install -e --id "%PKG%" --accept-package-agreements --accept-source-agreements --silent
+"%WINGET%" install -e --id "%PKG%" --accept-package-agreements --accept-source-agreements --silent
+
 if errorlevel 1 (
-  echo [WARN] winget install failed (or already installed): %NAME%
+  echo [WARN] winget install failed ^(or already installed^): %NAME%
+
 ) else (
   echo [OK]  %NAME%
 )
@@ -125,9 +202,11 @@ echo [INFO] Installing Visual Studio 2022 Build Tools (C++ workload) ...
 rem Workload + Windows SDK; winget uses installer override args.
 rem If you already have VS/BuildTools installed, this will no-op or update components.
 set "VS_OVERRIDE=--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --quiet --wait --norestart"
-winget install -e --id "Microsoft.VisualStudio.2022.BuildTools" --accept-package-agreements --accept-source-agreements --silent --override "%VS_OVERRIDE%"
+"%WINGET%" install -e --id "Microsoft.VisualStudio.2022.BuildTools" --accept-package-agreements --accept-source-agreements --silent --override "%VS_OVERRIDE%"
+
 if errorlevel 1 (
-  echo [WARN] VS Build Tools install failed (or already installed). You may need Admin rights.
+  echo [WARN] VS Build Tools install failed ^(or already installed^). You may need Admin rights.
+
 ) else (
   echo [OK]  Visual Studio Build Tools
 )
@@ -137,13 +216,21 @@ goto :eof
 :ensure_node
 where node >nul 2>&1
 if errorlevel 1 (
-  rem Preserve errorlevel for the caller without using exit.
-  cmd /c exit /b 1
-  goto :eof
+  rem Node might be installed but PATH not refreshed in this session.
+  if exist "%ProgramFiles%\nodejs\node.exe" set "PATH=%ProgramFiles%\nodejs;%PATH%"
+  if exist "%ProgramFiles(x86)%\nodejs\node.exe" set "PATH=%ProgramFiles(x86)%\nodejs;%PATH%"
+
+  where node >nul 2>&1
+  if errorlevel 1 (
+    rem Preserve errorlevel for the caller without using exit.
+    cmd /c exit /b 1
+    goto :eof
+  )
 )
 for /f "tokens=*" %%i in ('node -v') do set "NODEV=%%i"
 echo [OK]  node %NODEV%
 goto :eof
+
 
 
 :ensure_pnpm
@@ -173,7 +260,21 @@ echo [OK]  pnpm %PNPMV%
 goto :eof
 
 
+:allow_pnpm_build_scripts
+rem pnpm may block install scripts until approved; allow known safe deps.
+if not exist "%~dp0package.json" goto :eof
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $p='%~dp0package.json'; $j=Get-Content -LiteralPath $p -Raw | ConvertFrom-Json; if(-not $j.pnpm){$j | Add-Member -NotePropertyName pnpm -NotePropertyValue ([pscustomobject]@{})}; if(-not $j.pnpm.onlyBuiltDependencies){$j.pnpm | Add-Member -NotePropertyName onlyBuiltDependencies -NotePropertyValue @()}; $arr=@($j.pnpm.onlyBuiltDependencies); if($arr -notcontains 'esbuild'){ $arr += 'esbuild' }; $j.pnpm.onlyBuiltDependencies=$arr; $out=$j | ConvertTo-Json -Depth 50; [System.IO.File]::WriteAllText($p, $out, (New-Object System.Text.UTF8Encoding($false))); exit 0 } catch { exit 1 }" >nul 2>&1
+if errorlevel 1 (
+  echo [WARN] Failed to update package.json pnpm build-script allowlist.
+)
+
+
+goto :eof
+
+
 :ensure_rust
+
 set "RUSTUP=%USERPROFILE%\.cargo\bin\rustup.exe"
 if exist "%RUSTUP%" (
   echo [INFO] Setting up Rust toolchain...
@@ -187,7 +288,8 @@ if exist "%RUSTUP%" (
 
 where rustup >nul 2>&1
 if errorlevel 1 (
-  echo [WARN] rustup not found in PATH (may require new terminal).
+  echo [WARN] rustup not found in PATH ^(may require new terminal^).
+
   goto :eof
 )
 
