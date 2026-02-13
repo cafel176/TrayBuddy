@@ -62,8 +62,14 @@ const server = http.createServer((req, res) => {
     const rawUrl = req.url || '/';
     const urlPath = decodeURIComponent(rawUrl.split('?')[0]);
 
+    // Health check: used by open-tool.bat to ensure we are talking to *our* server.
+    if (urlPath === '/__tb_ping') {
+      return send(res, 200, 'other-tool-dev-server', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+
     let filePath = safeJoin(ROOT, urlPath);
     if (!filePath) return send(res, 400, 'Bad Request', { 'Content-Type': 'text/plain; charset=utf-8' });
+
 
     // Directory -> index.html
     if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {

@@ -88,6 +88,15 @@ try {
         continue
       }
 
+      if ($urlPath -eq '/__tb_ping') {
+        $res.StatusCode = 200
+        $res.ContentType = 'text/plain; charset=utf-8'
+        $bytes = [Text.Encoding]::UTF8.GetBytes('other-tool-dev-server')
+        $res.OutputStream.Write($bytes, 0, $bytes.Length)
+        $res.OutputStream.Close()
+        continue
+      }
+
       $filePath = Get-SafePath $urlPath
       if (-not $filePath) {
         $res.StatusCode = 400
@@ -97,6 +106,7 @@ try {
         $res.OutputStream.Close()
         continue
       }
+
 
       if (Test-Path -LiteralPath $filePath -PathType Container) {
         $filePath = Join-Path -Path $filePath -ChildPath 'index.html'
