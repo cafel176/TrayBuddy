@@ -27,6 +27,8 @@
     "modsTitle": "TrayBuddy Mod 管理器",
     "settingsTitle": "TrayBuddy 用户设置",
     "memoTitle": "TrayBuddy 备忘录",
+    "reminderTitle": "TrayBuddy 定时提醒",
+    "reminderAlertTitle": "TrayBuddy 提醒",
 
     "failed": "失败",
     "on": "开启",
@@ -86,6 +88,39 @@
     "categoryLabel": "分类：",
     "quickAdd": "快速添加",
     "quickAddDefault": "（新备忘录）"
+  },
+  "reminder": {
+    "title": "定时提醒",
+    "alertTitle": "提醒",
+    "close": "关闭",
+    "loading": "正在加载提醒...",
+    "saved": "已保存",
+    "noAlerts": "暂无提醒",
+    "scheduledAt": "计划时间:",
+    "firedAt": "触发时间:",
+    "dismiss": "知道了",
+
+
+    "add": "添加提醒",
+    "delete": "删除",
+    "enabled": "启用",
+    "disabled": "停用",
+    "textPlaceholder": "提醒内容...",
+
+    "type": "类型",
+    "typeAbsolute": "指定日期时间",
+    "typeWeekly": "每周",
+    "typeAfter": "延时",
+
+    "datetime": "日期时间",
+    "timeOfDay": "时间",
+    "weekdays": "每周星期",
+    "after": "从现在开始",
+    "afterUnitSeconds": "秒",
+    "afterUnitMinutes": "分钟",
+    "afterUnitHours": "小时",
+    "nextTrigger": "下次触发:",
+    "afterResetHint": "延时提醒会在保存后从当前开始重新计时"
   },
   "settings": {
 
@@ -571,6 +606,7 @@
     "otherTools": "其他工具",
     "debugger": "调试器",
     "memo": "备忘录",
+    "reminder": "定时提醒",
     "mute": "静音模式",
 
     "silence": "免打扰模式",

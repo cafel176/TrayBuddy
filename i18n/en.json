@@ -27,6 +27,8 @@
     "modsTitle": "TrayBuddy Mod Manager",
     "settingsTitle": "TrayBuddy Settings",
     "memoTitle": "TrayBuddy Memo",
+    "reminderTitle": "TrayBuddy Reminders",
+    "reminderAlertTitle": "TrayBuddy Reminder",
 
     "failed": "failed",
     "on": "ON",
@@ -86,6 +88,39 @@
     "categoryLabel": "Category:",
     "quickAdd": "Quick add",
     "quickAddDefault": "(New memo)"
+  },
+  "reminder": {
+    "title": "Reminders",
+    "alertTitle": "Reminder",
+    "close": "Close",
+    "loading": "Loading reminders...",
+    "saved": "Saved",
+    "noAlerts": "No reminders",
+    "scheduledAt": "Scheduled:",
+    "firedAt": "Triggered:",
+    "dismiss": "Dismiss",
+
+
+    "add": "Add reminder",
+    "delete": "Delete",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "textPlaceholder": "Reminder text...",
+
+    "type": "Type",
+    "typeAbsolute": "Date & time",
+    "typeWeekly": "Weekly",
+    "typeAfter": "After",
+
+    "datetime": "Date & time",
+    "timeOfDay": "Time",
+    "weekdays": "Weekdays",
+    "after": "From now",
+    "afterUnitSeconds": "sec",
+    "afterUnitMinutes": "min",
+    "afterUnitHours": "hour",
+    "nextTrigger": "Next:",
+    "afterResetHint": "After reminders restart counting from now after saving"
   },
   "settings": {
 
@@ -573,6 +608,7 @@
     "otherTools": "Other Tools",
     "debugger": "Debugger",
     "memo": "Memo",
+    "reminder": "Reminders",
     "mute": "Mute Mode",
 
     "silence": "Silence Mode",

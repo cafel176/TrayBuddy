@@ -7,7 +7,9 @@
     "animation",
     "mods",
     "settings",
-    "about"
+    "about",
+    "reminder",
+    "memo"
   ],
   "permissions": [
     "core:default",

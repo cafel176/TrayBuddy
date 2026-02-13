@@ -108,10 +108,13 @@ export async function initI18n(): Promise<void> {
     setLang(settings.lang);
 
     // 监听设置变更
-    _unlistenSettings = await listen<UserSettings>("settings-change", (event) => {
-      // 只在 lang 字段存在且值变化时更新
-      if ("lang" in event.payload && event.payload.lang !== _currentLang) {
-        setLang(event.payload.lang);
+    // 说明：不同 Tauri 版本/序列化路径下 event.payload 可能不是严格的 UserSettings 类型，
+    // 这里做更稳健的解析，避免因为 payload 为空或类型不匹配导致监听回调异常，从而“语言不刷新”。
+    _unlistenSettings?.();
+    _unlistenSettings = await listen<any>("settings-change", (event) => {
+      const lang = (event as any)?.payload?.lang;
+      if (typeof lang === "string") {
+        setLang(lang);
       }
     });
   } catch (e) {

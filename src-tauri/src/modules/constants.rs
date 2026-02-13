@@ -34,6 +34,14 @@ pub const WINDOW_LABEL_ABOUT: &str = "about";
 /// 备忘录窗口标签
 pub const WINDOW_LABEL_MEMO: &str = "memo";
 
+/// 定时提醒管理窗口标签
+pub const WINDOW_LABEL_REMINDER: &str = "reminder";
+
+/// 定时提醒提示窗口标签
+pub const WINDOW_LABEL_REMINDER_ALERT: &str = "reminder_alert";
+
+
+
 
 // ========================================================================= //
 // 托盘标识符常量

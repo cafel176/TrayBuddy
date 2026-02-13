@@ -27,6 +27,8 @@
     "modsTitle": "TrayBuddy Mod マネージャー",
     "settingsTitle": "TrayBuddy 設定",
     "memoTitle": "TrayBuddy メモ",
+    "reminderTitle": "TrayBuddy リマインダー",
+    "reminderAlertTitle": "TrayBuddy リマインド",
 
     "failed": "失敗",
     "on": "オン",
@@ -86,6 +88,39 @@
     "categoryLabel": "カテゴリ：",
     "quickAdd": "クイック追加",
     "quickAddDefault": "（新しいメモ）"
+  },
+  "reminder": {
+    "title": "リマインダー",
+    "alertTitle": "リマインド",
+    "close": "閉じる",
+    "loading": "リマインダーを読み込み中...",
+    "saved": "保存しました",
+    "noAlerts": "リマインドはありません",
+    "scheduledAt": "予定:",
+    "firedAt": "発火:",
+    "dismiss": "了解",
+
+
+    "add": "追加",
+    "delete": "削除",
+    "enabled": "有効",
+    "disabled": "無効",
+    "textPlaceholder": "内容...",
+
+    "type": "種類",
+    "typeAbsolute": "日時指定",
+    "typeWeekly": "毎週",
+    "typeAfter": "遅延",
+
+    "datetime": "日時",
+    "timeOfDay": "時間",
+    "weekdays": "曜日",
+    "after": "今から",
+    "afterUnitSeconds": "秒",
+    "afterUnitMinutes": "分",
+    "afterUnitHours": "時間",
+    "nextTrigger": "次回:",
+    "afterResetHint": "遅延リマインダーは保存後に今から再カウントされます"
   },
   "settings": {
 
@@ -573,6 +608,7 @@
     "otherTools": "その他のツール",
     "debugger": "デバッガー",
     "memo": "メモ",
+    "reminder": "リマインダー",
     "mute": "ミュートモード",
 
     "silence": "集中モード",

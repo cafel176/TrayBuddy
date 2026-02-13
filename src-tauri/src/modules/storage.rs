@@ -104,10 +104,76 @@ impl Default for MemoItem {
     }
 }
 
+// ========================================================================= //
+// 定时提醒（保存在 UserInfo 中）
+// ========================================================================= //
+
+/// 每周的星期几（1=周一 ... 7=周日）
+pub type WeekdayNumber = u8;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReminderSchedule {
+    /// 指定一个绝对时间（本地时间戳，秒）
+    Absolute { timestamp: i64 },
+
+    /// 从创建时刻起，延后一段时间触发（秒）
+    After { seconds: u64, created_at: Option<i64> },
+
+    /// 每周在某些天的某个时间触发（本地时间）
+    Weekly {
+        days: Vec<WeekdayNumber>,
+        hour: u8,
+        minute: u8,
+    },
+}
+
+impl Default for ReminderSchedule {
+    fn default() -> Self {
+        Self::After {
+            seconds: 60,
+            created_at: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ReminderItem {
+    /// 唯一 ID（前端生成 UUID）
+    pub id: String,
+    /// 文本内容
+    pub text: Box<str>,
+    /// 是否启用
+    pub enabled: bool,
+
+    /// 计划类型
+    pub schedule: ReminderSchedule,
+
+    /// 下次触发时间（本地时间戳，秒；由后端归一化维护）
+    pub next_trigger_at: i64,
+    /// 最近一次触发时间（本地时间戳，秒；用于去重）
+    pub last_trigger_at: Option<i64>,
+}
+
+impl Default for ReminderItem {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            text: "".into(),
+            enabled: true,
+            schedule: ReminderSchedule::default(),
+            next_trigger_at: 0,
+            last_trigger_at: None,
+        }
+    }
+}
+
 /// 每个 Mod 的独立数据（保存在 UserInfo 中）
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct ModData {
+
 
     /// Mod ID（使用 manifest.json 的 id 作为唯一标识）
     pub mod_id: String,
@@ -145,6 +211,9 @@ pub struct UserInfo {
     /// 备忘录（按分类/顺序由前端渲染）
     pub memos: Vec<MemoItem>,
 
+    /// 定时提醒（支持一次性/每周/延时）
+    pub reminders: Vec<ReminderItem>,
+
 }
 
 impl Default for UserInfo {
@@ -163,6 +232,7 @@ impl Default for UserInfo {
 
             mod_data: HashMap::new(),
             memos: Vec::new(),
+            reminders: Vec::new(),
 
         }
     }

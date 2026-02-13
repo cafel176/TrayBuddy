@@ -36,8 +36,8 @@ use modules::constants::{
     MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
     STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MEMO,
-    WINDOW_LABEL_MODS, WINDOW_LABEL_SETTINGS, EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START,
-    EVENT_WORK
+    WINDOW_LABEL_MODS, WINDOW_LABEL_REMINDER, WINDOW_LABEL_REMINDER_ALERT, WINDOW_LABEL_SETTINGS,
+    EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK
 };
 use modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
 use modules::environment::{
@@ -55,7 +55,9 @@ use modules::resource::{
     TriggerInfo,
 };
 use modules::state::StateManager;
-use modules::storage::{MemoItem, ModData, Storage, UserInfo, UserSettings};
+use modules::storage::{
+    MemoItem, ModData, ReminderItem, ReminderSchedule, Storage, UserInfo, UserSettings,
+};
 use modules::system_observer::{SystemDebugInfo, SystemObserver};
 use modules::trigger::TriggerManager;
 use modules::utils::i18n::get_i18n_text as get_i18n_text_cached;
@@ -70,8 +72,21 @@ use tauri::{
 use tauri_plugin_autostart::ManagerExt;
 
 // ========================================================================= //
+// 提醒弹窗 Payload
+// ========================================================================= //
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ReminderAlertPayload {
+    pub id: String,
+    pub text: String,
+    pub scheduled_at: i64,
+    pub fired_at: i64,
+}
+
+// ========================================================================= //
 // 全局静态标记
 // ========================================================================= //
+
 
 /// 标记桌面会话检测是否已启动
 /// 防止重复启动导致资源泄漏
@@ -81,9 +96,14 @@ static SESSION_OBSERVER_STARTED: std::sync::atomic::AtomicBool = std::sync::atom
 /// 防止重复启动导致资源泄漏
 static BACKGROUND_SERVICES_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// 待展示的提醒弹窗队列（提醒调度线程写入，提示窗口读取）
+static PENDING_REMINDER_ALERTS: std::sync::Mutex<Vec<ReminderAlertPayload>> =
+    std::sync::Mutex::new(Vec::new());
+
 // ========================================================================= //
 // 日期验证常量
 // ========================================================================= //
+
 
 /// 月份最小值
 pub const MONTH_MIN: u32 = 1;
@@ -343,8 +363,117 @@ fn set_memos(memos: Vec<MemoItem>, state: State<'_, AppState>) -> Result<(), Str
     storage.save()
 }
 
+// ========================================================================= //
+// 定时提醒（存储于 UserInfo 内）
+// ========================================================================= //
+
+fn compute_next_weekly_trigger_at(now_ts: i64, days: &[u8], hour: u8, minute: u8) -> i64 {
+    use chrono::{Datelike, Duration, Local, NaiveTime, TimeZone};
+    use std::collections::HashSet;
+
+    let now = Local.timestamp_opt(now_ts, 0).single().unwrap_or_else(Local::now);
+
+    let mut set: HashSet<u8> = days
+        .iter()
+        .copied()
+        .filter(|d| (1..=7).contains(d))
+        .collect();
+    if set.is_empty() {
+        return now_ts + 365 * 24 * 3600; // 兜底：一年后
+    }
+
+    let h = (hour as u32).min(23);
+    let m = (minute as u32).min(59);
+    let t = NaiveTime::from_hms_opt(h, m, 0).unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+
+    let today = now.date_naive();
+
+    for offset in 0..=7 {
+        let date = today + Duration::days(offset);
+        let wd = date.weekday().number_from_monday() as u8;
+        if !set.contains(&wd) {
+            continue;
+        }
+
+        let naive = date.and_time(t);
+        let candidate = Local
+            .from_local_datetime(&naive)
+            .earliest()
+            .or_else(|| Local.from_local_datetime(&naive).latest())
+            .unwrap_or_else(|| Local.from_utc_datetime(&naive));
+
+        let ts = candidate.timestamp();
+        if ts > now_ts {
+            return ts;
+        }
+    }
+
+    // 理论上不会走到这里（上面会命中下周同一天）。兜底：7 天后。
+    now_ts + 7 * 24 * 3600
+}
+
+fn normalize_reminder(mut r: ReminderItem, now_ts: i64) -> ReminderItem {
+    // 避免空文本导致“无意义提醒”
+    r.text = r.text.as_ref().trim().to_string().into_boxed_str();
+
+    match &mut r.schedule {
+        ReminderSchedule::Absolute { timestamp } => {
+            r.next_trigger_at = *timestamp;
+        }
+        ReminderSchedule::After { seconds, created_at } => {
+            let base = created_at.unwrap_or(now_ts);
+            *created_at = Some(base);
+            r.next_trigger_at = base + (*seconds as i64);
+        }
+        ReminderSchedule::Weekly { days, hour, minute } => {
+            r.next_trigger_at = compute_next_weekly_trigger_at(now_ts, days, *hour, *minute);
+        }
+    }
+
+    r
+}
+
+/// 获取定时提醒
+#[tauri::command]
+fn get_reminders(state: State<'_, AppState>) -> Vec<ReminderItem> {
+    let storage = state.storage.lock().unwrap();
+    storage.data.info.reminders.clone()
+}
+
+/// 设置定时提醒（修改后立刻保存）
+#[tauri::command]
+fn set_reminders(reminders: Vec<ReminderItem>, state: State<'_, AppState>) -> Result<(), String> {
+    use chrono::Local;
+
+    let now_ts = Local::now().timestamp();
+    let normalized: Vec<ReminderItem> = reminders
+        .into_iter()
+        .map(|r| normalize_reminder(r, now_ts))
+        .collect();
+
+    let mut storage = state.storage.lock().unwrap();
+    storage.data.info.reminders = normalized;
+    storage.save()
+}
+
+/// 读取并清空待展示的提醒弹窗队列
+#[tauri::command]
+fn take_pending_reminder_alerts() -> Vec<ReminderAlertPayload> {
+    PENDING_REMINDER_ALERTS
+        .lock()
+        .ok()
+        .map(|mut g| {
+            let out = g.clone();
+            g.clear();
+            out
+        })
+        .unwrap_or_default()
+}
+
 
 /// 获取当前 Mod 的数据
+
+
 #[tauri::command]
 fn get_current_mod_data(state: State<'_, AppState>) -> Option<ModData> {
     let storage = state.storage.lock().unwrap();
@@ -439,7 +568,7 @@ async fn load_mod_common<F>(
 where
     F: FnOnce(&mut crate::modules::resource::ResourceManager) -> Result<Arc<ModInfo>, String>,
 {
-    // 0. 关闭除了 mods 以外的所有窗口
+    // 0. 切换 Mod 时关闭除了 mods 以外的所有窗口（包括备忘录/提醒/设置/提醒弹窗等）
     // 理由：每个 Mod 的动画窗口参数可能完全不同，热重载不如重建窗口稳定。
     let windows = app.webview_windows();
     for (label, window) in windows {
@@ -447,6 +576,9 @@ where
             let _ = window.close();
         }
     }
+
+
+
 
     // 给一点时间让 OS 真正释放窗口资源（特别是 Windows 下的渲染句柄）
     tokio::time::sleep(std::time::Duration::from_millis(
@@ -1465,7 +1597,12 @@ pub fn run() {
             update_user_info,
             get_memos,
             set_memos,
+            get_reminders,
+            set_reminders,
+            take_pending_reminder_alerts,
             get_current_mod_data,
+
+
 
             set_current_mod_data_value,
             record_click_event,
@@ -2197,6 +2334,107 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
     });
 }
 
+/// 启动提醒调度器（独立线程）
+fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        use chrono::Local;
+        use std::time::Duration;
+
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+
+            let now_ts = Local::now().timestamp();
+            let mut due: Vec<ReminderAlertPayload> = Vec::new();
+            let mut changed = false;
+
+            {
+                let app_state: State<AppState> = app_handle.state();
+                let mut storage = app_state.storage.lock().unwrap();
+
+                for r in storage.data.info.reminders.iter_mut() {
+                    if !r.enabled {
+                        continue;
+                    }
+
+                    if r.next_trigger_at == 0 {
+                        // 兜底：如果前端/历史数据没填 next_trigger_at，后端自动归一化
+                        let normalized = normalize_reminder(r.clone(), now_ts);
+                        *r = normalized;
+                        changed = true;
+                    }
+
+                    if r.next_trigger_at > 0 && r.next_trigger_at <= now_ts {
+                        // 去重：避免同一秒多次触发
+                        if r.last_trigger_at
+                            .map(|t| now_ts.saturating_sub(t) < 2)
+                            .unwrap_or(false)
+                        {
+                            continue;
+                        }
+
+                        due.push(ReminderAlertPayload {
+                            id: r.id.clone(),
+                            text: r.text.to_string(),
+                            scheduled_at: r.next_trigger_at,
+                            fired_at: now_ts,
+                        });
+
+                        r.last_trigger_at = Some(now_ts);
+
+                        match &r.schedule {
+                            ReminderSchedule::Weekly { days, hour, minute } => {
+                                r.next_trigger_at =
+                                    compute_next_weekly_trigger_at(now_ts, days, *hour, *minute);
+                            }
+                            ReminderSchedule::Absolute { .. } | ReminderSchedule::After { .. } => {
+                                // 一次性提醒触发后自动关闭
+                                r.enabled = false;
+                            }
+                        }
+
+                        changed = true;
+                    }
+                }
+
+                if changed {
+                    let _ = storage.save();
+                }
+            }
+
+            if due.is_empty() {
+                continue;
+            }
+
+            // 写入待展示队列（提示窗口启动时可读取）
+            if let Ok(mut guard) = PENDING_REMINDER_ALERTS.lock() {
+                guard.extend(due.clone());
+                // 防止无界增长
+                if guard.len() > 50 {
+                    let extra = guard.len() - 50;
+                    guard.drain(0..extra);
+                }
+            }
+
+            // 弹出提示窗口（单窗口复用）
+            let config = WindowConfig {
+                label: WINDOW_LABEL_REMINDER_ALERT,
+                url: "reminder_alert",
+                title_key: "common.reminderAlertTitle",
+                width: 480.0,
+                height: 360.0,
+                resizable: true,
+                center: true,
+                destroy_on_close: true,
+            };
+            show_or_create_window(&app_handle, config);
+
+            // 推送更新事件（窗口已存在时可实时追加）
+            let _ = emit(&app_handle, "reminder-alert-update", &due);
+        }
+    });
+}
+
+
 /// 保存动画窗口位置
 ///
 /// 注意：保存的 y 是动画区域顶部的位置（窗口 y + 气泡区域高度），
@@ -2521,6 +2759,13 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
       true,
       None::<&str>,
     )?;
+    let reminder_i = MenuItem::with_id(
+      app,
+      "reminder",
+      get_i18n_text(app, "menu.reminder"),
+      true,
+      None::<&str>,
+    )?;
     let mod_i = MenuItem::with_id(
       app,
       "mod",
@@ -2598,6 +2843,8 @@ fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
             &mod_i,
             &settings_i,
             &memo_i,
+            &reminder_i,
+
 
             &sep2,
             &streamer_mode_i,
@@ -2653,7 +2900,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
             app.exit(0)
         }
-        "about" | "settings" | "mod" | "debugger" | "memo" => {
+        "about" | "settings" | "mod" | "debugger" | "memo" | "reminder" => {
             // 优化：对于这些工具窗口，如果已经打开，尝试聚焦；
             // 考虑未来改为关闭即销毁，而不是隐藏
             let label = match id {
@@ -2661,6 +2908,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 "settings" => "settings",
                 "mod" => "mods",
                 "memo" => WINDOW_LABEL_MEMO,
+                "reminder" => WINDOW_LABEL_REMINDER,
                 "debugger" => WINDOW_LABEL_MAIN,
                 _ => id
             };
@@ -2711,6 +2959,16 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                     url: "memo",
                     title_key: "common.memoTitle",
                     width: 720.0,
+                    height: 760.0,
+                    resizable: true,
+                    center: true,
+                    destroy_on_close: true,
+                },
+                "reminder" => WindowConfig {
+                    label: WINDOW_LABEL_REMINDER,
+                    url: "reminder",
+                    title_key: "common.reminderTitle",
+                    width: 760.0,
                     height: 760.0,
                     resizable: true,
                     center: true,
@@ -3365,7 +3623,11 @@ fn start_background_services(app_handle: &tauri::AppHandle) {
     // 启动进程监测器（独立线程，无锁）
     start_process_observer(app_handle.clone());
 
+    // 启动定时提醒调度器（独立线程，无锁）
+    start_reminder_scheduler(app_handle.clone());
+
     // 启动系统状态观察器（独立线程，无锁）
+
 
     {
         let observer = SystemObserver::new();
@@ -3504,7 +3766,11 @@ fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
     // 启动媒体监听器
     start_media_observer(app_handle.clone(), is_silence_mode);
 
+    // 启动定时提醒调度器（独立线程，无锁）
+    start_reminder_scheduler(app_handle.clone());
+
     // 启动系统状态观察器（独立线程，无锁）
+
     {
         let observer = SystemObserver::new();
         observer.start(app_handle.clone());
