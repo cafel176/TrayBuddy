@@ -14,13 +14,16 @@
     "3dsmax",
     "Cinema",
     "Figma",
-    "Code",
     "devenv",
     "idea",
+    "rider",
     "pycharm",
     "webstorm",
     "Unity",
     "UnrealEditor",
-    "studio"
+    "codebuddy",
+    "comfyUI",
+    "cursor",
+    "antigravity"
   ]
 }

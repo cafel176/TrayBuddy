@@ -10,7 +10,7 @@
 #![allow(unused)]
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::mpsc;
@@ -149,9 +149,20 @@ const TIME_FORMAT_SHORT: &str = "%H:%M:%S";
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessNewProcessInfo {
     pub pid: u32,
+    pub parent_pid: u32,
+    pub is_child: bool,
     pub process_name: Box<str>,
     pub matched_keyword: Option<Box<str>>,
 }
+
+
+#[derive(Debug, Clone)]
+struct ProcessInfo {
+    pid: u32,
+    parent_pid: u32,
+    exe_name: String,
+}
+
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessDebugInfo {
@@ -275,10 +286,11 @@ impl ProcessObserver {
         let initial = Self::enumerate_processes();
         let mut seen_pids: HashSet<u32> = HashSet::new();
         let mut prev_names: HashSet<String> = HashSet::new();
-        for (pid, exe_name) in initial {
-            seen_pids.insert(pid);
-            prev_names.insert(exe_name.to_lowercase());
+        for p in initial {
+            seen_pids.insert(p.pid);
+            prev_names.insert(p.exe_name.to_lowercase());
         }
+
 
         // 用于调试窗口展示
         let mut last_matched: Option<ProcessStartEvent> = None;
@@ -319,20 +331,29 @@ impl ProcessObserver {
             let processes = Self::enumerate_processes();
             let mut current_pids: HashSet<u32> = HashSet::new();
             let mut current_names: HashSet<String> = HashSet::new();
-            let mut new_processes: Vec<(u32, String, bool)> = Vec::new();
+            let mut new_processes: Vec<(u32, u32, String, bool, bool)> = Vec::new();
 
-            for (pid, exe_name) in processes {
-                current_pids.insert(pid);
+            // 先构建当前快照集合（用于判断父进程是否存在）
+            for p in processes.iter() {
+                current_pids.insert(p.pid);
+                let name_key = p.exe_name.to_lowercase();
+                current_names.insert(name_key);
+            }
 
-                let name_key = exe_name.to_lowercase();
-                current_names.insert(name_key.clone());
+            for p in processes {
+                let name_key = p.exe_name.to_lowercase();
 
-                if !seen_pids.contains(&pid) {
+                if !seen_pids.contains(&p.pid) {
                     // 若该进程名在上一轮已存在，说明是同一应用启动过程/运行过程中新拉起的子进程，避免重复触发。
                     let name_was_present = prev_names.contains(&name_key);
-                    new_processes.push((pid, exe_name, name_was_present));
+
+                    // 子进程判定：父进程 PID 在当前快照中存在
+                    let is_child = p.parent_pid != 0 && current_pids.contains(&p.parent_pid);
+
+                    new_processes.push((p.pid, p.parent_pid, p.exe_name, name_was_present, is_child));
                 }
             }
+
 
             let current_pid_count = current_pids.len();
 
@@ -344,14 +365,18 @@ impl ProcessObserver {
             // 本轮新增进程（用于 debug 展示，限制长度避免过大）
             last_new_processes.clear();
 
-            // 逐个处理新增进程
-            for (pid, exe_name, name_was_present) in new_processes {
-                // 关键字为空时不做匹配，但仍记录到 debug（方便确认进程名/命中逻辑）
-                let keywords_empty = PROCESS_KEYWORDS
-                    .read()
-                    .map(|g| g.is_empty())
-                    .unwrap_or(true);
+            // 关键字为空时不做匹配，但仍记录到 debug（方便确认进程名/命中逻辑）
+            let keywords_empty = PROCESS_KEYWORDS
+                .read()
+                .map(|g| g.is_empty())
+                .unwrap_or(true);
 
+            // 只触发“每个进程名”一次：优先非子进程；若只有子进程，则允许触发一次
+            let mut candidates: HashMap<String, (u32, String, Box<str>, bool)> = HashMap::new();
+
+
+            // 逐个处理新增进程
+            for (pid, _parent_pid, exe_name, name_was_present, is_child) in new_processes {
                 let matched = if keywords_empty {
                     None
                 } else {
@@ -361,9 +386,12 @@ impl ProcessObserver {
                 // 记录用于 debug
                 last_new_processes.push(ProcessNewProcessInfo {
                     pid,
+                    parent_pid: _parent_pid,
+                    is_child,
                     process_name: exe_name.clone().into_boxed_str(),
                     matched_keyword: matched.clone(),
                 });
+
                 if last_new_processes.len() > 12 {
                     last_new_processes.remove(0);
                 }
@@ -374,17 +402,33 @@ impl ProcessObserver {
                     continue;
                 }
 
-                if let Some(matched_keyword) = matched {
-                    let event = ProcessStartEvent {
-                        pid,
-                        process_name: exe_name.into_boxed_str(),
-                        matched_keyword,
-                    };
+                let Some(matched_keyword) = matched else {
+                    continue;
+                };
 
-                    last_matched = Some(event.clone());
-                    let _ = tx.send(event);
+                let name_key = exe_name.to_lowercase();
+                let should_replace = match candidates.get(&name_key) {
+                    None => true,
+                    Some((_, _, _, existing_is_child)) => *existing_is_child && !is_child,
+                };
+
+                if should_replace {
+                    candidates.insert(name_key, (pid, exe_name, matched_keyword, is_child));
                 }
             }
+
+            // 触发候选：优先非子进程；若只有子进程则至少触发一次
+            for (_name_key, (pid, exe_name, matched_keyword, _is_child)) in candidates {
+                let event = ProcessStartEvent {
+                    pid,
+                    process_name: exe_name.into_boxed_str(),
+                    matched_keyword,
+                };
+
+                last_matched = Some(event.clone());
+                let _ = tx.send(event);
+            }
+
 
 
             // 生成并推送 debug 信息（仿照 media_observer）
@@ -416,11 +460,12 @@ impl ProcessObserver {
     #[cfg(target_os = "windows")]
     fn snapshot_pids() -> HashSet<u32> {
         let mut set = HashSet::new();
-        for (pid, _name) in Self::enumerate_processes() {
-            set.insert(pid);
+        for p in Self::enumerate_processes() {
+            set.insert(p.pid);
         }
         set
     }
+
 
     #[cfg(target_os = "windows")]
     fn snapshot_with_new(
@@ -429,25 +474,28 @@ impl ProcessObserver {
         let mut current = HashSet::new();
         let mut new_processes = Vec::new();
 
-        for (pid, name) in Self::enumerate_processes() {
-            current.insert(pid);
-            if !seen.contains(&pid) {
-                new_processes.push((pid, name));
+        for p in Self::enumerate_processes() {
+            current.insert(p.pid);
+            if !seen.contains(&p.pid) {
+                new_processes.push((p.pid, p.exe_name));
             }
         }
 
         (current, new_processes)
     }
 
+
     #[cfg(target_os = "windows")]
-    fn enumerate_processes() -> Vec<(u32, String)> {
+    fn enumerate_processes() -> Vec<ProcessInfo> {
+
         use windows::Win32::Foundation::{CloseHandle, HANDLE};
         use windows::Win32::System::Diagnostics::ToolHelp::{
             CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
             TH32CS_SNAPPROCESS,
         };
 
-        let mut out = Vec::new();
+        let mut out: Vec<ProcessInfo> = Vec::new();
+
 
         unsafe {
             let snapshot: HANDLE = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
@@ -461,6 +509,8 @@ impl ProcessObserver {
             let mut ok = Process32FirstW(snapshot, &mut entry).is_ok();
             while ok {
                 let pid = entry.th32ProcessID;
+                let parent_pid = entry.th32ParentProcessID;
+
 
                 // szExeFile 是以 \0 结尾的 UTF-16 buffer
                 let exe_name = {
@@ -471,8 +521,13 @@ impl ProcessObserver {
 
                 // 过滤空名称
                 if !exe_name.is_empty() {
-                    out.push((pid, exe_name));
+                    out.push(ProcessInfo {
+                        pid,
+                        parent_pid,
+                        exe_name,
+                    });
                 }
+
 
                 ok = Process32NextW(snapshot, &mut entry).is_ok();
             }

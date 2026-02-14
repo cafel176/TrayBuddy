@@ -34,6 +34,7 @@
     "resources": {
       "../mods/cat": "mods/cat",
       "../mods/ema": "mods/ema",
+      "../mods/ema3": "mods/ema3",
       "../mods/jump": "mods/jump",
       "../mods/knight": "mods/knight",
       "../mods/machine": "mods/machine",

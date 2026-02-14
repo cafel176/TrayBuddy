@@ -309,8 +309,11 @@
     "lastNewProcesses": "最近新进程",
     "noNewProcesses": "本轮无新进程",
     "pid": "PID",
+    "ppid": "父 PID",
+    "isChild": "是否子进程",
     "processName": "进程名",
     "matchedKeyword": "命中关键字"
+
   },
   "system": {
     "title": "系统观察器调试",

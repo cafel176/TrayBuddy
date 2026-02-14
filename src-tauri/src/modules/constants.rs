@@ -144,6 +144,12 @@ pub const EVENT_MUSIC_END: &str = "music_end";
 /// 工作事件（由“进程监测”等后台功能触发）
 pub const EVENT_WORK: &str = "work";
 
+/// work 事件最小触发间隔（秒）
+///
+/// **用途**: 进程监测触发 work 时的节流，避免短时间内重复触发。
+pub const WORK_EVENT_COOLDOWN_SECS: i64 = 5 * 60;
+
+
 /// Animation 窗口开始拖动事件
 pub const EVENT_ANIMATION_DRAG_START: &str = "drag_start";
 

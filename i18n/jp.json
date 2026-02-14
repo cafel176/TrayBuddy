@@ -309,8 +309,11 @@
     "lastNewProcesses": "最近の新規プロセス",
     "noNewProcesses": "直近の検出で新規プロセスなし",
     "pid": "PID",
+    "ppid": "親 PID",
+    "isChild": "子プロセス",
     "processName": "プロセス名",
     "matchedKeyword": "一致キーワード"
+
   },
   "system": {
     "title": "システム監視デバッガー",

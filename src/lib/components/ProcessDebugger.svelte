@@ -45,9 +45,12 @@
 
   interface ProcessNewProcessInfo {
     pid: number;
+    parent_pid: number;
+    is_child: boolean;
     process_name: string;
     matched_keyword: string | null;
   }
+
 
   interface ProcessDebugInfo {
     observer_running: boolean;
@@ -229,7 +232,10 @@
               <div class="left">
                 <span class="name">{p.process_name}</span>
                 <span class="pid">{_("process.pid")} {p.pid}</span>
+                <span class="pid">{_("process.ppid")} {p.parent_pid}</span>
+                <span class="pid">{_("process.isChild")} {p.is_child ? _( "common.yes") : _("common.no")}</span>
               </div>
+
               <div class="right">
                 {#if p.matched_keyword}
                   <span class="tag hit">{p.matched_keyword}</span>

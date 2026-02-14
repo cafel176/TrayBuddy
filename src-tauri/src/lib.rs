@@ -37,8 +37,9 @@ use modules::constants::{
     STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MEMO,
     WINDOW_LABEL_MODS, WINDOW_LABEL_REMINDER, WINDOW_LABEL_REMINDER_ALERT, WINDOW_LABEL_SETTINGS,
-    EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK
+    EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK, WORK_EVENT_COOLDOWN_SECS
 };
+
 use modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
 use modules::environment::{
     get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
@@ -99,6 +100,10 @@ static BACKGROUND_SERVICES_STARTED: std::sync::atomic::AtomicBool = std::sync::a
 /// 待展示的提醒弹窗队列（提醒调度线程写入，提示窗口读取）
 static PENDING_REMINDER_ALERTS: std::sync::Mutex<Vec<ReminderAlertPayload>> =
     std::sync::Mutex::new(Vec::new());
+
+/// 进程触发 work 事件的节流时间（Unix 秒）
+static LAST_WORK_EVENT_AT: std::sync::Mutex<Option<i64>> = std::sync::Mutex::new(None);
+
 
 // ========================================================================= //
 // 日期验证常量
@@ -2291,8 +2296,8 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
             while let Some(ProcessStartEvent { pid, process_name, matched_keyword }) = rx.recv().await {
                 let app_state: State<AppState> = app_handle.state();
 
-
                 // 免打扰模式下不触发 work
+
                 let is_silence = {
                     let storage = app_state.storage.lock().unwrap();
                     storage.data.settings.silence_mode
@@ -2319,6 +2324,21 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
 
 
 
+                // work 事件节流：间隔不足则跳过
+                let now_ts = chrono::Local::now().timestamp();
+                let should_fire = {
+                    let mut guard = LAST_WORK_EVENT_AT.lock().unwrap();
+                    let ok = guard.map_or(true, |last| now_ts - last >= WORK_EVENT_COOLDOWN_SECS);
+                    if ok {
+                        *guard = Some(now_ts);
+                    }
+                    ok
+                };
+
+                if !should_fire {
+                    continue;
+                }
+
                 #[cfg(debug_assertions)]
                 println!(
                     "[ProcessObserver] New process matched: pid={}, name={}, keyword={}",
@@ -2328,6 +2348,7 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
                 let rm = app_state.resource_manager.lock().unwrap();
                 let mut sm = app_state.state_manager.lock().unwrap();
                 let _ = TriggerManager::trigger_event(EVENT_WORK, false, &rm, &mut sm);
+
 
             }
         });

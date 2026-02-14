@@ -309,8 +309,11 @@
     "lastNewProcesses": "Recent new processes",
     "noNewProcesses": "No new processes in last poll",
     "pid": "PID",
+    "ppid": "PPID",
+    "isChild": "Is child",
     "processName": "Process",
     "matchedKeyword": "Matched keyword"
+
   },
   "system": {
     "title": "System Observer Debugger",
