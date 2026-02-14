@@ -374,7 +374,44 @@
     grid-template-columns: 160px 1fr 96px;
     gap: 8px;
     align-items: start;
+
+    /* 顶部“新增备忘录”区域：改为与“该分类暂无备忘录”所在分类面板一致的底色 */
+    padding: 10px;
+    border-radius: 16px;
+    background: linear-gradient(
+      180deg,
+      rgba(15, 23, 42, 0.92) 0%,
+      rgba(17, 24, 39, 0.82) 100%
+    );
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow:
+      0 18px 46px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
   }
+
+
+  /* 顶部输入区在深色面板上也采用暗色输入风格 */
+  .toolbar .category,
+  .toolbar .content {
+    background: rgba(2, 6, 23, 0.35);
+    border-color: rgba(148, 163, 184, 0.18);
+    color: rgba(226, 232, 240, 0.95);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .toolbar .btn {
+    background: rgba(2, 6, 23, 0.32);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: rgba(226, 232, 240, 0.95);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .toolbar .btn:hover {
+    background: rgba(2, 6, 23, 0.42);
+  }
+
+
 
 
   .category,
