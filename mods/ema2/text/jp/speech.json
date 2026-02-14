@@ -163,5 +163,55 @@
     "name": "ema_birthday_button",
     "text": "今日はあなたの誕生日です",
     "duration": 3
+  },
+  {
+    "name": "work",
+    "text": "ねえ、これからお仕事するの？\nおつかれさま、無理しすぎないでね。",
+    "duration": 3
+  },
+  {
+    "name": "long_time",
+    "text": "今日、ちょっと疲れてるみたい……\n早めに休んでもいいんじゃないかな。",
+    "duration": 3
+  },
+  {
+    "name": "every_hour",
+    "text": "もうずいぶん長く頑張ってたよね、いったん立って背伸びしよ？",
+    "duration": 3
+  },
+  {
+    "name": "random5_1",
+    "text": "少しくらい力を抜いても大丈夫だよ、ボクがそばにいるから。",
+    "duration": 3
+  },
+  {
+    "name": "random6_1",
+    "text": "今日は、ボクたちが出会って{days_used}日目だよね……\nなんか嬉しいな。",
+    "duration": 3
+  },
+  {
+    "name": "random7_1",
+    "text": "おかえり……\nずっと待ってたんだ、会えてよかった。",
+    "duration": 3
+  },
+  {
+    "name": "cold",
+    "text": "ねえ、最近寒くなってきたよね……\nボクちょっと心配。ちゃんとあったかくしてね？",
+    "duration": 3
+  },
+  {
+    "name": "hot",
+    "text": "暑くなってきたね……\n無理しないで、水分とって涼しくしてね。",
+    "duration": 3
+  },
+  {
+    "name": "rain",
+    "text": "外、雨降ってるみたい……\n傘、忘れないでね。",
+    "duration": 3
+  },
+  {
+    "name": "snow",
+    "text": "外、雪だよ……\n足元すべりやすいから気をつけて。転んだらダメだよ？",
+    "duration": 3
   }
 ]

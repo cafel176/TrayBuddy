@@ -44,22 +44,54 @@
         {
           "state": "random4_1",
           "weight": 1
+        },
+        {
+          "state": "every_hour",
+          "weight": 1
+        },
+        {
+          "state": "long_time",
+          "weight": 1
+        },
+        {
+          "state": "random5_1",
+          "weight": 1
+        },
+        {
+          "state": "random6_1",
+          "weight": 1
+        },
+        {
+          "state": "cold",
+          "weight": 1
+        },
+        {
+          "state": "hot",
+          "weight": 1
+        },
+        {
+          "state": "rain",
+          "weight": 1
+        },
+        {
+          "state": "snow",
+          "weight": 1
         }
       ],
       "trigger_time": 600,
-      "trigger_rate": 0.3,
-      "branch": [],
+      "trigger_rate": 0.75,
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": true,
       "mod_data_counter": {
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true,
-      "trigger_uptime": 0
+      "branch": []
     },
     "silence": {
       "name": "silence",
@@ -1211,6 +1243,274 @@
       "mod_data_counter": null,
       "branch": [],
       "trigger_uptime": 0
+    },
+    {
+      "name": "work",
+      "persistent": false,
+      "anima": "",
+      "audio": "work",
+      "text": "work",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "long_time",
+      "persistent": false,
+      "anima": "",
+      "audio": "long_time",
+      "text": "long_time",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "23:00",
+      "time_end": "07:00",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "every_hour",
+      "persistent": false,
+      "anima": "",
+      "audio": "every_hour",
+      "text": "every_hour",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 60,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "random5_1",
+      "persistent": false,
+      "anima": "wink",
+      "audio": "random5_1",
+      "text": "random5_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "random6_1",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "random6_1",
+      "text": "random6_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "random7_1",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "random7_1",
+      "text": "random7_1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "cold",
+      "persistent": false,
+      "anima": "",
+      "audio": "cold",
+      "text": "cold",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 10,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "hot",
+      "persistent": false,
+      "anima": "",
+      "audio": "hot",
+      "text": "hot",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": 30,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "rain",
+      "persistent": false,
+      "anima": "",
+      "audio": "rain",
+      "text": "rain",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [
+        "176",
+        "293",
+        "299",
+        "302",
+        "305",
+        "308",
+        "311",
+        "314"
+      ],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
+    },
+    {
+      "name": "snow",
+      "persistent": false,
+      "anima": "",
+      "audio": "snow",
+      "text": "snow",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [
+        "179",
+        "227",
+        "323",
+        "326",
+        "329",
+        "332",
+        "335",
+        "338"
+      ],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": []
     }
   ],
   "triggers": [
@@ -1246,6 +1546,34 @@
             },
             {
               "state": "ema_birthday_1",
+              "weight": 1
+            },
+            {
+              "state": "random5_1",
+              "weight": 1
+            },
+            {
+              "state": "random6_1",
+              "weight": 1
+            },
+            {
+              "state": "random7_1",
+              "weight": 1
+            },
+            {
+              "state": "cold",
+              "weight": 1
+            },
+            {
+              "state": "hot",
+              "weight": 1
+            },
+            {
+              "state": "rain",
+              "weight": 1
+            },
+            {
+              "state": "snow",
               "weight": 1
             }
           ],
@@ -1295,6 +1623,34 @@
             },
             {
               "state": "ema_birthday_1",
+              "weight": 1
+            },
+            {
+              "state": "random5_1",
+              "weight": 1
+            },
+            {
+              "state": "random6_1",
+              "weight": 1
+            },
+            {
+              "state": "random7_1",
+              "weight": 1
+            },
+            {
+              "state": "cold",
+              "weight": 1
+            },
+            {
+              "state": "hot",
+              "weight": 1
+            },
+            {
+              "state": "rain",
+              "weight": 1
+            },
+            {
+              "state": "snow",
               "weight": 1
             }
           ],
@@ -1430,6 +1786,21 @@
         {
           "persistent_state": "",
           "states": [],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "work",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "work",
+              "weight": 1
+            }
+          ],
           "allow_repeat": true
         }
       ]

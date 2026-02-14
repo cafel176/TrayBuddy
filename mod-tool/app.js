@@ -4503,6 +4503,14 @@ function renderSpeechTexts() {
   const nameNeedle = nameNeedleRaw.toLowerCase();
   const containsNeedle = containsNeedleRaw.toLowerCase();
 
+  // “新增同名状态”按钮启用条件：该名称的状态不存在
+  const existingStateNamesSet = new Set(
+    getAllStateNames()
+      .map(n => String(n || '').trim())
+      .filter(Boolean)
+  );
+
+
   speeches.forEach((speech, index) => {
     const speechName = String(speech?.name || '');
     const speechText = String(speech?.text || '');
@@ -4556,6 +4564,14 @@ function renderSpeechTexts() {
     `;
 
 
+    const trimmedSpeechName = speechName.trim();
+    const canAddSameNameState = !!trimmedSpeechName && !existingStateNamesSet.has(trimmedSpeechName);
+    const addSameNameStateBtnHtml = `
+      <button class="btn btn-sm btn-secondary" onclick="addSameNameStateFromSpeechText(${index})" ${canAddSameNameState ? '' : 'disabled'}>
+        ➕ <span>${window.i18n.t('btn_add_same_name_state')}</span>
+      </button>
+    `;
+
     item.innerHTML = `
       <div class="speech-item-header">
         <div class="tb-title-with-handle">
@@ -4563,12 +4579,14 @@ function renderSpeechTexts() {
           ${nameFieldHtml}
         </div>
         <div class="speech-item-actions">
+          ${addSameNameStateBtnHtml}
           <button class="btn btn-sm btn-ghost" onclick="deleteSpeechText(${index})">🗑️</button>
         </div>
       </div>
       ${textFieldHtml}
       ${durationFieldHtml}
     `;
+
 
     list.appendChild(item);
 
@@ -4754,6 +4772,60 @@ function deleteSpeechText(index) {
   renderSpeechTexts();
   markUnsaved();
 }
+
+function doesAnyAudioEntryExistByName(name) {
+  if (!currentMod) return false;
+  const target = String(name || '').trim();
+  if (!target) return false;
+
+  const audioObj = currentMod.audio || {};
+  for (const arr of Object.values(audioObj)) {
+    if (!Array.isArray(arr)) continue;
+    if (arr.some(a => String(a?.name || '').trim() === target)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function addSameNameStateFromSpeechText(index) {
+  if (!currentMod || currentMod.textSpeechEnabled !== true) return;
+
+  const speech = currentMod.texts[currentTextLang]?.speech?.[index];
+  const speechName = String(speech?.name || '').trim();
+
+  if (!speechName) {
+    showToast(window.i18n.t('msg_enter_text_name') || '请先填写文本名称', 'warning');
+    return;
+  }
+
+  const exists = getAllStateNames().some(n => String(n || '').trim() === speechName);
+  if (exists) {
+    showToast(window.i18n.t('msg_state_same_name_exists') || '已存在同名状态', 'warning');
+    return;
+  }
+
+  if (!currentMod.manifest.states) {
+    currentMod.manifest.states = [];
+  }
+
+  const state = createDefaultState(speechName, false);
+  state.text = speechName;
+
+  // 若任意语言音频存在同名条目，则自动关联该音频
+  if (doesAnyAudioEntryExistByName(speechName)) {
+    state.audio = speechName;
+  }
+
+  currentMod.manifest.states.push(state);
+
+  renderStates();
+  renderSpeechTexts();
+  markUnsaved();
+  showToast(window.i18n.t('msg_state_created_from_text') || '已创建同名状态', 'success');
+}
+
 
 // ============================================================================
 // 音频管理

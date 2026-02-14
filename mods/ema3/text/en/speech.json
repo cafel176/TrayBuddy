@@ -93,5 +93,55 @@
     "name": "ema_birthday_button",
     "text": "Today is your birthday.",
     "duration": 3
+  },
+  {
+    "name": "work",
+    "text": "欸，你现在要开始工作了吗？\n辛苦了，别太勉强自己哦。",
+    "duration": 3
+  },
+  {
+    "name": "long_time",
+    "text": "你今天看起来有点累……\n要不要早点休息比较好呢？",
+    "duration": 3
+  },
+  {
+    "name": "every_hour",
+    "text": "你已经忙了很久了吧，先站起来伸伸懒腰休息一下好吗？",
+    "duration": 3
+  },
+  {
+    "name": "random5_1",
+    "text": "稍微放松一点也没关系哦，我会在你身边陪着你的。",
+    "duration": 3
+  },
+  {
+    "name": "random6_1",
+    "text": "今天是我们认识的第{days_used}天呢……\n不知怎么的，我有点开心。",
+    "duration": 3
+  },
+  {
+    "name": "random7_1",
+    "text": "欢迎回来……\n我一直在等你，能见到你真好。",
+    "duration": 3
+  },
+  {
+    "name": "cold",
+    "text": "天气变冷了呢……\n我有点担心，你要好好保暖哦？",
+    "duration": 3
+  },
+  {
+    "name": "hot",
+    "text": "天气变热了呢……\n别太勉强自己，记得补水避暑哦。",
+    "duration": 3
+  },
+  {
+    "name": "rain",
+    "text": "外面下雨了呢……\n记得带伞哦。",
+    "duration": 3
+  },
+  {
+    "name": "snow",
+    "text": "外面下雪了呢……\n路面可能很滑要小心哦，别摔倒了好吗？",
+    "duration": 3
   }
 ]

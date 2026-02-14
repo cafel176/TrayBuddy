@@ -147,6 +147,8 @@
   "char_desc_label": "Char Description",
   "section_speech_texts": "Dialogues (speech.json)",
   "btn_add_text": "Add Text",
+  "btn_add_same_name_state": "Create State",
+
   "filter_by_name": "Filter by name",
   "filter_by_content": "Content contains",
   "filter_by_path": "Path contains",
@@ -295,6 +297,10 @@
   "msg_state_saved": "State saved",
   "msg_state_deleted": "State deleted",
   "msg_enter_state_name": "Please enter state name",
+  "msg_enter_text_name": "Please enter the text name first.",
+  "msg_state_same_name_exists": "A state with the same name already exists.",
+  "msg_state_created_from_text": "Created state with the same name.",
+
   "msg_trigger_added": "Trigger added",
   "msg_trigger_updated": "Trigger updated",
   "msg_trigger_saved": "Trigger saved",

@@ -147,6 +147,8 @@
   "char_desc_label": "角色描述",
   "section_speech_texts": "对话文本 (speech.json)",
   "btn_add_text": "添加文本",
+  "btn_add_same_name_state": "新增同名状态",
+
   "filter_by_name": "按名称筛选",
   "filter_by_content": "内容包含",
   "filter_by_path": "路径包含",
@@ -295,6 +297,10 @@
   "msg_state_saved": "状态已保存",
   "msg_state_deleted": "状态已删除",
   "msg_enter_state_name": "请输入状态名称",
+  "msg_enter_text_name": "请先填写文本名称",
+  "msg_state_same_name_exists": "已存在同名状态",
+  "msg_state_created_from_text": "已创建同名状态",
+
   "msg_trigger_added": "触发器已添加",
   "msg_trigger_updated": "触发器已更新",
   "msg_trigger_saved": "触发器已保存",

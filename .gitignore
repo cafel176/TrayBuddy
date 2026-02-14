@@ -15,3 +15,5 @@ vite.config.ts.timestamp-*
 check-tool/memory_profile/Logs/
 check-tool/bundle_analyzer/Logs/
 *.log
+
+text_list/data

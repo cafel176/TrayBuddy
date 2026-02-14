@@ -147,6 +147,8 @@
   "char_desc_label": "キャラクター説明",
   "section_speech_texts": "対話テキスト (speech.json)",
   "btn_add_text": "テキストを追加",
+  "btn_add_same_name_state": "同名状態を追加",
+
   "filter_by_name": "名前で絞り込み",
   "filter_by_content": "内容に含む",
   "filter_by_path": "パスに含む",
@@ -295,6 +297,10 @@
   "msg_state_saved": "状態が保存されました",
   "msg_state_deleted": "状態が削除されました",
   "msg_enter_state_name": "状態名を入力してください",
+  "msg_enter_text_name": "先にテキスト名を入力してください。",
+  "msg_state_same_name_exists": "同名の状態が既に存在します。",
+  "msg_state_created_from_text": "同名の状態を作成しました。",
+
   "msg_trigger_added": "トリガーが追加されました",
   "msg_trigger_updated": "トリガーが更新されました",
   "msg_trigger_saved": "トリガーが保存されました",
