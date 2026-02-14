@@ -38,7 +38,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "silence": {
       "name": "silence",
@@ -62,7 +63,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_start": {
       "name": "silence_start",
@@ -86,7 +88,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_end": {
       "name": "silence_end",
@@ -110,7 +113,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "dragging": {
       "name": "dragging",
@@ -134,7 +138,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_start": {
       "name": "drag_start",
@@ -158,7 +163,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_end": {
       "name": "drag_end",
@@ -182,7 +188,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "music": {
       "name": "music",
@@ -206,7 +213,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_start": {
       "name": "music_start",
@@ -230,7 +238,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_end": {
       "name": "music_end",
@@ -254,7 +263,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "birthday": {
       "name": "birthday",
@@ -278,7 +288,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "firstday": {
       "name": "firstday",
@@ -302,7 +313,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     }
   },
   "states": [
@@ -328,7 +340,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "login_2",
@@ -352,7 +365,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "click",
@@ -389,7 +403,8 @@
           "text": "click_button_b",
           "next_state": "you_b"
         }
-      ]
+      ],
+      "trigger_uptime": 0
     },
     {
       "name": "you_s",
@@ -426,7 +441,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_s_knight_s",
@@ -450,7 +466,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_s_knight_j",
@@ -474,7 +491,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_s_knight_b",
@@ -498,7 +516,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_j",
@@ -535,7 +554,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_j_knight_s",
@@ -559,7 +579,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_j_knight_j",
@@ -583,7 +604,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_j_knight_b",
@@ -607,7 +629,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_b",
@@ -644,7 +667,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_b_knight_s",
@@ -668,7 +692,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_b_knight_j",
@@ -692,7 +717,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "you_b_knight_b",
@@ -716,7 +742,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "win_1",
@@ -743,7 +770,8 @@
         "op": "add",
         "value": 1
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "win_2",
@@ -767,7 +795,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "lose",
@@ -791,7 +820,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "none",
@@ -815,7 +845,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "ping",
@@ -839,7 +870,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     }
   ],
   "triggers": [

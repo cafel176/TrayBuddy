@@ -148,7 +148,7 @@
     "frame_time": 0.1,
     "frame_size_x": 382,
     "frame_size_y": 512,
-    "frame_num_x": 6,
+    "frame_num_x": 7,
     "frame_num_y": 5,
     "offset_x": 0,
     "offset_y": 0
@@ -178,6 +178,48 @@
     "frame_size_y": 512,
     "frame_num_x": 6,
     "frame_num_y": 6,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
+    "name": "drag",
+    "img": "sequence/drag.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 382,
+    "frame_size_y": 512,
+    "frame_num_x": 8,
+    "frame_num_y": 4,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
+    "name": "drag_start",
+    "img": "sequence/drag_start.webp",
+    "sequence": true,
+    "origin_reverse": false,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 382,
+    "frame_size_y": 512,
+    "frame_num_x": 7,
+    "frame_num_y": 5,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  {
+    "name": "drag_end",
+    "img": "sequence/drag_start.webp",
+    "sequence": true,
+    "origin_reverse": true,
+    "need_reverse": false,
+    "frame_time": 0.1,
+    "frame_size_x": 382,
+    "frame_size_y": 512,
+    "frame_num_x": 7,
+    "frame_num_y": 5,
     "offset_x": 0,
     "offset_y": 0
   }

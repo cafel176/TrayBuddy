@@ -38,7 +38,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "silence": {
       "name": "silence",
@@ -62,7 +63,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_start": {
       "name": "silence_start",
@@ -86,7 +88,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_end": {
       "name": "silence_end",
@@ -110,7 +113,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "dragging": {
       "name": "dragging",
@@ -134,7 +138,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_start": {
       "name": "drag_start",
@@ -158,7 +163,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_end": {
       "name": "drag_end",
@@ -182,7 +188,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "music": {
       "name": "music",
@@ -206,7 +213,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "music_start": {
       "name": "music_start",
@@ -230,7 +238,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_end": {
       "name": "music_end",
@@ -254,7 +263,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "birthday": {
       "name": "birthday",
@@ -278,7 +288,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "firstday": {
       "name": "firstday",
@@ -302,7 +313,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     }
   },
   "states": [
@@ -328,7 +340,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk2",
@@ -352,7 +365,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk3",
@@ -376,7 +390,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk4",
@@ -400,7 +415,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk5",
@@ -424,7 +440,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk6",
@@ -448,7 +465,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk7",
@@ -472,7 +490,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk8",
@@ -496,7 +515,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk9",
@@ -520,7 +540,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk10",
@@ -544,7 +565,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk11",
@@ -568,7 +590,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk12",
@@ -592,7 +615,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "talk13",
@@ -616,7 +640,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     }
   ],
   "triggers": [

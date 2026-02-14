@@ -43,7 +43,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "silence": {
       "name": "silence",
@@ -67,7 +68,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "silence_start": {
       "name": "silence_start",
@@ -91,7 +93,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_end": {
       "name": "silence_end",
@@ -115,7 +118,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "dragging": {
       "name": "dragging",
@@ -139,7 +143,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_start": {
       "name": "drag_start",
@@ -163,7 +168,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_end": {
       "name": "drag_end",
@@ -187,7 +193,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "music": {
       "name": "music",
@@ -216,7 +223,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "music_start": {
       "name": "music_start",
@@ -240,7 +248,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_end": {
       "name": "music_end",
@@ -264,7 +273,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "birthday": {
       "name": "birthday",
@@ -288,7 +298,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "firstday": {
       "name": "firstday",
@@ -312,7 +323,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     }
   },
   "states": [
@@ -347,7 +359,8 @@
           "text": "",
           "next_state": "none"
         }
-      ]
+      ],
+      "trigger_uptime": 0
     },
     {
       "name": "event_start",
@@ -371,7 +384,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "jump",
@@ -398,7 +412,8 @@
         "op": "add",
         "value": 1
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "none",
@@ -422,7 +437,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "login",
@@ -446,7 +462,8 @@
       "trigger_temp_end": 2147483647,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     }
   ],
   "triggers": [

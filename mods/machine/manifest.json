@@ -41,7 +41,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence": {
       "name": "silence",
@@ -68,7 +69,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_start": {
       "name": "silence_start",
@@ -95,7 +97,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_end": {
       "name": "silence_end",
@@ -122,7 +125,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "dragging": {
       "name": "dragging",
@@ -146,7 +150,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_start": {
       "name": "drag_start",
@@ -170,7 +175,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_end": {
       "name": "drag_end",
@@ -194,7 +200,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "music": {
       "name": "music",
@@ -221,7 +228,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_start": {
       "name": "music_start",
@@ -248,7 +256,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_end": {
       "name": "music_end",
@@ -275,7 +284,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "birthday": {
       "name": "birthday",
@@ -302,7 +312,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "firstday": {
       "name": "firstday",
@@ -329,7 +340,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     }
   },
   "states": [
@@ -358,7 +370,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "Initiate_Prize",
@@ -385,7 +398,8 @@
         "op": "sub",
         "value": 1
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "Initiate_No",
@@ -412,7 +426,8 @@
         "op": "sub",
         "value": 1
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "Wiggle_Prize",
@@ -439,7 +454,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "Wiggle_No",
@@ -466,7 +482,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "Prize",
@@ -493,7 +510,8 @@
         "op": "add",
         "value": 10
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "No",
@@ -520,7 +538,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     }
   ],
   "triggers": [

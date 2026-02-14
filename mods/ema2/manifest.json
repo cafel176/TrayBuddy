@@ -58,7 +58,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence": {
       "name": "silence",
@@ -85,7 +86,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_start": {
       "name": "silence_start",
@@ -112,7 +114,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "silence_end": {
       "name": "silence_end",
@@ -139,7 +142,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "dragging": {
       "name": "dragging",
@@ -163,7 +167,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_start": {
       "name": "drag_start",
@@ -187,7 +192,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "drag_end": {
       "name": "drag_end",
@@ -211,7 +217,8 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     "music": {
       "name": "music",
@@ -238,7 +245,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_start": {
       "name": "music_start",
@@ -265,7 +273,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "music_end": {
       "name": "music_end",
@@ -292,7 +301,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "birthday": {
       "name": "birthday",
@@ -319,7 +329,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     "firstday": {
       "name": "firstday",
@@ -351,7 +362,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     }
   },
   "states": [
@@ -380,7 +392,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "noon",
@@ -407,7 +420,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "evening",
@@ -434,7 +448,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "night",
@@ -461,7 +476,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "amazing",
@@ -497,7 +513,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "amaz_cry",
@@ -524,7 +541,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "cry",
@@ -551,7 +569,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "birthday_2",
@@ -578,7 +597,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "firstday_2",
@@ -605,7 +625,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "firstday_3",
@@ -632,7 +653,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "firstday_4",
@@ -659,7 +681,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "random1_1",
@@ -686,7 +709,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "music_random1_1",
@@ -713,7 +737,8 @@
         "op": "add",
         "value": 0
       },
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "trigger_uptime": 0
     },
     {
       "name": "random2_1",
@@ -740,7 +765,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random2_2",
@@ -767,7 +793,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random2_3",
@@ -794,7 +821,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random3_1",
@@ -821,7 +849,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random3_2",
@@ -848,7 +877,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random3_3",
@@ -875,7 +905,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random4_1",
@@ -902,7 +933,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random4_2",
@@ -929,7 +961,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random4_3",
@@ -956,7 +989,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "random4_4",
@@ -983,7 +1017,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "ema_birthday_1",
@@ -1015,7 +1050,8 @@
           "text": "ema_birthday_button",
           "next_state": "ema_birthday_2"
         }
-      ]
+      ],
+      "trigger_uptime": 0
     },
     {
       "name": "ema_birthday_2",
@@ -1042,7 +1078,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "ema_birthday_3",
@@ -1069,7 +1106,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "ema_birthday_4",
@@ -1096,7 +1134,8 @@
         "op": "add",
         "value": 0
       },
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "test1",
@@ -1120,7 +1159,8 @@
       "branch_show_bubble": true,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "test2",
@@ -1144,7 +1184,8 @@
       "branch_show_bubble": true,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     },
     {
       "name": "test3",
@@ -1168,7 +1209,8 @@
       "branch_show_bubble": true,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch": []
+      "branch": [],
+      "trigger_uptime": 0
     }
   ],
   "triggers": [
