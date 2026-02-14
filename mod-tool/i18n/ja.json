@@ -166,6 +166,21 @@
   "audio_desc": "多言語オーディオリソースを管理します",
   "section_audio_files": "オーディオファイル (speech.json)",
   "btn_add_audio": "オーディオを追加",
+  "btn_import_audio": "一括インポート",
+  "btn_import_file": "インポート",
+
+  "msg_import_audio_need_folder": "音声ファイルを取り込むにはフォルダから Mod を開いてください。",
+  "msg_import_audio_no_files": "audio/<lang>/speech/ に音声ファイルが見つかりません。",
+  "msg_import_audio_success": "音声ファイルを {count} 件取り込みました。",
+  "msg_import_audio_failed": "取り込みに失敗しました：フォルダが見つからない、または権限がありません。",
+
+  "btn_import_assets": "一括インポート",
+  "msg_import_assets_need_folder": "画像リソースを取り込むにはフォルダから Mod を開いてください。",
+  "msg_import_assets_no_files": "{dir} に画像ファイルが見つかりません。",
+  "msg_import_assets_success": "画像ファイルを {count} 件取り込みました。",
+  "msg_import_assets_failed": "取り込みに失敗しました：フォルダが見つからない、または権限がありません。",
+
+
   "modal_edit_state": "状態を編集",
   "modal_add_state": "状態を追加",
   "state_name_label": "状態名",

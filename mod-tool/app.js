@@ -703,6 +703,8 @@ function populateAudioSpeechToggle() {
   const checkbox = document.getElementById('audio-speech-enable');
   const fields = document.getElementById('audio-speech-fields');
   const addBtn = document.getElementById('audio-speech-add-btn');
+  const importBtn = document.getElementById('audio-speech-import-btn');
+  const importFileBtn = document.getElementById('audio-speech-import-file-btn');
 
   if (checkbox) checkbox.checked = enabled;
   if (fields) {
@@ -710,7 +712,10 @@ function populateAudioSpeechToggle() {
     fields.classList.toggle('feature-disabled', !enabled);
   }
   if (addBtn) addBtn.disabled = !enabled;
+  if (importBtn) importBtn.disabled = !enabled;
+  if (importFileBtn) importFileBtn.disabled = !enabled;
 }
+
 
 /**
  * 切换标签页
@@ -2212,6 +2217,52 @@ function getAllStateNames() {
 }
 
 /**
+ * 获取所有持久状态名称
+ */
+function getPersistentStateNames() {
+  const stateNames = new Set();
+
+  // 普通状态
+  if (Array.isArray(currentMod.manifest.states)) {
+    currentMod.manifest.states.forEach(s => {
+      if (s && s.name && s.persistent === true) stateNames.add(s.name);
+    });
+  }
+
+  // 重要状态
+  const importantStates = currentMod.manifest.important_states || {};
+  for (const [key, state] of Object.entries(importantStates)) {
+    if (state && state.name && state.persistent === true) stateNames.add(state.name);
+  }
+
+  return Array.from(stateNames);
+}
+
+/**
+ * 获取所有非持久状态名称
+ */
+function getNonPersistentStateNames() {
+  const stateNames = new Set();
+
+  // 普通状态
+  if (Array.isArray(currentMod.manifest.states)) {
+    currentMod.manifest.states.forEach(s => {
+      if (s && s.name && s.persistent !== true) stateNames.add(s.name);
+    });
+  }
+
+  // 重要状态
+  const importantStates = currentMod.manifest.important_states || {};
+  for (const [key, state] of Object.entries(importantStates)) {
+    if (state && state.name && state.persistent !== true) stateNames.add(state.name);
+  }
+
+  return Array.from(stateNames);
+}
+
+
+
+/**
  * 更新音频下拉列表
  */
 function updateAudioSelect(selectElement, currentValue = '') {
@@ -2300,6 +2351,34 @@ function getStateSelectOptions(currentValue = '', excludeState = '') {
   });
   return html;
 }
+
+/**
+ * 生成持久状态下拉选项HTML
+ */
+function getPersistentStateSelectOptions(currentValue = '') {
+  const stateNames = getPersistentStateNames();
+  let html = `<option value="">${window.i18n.t('select_state_placeholder')}</option>`;
+  stateNames.forEach(name => {
+    const selected = name === currentValue ? ' selected' : '';
+    html += `<option value="${name}"${selected}>${name}</option>`;
+  });
+  return html;
+}
+
+/**
+ * 生成非持久状态下拉选项HTML
+ */
+function getNonPersistentStateSelectOptions(currentValue = '') {
+  const stateNames = getNonPersistentStateNames();
+  let html = `<option value="">${window.i18n.t('select_state_placeholder')}</option>`;
+  stateNames.forEach(name => {
+    const selected = name === currentValue ? ' selected' : '';
+    html += `<option value="${name}"${selected}>${name}</option>`;
+  });
+  return html;
+}
+
+
 
 // ============================================================================
 // 状态管理
@@ -2863,7 +2942,8 @@ function renderCanTriggerStates(canTriggerStates) {
     }
     
     div.innerHTML = `
-      <select data-can-trigger-state="${index}">${getStateSelectOptions(stateName)}</select>
+      <select data-can-trigger-state="${index}">${getNonPersistentStateSelectOptions(stateName)}</select>
+
       <input type="number" placeholder="${window.i18n.t('weight_label')}" value="${weight}" min="1" data-can-trigger-weight="${index}" style="width: 80px;">
       <button class="btn btn-sm btn-ghost" onclick="removeCanTriggerState(${index})">🗑️</button>
     `;
@@ -2881,7 +2961,8 @@ function addCanTriggerState() {
   const div = document.createElement('div');
   div.className = 'can-trigger-item';
   div.innerHTML = `
-    <select data-can-trigger-state="${index}">${getStateSelectOptions()}</select>
+    <select data-can-trigger-state="${index}">${getNonPersistentStateSelectOptions()}</select>
+
     <input type="number" placeholder="${window.i18n.t('weight_label')}" value="1" min="1" data-can-trigger-weight="${index}" style="width: 80px;">
     <button class="btn btn-sm btn-ghost" onclick="removeCanTriggerState(${index})">🗑️</button>
   `;
@@ -3064,7 +3145,8 @@ function renderBranches(branches) {
     item.className = 'branch-item';
     item.innerHTML = `
       <select data-branch-text="${index}">${getTextSelectOptions(branch.text || '')}</select>
-      <select data-branch-state="${index}">${getStateSelectOptions(branch.next_state || '')}</select>
+      <select data-branch-state="${index}">${getNonPersistentStateSelectOptions(branch.next_state || '')}</select>
+
       <button class="btn btn-sm btn-ghost" onclick="removeBranch(${index})">🗑️</button>
     `;
     branchList.appendChild(item);
@@ -3082,7 +3164,8 @@ function addBranch() {
   item.className = 'branch-item';
   item.innerHTML = `
     <select data-branch-text="${index}">${getTextSelectOptions()}</select>
-    <select data-branch-state="${index}">${getStateSelectOptions()}</select>
+    <select data-branch-state="${index}">${getNonPersistentStateSelectOptions()}</select>
+
     <button class="btn btn-sm btn-ghost" onclick="removeBranch(${index})">🗑️</button>
   `;
   branchList.appendChild(item);
@@ -3345,7 +3428,8 @@ function renderTriggerGroups(canTriggerStates) {
       const weight = (s && typeof s === 'object' && Number.isFinite(s.weight)) ? s.weight : 1;
       return `
         <div class="trigger-state-row" data-group="${groupIndex}" data-state="${stateIndex}">
-          <select data-trigger-state-name="${groupIndex}-${stateIndex}">${getStateSelectOptions(stateName)}</select>
+          <select data-trigger-state-name="${groupIndex}-${stateIndex}">${getNonPersistentStateSelectOptions(stateName)}</select>
+
           <input type="number" placeholder="${window.i18n.t('weight_label')}" value="${weight}" min="1" data-trigger-state-weight="${groupIndex}-${stateIndex}" style="width: 70px;">
           <button class="btn btn-sm btn-ghost" onclick="removeTriggerState(${groupIndex}, ${stateIndex})">🗑️</button>
         </div>
@@ -3355,8 +3439,9 @@ function renderTriggerGroups(canTriggerStates) {
     div.innerHTML = `
       <div class="trigger-group-header">
         <div class="form-group" style="flex: 1; margin: 0;">
-          <label>${window.i18n.t('persistent_state_label')}</label>
-          <select data-trigger-persistent="${groupIndex}">${getStateSelectOptions(persistentState)}</select>
+        <label>${window.i18n.t('persistent_state_label')}</label>
+        <select data-trigger-persistent="${groupIndex}">${getPersistentStateSelectOptions(persistentState)}</select>
+
         </div>
         <div class="form-group" style="margin: 0; margin-left: 12px;">
           <label title="${window.i18n.t('allow_repeat_hint')}" style="cursor: help;">
@@ -3389,8 +3474,9 @@ function addTriggerGroup() {
     <div class="trigger-group-header">
       <div class="form-group" style="flex: 1; margin: 0;">
         <label>${window.i18n.t('persistent_state_label')}</label>
-        <select data-trigger-persistent="${groupIndex}">${getStateSelectOptions()}</select>
+        <select data-trigger-persistent="${groupIndex}">${getPersistentStateSelectOptions()}</select>
       </div>
+
       <div class="form-group" style="margin: 0; margin-left: 12px;">
         <label title="${window.i18n.t('allow_repeat_hint')}" style="cursor: help;">
           <input type="checkbox" data-trigger-allow-repeat="${groupIndex}" checked>
@@ -3432,7 +3518,8 @@ function addTriggerStateToGroup(groupIndex) {
   row.dataset.group = groupIndex;
   row.dataset.state = stateIndex;
   row.innerHTML = `
-    <select data-trigger-state-name="${groupIndex}-${stateIndex}">${getStateSelectOptions()}</select>
+    <select data-trigger-state-name="${groupIndex}-${stateIndex}">${getNonPersistentStateSelectOptions()}</select>
+
     <input type="number" placeholder="${window.i18n.t('weight_label')}" value="1" min="1" data-trigger-state-weight="${groupIndex}-${stateIndex}" style="width: 70px;">
     <button class="btn btn-sm btn-ghost" onclick="removeTriggerState(${groupIndex}, ${stateIndex})">🗑️</button>
   `;
@@ -3687,8 +3774,15 @@ function renderAssetList(type, assets) {
   const list = document.getElementById(`${type}-list`);
   list.innerHTML = '';
 
+  // “一键导入”按钮：仅当该区域没有任何条目时可用
+  const importBtn = document.getElementById(`assets-${type}-import-btn`);
+  if (importBtn) {
+    importBtn.disabled = Array.isArray(assets) ? assets.length > 0 : true;
+  }
+
   const nameNeedleRaw = (document.getElementById(`assets-${type}-filter-name`)?.value || '').trim();
   const pathNeedleRaw = (document.getElementById(`assets-${type}-filter-path`)?.value || '').trim();
+
   const nameNeedle = nameNeedleRaw.toLowerCase();
   const pathNeedle = pathNeedleRaw.toLowerCase();
 
@@ -3781,6 +3875,168 @@ function addAsset(type) {
   });
 }
 
+function isImageFileName(fileName) {
+  const name = String(fileName || '').toLowerCase();
+  const dot = name.lastIndexOf('.');
+  if (dot === -1) return false;
+  const ext = name.slice(dot + 1);
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext);
+}
+
+async function importSingleAssetEntry(type) {
+  if (!currentMod || !currentMod.assets) return;
+  if (type !== 'sequence' && type !== 'img') return;
+
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_assets_need_folder') || '需要从文件夹打开 Mod 才能导入图片资源', 'warning');
+    return;
+  }
+
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [
+        {
+          description: 'Image',
+          accept: {
+            'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']
+          }
+        }
+      ]
+    });
+
+    const file = await fileHandle.getFile();
+    if (!file || !file.name) return;
+    if (!isImageFileName(file.name)) {
+      showToast(window.i18n.t('msg_import_assets_failed') || '导入失败：未找到资源目录或无权限', 'error');
+      return;
+    }
+
+    const targetDir = await getOrCreateDir(modFolderHandle, ['asset', type]);
+    const fileName = await writeFileToDir(targetDir, file);
+
+    let frameSizeX = 260;
+    let frameSizeY = 298;
+    try {
+      const size = await getImageSizeFromFile(file);
+      if (size && Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0) {
+        frameSizeX = Math.floor(size.width);
+        frameSizeY = Math.floor(size.height);
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    if (!Array.isArray(currentMod.assets[type])) {
+      currentMod.assets[type] = [];
+    }
+
+    currentMod.assets[type].push({
+      name: stripFileExt(fileName),
+      img: `${type}/${fileName}`,
+      sequence: type === 'sequence',
+      origin_reverse: false,
+      need_reverse: false,
+      frame_time: 0.1,
+      frame_size_x: frameSizeX,
+      frame_size_y: frameSizeY,
+      frame_num_x: 1,
+      frame_num_y: 1,
+      offset_x: 0,
+      offset_y: 0
+    });
+
+    renderAssets();
+    markUnsaved();
+    showToast((window.i18n.t('msg_import_assets_success') || '已导入 {count} 个图片文件').replace('{count}', '1'), 'success');
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    showToast(window.i18n.t('msg_import_assets_failed') || '导入失败：未找到资源目录或无权限', 'error');
+  }
+}
+
+async function importAssetEntries(type) {
+  if (!currentMod || !currentMod.assets) return;
+  if (type !== 'sequence' && type !== 'img') return;
+
+  const existing = currentMod.assets[type] || [];
+  if (existing.length > 0) return;
+
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_assets_need_folder') || '需要从文件夹打开 Mod 才能导入图片资源', 'warning');
+    return;
+  }
+
+
+  const dirLabel = `asset/${type}/`;
+
+  try {
+    const assetDir = await modFolderHandle.getDirectoryHandle('asset');
+    const typeDir = await assetDir.getDirectoryHandle(type);
+
+    const fileHandles = [];
+    for await (const entry of typeDir.values()) {
+      if (entry.kind !== 'file') continue;
+      if (!isImageFileName(entry.name)) continue;
+      fileHandles.push(entry);
+    }
+
+    fileHandles.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+    if (fileHandles.length === 0) {
+      const msg = (window.i18n.t('msg_import_assets_no_files') || '未在 {dir} 目录找到任何图片文件').replace('{dir}', dirLabel);
+      showToast(msg, 'warning');
+      return;
+    }
+
+    const defaultFrameSize = { x: 260, y: 298 };
+
+    const imported = [];
+    for (const fh of fileHandles) {
+      const fileName = fh.name;
+      const imgPath = `${type}/${fileName}`;
+
+      let frameSizeX = defaultFrameSize.x;
+      let frameSizeY = defaultFrameSize.y;
+      try {
+        const file = await fh.getFile();
+        const size = await getImageSizeFromFile(file);
+        if (size && Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0) {
+          frameSizeX = Math.floor(size.width);
+          frameSizeY = Math.floor(size.height);
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      imported.push({
+        name: stripFileExt(fileName),
+        img: imgPath,
+        sequence: type === 'sequence',
+        origin_reverse: false,
+        need_reverse: false,
+        frame_time: 0.1,
+        frame_size_x: frameSizeX,
+        frame_size_y: frameSizeY,
+        frame_num_x: 1,
+        frame_num_y: 1,
+        offset_x: 0,
+        offset_y: 0
+      });
+    }
+
+    currentMod.assets[type] = imported;
+    renderAssets();
+    markUnsaved();
+
+    const msg = (window.i18n.t('msg_import_assets_success') || '已导入 {count} 个图片文件').replace('{count}', String(imported.length));
+    showToast(msg, 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_import_assets_failed') || '导入失败：未找到资源目录或无权限', 'error');
+  }
+}
+
+
 /**
  * 编辑资源
  */
@@ -3815,6 +4071,8 @@ function openAssetModal(title, asset) {
   document.getElementById('asset-frame-num-y').value = asset.frame_num_y || 1;
   document.getElementById('asset-offset-x').value = asset.offset_x || 0;
   document.getElementById('asset-offset-y').value = asset.offset_y || 0;
+
+  bindAssetAutoCalcEvents();
   
   document.getElementById('asset-modal').classList.add('show');
 }
@@ -3824,6 +4082,112 @@ function openAssetModal(title, asset) {
  */
 function closeAssetModal() {
   document.getElementById('asset-modal').classList.remove('show');
+}
+
+let assetAutoCalcTimer = null;
+
+async function getImageSizeFromFile(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+      URL.revokeObjectURL(url);
+      if (Number.isFinite(width) && Number.isFinite(height)) {
+        resolve({ width, height });
+      } else {
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+async function tryGetAssetImageFile(imgPath) {
+  if (!modFolderHandle) return null;
+  const raw = String(imgPath || '').trim();
+  if (!raw) return null;
+
+  let rel = raw.replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!rel) return null;
+  if (!rel.toLowerCase().startsWith('asset/')) {
+    rel = `asset/${rel}`;
+  }
+
+  const parts = rel.split('/').filter(Boolean);
+  if (parts.length === 0) return null;
+
+  try {
+    let dir = modFolderHandle;
+    for (let i = 0; i < parts.length - 1; i++) {
+      dir = await dir.getDirectoryHandle(parts[i]);
+    }
+    const fileHandle = await dir.getFileHandle(parts[parts.length - 1]);
+    return await fileHandle.getFile();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function autoCalcAssetFrameSize() {
+  if (!currentMod) return;
+
+  const imgPath = document.getElementById('asset-img')?.value?.trim() || '';
+  const numX = parseInt(document.getElementById('asset-frame-num-x')?.value || '', 10);
+  const numY = parseInt(document.getElementById('asset-frame-num-y')?.value || '', 10);
+
+  if (!imgPath || !Number.isFinite(numX) || !Number.isFinite(numY) || numX <= 0 || numY <= 0) return;
+
+  const file = await tryGetAssetImageFile(imgPath);
+  if (!file) return;
+
+  const size = await getImageSizeFromFile(file);
+  if (!size) return;
+
+  const frameW = size.width / numX;
+  const frameH = size.height / numY;
+  if (!Number.isFinite(frameW) || !Number.isFinite(frameH)) return;
+  if (!Number.isInteger(frameW) || !Number.isInteger(frameH)) return;
+  if (frameW <= 0 || frameH <= 0) return;
+
+  const frameSizeX = document.getElementById('asset-frame-size-x');
+  const frameSizeY = document.getElementById('asset-frame-size-y');
+  if (!frameSizeX || !frameSizeY) return;
+
+  frameSizeX.value = String(frameW);
+  frameSizeY.value = String(frameH);
+}
+
+function scheduleAutoCalcAssetFrameSize() {
+  if (assetAutoCalcTimer) {
+    clearTimeout(assetAutoCalcTimer);
+  }
+  assetAutoCalcTimer = setTimeout(() => {
+    autoCalcAssetFrameSize();
+  }, 150);
+}
+
+function bindAssetAutoCalcEvents() {
+  const imgInput = document.getElementById('asset-img');
+  const numXInput = document.getElementById('asset-frame-num-x');
+  const numYInput = document.getElementById('asset-frame-num-y');
+
+  if (!imgInput || !numXInput || !numYInput) return;
+  if (imgInput.dataset.autoCalcBound === '1') return;
+
+  const handler = () => scheduleAutoCalcAssetFrameSize();
+  imgInput.addEventListener('input', handler);
+  numXInput.addEventListener('input', handler);
+  numYInput.addEventListener('input', handler);
+
+  imgInput.dataset.autoCalcBound = '1';
+  numXInput.dataset.autoCalcBound = '1';
+  numYInput.dataset.autoCalcBound = '1';
 }
 
 /**
@@ -4450,9 +4814,18 @@ function renderAudioList() {
   list.innerHTML = '';
 
 
-  const audios = currentMod.audio[currentAudioLang] || [];
+  const rawAudios = currentMod.audio[currentAudioLang] || [];
+
+  // “一键导入”按钮：仅当该语言下没有任何条目时可用
+  const importBtn = document.getElementById('audio-speech-import-btn');
+  if (importBtn) {
+    importBtn.disabled = rawAudios.length > 0;
+  }
+
+  const audios = rawAudios;
   const nameNeedleRaw = (document.getElementById('audio-filter-name')?.value || '').trim();
   const pathNeedleRaw = (document.getElementById('audio-filter-path')?.value || '').trim();
+
   const nameNeedle = nameNeedleRaw.toLowerCase();
   const pathNeedle = pathNeedleRaw.toLowerCase();
 
@@ -4661,6 +5034,135 @@ function addAudioEntry() {
   renderAudioList();
   markUnsaved();
 }
+
+function stripFileExt(filename) {
+  const name = String(filename || '');
+  const idx = name.lastIndexOf('.');
+  if (idx <= 0) return name;
+  return name.slice(0, idx);
+}
+
+async function getOrCreateDir(baseHandle, parts) {
+  let dir = baseHandle;
+  for (const part of parts) {
+    dir = await dir.getDirectoryHandle(part, { create: true });
+  }
+  return dir;
+}
+
+async function writeFileToDir(dirHandle, file) {
+  const fileName = String(file?.name || '').trim();
+  if (!fileName) throw new Error('invalid file name');
+  const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(file);
+  await writable.close();
+  return fileName;
+}
+
+function isAudioFileName(fileName) {
+  const name = String(fileName || '').toLowerCase();
+  const dot = name.lastIndexOf('.');
+  if (dot === -1) return false;
+  const ext = name.slice(dot + 1);
+  return ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'opus'].includes(ext);
+}
+
+async function importSingleAudioEntry() {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
+
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_audio_need_folder') || '需要从文件夹打开 Mod 才能导入音频文件', 'warning');
+    return;
+  }
+
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [
+        {
+          description: 'Audio',
+          accept: {
+            'audio/*': ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus']
+          }
+        }
+      ]
+    });
+
+    const file = await fileHandle.getFile();
+    if (!file || !file.name) return;
+    if (!isAudioFileName(file.name)) {
+      showToast(window.i18n.t('msg_import_audio_failed') || '导入失败：未找到音频目录或无权限', 'error');
+      return;
+    }
+
+    const speechDir = await getOrCreateDir(modFolderHandle, ['audio', currentAudioLang, 'speech']);
+    const fileName = await writeFileToDir(speechDir, file);
+
+    if (!currentMod.audio[currentAudioLang]) {
+      currentMod.audio[currentAudioLang] = [];
+    }
+
+    currentMod.audio[currentAudioLang].push({
+      name: stripFileExt(fileName),
+      audio: `${currentAudioLang}/speech/${fileName}`
+    });
+
+    renderAudioList();
+    markUnsaved();
+    showToast((window.i18n.t('msg_import_audio_success') || '已导入 {count} 个音频文件').replace('{count}', '1'), 'success');
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    showToast(window.i18n.t('msg_import_audio_failed') || '导入失败：未找到音频目录或无权限', 'error');
+  }
+}
+
+async function importAudioEntries() {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
+
+  // 仅允许在没有任何条目时导入
+  const existing = currentMod.audio[currentAudioLang] || [];
+  if (existing.length > 0) return;
+
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_audio_need_folder') || '需要从文件夹打开 Mod 才能导入音频文件', 'warning');
+    return;
+  }
+
+
+  try {
+    const audioDir = await modFolderHandle.getDirectoryHandle('audio');
+    const langDir = await audioDir.getDirectoryHandle(currentAudioLang);
+    const speechDir = await langDir.getDirectoryHandle('speech');
+
+    const entries = [];
+    for await (const entry of speechDir.values()) {
+      if (entry.kind !== 'file') continue;
+      const fileName = entry.name;
+      if (!fileName) continue;
+      entries.push(fileName);
+    }
+
+    entries.sort((a, b) => a.localeCompare(b));
+
+    if (entries.length === 0) {
+      showToast(window.i18n.t('msg_import_audio_no_files') || `未在 audio/${currentAudioLang}/speech/ 目录找到任何音频文件`, 'warning');
+      return;
+    }
+
+    currentMod.audio[currentAudioLang] = entries.map(fileName => ({
+      name: stripFileExt(fileName),
+      audio: `${currentAudioLang}/speech/${fileName}`
+    }));
+
+    renderAudioList();
+    markUnsaved();
+    showToast((window.i18n.t('msg_import_audio_success') || '已导入 {count} 个音频文件').replace('{count}', String(entries.length)), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_import_audio_failed') || '导入失败：未找到音频目录或无权限', 'error');
+  }
+}
+
 
 /**
  * 更新音频条目

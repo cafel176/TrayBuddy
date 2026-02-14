@@ -679,6 +679,12 @@ mark.filter-highlight {
   gap: 16px;
 }
 
+/* 状态编辑弹窗：状态限制区域固定最多两列，避免宽屏出现第三列 */
+#state-limits-options .form-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -1858,4 +1864,10 @@ input.audio-item-path:focus {
   .form-grid {
     grid-template-columns: 1fr;
   }
+
+  /* 小屏下状态限制也改为单列 */
+  #state-limits-options .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
+

@@ -166,6 +166,21 @@
   "audio_desc": "Manage multi-language audio resources",
   "section_audio_files": "Audio Files (speech.json)",
   "btn_add_audio": "Add Audio",
+  "btn_import_audio": "Import All",
+  "btn_import_file": "Import",
+
+  "msg_import_audio_need_folder": "Please open the Mod from a folder to import audio files.",
+  "msg_import_audio_no_files": "No audio files found under audio/<lang>/speech/.",
+  "msg_import_audio_success": "Imported {count} audio files.",
+  "msg_import_audio_failed": "Import failed: folder not found or permission denied.",
+
+  "btn_import_assets": "Import All",
+  "msg_import_assets_need_folder": "Please open the Mod from a folder to import image assets.",
+  "msg_import_assets_no_files": "No image files found under {dir}.",
+  "msg_import_assets_success": "Imported {count} image files.",
+  "msg_import_assets_failed": "Import failed: folder not found or permission denied.",
+
+
   "modal_edit_state": "Edit State",
   "modal_add_state": "Add State",
   "state_name_label": "State Name",

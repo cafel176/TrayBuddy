@@ -348,6 +348,8 @@
               <summary class="section-header">
                 <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_sequence">序列帧动画 (sequence.json)</span></h3>
                 <div class="section-actions">
+                  <button class="btn btn-sm btn-secondary" id="assets-sequence-import-btn" onclick="importAssetEntries('sequence')">⬇️ <span data-i18n="btn_import_assets">一键导入</span></button>
+                  <button class="btn btn-sm btn-secondary" id="assets-sequence-import-file-btn" onclick="importSingleAssetEntry('sequence')">📥 <span data-i18n="btn_import_file">导入</span></button>
                   <button class="btn btn-sm btn-ghost" onclick="pasteAssetFromClipboard('sequence')">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
                   <button class="btn btn-sm btn-primary" onclick="addAsset('sequence')">➕ <span data-i18n="btn_add_animation">添加动画</span></button>
                 </div>
@@ -374,6 +376,8 @@
               <summary class="section-header">
                 <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_img">杂图资源 (img.json)</span></h3>
                 <div class="section-actions">
+                  <button class="btn btn-sm btn-secondary" id="assets-img-import-btn" onclick="importAssetEntries('img')">⬇️ <span data-i18n="btn_import_assets">一键导入</span></button>
+                  <button class="btn btn-sm btn-secondary" id="assets-img-import-file-btn" onclick="importSingleAssetEntry('img')">📥 <span data-i18n="btn_import_file">导入</span></button>
                   <button class="btn btn-sm btn-ghost" onclick="pasteAssetFromClipboard('img')">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
                   <button class="btn btn-sm btn-primary" onclick="addAsset('img')">➕ <span data-i18n="btn_add_img">添加图片</span></button>
                 </div>
@@ -778,7 +782,11 @@
               <section class="form-section">
                 <div class="section-header">
                   <h3 data-i18n="section_audio_files">音频文件 (speech.json)</h3>
-                  <button class="btn btn-sm btn-primary" id="audio-speech-add-btn" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">添加音频</span></button>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-secondary" id="audio-speech-import-btn" onclick="importAudioEntries()">⬇️ <span data-i18n="btn_import_audio">一键导入</span></button>
+                    <button class="btn btn-sm btn-secondary" id="audio-speech-import-file-btn" onclick="importSingleAudioEntry()">📥 <span data-i18n="btn_import_file">导入</span></button>
+                    <button class="btn btn-sm btn-primary" id="audio-speech-add-btn" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">添加音频</span></button>
+                  </div>
                 </div>
 
                 <div class="list-filters">
@@ -870,6 +878,7 @@
                   <div class="form-group">
                     <label data-i18n="date_start_label">开始日期 (MM-DD)</label>
                     <div class="date-picker-group">
+
                       <select id="state-date-start-month" class="date-month-select">
                         <option value="">--</option>
                         <option value="01">01</option>
@@ -894,6 +903,7 @@
                   <div class="form-group">
                     <label data-i18n="date_end_label">结束日期 (MM-DD)</label>
                     <div class="date-picker-group">
+
                       <select id="state-date-end-month" class="date-month-select">
                         <option value="">--</option>
                         <option value="01">01</option>
@@ -941,6 +951,8 @@
                     <label data-i18n="trigger_temp_end_label">气温触发终点</label>
                     <input type="number" id="state-trigger-temp-end" value="2147483647" step="1">
                   </div>
+
+
 
                   <div class="form-group">
                     <label data-i18n="trigger_uptime_label">启动时长触发</label>
@@ -1132,20 +1144,20 @@
             </label>
           </div>
           <div class="form-group">
-            <label data-i18n="frame_size_x_label">帧宽度 (px)</label>
-            <input type="number" id="asset-frame-size-x" value="260" min="1">
-          </div>
-          <div class="form-group">
-            <label data-i18n="frame_size_y_label">帧高度 (px)</label>
-            <input type="number" id="asset-frame-size-y" value="298" min="1">
-          </div>
-          <div class="form-group">
             <label data-i18n="frame_num_x_label">横向帧数</label>
             <input type="number" id="asset-frame-num-x" value="1" min="1">
           </div>
           <div class="form-group">
             <label data-i18n="frame_num_y_label">纵向帧数</label>
             <input type="number" id="asset-frame-num-y" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label data-i18n="frame_size_x_label">帧宽度 (px)</label>
+            <input type="number" id="asset-frame-size-x" value="260" min="1">
+          </div>
+          <div class="form-group">
+            <label data-i18n="frame_size_y_label">帧高度 (px)</label>
+            <input type="number" id="asset-frame-size-y" value="298" min="1">
           </div>
 
           <div class="form-group full-width">

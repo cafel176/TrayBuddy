@@ -166,6 +166,21 @@
   "audio_desc": "管理多语言音频资源",
   "section_audio_files": "音频文件 (speech.json)",
   "btn_add_audio": "添加音频",
+  "btn_import_audio": "一键导入",
+  "btn_import_file": "导入",
+
+  "msg_import_audio_need_folder": "需要从文件夹打开 Mod 才能导入音频文件",
+  "msg_import_audio_no_files": "未在 audio/<lang>/speech/ 目录找到任何音频文件",
+  "msg_import_audio_success": "已导入 {count} 个音频文件",
+  "msg_import_audio_failed": "导入失败：未找到音频目录或无权限",
+
+  "btn_import_assets": "一键导入",
+  "msg_import_assets_need_folder": "需要从文件夹打开 Mod 才能导入图片资源",
+  "msg_import_assets_no_files": "未在 {dir} 目录找到任何图片文件",
+  "msg_import_assets_success": "已导入 {count} 个图片文件",
+  "msg_import_assets_failed": "导入失败：未找到资源目录或无权限",
+
+
   "modal_edit_state": "编辑状态",
   "modal_add_state": "添加状态",
   "state_name_label": "状态名称",
