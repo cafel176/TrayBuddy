@@ -2,8 +2,10 @@
   "title": "二次元背景生成器",
   "main_title": "🎨 二次元背景生成器",
   
+  "section_theme": "🎯 主题色",
   "section_canvas": "📐 画布尺寸",
   "canvas_width": "宽度:",
+
   "canvas_height": "高度:",
   "preset_mobile": "手机竖屏",
   
@@ -73,8 +75,11 @@
   "corner_render_mode": "符号绘制:",
   "corner_render_fill": "填充",
   "corner_render_stroke": "细线",
+  "theme_color": "主题色:",
+  "theme_apply": "一键套用",
   
   "enable_corner_frame": "菱形边框",
+
 
   "corner_frame_size": "边框大小:",
   "corner_frame_width": "边框粗细:",

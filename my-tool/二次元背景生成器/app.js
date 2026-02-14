@@ -39,7 +39,10 @@
         cornerSize: document.getElementById('cornerSize'),
         cornerColor: document.getElementById('cornerColor'),
         cornerRenderMode: document.getElementById('cornerRenderMode'),
+        themeColor: document.getElementById('themeColor'),
+        applyTheme: document.getElementById('applyTheme'),
         enableCornerFrame: document.getElementById('enableCornerFrame'),
+
 
         cornerFrameSize: document.getElementById('cornerFrameSize'),
         cornerFrameWidth: document.getElementById('cornerFrameWidth'),
@@ -123,8 +126,18 @@
         document.getElementById('exportPng').addEventListener('click', () => exportImage('png'));
         document.getElementById('exportJpg').addEventListener('click', () => exportImage('jpg'));
 
+        // 一键主题色
+        if (controls.applyTheme) {
+            controls.applyTheme.addEventListener('click', () => {
+                applyThemeFromColor(controls.themeColor.value);
+                updateValueDisplays();
+                render();
+            });
+        }
+
         // 滑块值显示更新
         updateValueDisplays();
+
     }
 
     // 切换四角样式模式
@@ -324,12 +337,10 @@
 
     // 绘制背景
     function drawBackground(width, height) {
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, controls.bgColor1.value);
-        gradient.addColorStop(1, controls.bgColor2.value);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = controls.bgColor1.value;
         ctx.fillRect(0, 0, width, height);
     }
+
 
     // 绘制循环背景图案
     function drawDiamondPattern(width, height) {
@@ -2445,6 +2456,102 @@
         ctx.quadraticCurveTo(x, y, x + radius, y);
     }
 
+    // 一键主题色自适应
+    function applyThemeFromColor(hex) {
+        const { h, s, l } = hexToHsl(hex);
+
+        // 背景与外框
+        controls.bgColor1.value = hslToHex(h, clamp(s * 0.7, 0.35, 0.75), clamp(l * 0.35, 0.12, 0.28));
+        controls.bgColor2.value = hslToHex(h, clamp(s * 0.5, 0.2, 0.6), clamp(l * 0.18, 0.05, 0.18));
+
+        // 菱形/图案
+        controls.diamondLight.value = hslToHex(h, clamp(s * 0.35, 0.15, 0.5), clamp(l * 1.2, 0.7, 0.92));
+        controls.diamondDark.value = hslToHex(h, clamp(s * 0.55, 0.2, 0.7), clamp(l * 0.45, 0.22, 0.42));
+
+        // 边框主色
+        controls.borderColor.value = hslToHex(h, clamp(s * 0.7, 0.3, 0.9), clamp(l * 1.1, 0.7, 0.88));
+
+        // 角落装饰主色与描边
+        controls.cornerColor.value = hslToHex(h, clamp(s * 0.6, 0.25, 0.85), clamp(l * 1.15, 0.75, 0.95));
+        controls.cornerStrokeColor.value = hslToHex(h, clamp(s * 0.85, 0.4, 1), clamp(l * 0.55, 0.3, 0.55));
+
+        // 菱形边框与填充遮挡
+        controls.cornerFrameColor.value = hslToHex(h, clamp(s * 0.8, 0.3, 0.95), clamp(l * 1.0, 0.6, 0.85));
+        controls.cornerFrameFill.value = controls.bgColor2.value;
+
+        // 光泽颜色（更亮）
+        controls.cornerGlowColor.value = hslToHex(h, clamp(s * 0.2, 0.1, 0.4), clamp(l * 1.35, 0.85, 0.98));
+
+        // 渐变叠加
+        controls.gradientStart.value = hslToHex(h, clamp(s * 0.15, 0.08, 0.3), clamp(l * 1.35, 0.85, 0.98));
+        controls.gradientEnd.value = hslToHex(h, clamp(s * 0.6, 0.25, 0.8), clamp(l * 0.18, 0.05, 0.18));
+    }
+
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function hexToHsl(hex) {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0;
+        let s = 0;
+        const l = (max + min) / 2;
+
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r:
+                    h = (g - b) / d + (g < b ? 6 : 0);
+                    break;
+                case g:
+                    h = (b - r) / d + 2;
+                    break;
+                default:
+                    h = (r - g) / d + 4;
+            }
+            h /= 6;
+        }
+
+        return { h, s, l };
+    }
+
+    function hslToHex(h, s, l) {
+        const hue2rgb = (p, q, t) => {
+            let tt = t;
+            if (tt < 0) tt += 1;
+            if (tt > 1) tt -= 1;
+            if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+            if (tt < 1 / 2) return q;
+            if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+            return p;
+        };
+
+        let r;
+        let g;
+        let b;
+
+        if (s === 0) {
+            r = g = b = l;
+        } else {
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1 / 3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1 / 3);
+        }
+
+        return rgbToHex(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
+    }
+
+    function rgbToHex(r, g, b) {
+        return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+    }
+
     // Hex颜色转RGBA
     function hexToRgba(hex, alpha) {
         const r = parseInt(hex.slice(1, 3), 16);
@@ -2452,6 +2559,7 @@
         const b = parseInt(hex.slice(5, 7), 16);
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
+
 
     // 导出图片
     function exportImage(format) {

@@ -13,6 +13,16 @@
         <div class="control-panel">
             <h1 data-i18n="main_title">🎨 二次元背景生成器</h1>
             
+            <!-- 主题色 -->
+            <div class="control-section">
+                <h3 data-i18n="section_theme">🎯 主题色</h3>
+                <div class="control-row">
+                    <label data-i18n="theme_color">主题色:</label>
+                    <input type="color" id="themeColor" value="#8c5cff">
+                    <button type="button" id="applyTheme" class="btn-secondary" data-i18n="theme_apply">一键套用</button>
+                </div>
+            </div>
+
             <!-- 画布尺寸 -->
             <div class="control-section">
                 <h3 data-i18n="section_canvas">📐 画布尺寸</h3>
@@ -20,6 +30,7 @@
                     <label data-i18n="canvas_width">宽度:</label>
                     <input type="number" id="canvasWidth" value="1920" min="100" max="4096">
                 </div>
+
                 <div class="control-row">
                     <label data-i18n="canvas_height">高度:</label>
                     <input type="number" id="canvasHeight" value="1080" min="100" max="4096">
@@ -446,6 +457,8 @@
                 </div>
                 
                 <!-- 菱形边框 -->
+
+
 
                 <div class="control-row">
                     <label>

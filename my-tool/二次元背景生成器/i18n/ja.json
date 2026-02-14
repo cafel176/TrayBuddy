@@ -2,8 +2,10 @@
   "title": "アニメ背景ジェネレーター",
   "main_title": "🎨 アニメ背景ジェネレーター",
   
+  "section_theme": "🎯 テーマカラー",
   "section_canvas": "📐 キャンバスサイズ",
   "canvas_width": "幅:",
+
   "canvas_height": "高さ:",
   "preset_mobile": "スマホ縦画面",
   
@@ -73,8 +75,11 @@
   "corner_render_mode": "記号描画:",
   "corner_render_fill": "塗りつぶし",
   "corner_render_stroke": "細線",
+  "theme_color": "テーマカラー:",
+  "theme_apply": "一括適用",
   
   "enable_corner_frame": "ダイヤモンドフレーム",
+
 
   "corner_frame_size": "フレームサイズ:",
   "corner_frame_width": "フレーム幅:",

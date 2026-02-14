@@ -2,8 +2,10 @@
   "title": "Anime Background Generator",
   "main_title": "🎨 Anime Background Generator",
   
+  "section_theme": "🎯 Theme Color",
   "section_canvas": "📐 Canvas Size",
   "canvas_width": "Width:",
+
   "canvas_height": "Height:",
   "preset_mobile": "Mobile Portrait",
   
@@ -73,8 +75,11 @@
   "corner_render_mode": "Symbol Rendering:",
   "corner_render_fill": "Fill",
   "corner_render_stroke": "Thin Stroke",
+  "theme_color": "Theme Color:",
+  "theme_apply": "Apply",
   
   "enable_corner_frame": "Diamond Frame",
+
 
   "corner_frame_size": "Frame Size:",
   "corner_frame_width": "Frame Width:",
