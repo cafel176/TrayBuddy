@@ -1,21 +1,24 @@
 @echo off
+setlocal EnableExtensions DisableDelayedExpansion
+
+:: Ensure UTF-8 for Chinese path/args
 chcp 65001 >nul
-cd /d "%~dp0"
 
-REM 直接设置工具名并启动
-set "TOOL_NAME=二次元背景生成器"
-set "PORT=4173"
-set "HOST=127.0.0.1"
+:: 启动时申请管理员权限（使用 fltmc 检测，避免 net session 在部分系统下失效）
+>nul 2>&1 "%SystemRoot%\System32\fltmc.exe"
+if errorlevel 1 goto :_tb_elevate
 
-REM 检查端口是否已监听
-powershell -NoProfile -Command "$h='%HOST%'; $p=[int]%PORT%; $c=New-Object System.Net.Sockets.TcpClient; try { $t=$c.ConnectAsync($h,$p); if($t.Wait(200) -and $c.Connected){ $c.Close(); exit 0 } } catch {} finally { try { $c.Dispose() } catch {} }; exit 1" >nul
-if errorlevel 1 (
-    REM 启动服务器
-    start /b "" node dev-server.js >nul 2>nul
-    timeout /t 2 /nobreak >nul
-)
+goto :_tb_got_admin
 
-REM 直接构建 URL 并打开（使用硬编码的 URL 编码路径）
-set "URL=http://%HOST%:%PORT%/%%E4%%BA%%8C%%E6%%AC%%A1%%E5%%85%%83%%E8%%83%%8C%%E6%%99%%AF%%E7%%94%%9F%%E6%%88%%90%%E5%%99%%A8/"
-echo Opening: %URL%
-start "" "%URL%"
+:_tb_elevate
+set "TB_SELF=%~f0"
+set "TB_CWD=%CD%"
+set "TB_ARGS=%*"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:TB_SELF; $cwd=$env:TB_CWD; $a=$env:TB_ARGS; $q=[char]34; $cmd=$q+$bat+$q; if($a){$cmd+=' '+$a}; Start-Process -FilePath 'cmd.exe' -WorkingDirectory $cwd -ArgumentList @('/d','/c',$cmd) -Verb RunAs"
+exit /b
+
+:_tb_got_admin
+
+
+call "%~dp0open-tool.bat" "二次元背景生成器"
+

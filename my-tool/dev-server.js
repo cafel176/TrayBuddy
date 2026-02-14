@@ -8,7 +8,8 @@ const __dirname = path.dirname(__filename);
 
 const ROOT = path.resolve(__dirname);
 const HOST = process.env.HOST || '127.0.0.1';
-const PORT = Number(process.env.PORT || 4173);
+const PORT = Number(process.env.PORT || 4175);
+
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -119,6 +120,9 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`Dev server running at http://${HOST}:${PORT}`);
   console.log('Open e.g.:');
-  console.log(`  http://${HOST}:${PORT}/spritesheet切分/`);
-  console.log(`  http://${HOST}:${PORT}/spritesheet生成/`);
+  console.log(`  http://${HOST}:${PORT}/WebM与MOV互转/`);
+  console.log(`  http://${HOST}:${PORT}/二次元背景生成器/`);
+  console.log(`  http://${HOST}:${PORT}/视频去背景/`);
+  console.log(`  http://${HOST}:${PORT}/图片循环视频/`);
 });
+

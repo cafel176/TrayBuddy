@@ -21,3 +21,4 @@ exit /b
 
 
 call "%~dp0open-tool.bat" "图片循环视频"
+

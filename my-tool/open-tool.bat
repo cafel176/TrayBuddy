@@ -23,14 +23,15 @@ exit /b
 REM Open tools via HTTP instead of file:// to avoid fetch(CORS) issues for i18n JSON
 
 set "ROOT=%~dp0"
-set "PORT=4173"
+set "PORT=4175"
+
 set "HOST=127.0.0.1"
 set "LOG=%TEMP%\my-tool-dev-server-%PORT%.log"
 set "LOG_ERR=%TEMP%\my-tool-dev-server-%PORT%.err.log"
 
 REM Tool directory (relative to my-tool). Default: spritesheet切分
 set "TOOL=%~1"
-if "%TOOL%"=="" set "TOOL=spritesheet切分"
+if "%TOOL%"=="" set "TOOL=WebM与MOV互转"
 
 REM Check if Node.js exists (optional)
 set "HAS_NODE=1"
@@ -75,14 +76,10 @@ if errorlevel 1 goto :failed
 
 :afterServer
 REM Build URL (escape Chinese/space/special characters safely via PowerShell)
-REM 使用文件传参避免 cmd 到 PowerShell 的编码问题
 set "TB_HOST=%HOST%"
 set "TB_PORT=%PORT%"
 set "TB_TOOL=%TOOL%"
-set "TB_TOOL_FILE=%TEMP%\my-tool-name.txt"
-REM 使用 PowerShell 以 UTF-8 写入工具名到临时文件
-powershell -NoProfile -Command "[System.IO.File]::WriteAllText($env:TB_TOOL_FILE, $env:TB_TOOL, [System.Text.Encoding]::UTF8)"
-for /f "usebackq delims=" %%U in (`powershell -NoProfile -Command "$h=$env:TB_HOST; $p=[int]$env:TB_PORT; $tf=$env:TB_TOOL_FILE; $t=[System.IO.File]::ReadAllText($tf, [System.Text.Encoding]::UTF8).Trim(); $t=$t.Trim('/').Trim([char]92); $ub=[System.UriBuilder]::new('http',$h,$p); $ub.Path = $t + '/'; $ub.Uri.AbsoluteUri"`) do set "URL=%%U"
+for /f "usebackq delims=" %%U in (`powershell -NoProfile -Command "$h=$env:TB_HOST; $p=[int]$env:TB_PORT; $t=$env:TB_TOOL; $t=$t.Trim('/').Trim([char]92); $ub=[System.UriBuilder]::new('http',$h,$p); $ub.Path = $t + '/'; $ub.Uri.AbsoluteUri"`) do set "URL=%%U"
 
 echo [open-tool] Opening: %URL%
 if defined TB_NO_BROWSER goto :eof

@@ -1,6 +1,7 @@
 param(
   [string]$ListenHost = $(if ($env:HOST) { $env:HOST } else { '127.0.0.1' }),
-  [int]$Port = $(if ($env:PORT) { [int]$env:PORT } else { 4173 }),
+  [int]$Port = $(if ($env:PORT) { [int]$env:PORT } else { 4175 }),
+
   [string]$Root = $(if ($env:ROOT) { $env:ROOT } else { (Split-Path -Parent $MyInvocation.MyCommand.Path) })
 )
 
@@ -61,8 +62,11 @@ try {
 Write-Host "Dev server running at ${prefix}"
 Write-Host "ROOT: ${rootFull}"
 Write-Host "Open e.g.:"
-Write-Host "  ${prefix}spritesheet切分/"
-Write-Host "  ${prefix}spritesheet生成/"
+Write-Host "  ${prefix}WebM与MOV互转/"
+Write-Host "  ${prefix}二次元背景生成器/"
+Write-Host "  ${prefix}视频去背景/"
+Write-Host "  ${prefix}图片循环视频/"
+
 
 try {
   while ($listener.IsListening) {

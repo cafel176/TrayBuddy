@@ -19,4 +19,6 @@ exit /b
 
 :_tb_got_admin
 
+
 call "%~dp0open-tool.bat" "gif提取序列帧"
+
