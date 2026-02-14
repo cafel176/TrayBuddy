@@ -1443,17 +1443,7 @@
       "event": "drag_end",
       "can_trigger_states": [
         {
-          "persistent_state": "idle",
-          "states": [
-            {
-              "state": "drag_end",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        },
-        {
-          "persistent_state": "music",
+          "persistent_state": "dragging",
           "states": [
             {
               "state": "drag_end",
