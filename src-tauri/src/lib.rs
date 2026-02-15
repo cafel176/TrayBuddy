@@ -579,7 +579,13 @@ async fn load_mod_common<F>(
 where
     F: FnOnce(&mut crate::modules::resource::ResourceManager) -> Result<Arc<ModInfo>, String>,
 {
-    // 0. 切换 Mod 时关闭除了 mods 以外的所有窗口（包括备忘录/提醒/设置/提醒弹窗等）
+    // 0. 记录当前 Mod 类型（用于后续判断是否跨类型切换）
+    let old_mod_type = {
+        let rm = state.resource_manager.lock().unwrap();
+        rm.current_mod.as_ref().map(|m| m.manifest.mod_type)
+    };
+
+    // 关闭除 mods 以外的所有窗口
     // 理由：每个 Mod 的动画窗口参数可能完全不同，热重载不如重建窗口稳定。
     let windows = app.webview_windows();
     for (label, window) in windows {
@@ -659,7 +665,25 @@ where
     }
 
     // 5. 重建渲染窗口
-    match mod_info.manifest.mod_type {
+    // 跨类型切换时（Sequence ↔ Live2D），必须 destroy() 旧类型的渲染窗口。
+    // 因为渲染窗口注册了 CloseRequested 拦截器（close → hide），
+    // 步骤 0 的 close() 只会隐藏而非销毁，旧窗口会在后台继续播放音频。
+    let new_mod_type = mod_info.manifest.mod_type;
+    if old_mod_type.is_some() && old_mod_type != Some(new_mod_type) {
+        let old_label = match old_mod_type.unwrap() {
+            ModType::Live2d => WINDOW_LABEL_LIVE2D,
+            ModType::Sequence => WINDOW_LABEL_ANIMATION,
+        };
+        if let Some(old_window) = app.get_webview_window(old_label) {
+            let _ = old_window.destroy();
+            tokio::time::sleep(std::time::Duration::from_millis(
+                modules::constants::WINDOW_RESIZE_DELAY_MS + 200,
+            ))
+            .await;
+        }
+    }
+
+    match new_mod_type {
         ModType::Live2d => {
             recreate_live2d_window(app.clone()).await?;
         }
