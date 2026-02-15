@@ -91,6 +91,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get Live2DModel class
     const Live2DModel = PIXI.live2d.Live2DModel;
 
+    // === Debug Logger ===
+    const debug = {
+        enabled: true,
+        prefix: '[live2d-debug]',
+        log(...args) { if (this.enabled) console.log(this.prefix, ...args); },
+        warn(...args) { if (this.enabled) console.warn(this.prefix, ...args); },
+        error(...args) { if (this.enabled) console.error(this.prefix, ...args); },
+        table(label, data) { if (this.enabled) { console.log(this.prefix, label); console.table(data); } },
+    };
+
     // === Toast Notification ===
     function showToast(message, type = 'info') {
         toast.textContent = message;
@@ -102,12 +112,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // === File Cache Helpers ===
     function findFileInCache(url) {
         if (!url) return null;
-        const fileName = decodeURIComponent(url.split('/').pop().split('?')[0]);
+        const decoded = decodeURIComponent(url);
+        const fileName = decoded.split('/').pop().split('?')[0];
+        
+        // Normalize: strip leading slashes, collapse double slashes
+        const normalizeKey = (s) => decodeURIComponent(s).replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+/g, '/');
+        const normUrl = normalizeKey(url);
         
         for (const [path, data] of Object.entries(cachedFileData)) {
-            const pathFileName = path.split('/').pop();
-            if (path === url || pathFileName === fileName || path.endsWith(fileName) ||
-                decodeURIComponent(path) === url || path === decodeURIComponent(url)) {
+            const normPath = normalizeKey(path);
+            const pathFileName = normPath.split('/').pop();
+            if (normPath === normUrl || 
+                pathFileName === fileName || 
+                normPath.endsWith(normUrl) || 
+                normUrl.endsWith(normPath) ||
+                normPath.endsWith('/' + fileName) ||
+                normUrl.endsWith('/' + pathFileName)) {
                 return { path, data };
             }
         }
@@ -130,12 +150,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return originalFetch.call(this, url, options);
         }
         
-        console.log('Fetch intercepted:', urlStr);
         const relativePath = urlStr.substring(fakeBaseUrl.length);
+        debug.log('Fetch intercepted:', relativePath);
+        debug.log('  Full URL:', urlStr);
+        debug.log('  Cache keys sample:', Object.keys(cachedFileData).slice(0, 10));
         const found = findFileInCache(relativePath) || findFileInCache(urlStr);
         
         if (found) {
-            console.log('Returning cached:', relativePath);
+            debug.log('  -> Cache HIT:', found.path);
             const fileType = getFileType(found.path);
             const contentType = fileType === 'image' ? 'image/png' : 
                                fileType === 'arraybuffer' ? 'application/octet-stream' : 
@@ -143,7 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return new Response(found.data, { status: 200, headers: { 'Content-Type': contentType } });
         }
         
-        console.warn('File not in cache:', relativePath);
+        debug.warn('  -> Cache MISS:', relativePath);
+        debug.warn('  All cache keys:', Object.keys(cachedFileData));
         return originalFetch.call(this, url, options);
     };
     
@@ -497,6 +520,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Setup time correction for pause/resume
             setupModelTimeCorrection();
 
+            // === Debug: Dump model internals ===
+            debugModelInternals();
+
+            // === Auto-fix VTS dual-arm issue ===
+            autoFixDualArmParts();
+
             // Update UI
             updateModelInfo(modelJsonData, modelJsonFile);
             updateExpressions();
@@ -677,31 +706,65 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!motionMgr.definitions['Standalone']) {
                             motionMgr.definitions['Standalone'] = [];
                         }
-                        
-                        // Also ensure the motion group exists
                         if (!motionMgr.motionGroups['Standalone']) {
                             motionMgr.motionGroups['Standalone'] = [];
                         }
                         
-                        // Check if already registered
-                        let idx = motionMgr.definitions['Standalone'].findIndex(m => 
-                            (m.File || m.file) === file
-                        );
+                        // Dump settings for debugging path resolution
+                        const settings = model.internalModel?.settings;
+                        if (settings) {
+                            debug.log('model settings.url:', settings.url);
+                            debug.log('model settings.basePath:', settings.basePath);
+                        }
+                        
+                        // IMPORTANT: In pixi-live2d-display, motionGroups[group][index] semantics:
+                        //   undefined  -> not yet loaded (will trigger loading)
+                        //   null       -> load FAILED (will be rejected with warning)
+                        //   object     -> successfully loaded motion (reusable)
+                        // So we must NEVER set a slot to null; leave it as undefined.
+                        
+                        // Find an existing reusable slot, or create a new one.
+                        let idx = -1;
+                        for (let i = 0; i < motionMgr.definitions['Standalone'].length; i++) {
+                            const def = motionMgr.definitions['Standalone'][i];
+                            const defFile = def.File || def.file;
+                            if (defFile === file) {
+                                const cached = motionMgr.motionGroups['Standalone'][i];
+                                if (cached === undefined) {
+                                    // Not yet loaded - can use this slot
+                                    idx = i;
+                                    debug.log('Reusing unloaded Standalone slot:', i);
+                                } else if (cached && typeof cached === 'object') {
+                                    // Successfully loaded motion - reusable
+                                    idx = i;
+                                    debug.log('Reusing loaded Standalone slot:', i);
+                                } else if (cached === null) {
+                                    // Failed slot - mark dead and skip
+                                    debug.log('Standalone slot', i, 'previously failed, skipping');
+                                }
+                            }
+                        }
                         
                         if (idx === -1) {
-                            // Add new motion definition
+                            // Push a fresh definition; do NOT set motionGroups slot
+                            // (Array growth leaves new index as undefined, which is correct)
                             motionMgr.definitions['Standalone'].push({ 
                                 File: file,
                                 FadeInTime: 0.5,
                                 FadeOutTime: 0.5
                             });
                             idx = motionMgr.definitions['Standalone'].length - 1;
-                            
-                            // Initialize the motion group array slot
-                            motionMgr.motionGroups['Standalone'][idx] = null;
+                            // Ensure motionGroups array is long enough but leave slot as undefined
+                            if (motionMgr.motionGroups['Standalone'].length <= idx) {
+                                motionMgr.motionGroups['Standalone'].length = idx + 1;
+                            }
+                            debug.log('Created new Standalone slot:', idx, 'for file:', file);
+                            debug.log('  motionGroups[Standalone][' + idx + '] =', motionMgr.motionGroups['Standalone'][idx]);
                         }
                         
-                        console.log('Playing standalone motion:', file, 'index:', idx);
+                        debug.log('Playing standalone motion:', file, 'index:', idx);
+                        debug.log('  file in cache?', !!cachedFileData[file]);
+                        
                         await model.motion('Standalone', idx);
                         
                     } catch (e) {
@@ -848,6 +911,164 @@ document.addEventListener('DOMContentLoaded', () => {
         isPlaying = true;
         originalModelUpdate = null;
         playIcon.textContent = '⏸️';
+    }
+
+    // === Debug: Dump model internals for troubleshooting ===
+    function debugModelInternals() {
+        if (!model?.internalModel) return;
+
+        const coreModel = model.internalModel.coreModel;
+        if (!coreModel) {
+            debug.warn('coreModel is null');
+            return;
+        }
+
+        // --- Parameters ---
+        const paramCount = coreModel.getParameterCount?.() ?? 0;
+        const paramIds = coreModel._parameterIds || [];
+        debug.log(`Model has ${paramCount} parameters`);
+
+        const armParams = [];
+        for (let i = 0; i < paramCount; i++) {
+            const id = paramIds[i] || `Param_${i}`;
+            if (/arm|hand/i.test(id)) {
+                armParams.push({
+                    index: i,
+                    id,
+                    value: coreModel.getParameterValueByIndex(i),
+                    min: coreModel.getParameterMinimumValue(i),
+                    max: coreModel.getParameterMaximumValue(i),
+                    default: coreModel.getParameterDefaultValue?.(i),
+                });
+            }
+        }
+        if (armParams.length) {
+            debug.table('Arm/Hand parameters:', armParams);
+        }
+
+        // --- Parts ---
+        const partCount = coreModel.getPartCount?.() ?? 0;
+        const partIds = coreModel._partIds || [];
+        debug.log(`Model has ${partCount} parts`);
+
+        const partInfo = [];
+        for (let i = 0; i < partCount; i++) {
+            const id = partIds[i] || `Part_${i}`;
+            const opacity = coreModel.getPartOpacityByIndex(i);
+            partInfo.push({ index: i, id, opacity });
+        }
+        debug.table('All parts:', partInfo);
+
+        // Highlight arm/hand parts specifically
+        const armParts = partInfo.filter(p => /arm|hand/i.test(p.id));
+        if (armParts.length) {
+            debug.table('Arm/Hand parts:', armParts);
+        }
+
+        // --- Check for VTS manifest ---
+        const vtubeFile = Object.keys(cachedFileData).find(f => f.endsWith('.vtube.json'));
+        if (vtubeFile) {
+            try {
+                const vtubeData = JSON.parse(cachedFileData[vtubeFile]);
+                debug.log('VTS manifest detected:', vtubeFile);
+                debug.log('  IdleAnimation:', vtubeData.FileReferences?.IdleAnimation);
+                debug.log('  Model:', vtubeData.FileReferences?.Model);
+            } catch (e) {
+                debug.warn('Failed to parse VTS manifest:', e);
+            }
+        }
+
+        // --- Motion definitions ---
+        const motionMgr = model.internalModel.motionManager;
+        if (motionMgr?.definitions) {
+            const groups = Object.keys(motionMgr.definitions);
+            debug.log('Motion groups:', groups);
+            groups.forEach(g => {
+                const motions = motionMgr.definitions[g];
+                if (Array.isArray(motions)) {
+                    debug.log(`  ${g}: ${motions.length} motion(s)`, motions.map(m => m.File || m.file || '(no file)'));
+                }
+            });
+        }
+    }
+
+    // === Auto-fix VTS dual-arm (four hands) issue ===
+    // Many VTS models have two arm sets (ArmA & ArmB). The Idle motion
+    // controls PartOpacity to show only one set. Without Idle playback,
+    // both sets render at opacity=1, showing "four hands".
+    // Fix: detect and hide ArmB parts, and set ArmB-related params to 0.
+    function autoFixDualArmParts() {
+        if (!model?.internalModel) return;
+        const coreModel = model.internalModel.coreModel;
+        if (!coreModel) return;
+
+        const partCount = coreModel.getPartCount?.() ?? 0;
+        const partIds = coreModel._partIds || [];
+        const paramCount = coreModel.getParameterCount?.() ?? 0;
+        const paramIds = coreModel._parameterIds || [];
+
+        // Detect if this model has dual arm parts (ArmA + ArmB pattern)
+        const hasArmA = partIds.some(id => /^PartArm\s*A$/i.test(id) || id === 'PartArmA');
+        const hasArmB = partIds.some(id => /^PartArm\s*B$/i.test(id) || id === 'PartArmB');
+
+        if (!hasArmA || !hasArmB) {
+            debug.log('No dual-arm pattern detected, skipping arm fix');
+            return;
+        }
+
+        debug.log('Dual-arm pattern detected (ArmA + ArmB), applying fix...');
+
+        // 1) Hide ArmB parts by setting opacity to 0
+        let hiddenParts = 0;
+        for (let i = 0; i < partCount; i++) {
+            const id = partIds[i];
+            // Match PartArmB and any similar B-variant parts
+            if (/ArmB|HandB/i.test(id)) {
+                const oldOpacity = coreModel.getPartOpacityByIndex(i);
+                coreModel.setPartOpacityByIndex(i, 0);
+                debug.log(`  Hidden part[${i}] "${id}" opacity: ${oldOpacity} -> 0`);
+                hiddenParts++;
+            }
+        }
+
+        // 2) Set ArmB-related parameters to 0 (or their default)
+        let fixedParams = 0;
+        for (let i = 0; i < paramCount; i++) {
+            const id = paramIds[i];
+            // Match ParamArmLB, ParamArmRB, ParamHandLB, ParamHandRB
+            if (/Arm[LR]B|Hand[LR]B/i.test(id)) {
+                const defaultVal = coreModel.getParameterDefaultValue?.(i) ?? 0;
+                const oldVal = coreModel.getParameterValueByIndex(i);
+                coreModel.setParameterValueByIndex(i, defaultVal);
+                debug.log(`  Reset param[${i}] "${id}" value: ${oldVal} -> ${defaultVal}`);
+                fixedParams++;
+            }
+        }
+
+        debug.log(`Arm fix applied: ${hiddenParts} parts hidden, ${fixedParams} params reset`);
+
+        // 3) Ensure the fix persists each frame (the model's update loop
+        //    may overwrite part opacities). We hook into the update cycle.
+        if (hiddenParts > 0) {
+            const armBPartIndices = [];
+            for (let i = 0; i < partCount; i++) {
+                if (/ArmB|HandB/i.test(partIds[i])) {
+                    armBPartIndices.push(i);
+                }
+            }
+
+            // Hook afterUpdate on internalModel to keep ArmB hidden
+            const internalModel = model.internalModel;
+            const origUpdate = internalModel.update.bind(internalModel);
+            internalModel.update = function(dt, now) {
+                origUpdate(dt, now);
+                // After the motion system updates part opacities, force ArmB to 0
+                for (const idx of armBPartIndices) {
+                    coreModel.setPartOpacityByIndex(idx, 0);
+                }
+            };
+            debug.log('Installed per-frame ArmB hide hook on internalModel.update');
+        }
     }
 
     screenshotBtn.addEventListener('click', () => {
@@ -1360,10 +1581,19 @@ document.addEventListener('DOMContentLoaded', () => {
             motionMgr.motionGroups['Standalone'] = [];
         }
         
-        // Check if already registered
-        let idx = motionMgr.definitions['Standalone'].findIndex(m => 
-            (m.File || m.file) === file
-        );
+        // Find a usable slot (undefined = not loaded, null = failed, object = loaded)
+        let idx = -1;
+        for (let i = 0; i < motionMgr.definitions['Standalone'].length; i++) {
+            const def = motionMgr.definitions['Standalone'][i];
+            if ((def.File || def.file) === file) {
+                const cached = motionMgr.motionGroups['Standalone'][i];
+                if (cached === undefined || (cached && typeof cached === 'object')) {
+                    idx = i;
+                    break;
+                }
+                // cached === null means failed, skip
+            }
+        }
         
         if (idx === -1) {
             motionMgr.definitions['Standalone'].push({ 
@@ -1372,7 +1602,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 FadeOutTime: 0.5
             });
             idx = motionMgr.definitions['Standalone'].length - 1;
-            motionMgr.motionGroups['Standalone'][idx] = null;
+            // Leave motionGroups[idx] as undefined (NOT null!)
+            if (motionMgr.motionGroups['Standalone'].length <= idx) {
+                motionMgr.motionGroups['Standalone'].length = idx + 1;
+            }
         }
         
         // Update the selectedExportMotionIndex to the actual index in Standalone group
