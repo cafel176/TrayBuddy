@@ -401,8 +401,6 @@ export class Live2DPlayer {
     this.animationScale = options.animationScale;
     this.applyStateTransform();
 
-    await this.applyExpression(targetState.expression);
-
     const motionEntry = this.motionMap.get(buildNameKey(targetState.motion));
     if (!motionEntry) {
       if (options.playOnce) options.onComplete();
@@ -423,6 +421,9 @@ export class Live2DPlayer {
     this.attachMotionFinishHandler(onFinish);
 
     const started = await this.startMotion(motionEntry);
+
+    // 表情必须在动作启动之后设置，因为 startMotion 内的 stopAllMotions() 会清除表情状态
+    await this.applyExpression(targetState.expression);
     if (!started) {
       if (options.playOnce) onFinish();
       return false;
@@ -615,22 +616,42 @@ export class Live2DPlayer {
 
     const expressionManager =
       this.model.internalModel?.motionManager?.expressionManager;
-    const definitions = expressionManager?.definitions || [];
 
+    if (!expressionManager) {
+      dbg("buildExpressionMap", "no expressionManager available");
+      return;
+    }
+
+    if (!expressionManager.definitions) expressionManager.definitions = [];
+    const definitions = expressionManager.definitions;
+
+    // 先索引已有的表情定义
     definitions.forEach((exp: any, index: number) => {
       const name = exp.Name || exp.name;
       if (name) this.expressionMap.set(buildNameKey(name), index);
     });
 
+    // 将 config 中的表情注入 expressionManager（补充 model3.json 未声明的）
     this.config.expressions.forEach((exp: Live2DExpression) => {
       const key = buildNameKey(exp.name);
       if (this.expressionMap.has(key)) return;
 
+      // 先按文件路径查找已有定义
       const idx = definitions.findIndex(
         (def: any) => (def.File || def.file) === exp.file,
       );
-      if (idx >= 0) this.expressionMap.set(key, idx);
+      if (idx >= 0) {
+        this.expressionMap.set(key, idx);
+        return;
+      }
+
+      // 未找到：注入新定义到 expressionManager
+      const newIdx = definitions.push({ Name: exp.name, File: exp.file }) - 1;
+      this.expressionMap.set(key, newIdx);
+      dbg("buildExpressionMap", "injected expression:", exp.name, "at index:", newIdx);
     });
+
+    dbg("buildExpressionMap", "expressionMap keys:", [...this.expressionMap.keys()]);
   }
 
   private async applyExpression(expressionName: string): Promise<void> {
@@ -687,6 +708,10 @@ export class Live2DPlayer {
       if (this.playToken !== loopToken) return;
 
       await this.startMotion(entry);
+      // 每次循环后重新应用表情，因为 startMotion 内的 stopAllMotions() 会清除表情状态
+      if (this.activeState?.expression) {
+        await this.applyExpression(this.activeState.expression);
+      }
       const duration = await this.getMotionDurationSeconds(entry.motion);
       const delay = Math.max(duration * 1000 - 100, 500);
       this.playTimer = setTimeout(loop, delay);

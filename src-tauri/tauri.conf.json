@@ -41,6 +41,7 @@
       "../mods/mastermind": "mods/mastermind",
       "../mods/sunflower": "mods/sunflower",
       "../mods/tutorial": "mods/tutorial",
+      "../mods/hiyori": "mods/hiyori",
 
       "../mods/bubble_style.json": "mods/bubble_style.json",     
       "../mods/mod-guide.md": "mods/mod-guide.md",   
