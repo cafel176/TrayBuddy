@@ -34,9 +34,12 @@
     AudioInfo,
     BorderConfig,
     CharacterConfig,
+    Live2DConfig,
+    ModType,
     StateInfo,
     TriggerInfo,
   } from "$lib/types/asset";
+
 
 
   // ======================================================================= //
@@ -47,6 +50,7 @@
     id: string;
     version: string;
     author: string;
+    mod_type?: ModType;
     default_audio_lang_id: string;
     default_text_lang_id: string;
     character: CharacterConfig;
@@ -57,6 +61,7 @@
     states: StateInfo[];
     triggers: TriggerInfo[];
   }
+
 
   interface TextInfo {
 
@@ -80,10 +85,12 @@
     manifest: ModManifest;
     imgs: AssetInfo[];
     sequences: AssetInfo[];
+    live2d?: Live2DConfig;
     audios: Record<string, AudioInfo[]>;
     texts: Record<string, TextInfo[]>;
     info: Record<string, CharacterInfo>;
   }
+
 
 
   // ======================================================================= //
@@ -285,8 +292,21 @@
   }
 
   // ======================================================================= //
+  // Mod 类型
+  // ======================================================================= //
+
+  function getModType(): ModType {
+    return (currentModInfo?.manifest.mod_type ?? "sequence") as ModType;
+  }
+
+  function isLive2dMod(): boolean {
+    return getModType() === "live2d";
+  }
+
+  // ======================================================================= //
   // 统计
   // ======================================================================= //
+
 
   function getTotalStates(): number {
     if (!currentModInfo) return 0;
@@ -386,14 +406,30 @@
           >
           <span class="stat-label">{_("resource.statTriggers")}</span>
         </div>
-        <div class="stat-item">
-          <span class="stat-value">{currentModInfo.imgs.length}</span>
-          <span class="stat-label">{_("resource.statImages")}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">{currentModInfo.sequences.length}</span>
-          <span class="stat-label">{_("resource.statAnimations")}</span>
-        </div>
+        {#if isLive2dMod()}
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.live2d?.motions.length ?? 0}</span>
+            <span class="stat-label">{_("resource.statLive2DMotions")}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.live2d?.expressions.length ?? 0}</span>
+            <span class="stat-label">{_("resource.statLive2DExpressions")}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.live2d?.states.length ?? 0}</span>
+            <span class="stat-label">{_("resource.statLive2DStates")}</span>
+          </div>
+        {:else}
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.imgs.length}</span>
+            <span class="stat-label">{_("resource.statImages")}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.sequences.length}</span>
+            <span class="stat-label">{_("resource.statAnimations")}</span>
+          </div>
+        {/if}
+
         <div class="stat-item">
           <span class="stat-value">{getTotalAudios()}</span>
           <span class="stat-label">{_("resource.statAudios")}</span>
@@ -423,6 +459,15 @@
                 <span class="info-label">{_("resource.author")}</span>
                 <span class="info-value">{currentModInfo.manifest.author}</span>
               </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.modType")}</span>
+                <span class="info-value">
+                  {getModType() === "live2d"
+                    ? _("resource.modTypeLive2D")
+                    : _("resource.modTypeSequence")}
+                </span>
+              </div>
+
               <div class="info-row">
                 <span class="info-label">{_("resource.bubbleStyle")}</span>
                 <span class="info-value"
@@ -1135,12 +1180,14 @@
           </details>
         {/if}
 
-        <!-- 静态图片资源 -->
-        <details>
-          <summary
-            >{_("resource.staticImages")} ({currentModInfo.imgs
-              .length})</summary
-          >
+        {#if !isLive2dMod()}
+          <!-- 静态图片资源 -->
+          <details>
+            <summary
+              >{_("resource.staticImages")} ({currentModInfo.imgs
+                .length})</summary
+            >
+
           <div class="tab-content">
             <div class="asset-grid">
               {#each currentModInfo.imgs as img}
@@ -1306,8 +1353,158 @@
             </div>
           </div>
         </details>
+        {/if}
+
+        <!-- Live2D 资源 -->
+        {#if isLive2dMod()}
+          <details>
+            <summary>{_("resource.live2dAssets")}</summary>
+            <div class="tab-content">
+              {#if currentModInfo.live2d}
+                <h5>{_("resource.live2dModel")}</h5>
+                <div class="info-grid">
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dModelJson")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.model_json}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dBaseDir")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.base_dir}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dTextureDir")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.textures_dir}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dMotionsDir")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.motions_dir}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dExpressionsDir")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.expressions_dir}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dPhysics")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.physics_json || _("resource.notSet")}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dPose")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.pose_json || _("resource.notSet")}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dBreath")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.breath_json || _("resource.notSet")}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dEyeBlink")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.eye_blink ? _("common.yes") : _("common.no")}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">{_("resource.live2dLipSync")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.lip_sync ? _("common.yes") : _("common.no")}</span>
+
+                  </div>
+                </div>
+
+                <h5>{_("resource.live2dMotions")} ({currentModInfo.live2d.motions.length})</h5>
+                <div class="state-list">
+                  {#each currentModInfo.live2d.motions as motion}
+                    <div class="state-card">
+                      <div class="state-header">
+                        <span class="state-name">{motion.name}</span>
+                      </div>
+                      <div class="state-detail">
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.animationLabel")}</span>
+                          {motion.file}
+                        </div>
+                        {#if motion.group}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dGroup")}</span>
+                            {motion.group}
+                          </div>
+                        {/if}
+                        {#if motion.priority}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dPriority")}</span>
+                            {motion.priority}
+                          </div>
+                        {/if}
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.live2dFade")}</span>
+                          {motion.fade_in_ms}ms / {motion.fade_out_ms}ms
+                        </div>
+                        {#if motion.loop}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dLoop")}</span>
+                            {_("common.yes")}
+                          </div>
+                        {/if}
+
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+
+                <h5>{_("resource.live2dExpressions")} ({currentModInfo.live2d.expressions.length})</h5>
+                <div class="state-list">
+                  {#each currentModInfo.live2d.expressions as exp}
+                    <div class="state-card">
+                      <div class="state-header">
+                        <span class="state-name">{exp.name}</span>
+                      </div>
+                      <div class="state-detail">
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.animationLabel")}</span>
+                          {exp.file}
+                        </div>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+
+                <h5>{_("resource.live2dStates")} ({currentModInfo.live2d.states.length})</h5>
+                <div class="state-list">
+                  {#each currentModInfo.live2d.states as lstate}
+                    <div class="state-card">
+                      <div class="state-header">
+                        <span class="state-name">{lstate.state}</span>
+                      </div>
+                      <div class="state-detail">
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.live2dStateMotion")}</span>
+                          {lstate.motion}
+                        </div>
+                        {#if lstate.expression}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dStateExpression")}</span>
+                            {lstate.expression}
+                          </div>
+                        {/if}
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.live2dStateScale")}</span>
+                          {lstate.scale}
+                        </div>
+                        <div class="detail-item">
+                          <span class="detail-label">{_("resource.live2dStateOffset")}</span>
+                          {lstate.offset_x},{lstate.offset_y}
+                        </div>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="info-row">
+                  <span class="info-label">{_("resource.live2dAssets")}</span>
+                  <span class="info-value">{_("resource.notSet")}</span>
+                </div>
+              {/if}
+            </div>
+          </details>
+        {/if}
 
         <!-- 语音资源 -->
+
         <details>
           <summary>{_("resource.audioResources")} ({getTotalAudios()})</summary>
           <div class="tab-content">

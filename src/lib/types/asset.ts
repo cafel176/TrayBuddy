@@ -42,6 +42,55 @@ export interface AssetInfo {
   offset_y: number;
 }
 
+export type ModType = "sequence" | "live2d";
+
+export interface Live2DModelConfig {
+  name: string;
+  base_dir: string;
+  model_json: string;
+  textures_dir: string;
+  motions_dir: string;
+  expressions_dir: string;
+  physics_json: string;
+  pose_json: string;
+  breath_json: string;
+  eye_blink: boolean;
+  lip_sync: boolean;
+}
+
+export interface Live2DMotion {
+  name: string;
+  file: string;
+  group: string;
+  priority: string;
+  fade_in_ms: number;
+  fade_out_ms: number;
+  loop: boolean;
+}
+
+export interface Live2DExpression {
+  name: string;
+  file: string;
+}
+
+export interface Live2DState {
+  state: string;
+  motion: string;
+  expression: string;
+  scale: number;
+  offset_x: number;
+  offset_y: number;
+}
+
+export interface Live2DConfig {
+  schema_version: number;
+  model: Live2DModelConfig;
+  motions: Live2DMotion[];
+  expressions: Live2DExpression[];
+  states: Live2DState[];
+}
+
+
 /**
  * 动画配置接口
  *

@@ -181,6 +181,133 @@ impl Default for AssetInfo {
 }
 
 // ========================================================================= //
+// Live2D 资产定义
+// ========================================================================= //
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DModelConfig {
+    pub name: Box<str>,
+    pub base_dir: Box<str>,
+    pub model_json: Box<str>,
+    pub textures_dir: Box<str>,
+    pub motions_dir: Box<str>,
+    pub expressions_dir: Box<str>,
+    pub physics_json: Box<str>,
+    pub pose_json: Box<str>,
+    pub breath_json: Box<str>,
+    pub eye_blink: bool,
+    pub lip_sync: bool,
+}
+
+impl Default for Live2DModelConfig {
+    fn default() -> Self {
+        Self {
+            name: default_name(),
+            base_dir: "".into(),
+            model_json: "".into(),
+            textures_dir: "".into(),
+            motions_dir: "".into(),
+            expressions_dir: "".into(),
+            physics_json: "".into(),
+            pose_json: "".into(),
+            breath_json: "".into(),
+            eye_blink: false,
+            lip_sync: false,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DMotion {
+    pub name: Box<str>,
+    pub file: Box<str>,
+    pub group: Box<str>,
+    pub priority: Box<str>,
+    pub fade_in_ms: u32,
+    pub fade_out_ms: u32,
+    pub r#loop: bool,
+}
+
+impl Default for Live2DMotion {
+    fn default() -> Self {
+        Self {
+            name: default_name(),
+            file: "".into(),
+            group: "".into(),
+            priority: "".into(),
+            fade_in_ms: 0,
+            fade_out_ms: 0,
+            r#loop: false,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DExpression {
+    pub name: Box<str>,
+    pub file: Box<str>,
+}
+
+impl Default for Live2DExpression {
+    fn default() -> Self {
+        Self {
+            name: default_name(),
+            file: "".into(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DState {
+    pub state: Box<str>,
+    pub motion: Box<str>,
+    pub expression: Box<str>,
+    pub scale: f32,
+    pub offset_x: i32,
+    pub offset_y: i32,
+}
+
+impl Default for Live2DState {
+    fn default() -> Self {
+        Self {
+            state: default_name(),
+            motion: "".into(),
+            expression: "".into(),
+            scale: 1.0,
+            offset_x: 0,
+            offset_y: 0,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DConfig {
+    pub schema_version: u32,
+    pub model: Live2DModelConfig,
+    pub motions: Vec<Live2DMotion>,
+    pub expressions: Vec<Live2DExpression>,
+    pub states: Vec<Live2DState>,
+}
+
+impl Default for Live2DConfig {
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            model: Live2DModelConfig::default(),
+            motions: Vec::new(),
+            expressions: Vec::new(),
+            states: Vec::new(),
+        }
+    }
+}
+
+
+// ========================================================================= //
 // 音频定义
 // ========================================================================= //
 
@@ -712,6 +839,19 @@ impl Default for BorderConfig {
 // Mod 清单定义
 // ========================================================================= //
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ModType {
+    Sequence,
+    Live2d,
+}
+
+impl Default for ModType {
+    fn default() -> Self {
+        Self::Sequence
+    }
+}
+
 /// Mod 全局清单（manifest.json）
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -722,6 +862,9 @@ pub struct ModManifest {
     pub version: Box<str>,
     /// 作者
     pub author: Box<str>,
+
+    /// Mod 类型（sequence / live2d）
+    pub mod_type: ModType,
 
     /// 默认语音语言 ID
     pub default_audio_lang_id: Box<str>,
@@ -752,6 +895,7 @@ impl Default for ModManifest {
             id: default_name(),
             version: "".into(),
             author: "".into(),
+            mod_type: ModType::Sequence,
             default_audio_lang_id: "".into(),
             default_text_lang_id: "".into(),
             character: CharacterConfig::default(),
@@ -797,8 +941,11 @@ pub struct ModInfo {
     pub imgs: Vec<AssetInfo>,
     /// 序列帧资产列表
     pub sequences: Vec<AssetInfo>,
+    /// Live2D 动画配置（仅 live2d Mod 有值）
+    pub live2d: Option<Live2DConfig>,
     /// 语音资源（语言代码 -> 语音列表）
     pub audios: HashMap<Box<str>, Vec<AudioInfo>>,
+
     /// 文本资源（语言代码 -> 文本列表）
     pub texts: HashMap<Box<str>, Vec<TextInfo>>,
     /// 角色信息（语言代码 -> 角色信息）
@@ -1327,6 +1474,12 @@ impl ResourceManager {
         let imgs = crate::modules::utils::fs::load_json_list(&assets_path.join("img.json"));
         let sequences =
             crate::modules::utils::fs::load_json_list(&assets_path.join("sequence.json"));
+        let live2d = if manifest.mod_type == ModType::Live2d {
+            crate::modules::utils::fs::load_json_obj(&assets_path.join("live2d.json"))
+        } else {
+            None
+        };
+
 
         // 解析多语言语音
         let audios =
@@ -1366,8 +1519,10 @@ impl ResourceManager {
             manifest,
             imgs,
             sequences,
+            live2d,
             audios,
             info,
+
             texts,
             bubble_style,
             icon_path: icon_path.map(|s| s.into()),
