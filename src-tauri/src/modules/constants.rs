@@ -136,6 +136,9 @@ pub const STATE_FIRSTDAY: &str = "firstday";
 /// 点击事件
 pub const EVENT_CLICK: &str = "click";
 
+/// 右键点击事件
+pub const EVENT_RIGHT_CLICK: &str = "right_click";
+
 /// 登录事件
 pub const EVENT_LOGIN: &str = "login";
 

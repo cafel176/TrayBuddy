@@ -350,6 +350,9 @@ Live2D 渲染层暂为空占位。
       isPixelOpaqueAtWindowPos: (windowX: number, windowY: number) => {
         return live2dPlayer?.isPixelOpaqueAtScreen(windowX, windowY) ?? false;
       },
+      onCursorMove: (localX: number, localY: number) => {
+        live2dPlayer?.updateGlobalMouseFollow(localX, localY);
+      },
     },
   });
 

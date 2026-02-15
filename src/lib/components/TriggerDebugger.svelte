@@ -546,6 +546,9 @@
       <button class="btn-quick" onclick={() => triggerEvent("click")}
         >{_("trigger.quickClick")}</button
       >
+      <button class="btn-quick" onclick={() => triggerEvent("right_click")}
+        >{_("trigger.quickRightClick")}</button
+      >
       <button class="btn-quick" onclick={() => triggerEvent("login")}
         >{_("trigger.quickLogin")}</button
       >

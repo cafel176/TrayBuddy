@@ -410,7 +410,7 @@
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -420,21 +420,21 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "ParamMouseLeftDown",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_空格",
@@ -1055,6 +1055,37 @@
         }
       ],
       "branch": []
+    },
+    {
+      "name": "key_mouse_right",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "wait",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": [
+        {
+          "id": "ParamMouseRightDown",
+          "value": 1
+        }
+      ],
+      "branch": []
     }
   ],
   "triggers": [
@@ -1445,6 +1476,21 @@
           "states": [
             {
               "state": "key_q",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "right_click",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_mouse_right",
               "weight": 1
             }
           ],

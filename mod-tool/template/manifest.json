@@ -325,6 +325,10 @@
       "can_trigger_states": []
     },
     {
+      "event": "right_click",
+      "can_trigger_states": []
+    },
+    {
       "event": "keydown:Space",
       "can_trigger_states": []
     },

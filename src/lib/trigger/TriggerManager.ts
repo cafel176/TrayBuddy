@@ -5,6 +5,7 @@
  *
  * ## 支持的事件
  * - `click` - 点击桌面宠物
+ * - `right_click` - 右键点击桌面宠物
  * - `login` - 应用启动（登录）
  * - `drag_start` - 开始拖动 Animation window
  * - `drag_end` - 结束拖动 Animation window
@@ -28,6 +29,7 @@ import { invoke } from "@tauri-apps/api/core";
 /** 支持的触发事件类型 */
 export type TriggerEvent =
   | "click"
+  | "right_click"
   | "login"
   | "login_silence"
   | "firstday"
@@ -39,6 +41,7 @@ export type TriggerEvent =
 /** 已支持的事件列表 */
 const SUPPORTED_EVENTS: readonly TriggerEvent[] = [
   "click",
+  "right_click",
   "login",
   "login_silence",
   "firstday",

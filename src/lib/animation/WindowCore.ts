@@ -88,6 +88,8 @@ export type WindowCoreCallbacks = {
   onCharacterConfigLoaded?: (config: CharacterConfig | null) => void;
   /** 前端像素级透明度检测：给定窗口内坐标，判断该位置像素是否不透明。用于 live2d 鼠标穿透。 */
   isPixelOpaqueAtWindowPos?: (windowX: number, windowY: number) => boolean;
+  /** 全局鼠标追踪：每次光标轮询时传入窗口本地坐标（CSS 逻辑像素） */
+  onCursorMove?: (localX: number, localY: number) => void;
 };
 
 export type WindowCore = {
@@ -307,6 +309,9 @@ export function createWindowCore(options: {
           const localX = (cursor.x - position.x) / scaleFactor;
           const localY = (cursor.y - position.y) / scaleFactor;
 
+          // 全局鼠标追踪：即使窗口穿透也实时更新 Live2D 模型 ParamMouseX/Y
+          callbacks.onCursorMove?.(localX, localY);
+
           // 先检查气泡区域
           if (bubbleBounds) {
             const inBubble =
@@ -486,6 +491,9 @@ export function createWindowCore(options: {
 
   async function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
+
+    triggerManager?.trigger("right_click");
+
     try {
       await invoke("show_context_menu");
     } catch (err) {

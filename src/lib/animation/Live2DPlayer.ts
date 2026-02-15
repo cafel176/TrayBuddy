@@ -166,6 +166,9 @@ export class Live2DPlayer {
   private dualArmCleanup: (() => void) | null = null;
   private paramOverrideCleanup: (() => void) | null = null;
 
+  // 全局鼠标追踪（穿透状态下也生效）
+  private hasMouseParams = false;
+
   // Debug 视角控制
   private debugMode = false;
   private debugScale = 1;
@@ -377,6 +380,7 @@ export class Live2DPlayer {
     this.buildMotionMap();
     this.buildExpressionMap();
     this.setupDualArmHiding();
+    this.detectMouseParams();
     this.updateFitScale();
     this.applyFeatureFlags();
     this.applyInitialTransform();
@@ -510,6 +514,31 @@ export class Live2DPlayer {
       this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
       this.mouseMoveHandler = null;
     }
+  }
+
+  /**
+   * 检测模型是否包含 ParamMouseX / ParamMouseY 参数
+   */
+  private detectMouseParams(): void {
+    this.hasMouseParams = false;
+    if (!this.model) return;
+    const coreModel = this.model.internalModel?.coreModel;
+    if (!coreModel) return;
+    const idxX = coreModel.getParameterIndex?.("ParamMouseX");
+    const idxY = coreModel.getParameterIndex?.("ParamMouseY");
+    this.hasMouseParams =
+      typeof idxX === "number" && idxX >= 0 &&
+      typeof idxY === "number" && idxY >= 0;
+    dbg("detectMouseParams", "hasMouseParams:", this.hasMouseParams, "idxX:", idxX, "idxY:", idxY);
+  }
+
+  /**
+   * 全局鼠标追踪：由外部传入窗口本地坐标（CSS 逻辑像素），
+   * 即使窗口处于穿透状态也能更新 ParamMouseX / ParamMouseY。
+   */
+  updateGlobalMouseFollow(localX: number, localY: number): void {
+    if (!this.model || !this.featureFlags.mouseFollow || !this.hasMouseParams) return;
+    this.model.focus(localX, localY);
   }
 
   private applyFeatureFlags(): void {
