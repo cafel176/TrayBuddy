@@ -161,6 +161,7 @@ export class Live2DPlayer {
   private activeState: Live2DState | null = null;
   private animationScale = 1;
   private baseFitScale = 1;
+  private dualArmCleanup: (() => void) | null = null;
 
   // Debug 视角控制
   private debugMode = false;
@@ -190,6 +191,7 @@ export class Live2DPlayer {
   destroy(): void {
     this.clearPlayTimer();
     this.unbindMouseFollow();
+    this.cleanupDualArm();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
 
@@ -370,6 +372,7 @@ export class Live2DPlayer {
 
     this.buildMotionMap();
     this.buildExpressionMap();
+    this.setupDualArmHiding();
     this.updateFitScale();
     this.applyFeatureFlags();
     this.applyInitialTransform();
@@ -433,7 +436,8 @@ export class Live2DPlayer {
       const duration = await this.getMotionDurationSeconds(motionEntry.motion);
       const fallback = Math.max(duration * 1000, 800);
       this.playTimer = setTimeout(onFinish, fallback);
-    } else if (motionEntry.motion.loop) {
+    } else {
+      // persistent 状态始终循环播放动作（无论 motion.loop 配置如何）
       void this.startLoopMotion(motionEntry);
     }
 
@@ -652,6 +656,75 @@ export class Live2DPlayer {
     });
 
     dbg("buildExpressionMap", "expressionMap keys:", [...this.expressionMap.keys()]);
+  }
+
+  /**
+   * 自动检测 PartArmA + PartArmB 双臂部件模式。
+   * 如果模型同时包含这两个部件，将 PartArmB 的 opacity 设为 0 并重置 ArmB 相关参数，
+   * 然后 hook internalModel.update()，在每帧动作系统更新后强制保持 ArmB 隐藏，
+   * 防止被动画系统覆盖。
+   */
+  private setupDualArmHiding(): void {
+    if (!this.model) return;
+
+    const internalModel = this.model.internalModel;
+    if (!internalModel) return;
+
+    const coreModel = internalModel.coreModel;
+    if (!coreModel) return;
+
+    // 使用 coreModel.getPartIndex(id) 检测是否同时存在 PartArmA 和 PartArmB
+    const armAIndex = coreModel.getPartIndex?.("PartArmA");
+    const armBIndex = coreModel.getPartIndex?.("PartArmB");
+
+    // getPartIndex 找不到时不返回 -1，而是创建 notExist 条目，
+    // 所以通过 _partIds 数组确认部件是否真实存在
+    const partIds: string[] = coreModel._partIds || [];
+    const hasArmA = partIds.includes("PartArmA");
+    const hasArmB = partIds.includes("PartArmB");
+
+    if (!hasArmA || !hasArmB) {
+      dbg("setupDualArmHiding", "dual arm parts not detected, skip. hasArmA:", hasArmA, "hasArmB:", hasArmB);
+      return;
+    }
+
+    dbg("setupDualArmHiding", "detected PartArmA at", armAIndex, "PartArmB at", armBIndex);
+
+    // 立即设置初始状态：ArmA=1, ArmB=0
+    coreModel.setPartOpacityByIndex(armAIndex, 1);
+    coreModel.setPartOpacityByIndex(armBIndex, 0);
+
+    // 重置 ArmB 相关参数到默认值
+    const armBParams = ["ParamArmLB", "ParamArmRB", "ParamHandLB", "ParamHandRB"];
+    for (const paramName of armBParams) {
+      const paramIdx = coreModel.getParameterIndex?.(paramName);
+      if (typeof paramIdx === "number" && paramIdx >= 0) {
+        const defaultValue = coreModel.getParameterDefaultValue?.(paramIdx) ?? 0;
+        coreModel.setParameterValueByIndex(paramIdx, defaultValue);
+        dbg("setupDualArmHiding", "reset param", paramName, "idx:", paramIdx, "to", defaultValue);
+      }
+    }
+
+    // 监听 beforeModelUpdate 事件，在 coreModel.update() 之前强制 ArmB opacity=0。
+    // internalModel.update() 流程: motionManager.update → physics → pose → emit("beforeModelUpdate") → coreModel.update()
+    // 在 beforeModelUpdate 时设置，确保 coreModel.update() 使用正确的 opacity 值渲染。
+    this.cleanupDualArm();
+    const handler = () => {
+      coreModel.setPartOpacityByIndex(armBIndex, 0);
+    };
+    internalModel.on("beforeModelUpdate", handler);
+    this.dualArmCleanup = () => {
+      internalModel.off("beforeModelUpdate", handler);
+    };
+
+    dbg("setupDualArmHiding", "beforeModelUpdate listener installed");
+  }
+
+  private cleanupDualArm(): void {
+    if (this.dualArmCleanup) {
+      this.dualArmCleanup();
+      this.dualArmCleanup = null;
+    }
   }
 
   private async applyExpression(expressionName: string): Promise<void> {
