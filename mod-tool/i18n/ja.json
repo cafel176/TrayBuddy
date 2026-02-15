@@ -306,6 +306,7 @@
   "msg_enter_text_name": "先にテキスト名を入力してください。",
   "msg_state_same_name_exists": "同名の状態が既に存在します。",
   "msg_state_created_from_text": "同名の状態を作成しました。",
+  "msg_state_created_from_live2d": "アニメーションマッピングから同名の状態を作成しました。",
 
   "msg_trigger_added": "トリガーが追加されました",
   "msg_trigger_updated": "トリガーが更新されました",
@@ -460,9 +461,11 @@
   "msg_sync_need_folder": "ファイルを同期するにはフォルダから Mod を開いてください",
   "msg_sync_need_base_dir": "先にモデルのベースディレクトリ (base_dir) を入力してください",
   "msg_sync_need_model_json": "先にモデル定義ファイル (model_json) を入力してください",
-  "msg_sync_confirm": "Live2D モデルファイルからモーションと表情リストを再読み込みします。現在のモーション/表情リストは上書きされます（状態マッピングは保持されます）。続行しますか？",
+  "msg_sync_confirm": "Live2D ディレクトリからモデル設定を自動検出し、モーションと表情リストを再読み込みします。現在のモデル設定とモーション/表情リストは上書きされます（状態マッピングは保持されます）。続行しますか？",
   "msg_sync_success": "同期完了：モーション {motions} 件、表情 {expressions} 件",
   "msg_sync_failed": "同期に失敗しました：{error}",
-  "msg_sync_model_not_found": "モデルファイルが見つかりません。base_dir と model_json の設定を確認してください"
+  "msg_sync_model_not_found": "モデルファイルが見つかりません。base_dir の設定を確認してください",
+  "msg_sync_no_model3_found": "base_dir ディレクトリに .model3.json ファイルが見つかりません",
+  "msg_sync_choose_model3": "複数のモデルファイルが見つかりました。使用するファイル名を入力してください：\n{files}"
 }
 

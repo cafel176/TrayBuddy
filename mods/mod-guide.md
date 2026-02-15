@@ -4,6 +4,8 @@
 
 ## 1. 目录结构
 
+### 1.1 序列帧 Mod（mod_type: "sequence"）
+
 ```text
 mods/<mod_id>/
 ├── manifest.json            # Mod 主要信息清单（必需）
@@ -25,6 +27,37 @@ mods/<mod_id>/
         └── speech.json      # [可选] 对话文本索引（数组；可为空）
 ```
 
+### 1.2 Live2D Mod（mod_type: "live2d"）
+
+```text
+mods/<mod_id>/
+├── manifest.json            # Mod 主要信息清单（必需）
+├── preview.png              # Mod 预览图
+├── icon.ico                 # Mod 图标
+├── bubble_style.json        # [可选] 气泡样式自定义配置
+├── asset/
+│   ├── live2d.json          # Live2D 模型配置（动作/表情/状态映射）
+│   └── live2d/              # Live2D 模型资源目录
+│       ├── <name>.model3.json   # Cubism 模型描述文件
+│       ├── <name>.moc3          # Cubism 模型二进制文件
+│       ├── <name>.physics3.json # [可选] 物理运算配置
+│       ├── <name>.pose3.json    # [可选] 姿势配置
+│       ├── <textures_dir>/      # 贴图目录
+│       │   └── *.png
+│       ├── motions/             # 动作目录
+│       │   └── *.motion3.json
+│       └── expressions/         # 表情目录
+│           └── *.exp3.json
+├── audio/                   # [可选] 音频资源（同序列帧 Mod）
+│   └── <lang>/
+│       ├── speech.json
+│       └── speech/
+└── text/                    # 文本资源（同序列帧 Mod）
+    └── <lang>/
+        ├── info.json
+        └── speech.json
+```
+
 ---
 
 ## 2. 配置文件说明
@@ -37,6 +70,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `id` | String | mod唯一标识符 |
 ||| `version` | String | 适用版本号 |
 ||| `author` | String | 作者名称 |
+||| `mod_type` | String | Mod 类型：`sequence`（序列帧动画）或 `live2d`（Live2D 模型） |
 ||| `default_audio_lang_id` | String | 找不到对应语言的语音文件时，会使用默认id语言的音频文件 |
 ||| `default_text_lang_id` | String | 找不到对应语言的文本时，会使用默认id语言的文本 |
 ||| `character` | Object | 角色渲染配置 |
@@ -205,7 +239,94 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `offset_x` | Number | 渲染 X 偏移 |
 ||| `offset_y` | Number | 渲染 Y 偏移 |
 
-### 2.4 `audio/[lang]/speech.json`
+### 2.4 `asset/live2d.json`（Live2D Mod 专用）
+定义 Live2D 模型的配置信息，包含模型基础参数、动作列表、表情列表和状态-动画映射。
+
+#### 2.4.1 顶层结构
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `schema_version` | Number | 配置版本号（当前为 `1`） |
+||| `model` | Object | 模型基础配置 |
+||| `motions` | Array | 动作列表 |
+||| `expressions` | Array | 表情列表 |
+||| `states` | Array | 状态-动画映射列表 |
+
+#### 2.4.2 模型配置对象 (model)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 模型显示名称 |
+||| `base_dir` | String | 模型资源根目录，相对于 Mod 目录（如 `asset/live2d/`） |
+||| `model_json` | String | 模型描述文件名（如 `mao_pro.model3.json`） |
+||| `textures_dir` | String | 贴图目录（相对于 base_dir 内，如 `mao_pro.4096`） |
+||| `motions_dir` | String | 动作文件目录（相对于 base_dir 内，如 `motions`） |
+||| `expressions_dir` | String | 表情文件目录（相对于 base_dir 内，如 `expressions`） |
+||| `physics_json` | String | 物理运算配置文件名（可为空） |
+||| `pose_json` | String | 姿势配置文件名（可为空） |
+||| `eye_blink` | Boolean | 是否启用自动眨眼 |
+||| `lip_sync` | Boolean | 是否启用口型同步 |
+
+#### 2.4.3 动作对象 (Motion Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 动作名称，供状态映射引用 |
+||| `file` | String | 动作文件路径（相对于 base_dir，如 `motions/mtn_01.motion3.json`） |
+||| `group` | String | 动作分组（如 `Idle`、`Default` 等） |
+||| `priority` | String | 播放优先级（`Idle` / `Normal`） |
+||| `fade_in_ms` | Number | 淡入时间（毫秒） |
+||| `fade_out_ms` | Number | 淡出时间（毫秒） |
+||| `loop` | Boolean | 是否循环播放 |
+
+#### 2.4.4 表情对象 (Expression Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 表情名称 |
+||| `file` | String | 表情文件路径（相对于 base_dir，如 `expressions/exp_01.exp3.json`） |
+
+#### 2.4.5 状态-动画映射对象 (State Mapping Object)
+将 `manifest.json` 中状态对象的 `anima` 字段与 Live2D 的具体动作/表情关联起来。
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `state` | String | 映射名称（对应 manifest 状态的 `anima` 字段值） |
+||| `motion` | String | 关联的动作名称（引用 `motions` 中的 `name`） |
+||| `expression` | String | 关联的表情名称（引用 `expressions` 中的 `name`，可为空） |
+||| `scale` | Number | 模型缩放比例（默认 `1`） |
+||| `offset_x` | Number | X 轴偏移（默认 `0`） |
+||| `offset_y` | Number | Y 轴偏移（默认 `0`） |
+
+**示例：**
+```json
+{
+  "schema_version": 1,
+  "model": {
+    "name": "mao_pro",
+    "base_dir": "asset/live2d/",
+    "model_json": "mao_pro.model3.json",
+    "textures_dir": "mao_pro.4096",
+    "motions_dir": "motions",
+    "expressions_dir": "expressions",
+    "physics_json": "mao_pro.physics3.json",
+    "pose_json": "mao_pro.pose3.json",
+    "eye_blink": true,
+    "lip_sync": true
+  },
+  "motions": [
+    { "name": "mtn_01", "file": "motions/mtn_01.motion3.json", "group": "Idle", "priority": "Idle", "fade_in_ms": 200, "fade_out_ms": 200, "loop": true }
+  ],
+  "expressions": [
+    { "name": "exp_01", "file": "expressions/exp_01.exp3.json" }
+  ],
+  "states": [
+    { "state": "mtn_01", "motion": "mtn_01", "expression": "", "scale": 1, "offset_x": 0, "offset_y": 0 }
+  ]
+}
+```
+
+### 2.5 `audio/[lang]/speech.json`
 定义音频文件与状态/文本的关联。
 
 ||| 字段 | 类型 | 说明 |
@@ -213,7 +334,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `name` | String | 关联的标识名称 (对应 `manifest` 中的 `audio` 字段) |
 ||| `audio` | String | 音频文件路径（相对 `audio/` 目录，如 `jp/speech/morning.wav`） |
 
-### 2.5 `text/[lang]/info.json`
+### 2.6 `text/[lang]/info.json`
 定义角色在该语言下的基础信息。
 
 ||| 字段 | 类型 | 说明 |
@@ -223,7 +344,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `name` | String | 角色在该语言下的显示名称 |
 ||| `description` | String | 角色描述 |
 
-### 2.6 `text/[lang]/speech.json`
+### 2.7 `text/[lang]/speech.json`
 定义对应事件触发时显示的文本。
 
 ||| 字段 | 类型 | 说明 |
@@ -250,7 +371,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 }
 ```
 
-### 2.7 `bubble_style.json` (可选)
+### 2.8 `bubble_style.json` (可选)
 用于自定义对话气泡的视觉样式（颜色、边框、字体大小等）。若不存在，则使用系统默认样式。
 
 ---

@@ -1461,7 +1461,7 @@ function stringifyForSave(obj) {
  * @param {string} basePath
  * @returns {Promise<Array<{relPath: string, file: File}>>}
  */
-async function collectNonJsonFilesFromDirectory(dirHandle, basePath = '') {
+async function collectNonJsonFilesFromDirectory(dirHandle, basePath = '', skipDirs = []) {
   const out = [];
   if (!dirHandle) return out;
 
@@ -1470,13 +1470,46 @@ async function collectNonJsonFilesFromDirectory(dirHandle, basePath = '') {
     const relPath = basePath ? `${basePath}/${name}` : name;
 
     if (entry.kind === 'directory') {
-      const nested = await collectNonJsonFilesFromDirectory(entry, relPath);
+      // 跳过指定目录
+      const normalizedRel = relPath.replace(/\\/g, '/').replace(/\/+$/, '');
+      if (skipDirs.some(d => normalizedRel === d.replace(/\/+$/, ''))) continue;
+      const nested = await collectNonJsonFilesFromDirectory(entry, relPath, skipDirs);
       out.push(...nested);
       continue;
     }
 
     if (entry.kind === 'file') {
       if (name.toLowerCase().endsWith('.json')) continue;
+      try {
+        const file = await entry.getFile();
+        out.push({ relPath, file });
+      } catch (e) {
+        // 忽略无法读取的文件
+      }
+    }
+  }
+
+  return out;
+}
+
+/**
+ * 递归遍历目录，获取所有文件（包括 .json）
+ */
+async function collectAllFilesFromDirectory(dirHandle, basePath = '') {
+  const out = [];
+  if (!dirHandle) return out;
+
+  for await (const entry of dirHandle.values()) {
+    const name = entry.name;
+    const relPath = basePath ? `${basePath}/${name}` : name;
+
+    if (entry.kind === 'directory') {
+      const nested = await collectAllFilesFromDirectory(entry, relPath);
+      out.push(...nested);
+      continue;
+    }
+
+    if (entry.kind === 'file') {
       try {
         const file = await entry.getFile();
         out.push({ relPath, file });
@@ -1517,7 +1550,8 @@ async function ensureDirectoryForPath(rootDirHandle, relPath) {
 async function copyNonJsonFilesBetweenDirectories(sourceDirHandle, targetDirHandle, options = {}) {
   if (!sourceDirHandle || !targetDirHandle) return;
 
-  const files = await collectNonJsonFilesFromDirectory(sourceDirHandle);
+  const skipDirs = options.skipDirs || [];
+  const files = await collectNonJsonFilesFromDirectory(sourceDirHandle, '', skipDirs);
   for (const { relPath, file } of files) {
     if (shouldSkipCopiedNonJson(relPath, options)) continue;
 
@@ -1532,7 +1566,8 @@ async function copyNonJsonFilesBetweenDirectories(sourceDirHandle, targetDirHand
 async function addNonJsonFilesToZipFromDirectory(sourceDirHandle, zipRootFolder, options = {}) {
   if (!sourceDirHandle || !zipRootFolder) return;
 
-  const files = await collectNonJsonFilesFromDirectory(sourceDirHandle);
+  const skipDirs = options.skipDirs || [];
+  const files = await collectNonJsonFilesFromDirectory(sourceDirHandle, '', skipDirs);
   for (const { relPath, file } of files) {
     if (shouldSkipCopiedNonJson(relPath, options)) continue;
 
@@ -1542,6 +1577,47 @@ async function addNonJsonFilesToZipFromDirectory(sourceDirHandle, zipRootFolder,
     } catch (e) {
       // 忽略无法读取的文件
     }
+  }
+}
+
+/**
+ * 将指定目录下的所有文件（含 .json）添加到 ZIP
+ */
+async function addAllFilesToZipFromDirectory(sourceDirHandle, zipRootFolder, basePathInZip = '') {
+  if (!sourceDirHandle || !zipRootFolder) return;
+
+  const files = await collectAllFilesFromDirectory(sourceDirHandle);
+  for (const { relPath, file } of files) {
+    try {
+      const buf = await file.arrayBuffer();
+      const zipPath = basePathInZip ? `${basePathInZip}/${relPath}` : relPath;
+      zipRootFolder.file(zipPath, buf);
+    } catch (e) {
+      // 忽略无法读取的文件
+    }
+  }
+}
+
+/**
+ * 将指定目录下的所有文件（含 .json）复制到目标目录
+ */
+async function copyAllFilesBetweenDirectories(sourceDirHandle, targetDirHandle, basePathInTarget = '') {
+  if (!sourceDirHandle || !targetDirHandle) return;
+
+  const files = await collectAllFilesFromDirectory(sourceDirHandle);
+  let targetRoot = targetDirHandle;
+  if (basePathInTarget) {
+    const parts = basePathInTarget.split('/').filter(Boolean);
+    for (const part of parts) {
+      targetRoot = await targetRoot.getDirectoryHandle(part, { create: true });
+    }
+  }
+  for (const { relPath, file } of files) {
+    const { dir, fileName } = await ensureDirectoryForPath(targetRoot, relPath);
+    const fileHandle = await dir.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(file);
+    await writable.close();
   }
 }
 
@@ -1725,9 +1801,22 @@ async function saveMod() {
       await iconWritable.close();
     }
 
-    // 复制源目录中的所有非 json 资源文件（音频/图片等）到目标目录
+    // 复制源目录中的资源文件到目标目录
     if (sourceFolderHandle) {
-      await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
+      if (isLive2d) {
+        // Live2D mod：将 asset/live2d/ 下所有文件（含 .json）完整复制
+        try {
+          const srcAssetDir = await sourceFolderHandle.getDirectoryHandle('asset');
+          const srcLive2dDir = await srcAssetDir.getDirectoryHandle('live2d');
+          await copyAllFilesBetweenDirectories(srcLive2dDir, modFolderHandle, 'asset/live2d');
+        } catch (e) {
+          // asset/live2d 目录不存在则跳过
+        }
+        // 其余非 json 文件照常复制，但跳过 asset/live2d 目录（已完整处理）
+        await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle, { skipDirs: ['asset/live2d'] });
+      } else {
+        await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
+      }
     }
     
     hasUnsavedChanges = false;
@@ -1804,9 +1893,22 @@ async function exportMod() {
       root.file('icon.ico', base64Data, { base64: true });
     }
 
-    // 把当前 Mod 目录下的非 json 文件（音频/图片等资产）也打包进去
+    // 把当前 Mod 目录下的资产文件打包进去
     if (modFolderHandle) {
-      await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
+      if (isLive2dExport) {
+        // Live2D mod：将 asset/live2d/ 下所有文件（含 .json）完整打包
+        try {
+          const assetDirHandle = await modFolderHandle.getDirectoryHandle('asset');
+          const live2dDirHandle = await assetDirHandle.getDirectoryHandle('live2d');
+          await addAllFilesToZipFromDirectory(live2dDirHandle, root, 'asset/live2d');
+        } catch (e) {
+          // asset/live2d 目录不存在则跳过
+        }
+        // 其余非 json 文件照常打包，但跳过 asset/live2d 目录（已完整处理）
+        await addNonJsonFilesToZipFromDirectory(modFolderHandle, root, { skipDirs: ['asset/live2d'] });
+      } else {
+        await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
+      }
     }
     
     // 生成并保存
@@ -4248,7 +4350,7 @@ function collectLive2dModelData() {
 
 /**
  * 从文件同步 Live2D 模型信息
- * 读取 base_dir 下的 model3.json，解析动作和表情列表并覆盖当前数据
+ * 自动扫描 base_dir 下的 .model3.json，推断模型配置并导入动作/表情
  */
 async function syncLive2dFromFiles() {
   if (!currentMod) {
@@ -4263,16 +4365,13 @@ async function syncLive2dFromFiles() {
   // 先收集当前表单中的模型配置
   collectLive2dModelData();
   const live2d = ensureLive2dData();
-  const baseDir = (live2d.model.base_dir || '').trim();
-  const modelJson = (live2d.model.model_json || '').trim();
+  let baseDir = (live2d.model.base_dir || '').trim();
+  let modelJson = (live2d.model.model_json || '').trim();
 
+  // base_dir 为空时使用默认值
   if (!baseDir) {
-    showToast(window.i18n.t('msg_sync_need_base_dir'), 'warning');
-    return;
-  }
-  if (!modelJson) {
-    showToast(window.i18n.t('msg_sync_need_model_json'), 'warning');
-    return;
+    baseDir = 'asset/live2d/';
+    live2d.model.base_dir = baseDir;
   }
 
   if (!confirm(window.i18n.t('msg_sync_confirm'))) return;
@@ -4285,6 +4384,32 @@ async function syncLive2dFromFiles() {
       dirHandle = await dirHandle.getDirectoryHandle(part);
     }
 
+    // 如果 model_json 为空，自动扫描 base_dir 下的 .model3.json 文件
+    if (!modelJson) {
+      const model3Files = [];
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind === 'file' && entry.name.endsWith('.model3.json')) {
+          model3Files.push(entry.name);
+        }
+      }
+      if (model3Files.length === 0) {
+        showToast(window.i18n.t('msg_sync_no_model3_found'), 'warning');
+        return;
+      }
+      if (model3Files.length === 1) {
+        modelJson = model3Files[0];
+      } else {
+        // 多个 model3.json，让用户选择
+        const choice = prompt(
+          window.i18n.t('msg_sync_choose_model3').replace('{files}', model3Files.join('\n')),
+          model3Files[0]
+        );
+        if (!choice) return;
+        modelJson = choice.trim();
+      }
+      live2d.model.model_json = modelJson;
+    }
+
     // 读取 model3.json
     const modelFileHandle = await dirHandle.getFileHandle(modelJson);
     const modelFile = await modelFileHandle.getFile();
@@ -4293,21 +4418,48 @@ async function syncLive2dFromFiles() {
 
     const fileRefs = modelData.FileReferences || modelData.fileReferences || {};
 
+    // --- 自动推断模型名称（从 model3.json 文件名推导） ---
+    if (!live2d.model.name) {
+      live2d.model.name = modelJson.replace(/\.model3\.json$/i, '');
+    }
+
     // --- 解析模型基础信息 ---
     // 物理文件
     const physicsJson = fileRefs.Physics || fileRefs.physics || '';
-    if (physicsJson) live2d.model.physics_json = physicsJson;
+    live2d.model.physics_json = physicsJson;
 
     // 姿势文件
     const poseJson = fileRefs.Pose || fileRefs.pose || '';
-    if (poseJson) live2d.model.pose_json = poseJson;
+    live2d.model.pose_json = poseJson;
+
+    // Moc 文件路径（用于确认目录结构正确）
+    const mocFile = fileRefs.Moc || fileRefs.moc || '';
 
     // 纹理目录（从第一个纹理路径提取目录名）
     const textures = fileRefs.Textures || fileRefs.textures || [];
     if (textures.length > 0) {
       const firstTex = String(textures[0] || '');
       const texDir = firstTex.includes('/') ? firstTex.substring(0, firstTex.lastIndexOf('/')) : '';
-      if (texDir) live2d.model.textures_dir = texDir;
+      live2d.model.textures_dir = texDir;
+    }
+
+    // 动作目录（从第一个动作文件路径推断）
+    const rawMotions = fileRefs.Motions || fileRefs.motions || {};
+    const allMotionEntries = Object.values(rawMotions).flat();
+    if (allMotionEntries.length > 0) {
+      const firstMotionFile = (allMotionEntries[0].File || allMotionEntries[0].file || '').replace(/\\/g, '/');
+      if (firstMotionFile.includes('/')) {
+        live2d.model.motions_dir = firstMotionFile.substring(0, firstMotionFile.lastIndexOf('/'));
+      }
+    }
+
+    // 表情目录（从第一个表情文件路径推断）
+    const rawExpressions = fileRefs.Expressions || fileRefs.expressions || [];
+    if (Array.isArray(rawExpressions) && rawExpressions.length > 0) {
+      const firstExprFile = (rawExpressions[0].File || rawExpressions[0].file || '').replace(/\\/g, '/');
+      if (firstExprFile.includes('/')) {
+        live2d.model.expressions_dir = firstExprFile.substring(0, firstExprFile.lastIndexOf('/'));
+      }
     }
 
     // EyeBlink / LipSync（从 Groups 读取）
@@ -4322,8 +4474,10 @@ async function syncLive2dFromFiles() {
     live2d.model.eye_blink = hasEyeBlink;
     live2d.model.lip_sync = hasLipSync;
 
+    // 回写模型配置到表单
+    populateLive2dModelForm(live2d.model);
+
     // --- 解析动作列表 ---
-    const rawMotions = fileRefs.Motions || fileRefs.motions || {};
     const newMotions = [];
     for (const [groupName, motionArr] of Object.entries(rawMotions)) {
       if (!Array.isArray(motionArr)) continue;
@@ -4344,7 +4498,6 @@ async function syncLive2dFromFiles() {
     }
 
     // --- 解析表情列表 ---
-    const rawExpressions = fileRefs.Expressions || fileRefs.expressions || [];
     const newExpressions = [];
     if (Array.isArray(rawExpressions)) {
       for (const e of rawExpressions) {
@@ -4354,9 +4507,36 @@ async function syncLive2dFromFiles() {
       }
     }
 
-    // 覆盖动作和表情（状态映射保留）
+    // 覆盖动作和表情
     live2d.motions = newMotions;
     live2d.expressions = newExpressions;
+
+    // --- 同步状态-动画映射 (states) ---
+    // 保留已有映射（按 state 名索引），为新动作自动创建映射
+    const existingStatesMap = {};
+    if (Array.isArray(live2d.states)) {
+      for (const s of live2d.states) {
+        if (s.state) existingStatesMap[s.state] = s;
+      }
+    }
+    const newStates = [];
+    for (const motion of newMotions) {
+      if (existingStatesMap[motion.name]) {
+        // 保留已有映射（保持用户自定义的 expression / scale / offset）
+        newStates.push(existingStatesMap[motion.name]);
+      } else {
+        // 为新动作创建默认映射
+        newStates.push({
+          state: motion.name,
+          motion: motion.name,
+          expression: '',
+          scale: 1,
+          offset_x: 0,
+          offset_y: 0
+        });
+      }
+    }
+    live2d.states = newStates;
 
     // 刷新 UI
     renderLive2dAssets();
@@ -4539,6 +4719,11 @@ function renderLive2dStates(states) {
   const motionNdl = motionRaw.toLowerCase();
   const exprNdl = exprRaw.toLowerCase();
 
+  // 收集已有 manifest 状态名称集合，用于判断「新增同名状态」按钮是否可用
+  const existingManifestStateNames = new Set(
+    getAllStateNames().map(n => String(n || '').trim()).filter(Boolean)
+  );
+
   states.forEach((state, index) => {
     const sName = String(state.state || '');
     const sMotion = String(state.motion || '');
@@ -4546,6 +4731,14 @@ function renderLive2dStates(states) {
     if (nameNdl && !sName.toLowerCase().includes(nameNdl)) return;
     if (motionNdl && !sMotion.toLowerCase().includes(motionNdl)) return;
     if (exprNdl && !sExpr.toLowerCase().includes(exprNdl)) return;
+
+    const trimmedName = sName.trim();
+    const canAddState = !!trimmedName && !existingManifestStateNames.has(trimmedName);
+    const addStateBtnHtml = `
+      <button class="btn btn-sm btn-secondary" onclick="addSameNameStateFromLive2dState(${index})" ${canAddState ? '' : 'disabled'}>
+        ➕ <span>${window.i18n.t('btn_add_same_name_state')}</span>
+      </button>
+    `;
 
     const card = document.createElement('div');
     card.className = 'asset-card tb-sort-item';
@@ -4557,6 +4750,7 @@ function renderLive2dStates(states) {
           <span class="asset-card-name">${highlightNeedleHtml(sName, nameRaw)}</span>
         </div>
         <div class="asset-card-actions">
+          ${addStateBtnHtml}
           <button class="btn btn-sm btn-ghost" onclick="copyLive2dItem('state', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
           <button class="btn btn-sm btn-ghost" onclick="editLive2dState(${index})">✏️</button>
           <button class="btn btn-sm btn-ghost" onclick="deleteLive2dState(${index})">🗑️</button>
@@ -5778,6 +5972,12 @@ function addSameNameStateFromSpeechText(index) {
   const state = createDefaultState(speechName, false);
   state.text = speechName;
 
+  // 若存在同名的 Live2D 状态-动画映射，则自动关联动画
+  const l2dMatch = findLive2dStateByName(speechName);
+  if (l2dMatch) {
+    state.anima = speechName;
+  }
+
   // 若任意语言音频存在同名条目，则自动关联该音频
   if (doesAnyAudioEntryExistByName(speechName)) {
     state.audio = speechName;
@@ -5789,6 +5989,84 @@ function addSameNameStateFromSpeechText(index) {
   renderSpeechTexts();
   markUnsaved();
   showToast(window.i18n.t('msg_state_created_from_text') || '已创建同名状态', 'success');
+}
+
+/**
+ * 检查任意语言的对话文本中是否存在同名条目
+ */
+function doesAnySpeechTextExistByName(name) {
+  if (!currentMod) return false;
+  const target = String(name || '').trim();
+  if (!target) return false;
+
+  const textsObj = currentMod.texts || {};
+  for (const langData of Object.values(textsObj)) {
+    const speeches = langData?.speech;
+    if (!Array.isArray(speeches)) continue;
+    if (speeches.some(s => String(s?.name || '').trim() === target)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 根据名称查找 Live2D 状态-动画映射
+ */
+function findLive2dStateByName(name) {
+  const live2d = currentMod?.assets?.live2d;
+  if (!live2d || !Array.isArray(live2d.states)) return null;
+  const target = String(name || '').trim();
+  if (!target) return null;
+  return live2d.states.find(s => String(s?.state || '').trim() === target) || null;
+}
+
+/**
+ * 从 Live2D 状态-动画映射创建同名 manifest 状态
+ * 自动关联动画映射名称、同名文本和同名音频
+ */
+function addSameNameStateFromLive2dState(index) {
+  if (!currentMod) return;
+
+  const live2d = ensureLive2dData();
+  const l2dState = live2d.states?.[index];
+  if (!l2dState) return;
+
+  const stateName = String(l2dState.state || '').trim();
+  if (!stateName) {
+    showToast(window.i18n.t('msg_enter_live2d_state') || '请先填写状态名称', 'warning');
+    return;
+  }
+
+  const exists = getAllStateNames().some(n => String(n || '').trim() === stateName);
+  if (exists) {
+    showToast(window.i18n.t('msg_state_same_name_exists') || '已存在同名状态', 'warning');
+    return;
+  }
+
+  if (!currentMod.manifest.states) {
+    currentMod.manifest.states = [];
+  }
+
+  const state = createDefaultState(stateName, false);
+  state.anima = stateName;
+
+  // 若有同名对话文本，则自动关联
+  if (doesAnySpeechTextExistByName(stateName)) {
+    state.text = stateName;
+  }
+
+  // 若有同名音频，则自动关联
+  if (doesAnyAudioEntryExistByName(stateName)) {
+    state.audio = stateName;
+  }
+
+  currentMod.manifest.states.push(state);
+
+  renderStates();
+  renderLive2dAssets();
+  markUnsaved();
+  showToast(window.i18n.t('msg_state_created_from_live2d') || '已从动画映射创建同名状态', 'success');
 }
 
 

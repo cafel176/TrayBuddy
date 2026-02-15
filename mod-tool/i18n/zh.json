@@ -306,6 +306,7 @@
   "msg_enter_text_name": "请先填写文本名称",
   "msg_state_same_name_exists": "已存在同名状态",
   "msg_state_created_from_text": "已创建同名状态",
+  "msg_state_created_from_live2d": "已从动画映射创建同名状态",
 
   "msg_trigger_added": "触发器已添加",
   "msg_trigger_updated": "触发器已更新",
@@ -460,9 +461,11 @@
   "msg_sync_need_folder": "需要从文件夹打开 Mod 才能同步文件",
   "msg_sync_need_base_dir": "请先填写模型基础目录 (base_dir)",
   "msg_sync_need_model_json": "请先填写模型定义文件 (model_json)",
-  "msg_sync_confirm": "将从 Live2D 模型文件重新读取动作和表情列表，当前的动作/表情列表将被覆盖（状态映射保留）。是否继续？",
+  "msg_sync_confirm": "将从 Live2D 目录自动识别模型配置，并重新读取动作和表情列表。当前的模型配置和动作/表情列表将被覆盖（状态映射保留）。是否继续？",
   "msg_sync_success": "同步完成：{motions} 个动作，{expressions} 个表情",
   "msg_sync_failed": "同步失败：{error}",
-  "msg_sync_model_not_found": "未找到模型文件，请检查 base_dir 和 model_json 配置"
+  "msg_sync_model_not_found": "未找到模型文件，请检查 base_dir 配置",
+  "msg_sync_no_model3_found": "在 base_dir 目录下未找到 .model3.json 文件",
+  "msg_sync_choose_model3": "在目录中找到多个模型文件，请输入要使用的文件名：\n{files}"
 }
 

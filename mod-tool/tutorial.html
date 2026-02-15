@@ -334,9 +334,31 @@
         <tr><td>offset_x / offset_y</td><td data-i18n="live2d_state_offset_desc">位置偏移量</td></tr>
       </table>
 
+      <h3 data-i18n="section_live2d_sync">从文件同步</h3>
+      <p data-i18n="live2d_sync_desc">点击「从文件同步」按钮，可从 Live2D 模型目录中自动读取配置：</p>
+      <ul>
+        <li data-i18n="live2d_sync_auto_detect"><strong>自动检测模型</strong>：若 base_dir 为空则自动使用 <code>asset/live2d/</code>，自动扫描 <code>.model3.json</code> 文件</li>
+        <li data-i18n="live2d_sync_auto_config"><strong>自动填充配置</strong>：从 model3.json 的 FileReferences 自动推断 name、model_json、physics_json、pose_json、textures_dir、motions_dir、expressions_dir、eye_blink、lip_sync</li>
+        <li data-i18n="live2d_sync_auto_motions"><strong>自动导入动作/表情</strong>：从 model3.json 解析完整的动作和表情列表</li>
+        <li data-i18n="live2d_sync_auto_states"><strong>自动生成状态映射</strong>：为每个动作创建对应的状态-动画映射条目（已有映射会保留用户自定义的参数）</li>
+      </ul>
+
+      <h3 data-i18n="section_live2d_add_state">新增同名状态</h3>
+      <p data-i18n="live2d_add_state_desc">每个状态映射条目右侧的「新增同名状态」按钮可快速在 manifest 中创建对应的状态，并自动联动：</p>
+      <ul>
+        <li data-i18n="live2d_add_state_anima"><strong>关联动画</strong>：自动设为当前映射名称</li>
+        <li data-i18n="live2d_add_state_text"><strong>关联文本</strong>：若存在同名的对话文本条目，自动关联</li>
+        <li data-i18n="live2d_add_state_audio"><strong>关联音频</strong>：若存在同名的音频条目，自动关联</li>
+      </ul>
+
       <div class="callout callout-info">
         <div class="callout-title" data-i18n="callout_live2d_tip_title">💡 提示</div>
         <p data-i18n="callout_live2d_tip_desc">Live2D 模型文件需要手动放置到对应目录。建议参考 mods/mao_pro 的结构组织文件。</p>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title" data-i18n="callout_live2d_export_title">💡 导出说明</div>
+        <p data-i18n="callout_live2d_export_desc">导出 Live2D Mod 时，<code>asset/live2d/</code> 目录下的所有文件（包括 .model3.json、.motion3.json、.exp3.json、.physics3.json 等）都会被完整打包。</p>
       </div>
     </section>
 
@@ -349,6 +371,14 @@
       <h4 data-i18n="texts_speech_title">对话文本 (speech.json)</h4>
       <p data-i18n="texts_speech_desc">名称、内容(支持Markdown)、持续时间(秒)</p>
       <p data-i18n="texts_speech_placeholders_desc">支持占位符：{nickname}（昵称）、{days_used}（使用天数）、{usage_hours}/{total_usage_hours}（总使用时长，小时）、{uptime}（本次启动已运行时长，HH:MM:SS）</p>
+
+      <h4 data-i18n="texts_add_state_title">新增同名状态</h4>
+      <p data-i18n="texts_add_state_desc">每条对话文本右侧有「新增同名状态」按钮，点击后可快速在 manifest 中创建同名状态，并自动联动：</p>
+      <ul>
+        <li data-i18n="texts_add_state_text"><strong>关联文本</strong>：自动设为当前文本名称</li>
+        <li data-i18n="texts_add_state_anima"><strong>关联动画</strong>：若 Live2D 状态映射中存在同名条目，自动关联</li>
+        <li data-i18n="texts_add_state_audio"><strong>关联音频</strong>：若音频资源中存在同名条目，自动关联</li>
+      </ul>
       <h4 data-i18n="texts_markdown_title">Markdown 语法</h4>
 
       <ul>
@@ -377,6 +407,7 @@
         <li><code>bubble_style.json</code>（开启气泡样式时生成）</li>
         <li><code>asset/sequence.json</code>, <code>asset/img.json</code>（序列帧 Mod）</li>
         <li><code>asset/live2d.json</code>（Live2D Mod）</li>
+        <li><code>asset/live2d/</code> <span data-i18n="live2d_export_all_files">下的所有文件（.model3.json、.moc3、贴图、.motion3.json、.exp3.json 等）将完整打包</span>（Live2D Mod）</li>
         <li><code>text/[lang]/info.json</code>, <code>text/[lang]/speech.json</code>（开启文本对话时生成）</li>
         <li><code>audio/[lang]/speech.json</code>（开启音频对话时生成）</li>
         <li><code>preview.(png/jpg/jpeg/webp)</code>, <code>icon.ico</code></li>
@@ -386,6 +417,7 @@
     <!-- Mod 目录结构 -->
     <section id="structure">
       <h2 data-i18n="section_structure">📁 Mod 目录结构</h2>
+      <h4 data-i18n="structure_sequence_title">序列帧 Mod (mod_type: "sequence")</h4>
       <pre><code>mods/my_mod/
 ├── manifest.json            # Mod 主配置文件
 ├── preview.png              # 预览图
@@ -393,9 +425,26 @@
 ├── bubble_style.json        # [可选] 气泡样式
 ├── asset/
 │   ├── img.json, sequence.json
-│   ├── live2d.json             # [Live2D] Live2D 配置
 │   ├── img/, sequence/
-│   ├── live2d/                 # [Live2D] 模型资源目录
+├── audio/[lang]/
+│   ├── speech.json, speech/
+└── text/[lang]/
+    ├── info.json, speech.json</code></pre>
+      <h4 data-i18n="structure_live2d_title">Live2D Mod (mod_type: "live2d")</h4>
+      <pre><code>mods/my_mod/
+├── manifest.json            # Mod 主配置文件
+├── preview.png              # 预览图
+├── icon.ico                 # 图标
+├── bubble_style.json        # [可选] 气泡样式
+├── asset/
+│   ├── live2d.json          # Live2D 配置（动作/表情/状态映射）
+│   └── live2d/              # Live2D 模型资源目录
+│       ├── *.model3.json    # 模型描述
+│       ├── *.moc3           # 模型二进制
+│       ├── *.physics3.json  # [可选] 物理配置
+│       ├── textures/        # 贴图
+│       ├── motions/         # 动作 (.motion3.json)
+│       └── expressions/     # 表情 (.exp3.json)
 ├── audio/[lang]/
 │   ├── speech.json, speech/
 └── text/[lang]/

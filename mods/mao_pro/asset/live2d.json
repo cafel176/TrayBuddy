@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "model": {
-    "name": "mao_pro_zh",
-    "base_dir": "asset/live2d/mao_pro_zh",
+    "name": "mao_pro",
+    "base_dir": "asset/live2d/",
     "model_json": "mao_pro.model3.json",
     "textures_dir": "mao_pro.4096",
     "motions_dir": "motions",
@@ -113,9 +113,9 @@
   ],
   "states": [
     {
-      "state": "idle",
+      "state": "mtn_01",
       "motion": "mtn_01",
-      "expression": "exp_01",
+      "expression": "exp_04",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
@@ -123,7 +123,7 @@
     {
       "state": "mtn_02",
       "motion": "mtn_02",
-      "expression": "",
+      "expression": "exp_02",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
@@ -131,7 +131,7 @@
     {
       "state": "mtn_03",
       "motion": "mtn_03",
-      "expression": "",
+      "expression": "exp_03",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
@@ -139,7 +139,7 @@
     {
       "state": "mtn_04",
       "motion": "mtn_04",
-      "expression": "",
+      "expression": "exp_06",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
@@ -147,7 +147,7 @@
     {
       "state": "special_01",
       "motion": "special_01",
-      "expression": "",
+      "expression": "exp_04",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
@@ -155,7 +155,7 @@
     {
       "state": "special_02",
       "motion": "special_02",
-      "expression": "",
+      "expression": "exp_01",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
@@ -163,7 +163,7 @@
     {
       "state": "special_03",
       "motion": "special_03",
-      "expression": "",
+      "expression": "exp_04",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
