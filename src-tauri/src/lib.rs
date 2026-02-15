@@ -34,11 +34,13 @@ use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
     MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
-    STATE_MUSIC_START, STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
-    WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_MAIN, WINDOW_LABEL_MEMO,
-    WINDOW_LABEL_MODS, WINDOW_LABEL_REMINDER, WINDOW_LABEL_REMINDER_ALERT, WINDOW_LABEL_SETTINGS,
-    EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK, WORK_EVENT_COOLDOWN_SECS
+    STATE_MUSIC_START,     STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
+    WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_MAIN,
+    WINDOW_LABEL_MEMO, WINDOW_LABEL_MODS, WINDOW_LABEL_REMINDER, WINDOW_LABEL_REMINDER_ALERT,
+    WINDOW_LABEL_SETTINGS, EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK,
+    WORK_EVENT_COOLDOWN_SECS
 };
+
 
 use modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
 use modules::environment::{
@@ -52,9 +54,10 @@ use modules::process_observer::{
     get_cached_process_debug_info, ProcessDebugInfo, ProcessObserver, ProcessStartEvent,
 };
 use modules::resource::{
-    self, AssetInfo, AudioInfo, CharacterInfo, ModInfo, ResourceManager, StateInfo, TextInfo,
-    TriggerInfo,
+    self, AssetInfo, AudioInfo, CharacterInfo, ModInfo, ModType, ResourceManager, StateInfo,
+    TextInfo, TriggerInfo,
 };
+
 use modules::state::StateManager;
 use modules::storage::{
     MemoItem, ModData, ReminderItem, ReminderSchedule, Storage, UserInfo, UserSettings,
@@ -305,17 +308,20 @@ fn update_settings(
     // --- 执行副作用 ---
 
     // 0. 主播模式副作用：用于窗口捕捉
-    // 开启时让 animation window 进入任务栏/可枚举窗口列表（skip_taskbar = false）
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
-        let should_skip_taskbar = !settings.streamer_mode;
-        if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
-            eprintln!(
-                "[StreamerMode] set_skip_taskbar({}) failed: {}",
-                should_skip_taskbar,
-                e
-            );
+    // 开启时让渲染窗口进入任务栏/可枚举窗口列表（skip_taskbar = false）
+    let should_skip_taskbar = !settings.streamer_mode;
+    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D] {
+        if let Some(window) = app.get_webview_window(label) {
+            if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
+                eprintln!(
+                    "[StreamerMode] set_skip_taskbar({}) failed: {}",
+                    should_skip_taskbar,
+                    e
+                );
+            }
         }
     }
+
 
     // 1. 开机自启动副作用
 
@@ -653,7 +659,15 @@ where
     }
 
     // 5. 重建渲染窗口
-    recreate_animation_window(app.clone()).await?;
+    match mod_info.manifest.mod_type {
+        ModType::Live2d => {
+            recreate_live2d_window(app.clone()).await?;
+        }
+        ModType::Sequence => {
+            recreate_animation_window(app.clone()).await?;
+        }
+    }
+
 
     // 6. 触发登录/加载完成事件（如播放打招呼语音）
     tokio::time::sleep(std::time::Duration::from_secs(MOD_LOGIN_EVENT_DELAY_SECS)).await;
@@ -1174,11 +1188,14 @@ fn set_animation_scale(
     let new_width = BUBBLE_AREA_WIDTH.max(animation_width);
     let new_height = BUBBLE_AREA_HEIGHT + animation_height;
 
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
-        window
-            .set_size(LogicalSize::new(new_width, new_height))
-            .map_err(|e| e.to_string())?;
+    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D] {
+        if let Some(window) = app.get_webview_window(label) {
+            window
+                .set_size(LogicalSize::new(new_width, new_height))
+                .map_err(|e| e.to_string())?;
+        }
     }
+
 
     Ok(())
 }
@@ -1561,14 +1578,18 @@ pub fn run() {
                     if window.label() == WINDOW_LABEL_MAIN {
                         // 主窗口销毁时，强制关闭所有可能开启的局部调试状态
                         let _ = emit(&window.app_handle(), events::LAYOUT_DEBUGGER_STATUS, false);
-                    } else if window.label() == WINDOW_LABEL_ANIMATION {
+                    } else if window.label() == WINDOW_LABEL_ANIMATION
+                        || window.label() == WINDOW_LABEL_LIVE2D
+                    {
                         let app_state: State<AppState> = window.state();
                         let mut storage = app_state.storage.lock().unwrap();
                         storage.save();
                     }
                 }
                 tauri::WindowEvent::Moved(_) => {
-                    if window.label() == WINDOW_LABEL_ANIMATION {
+                    if window.label() == WINDOW_LABEL_ANIMATION
+                        || window.label() == WINDOW_LABEL_LIVE2D
+                    {
                         // 发送窗口位置更新事件（发送动画区域顶部位置，与保存一致）
                         if let Ok(position) = window.outer_position() {
                             let scale_factor = window.scale_factor().unwrap_or(1.0);
@@ -1582,6 +1603,7 @@ pub fn run() {
                         save_animation_window_position(window);
                     }
                 }
+
                 _ => {}
             }
         })
@@ -2069,8 +2091,29 @@ async fn recreate_animation_window(app: tauri::AppHandle) -> Result<(), String> 
     inner_create_animation_window(&app)
 }
 
+/// 重新创建 Live2D 窗口
+///
+/// 用于在 Mod 加载后刷新窗口资源
+#[tauri::command]
+async fn recreate_live2d_window(app: tauri::AppHandle) -> Result<(), String> {
+    // 1. 关闭现有窗口
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL_LIVE2D) {
+        let _ = window.destroy();
+
+        // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
+        tokio::time::sleep(std::time::Duration::from_millis(
+            modules::constants::WINDOW_RESIZE_DELAY_MS + 200,
+        ))
+        .await;
+    }
+
+    // 2. 创建新窗口
+    inner_create_live2d_window(&app)
+}
+
 /// 内部函数：创建动画窗口
 fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
+
     let state: State<'_, AppState> = app.state();
 
     // 1. 获取缩放和位置设置
@@ -2160,9 +2203,95 @@ fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 内部函数：创建 Live2D 窗口
+fn inner_create_live2d_window(app: &tauri::AppHandle) -> Result<(), String> {
+    let state: State<'_, AppState> = app.state();
+
+    // 1. 获取缩放和位置设置
+    let (scale, saved_position, is_silence, streamer_mode) = {
+        let storage = state.storage.lock().unwrap();
+        (
+            storage.data.settings.animation_scale as f64,
+            (
+                storage.data.info.animation_window_x,
+                storage.data.info.animation_window_y,
+            ),
+            storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
+        )
+    };
+
+    // 2. 计算窗口尺寸（暂与动画窗口保持一致）
+    let bubble_area_height = BUBBLE_AREA_HEIGHT;
+    let bubble_area_width = BUBBLE_AREA_WIDTH;
+    let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+    let window_width = bubble_area_width.max(animation_area_width);
+    let window_height = bubble_area_height + animation_area_height;
+
+    // 3. 构建并创建窗口
+    if let Some(_existing) = app.get_webview_window(WINDOW_LABEL_LIVE2D) {
+        return Ok(());
+    }
+
+    let live2d_window =
+        WebviewWindowBuilder::new(app, WINDOW_LABEL_LIVE2D, WebviewUrl::App(WINDOW_LABEL_LIVE2D.into()))
+            .title(get_i18n_text(app, "common.live2dTitle"))
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(!streamer_mode)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+    // 应用当前 Mod 图标
+    apply_window_icon(app, &live2d_window);
+
+    // 关闭时隐藏窗口
+    let w_clone = live2d_window.clone();
+    live2d_window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w_clone.hide();
+        }
+    });
+
+    // 4. 初始鼠标穿透
+    if is_silence {
+        let _ = live2d_window.set_ignore_cursor_events(true);
+    }
+
+    // 5. 设置窗口位置
+    if let (Some(x), Some(y)) = saved_position {
+        let window_y = y - bubble_area_height;
+        let _ = live2d_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+    } else if let Some(monitor) = live2d_window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        let _ = live2d_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+    }
+
+    Ok(())
+}
+
 /// 打开存储目录（包含 storage.json 文件）
 #[tauri::command]
 fn open_storage_dir(app_handle: tauri::AppHandle) -> Result<(), String> {
+
     let storage_dir = app_handle
         .path()
         .app_config_dir()
@@ -3041,17 +3170,20 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
             // 2. 主播模式副作用：用于窗口捕捉（开启时不再 skip_taskbar）
             if id == "toggle_streamer_mode" {
-                if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
-                    let should_skip_taskbar = !settings.streamer_mode;
-                    if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
-                        eprintln!(
-                            "[StreamerMode] set_skip_taskbar({}) failed: {}",
-                            should_skip_taskbar,
-                            e
-                        );
+                let should_skip_taskbar = !settings.streamer_mode;
+                for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D] {
+                    if let Some(window) = app.get_webview_window(label) {
+                        if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
+                            eprintln!(
+                                "[StreamerMode] set_skip_taskbar({}) failed: {}",
+                                should_skip_taskbar,
+                                e
+                            );
+                        }
                     }
                 }
             }
+
 
             // 3. 免打扰模式副作用 (修复死锁：提前释放锁)
             if id == "toggle_silence" {

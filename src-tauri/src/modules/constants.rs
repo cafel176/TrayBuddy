@@ -22,8 +22,12 @@ pub const WINDOW_LABEL_MAIN: &str = "main";
 /// 动画窗口标签
 pub const WINDOW_LABEL_ANIMATION: &str = "animation";
 
+/// Live2D 窗口标签
+pub const WINDOW_LABEL_LIVE2D: &str = "live2d";
+
 /// 设置窗口标签
 pub const WINDOW_LABEL_SETTINGS: &str = "settings";
+
 
 /// 模块管理窗口标签
 pub const WINDOW_LABEL_MODS: &str = "mods";

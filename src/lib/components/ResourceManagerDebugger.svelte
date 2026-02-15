@@ -1406,93 +1406,106 @@
                   </div>
                 </div>
 
-                <h5>{_("resource.live2dMotions")} ({currentModInfo.live2d.motions.length})</h5>
-                <div class="state-list">
-                  {#each currentModInfo.live2d.motions as motion}
-                    <div class="state-card">
-                      <div class="state-header">
-                        <span class="state-name">{motion.name}</span>
-                      </div>
-                      <div class="state-detail">
-                        <div class="detail-item">
-                          <span class="detail-label">{_("resource.animationLabel")}</span>
-                          {motion.file}
+                <details open class="live2d-section">
+                  <summary>
+                    {_("resource.live2dMotions")} ({currentModInfo.live2d.motions.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.live2d.motions as motion}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{motion.name}</span>
                         </div>
-                        {#if motion.group}
+                        <div class="state-detail">
                           <div class="detail-item">
-                            <span class="detail-label">{_("resource.live2dGroup")}</span>
-                            {motion.group}
+                            <span class="detail-label">{_("resource.animationLabel")}</span>
+                            {motion.file}
                           </div>
-                        {/if}
-                        {#if motion.priority}
+                          {#if motion.group}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.live2dGroup")}</span>
+                              {motion.group}
+                            </div>
+                          {/if}
+                          {#if motion.priority}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.live2dPriority")}</span>
+                              {motion.priority}
+                            </div>
+                          {/if}
                           <div class="detail-item">
-                            <span class="detail-label">{_("resource.live2dPriority")}</span>
-                            {motion.priority}
+                            <span class="detail-label">{_("resource.live2dFade")}</span>
+                            {motion.fade_in_ms}ms / {motion.fade_out_ms}ms
                           </div>
-                        {/if}
-                        <div class="detail-item">
-                          <span class="detail-label">{_("resource.live2dFade")}</span>
-                          {motion.fade_in_ms}ms / {motion.fade_out_ms}ms
-                        </div>
-                        {#if motion.loop}
-                          <div class="detail-item">
-                            <span class="detail-label">{_("resource.live2dLoop")}</span>
-                            {_("common.yes")}
-                          </div>
-                        {/if}
+                          {#if motion.loop}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.live2dLoop")}</span>
+                              {_("common.yes")}
+                            </div>
+                          {/if}
 
-                      </div>
-                    </div>
-                  {/each}
-                </div>
-
-                <h5>{_("resource.live2dExpressions")} ({currentModInfo.live2d.expressions.length})</h5>
-                <div class="state-list">
-                  {#each currentModInfo.live2d.expressions as exp}
-                    <div class="state-card">
-                      <div class="state-header">
-                        <span class="state-name">{exp.name}</span>
-                      </div>
-                      <div class="state-detail">
-                        <div class="detail-item">
-                          <span class="detail-label">{_("resource.animationLabel")}</span>
-                          {exp.file}
                         </div>
                       </div>
-                    </div>
-                  {/each}
-                </div>
+                    {/each}
+                  </div>
+                </details>
 
-                <h5>{_("resource.live2dStates")} ({currentModInfo.live2d.states.length})</h5>
-                <div class="state-list">
-                  {#each currentModInfo.live2d.states as lstate}
-                    <div class="state-card">
-                      <div class="state-header">
-                        <span class="state-name">{lstate.state}</span>
-                      </div>
-                      <div class="state-detail">
-                        <div class="detail-item">
-                          <span class="detail-label">{_("resource.live2dStateMotion")}</span>
-                          {lstate.motion}
+                <details open class="live2d-section">
+                  <summary>
+                    {_("resource.live2dExpressions")} ({currentModInfo.live2d.expressions.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.live2d.expressions as exp}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{exp.name}</span>
                         </div>
-                        {#if lstate.expression}
+                        <div class="state-detail">
                           <div class="detail-item">
-                            <span class="detail-label">{_("resource.live2dStateExpression")}</span>
-                            {lstate.expression}
+                            <span class="detail-label">{_("resource.animationLabel")}</span>
+                            {exp.file}
                           </div>
-                        {/if}
-                        <div class="detail-item">
-                          <span class="detail-label">{_("resource.live2dStateScale")}</span>
-                          {lstate.scale}
-                        </div>
-                        <div class="detail-item">
-                          <span class="detail-label">{_("resource.live2dStateOffset")}</span>
-                          {lstate.offset_x},{lstate.offset_y}
                         </div>
                       </div>
-                    </div>
-                  {/each}
-                </div>
+                    {/each}
+                  </div>
+                </details>
+
+                <details open class="live2d-section">
+                  <summary>
+                    {_("resource.live2dStates")} ({currentModInfo.live2d.states.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.live2d.states as lstate}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{lstate.state}</span>
+                        </div>
+                        <div class="state-detail">
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dStateMotion")}</span>
+                            {lstate.motion}
+                          </div>
+                          {#if lstate.expression}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.live2dStateExpression")}</span>
+                              {lstate.expression}
+                            </div>
+                          {/if}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dStateScale")}</span>
+                            {lstate.scale}
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dStateOffset")}</span>
+                            {lstate.offset_x},{lstate.offset_y}
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
               {:else}
                 <div class="info-row">
                   <span class="info-label">{_("resource.live2dAssets")}</span>

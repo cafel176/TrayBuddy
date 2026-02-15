@@ -9,7 +9,8 @@
     "settings",
     "about",
     "reminder",
-    "memo"
+    "memo",
+    "live2d"
   ],
   "permissions": [
     "core:default",
