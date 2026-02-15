@@ -475,6 +475,13 @@
   "msg_sync_failed": "同步失败：{error}",
   "msg_sync_model_not_found": "未找到模型文件，请检查 base_dir 配置",
   "msg_sync_no_model3_found": "在 base_dir 目录下未找到 .model3.json 文件",
-  "msg_sync_choose_model3": "在目录中找到多个模型文件，请输入要使用的文件名：\n{files}"
+  "msg_sync_choose_model3": "在目录中找到多个模型文件，请输入要使用的文件名：\n{files}",
+
+  "btn_gen_keyboard_events": "从文件生成键盘事件",
+  "msg_gen_keyboard_live2d_only": "该功能仅支持 Live2D 类型的 Mod",
+  "msg_gen_keyboard_no_cdi": "模型文件中未找到 DisplayInfo (cdi3.json) 引用，无法识别参数名称",
+  "msg_gen_keyboard_no_params": "未在 cdi3.json 中识别到键盘/按键相关参数",
+  "msg_gen_keyboard_confirm": "从 cdi3.json 中识别到 {count} 个按键参数，将自动生成对应的状态和触发器：\n\n{params}\n\n同时会在 idle 状态中重置这些参数为 0，并开启全局键盘监听。是否继续？",
+  "msg_gen_keyboard_success": "键盘事件生成完成：新增 {states} 个状态、{triggers} 个触发器（共 {params} 个按键参数）"
 }
 

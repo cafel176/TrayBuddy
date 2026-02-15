@@ -475,6 +475,13 @@
   "msg_sync_failed": "Sync failed: {error}",
   "msg_sync_model_not_found": "Model file not found. Please check base_dir settings",
   "msg_sync_no_model3_found": "No .model3.json file found in the base_dir directory",
-  "msg_sync_choose_model3": "Multiple model files found. Please enter the filename to use:\n{files}"
+  "msg_sync_choose_model3": "Multiple model files found. Please enter the filename to use:\n{files}",
+
+  "btn_gen_keyboard_events": "Generate Keyboard Events from File",
+  "msg_gen_keyboard_live2d_only": "This feature is only available for Live2D type Mods",
+  "msg_gen_keyboard_no_cdi": "No DisplayInfo (cdi3.json) reference found in model file, cannot identify parameter names",
+  "msg_gen_keyboard_no_params": "No keyboard/key-related parameters found in cdi3.json",
+  "msg_gen_keyboard_confirm": "Identified {count} key parameters from cdi3.json. This will auto-generate corresponding states and triggers:\n\n{params}\n\nIt will also reset these parameters to 0 in the idle state and enable global keyboard listening. Continue?",
+  "msg_gen_keyboard_success": "Keyboard events generated: {states} new states, {triggers} new triggers ({params} key parameters total)"
 }
 

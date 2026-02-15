@@ -4759,6 +4759,253 @@ async function syncLive2dAssetsFromFiles() {
 }
 
 /**
+ * 从 Live2D 模型的 cdi3.json 中识别键盘/鼠标按键相关参数，
+ * 自动生成对应的 keydown 触发器和过渡状态，以及 idle 状态的参数重置。
+ *
+ * 识别规则：
+ * - ParameterGroups 中 Name 包含 "按键"/"键盘"/"key"/"keyboard" 的分组下所有参数
+ * - 参数 Id 包含 "MouseLeftDown"/"MouseRightDown" 的鼠标按键参数
+ * - 参数 Name 直接是单个按键名称（已知键名映射）
+ *
+ * 对每个识别到的参数：
+ * 1. 创建一个过渡状态 `key_<keyCode>`，设置该参数 value=1，next_state=idle
+ * 2. 创建一个触发器 `keydown:<KeyCode>`（或 click），触发该过渡状态
+ * 3. 在 idle 状态的 live2d_params 中将该参数重置为 0
+ */
+async function generateKeyboardEventsFromFiles() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (currentMod.manifest.mod_type !== 'live2d') {
+    showToast(window.i18n.t('msg_gen_keyboard_live2d_only'), 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_sync_need_folder'), 'warning');
+    return;
+  }
+
+  // ======== 读取 cdi3.json ========
+  try {
+    const resolved = await _resolveLive2dBaseDir();
+    if (!resolved) return;
+    const { dirHandle, modelJson } = resolved;
+
+    // 读取 model3.json 获取 DisplayInfo (cdi3) 路径
+    const modelFileHandle = await dirHandle.getFileHandle(modelJson);
+    const modelFile = await modelFileHandle.getFile();
+    const modelData = JSON.parse(await modelFile.text());
+    const fileRefs = modelData.FileReferences || modelData.fileReferences || {};
+    const cdiPath = fileRefs.DisplayInfo || fileRefs.displayInfo || '';
+
+    if (!cdiPath) {
+      showToast(window.i18n.t('msg_gen_keyboard_no_cdi'), 'warning');
+      return;
+    }
+
+    // 读取 cdi3.json
+    const cdiParts = cdiPath.replace(/\\/g, '/').split('/').filter(Boolean);
+    let cdiDirHandle = dirHandle;
+    for (let i = 0; i < cdiParts.length - 1; i++) {
+      cdiDirHandle = await cdiDirHandle.getDirectoryHandle(cdiParts[i]);
+    }
+    const cdiFileHandle = await cdiDirHandle.getFileHandle(cdiParts[cdiParts.length - 1]);
+    const cdiFile = await cdiFileHandle.getFile();
+    const cdiData = JSON.parse(await cdiFile.text());
+
+    const allParams = cdiData.Parameters || [];
+    const paramGroups = cdiData.ParameterGroups || [];
+
+    // ======== 识别键盘相关参数分组 ========
+    const keyboardGroupIds = new Set();
+    for (const g of paramGroups) {
+      const gName = (g.Name || '').toLowerCase();
+      const gId = g.Id || '';
+      if (gName.includes('按键') || gName.includes('键盘') || gName.includes('key') || gName.includes('keyboard')) {
+        keyboardGroupIds.add(gId);
+      }
+    }
+
+    // ======== 参数名到 KeyCode 的映射 ========
+    const NAME_TO_KEYCODE = {
+      '空格': 'Space', 'space': 'Space',
+      'alt': 'Alt', 'ctrl': 'Control', 'control': 'Control',
+      'shift': 'Shift', 'enter': 'Enter', 'tab': 'Tab',
+      'escape': 'Escape', 'esc': 'Escape',
+      'backspace': 'Backspace',
+      'a': 'KeyA', 'b': 'KeyB', 'c': 'KeyC', 'd': 'KeyD',
+      'e': 'KeyE', 'f': 'KeyF', 'g': 'KeyG', 'h': 'KeyH',
+      'i': 'KeyI', 'j': 'KeyJ', 'k': 'KeyK', 'l': 'KeyL',
+      'm': 'KeyM', 'n': 'KeyN', 'o': 'KeyO', 'p': 'KeyP',
+      'q': 'KeyQ', 'r': 'KeyR', 's': 'KeyS', 't': 'KeyT',
+      'u': 'KeyU', 'v': 'KeyV', 'w': 'KeyW', 'x': 'KeyX',
+      'y': 'KeyY', 'z': 'KeyZ',
+      '0': 'Digit0', '1': 'Digit1', '2': 'Digit2', '3': 'Digit3',
+      '4': 'Digit4', '5': 'Digit5', '6': 'Digit6', '7': 'Digit7',
+      '8': 'Digit8', '9': 'Digit9',
+      'up': 'ArrowUp', 'down': 'ArrowDown', 'left': 'ArrowLeft', 'right': 'ArrowRight',
+      'f1': 'F1', 'f2': 'F2', 'f3': 'F3', 'f4': 'F4',
+      'f5': 'F5', 'f6': 'F6', 'f7': 'F7', 'f8': 'F8',
+      'f9': 'F9', 'f10': 'F10', 'f11': 'F11', 'f12': 'F12',
+    };
+
+    // ======== Id 特殊匹配规则 ========
+    const MOUSE_ID_MAP = {
+      'ParamMouseLeftDown': { event: 'click', stateName: 'key_mouse_left' },
+      'ParamMouseRightDown': null,
+    };
+
+    // ======== 收集需要生成的键盘参数 ========
+    const keyParams = [];
+    const seenEvents = new Set();
+
+    for (const p of allParams) {
+      const paramId = p.Id || '';
+      const paramName = (p.Name || '').trim();
+      const groupId = p.GroupId || '';
+
+      // 1. 检查鼠标按键特殊 Id
+      if (paramId in MOUSE_ID_MAP) {
+        const mapping = MOUSE_ID_MAP[paramId];
+        if (mapping && !seenEvents.has(mapping.event)) {
+          keyParams.push({
+            paramId,
+            keyCode: mapping.event,
+            eventName: mapping.event,
+            stateName: mapping.stateName,
+          });
+          seenEvents.add(mapping.event);
+        }
+        continue;
+      }
+
+      // 跳过鼠标坐标参数（已由 mouseFollow 处理）
+      if (paramId === 'ParamMouseX' || paramId === 'ParamMouseY') continue;
+
+      // 2. 检查是否在键盘分组中
+      const inKeyboardGroup = groupId && keyboardGroupIds.has(groupId);
+
+      // 3. 尝试从参数名映射到 KeyCode
+      const nameLower = paramName.toLowerCase();
+      const keyCode = NAME_TO_KEYCODE[nameLower];
+
+      if (inKeyboardGroup && keyCode) {
+        const eventName = `keydown:${keyCode}`;
+        if (!seenEvents.has(eventName)) {
+          keyParams.push({
+            paramId,
+            keyCode,
+            eventName,
+            stateName: `key_${nameLower.replace(/\s+/g, '_')}`,
+          });
+          seenEvents.add(eventName);
+        }
+      } else if (inKeyboardGroup && !keyCode) {
+        console.warn(`[generateKeyboardEvents] Unknown key param in keyboard group: ${paramId} (Name: "${paramName}")`);
+      }
+    }
+
+    if (keyParams.length === 0) {
+      showToast(window.i18n.t('msg_gen_keyboard_no_params'), 'warning');
+      return;
+    }
+
+    // ======== 确认操作 ========
+    const paramNames = keyParams.map(k => `${k.paramId} → ${k.eventName}`).join('\n');
+    const confirmMsg = window.i18n.t('msg_gen_keyboard_confirm')
+      .replace('{count}', keyParams.length)
+      .replace('{params}', paramNames);
+    if (!confirm(confirmMsg)) return;
+
+    // ======== 生成状态和触发器 ========
+    const manifest = currentMod.manifest;
+    const existingStateNames = new Set();
+    for (const key of Object.keys(manifest.important_states || {})) {
+      existingStateNames.add(key);
+    }
+    for (const s of (manifest.states || [])) {
+      existingStateNames.add(s.name);
+    }
+    const existingTriggerEvents = new Set();
+    for (const t of (manifest.triggers || [])) {
+      existingTriggerEvents.add(t.event);
+    }
+
+    let addedStates = 0;
+    let addedTriggers = 0;
+
+    for (const kp of keyParams) {
+      // 1. 创建过渡状态
+      if (!existingStateNames.has(kp.stateName)) {
+        const newState = createDefaultState(kp.stateName, false);
+        newState.priority = 3;
+        newState.next_state = 'idle';
+        newState.live2d_params = [{ id: kp.paramId, value: 1 }];
+        manifest.states.push(newState);
+        existingStateNames.add(kp.stateName);
+        addedStates++;
+      }
+
+      // 2. 创建触发器
+      if (!existingTriggerEvents.has(kp.eventName)) {
+        const newTrigger = {
+          event: kp.eventName,
+          can_trigger_states: [{
+            persistent_state: '',
+            states: [{ state: kp.stateName, weight: 1 }],
+            allow_repeat: true,
+          }],
+        };
+        manifest.triggers.push(newTrigger);
+        existingTriggerEvents.add(kp.eventName);
+        addedTriggers++;
+      }
+    }
+
+    // 3. 为 idle 状态添加 live2d_params 重置所有按键参数为 0
+    const idleState = manifest.important_states?.idle;
+    if (idleState) {
+      const existingParamIds = new Set();
+      if (Array.isArray(idleState.live2d_params)) {
+        for (const p of idleState.live2d_params) {
+          existingParamIds.add(p.id);
+        }
+      } else {
+        idleState.live2d_params = [];
+      }
+
+      for (const kp of keyParams) {
+        if (!existingParamIds.has(kp.paramId)) {
+          idleState.live2d_params.push({ id: kp.paramId, value: 0 });
+          existingParamIds.add(kp.paramId);
+        }
+      }
+    }
+
+    // 4. 同时开启 global_keyboard
+    manifest.global_keyboard = true;
+    document.getElementById('global-keyboard').checked = true;
+
+    // 刷新 UI
+    renderStates();
+    renderTriggers();
+    markUnsaved();
+
+    const msg = window.i18n.t('msg_gen_keyboard_success')
+      .replace('{states}', addedStates)
+      .replace('{triggers}', addedTriggers)
+      .replace('{params}', keyParams.length);
+    showToast(msg, 'success');
+
+  } catch (err) {
+    console.error('generateKeyboardEventsFromFiles error:', err);
+    const msg = window.i18n.t('msg_sync_failed').replace('{error}', err.message || String(err));
+    showToast(msg, 'error');
+  }
+}
+
+/**
  * 渲染 Live2D 动作列表（支持筛选、高亮、拖拽、复制）
  */
 function renderLive2dMotions(motions) {
