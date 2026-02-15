@@ -4349,66 +4349,101 @@ function collectLive2dModelData() {
 }
 
 /**
- * 从文件同步 Live2D 模型信息
- * 自动扫描 base_dir 下的 .model3.json，推断模型配置并导入动作/表情
+ * 递归扫描 parentDirHandle 下的子目录，找到第一个包含指定扩展名文件的目录
+ * 返回相对于 parentDirHandle 的路径（如 "motions"），未找到返回空字符串
  */
-async function syncLive2dFromFiles() {
+async function _findSubdirContainingExt(parentDirHandle, ext, basePath = '') {
+  const extLower = ext.toLowerCase();
+  try {
+    for await (const entry of parentDirHandle.values()) {
+      if (entry.kind === 'file' && entry.name.toLowerCase().endsWith(extLower)) {
+        // 当前目录就包含目标文件
+        return basePath;
+      }
+    }
+    // 当前目录没有，递归子目录
+    for await (const entry of parentDirHandle.values()) {
+      if (entry.kind === 'directory') {
+        const subPath = basePath ? `${basePath}/${entry.name}` : entry.name;
+        const result = await _findSubdirContainingExt(entry, ext, subPath);
+        if (result !== '') return result;
+      }
+    }
+  } catch (e) {
+    // 忽略无法访问的目录
+  }
+  return '';
+}
+
+/**
+ * 导航到 Live2D 的 base_dir 并定位 model3.json，返回 { dirHandle, modelJson, live2d } 供后续使用
+ * 如果 base_dir 为空则使用默认值；如果 model_json 为空则自动扫描
+ */
+async function _resolveLive2dBaseDir() {
   if (!currentMod) {
     showToast(window.i18n.t('msg_load_mod_first'), 'warning');
-    return;
+    return null;
   }
   if (!modFolderHandle) {
     showToast(window.i18n.t('msg_sync_need_folder'), 'warning');
-    return;
+    return null;
   }
 
-  // 先收集当前表单中的模型配置
   collectLive2dModelData();
   const live2d = ensureLive2dData();
   let baseDir = (live2d.model.base_dir || '').trim();
   let modelJson = (live2d.model.model_json || '').trim();
 
-  // base_dir 为空时使用默认值
   if (!baseDir) {
     baseDir = 'asset/live2d/';
     live2d.model.base_dir = baseDir;
   }
 
-  if (!confirm(window.i18n.t('msg_sync_confirm'))) return;
+  const baseParts = baseDir.replace(/\\/g, '/').split('/').filter(Boolean);
+  let dirHandle = modFolderHandle;
+  for (const part of baseParts) {
+    dirHandle = await dirHandle.getDirectoryHandle(part);
+  }
+
+  // 如果 model_json 为空，自动扫描 base_dir 下的 .model3.json 文件
+  if (!modelJson) {
+    const model3Files = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file' && entry.name.endsWith('.model3.json')) {
+        model3Files.push(entry.name);
+      }
+    }
+    if (model3Files.length === 0) {
+      showToast(window.i18n.t('msg_sync_no_model3_found'), 'warning');
+      return null;
+    }
+    if (model3Files.length === 1) {
+      modelJson = model3Files[0];
+    } else {
+      const choice = prompt(
+        window.i18n.t('msg_sync_choose_model3').replace('{files}', model3Files.join('\n')),
+        model3Files[0]
+      );
+      if (!choice) return null;
+      modelJson = choice.trim();
+    }
+    live2d.model.model_json = modelJson;
+  }
+
+  return { dirHandle, modelJson, live2d };
+}
+
+/**
+ * 从文件同步 Live2D 模型配置
+ * 自动扫描 base_dir 下的 .model3.json，推断并填充模型配置字段
+ */
+async function syncLive2dConfigFromFiles() {
+  if (!confirm(window.i18n.t('msg_sync_config_confirm'))) return;
 
   try {
-    // 导航到 base_dir
-    const baseParts = baseDir.replace(/\\/g, '/').split('/').filter(Boolean);
-    let dirHandle = modFolderHandle;
-    for (const part of baseParts) {
-      dirHandle = await dirHandle.getDirectoryHandle(part);
-    }
-
-    // 如果 model_json 为空，自动扫描 base_dir 下的 .model3.json 文件
-    if (!modelJson) {
-      const model3Files = [];
-      for await (const entry of dirHandle.values()) {
-        if (entry.kind === 'file' && entry.name.endsWith('.model3.json')) {
-          model3Files.push(entry.name);
-        }
-      }
-      if (model3Files.length === 0) {
-        showToast(window.i18n.t('msg_sync_no_model3_found'), 'warning');
-        return;
-      }
-      if (model3Files.length === 1) {
-        modelJson = model3Files[0];
-      } else {
-        // 多个 model3.json，让用户选择
-        const choice = prompt(
-          window.i18n.t('msg_sync_choose_model3').replace('{files}', model3Files.join('\n')),
-          model3Files[0]
-        );
-        if (!choice) return;
-        modelJson = choice.trim();
-      }
-      live2d.model.model_json = modelJson;
-    }
+    const resolved = await _resolveLive2dBaseDir();
+    if (!resolved) return;
+    const { dirHandle, modelJson, live2d } = resolved;
 
     // 读取 model3.json
     const modelFileHandle = await dirHandle.getFileHandle(modelJson);
@@ -4425,15 +4460,10 @@ async function syncLive2dFromFiles() {
 
     // --- 解析模型基础信息 ---
     // 物理文件
-    const physicsJson = fileRefs.Physics || fileRefs.physics || '';
-    live2d.model.physics_json = physicsJson;
+    live2d.model.physics_json = fileRefs.Physics || fileRefs.physics || '';
 
     // 姿势文件
-    const poseJson = fileRefs.Pose || fileRefs.pose || '';
-    live2d.model.pose_json = poseJson;
-
-    // Moc 文件路径（用于确认目录结构正确）
-    const mocFile = fileRefs.Moc || fileRefs.moc || '';
+    live2d.model.pose_json = fileRefs.Pose || fileRefs.pose || '';
 
     // 纹理目录（从第一个纹理路径提取目录名）
     const textures = fileRefs.Textures || fileRefs.textures || [];
@@ -4443,24 +4473,11 @@ async function syncLive2dFromFiles() {
       live2d.model.textures_dir = texDir;
     }
 
-    // 动作目录（从第一个动作文件路径推断）
-    const rawMotions = fileRefs.Motions || fileRefs.motions || {};
-    const allMotionEntries = Object.values(rawMotions).flat();
-    if (allMotionEntries.length > 0) {
-      const firstMotionFile = (allMotionEntries[0].File || allMotionEntries[0].file || '').replace(/\\/g, '/');
-      if (firstMotionFile.includes('/')) {
-        live2d.model.motions_dir = firstMotionFile.substring(0, firstMotionFile.lastIndexOf('/'));
-      }
-    }
+    // 动作目录（直接扫描 base_dir 下包含 .motion3.json 文件的子目录）
+    live2d.model.motions_dir = await _findSubdirContainingExt(dirHandle, '.motion3.json');
 
-    // 表情目录（从第一个表情文件路径推断）
-    const rawExpressions = fileRefs.Expressions || fileRefs.expressions || [];
-    if (Array.isArray(rawExpressions) && rawExpressions.length > 0) {
-      const firstExprFile = (rawExpressions[0].File || rawExpressions[0].file || '').replace(/\\/g, '/');
-      if (firstExprFile.includes('/')) {
-        live2d.model.expressions_dir = firstExprFile.substring(0, firstExprFile.lastIndexOf('/'));
-      }
-    }
+    // 表情目录（直接扫描 base_dir 下包含 .exp3.json 文件的子目录）
+    live2d.model.expressions_dir = await _findSubdirContainingExt(dirHandle, '.exp3.json');
 
     // EyeBlink / LipSync（从 Groups 读取）
     const groups = modelData.Groups || modelData.groups || [];
@@ -4476,15 +4493,51 @@ async function syncLive2dFromFiles() {
 
     // 回写模型配置到表单
     populateLive2dModelForm(live2d.model);
+    markUnsaved();
 
-    // --- 解析动作列表 ---
+    showToast(window.i18n.t('msg_sync_config_success'), 'success');
+  } catch (err) {
+    console.error('syncLive2dConfigFromFiles error:', err);
+    if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
+      showToast(window.i18n.t('msg_sync_model_not_found'), 'error');
+    } else {
+      const msg = window.i18n.t('msg_sync_failed').replace('{error}', err.message || String(err));
+      showToast(msg, 'error');
+    }
+  }
+}
+
+/**
+ * 从文件同步 Live2D 资产（动作、表情、状态-动画映射）
+ * 根据已配置好的模型配置，从 model3.json 中读取动作和表情列表并同步状态映射
+ */
+async function syncLive2dAssetsFromFiles() {
+  if (!confirm(window.i18n.t('msg_sync_assets_confirm'))) return;
+
+  try {
+    const resolved = await _resolveLive2dBaseDir();
+    if (!resolved) return;
+    const { dirHandle, modelJson, live2d } = resolved;
+
+    // 读取 model3.json
+    const modelFileHandle = await dirHandle.getFileHandle(modelJson);
+    const modelFile = await modelFileHandle.getFile();
+    const modelText = await modelFile.text();
+    const modelData = JSON.parse(modelText);
+
+    const fileRefs = modelData.FileReferences || modelData.fileReferences || {};
+    const rawMotions = fileRefs.Motions || fileRefs.motions || {};
+    const rawExpressions = fileRefs.Expressions || fileRefs.expressions || [];
+
+    // --- 解析动作列表（从 model3.json） ---
     const newMotions = [];
+    const motionFilesSeen = new Set(); // 用于去重
     for (const [groupName, motionArr] of Object.entries(rawMotions)) {
       if (!Array.isArray(motionArr)) continue;
       for (const m of motionArr) {
         const file = m.File || m.file || '';
-        // 从文件名推导名称：motions/mtn_01.motion3.json -> mtn_01
         const baseName = file.replace(/\\/g, '/').split('/').pop().replace(/\.motion3\.json$/i, '').replace(/\.json$/i, '');
+        motionFilesSeen.add(file.replace(/\\/g, '/'));
         newMotions.push({
           name: baseName,
           file: file,
@@ -4497,13 +4550,69 @@ async function syncLive2dFromFiles() {
       }
     }
 
-    // --- 解析表情列表 ---
+    // --- 从动作目录补充（扫描文件系统中的 .motion3.json） ---
+    const motionsDir = (live2d.model.motions_dir || '').trim();
+    if (motionsDir) {
+      try {
+        const motionsDirParts = motionsDir.replace(/\\/g, '/').split('/').filter(Boolean);
+        let motionsDirHandle = dirHandle;
+        for (const part of motionsDirParts) {
+          motionsDirHandle = await motionsDirHandle.getDirectoryHandle(part);
+        }
+        for await (const entry of motionsDirHandle.values()) {
+          if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.motion3.json')) {
+            const filePath = `${motionsDir}/${entry.name}`;
+            if (!motionFilesSeen.has(filePath.replace(/\\/g, '/'))) {
+              const baseName = entry.name.replace(/\.motion3\.json$/i, '');
+              newMotions.push({
+                name: baseName,
+                file: filePath,
+                group: 'Default',
+                priority: 'Normal',
+                fade_in_ms: 200,
+                fade_out_ms: 200,
+                loop: false
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // 动作目录不存在或无法访问，跳过
+      }
+    }
+
+    // --- 解析表情列表（从 model3.json） ---
     const newExpressions = [];
+    const exprFilesSeen = new Set();
     if (Array.isArray(rawExpressions)) {
       for (const e of rawExpressions) {
         const name = e.Name || e.name || '';
         const file = e.File || e.file || '';
+        exprFilesSeen.add(file.replace(/\\/g, '/'));
         newExpressions.push({ name, file });
+      }
+    }
+
+    // --- 从表情目录补充（扫描文件系统中的 .exp3.json） ---
+    const expressionsDir = (live2d.model.expressions_dir || '').trim();
+    if (expressionsDir) {
+      try {
+        const exprDirParts = expressionsDir.replace(/\\/g, '/').split('/').filter(Boolean);
+        let exprDirHandle = dirHandle;
+        for (const part of exprDirParts) {
+          exprDirHandle = await exprDirHandle.getDirectoryHandle(part);
+        }
+        for await (const entry of exprDirHandle.values()) {
+          if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.exp3.json')) {
+            const filePath = `${expressionsDir}/${entry.name}`;
+            if (!exprFilesSeen.has(filePath.replace(/\\/g, '/'))) {
+              const baseName = entry.name.replace(/\.exp3\.json$/i, '');
+              newExpressions.push({ name: baseName, file: filePath });
+            }
+          }
+        }
+      } catch (e) {
+        // 表情目录不存在或无法访问，跳过
       }
     }
 
@@ -4512,7 +4621,6 @@ async function syncLive2dFromFiles() {
     live2d.expressions = newExpressions;
 
     // --- 同步状态-动画映射 (states) ---
-    // 保留已有映射（按 state 名索引），为新动作自动创建映射
     const existingStatesMap = {};
     if (Array.isArray(live2d.states)) {
       for (const s of live2d.states) {
@@ -4522,10 +4630,8 @@ async function syncLive2dFromFiles() {
     const newStates = [];
     for (const motion of newMotions) {
       if (existingStatesMap[motion.name]) {
-        // 保留已有映射（保持用户自定义的 expression / scale / offset）
         newStates.push(existingStatesMap[motion.name]);
       } else {
-        // 为新动作创建默认映射
         newStates.push({
           state: motion.name,
           motion: motion.name,
@@ -4543,12 +4649,12 @@ async function syncLive2dFromFiles() {
     updateAnimaSelects();
     markUnsaved();
 
-    const msg = window.i18n.t('msg_sync_success')
+    const msg = window.i18n.t('msg_sync_assets_success')
       .replace('{motions}', newMotions.length)
       .replace('{expressions}', newExpressions.length);
     showToast(msg, 'success');
   } catch (err) {
-    console.error('syncLive2dFromFiles error:', err);
+    console.error('syncLive2dAssetsFromFiles error:', err);
     if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
       showToast(window.i18n.t('msg_sync_model_not_found'), 'error');
     } else {
