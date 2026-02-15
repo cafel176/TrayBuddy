@@ -720,5 +720,6 @@
         }
       ]
     }
-  ]
+  ],
+  "mod_type": "sequence"
 }

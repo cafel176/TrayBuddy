@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "mao_pro_zh",
+    "base_dir": "asset/live2d/mao_pro_zh",
+    "model_json": "mao_pro.model3.json",
+    "textures_dir": "mao_pro.4096",
+    "motions_dir": "motions",
+    "expressions_dir": "expressions",
+    "physics_json": "mao_pro.physics3.json",
+    "pose_json": "mao_pro.pose3.json",
+    "eye_blink": true,
+    "lip_sync": true
+  },
+  "motions": [
+    {
+      "name": "mtn_01",
+      "file": "motions/mtn_01.motion3.json",
+      "group": "Idle",
+      "priority": "Idle",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": true
+    },
+    {
+      "name": "mtn_02",
+      "file": "motions/mtn_02.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "mtn_03",
+      "file": "motions/mtn_03.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "mtn_04",
+      "file": "motions/mtn_04.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "special_01",
+      "file": "motions/special_01.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "special_02",
+      "file": "motions/special_02.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "special_03",
+      "file": "motions/special_03.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    }
+  ],
+  "expressions": [
+    {
+      "name": "exp_01",
+      "file": "expressions/exp_01.exp3.json"
+    },
+    {
+      "name": "exp_02",
+      "file": "expressions/exp_02.exp3.json"
+    },
+    {
+      "name": "exp_03",
+      "file": "expressions/exp_03.exp3.json"
+    },
+    {
+      "name": "exp_04",
+      "file": "expressions/exp_04.exp3.json"
+    },
+    {
+      "name": "exp_05",
+      "file": "expressions/exp_05.exp3.json"
+    },
+    {
+      "name": "exp_06",
+      "file": "expressions/exp_06.exp3.json"
+    },
+    {
+      "name": "exp_07",
+      "file": "expressions/exp_07.exp3.json"
+    },
+    {
+      "name": "exp_08",
+      "file": "expressions/exp_08.exp3.json"
+    }
+  ],
+  "states": [
+    {
+      "state": "idle",
+      "motion": "mtn_01",
+      "expression": "exp_01",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "mtn_02",
+      "motion": "mtn_02",
+      "expression": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "mtn_03",
+      "motion": "mtn_03",
+      "expression": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "mtn_04",
+      "motion": "mtn_04",
+      "expression": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "special_01",
+      "motion": "special_01",
+      "expression": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "special_02",
+      "motion": "special_02",
+      "expression": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "special_03",
+      "motion": "special_03",
+      "expression": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    }
+  ]
+}

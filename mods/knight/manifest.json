@@ -960,5 +960,6 @@
       "event": "music_end",
       "can_trigger_states": []
     }
-  ]
+  ],
+  "mod_type": "sequence"
 }
