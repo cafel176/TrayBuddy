@@ -1480,6 +1480,12 @@ pub fn run() {
 
             sm.set_app_handle(app.handle().clone());
 
+            // ========== 获取当前 Mod 类型（在 rm 被 move 之前） ==========
+            let current_mod_type = {
+                let rm_guard = rm.lock().unwrap();
+                rm_guard.current_mod.as_ref().map(|m| m.manifest.mod_type)
+            };
+
             // ========== 系统托盘 (System Tray) ==========
             // 必须在注册AppState之前创建，因为需要先使用rm
             let tray_icon = {
@@ -1526,8 +1532,16 @@ pub fn run() {
                 });
             }
 
-            // ========== 创建动画窗口 ==========
-            inner_create_animation_window(app.handle())?;
+            // ========== 根据 Mod 类型创建对应的渲染窗口 ==========
+            match current_mod_type {
+                Some(ModType::Live2d) => {
+                    inner_create_live2d_window(app.handle())?;
+                }
+                _ => {
+                    // 默认（Sequence 或无 Mod）创建序列帧动画窗口
+                    inner_create_animation_window(app.handle())?;
+                }
+            }
 
             // ========== 创建托盘 ==========
             {

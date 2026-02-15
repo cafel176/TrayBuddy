@@ -21,6 +21,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
+  import type { ModType } from "$lib/types/asset";
   import {
     t,
     onLangChange,
@@ -28,6 +29,7 @@
     getAvailableLangs,
     type LangInfo,
   } from "$lib/i18n";
+
 
   // ======================================================================= //
   // 类型定义
@@ -63,7 +65,21 @@
     show_border: boolean;
     /** 角色缩放比例 */
     animation_scale: number;
+
+    /** Live2D 鼠标跟随 */
+    live2d_mouse_follow: boolean;
+    /** Live2D 自动交互 */
+    live2d_auto_interact: boolean;
   }
+
+  interface ModManifest {
+    mod_type?: ModType;
+  }
+
+  interface ModInfo {
+    manifest: ModManifest;
+  }
+
 
   // ======================================================================= //
   // 响应式状态
@@ -72,8 +88,12 @@
   /** 用户设置数据 */
   let settings = $state<UserSettings | null>(null);
 
+  /** 当前 Mod 类型（用于 Live2D 分类展示） */
+  let currentModType = $state<ModType | null>(null);
+
   /** 生日日期输入值 (YYYY-MM-DD 格式，用于日历控件) */
   let birthdayDate = $state<string>("");
+
 
   /** 状态消息 */
   let statusMsg = $state(t("settings.statusLoading"));
@@ -182,6 +202,20 @@
       statusMsg = `${_("common.loadFailed")} ${e}`;
     }
   }
+
+  /**
+   * 获取当前加载 Mod 类型
+   */
+  async function loadCurrentModType() {
+    try {
+      const mod = (await invoke("get_current_mod")) as ModInfo | null;
+      currentModType = mod?.manifest?.mod_type ?? null;
+    } catch (e) {
+      console.warn("Failed to read current mod type:", e);
+      currentModType = null;
+    }
+  }
+
 
   /**
    * 保存当前设置到后端
@@ -349,6 +383,8 @@
       );
 
       await loadSettings();
+      await loadCurrentModType();
+
     };
 
     init().catch((e) => console.error("Settings init failed:", e));
@@ -547,8 +583,38 @@
     </div>
 
     <!-- ================================================================= -->
+    <!-- Live2D 设置 -->
+    <!-- ================================================================= -->
+
+    {#if currentModType === "live2d"}
+      <div class="divider">{_("settings.live2d")}</div>
+
+      <div class="checkbox-group">
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.live2d_mouse_follow}
+            onchange={(e) =>
+              handleToggle("live2d_mouse_follow", e.currentTarget.checked)}
+          />
+          {_("settings.live2dMouseFollow")}
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.live2d_auto_interact}
+            onchange={(e) =>
+              handleToggle("live2d_auto_interact", e.currentTarget.checked)}
+          />
+          {_("settings.live2dAutoInteract")}
+        </label>
+      </div>
+    {/if}
+
+    <!-- ================================================================= -->
     <!-- 高级选项 -->
     <!-- ================================================================= -->
+
 
     <div class="divider">{_("settings.advancedOptions")}</div>
 

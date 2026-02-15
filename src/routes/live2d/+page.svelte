@@ -10,13 +10,66 @@ Live2D 渲染层暂为空占位。
 
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
-  import type { ModData } from "$lib/types/asset";
+  import type { Live2DConfig, ModData, ModType, UserSettings } from "$lib/types/asset";
+
   import {
     createWindowCore,
     type ModDataToast,
   } from "$lib/animation/WindowCore";
+  import {
+    Live2DPlayer,
+    type Live2DFeatureFlags,
+  } from "$lib/animation/Live2DPlayer";
+
+  interface ModManifest {
+    mod_type?: ModType;
+  }
+
+  interface ModInfo {
+    path: string;
+    manifest: ModManifest;
+    live2d?: Live2DConfig;
+  }
+
+  let userSettings = $state<UserSettings | null>(null);
+
+  function buildFeatureFlags(settings: UserSettings | null): Live2DFeatureFlags {
+    return {
+      mouseFollow: settings?.live2d_mouse_follow ?? true,
+      autoInteract: settings?.live2d_auto_interact ?? true,
+    };
+  }
+
+  function syncFeatureFlags(settings: UserSettings | null) {
+    featureFlags = buildFeatureFlags(settings);
+    live2dPlayer?.setFeatureFlags(featureFlags);
+  }
+
+  async function loadUserSettings() {
+    try {
+      const settings = (await invoke("get_settings")) as UserSettings;
+      userSettings = settings;
+      syncFeatureFlags(settings);
+    } catch (error) {
+      console.error("Failed to load Live2D settings:", error);
+    }
+  }
+
+  async function updateUserSettings(next: Partial<UserSettings>) {
+    if (!userSettings) return;
+    const updated = { ...userSettings, ...next } as UserSettings;
+    userSettings = updated;
+    try {
+      await invoke("update_settings", { settings: updated });
+    } catch (error) {
+      console.error("Failed to update Live2D settings:", error);
+    }
+  }
+
 
   // =========================================================================
   // DOM 引用
@@ -61,8 +114,158 @@ Live2D 渲染层暂为空占位。
     border: "transparent",
   });
 
-  async function playAnimation(): Promise<boolean> {
-    return false;
+  // Debug 视角 HUD
+  let debugHud = $state({ scale: 1, offsetX: 0, offsetY: 0, baseFitScale: 0, finalScale: 0 });
+
+  let featureFlags = $state<Live2DFeatureFlags>({
+    mouseFollow: true,
+    autoInteract: true,
+  });
+
+
+  let live2dPlayer: Live2DPlayer | null = null;
+  let live2dConfig: Live2DConfig | null = null;
+  let modPath = "";
+  let unbindFeatureHotkeys: (() => void) | null = null;
+  let unlistenSettings: UnlistenFn | null = null;
+
+
+  function bindFeatureHotkeys() {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+
+      if (e.code === "KeyM") {
+        e.preventDefault();
+        featureFlags = {
+          ...featureFlags,
+          mouseFollow: !featureFlags.mouseFollow,
+        };
+        live2dPlayer?.setFeatureFlags(featureFlags);
+        void updateUserSettings({
+          live2d_mouse_follow: featureFlags.mouseFollow,
+        });
+        console.info("Live2D mouseFollow:", featureFlags.mouseFollow);
+      }
+
+      if (e.code === "KeyI") {
+        e.preventDefault();
+        featureFlags = {
+          ...featureFlags,
+          autoInteract: !featureFlags.autoInteract,
+        };
+        live2dPlayer?.setFeatureFlags(featureFlags);
+        void updateUserSettings({
+          live2d_auto_interact: featureFlags.autoInteract,
+        });
+        console.info("Live2D autoInteract:", featureFlags.autoInteract);
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    unbindFeatureHotkeys = () => window.removeEventListener("keydown", handler);
+  }
+
+  // =========================================================================
+  // Debug 视角控制
+  // =========================================================================
+
+  let unbindDebugControls: (() => void) | null = null;
+
+  function refreshDebugHud() {
+    if (live2dPlayer && debugBordersEnabled) {
+      debugHud = live2dPlayer.getDebugInfo();
+    }
+  }
+
+  function bindDebugControls() {
+    unbindDebugControls?.();
+
+    const ZOOM_STEP = 0.1;
+    const PAN_STEP = 20;
+    const ZOOM_WHEEL_FACTOR = 0.001;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!debugBordersEnabled || !live2dPlayer) return;
+
+      // 方向键平移（Shift 加速）
+      const step = e.shiftKey ? PAN_STEP * 3 : PAN_STEP;
+
+      if (e.code === "ArrowUp") { e.preventDefault(); live2dPlayer.debugPan(0, -step); refreshDebugHud(); return; }
+      if (e.code === "ArrowDown") { e.preventDefault(); live2dPlayer.debugPan(0, step); refreshDebugHud(); return; }
+      if (e.code === "ArrowLeft") { e.preventDefault(); live2dPlayer.debugPan(-step, 0); refreshDebugHud(); return; }
+      if (e.code === "ArrowRight") { e.preventDefault(); live2dPlayer.debugPan(step, 0); refreshDebugHud(); return; }
+
+      // +/- 缩放
+      if (e.code === "Equal" || e.code === "NumpadAdd") { e.preventDefault(); live2dPlayer.debugZoom(ZOOM_STEP); refreshDebugHud(); return; }
+      if (e.code === "Minus" || e.code === "NumpadSubtract") { e.preventDefault(); live2dPlayer.debugZoom(-ZOOM_STEP); refreshDebugHud(); return; }
+
+      // 0 重置
+      if (e.code === "Digit0" || e.code === "Numpad0") { e.preventDefault(); live2dPlayer.debugReset(); refreshDebugHud(); return; }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!debugBordersEnabled || !live2dPlayer) return;
+      e.preventDefault();
+      const delta = -e.deltaY * ZOOM_WHEEL_FACTOR;
+      live2dPlayer.debugZoom(delta);
+      refreshDebugHud();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    live2dCanvas?.addEventListener("wheel", onWheel, { passive: false });
+
+    unbindDebugControls = () => {
+      window.removeEventListener("keydown", onKeyDown);
+      live2dCanvas?.removeEventListener("wheel", onWheel);
+    };
+  }
+
+
+  async function initLive2DPlayer() {
+    try {
+      const mod = (await invoke("get_current_mod")) as ModInfo | null;
+      console.log("[Live2D Page] get_current_mod result:", mod ? {
+        path: mod.path,
+        mod_type: mod.manifest?.mod_type,
+        hasLive2d: !!mod.live2d,
+        statesCount: mod.live2d?.states?.length,
+      } : null);
+
+      if (!mod || mod.manifest?.mod_type !== "live2d" || !mod.live2d) {
+        console.warn("[Live2D Page] Skipping init: no live2d mod loaded");
+        return;
+      }
+
+      modPath = mod.path;
+      live2dConfig = mod.live2d;
+
+      console.log("[Live2D Page] Canvas element:", live2dCanvas?.clientWidth, "x", live2dCanvas?.clientHeight);
+      console.log("[Live2D Page] Canvas parent:", live2dCanvas?.parentElement?.clientWidth, "x", live2dCanvas?.parentElement?.clientHeight);
+
+      live2dPlayer = new Live2DPlayer(live2dCanvas, {
+        featureFlags,
+      });
+      await live2dPlayer.init();
+      await live2dPlayer.load(modPath, live2dConfig);
+      live2dPlayer.setVisible(showCharacter);
+      live2dPlayer.setAnimationScale(animationScale);
+      console.log("[Live2D Page] Player init complete, animationScale:", animationScale);
+    } catch (error) {
+      console.error("Failed to init Live2D player:", error);
+    }
+  }
+
+  async function playAnimation(
+    assetName: string,
+    playOnce: boolean,
+    onComplete: () => void,
+  ): Promise<boolean> {
+    if (!live2dPlayer || !live2dConfig) return false;
+    return live2dPlayer.playFromAnima(assetName, {
+      playOnce,
+      onComplete,
+      animationScale,
+    });
   }
 
   const core = createWindowCore({
@@ -73,6 +276,7 @@ Live2D 渲染层暂为空占位。
       getShowCharacter: () => showCharacter,
       setShowCharacter: (value) => {
         showCharacter = value;
+        live2dPlayer?.setVisible(value);
       },
       getShowBorder: () => showBorder,
       setShowBorder: (value) => {
@@ -94,6 +298,7 @@ Live2D 渲染层暂为空占位。
       getAnimationScale: () => animationScale,
       setAnimationScale: (value) => {
         animationScale = value;
+        live2dPlayer?.setAnimationScale(value);
       },
       getUserNickname: () => userNickname,
       setUserNickname: (value) => {
@@ -125,6 +330,8 @@ Live2D 渲染层暂为空占位。
       getDebugBordersEnabled: () => debugBordersEnabled,
       setDebugBordersEnabled: (value) => {
         debugBordersEnabled = value;
+        live2dPlayer?.setDebugMode(value);
+        if (value) refreshDebugHud();
       },
       setDebugColors: (value) => {
         debugColors = value;
@@ -137,17 +344,41 @@ Live2D 渲染层暂为空占位。
     },
     callbacks: {
       playAnimation,
+      onAnimationScaleChanged: () => live2dPlayer?.setAnimationScale(animationScale),
     },
   });
 
   onMount(() => {
-    void core.init();
+    console.log("[Live2D Page] onMount: window.innerWidth:", window.innerWidth, "window.innerHeight:", window.innerHeight);
+    bindFeatureHotkeys();
+    bindDebugControls();
+    const init = async () => {
+      unlistenSettings = await listen<UserSettings>(
+        "settings-change",
+        (event) => {
+          userSettings = event.payload;
+          syncFeatureFlags(userSettings);
+        },
+      );
+
+      await loadUserSettings();
+      await initLive2DPlayer();
+      await core.init();
+    };
+
+    init().catch((error) => console.error("Live2D init failed:", error));
   });
 
   onDestroy(() => {
+    unbindFeatureHotkeys?.();
+    unbindDebugControls?.();
+    unlistenSettings?.();
+    live2dPlayer?.destroy();
     core.destroy();
   });
+
 </script>
+
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
@@ -174,11 +405,7 @@ Live2D 渲染层暂为空占位。
 
   <div
     class="live2d-area"
-    style="height: {showCharacter
-      ? 500 * animationScale + 'px'
-      : '0px'}; flex: 0 0 {showCharacter
-      ? 500 * animationScale + 'px'
-      : '0px'}; overflow: hidden; outline: {debugBordersEnabled
+    style="outline: {debugBordersEnabled
       ? '1px solid ' + debugColors.animation
       : 'none'}; outline-offset: -2px;"
   >
@@ -216,6 +443,18 @@ Live2D 渲染层暂为空占位。
         {_("common.noModHint")}
       </div>
     {/if}
+
+    {#if debugBordersEnabled}
+      <div class="debug-hud">
+        <div class="debug-hud-title">Live2D Debug</div>
+        <div>Scale: {debugHud.finalScale.toFixed(3)} (debug: {debugHud.scale.toFixed(2)}x)</div>
+        <div>Offset: {debugHud.offsetX.toFixed(0)}, {debugHud.offsetY.toFixed(0)}</div>
+        <div>BaseFit: {debugHud.baseFitScale.toFixed(4)}</div>
+        <div class="debug-hud-help">
+          Arrow: pan | +/-: zoom | 0: reset | Shift: fast
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -239,8 +478,7 @@ Live2D 渲染层暂为空占位。
 
   .bubble-area {
     flex: 0 0 300px;
-    width: 500px;
-    min-width: 500px;
+    width: 100%;
     align-self: center;
     position: relative;
     display: flex;
@@ -254,18 +492,15 @@ Live2D 渲染层暂为空占位。
     flex: 1 1 auto;
     position: relative;
     pointer-events: none;
+    overflow: hidden;
   }
 
   .live2d-canvas {
     display: block;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: auto;
-    cursor: grab;
     width: 100%;
     height: 100%;
+    pointer-events: auto;
+    cursor: grab;
   }
 
   .live2d-canvas:active {
@@ -381,6 +616,36 @@ Live2D 渲染层暂为空占位。
   :global(.debug-border-active .bubble) {
     outline: 2px solid var(--debug-color-bubble, magenta) !important;
     outline-offset: -2px !important;
+  }
+
+  .debug-hud {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 400;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.7);
+    color: rgba(255, 255, 255, 0.9);
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+  }
+
+  .debug-hud-title {
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: #ffcc00;
+  }
+
+  .debug-hud-help {
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 10px;
   }
 </style>
 
