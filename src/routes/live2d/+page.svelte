@@ -345,6 +345,9 @@ Live2D 渲染层暂为空占位。
     callbacks: {
       playAnimation,
       onAnimationScaleChanged: () => live2dPlayer?.setAnimationScale(animationScale),
+      isPixelOpaqueAtWindowPos: (windowX: number, windowY: number) => {
+        return live2dPlayer?.isPixelOpaqueAtScreen(windowX, windowY) ?? false;
+      },
     },
   });
 

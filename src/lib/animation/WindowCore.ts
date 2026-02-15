@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
-import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
+import { getCurrentWindow, cursorPosition, LogicalPosition } from "@tauri-apps/api/window";
 import { initI18n, destroyI18n, onLangChange } from "$lib/i18n";
 import { getAudioManager, type AudioManager } from "$lib/audio/AudioManager";
 import {
@@ -84,6 +84,8 @@ export type WindowCoreCallbacks = {
   onBorderConfigLoaded?: (config: BorderConfig | null) => Promise<void> | void;
   getBorderPlayerReady?: () => boolean;
   onCharacterConfigLoaded?: (config: CharacterConfig | null) => void;
+  /** 前端像素级透明度检测：给定窗口内坐标，判断该位置像素是否不透明。用于 live2d 鼠标穿透。 */
+  isPixelOpaqueAtWindowPos?: (windowX: number, windowY: number) => boolean;
 };
 
 export type WindowCore = {
@@ -287,6 +289,49 @@ export function createWindowCore(options: {
 
         const bubbleBounds = getBubbleBounds();
 
+        // live2d 窗口：使用前端像素级透明度检测
+        if (callbacks.isPixelOpaqueAtWindowPos) {
+          const cursor = await cursorPosition();  // PhysicalPosition
+          const win = getCurrentWindow();
+          const scaleFactor = await win.scaleFactor();
+          const position = await win.outerPosition(); // PhysicalPosition
+
+          // 两者都是物理坐标，直接相减得到窗口内物理偏移，再除以 scaleFactor 得到 CSS 逻辑坐标
+          const localX = (cursor.x - position.x) / scaleFactor;
+          const localY = (cursor.y - position.y) / scaleFactor;
+
+          // 先检查气泡区域
+          if (bubbleBounds) {
+            const inBubble =
+              localX >= bubbleBounds.left &&
+              localX <= bubbleBounds.right &&
+              localY >= bubbleBounds.top &&
+              localY <= bubbleBounds.bottom;
+            if (inBubble) {
+              await setClickThrough(false);
+              return;
+            }
+          }
+
+          // 像素级检测 canvas 不透明区域
+          const opaque = callbacks.isPixelOpaqueAtWindowPos(localX, localY);
+          await setClickThrough(!opaque);
+
+          // 每次轮询都通过 Tauri 在 OS 层面设置 cursor，
+          // 因为 WebView2 在 ignore_cursor_events 切换后不会自动更新 CSS cursor
+          if (opaque) {
+            try {
+              await getCurrentWindow().setCursorIcon("grab");
+            } catch { /* ignore */ }
+          } else {
+            try {
+              await getCurrentWindow().setCursorIcon("default");
+            } catch { /* ignore */ }
+          }
+          return;
+        }
+
+        // animation 窗口：使用后端矩形区域判断
         const inInteractArea = await invoke<boolean>(
           "is_cursor_in_interact_area",
           {

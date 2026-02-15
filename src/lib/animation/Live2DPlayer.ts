@@ -221,6 +221,61 @@ export class Live2DPlayer {
     this.applyStateTransform();
   }
 
+  /**
+   * 检测 canvas 上指定坐标附近是否存在不透明像素。
+   * 使用多点采样（中心 + 周围扩展），在模型边缘提供足够的容差，
+   * 使穿透可以在鼠标到达模型之前提前关闭（与 animation 窗口的"矩形大于实际 canvas"策略类似）。
+   * @param screenX 窗口内 X 坐标（CSS 逻辑坐标）
+   * @param screenY 窗口内 Y 坐标（CSS 逻辑坐标）
+   * @param alphaThreshold alpha 阈值（0-255），低于此值视为透明
+   * @returns true = 不透明（拦截鼠标），false = 透明（允许穿透）
+   */
+  isPixelOpaqueAtScreen(screenX: number, screenY: number, alphaThreshold = 10): boolean {
+    if (!this.app) return false;
+
+    const gl = this.app.renderer.gl as WebGLRenderingContext | undefined;
+    if (!gl) return false;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const resolution = this.app.renderer.resolution || 1;
+
+    // 多层采样：提前在模型周围 ~30px CSS 范围内就判定为"在交互区"
+    // 这样穿透会在鼠标到达模型之前提前关闭，确保 cursor 样式及时生效
+    const MARGINS = [0, 15, 30];
+    const pixel = new Uint8Array(4);
+
+    for (const margin of MARGINS) {
+      const offsets = margin === 0
+        ? [[0, 0]]
+        : [
+            [-margin, 0], [margin, 0],
+            [0, -margin], [0, margin],
+            [-margin, -margin], [margin, -margin],
+            [-margin, margin], [margin, margin],
+          ];
+
+      for (const [dx, dy] of offsets) {
+        const cssX = screenX - rect.left + dx;
+        const cssY = screenY - rect.top + dy;
+
+        if (cssX < 0 || cssY < 0 || cssX >= rect.width || cssY >= rect.height) {
+          continue;
+        }
+
+        const px = Math.round(cssX * resolution);
+        const py = Math.round((rect.height - cssY) * resolution);
+
+        gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+
+        if (pixel[3] >= alphaThreshold) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   // =========================================================================
   // Debug 视角控制
   // =========================================================================
@@ -399,7 +454,7 @@ export class Live2DPlayer {
       autoStart: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
-      preserveDrawingBuffer: false,
+      preserveDrawingBuffer: true,
     });
 
     dbg("initPixiApp", "renderer size:", this.app.renderer.width, "x", this.app.renderer.height);

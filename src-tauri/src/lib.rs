@@ -977,12 +977,15 @@ fn trigger_event(
 /// 设置窗口鼠标穿透状态
 ///
 /// 当 ignore 为 true 时，窗口不响应鼠标事件，鼠标可穿透到下层
+/// 同时适配 animation 窗口和 live2d 窗口
 #[tauri::command]
 fn set_ignore_cursor_events(ignore: bool, app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
-        window
-            .set_ignore_cursor_events(ignore)
-            .map_err(|e| e.to_string())?;
+    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D] {
+        if let Some(window) = app.get_webview_window(label) {
+            window
+                .set_ignore_cursor_events(ignore)
+                .map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
 }
@@ -1052,10 +1055,11 @@ fn is_cursor_in_interact_area(
     let scale = storage.data.settings.animation_scale as f64;
     drop(storage);
 
-    // 获取窗口位置和尺寸
+    // 获取窗口位置和尺寸（同时适配 animation 和 live2d 窗口）
     let window = app
         .get_webview_window(WINDOW_LABEL_ANIMATION)
-        .ok_or("Animation window not found")?;
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
+        .ok_or("No render window found")?;
 
     let position = window.outer_position().map_err(|e| e.to_string())?;
     let scale_factor = window.scale_factor().unwrap_or(1.0);
@@ -2619,14 +2623,15 @@ fn save_animation_window_position(window: &tauri::Window) {
         return;
     }
 
-    // 获取 animation 窗口
-    let animation_window = app.get_webview_window(WINDOW_LABEL_ANIMATION);
+    // 获取渲染窗口（animation 或 live2d）
+    let render_window = app.get_webview_window(WINDOW_LABEL_ANIMATION)
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D));
 
-    if let Some(anim_win) = animation_window {
-        if let Ok(position) = anim_win.outer_position() {
+    if let Some(win) = render_window {
+        if let Ok(position) = win.outer_position() {
             let mut storage = app_state.storage.lock().unwrap();
 
-            let scale_factor = anim_win.scale_factor().unwrap_or(1.0);
+            let scale_factor = win.scale_factor().unwrap_or(1.0);
             // 气泡区域固定高度，不随缩放变化
             let bubble_area_height = BUBBLE_AREA_HEIGHT;
 
@@ -3316,9 +3321,10 @@ fn get_saved_window_position(state: State<'_, AppState>) -> (Option<f64>, Option
 /// 将窗口移动到任务栏上方的默认位置，并清空用户保存的位置信息
 #[tauri::command]
 fn reset_animation_window_position(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    // 1. 获取动画窗口
+    // 1. 获取渲染窗口（animation 或 live2d）
     let window = app.get_webview_window(WINDOW_LABEL_ANIMATION)
-        .ok_or_else(|| "Animation window not found".to_string())?;
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
+        .ok_or_else(|| "No render window found".to_string())?;
 
     // 2. 获取当前的缩放比例
     let (scale, window_width, window_height) = {
