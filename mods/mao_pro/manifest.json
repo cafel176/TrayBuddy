@@ -233,15 +233,257 @@
       "branch_show_bubble": true
     }
   },
-  "states": [],
+  "states": [
+    {
+      "name": "mtn_02",
+      "persistent": false,
+      "anima": "mtn_02",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "mtn_03",
+      "persistent": false,
+      "anima": "mtn_03",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "mtn_04",
+      "persistent": false,
+      "anima": "mtn_04",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "special_01",
+      "persistent": false,
+      "anima": "special_01",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "special_02",
+      "persistent": false,
+      "anima": "special_02",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "special_03",
+      "persistent": false,
+      "anima": "special_03",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    }
+  ],
   "triggers": [
     {
       "event": "click",
-      "can_trigger_states": []
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "mtn_02",
+              "weight": 1
+            },
+            {
+              "state": "mtn_03",
+              "weight": 1
+            },
+            {
+              "state": "mtn_04",
+              "weight": 1
+            },
+            {
+              "state": "special_01",
+              "weight": 1
+            },
+            {
+              "state": "special_02",
+              "weight": 1
+            },
+            {
+              "state": "special_03",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "mtn_04",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        }
+      ]
     },
     {
       "event": "keydown:Space",
-      "can_trigger_states": []
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "mtn_02",
+              "weight": 1
+            },
+            {
+              "state": "mtn_03",
+              "weight": 1
+            },
+            {
+              "state": "mtn_04",
+              "weight": 1
+            },
+            {
+              "state": "special_01",
+              "weight": 1
+            },
+            {
+              "state": "special_02",
+              "weight": 1
+            },
+            {
+              "state": "special_03",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "mtn_04",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        }
+      ]
+    },
+    {
+      "event": "login",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "mtn_04",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
     }
   ]
 }
