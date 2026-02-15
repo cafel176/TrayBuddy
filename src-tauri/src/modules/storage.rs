@@ -48,6 +48,11 @@ pub struct UserSettings {
     pub show_character: bool, // 显示桌面挂件
     pub show_border: bool,    // 显示桌面挂件边框
     pub animation_scale: f32, // 动画窗口缩放比例 (0.5 到 2.0, 默认 1.0 即 100%)
+
+    /// Live2D 功能开关
+    pub live2d_mouse_follow: bool, // 鼠标跟随
+    pub live2d_auto_interact: bool, // 自动交互
+
 }
 
 impl Default for UserSettings {
@@ -70,6 +75,10 @@ impl Default for UserSettings {
             show_character: true,
             show_border: true,
             animation_scale: 0.4,
+
+            live2d_mouse_follow: true,
+            live2d_auto_interact: true,
+
         }
     }
 }

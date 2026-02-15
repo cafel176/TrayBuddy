@@ -143,7 +143,11 @@
     "dndMode": "免打扰模式",
     "dndFullscreen": "全屏时自动进入免打扰",
     "streamerMode": "主播模式",
+    "live2d": "Live2D",
+    "live2dMouseFollow": "鼠标跟随",
+    "live2dAutoInteract": "自动交互",
     "saveBtn": "保存设置",
+
 
     "statusLoading": "正在加载设置...",
     "statusLoaded": "设置已加载",

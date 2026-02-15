@@ -362,6 +362,12 @@ export interface UserSettings {
   show_border: boolean;
   /** 动画窗口缩放比例（0.5 - 2.0） */
   animation_scale: number;
+
+  /** Live2D 鼠标跟随 */
+  live2d_mouse_follow: boolean;
+  /** Live2D 自动交互 */
+  live2d_auto_interact: boolean;
+
 }
 
 /**

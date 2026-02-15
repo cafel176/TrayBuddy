@@ -143,7 +143,11 @@
     "dndMode": "DND mode",
     "dndFullscreen": "Auto DND when fullscreen",
     "streamerMode": "Streamer Mode",
+    "live2d": "Live2D",
+    "live2dMouseFollow": "Mouse follow",
+    "live2dAutoInteract": "Auto interact",
     "saveBtn": "Save Settings",
+
 
     "statusLoading": "Loading settings...",
     "statusLoaded": "Settings loaded",
