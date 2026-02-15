@@ -15,6 +15,7 @@
   },
   "show_mod_data_panel": true,
   "mod_data_default_int": 0,
+  "global_keyboard": true,
   "important_states": {
     "idle": {
       "name": "idle",

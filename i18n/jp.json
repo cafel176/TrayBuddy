@@ -391,6 +391,7 @@
     "defaultText": "デフォルトテキスト",
     "showModDataPanel": "データパネルを表示",
     "modDataDefaultInt": "初期データ値",
+    "globalKeyboard": "グローバルキーボード",
     "characterConfig": "キャラクター設定",
     "zOffset": "z_offset",
     "canvasFitPreference": "canvas_fit_preference",

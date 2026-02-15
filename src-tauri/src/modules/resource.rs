@@ -881,6 +881,9 @@ pub struct ModManifest {
     /// Mod 数据的默认 int 初始值（首次加载该 Mod 时写入 UserInfo）
     pub mod_data_default_int: i32,
 
+    /// 全局键盘监听：为 true 时即使动画窗口未获得焦点也能触发 keydown 事件
+    pub global_keyboard: bool,
+
     /// 核心状态（如 idle）
     pub important_states: HashMap<Box<str>, StateInfo>,
     /// 其他状态列表
@@ -902,6 +905,7 @@ impl Default for ModManifest {
             border: BorderConfig::default(),
             show_mod_data_panel: false,
             mod_data_default_int: 0,
+            global_keyboard: false,
             important_states: HashMap::new(),
             states: Vec::new(),
             triggers: Vec::new(),

@@ -146,6 +146,8 @@ pub struct AppState {
     /// 系统会话锁屏状态：原子布尔值，用于实时标记 Windows 是否处于锁屏或 UAC 界面，
     /// 从而辅助状态机决定是否应进入静默/免打扰模式。
     session_locked: Arc<std::sync::atomic::AtomicBool>,
+    /// 全局键盘监听开关：由当前 Mod 的 global_keyboard 字段控制
+    global_keyboard_enabled: Arc<std::sync::atomic::AtomicBool>,
 }
 
 // ========================================================================= //
@@ -552,6 +554,50 @@ fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
     rm.list_mods()
 }
 
+/// Mod 加载后的公共 storage 更新逻辑
+///
+/// 处理数据迁移（旧文件夹名 → manifest.id）、更新 current_mod、初始化 mod_data。
+/// 被 `load_mod_common`（运行时切换）和启动时自动加载共同使用。
+fn apply_mod_storage_update(
+    storage: &mut Storage,
+    mod_info: &ModInfo,
+    legacy_key: Option<&str>,
+) {
+    let manifest_id = mod_info.manifest.id.to_string();
+
+    // 兼容迁移：旧版可能用文件夹名作为 key
+    if let Some(key) = legacy_key {
+        if !key.is_empty() && key != manifest_id {
+            if storage.data.info.mod_data.contains_key(key) {
+                if !storage.data.info.mod_data.contains_key(&manifest_id) {
+                    if let Some(mut old) = storage.data.info.mod_data.remove(key) {
+                        old.mod_id = manifest_id.clone();
+                        storage.data.info.mod_data.insert(manifest_id.clone(), old);
+                    }
+                } else {
+                    let _ = storage.data.info.mod_data.remove(key);
+                }
+            }
+        }
+    }
+
+    storage.data.info.current_mod = manifest_id.clone().into();
+
+    // 为新 Mod 初始化默认持久化数据
+    let default_value = mod_info.manifest.mod_data_default_int;
+    storage
+        .data
+        .info
+        .mod_data
+        .entry(manifest_id.clone())
+        .or_insert(ModData {
+            mod_id: manifest_id,
+            value: default_value,
+        });
+
+    let _ = storage.save();
+}
+
 /// Mod 加载的核心通用工作流
 /// 
 /// 这是一个复杂的异步过程，涉及资源加载、状态迁移、窗口重建以及系统集成更新。
@@ -612,40 +658,7 @@ where
     // 2. 更新用户信息并持久化（处理数据迁移）
     {
         let mut storage = state.storage.lock().unwrap();
-        let manifest_id = mod_info.manifest.id.to_string();
-
-        // 兼容迁移逻辑：如果用户以前用的是文件夹名作为 ID，现在通过 manifest.id 自动转换
-        if let Some(key) = legacy_key {
-            if !key.is_empty() && key != manifest_id {
-                if storage.data.info.mod_data.contains_key(&key) {
-                    if !storage.data.info.mod_data.contains_key(&manifest_id) {
-                        if let Some(mut old) = storage.data.info.mod_data.remove(&key) {
-                            old.mod_id = manifest_id.clone();
-                            storage.data.info.mod_data.insert(manifest_id.clone(), old);
-                        }
-                    } else {
-                        // 两者共存时，以规范化的 manifest_id 为准
-                        let _ = storage.data.info.mod_data.remove(&key);
-                    }
-                }
-            }
-        }
-
-        storage.data.info.current_mod = manifest_id.clone().into();
-
-        // 为新 Mod 初始化默认持久化数据
-        let default_value = mod_info.manifest.mod_data_default_int;
-        storage
-            .data
-            .info
-            .mod_data
-            .entry(manifest_id.clone())
-            .or_insert(ModData {
-                mod_id: manifest_id,
-                value: default_value,
-            });
-
-        let _ = storage.save();
+        apply_mod_storage_update(&mut storage, &mod_info, legacy_key.as_deref());
     }
 
     // 3. 异步更新全局视觉图标
@@ -663,6 +676,12 @@ where
         // 强制切换，不检查当前是否有正在播放的不可中断动画
         let _ = sm.change_state_ex(initial_state, true, &rm);
     }
+
+    // 4.5. 更新全局键盘监听开关
+    state.global_keyboard_enabled.store(
+        mod_info.manifest.global_keyboard,
+        std::sync::atomic::Ordering::Relaxed,
+    );
 
     // 5. 重建渲染窗口
     // 跨类型切换时（Sequence ↔ Live2D），必须 destroy() 旧类型的渲染窗口。
@@ -1449,48 +1468,27 @@ pub fn run() {
                         eprintln!("[TrayBuddy] 自动加载 Mod '{}' 失败: {}", last_mod, e);
                     }
                     Ok(mod_info) => {
-                        // 自动加载成功后更新托盘图标和窗口图标（同步版本，初始化阶段）
+                        // 自动加载成功后更新托盘图标（同步版本，初始化阶段）
                         let app_handle = app.handle();
                         update_tray_icon_sync(&app_handle);
-                        // 注意：此时还没有其他窗口，所以不需要调用 update_window_icons_sync
 
-                        // 首次加载该 Mod 时创建数据（默认值来自 Mod manifest），并立即落盘
-                        // 统一使用 manifest.id 作为 Mod 唯一标识
-                        let default_value = mod_info.manifest.mod_data_default_int;
-                        let mod_id = mod_info.manifest.id.to_string();
-
-                        // 兼容迁移：last_mod 可能是旧的文件夹名
-                        if mod_id != last_mod.as_ref() {
-                            if storage.data.info.mod_data.contains_key(last_mod.as_ref()) {
-                                if !storage.data.info.mod_data.contains_key(&mod_id) {
-                                    if let Some(mut old) =
-                                        storage.data.info.mod_data.remove(last_mod.as_ref())
-                                    {
-                                        old.mod_id = mod_id.clone();
-                                        storage.data.info.mod_data.insert(mod_id.clone(), old);
-                                    }
-                                } else {
-                                    let _ = storage.data.info.mod_data.remove(last_mod.as_ref());
-                                }
-                            }
-                        }
-
-                        storage.data.info.current_mod = mod_id.clone().into();
-
-                        storage
-                            .data
-                            .info
-                            .mod_data
-                            .entry(mod_id.clone())
-                            .or_insert(ModData {
-                                mod_id,
-                                value: default_value,
-                            });
-                        let _ = storage.save();
+                        // 公共逻辑：数据迁移 + current_mod 更新 + mod_data 初始化
+                        apply_mod_storage_update(
+                            &mut storage,
+                            &mod_info,
+                            Some(last_mod.as_ref()),
+                        );
                     }
                 }
             }
 
+            // 从已加载的 Mod 中读取 global_keyboard 初始值
+            let initial_global_keyboard = {
+                let rm_guard = rm.lock().unwrap();
+                rm_guard.current_mod.as_ref()
+                    .map(|m| m.manifest.global_keyboard)
+                    .unwrap_or(false)
+            };
 
             // ========== 初始化状态 ==========
             let is_silence = storage.data.settings.silence_mode;
@@ -1546,6 +1544,7 @@ pub fn run() {
                 storage: Mutex::new(storage),
                 media_observer: Mutex::new(None),
                 session_locked: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+                global_keyboard_enabled: Arc::new(std::sync::atomic::AtomicBool::new(initial_global_keyboard)),
             });
 
             // ========== 监听设置变更以实时刷新托盘菜单 ==========
@@ -2524,6 +2523,112 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
             }
         });
     });
+}
+
+/// 启动全局键盘监听器（独立线程）
+///
+/// 当 Mod 的 `global_keyboard` 为 true 时，通过 `GetAsyncKeyState` 轮询按键状态，
+/// 将检测到的按键以 `keydown:{KeyCode}` 事件发送到触发器系统。
+/// 这使得即使动画窗口没有焦点，也能触发键盘事件。
+fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::sync::atomic::Ordering;
+        use std::time::Duration;
+        use tauri::Manager;
+
+        let enabled = {
+            let app_state = app_handle.state::<AppState>();
+            app_state.global_keyboard_enabled.clone()
+        };
+
+        std::thread::spawn(move || {
+            use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+
+            /// 虚拟键码到 KeyboardEvent.code 的映射
+            const KEY_MAP: &[(i32, &str)] = &[
+                // 字母键 A-Z
+                (0x41, "KeyA"), (0x42, "KeyB"), (0x43, "KeyC"), (0x44, "KeyD"),
+                (0x45, "KeyE"), (0x46, "KeyF"), (0x47, "KeyG"), (0x48, "KeyH"),
+                (0x49, "KeyI"), (0x4A, "KeyJ"), (0x4B, "KeyK"), (0x4C, "KeyL"),
+                (0x4D, "KeyM"), (0x4E, "KeyN"), (0x4F, "KeyO"), (0x50, "KeyP"),
+                (0x51, "KeyQ"), (0x52, "KeyR"), (0x53, "KeyS"), (0x54, "KeyT"),
+                (0x55, "KeyU"), (0x56, "KeyV"), (0x57, "KeyW"), (0x58, "KeyX"),
+                (0x59, "KeyY"), (0x5A, "KeyZ"),
+                // 数字键 0-9
+                (0x30, "Digit0"), (0x31, "Digit1"), (0x32, "Digit2"), (0x33, "Digit3"),
+                (0x34, "Digit4"), (0x35, "Digit5"), (0x36, "Digit6"), (0x37, "Digit7"),
+                (0x38, "Digit8"), (0x39, "Digit9"),
+                // 功能键
+                (0x0D, "Enter"), (0x20, "Space"), (0x1B, "Escape"), (0x08, "Backspace"),
+                (0x09, "Tab"),
+                // 修饰键
+                (0x10, "Shift"), (0x11, "Control"), (0x12, "Alt"),
+                // 方向键
+                (0x25, "ArrowLeft"), (0x26, "ArrowUp"), (0x27, "ArrowRight"), (0x28, "ArrowDown"),
+                // F 键
+                (0x70, "F1"), (0x71, "F2"), (0x72, "F3"), (0x73, "F4"),
+                (0x74, "F5"), (0x75, "F6"), (0x76, "F7"), (0x77, "F8"),
+                (0x78, "F9"), (0x79, "F10"), (0x7A, "F11"), (0x7B, "F12"),
+            ];
+
+            // 记录上一轮每个键的按下状态，只在"从未按下→按下"的瞬间触发一次
+            let mut prev_states = vec![false; KEY_MAP.len()];
+            let mut logged_enabled = false;
+            let mut logged_disabled = false;
+
+            loop {
+                std::thread::sleep(Duration::from_millis(50));
+
+                if !enabled.load(Ordering::Relaxed) {
+                    if !logged_disabled {
+                        println!("[GlobalKeyboard] Listener is DISABLED (global_keyboard=false)");
+                        logged_disabled = true;
+                        logged_enabled = false;
+                    }
+                    // 禁用时重置所有状态，防止重新启用时误触发
+                    for s in prev_states.iter_mut() {
+                        *s = false;
+                    }
+                    continue;
+                }
+
+                if !logged_enabled {
+                    println!("[GlobalKeyboard] Listener is ENABLED (global_keyboard=true)");
+                    logged_enabled = true;
+                    logged_disabled = false;
+                }
+
+                for (i, &(vk, code)) in KEY_MAP.iter().enumerate() {
+                    let pressed = unsafe { GetAsyncKeyState(vk) < 0 };
+
+                    if pressed && !prev_states[i] {
+                        // 按键刚按下，触发事件
+                        let event_name = format!("keydown:{}", code);
+                        println!("[GlobalKeyboard] Key pressed: {} (vk=0x{:02X})", code, vk);
+                        let Some(app_state) = app_handle.try_state::<AppState>() else {
+                            continue;
+                        };
+                        let rm = app_state.resource_manager.lock().unwrap();
+                        let mut sm = app_state.state_manager.lock().unwrap();
+                        let _ = TriggerManager::trigger_event(&event_name, false, &rm, &mut sm);
+
+                        // 对分支选择相关按键，额外通知前端 UI
+                        match code {
+                            "Space" | "Enter" | "ArrowUp" | "ArrowDown"
+                            | "ArrowLeft" | "ArrowRight" => {
+                                println!("[GlobalKeyboard] Emitting global-keydown: {}", code);
+                                let _ = app_handle.emit("global-keydown", code);
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    prev_states[i] = pressed;
+                }
+            }
+        });
+    }
 }
 
 /// 启动提醒调度器（独立线程）
@@ -3822,6 +3927,9 @@ fn start_background_services(app_handle: &tauri::AppHandle) {
 
     // 启动定时提醒调度器（独立线程，无锁）
     start_reminder_scheduler(app_handle.clone());
+
+    // 启动全局键盘监听器（独立线程）
+    start_global_keyboard_listener(app_handle.clone());
 
     // 启动系统状态观察器（独立线程，无锁）
 

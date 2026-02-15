@@ -27,8 +27,9 @@
 </script>
 
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
+  import { createEventDispatcher, onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { t } from "$lib/i18n";
   import {
     bubbleStyle,
@@ -85,6 +86,9 @@
 
   /** 组件容器引用 */
   let containerRef: HTMLDivElement;
+
+  /** 后端全局键盘事件监听注销函数 */
+  let unlistenGlobalKeydown: (() => void) | null = null;
 
   /** 当前样式 */
   let style: BubbleStyleConfig;
@@ -163,6 +167,31 @@
     }
   }
 
+  /**
+   * 处理后端全局键盘轮询事件（不需要窗口 focus）
+   */
+  function handleBackendKeydown(keyCode: string) {
+    if (!visible || branches.length === 0 || disabled || selectedBranch) return;
+
+    interactionMode = "keyboard";
+    hoveredIndex = -1;
+
+    switch (keyCode) {
+      case "ArrowUp":
+      case "ArrowLeft":
+        focusedIndex = (focusedIndex - 1 + branches.length) % branches.length;
+        break;
+      case "ArrowDown":
+      case "ArrowRight":
+        focusedIndex = (focusedIndex + 1) % branches.length;
+        break;
+      case "Enter":
+      case "Space":
+        selectBranch(branches[focusedIndex]);
+        break;
+    }
+  }
+
   // ======================================================================= //
   // 计算属性
   // ======================================================================= //
@@ -214,6 +243,23 @@
 
     // 聚焦容器以接收键盘事件
     containerRef?.focus();
+
+    // 监听后端全局键盘轮询事件（不需要窗口 focus 即可触发分支导航/选择）
+    try {
+      unlistenGlobalKeydown = await listen<string>("global-keydown", (event) => {
+        console.log("[BranchOptions] Received global-keydown:", event.payload, {
+          visible, branchCount: branches.length, disabled, selectedBranch: !!selectedBranch,
+        });
+        handleBackendKeydown(event.payload);
+      });
+      console.log("[BranchOptions] global-keydown listener registered");
+    } catch (e) {
+      console.error("[BranchOptions] Failed to listen global-keydown:", e);
+    }
+  });
+
+  onDestroy(() => {
+    unlistenGlobalKeydown?.();
   });
 
   // ======================================================================= //

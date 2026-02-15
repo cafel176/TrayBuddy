@@ -57,6 +57,7 @@
     border: BorderConfig;
     show_mod_data_panel: boolean;
     mod_data_default_int: number;
+    global_keyboard: boolean;
     important_states: Record<string, StateInfo>;
     states: StateInfo[];
     triggers: TriggerInfo[];
@@ -509,6 +510,12 @@
                 <span class="info-label">{_("resource.modDataDefaultInt")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.mod_data_default_int}</span
+                >
+              </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.globalKeyboard")}</span>
+                <span class="info-value"
+                  >{currentModInfo.manifest.global_keyboard ? _("common.yes") : _("common.no")}</span
                 >
               </div>
             </div>

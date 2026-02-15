@@ -391,6 +391,7 @@
     "defaultText": "Default Text",
     "showModDataPanel": "Show Data Panel",
     "modDataDefaultInt": "Default Data Value",
+    "globalKeyboard": "Global Keyboard",
     "characterConfig": "Character Config",
     "zOffset": "z_offset",
     "canvasFitPreference": "canvas_fit_preference",

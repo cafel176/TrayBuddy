@@ -120,6 +120,7 @@ export function createWindowCore(options: {
   let unlistenSettings: (() => void) | null = null;
   let unlistenPlaybackReq: (() => void) | null = null;
   let unlistenModData: (() => void) | null = null;
+  let unlistenGlobalKeydown: (() => void) | null = null;
   let unsubLang: (() => void) | null = null;
 
   let animationComplete = false;
@@ -128,6 +129,8 @@ export function createWindowCore(options: {
   let isPlayOnce = false;
   let playSessionToken = 0;
   let bubbleSessionToken = 0;
+
+  let globalKeyboardEnabled = false;
 
   let isBubbleVisible = false;
   let isClickThrough = true;
@@ -497,7 +500,29 @@ export function createWindowCore(options: {
       return;
     }
 
-    triggerManager?.trigger(`keydown:${keyCode}`);
+    // 当 global_keyboard 开启时，后端轮询线程已处理键盘事件，
+    // 前端不再转发 keydown 触发，避免重复触发。
+    if (!globalKeyboardEnabled) {
+      triggerManager?.trigger(`keydown:${keyCode}`);
+    }
+  }
+
+  /**
+   * 处理后端全局键盘轮询发来的按键事件（不需要窗口 focus）。
+   * 仅在 globalKeyboardEnabled 时有效，用于隐藏分支选择场景。
+   */
+  function handleBackendKeydown(keyCode: string) {
+    if (!globalKeyboardEnabled) {
+      console.log("[WindowCore] handleBackendKeydown skipped: globalKeyboardEnabled=false");
+      return;
+    }
+    if (
+      (keyCode === "Space" || keyCode === "Enter") &&
+      pendingBranchSelection?.branches?.length
+    ) {
+      console.log("[WindowCore] handleBackendKeydown -> chooseBranchBySpace", keyCode);
+      void chooseBranchBySpace();
+    }
   }
 
   async function chooseBranchBySpace() {
@@ -789,6 +814,15 @@ export function createWindowCore(options: {
 
       window.addEventListener("keydown", handleGlobalKeydown);
 
+      // 监听后端全局键盘轮询事件（不需要窗口 focus 即可触发分支选择）
+      unlistenGlobalKeydown = await listen<string>("global-keydown", (event) => {
+        console.log("[WindowCore] Received global-keydown from backend:", event.payload, {
+          globalKeyboardEnabled,
+          hasPendingBranch: !!pendingBranchSelection?.branches?.length,
+        });
+        handleBackendKeydown(event.payload);
+      });
+
       unsubLang = onLangChange(() => {
         bumpLangVersion();
       });
@@ -916,6 +950,8 @@ export function createWindowCore(options: {
       bindings.setShowModDataPanel(
         Boolean(currentMod?.manifest?.show_mod_data_panel),
       );
+      globalKeyboardEnabled = Boolean(currentMod?.manifest?.global_keyboard);
+      console.log("[WindowCore] globalKeyboardEnabled =", globalKeyboardEnabled, "manifest.global_keyboard =", currentMod?.manifest?.global_keyboard);
       if (bindings.getShowModDataPanel()) {
         try {
           const data = await invoke<ModData | null>("get_current_mod_data");
@@ -1008,6 +1044,7 @@ export function createWindowCore(options: {
     unlistenSettings?.();
     unlistenPlaybackReq?.();
     unlistenModData?.();
+    unlistenGlobalKeydown?.();
     unsubLang?.();
     destroyI18n();
   }

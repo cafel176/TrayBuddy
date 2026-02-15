@@ -390,6 +390,7 @@
     "defaultText": "默认文本",
     "showModDataPanel": "显示数据面板",
     "modDataDefaultInt": "初始数据值",
+    "globalKeyboard": "全局键盘监听",
     "characterConfig": "角色配置",
     "zOffset": "z_offset",
     "canvasFitPreference": "canvas_fit_preference",

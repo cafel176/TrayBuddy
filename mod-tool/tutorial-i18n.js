@@ -78,6 +78,8 @@ const tutorialTranslations = {
 
     section_mod_data: "Mod 数据面板",
     mod_data_desc: "可在角色窗口左上角显示自定义数据（如好感度）。配置 show_mod_data_panel 开关和 mod_data_default_int 默认值。",
+    section_global_keyboard: "全局键盘监听",
+    global_keyboard_desc: "配置 global_keyboard 为 true 后，即使动画窗口未获得焦点，也能触发 keydown 事件。适用于需要实时响应键盘输入的桌面宠物模型。",
     section_preview_icon: "预览图与图标",
     preview_icon_desc: "预览图支持 PNG/JPG/JPEG/WebP 格式，图标支持 ICO 格式。",
 
@@ -344,6 +346,8 @@ const tutorialTranslations = {
 
     section_mod_data: "Mod Data Panel",
     mod_data_desc: "Display custom data (like affinity) in top-left corner. Configure show_mod_data_panel and mod_data_default_int.",
+    section_global_keyboard: "Global Keyboard Listener",
+    global_keyboard_desc: "Set global_keyboard to true to trigger keydown events even when the animation window is not focused. Useful for desktop pet models that need real-time keyboard input.",
     section_preview_icon: "Preview & Icon",
     preview_icon_desc: "Preview supports PNG/JPG/JPEG/WebP. Icon supports ICO.",
 
@@ -608,6 +612,8 @@ const tutorialTranslations = {
 
     section_mod_data: "Mod データパネル",
     mod_data_desc: "左上隅にカスタムデータ（好感度など）を表示。show_mod_data_panel と mod_data_default_int を設定。",
+    section_global_keyboard: "グローバルキーボード監視",
+    global_keyboard_desc: "global_keyboard を true に設定すると、アニメーションウィンドウにフォーカスがなくても keydown イベントが発火します。リアルタイムのキーボード入力が必要なデスクトップペットモデルに適しています。",
     section_preview_icon: "プレビューとアイコン",
     preview_icon_desc: "プレビューは PNG/JPG/JPEG/WebP 対応。アイコンは ICO 対応。",
 
