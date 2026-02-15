@@ -30,6 +30,10 @@ rmdir /s /q "%~dp0src-tauri\target\release\mods"
 
 :_tb_after_clean
 
+echo Packing mods to .tbuddy files...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1"
+if errorlevel 1 goto :_tb_pack_failed
+
 echo Building Tauri app...
 call pnpm tauri build --verbose > tauri-build.log 2>&1
 if errorlevel 1 goto :_tb_build_failed
@@ -37,6 +41,12 @@ if errorlevel 1 goto :_tb_build_failed
 echo Build successful! Log saved to tauri-build.log.
 pause
 exit /b 0
+
+:_tb_pack_failed
+echo.
+echo [ERROR] Packing mods failed!
+pause
+exit /b 1
 
 :_tb_build_failed
 echo.
