@@ -175,6 +175,19 @@ export interface ModDataCounterConfig {
 }
 
 /**
+ * Live2D 参数设置项
+ *
+ * 对应后端 Rust 的 `Live2DParameterSetting`。
+ * 进入某个状态时覆写 Live2D 模型参数。
+ */
+export interface Live2DParameterSetting {
+  /** Live2D 参数 ID（如 "ParamAngleX", "ParamEyeLOpen"） */
+  id: string;
+  /** 目标值 */
+  value: number;
+}
+
+/**
  * 状态信息接口
  *
  * 对应后端 Rust 的 `StateInfo` 结构体。
@@ -236,6 +249,8 @@ export interface StateInfo {
   /** 进入该状态时对当前 Mod 数据计数器执行操作（可选） */
   mod_data_counter?: ModDataCounterConfig;
 
+  /** Live2D 参数覆写（仅 live2d 类型 Mod 有效） */
+  live2d_params?: Live2DParameterSetting[];
 
   /** 是否显示对话分支气泡 UI（默认 true） */
   branch_show_bubble?: boolean;

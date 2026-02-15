@@ -1243,6 +1243,20 @@
           </div>
         </details>
 
+        <details class="advanced-options" id="state-live2d-params-options" style="margin-top: 12px; display: none;">
+          <summary><span data-i18n="section_live2d_params">Live2D 参数覆写 (Live2D Parameters)</span></summary>
+          <div class="advanced-options-content">
+            <div class="section-header" style="margin-top: 0;">
+              <h4 data-i18n="section_live2d_params">Live2D 参数覆写</h4>
+              <button class="btn btn-sm btn-secondary" onclick="addLive2DParam()">➕ <span data-i18n="btn_add_live2d_param">添加参数</span></button>
+            </div>
+            <small class="section-hint" data-i18n="live2d_params_hint">进入该状态时设置 Live2D 模型参数（如 ParamAngleX, ParamEyeLOpen 等）</small>
+            <div class="live2d-param-list" id="live2d-param-list">
+              <!-- 由 JS 动态填充 -->
+            </div>
+          </div>
+        </details>
+
         <details class="advanced-options" id="state-branch-options" style="margin-top: 12px;">
           <summary><span data-i18n="section_branches">对话分支</span></summary>
           <div class="advanced-options-content">

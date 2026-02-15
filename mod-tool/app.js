@@ -1321,6 +1321,18 @@ function normalizeStateForEditor(state) {
   }
 
   if (typeof state.branch_show_bubble !== 'boolean') state.branch_show_bubble = true;
+
+  // live2d_params 应该是 [{id, value}] 数组或 null
+  if (state.live2d_params) {
+    if (Array.isArray(state.live2d_params)) {
+      state.live2d_params = state.live2d_params
+        .filter((p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id.trim())
+        .map((p) => ({ id: p.id.trim(), value: Number(p.value) || 0 }));
+      if (state.live2d_params.length === 0) state.live2d_params = null;
+    } else {
+      state.live2d_params = null;
+    }
+  }
 }
 
 function normalizeManifestForEditor(manifest) {
@@ -2906,7 +2918,7 @@ function openStateModal(title, state) {
   document.getElementById('state-modal-title').textContent = title;
 
   // 默认折叠各折叠签
-  ['state-limits-options', 'state-can-trigger-options', 'state-data-counter-options', 'state-branch-options'].forEach((id) => {
+  ['state-limits-options', 'state-can-trigger-options', 'state-data-counter-options', 'state-live2d-params-options', 'state-branch-options'].forEach((id) => {
     const el = document.getElementById(id);
     if (el && el.tagName === 'DETAILS') {
       el.open = false;
@@ -3018,6 +3030,14 @@ function openStateModal(title, state) {
     document.getElementById('state-counter-value').value = 0;
   }
   
+  // Live2D 参数覆写（仅 live2d 模式可见）
+  const isLive2d = currentMod?.manifest?.mod_type === 'live2d';
+  const live2dParamsPanel = document.getElementById('state-live2d-params-options');
+  if (live2dParamsPanel) {
+    live2dParamsPanel.style.display = isLive2d ? '' : 'none';
+  }
+  renderLive2DParams(state.live2d_params || []);
+
   // 渲染分支
   renderBranches(state.branch || []);
   
@@ -3199,6 +3219,74 @@ function collectDataCounter() {
 }
 
 /**
+ * 渲染 Live2D 参数列表
+ */
+function renderLive2DParams(params) {
+  const list = document.getElementById('live2d-param-list');
+  list.innerHTML = '';
+
+  if (!Array.isArray(params)) return;
+
+  params.forEach((param, index) => {
+    const item = document.createElement('div');
+    item.className = 'branch-item';
+    item.innerHTML = `
+      <input type="text" data-live2d-param-id="${index}" value="${param.id || ''}" placeholder="ParamAngleX" style="flex:1;">
+      <input type="number" data-live2d-param-value="${index}" value="${param.value ?? 0}" step="0.1" style="width:100px;">
+      <button class="btn btn-sm btn-ghost" onclick="removeLive2DParam(${index})">🗑️</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+/**
+ * 添加 Live2D 参数项
+ */
+function addLive2DParam() {
+  const list = document.getElementById('live2d-param-list');
+  const index = list.children.length;
+
+  const item = document.createElement('div');
+  item.className = 'branch-item';
+  item.innerHTML = `
+    <input type="text" data-live2d-param-id="${index}" value="" placeholder="ParamAngleX" style="flex:1;">
+    <input type="number" data-live2d-param-value="${index}" value="0" step="0.1" style="width:100px;">
+    <button class="btn btn-sm btn-ghost" onclick="removeLive2DParam(${index})">🗑️</button>
+  `;
+  list.appendChild(item);
+}
+
+/**
+ * 删除 Live2D 参数项
+ */
+function removeLive2DParam(index) {
+  const params = collectLive2DParams() || [];
+  params.splice(index, 1);
+  renderLive2DParams(params);
+}
+
+/**
+ * 收集 Live2D 参数列表
+ */
+function collectLive2DParams() {
+  const list = document.getElementById('live2d-param-list');
+  if (!list) return null;
+
+  const params = [];
+  list.querySelectorAll('[data-live2d-param-id]').forEach((el) => {
+    const id = el.value.trim();
+    const idx = el.getAttribute('data-live2d-param-id');
+    const valEl = list.querySelector(`[data-live2d-param-value="${idx}"]`);
+    const value = parseFloat(valEl?.value) || 0;
+    if (id) {
+      params.push({ id, value });
+    }
+  });
+
+  return params.length > 0 ? params : null;
+}
+
+/**
  * 关闭状态编辑弹窗
  */
 function closeStateModal() {
@@ -3275,8 +3363,7 @@ function saveState() {
 
     branch_show_bubble: document.getElementById('state-branch-show-bubble').checked,
     mod_data_counter: collectDataCounter(),
-
-
+    live2d_params: collectLive2DParams(),
     branch: collectBranches()
   };
   

@@ -4,6 +4,7 @@ import type {
   Live2DExpression,
   Live2DMotion,
   Live2DState,
+  Live2DParameterSetting,
 } from "$lib/types/asset";
 
 export type Live2DFeatureFlags = {
@@ -25,6 +26,7 @@ type PlayOptions = {
   playOnce: boolean;
   animationScale: number;
   onComplete: () => void;
+  live2dParams?: Live2DParameterSetting[];
 };
 
 declare global {
@@ -162,6 +164,7 @@ export class Live2DPlayer {
   private animationScale = 1;
   private baseFitScale = 1;
   private dualArmCleanup: (() => void) | null = null;
+  private paramOverrideCleanup: (() => void) | null = null;
 
   // Debug 视角控制
   private debugMode = false;
@@ -192,6 +195,7 @@ export class Live2DPlayer {
     this.clearPlayTimer();
     this.unbindMouseFollow();
     this.cleanupDualArm();
+    this.cleanupParamOverride();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
 
@@ -403,6 +407,9 @@ export class Live2DPlayer {
     this.activeState = targetState;
     this.animationScale = options.animationScale;
     this.applyStateTransform();
+
+    // 即使没有动画，也应用 Live2D 参数覆写
+    this.applyLive2DParameters(options.live2dParams);
 
     const motionEntry = this.motionMap.get(buildNameKey(targetState.motion));
     if (!motionEntry) {
@@ -724,6 +731,60 @@ export class Live2DPlayer {
     if (this.dualArmCleanup) {
       this.dualArmCleanup();
       this.dualArmCleanup = null;
+    }
+  }
+
+  /**
+   * 应用 Live2D 参数覆写。
+   * 在 beforeModelUpdate 事件中持续设置参数，确保 motion/physics 不会覆盖。
+   */
+  applyLive2DParameters(params: Live2DParameterSetting[] | null | undefined): void {
+    // 先清理旧的参数覆写监听
+    this.cleanupParamOverride();
+
+    if (!params || params.length === 0 || !this.model) return;
+
+    const internalModel = this.model.internalModel;
+    const coreModel = internalModel?.coreModel;
+    if (!coreModel) return;
+
+    // 预解析参数索引，跳过无效的
+    const entries: { idx: number; value: number; id: string }[] = [];
+    for (const p of params) {
+      if (!p.id) continue;
+      const idx = coreModel.getParameterIndex?.(p.id);
+      if (typeof idx === "number" && idx >= 0) {
+        entries.push({ idx, value: p.value, id: p.id });
+      } else {
+        dbg("applyLive2DParameters", "parameter not found:", p.id);
+      }
+    }
+
+    if (entries.length === 0) return;
+
+    dbg("applyLive2DParameters", "applying", entries.length, "params:", entries.map(e => `${e.id}=${e.value}`));
+
+    // 立即设置一次
+    for (const e of entries) {
+      coreModel.setParameterValueByIndex(e.idx, e.value);
+    }
+
+    // 在每帧 beforeModelUpdate 时持续覆写，防止被 motion/physics 还原
+    const handler = () => {
+      for (const e of entries) {
+        coreModel.setParameterValueByIndex(e.idx, e.value);
+      }
+    };
+    internalModel.on("beforeModelUpdate", handler);
+    this.paramOverrideCleanup = () => {
+      internalModel.off("beforeModelUpdate", handler);
+    };
+  }
+
+  private cleanupParamOverride(): void {
+    if (this.paramOverrideCleanup) {
+      this.paramOverrideCleanup();
+      this.paramOverrideCleanup = null;
     }
   }
 

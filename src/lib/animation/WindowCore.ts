@@ -15,6 +15,7 @@ import type {
   BorderConfig,
   UserSettings,
   ModData,
+  Live2DParameterSetting,
 } from "$lib/types/asset";
 import type BubbleManager from "$lib/bubble/BubbleManager.svelte";
 import type { BubbleConfig } from "$lib/bubble/BubbleManager.svelte";
@@ -79,6 +80,7 @@ export type WindowCoreCallbacks = {
     assetName: string,
     playOnce: boolean,
     onComplete: () => void,
+    live2dParams?: Live2DParameterSetting[],
   ) => Promise<boolean>;
   onAnimationScaleChanged?: () => void;
   onBorderConfigLoaded?: (config: BorderConfig | null) => Promise<void> | void;
@@ -755,7 +757,7 @@ export function createWindowCore(options: {
         if (playSessionToken !== token) return;
         animationComplete = true;
         checkComplete();
-      });
+      }, state.live2d_params);
 
       if (playSessionToken !== token) return;
 

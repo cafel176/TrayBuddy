@@ -421,6 +421,28 @@ impl Default for ModDataCounterConfig {
     }
 }
 
+/// Live2D 参数设置项
+///
+/// 进入某个状态时，用于覆写 Live2D 模型的参数值。
+/// 每个条目指定一个参数 ID 和目标值。
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DParameterSetting {
+    /// Live2D 参数 ID（如 "ParamAngleX", "ParamEyeLOpen"）
+    pub id: Box<str>,
+    /// 目标值
+    pub value: f64,
+}
+
+impl Default for Live2DParameterSetting {
+    fn default() -> Self {
+        Self {
+            id: "".into(),
+            value: 0.0,
+        }
+    }
+}
+
 /// 可触发子状态配置（状态名 + 权重）
 ///
 /// - `state`: 子状态名
@@ -570,7 +592,9 @@ pub struct StateInfo {
     /// 计数器副作用：进入该状态时对 Mod 特有的变量执行增减操作（如好感度+1）
     pub mod_data_counter: Option<ModDataCounterConfig>,
 
-
+    /// Live2D 参数覆写：进入该状态时设置 Live2D 模型的参数值
+    /// 仅对 mod_type = "live2d" 的 Mod 有效
+    pub live2d_params: Option<Vec<Live2DParameterSetting>>,
 
     /// 分支气泡交互控制：标记是否在界面上显示对话分支按钮
     pub branch_show_bubble: bool,
@@ -603,10 +627,7 @@ impl Default for StateInfo {
             trigger_uptime: 0,
             trigger_weather: Vec::new(),
             mod_data_counter: None,
-
-
-
-
+            live2d_params: None,
             branch_show_bubble: true,
             branch: Vec::new(),
         }

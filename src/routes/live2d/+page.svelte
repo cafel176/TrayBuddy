@@ -14,7 +14,7 @@ Live2D 渲染层暂为空占位。
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
-  import type { Live2DConfig, ModData, ModType, UserSettings } from "$lib/types/asset";
+  import type { Live2DConfig, Live2DParameterSetting, ModData, ModType, UserSettings } from "$lib/types/asset";
 
   import {
     createWindowCore,
@@ -259,12 +259,14 @@ Live2D 渲染层暂为空占位。
     assetName: string,
     playOnce: boolean,
     onComplete: () => void,
+    live2dParams?: Live2DParameterSetting[],
   ): Promise<boolean> {
     if (!live2dPlayer || !live2dConfig) return false;
     return live2dPlayer.playFromAnima(assetName, {
       playOnce,
       onComplete,
       animationScale,
+      live2dParams,
     });
   }
 
