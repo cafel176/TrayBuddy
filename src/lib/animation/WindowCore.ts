@@ -126,6 +126,8 @@ export function createWindowCore(options: {
   let audioComplete = false;
   let bubbleComplete = false;
   let isPlayOnce = false;
+  let playSessionToken = 0;
+  let bubbleSessionToken = 0;
 
   let isBubbleVisible = false;
   let isClickThrough = true;
@@ -559,16 +561,18 @@ export function createWindowCore(options: {
     }
   }
 
-  async function showBubble(state: StateInfo) {
+  async function showBubble(state: StateInfo, token: number) {
     try {
       if (!bindings.getShowCharacter()) {
         await syncDisplayMode(false);
       }
+      if (playSessionToken !== token) return;
 
       let textContent = "";
       let textDuration = 0;
       if (state.text) {
         const settings = await invoke<{ lang: string }>("get_settings");
+        if (playSessionToken !== token) return;
         const textInfo = await invoke<{
           text: string;
           duration?: number;
@@ -576,15 +580,19 @@ export function createWindowCore(options: {
           lang: settings.lang || "zh",
           name: state.text,
         });
+        if (playSessionToken !== token) return;
         if (textInfo) {
           textContent = applySpeechPlaceholders(textInfo.text);
           textDuration = (textInfo.duration ?? 3) * 1000;
         }
       }
 
+      if (playSessionToken !== token) return;
+
       let processedBranches: BranchInfo[] = [];
       if (state.branch && state.branch.length > 0) {
         const settings = await invoke<{ lang: string }>("get_settings");
+        if (playSessionToken !== token) return;
         const lang = settings.lang || "zh";
 
         for (const branch of state.branch) {
@@ -595,6 +603,7 @@ export function createWindowCore(options: {
             lang: lang,
             name: branch.text,
           });
+          if (playSessionToken !== token) return;
 
           const actualText = textInfo?.text || branch.text;
 
@@ -604,6 +613,8 @@ export function createWindowCore(options: {
           });
         }
       }
+
+      if (playSessionToken !== token) return;
 
       const showBranchBubble = state.branch_show_bubble !== false;
 
@@ -644,6 +655,8 @@ export function createWindowCore(options: {
       refs.getBubbleManager()?.show(bubbleConfig);
     } catch (e) {
       console.error("[showBubble] Failed to show bubble:", e);
+      bubbleComplete = true;
+      checkComplete();
     }
   }
 
@@ -690,12 +703,19 @@ export function createWindowCore(options: {
 
   function handleBubbleClose() {
     isBubbleVisible = false;
+    if (bubbleSessionToken !== playSessionToken) return;
     bubbleComplete = true;
     checkComplete();
   }
 
   async function playState(state: StateInfo, playOnce: boolean) {
     pendingBranchSelection = null;
+
+    // 每次 playState 分配一个唯一 token，使并发调用中旧 session 的回调和后续代码失效。
+    // 解决问题：快速连续的 state-change 事件（如 mod 切换期间 idle + login）
+    // 导致旧 session 的 checkComplete 覆盖新 session 的完成标志，
+    // 使 on_animation_complete 永远不被调用，后端 locked 永远无法解除。
+    const token = ++playSessionToken;
 
     isPlayOnce = playOnce;
     animationComplete = false;
@@ -707,9 +727,12 @@ export function createWindowCore(options: {
       checkComplete();
     } else {
       const success = await callbacks.playAnimation(state.anima, playOnce, () => {
+        if (playSessionToken !== token) return;
         animationComplete = true;
         checkComplete();
       });
+
+      if (playSessionToken !== token) return;
 
       if (!success) {
         animationComplete = true;
@@ -719,9 +742,12 @@ export function createWindowCore(options: {
       }
     }
 
+    if (playSessionToken !== token) return;
+
     if (audioManager && state.audio) {
       if (!playOnce) {
         const success = await audioManager.play(state.audio, undefined, true);
+        if (playSessionToken !== token) return;
         if (success) {
           audioComplete = true;
           checkComplete();
@@ -732,6 +758,7 @@ export function createWindowCore(options: {
         }
       } else {
         audioManager.play(state.audio, () => {
+          if (playSessionToken !== token) return;
           audioComplete = true;
           checkComplete();
         });
@@ -741,8 +768,11 @@ export function createWindowCore(options: {
       checkComplete();
     }
 
+    if (playSessionToken !== token) return;
+
     if (playOnce && (state.text || (state.branch && state.branch.length > 0))) {
-      await showBubble(state);
+      bubbleSessionToken = token;
+      await showBubble(state, token);
     } else {
       if (!playOnce) {
         refs.getBubbleManager()?.hide();
