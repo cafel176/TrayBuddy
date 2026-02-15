@@ -1997,3 +1997,81 @@ input.audio-item-path:focus {
   font-size: 13px;
 }
 
+/* ========== Live2D 参数浏览器 ========== */
+.param-group-details {
+  margin-bottom: 6px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.param-group-details[open] {
+  border-color: var(--primary-color, #3b82f6);
+}
+.param-group-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: var(--bg-secondary, #f8fafc);
+  font-size: 13px;
+  user-select: none;
+}
+.param-group-summary:hover {
+  background: var(--bg-hover, #f1f5f9);
+}
+.param-group-name {
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+.param-group-id {
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+  font-family: monospace;
+}
+.param-group-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+  background: var(--bg-tertiary, #e2e8f0);
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.param-group-list {
+  padding: 4px 8px;
+}
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+  font-size: 13px;
+}
+.param-row:last-child {
+  border-bottom: none;
+}
+.param-row:hover {
+  background: var(--bg-hover, #f8fafc);
+}
+.param-id {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--primary-color, #3b82f6);
+  background: var(--bg-tertiary, #f1f5f9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  min-width: 120px;
+}
+.param-name {
+  color: var(--text-primary, #1e293b);
+  flex: 1;
+}
+.param-combo {
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+  white-space: nowrap;
+}
+

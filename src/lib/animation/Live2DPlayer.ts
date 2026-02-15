@@ -394,11 +394,15 @@ export class Live2DPlayer {
       return false;
     }
 
+    // 即使 live2d.json 中没有对应的 state 映射，也应用 Live2D 参数覆写
+    this.applyLive2DParameters(options.live2dParams);
+
     const targetState = this.config.states.find(
       (state) => state.state === assetName,
     );
     if (!targetState) {
-      dbg("playFromAnima", "SKIP: no matching state for", assetName, "available:", this.config.states.map(s => s.state));
+      dbg("playFromAnima", "no matching live2d state for", assetName, "— applying params only");
+      if (options.playOnce) options.onComplete();
       return false;
     }
 
@@ -407,9 +411,6 @@ export class Live2DPlayer {
     this.activeState = targetState;
     this.animationScale = options.animationScale;
     this.applyStateTransform();
-
-    // 即使没有动画，也应用 Live2D 参数覆写
-    this.applyLive2DParameters(options.live2dParams);
 
     const motionEntry = this.motionMap.get(buildNameKey(targetState.motion));
     if (!motionEntry) {

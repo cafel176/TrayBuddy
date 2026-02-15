@@ -646,6 +646,7 @@ export function createWindowCore(options: {
       const showBranchBubble = state.branch_show_bubble !== false;
 
       if (!showBranchBubble && processedBranches.length > 0) {
+        // 有分支但气泡被禁用：分支存入 pending，气泡不显示分支按钮，文本照常显示
         pendingBranchSelection = {
           stateName: state.name,
           branches: processedBranches,
@@ -659,6 +660,22 @@ export function createWindowCore(options: {
         });
       } else {
         pendingBranchSelection = null;
+      }
+
+      // branch_show_bubble 为 false 且无分支（纯文本）：不显示气泡，但等待 duration
+      if (!showBranchBubble && processedBranches.length === 0) {
+        refs.getBubbleManager()?.hide();
+        if (textDuration > 0) {
+          setTimeout(() => {
+            if (playSessionToken !== token) return;
+            bubbleComplete = true;
+            checkComplete();
+          }, textDuration);
+        } else {
+          bubbleComplete = true;
+          checkComplete();
+        }
+        return;
       }
 
       const bubbleConfig: BubbleConfig = {
@@ -749,7 +766,9 @@ export function createWindowCore(options: {
     audioComplete = false;
     bubbleComplete = false;
 
-    if (!state.anima) {
+    const hasLive2dParams = Array.isArray(state.live2d_params) && state.live2d_params.length > 0;
+
+    if (!state.anima && !hasLive2dParams) {
       animationComplete = true;
       checkComplete();
     } else {

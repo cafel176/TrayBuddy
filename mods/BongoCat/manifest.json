@@ -441,7 +441,7 @@
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -451,28 +451,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param85",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_alt",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -482,28 +482,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param86",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_ctrl",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -513,28 +513,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param87",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_shift",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -544,28 +544,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param88",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_b",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -575,28 +575,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param92",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_v",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -606,28 +606,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param93",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_c",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -637,28 +637,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param94",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_x",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -668,28 +668,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param95",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_z",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -699,28 +699,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param96",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_enter",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -730,28 +730,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param97",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_g",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -761,28 +761,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param98",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_f",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -792,28 +792,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param99",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_d",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -823,28 +823,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param100",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_s",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -854,28 +854,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param101",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_a",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -885,28 +885,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param102",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_t",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -916,28 +916,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param103",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_r",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -947,28 +947,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param104",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_e",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -978,28 +978,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param105",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_w",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1009,28 +1009,28 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param106",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     },
     {
       "name": "key_q",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "",
+      "text": "wait",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1040,21 +1040,21 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": false,
       "mod_data_counter": null,
-      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param107",
           "value": 1
         }
-      ]
+      ],
+      "branch": []
     }
   ],
   "triggers": [

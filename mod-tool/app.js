@@ -5006,6 +5006,183 @@ async function generateKeyboardEventsFromFiles() {
 }
 
 /**
+ * 从 cdi3.json 读取并展示 Live2D 模型的所有参数信息
+ */
+async function loadLive2dParamsBrowser() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (currentMod.manifest.mod_type !== 'live2d') {
+    showToast('此功能仅适用于 Live2D 类型的 Mod', 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_sync_need_folder'), 'warning');
+    return;
+  }
+
+  try {
+    const resolved = await _resolveLive2dBaseDir();
+    if (!resolved) return;
+    const { dirHandle, modelJson } = resolved;
+
+    // 读取 model3.json 获取 DisplayInfo (cdi3) 路径
+    const modelFileHandle = await dirHandle.getFileHandle(modelJson);
+    const modelFile = await modelFileHandle.getFile();
+    const modelData = JSON.parse(await modelFile.text());
+    const fileRefs = modelData.FileReferences || modelData.fileReferences || {};
+    const cdiPath = fileRefs.DisplayInfo || fileRefs.displayInfo || '';
+
+    if (!cdiPath) {
+      showToast('model3.json 中未找到 DisplayInfo (cdi3.json) 路径', 'warning');
+      return;
+    }
+
+    // 读取 cdi3.json
+    const cdiParts = cdiPath.replace(/\\/g, '/').split('/').filter(Boolean);
+    let cdiDirHandle = dirHandle;
+    for (let i = 0; i < cdiParts.length - 1; i++) {
+      cdiDirHandle = await cdiDirHandle.getDirectoryHandle(cdiParts[i]);
+    }
+    const cdiFileHandle = await cdiDirHandle.getFileHandle(cdiParts[cdiParts.length - 1]);
+    const cdiFile = await cdiFileHandle.getFile();
+    const cdiData = JSON.parse(await cdiFile.text());
+
+    renderLive2dParamsBrowser(cdiData);
+    showToast(`已加载 ${(cdiData.Parameters || []).length} 个参数`, 'success');
+  } catch (err) {
+    console.error('loadLive2dParamsBrowser error:', err);
+    showToast('读取参数失败: ' + (err.message || String(err)), 'error');
+  }
+}
+
+/**
+ * 渲染 Live2D 参数浏览器
+ */
+function renderLive2dParamsBrowser(cdiData) {
+  const container = document.getElementById('live2d-params-browser-content');
+  if (!container) return;
+
+  const allParams = cdiData.Parameters || [];
+  const paramGroups = cdiData.ParameterGroups || [];
+  const parts = cdiData.Parts || [];
+  const combinedParams = cdiData.CombinedParameters || [];
+
+  if (allParams.length === 0) {
+    container.innerHTML = '<p style="color: var(--text-secondary); font-style: italic; padding: 8px 0;">未找到任何参数定义</p>';
+    return;
+  }
+
+  // 构建分组映射
+  const groupMap = {};
+  for (const g of paramGroups) {
+    groupMap[g.Id] = g.Name || g.Id;
+  }
+
+  // 按组分类参数
+  const grouped = {};
+  const ungrouped = [];
+  for (const p of allParams) {
+    const gid = p.GroupId || '';
+    if (gid && groupMap[gid] !== undefined) {
+      if (!grouped[gid]) grouped[gid] = [];
+      grouped[gid].push(p);
+    } else {
+      ungrouped.push(p);
+    }
+  }
+
+  // 构建组合参数映射（用于标注）
+  const combinedMap = {};
+  for (let ci = 0; ci < combinedParams.length; ci++) {
+    const combo = combinedParams[ci];
+    if (Array.isArray(combo)) {
+      for (const pid of combo) {
+        if (!combinedMap[pid]) combinedMap[pid] = [];
+        combinedMap[pid].push(combo.filter(id => id !== pid));
+      }
+    }
+  }
+
+  function renderParamRow(p) {
+    const comboInfo = combinedMap[p.Id];
+    const comboHtml = comboInfo
+      ? `<span class="param-combo" title="组合参数">🔗 ${comboInfo.map(ids => ids.join(', ')).join(' | ')}</span>`
+      : '';
+    return `
+      <div class="param-row">
+        <code class="param-id">${escapeHtml(p.Id)}</code>
+        <span class="param-name">${escapeHtml(p.Name || '')}</span>
+        ${comboHtml}
+      </div>`;
+  }
+
+  let html = '';
+
+  // 统计信息
+  html += `<div class="params-summary" style="margin-bottom: 12px; padding: 8px 12px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px; font-size: 13px;">
+    📊 共 <strong>${allParams.length}</strong> 个参数，
+    <strong>${paramGroups.length}</strong> 个分组，
+    <strong>${parts.length}</strong> 个部件，
+    <strong>${combinedParams.length}</strong> 组组合参数
+  </div>`;
+
+  // 未分组参数
+  if (ungrouped.length > 0) {
+    html += `
+      <details class="param-group-details" open>
+        <summary class="param-group-summary">
+          <span class="param-group-name">未分组 (ungrouped)</span>
+          <span class="param-group-count">${ungrouped.length} 个参数</span>
+        </summary>
+        <div class="param-group-list">
+          ${ungrouped.map(renderParamRow).join('')}
+        </div>
+      </details>`;
+  }
+
+  // 各分组参数
+  const groupIds = Object.keys(grouped);
+  for (const gid of groupIds) {
+    const gParams = grouped[gid];
+    const gName = groupMap[gid] || gid;
+    html += `
+      <details class="param-group-details">
+        <summary class="param-group-summary">
+          <span class="param-group-name">${escapeHtml(gName)}</span>
+          <span class="param-group-id">${escapeHtml(gid)}</span>
+          <span class="param-group-count">${gParams.length} 个参数</span>
+        </summary>
+        <div class="param-group-list">
+          ${gParams.map(renderParamRow).join('')}
+        </div>
+      </details>`;
+  }
+
+  // 部件列表
+  if (parts.length > 0) {
+    html += `
+      <details class="param-group-details">
+        <summary class="param-group-summary">
+          <span class="param-group-name">部件 (Parts)</span>
+          <span class="param-group-count">${parts.length} 个部件</span>
+        </summary>
+        <div class="param-group-list">
+          ${parts.map(p => `
+            <div class="param-row">
+              <code class="param-id">${escapeHtml(p.Id)}</code>
+              <span class="param-name">${escapeHtml(p.Name || '')}</span>
+            </div>
+          `).join('')}
+        </div>
+      </details>`;
+  }
+
+  container.innerHTML = html;
+}
+
+/**
  * 渲染 Live2D 动作列表（支持筛选、高亮、拖拽、复制）
  */
 function renderLive2dMotions(motions) {

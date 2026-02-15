@@ -561,6 +561,20 @@
                 </div>
               </details>
 
+              <!-- Live2D 参数浏览器 -->
+              <details class="form-section section-details" id="live2d-params-browser-section">
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span>模型参数浏览器 (Parameters)</h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="loadLive2dParamsBrowser()">🔄 从文件读取</button>
+                  </div>
+                </summary>
+                <small class="section-hint">显示 cdi3.json 中定义的所有 Live2D 模型参数，按分组折叠展示</small>
+                <div id="live2d-params-browser-content">
+                  <p style="color: var(--text-secondary); font-style: italic; padding: 8px 0;">点击「从文件读取」加载模型参数信息</p>
+                </div>
+              </details>
+
             </div>
           </div>
         </div>
@@ -1033,6 +1047,13 @@
               <option value="" data-i18n="select_state_placeholder">-- 选择状态 --</option>
             </select>
           </div>
+          <div class="form-group">
+            <label data-i18n="show_bubble_label">显示气泡</label>
+            <label class="switch">
+              <input type="checkbox" id="state-branch-show-bubble" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
 
           <div class="form-group full-width">
             <details class="advanced-options" id="state-limits-options">
@@ -1264,16 +1285,6 @@
             <div class="section-header" style="margin-top: 0;">
               <h4 data-i18n="section_branches">对话分支</h4>
               <button class="btn btn-sm btn-secondary" onclick="addBranch()">➕ <span data-i18n="btn_add_branch">添加分支</span></button>
-            </div>
-
-            <div class="form-grid" style="margin-top: 12px;">
-              <div class="form-group">
-                <label data-i18n="show_bubble_label">显示气泡</label>
-                <label class="switch">
-                  <input type="checkbox" id="state-branch-show-bubble" checked>
-                  <span class="slider"></span>
-                </label>
-              </div>
             </div>
 
             <div class="branch-list" id="branch-list">
