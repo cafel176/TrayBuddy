@@ -116,7 +116,7 @@
       "state": "idle",
       "motion": "mtn_01",
       "expression": "exp_01",
-      "scale": 1.0,
+      "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
@@ -124,7 +124,7 @@
       "state": "mtn_02",
       "motion": "mtn_02",
       "expression": "",
-      "scale": 1.0,
+      "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
@@ -132,7 +132,7 @@
       "state": "mtn_03",
       "motion": "mtn_03",
       "expression": "",
-      "scale": 1.0,
+      "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
@@ -140,7 +140,7 @@
       "state": "mtn_04",
       "motion": "mtn_04",
       "expression": "",
-      "scale": 1.0,
+      "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
@@ -148,7 +148,7 @@
       "state": "special_01",
       "motion": "special_01",
       "expression": "",
-      "scale": 1.0,
+      "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
@@ -156,7 +156,7 @@
       "state": "special_02",
       "motion": "special_02",
       "expression": "",
-      "scale": 1.0,
+      "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
@@ -164,7 +164,7 @@
       "state": "special_03",
       "motion": "special_03",
       "expression": "",
-      "scale": 1.0,
+      "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     }

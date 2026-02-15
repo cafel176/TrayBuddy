@@ -34,6 +34,7 @@
       <li><a href="#states-triggers" data-i18n="toc_states_triggers">状态和触发</a></li>
       <li><a href="#bubble" data-i18n="toc_bubble">气泡样式配置</a></li>
       <li><a href="#assets" data-i18n="toc_assets">动画管理</a></li>
+      <li><a href="#live2d" data-i18n="toc_live2d">Live2D 动画</a></li>
       <li><a href="#texts" data-i18n="toc_texts">多语言文本</a></li>
       <li><a href="#audio" data-i18n="toc_audio">多语言音频</a></li>
       <li><a href="#save-export" data-i18n="toc_save_export">保存与导出</a></li>
@@ -120,7 +121,7 @@
       <p data-i18n="tbuddy_desc">.tbuddy 是 TrayBuddy 专用的 Mod 包格式，本质上是一个 ZIP 压缩包。点击「📦 打开 .tbuddy」选择文件后自动加载。</p>
 
       <h3 data-i18n="section_create_mod">创建新 Mod</h3>
-      <p data-i18n="create_mod_desc">点击「➕ 新建 Mod」，填写 Mod ID、名称和作者，系统会创建一个包含默认配置的新 Mod。</p>
+      <p data-i18n="create_mod_desc">点击「➕ 新建 Mod」，填写 Mod ID、名称和作者，选择 Mod 类型（序列帧动画或 Live2D），系统会创建一个包含默认配置的新 Mod。</p>
     </section>
 
     <!-- 基础信息配置 -->
@@ -281,6 +282,64 @@
       </div>
     </section>
 
+    <!-- Live2D 动画 -->
+    <section id="live2d">
+      <h2 data-i18n="section_live2d">🎭 Live2D 动画</h2>
+      <p data-i18n="live2d_desc">Live2D Mod 使用 Live2D Cubism 模型代替序列帧动画。创建新 Mod 时选择 "Live2D" 类型即可。</p>
+
+      <h3 data-i18n="section_live2d_model_config">模型配置</h3>
+      <p data-i18n="live2d_model_config_desc">在「动画」标签页中配置 Live2D 模型的基本参数。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="live2d_field_name_desc">模型显示名称</td></tr>
+        <tr><td>base_dir</td><td data-i18n="live2d_field_base_dir_desc">模型资源根目录，相对于 Mod 目录</td></tr>
+        <tr><td>model_json</td><td data-i18n="live2d_field_model_json_desc">模型描述文件名（通常为 .model3.json）</td></tr>
+        <tr><td>textures_dir</td><td data-i18n="live2d_field_textures_dir_desc">贴图目录</td></tr>
+        <tr><td>motions_dir</td><td data-i18n="live2d_field_motions_dir_desc">动作文件目录</td></tr>
+        <tr><td>expressions_dir</td><td data-i18n="live2d_field_expressions_dir_desc">表情文件目录</td></tr>
+        <tr><td>physics_json</td><td data-i18n="live2d_field_physics_desc">物理运算配置文件</td></tr>
+        <tr><td>pose_json</td><td data-i18n="live2d_field_pose_desc">姿势配置文件</td></tr>
+        <tr><td>eye_blink</td><td data-i18n="live2d_field_eye_blink_desc">是否启用自动眨眼</td></tr>
+        <tr><td>lip_sync</td><td data-i18n="live2d_field_lip_sync_desc">是否启用口型同步</td></tr>
+      </table>
+
+      <h3 data-i18n="section_live2d_motions_config">动作配置</h3>
+      <p data-i18n="live2d_motions_config_desc">管理 Live2D 模型的动作（Motion）列表，每个动作对应一个 .motion3.json 文件。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="live2d_motion_name_desc">动作名称，供状态映射引用</td></tr>
+        <tr><td>file</td><td data-i18n="live2d_motion_file_desc">动作文件路径（相对于 motions_dir）</td></tr>
+        <tr><td>group</td><td data-i18n="live2d_motion_group_desc">动作分组（如 idle、tap 等）</td></tr>
+        <tr><td>priority</td><td data-i18n="live2d_motion_priority_desc">播放优先级</td></tr>
+        <tr><td>fade_in_ms / fade_out_ms</td><td data-i18n="live2d_motion_fade_desc">淡入/淡出时间（毫秒）</td></tr>
+        <tr><td>loop</td><td data-i18n="live2d_motion_loop_desc">是否循环播放</td></tr>
+      </table>
+
+      <h3 data-i18n="section_live2d_expressions_config">表情配置</h3>
+      <p data-i18n="live2d_expressions_config_desc">管理 Live2D 模型的表情列表，每个表情对应一个 .exp3.json 文件。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="live2d_expression_name_desc">表情名称</td></tr>
+        <tr><td>file</td><td data-i18n="live2d_expression_file_desc">表情文件路径（相对于 expressions_dir）</td></tr>
+      </table>
+
+      <h3 data-i18n="section_live2d_states_config">状态映射</h3>
+      <p data-i18n="live2d_states_config_desc">状态映射定义了每个应用状态应使用的 Live2D 动作和表情。这些条目会在「状态和触发」页的动画下拉中可选。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>state</td><td data-i18n="live2d_state_name_desc">状态名称（与 manifest 中的状态名对应）</td></tr>
+        <tr><td>motion</td><td data-i18n="live2d_state_motion_desc">关联的动作名称</td></tr>
+        <tr><td>expression</td><td data-i18n="live2d_state_expression_desc">关联的表情名称（可选）</td></tr>
+        <tr><td>scale</td><td data-i18n="live2d_state_scale_desc">模型缩放比例</td></tr>
+        <tr><td>offset_x / offset_y</td><td data-i18n="live2d_state_offset_desc">位置偏移量</td></tr>
+      </table>
+
+      <div class="callout callout-info">
+        <div class="callout-title" data-i18n="callout_live2d_tip_title">💡 提示</div>
+        <p data-i18n="callout_live2d_tip_desc">Live2D 模型文件需要手动放置到对应目录。建议参考 mods/mao_pro 的结构组织文件。</p>
+      </div>
+    </section>
+
     <!-- 文本管理 -->
     <section id="texts">
       <h2 data-i18n="section_texts">📝 多语言文本</h2>
@@ -316,7 +375,8 @@
       <ul>
         <li><code>manifest.json</code></li>
         <li><code>bubble_style.json</code>（开启气泡样式时生成）</li>
-        <li><code>asset/sequence.json</code>, <code>asset/img.json</code></li>
+        <li><code>asset/sequence.json</code>, <code>asset/img.json</code>（序列帧 Mod）</li>
+        <li><code>asset/live2d.json</code>（Live2D Mod）</li>
         <li><code>text/[lang]/info.json</code>, <code>text/[lang]/speech.json</code>（开启文本对话时生成）</li>
         <li><code>audio/[lang]/speech.json</code>（开启音频对话时生成）</li>
         <li><code>preview.(png/jpg/jpeg/webp)</code>, <code>icon.ico</code></li>
@@ -333,7 +393,9 @@
 ├── bubble_style.json        # [可选] 气泡样式
 ├── asset/
 │   ├── img.json, sequence.json
+│   ├── live2d.json             # [Live2D] Live2D 配置
 │   ├── img/, sequence/
+│   ├── live2d/                 # [Live2D] 模型资源目录
 ├── audio/[lang]/
 │   ├── speech.json, speech/
 └── text/[lang]/

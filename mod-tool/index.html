@@ -102,6 +102,10 @@
                   <label for="mod-author" data-i18n="mod_author_label">作者</label>
                   <input type="text" id="mod-author" data-i18n-placeholder="placeholder_mod_author" placeholder="你的名字">
                 </div>
+                <div class="form-group">
+                  <label data-i18n="mod_type_display_label">Mod 类型</label>
+                  <input type="text" id="mod-type-display" readonly disabled>
+                </div>
               </div>
             </section>
 
@@ -340,10 +344,12 @@
         <div class="tab-content" id="tab-assets">
           <div class="panel-header">
             <h2>🖼️ <span data-i18n="assets_title">动画资源</span></h2>
-            <p class="panel-desc" data-i18n="assets_desc">管理序列帧动画和静态图片资源</p>
+            <p class="panel-desc" id="assets-desc-text" data-i18n="assets_desc">管理序列帧动画和静态图片资源</p>
           </div>
           <div class="panel-body">
-            <!-- 序列帧动画 -->
+
+            <!-- 序列帧动画 (仅 sequence 类型显示) -->
+            <div id="assets-sequence-section">
             <details class="form-section section-details" id="assets-sequence-details" open>
               <summary class="section-header">
                 <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_sequence">序列帧动画 (sequence.json)</span></h3>
@@ -398,6 +404,147 @@
                 <!-- 由 JS 动态填充 -->
               </div>
             </details>
+            </div>
+
+            <!-- Live2D 编辑区 (仅 live2d 类型显示) -->
+            <div id="assets-live2d-section" style="display:none;">
+
+              <!-- 同步按钮 -->
+              <div class="section-actions" style="margin-bottom: 12px;">
+                <button class="btn btn-secondary" onclick="syncLive2dFromFiles()">🔄 <span data-i18n="btn_sync_from_files">从文件同步</span></button>
+              </div>
+
+              <!-- 模型配置 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_live2d_model">模型配置 (live2d.json - model)</span></h3>
+                </summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label data-i18n="live2d_model_name_label">模型名称</label>
+                    <input type="text" id="live2d-model-name" data-i18n-placeholder="placeholder_live2d_model_name" placeholder="例如: my_model">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_base_dir_label">模型基础目录</label>
+                    <input type="text" id="live2d-base-dir" data-i18n-placeholder="placeholder_live2d_base_dir" placeholder="例如: asset/live2d/my_model">
+                    <small data-i18n="live2d_base_dir_hint">Live2D 模型文件所在目录（相对于 Mod 根目录）</small>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_model_json_label">模型定义文件</label>
+                    <input type="text" id="live2d-model-json" data-i18n-placeholder="placeholder_live2d_model_json" placeholder="例如: model.model3.json">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_textures_dir_label">纹理目录</label>
+                    <input type="text" id="live2d-textures-dir" placeholder="">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_motions_dir_label">动作目录</label>
+                    <input type="text" id="live2d-motions-dir" value="motions">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_expressions_dir_label">表情目录</label>
+                    <input type="text" id="live2d-expressions-dir" value="expressions">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_physics_json_label">物理文件</label>
+                    <input type="text" id="live2d-physics-json" placeholder="">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_pose_json_label">姿势文件</label>
+                    <input type="text" id="live2d-pose-json" placeholder="">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_eye_blink_label">启用眨眼</label>
+                    <label class="switch">
+                      <input type="checkbox" id="live2d-eye-blink" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="live2d_lip_sync_label">启用口型同步</label>
+                    <label class="switch">
+                      <input type="checkbox" id="live2d-lip-sync" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </details>
+
+              <!-- 动作列表 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_live2d_motions">动作列表 (motions)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addLive2dMotion()">➕ <span data-i18n="btn_add_motion">添加动作</span></button>
+                  </div>
+                </summary>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="live2d-motions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_file">按文件筛选</label>
+                    <input type="text" id="live2d-motions-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="输入文件关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="live2d-motions-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </details>
+
+              <!-- 表情列表 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_live2d_expressions">表情列表 (expressions)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addLive2dExpression()">➕ <span data-i18n="btn_add_expression">添加表情</span></button>
+                  </div>
+                </summary>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="live2d-expressions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_file">按文件筛选</label>
+                    <input type="text" id="live2d-expressions-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="输入文件关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="live2d-expressions-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </details>
+
+              <!-- 状态-动画映射 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_live2d_states">状态-动画映射 (states)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addLive2dState()">➕ <span data-i18n="btn_add_live2d_state">添加映射</span></button>
+                  </div>
+                </summary>
+                <small class="section-hint" data-i18n="live2d_states_hint">将 Mod 的状态名称映射到 Live2D 动作和表情</small>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="live2d-states-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_motion">按动作筛选</label>
+                    <input type="text" id="live2d-states-filter-motion" data-i18n-placeholder="placeholder_filter_motion" placeholder="输入动作关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_expression">按表情筛选</label>
+                    <input type="text" id="live2d-states-filter-expression" data-i18n-placeholder="placeholder_filter_expression" placeholder="输入表情关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="live2d-states-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </details>
+
+            </div>
           </div>
         </div>
 
@@ -1119,7 +1266,7 @@
         <h3 id="asset-modal-title" data-i18n="modal_edit_asset">编辑动画资源</h3>
         <button class="modal-close" onclick="closeAssetModal()">×</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" id="asset-modal-body">
         <div class="form-grid">
           <div class="form-group">
             <label><span data-i18n="name_label">名称</span> <span class="required">*</span></label>
@@ -1218,6 +1365,26 @@
         <div class="form-group">
           <label data-i18n="mod_author_label">作者</label>
           <input type="text" id="new-mod-author" data-i18n-placeholder="placeholder_mod_author" placeholder="你的名字">
+        </div>
+        <div class="form-group">
+          <label data-i18n="mod_type_label">Mod 类型</label>
+          <div class="mod-type-selector">
+            <label class="mod-type-option">
+              <input type="radio" name="new-mod-type" value="sequence" checked>
+              <span class="mod-type-card">
+                <span class="mod-type-icon">🖼️</span>
+                <span class="mod-type-name" data-i18n="mod_type_sequence">序列帧动画</span>
+              </span>
+            </label>
+            <label class="mod-type-option">
+              <input type="radio" name="new-mod-type" value="live2d">
+              <span class="mod-type-card">
+                <span class="mod-type-icon">🎭</span>
+                <span class="mod-type-name" data-i18n="mod_type_live2d">Live2D 模型</span>
+              </span>
+            </label>
+          </div>
+          <small data-i18n="mod_type_hint">创建后类型不可更改</small>
         </div>
       </div>
       <div class="modal-footer">

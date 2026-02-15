@@ -779,7 +779,7 @@ async function loadModTbuddy() {
     
     currentMod = {
       manifest: manifest,
-      assets: { sequence: [], img: [] },
+      assets: { sequence: [], img: [], live2d: null },
       texts: {},
       audio: {},
       bubbleStyle: null,
@@ -800,6 +800,9 @@ async function loadModTbuddy() {
     const imgFile = zipData.file(`${rootPath}asset/img.json`);
     if (imgFile) currentMod.assets.img = JSON.parse(await imgFile.async('string'));
     
+    const live2dFile = zipData.file(`${rootPath}asset/live2d.json`);
+    if (live2dFile) currentMod.assets.live2d = JSON.parse(await live2dFile.async('string'));
+
     const bubbleFile = zipData.file(`${rootPath}bubble_style.json`);
     if (bubbleFile) {
       currentMod.bubbleStyle = JSON.parse(await bubbleFile.async('string'));
@@ -922,7 +925,8 @@ async function loadModFolder() {
       manifest: manifest,
       assets: {
         sequence: [],
-        img: []
+        img: [],
+        live2d: null
       },
       texts: {},
       audio: {},
@@ -955,6 +959,16 @@ async function loadModFolder() {
       currentMod.assets.img = JSON.parse(await imgFile.text());
     } catch (e) {
       console.log('No img.json found');
+    }
+
+    // 读取 asset/live2d.json
+    try {
+      const assetDir = await modFolderHandle.getDirectoryHandle('asset');
+      const live2dHandle = await assetDir.getFileHandle('live2d.json');
+      const live2dFile = await live2dHandle.getFile();
+      currentMod.assets.live2d = JSON.parse(await live2dFile.text());
+    } catch (e) {
+      console.log('No live2d.json found');
     }
 
     // 读取 bubble_style.json
@@ -1087,6 +1101,7 @@ async function confirmCreateMod() {
   const modId = document.getElementById('new-mod-id').value.trim();
   const modName = document.getElementById('new-mod-name').value.trim();
   const modAuthor = document.getElementById('new-mod-author').value.trim();
+  const modType = document.querySelector('input[name="new-mod-type"]:checked')?.value || 'sequence';
   
   if (!modId) {
     showToast(window.i18n.t('msg_enter_mod_id'), 'warning');
@@ -1101,7 +1116,7 @@ async function confirmCreateMod() {
   showToast(window.i18n.t('msg_creating_mod'), 'info');
 
   // 基于 ./template 生成初始数据
-  currentMod = await createModFromTemplate(modId, modName, modAuthor);
+  currentMod = await createModFromTemplate(modId, modName, modAuthor, modType);
   modFolderHandle = null; // 新建 Mod 暂无文件夹句柄
 
   // 更新 UI
@@ -1128,7 +1143,7 @@ async function confirmCreateMod() {
   markUnsaved();
 }
 
-async function createModFromTemplate(modId, modName, modAuthor) {
+async function createModFromTemplate(modId, modName, modAuthor, modType = 'sequence') {
   const base = './template';
 
   // 1. 先读取结构配置文件
@@ -1149,15 +1164,19 @@ async function createModFromTemplate(modId, modName, modAuthor) {
     : null;
 
   // 4. 动态读取 assets
-  const assets = { sequence: [], img: [] };
+  const assets = { sequence: [], img: [], live2d: null };
   if (structure.assets) {
     const assetPromises = Object.entries(structure.assets).map(async ([key, path]) => {
       const data = await fetchJsonSafe(`${base}/${path}`);
-      return [key, Array.isArray(data) ? data : []];
+      return [key, data];
     });
     const assetResults = await Promise.all(assetPromises);
     assetResults.forEach(([key, data]) => {
-      assets[key] = deepClone(data);
+      if (key === 'live2d') {
+        assets.live2d = (data && typeof data === 'object') ? deepClone(data) : null;
+      } else {
+        assets[key] = Array.isArray(data) ? deepClone(data) : [];
+      }
     });
   }
 
@@ -1214,6 +1233,9 @@ async function createModFromTemplate(modId, modName, modAuthor) {
 
   // 重置预览图扩展名
   currentPreviewExt = 'png';
+
+  // --- 设置 mod_type
+  mod.manifest.mod_type = modType;
 
   // --- 仅覆盖 manifest 的必要字段（id, author）
   mod.manifest.id = modId;
@@ -1303,6 +1325,9 @@ function normalizeStateForEditor(state) {
 
 function normalizeManifestForEditor(manifest) {
   if (!manifest || typeof manifest !== 'object') return;
+
+  // mod_type 默认 sequence
+  if (!manifest.mod_type) manifest.mod_type = 'sequence';
 
   // ema 字段补齐
   if (typeof manifest.show_mod_data_panel !== 'boolean') manifest.show_mod_data_panel = false;
@@ -1602,21 +1627,35 @@ async function saveMod() {
     // 创建 asset 目录并保存
     const assetDir = await modFolderHandle.getDirectoryHandle('asset', { create: true });
     
-    // 保存 sequence.json
-    const seqHandle = await assetDir.getFileHandle('sequence.json', { create: true });
-    const seqWritable = await seqHandle.createWritable();
-    await seqWritable.write(stringifyForSave(currentMod.assets.sequence));
-    await seqWritable.close();
-    
-    // 保存 img.json
-    const imgHandle = await assetDir.getFileHandle('img.json', { create: true });
-    const imgWritable = await imgHandle.createWritable();
-    await imgWritable.write(stringifyForSave(currentMod.assets.img));
-    await imgWritable.close();
+    const isLive2d = currentMod.manifest.mod_type === 'live2d';
+
+    if (isLive2d) {
+      // 保存 live2d.json
+      if (currentMod.assets.live2d) {
+        const live2dHandle = await assetDir.getFileHandle('live2d.json', { create: true });
+        const live2dWritable = await live2dHandle.createWritable();
+        await live2dWritable.write(stringifyForSave(currentMod.assets.live2d));
+        await live2dWritable.close();
+      }
+    } else {
+      // 保存 sequence.json
+      const seqHandle = await assetDir.getFileHandle('sequence.json', { create: true });
+      const seqWritable = await seqHandle.createWritable();
+      await seqWritable.write(stringifyForSave(currentMod.assets.sequence));
+      await seqWritable.close();
+      
+      // 保存 img.json
+      const imgHandle = await assetDir.getFileHandle('img.json', { create: true });
+      const imgWritable = await imgHandle.createWritable();
+      await imgWritable.write(stringifyForSave(currentMod.assets.img));
+      await imgWritable.close();
+    }
     
     // 创建 asset 子目录
-    await assetDir.getDirectoryHandle('sequence', { create: true });
-    await assetDir.getDirectoryHandle('img', { create: true });
+    if (!isLive2d) {
+      await assetDir.getDirectoryHandle('sequence', { create: true });
+      await assetDir.getDirectoryHandle('img', { create: true });
+    }
     
     // 保存 text 目录
     const textDir = await modFolderHandle.getDirectoryHandle('text', { create: true });
@@ -1722,10 +1761,17 @@ async function exportMod() {
     }
     
     const asset = root.folder('asset');
-    asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
-    asset.file('img.json', stringifyForSave(currentMod.assets.img));
-    asset.folder('sequence');
-    asset.folder('img');
+    const isLive2dExport = currentMod.manifest.mod_type === 'live2d';
+    if (isLive2dExport) {
+      if (currentMod.assets.live2d) {
+        asset.file('live2d.json', stringifyForSave(currentMod.assets.live2d));
+      }
+    } else {
+      asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
+      asset.file('img.json', stringifyForSave(currentMod.assets.img));
+      asset.folder('sequence');
+      asset.folder('img');
+    }
     
     const text = root.folder('text');
     for (const [lang, data] of Object.entries(currentMod.texts)) {
@@ -2079,6 +2125,16 @@ function populateManifestForm() {
   // 数据面板
   document.getElementById('show-mod-data-panel').checked = m.show_mod_data_panel === true;
   document.getElementById('mod-data-default-int').value = Number.isFinite(Number(m.mod_data_default_int)) ? Number(m.mod_data_default_int) : 0;
+
+  // Mod 类型显示
+  const modType = m.mod_type || 'sequence';
+  const modTypeDisplay = document.getElementById('mod-type-display');
+  if (modTypeDisplay) {
+    modTypeDisplay.value = modType === 'live2d' ? 'Live2D' : window.i18n.t('mod_type_sequence');
+  }
+
+  // 根据类型切换资产编辑区
+  toggleAssetSections(modType);
   
   // 更新动画下拉列表
   updateAnimaSelects();
@@ -2136,16 +2192,32 @@ function collectManifestData() {
   // 数据面板
   m.show_mod_data_panel = document.getElementById('show-mod-data-panel').checked;
   m.mod_data_default_int = parseInt(document.getElementById('mod-data-default-int').value) || 0;
+
+  // 收集 Live2D 模型配置
+  if (m.mod_type === 'live2d') {
+    collectLive2dModelData();
+  }
 }
 
 /**
  * 更新动画下拉列表
  */
 function updateAnimaSelects() {
-  const allAnimas = [
-    ...currentMod.assets.sequence.map(a => a.name),
-    ...currentMod.assets.img.map(a => a.name)
-  ];
+  const isLive2d = currentMod?.manifest?.mod_type === 'live2d';
+  let allAnimas;
+  
+  if (isLive2d && currentMod.assets.live2d) {
+    // Live2D: 使用 states 中的 state 名称作为动画名
+    const live2d = currentMod.assets.live2d;
+    const stateNames = (live2d.states || []).map(s => s.state);
+    const motionNames = (live2d.motions || []).map(m => m.name);
+    allAnimas = [...new Set([...stateNames, ...motionNames])];
+  } else {
+    allAnimas = [
+      ...currentMod.assets.sequence.map(a => a.name),
+      ...currentMod.assets.img.map(a => a.name)
+    ];
+  }
   
   const selects = ['border-anima', 'state-anima'];
   selects.forEach(id => {
@@ -3761,8 +3833,16 @@ function syncHighlightTextareaScroll(textareaEl) {
  */
 function renderAssets() {
   if (!currentMod) return;
-  renderAssetList('sequence', currentMod.assets.sequence);
-  renderAssetList('img', currentMod.assets.img);
+  
+  const isLive2d = currentMod.manifest.mod_type === 'live2d';
+  toggleAssetSections(isLive2d ? 'live2d' : 'sequence');
+  
+  if (isLive2d) {
+    renderLive2dAssets();
+  } else {
+    renderAssetList('sequence', currentMod.assets.sequence);
+    renderAssetList('img', currentMod.assets.img);
+  }
   updateAnimaSelects();
 }
 
@@ -4037,6 +4117,874 @@ async function importAssetEntries(type) {
 }
 
 
+// ============================================================================
+// Live2D 资源管理
+// ============================================================================
+
+/**
+ * 获取当前 Mod 类型
+ */
+function getModType() {
+  return currentMod?.manifest?.mod_type || 'sequence';
+}
+
+/**
+ * 切换资产编辑区显示
+ */
+function toggleAssetSections(modType) {
+  const seqSection = document.getElementById('assets-sequence-section');
+  const live2dSection = document.getElementById('assets-live2d-section');
+  const descEl = document.getElementById('assets-desc-text');
+  
+  if (modType === 'live2d') {
+    if (seqSection) seqSection.style.display = 'none';
+    if (live2dSection) live2dSection.style.display = '';
+    if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_live2d');
+    if (descEl) descEl.textContent = window.i18n.t('assets_desc_live2d');
+  } else {
+    if (seqSection) seqSection.style.display = '';
+    if (live2dSection) live2dSection.style.display = 'none';
+    if (descEl) descEl.setAttribute('data-i18n', 'assets_desc');
+    if (descEl) descEl.textContent = window.i18n.t('assets_desc');
+  }
+}
+
+/**
+ * 确保 live2d 数据对象存在
+ */
+function ensureLive2dData() {
+  if (!currentMod.assets.live2d) {
+    currentMod.assets.live2d = {
+      schema_version: 1,
+      model: {
+        name: '',
+        base_dir: 'asset/live2d/',
+        model_json: '',
+        textures_dir: '',
+        motions_dir: 'motions',
+        expressions_dir: 'expressions',
+        physics_json: '',
+        pose_json: '',
+        eye_blink: true,
+        lip_sync: true
+      },
+      motions: [],
+      expressions: [],
+      states: []
+    };
+  }
+  return currentMod.assets.live2d;
+}
+
+/**
+ * 渲染 Live2D 资产编辑区
+ */
+function renderLive2dAssets() {
+  if (!currentMod) return;
+  const live2d = ensureLive2dData();
+  
+  // 填充模型配置表单
+  populateLive2dModelForm(live2d.model);
+  
+  // 渲染动作列表
+  renderLive2dMotions(live2d.motions || []);
+  
+  // 渲染表情列表
+  renderLive2dExpressions(live2d.expressions || []);
+  
+  // 渲染状态映射列表
+  renderLive2dStates(live2d.states || []);
+}
+
+/**
+ * 填充 Live2D 模型配置表单
+ */
+function populateLive2dModelForm(model) {
+  if (!model) return;
+  document.getElementById('live2d-model-name').value = model.name || '';
+  document.getElementById('live2d-base-dir').value = model.base_dir || '';
+  document.getElementById('live2d-model-json').value = model.model_json || '';
+  document.getElementById('live2d-textures-dir').value = model.textures_dir || '';
+  document.getElementById('live2d-motions-dir').value = model.motions_dir || 'motions';
+  document.getElementById('live2d-expressions-dir').value = model.expressions_dir || 'expressions';
+  document.getElementById('live2d-physics-json').value = model.physics_json || '';
+  document.getElementById('live2d-pose-json').value = model.pose_json || '';
+  document.getElementById('live2d-eye-blink').checked = model.eye_blink !== false;
+  document.getElementById('live2d-lip-sync').checked = model.lip_sync !== false;
+  
+  // 添加变化监听
+  const inputs = document.querySelectorAll('#assets-live2d-section input');
+  inputs.forEach(input => {
+    input.removeEventListener('change', onLive2dFormChange);
+    input.addEventListener('change', onLive2dFormChange);
+    input.removeEventListener('input', onLive2dFormChange);
+    input.addEventListener('input', onLive2dFormChange);
+  });
+}
+
+function onLive2dFormChange() {
+  markUnsaved();
+}
+
+/**
+ * 收集 Live2D 模型配置数据
+ */
+function collectLive2dModelData() {
+  if (!currentMod || !currentMod.assets.live2d) return;
+  const model = currentMod.assets.live2d.model;
+  if (!model) return;
+  
+  model.name = document.getElementById('live2d-model-name').value.trim();
+  model.base_dir = document.getElementById('live2d-base-dir').value.trim();
+  model.model_json = document.getElementById('live2d-model-json').value.trim();
+  model.textures_dir = document.getElementById('live2d-textures-dir').value.trim();
+  model.motions_dir = document.getElementById('live2d-motions-dir').value.trim();
+  model.expressions_dir = document.getElementById('live2d-expressions-dir').value.trim();
+  model.physics_json = document.getElementById('live2d-physics-json').value.trim();
+  model.pose_json = document.getElementById('live2d-pose-json').value.trim();
+  model.eye_blink = document.getElementById('live2d-eye-blink').checked;
+  model.lip_sync = document.getElementById('live2d-lip-sync').checked;
+}
+
+/**
+ * 从文件同步 Live2D 模型信息
+ * 读取 base_dir 下的 model3.json，解析动作和表情列表并覆盖当前数据
+ */
+async function syncLive2dFromFiles() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_sync_need_folder'), 'warning');
+    return;
+  }
+
+  // 先收集当前表单中的模型配置
+  collectLive2dModelData();
+  const live2d = ensureLive2dData();
+  const baseDir = (live2d.model.base_dir || '').trim();
+  const modelJson = (live2d.model.model_json || '').trim();
+
+  if (!baseDir) {
+    showToast(window.i18n.t('msg_sync_need_base_dir'), 'warning');
+    return;
+  }
+  if (!modelJson) {
+    showToast(window.i18n.t('msg_sync_need_model_json'), 'warning');
+    return;
+  }
+
+  if (!confirm(window.i18n.t('msg_sync_confirm'))) return;
+
+  try {
+    // 导航到 base_dir
+    const baseParts = baseDir.replace(/\\/g, '/').split('/').filter(Boolean);
+    let dirHandle = modFolderHandle;
+    for (const part of baseParts) {
+      dirHandle = await dirHandle.getDirectoryHandle(part);
+    }
+
+    // 读取 model3.json
+    const modelFileHandle = await dirHandle.getFileHandle(modelJson);
+    const modelFile = await modelFileHandle.getFile();
+    const modelText = await modelFile.text();
+    const modelData = JSON.parse(modelText);
+
+    const fileRefs = modelData.FileReferences || modelData.fileReferences || {};
+
+    // --- 解析模型基础信息 ---
+    // 物理文件
+    const physicsJson = fileRefs.Physics || fileRefs.physics || '';
+    if (physicsJson) live2d.model.physics_json = physicsJson;
+
+    // 姿势文件
+    const poseJson = fileRefs.Pose || fileRefs.pose || '';
+    if (poseJson) live2d.model.pose_json = poseJson;
+
+    // 纹理目录（从第一个纹理路径提取目录名）
+    const textures = fileRefs.Textures || fileRefs.textures || [];
+    if (textures.length > 0) {
+      const firstTex = String(textures[0] || '');
+      const texDir = firstTex.includes('/') ? firstTex.substring(0, firstTex.lastIndexOf('/')) : '';
+      if (texDir) live2d.model.textures_dir = texDir;
+    }
+
+    // EyeBlink / LipSync（从 Groups 读取）
+    const groups = modelData.Groups || modelData.groups || [];
+    let hasEyeBlink = false;
+    let hasLipSync = false;
+    for (const g of groups) {
+      const name = (g.Name || g.name || '').toLowerCase();
+      if (name === 'eyeblink') hasEyeBlink = true;
+      if (name === 'lipsync') hasLipSync = true;
+    }
+    live2d.model.eye_blink = hasEyeBlink;
+    live2d.model.lip_sync = hasLipSync;
+
+    // --- 解析动作列表 ---
+    const rawMotions = fileRefs.Motions || fileRefs.motions || {};
+    const newMotions = [];
+    for (const [groupName, motionArr] of Object.entries(rawMotions)) {
+      if (!Array.isArray(motionArr)) continue;
+      for (const m of motionArr) {
+        const file = m.File || m.file || '';
+        // 从文件名推导名称：motions/mtn_01.motion3.json -> mtn_01
+        const baseName = file.replace(/\\/g, '/').split('/').pop().replace(/\.motion3\.json$/i, '').replace(/\.json$/i, '');
+        newMotions.push({
+          name: baseName,
+          file: file,
+          group: groupName || 'Default',
+          priority: groupName === 'Idle' ? 'Idle' : 'Normal',
+          fade_in_ms: m.FadeInTime != null ? Math.round(m.FadeInTime * 1000) : 200,
+          fade_out_ms: m.FadeOutTime != null ? Math.round(m.FadeOutTime * 1000) : 200,
+          loop: groupName === 'Idle'
+        });
+      }
+    }
+
+    // --- 解析表情列表 ---
+    const rawExpressions = fileRefs.Expressions || fileRefs.expressions || [];
+    const newExpressions = [];
+    if (Array.isArray(rawExpressions)) {
+      for (const e of rawExpressions) {
+        const name = e.Name || e.name || '';
+        const file = e.File || e.file || '';
+        newExpressions.push({ name, file });
+      }
+    }
+
+    // 覆盖动作和表情（状态映射保留）
+    live2d.motions = newMotions;
+    live2d.expressions = newExpressions;
+
+    // 刷新 UI
+    renderLive2dAssets();
+    updateAnimaSelects();
+    markUnsaved();
+
+    const msg = window.i18n.t('msg_sync_success')
+      .replace('{motions}', newMotions.length)
+      .replace('{expressions}', newExpressions.length);
+    showToast(msg, 'success');
+  } catch (err) {
+    console.error('syncLive2dFromFiles error:', err);
+    if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
+      showToast(window.i18n.t('msg_sync_model_not_found'), 'error');
+    } else {
+      const msg = window.i18n.t('msg_sync_failed').replace('{error}', err.message || String(err));
+      showToast(msg, 'error');
+    }
+  }
+}
+
+/**
+ * 渲染 Live2D 动作列表（支持筛选、高亮、拖拽、复制）
+ */
+function renderLive2dMotions(motions) {
+  const list = document.getElementById('live2d-motions-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('live2d-motions-filter-name')?.value || '').trim();
+  const fileRaw = (document.getElementById('live2d-motions-filter-file')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+  const fileNdl = fileRaw.toLowerCase();
+
+  motions.forEach((motion, index) => {
+    const mName = String(motion.name || '');
+    const mFile = String(motion.file || '');
+    if (nameNdl && !mName.toLowerCase().includes(nameNdl)) return;
+    if (fileNdl && !mFile.toLowerCase().includes(fileNdl)) return;
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(motion);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(mName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyLive2dItem('motion', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editLive2dMotion(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteLive2dMotion(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_motion_file_label')}:</span> ${highlightNeedleHtml(mFile, fileRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_motion_group_label')}:</span> ${escapeHtml(motion.group || '')}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_motion_priority_label')}:</span> ${escapeHtml(motion.priority || '')}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_motion_loop_label')}:</span> ${motion.loop ? window.i18n.t('yes') : window.i18n.t('no')}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+  
+  // 底部按钮
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteLive2dItem('motion')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addLive2dMotion()">➕ <span>${window.i18n.t('btn_add_motion')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  // 拖拽排序
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['live2d-motions-filter-name', 'live2d-motions-filter-file'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const live2d = ensureLive2dData();
+      reorderArrayInPlaceByKeys(live2d.motions, orderedKeys, ensureTbUid);
+      renderLive2dAssets();
+      updateAnimaSelects();
+      markUnsaved();
+    }
+  });
+}
+
+/**
+ * 渲染 Live2D 表情列表（支持筛选、高亮、拖拽、复制）
+ */
+function renderLive2dExpressions(expressions) {
+  const list = document.getElementById('live2d-expressions-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('live2d-expressions-filter-name')?.value || '').trim();
+  const fileRaw = (document.getElementById('live2d-expressions-filter-file')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+  const fileNdl = fileRaw.toLowerCase();
+
+  expressions.forEach((expr, index) => {
+    const eName = String(expr.name || '');
+    const eFile = String(expr.file || '');
+    if (nameNdl && !eName.toLowerCase().includes(nameNdl)) return;
+    if (fileNdl && !eFile.toLowerCase().includes(fileNdl)) return;
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(expr);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(eName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyLive2dItem('expression', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editLive2dExpression(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteLive2dExpression(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_expr_file_label')}:</span> ${highlightNeedleHtml(eFile, fileRaw)}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+  
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteLive2dItem('expression')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addLive2dExpression()">➕ <span>${window.i18n.t('btn_add_expression')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  // 拖拽排序
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['live2d-expressions-filter-name', 'live2d-expressions-filter-file'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const live2d = ensureLive2dData();
+      reorderArrayInPlaceByKeys(live2d.expressions, orderedKeys, ensureTbUid);
+      renderLive2dAssets();
+      updateAnimaSelects();
+      markUnsaved();
+    }
+  });
+}
+
+/**
+ * 渲染 Live2D 状态映射列表（支持筛选、高亮、拖拽、复制）
+ */
+function renderLive2dStates(states) {
+  const list = document.getElementById('live2d-states-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('live2d-states-filter-name')?.value || '').trim();
+  const motionRaw = (document.getElementById('live2d-states-filter-motion')?.value || '').trim();
+  const exprRaw = (document.getElementById('live2d-states-filter-expression')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+  const motionNdl = motionRaw.toLowerCase();
+  const exprNdl = exprRaw.toLowerCase();
+
+  states.forEach((state, index) => {
+    const sName = String(state.state || '');
+    const sMotion = String(state.motion || '');
+    const sExpr = String(state.expression || '');
+    if (nameNdl && !sName.toLowerCase().includes(nameNdl)) return;
+    if (motionNdl && !sMotion.toLowerCase().includes(motionNdl)) return;
+    if (exprNdl && !sExpr.toLowerCase().includes(exprNdl)) return;
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(state);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(sName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyLive2dItem('state', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editLive2dState(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteLive2dState(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_state_motion_label')}:</span> ${highlightNeedleHtml(sMotion, motionRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_state_expression_label')}:</span> ${highlightNeedleHtml(sExpr, exprRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_state_scale_label')}:</span> ${state.scale ?? 1.0}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_state_offset_x_label')}/${window.i18n.t('live2d_state_offset_y_label')}:</span> ${state.offset_x ?? 0}, ${state.offset_y ?? 0}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+  
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteLive2dItem('state')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addLive2dState()">➕ <span>${window.i18n.t('btn_add_live2d_state')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  // 拖拽排序
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['live2d-states-filter-name', 'live2d-states-filter-motion', 'live2d-states-filter-expression'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const live2d = ensureLive2dData();
+      reorderArrayInPlaceByKeys(live2d.states, orderedKeys, ensureTbUid);
+      renderLive2dAssets();
+      updateAnimaSelects();
+      markUnsaved();
+    }
+  });
+}
+
+/**
+ * 获取动作名称选项 HTML
+ */
+function getMotionSelectOptions(currentValue = '') {
+  const live2d = currentMod?.assets?.live2d;
+  const motions = live2d?.motions || [];
+  let html = `<option value="">${window.i18n.t('select_motion_placeholder')}</option>`;
+  motions.forEach(m => {
+    const selected = m.name === currentValue ? ' selected' : '';
+    html += `<option value="${escapeHtml(m.name)}"${selected}>${escapeHtml(m.name)}</option>`;
+  });
+  return html;
+}
+
+/**
+ * 获取表情名称选项 HTML
+ */
+function getExpressionSelectOptions(currentValue = '') {
+  const live2d = currentMod?.assets?.live2d;
+  const expressions = live2d?.expressions || [];
+  let html = `<option value="">${window.i18n.t('select_expression_placeholder')}</option>`;
+  expressions.forEach(e => {
+    const selected = e.name === currentValue ? ' selected' : '';
+    html += `<option value="${escapeHtml(e.name)}"${selected}>${escapeHtml(e.name)}</option>`;
+  });
+  return html;
+}
+
+// --- Live2D Motion CRUD ---
+
+function addLive2dMotion() {
+  const live2d = ensureLive2dData();
+  openLive2dMotionModal(window.i18n.t('btn_add_motion'), {
+    name: '',
+    file: '',
+    group: 'Default',
+    priority: 'Normal',
+    fade_in_ms: 200,
+    fade_out_ms: 200,
+    loop: false
+  }, -1);
+}
+
+function editLive2dMotion(index) {
+  const live2d = ensureLive2dData();
+  const motion = live2d.motions[index];
+  if (!motion) return;
+  openLive2dMotionModal(window.i18n.t('live2d_motion_name_label'), motion, index);
+}
+
+function deleteLive2dMotion(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_motion'))) return;
+  const live2d = ensureLive2dData();
+  live2d.motions.splice(index, 1);
+  renderLive2dAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+function openLive2dMotionModal(title, motion, index) {
+  // 使用简易 prompt 风格 modal（复用 asset-modal 的结构）
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+  
+  const body = document.getElementById('asset-modal-body');
+  // 保存原始内容以便关闭时恢复
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_motion_name_label')} <span class="required">*</span></label>
+        <input type="text" id="live2d-edit-motion-name" value="${escapeHtml(motion.name || '')}" placeholder="${window.i18n.t('placeholder_live2d_motion_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_motion_file_label')}</label>
+        <input type="text" id="live2d-edit-motion-file" value="${escapeHtml(motion.file || '')}" placeholder="${window.i18n.t('placeholder_live2d_motion_file')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_motion_group_label')}</label>
+        <select id="live2d-edit-motion-group">
+          <option value="Idle"${motion.group === 'Idle' ? ' selected' : ''}>Idle</option>
+          <option value="Default"${motion.group === 'Default' || !motion.group ? ' selected' : ''}>Default</option>
+          <option value="TapBody"${motion.group === 'TapBody' ? ' selected' : ''}>TapBody</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_motion_priority_label')}</label>
+        <select id="live2d-edit-motion-priority">
+          <option value="Idle"${motion.priority === 'Idle' ? ' selected' : ''}>${window.i18n.t('live2d_priority_idle')}</option>
+          <option value="Normal"${motion.priority === 'Normal' || !motion.priority ? ' selected' : ''}>${window.i18n.t('live2d_priority_normal')}</option>
+          <option value="Force"${motion.priority === 'Force' ? ' selected' : ''}>${window.i18n.t('live2d_priority_force')}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_motion_fade_in_label')}</label>
+        <input type="number" id="live2d-edit-motion-fade-in" value="${motion.fade_in_ms ?? 200}" min="0">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_motion_fade_out_label')}</label>
+        <input type="number" id="live2d-edit-motion-fade-out" value="${motion.fade_out_ms ?? 200}" min="0">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_motion_loop_label')}</label>
+        <label class="switch">
+          <input type="checkbox" id="live2d-edit-motion-loop" ${motion.loop ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  `;
+  
+  // 覆盖保存按钮行为
+  modal._live2dSaveHandler = () => saveLive2dMotion(index);
+  modal.classList.add('show');
+}
+
+function saveLive2dMotion(index) {
+  const name = document.getElementById('live2d-edit-motion-name').value.trim();
+  if (!name) {
+    showToast(window.i18n.t('msg_enter_motion_name'), 'warning');
+    return;
+  }
+  
+  const motion = {
+    name: name,
+    file: document.getElementById('live2d-edit-motion-file').value.trim(),
+    group: document.getElementById('live2d-edit-motion-group').value,
+    priority: document.getElementById('live2d-edit-motion-priority').value,
+    fade_in_ms: parseInt(document.getElementById('live2d-edit-motion-fade-in').value) || 200,
+    fade_out_ms: parseInt(document.getElementById('live2d-edit-motion-fade-out').value) || 200,
+    loop: document.getElementById('live2d-edit-motion-loop').checked
+  };
+  
+  const live2d = ensureLive2dData();
+  if (index === -1) {
+    live2d.motions.push(motion);
+  } else {
+    live2d.motions[index] = motion;
+  }
+  
+  closeAssetModal();
+  renderLive2dAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+// --- Live2D Expression CRUD ---
+
+function addLive2dExpression() {
+  openLive2dExpressionModal(window.i18n.t('btn_add_expression'), {
+    name: '',
+    file: ''
+  }, -1);
+}
+
+function editLive2dExpression(index) {
+  const live2d = ensureLive2dData();
+  const expr = live2d.expressions[index];
+  if (!expr) return;
+  openLive2dExpressionModal(window.i18n.t('live2d_expr_name_label'), expr, index);
+}
+
+function deleteLive2dExpression(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_expression'))) return;
+  const live2d = ensureLive2dData();
+  live2d.expressions.splice(index, 1);
+  renderLive2dAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+function openLive2dExpressionModal(title, expr, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+  
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_expr_name_label')} <span class="required">*</span></label>
+        <input type="text" id="live2d-edit-expr-name" value="${escapeHtml(expr.name || '')}" placeholder="${window.i18n.t('placeholder_live2d_expr_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_expr_file_label')}</label>
+        <input type="text" id="live2d-edit-expr-file" value="${escapeHtml(expr.file || '')}" placeholder="${window.i18n.t('placeholder_live2d_expr_file')}">
+      </div>
+    </div>
+  `;
+  
+  modal._live2dSaveHandler = () => saveLive2dExpression(index);
+  modal.classList.add('show');
+}
+
+function saveLive2dExpression(index) {
+  const name = document.getElementById('live2d-edit-expr-name').value.trim();
+  if (!name) {
+    showToast(window.i18n.t('msg_enter_expression_name'), 'warning');
+    return;
+  }
+  
+  const expr = {
+    name: name,
+    file: document.getElementById('live2d-edit-expr-file').value.trim()
+  };
+  
+  const live2d = ensureLive2dData();
+  if (index === -1) {
+    live2d.expressions.push(expr);
+  } else {
+    live2d.expressions[index] = expr;
+  }
+  
+  closeAssetModal();
+  renderLive2dAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+// --- Live2D State Mapping CRUD ---
+
+function addLive2dState() {
+  openLive2dStateModal(window.i18n.t('btn_add_live2d_state'), {
+    state: '',
+    motion: '',
+    expression: '',
+    scale: 1.0,
+    offset_x: 0,
+    offset_y: 0
+  }, -1);
+}
+
+function editLive2dState(index) {
+  const live2d = ensureLive2dData();
+  const state = live2d.states[index];
+  if (!state) return;
+  openLive2dStateModal(window.i18n.t('live2d_state_name_label'), state, index);
+}
+
+function deleteLive2dState(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_live2d_state'))) return;
+  const live2d = ensureLive2dData();
+  live2d.states.splice(index, 1);
+  renderLive2dAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+function openLive2dStateModal(title, state, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+  
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_state_name_label')} <span class="required">*</span></label>
+        <input type="text" id="live2d-edit-state-name" value="${escapeHtml(state.state || '')}" placeholder="${window.i18n.t('placeholder_state_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_state_motion_label')}</label>
+        <select id="live2d-edit-state-motion">
+          ${getMotionSelectOptions(state.motion)}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_state_expression_label')}</label>
+        <select id="live2d-edit-state-expression">
+          ${getExpressionSelectOptions(state.expression)}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_state_scale_label')}</label>
+        <input type="number" id="live2d-edit-state-scale" value="${state.scale ?? 1.0}" step="0.1" min="0.1">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_state_offset_x_label')}</label>
+        <input type="number" id="live2d-edit-state-offset-x" value="${state.offset_x ?? 0}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_state_offset_y_label')}</label>
+        <input type="number" id="live2d-edit-state-offset-y" value="${state.offset_y ?? 0}">
+      </div>
+    </div>
+  `;
+  
+  modal._live2dSaveHandler = () => saveLive2dState(index);
+  modal.classList.add('show');
+}
+
+function saveLive2dState(index) {
+  const stateName = document.getElementById('live2d-edit-state-name').value.trim();
+  if (!stateName) {
+    showToast(window.i18n.t('msg_enter_live2d_state'), 'warning');
+    return;
+  }
+  
+  const state = {
+    state: stateName,
+    motion: document.getElementById('live2d-edit-state-motion').value,
+    expression: document.getElementById('live2d-edit-state-expression').value,
+    scale: parseFloat(document.getElementById('live2d-edit-state-scale').value) || 1.0,
+    offset_x: parseInt(document.getElementById('live2d-edit-state-offset-x').value) || 0,
+    offset_y: parseInt(document.getElementById('live2d-edit-state-offset-y').value) || 0
+  };
+  
+  const live2d = ensureLive2dData();
+  if (index === -1) {
+    live2d.states.push(state);
+  } else {
+    live2d.states[index] = state;
+  }
+  
+  closeAssetModal();
+  renderLive2dAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+// --- Live2D Copy / Paste ---
+
+/**
+ * 复制 Live2D 条目到剪贴板
+ * @param {'motion'|'expression'|'state'} kind
+ * @param {number} index
+ */
+async function copyLive2dItem(kind, index) {
+  if (!currentMod) return;
+  const live2d = currentMod.assets?.live2d;
+  if (!live2d) return;
+  const map = { motion: 'motions', expression: 'expressions', state: 'states' };
+  const arr = live2d[map[kind]];
+  const item = arr?.[index];
+  if (!item) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'warning');
+    return;
+  }
+  try {
+    const data = { type: `tbuddy_live2d_${kind}`, data: item };
+    await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    showToast(window.i18n.t('msg_copied_to_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+  }
+}
+
+/**
+ * 从剪贴板粘贴 Live2D 条目
+ * @param {'motion'|'expression'|'state'} kind
+ */
+async function pasteLive2dItem(kind) {
+  if (!currentMod) return;
+  const live2d = ensureLive2dData();
+  const map = { motion: 'motions', expression: 'expressions', state: 'states' };
+  const expectedType = `tbuddy_live2d_${kind}`;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== expectedType || typeof parsed.data !== 'object') {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+      return;
+    }
+    live2d[map[kind]].push(parsed.data);
+    renderLive2dAssets();
+    updateAnimaSelects();
+    markUnsaved();
+    showToast(window.i18n.t('msg_pasted_from_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+  }
+}
+
+
 /**
  * 编辑资源
  */
@@ -4081,7 +5029,17 @@ function openAssetModal(title, asset) {
  * 关闭资源编辑弹窗
  */
 function closeAssetModal() {
-  document.getElementById('asset-modal').classList.remove('show');
+  const modal = document.getElementById('asset-modal');
+  modal.classList.remove('show');
+  // 清除 Live2D 保存回调
+  if (modal._live2dSaveHandler) {
+    delete modal._live2dSaveHandler;
+  }
+  // 恢复原始 modal body（Live2D 弹窗会替换内容）
+  if (modal._originalBodyHTML) {
+    document.getElementById('asset-modal-body').innerHTML = modal._originalBodyHTML;
+    delete modal._originalBodyHTML;
+  }
 }
 
 let assetAutoCalcTimer = null;
@@ -4194,6 +5152,13 @@ function bindAssetAutoCalcEvents() {
  * 保存资源
  */
 function saveAsset() {
+  // Live2D 弹窗复用：如果存在 _live2dSaveHandler 则走 Live2D 保存逻辑
+  const modal = document.getElementById('asset-modal');
+  if (typeof modal._live2dSaveHandler === 'function') {
+    modal._live2dSaveHandler();
+    return;
+  }
+
   const asset = {
     name: document.getElementById('asset-name').value.trim(),
     img: document.getElementById('asset-img').value.trim(),
