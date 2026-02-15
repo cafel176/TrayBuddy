@@ -381,7 +381,12 @@
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": [],
+          "states": [
+            {
+              "state": "drag_start",
+              "weight": 1
+            }
+          ],
           "allow_repeat": true
         }
       ]
@@ -391,10 +396,16 @@
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": [],
+          "states": [
+            {
+              "state": "drag_end",
+              "weight": 1
+            }
+          ],
           "allow_repeat": true
         }
       ]
     }
-  ]
+  ],
+  "mod_type": "sequence"
 }

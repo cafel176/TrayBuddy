@@ -4263,8 +4263,8 @@ function ensureLive2dData() {
         base_dir: 'asset/live2d/',
         model_json: '',
         textures_dir: '',
-        motions_dir: 'motions',
-        expressions_dir: 'expressions',
+        motions_dir: '',
+        expressions_dir: '',
         physics_json: '',
         pose_json: '',
         eye_blink: true,
@@ -4307,8 +4307,8 @@ function populateLive2dModelForm(model) {
   document.getElementById('live2d-base-dir').value = model.base_dir || '';
   document.getElementById('live2d-model-json').value = model.model_json || '';
   document.getElementById('live2d-textures-dir').value = model.textures_dir || '';
-  document.getElementById('live2d-motions-dir').value = model.motions_dir || 'motions';
-  document.getElementById('live2d-expressions-dir').value = model.expressions_dir || 'expressions';
+  document.getElementById('live2d-motions-dir').value = model.motions_dir || '';
+  document.getElementById('live2d-expressions-dir').value = model.expressions_dir || '';
   document.getElementById('live2d-physics-json').value = model.physics_json || '';
   document.getElementById('live2d-pose-json').value = model.pose_json || '';
   document.getElementById('live2d-eye-blink').checked = model.eye_blink !== false;
@@ -6199,8 +6199,10 @@ function renderAudio() {
   
   const langs = Object.keys(currentMod.audio);
   if (langs.length === 0) {
-    langs.push('jp');
-    currentMod.audio['jp'] = [];
+    for (const defaultLang of ['en', 'zh', 'jp']) {
+      langs.push(defaultLang);
+      currentMod.audio[defaultLang] = [];
+    }
   }
   
   if (!langs.includes(currentAudioLang)) {
