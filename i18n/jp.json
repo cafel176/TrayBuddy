@@ -575,6 +575,7 @@
     "quickRightClick": "右クリック",
     "quickGlobalClick": "グローバルクリック",
     "quickGlobalRightClick": "グローバル右クリック",
+    "quickGlobalKeydown": "グローバルキー押下",
     "quickLogin": "ログイン",
     "whenCondition": "{state} の時",
 

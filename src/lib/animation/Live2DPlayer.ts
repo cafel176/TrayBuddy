@@ -5,6 +5,7 @@ import type {
   Live2DMotion,
   Live2DState,
   Live2DParameterSetting,
+  Live2DBackgroundLayer,
 } from "$lib/types/asset";
 
 export type Live2DFeatureFlags = {
@@ -178,6 +179,12 @@ export class Live2DPlayer {
   private debugOffsetX = 0;
   private debugOffsetY = 0;
 
+  // 背景/叠加图层 Sprite
+  private bgSpriteBehind: any[] = [];  // layer="behind" 的 PIXI.Sprite（模型之后）
+  private bgSpriteFront: any[] = [];   // layer="front" 的 PIXI.Sprite（模型之前）
+  private bgLayerConfigs: Live2DBackgroundLayer[] = [];
+  private bgSpriteMap = new Map<string, any>(); // name -> PIXI.Sprite
+
   constructor(canvas: HTMLCanvasElement, options?: Live2DPlayerOptions) {
     this.canvas = canvas;
     this.featureFlags = {
@@ -204,6 +211,8 @@ export class Live2DPlayer {
     this.cleanupMouseXYHook();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+
+    this.removeBackgroundLayers();
 
     if (this.model && this.app) {
       this.app.stage.removeChild(this.model);
@@ -386,6 +395,9 @@ export class Live2DPlayer {
     this.updateFitScale();
     this.applyFeatureFlags();
     this.applyInitialTransform();
+
+    // 加载背景/叠加图层
+    await this.loadBackgroundLayers();
 
     dbg("load", "complete. motionMap keys:", [...this.motionMap.keys()],
       "expressionMap keys:", [...this.expressionMap.keys()],
@@ -1004,5 +1016,113 @@ export class Live2DPlayer {
       this.model.off("motionFinish", this.motionFinishHandler);
     }
     this.motionFinishHandler = null;
+  }
+
+  // =========================================================================
+  // 背景/叠加图层
+  // =========================================================================
+
+  /**
+   * 加载并渲染 background_layers 中定义的图片 Sprite。
+   * layer="behind" 的插入到模型之前（stage 的底部），
+   * layer="front" 的插入到模型之后（stage 的顶部）。
+   * 有 event 字段的默认隐藏，需通过 showBackgroundLayer() 显示。
+   */
+  private async loadBackgroundLayers(): Promise<void> {
+    if (!this.config || !this.app) return;
+    const layers = this.config.background_layers;
+    if (!layers || layers.length === 0) return;
+
+    this.removeBackgroundLayers();
+    this.bgLayerConfigs = layers;
+
+    const PIXI = window.PIXI;
+    if (!PIXI?.Sprite || !PIXI?.Texture) return;
+
+    const baseDir = this.config.model.base_dir;
+    const modelIndex = this.model ? this.app.stage.getChildIndex(this.model) : 0;
+
+    let behindInsertIndex = modelIndex; // 在模型之前插入
+
+    for (const lyr of layers) {
+      if (!lyr.file) continue;
+      try {
+        const filePath = joinPath(this.modPath, baseDir, lyr.file).replace(/\\/g, "/");
+        const url = toAssetUrl(filePath);
+
+        // 通过 Image 元素异步加载，确保纹理就绪后再创建 Sprite
+        const texture = await new Promise<any>((resolve, reject) => {
+          const tex = PIXI.Texture.from(url);
+          if (tex.baseTexture.valid) {
+            resolve(tex);
+          } else {
+            tex.baseTexture.once("loaded", () => resolve(tex));
+            tex.baseTexture.once("error", () => reject(new Error(`Failed to load texture: ${url}`)));
+          }
+        });
+
+        const sprite = new PIXI.Sprite(texture);
+        sprite.anchor.set(0.5, 0.5);
+        sprite.scale.set(lyr.scale || 1);
+        sprite.x = (this.app.renderer.width / (window.devicePixelRatio || 1)) / 2 + (lyr.offset_x || 0);
+        sprite.y = (this.app.renderer.height / (window.devicePixelRatio || 1)) / 2 + (lyr.offset_y || 0);
+
+        // 有 events 的默认隐藏
+        const hasEvents = Array.isArray(lyr.events) && lyr.events.length > 0;
+        if (hasEvents) {
+          sprite.visible = false;
+        }
+
+        if (lyr.layer === "front") {
+          this.app.stage.addChild(sprite);
+          this.bgSpriteFront.push(sprite);
+        } else {
+          this.app.stage.addChildAt(sprite, behindInsertIndex);
+          behindInsertIndex++;
+          this.bgSpriteBehind.push(sprite);
+        }
+
+        this.bgSpriteMap.set(lyr.name, sprite);
+        dbg("loadBackgroundLayers", "loaded", lyr.name, "layer:", lyr.layer, "events:", lyr.events?.length ? lyr.events.join(",") : "(always)");
+      } catch (err) {
+        dbg("loadBackgroundLayers", "ERROR loading", lyr.name, err);
+      }
+    }
+  }
+
+  private removeBackgroundLayers(): void {
+    for (const sprite of [...this.bgSpriteBehind, ...this.bgSpriteFront]) {
+      this.app?.stage.removeChild(sprite);
+      sprite.destroy?.();
+    }
+    this.bgSpriteBehind = [];
+    this.bgSpriteFront = [];
+    this.bgSpriteMap.clear();
+    this.bgLayerConfigs = [];
+  }
+
+  /**
+   * 显示/隐藏指定名称的背景层 Sprite。
+   * 用于事件驱动的叠加层（如按键高亮）。
+   */
+  showBackgroundLayer(name: string, visible: boolean): void {
+    const sprite = this.bgSpriteMap.get(name);
+    if (sprite) {
+      sprite.visible = visible;
+    }
+  }
+
+  /**
+   * 根据事件名显示/隐藏所有关联的背景层。
+   * 每个背景层的 events 是一个数组，任意一个匹配即触发。
+   * @param eventName 如 "keydown:KeyA"
+   * @param visible 是否可见
+   */
+  setBackgroundLayersByEvent(eventName: string, visible: boolean): void {
+    for (const lyr of this.bgLayerConfigs) {
+      if (Array.isArray(lyr.events) && lyr.events.includes(eventName)) {
+        this.showBackgroundLayer(lyr.name, visible);
+      }
+    }
   }
 }

@@ -284,6 +284,92 @@ impl Default for Live2DState {
     }
 }
 
+/// 将 JSON 中的单个字符串或字符串数组统一反序列化为 `Vec<String>`。
+///
+/// 兼容旧格式（`"event": "keydown:KeyA"`）和新格式（`"events": ["keydown:KeyA", "keydown:KeyW"]`）。
+fn deserialize_string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de;
+
+    struct StringOrVec;
+
+    impl<'de> de::Visitor<'de> for StringOrVec {
+        type Value = Vec<String>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a string or array of strings")
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            if v.is_empty() {
+                Ok(Vec::new())
+            } else {
+                Ok(vec![v.to_string()])
+            }
+        }
+
+        fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value, E> {
+            if v.is_empty() {
+                Ok(Vec::new())
+            } else {
+                Ok(vec![v])
+            }
+        }
+
+        fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+            let mut vec = Vec::new();
+            while let Some(s) = seq.next_element::<String>()? {
+                if !s.is_empty() {
+                    vec.push(s);
+                }
+            }
+            Ok(vec)
+        }
+    }
+
+    deserializer.deserialize_any(StringOrVec)
+}
+
+/// 背景层定义
+///
+/// 在 Live2D 模型下方或上方渲染的图片层。
+/// 用于静态背景、按键叠加高亮等场景。
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DBackgroundLayer {
+    /// 层名称（标识用）
+    pub name: Box<str>,
+    /// 图片文件路径（相对于 base_dir）
+    pub file: Box<str>,
+    /// 渲染层级：\"behind\"（模型之后）或 \"front\"（模型之前）
+    pub layer: Box<str>,
+    /// 缩放比例（1.0 = 原尺寸）
+    pub scale: f64,
+    /// X 轴偏移（像素）
+    pub offset_x: i32,
+    /// Y 轴偏移（像素）
+    pub offset_y: i32,
+    /// 关联事件名列表（任意一个事件触发时显示），为空则常驻显示
+    #[serde(alias = "event", deserialize_with = "deserialize_string_or_vec")]
+    pub events: Vec<String>,
+}
+
+impl Default for Live2DBackgroundLayer {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            file: "".into(),
+            layer: "behind".into(),
+            scale: 1.0,
+            offset_x: 0,
+            offset_y: 0,
+            events: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Live2DConfig {
@@ -292,6 +378,8 @@ pub struct Live2DConfig {
     pub motions: Vec<Live2DMotion>,
     pub expressions: Vec<Live2DExpression>,
     pub states: Vec<Live2DState>,
+    /// 背景/叠加图层列表
+    pub background_layers: Vec<Live2DBackgroundLayer>,
 }
 
 impl Default for Live2DConfig {
@@ -302,6 +390,7 @@ impl Default for Live2DConfig {
             motions: Vec::new(),
             expressions: Vec::new(),
             states: Vec::new(),
+            background_layers: Vec::new(),
         }
     }
 }

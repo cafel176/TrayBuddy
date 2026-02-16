@@ -145,6 +145,9 @@ pub const EVENT_GLOBAL_CLICK: &str = "global_click";
 /// 全局右键点击事件（不要求窗口焦点）
 pub const EVENT_GLOBAL_RIGHT_CLICK: &str = "global_right_click";
 
+/// 全局键盘按下事件（任意键按下时触发，不要求窗口焦点）
+pub const EVENT_GLOBAL_KEYDOWN: &str = "global_keydown";
+
 /// 登录事件
 pub const EVENT_LOGIN: &str = "login";
 

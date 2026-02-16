@@ -1061,6 +1061,87 @@ input:checked + .slider::before {
 }
 
 /* --------------------------------------------------------------------------
+   事件标签 (Event Tags)
+   -------------------------------------------------------------------------- */
+.event-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Monaco', 'Consolas', monospace;
+  white-space: nowrap;
+}
+
+.event-tag-removable {
+  padding-right: 4px;
+}
+
+.event-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 50%;
+  transition: background 0.15s, color 0.15s;
+}
+.event-tag-remove:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.events-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  min-height: 36px;
+}
+
+.events-tag-input-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.events-tag-input {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  padding: 2px 4px !important;
+  min-width: 80px;
+  font-size: 13px;
+  outline: none;
+}
+.events-tag-input:focus {
+  box-shadow: none !important;
+}
+
+.events-tag-add {
+  padding: 2px 8px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+/* --------------------------------------------------------------------------
    资源列表
    -------------------------------------------------------------------------- */
 .asset-list {
@@ -1086,6 +1167,14 @@ input:checked + .slider::before {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.asset-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .asset-card-name {

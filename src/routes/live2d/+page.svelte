@@ -27,6 +27,8 @@ Live2D 渲染层暂为空占位。
 
   interface ModManifest {
     mod_type?: ModType;
+    global_keyboard?: boolean;
+    global_mouse?: boolean;
   }
 
   interface ModInfo {
@@ -127,7 +129,65 @@ Live2D 渲染层暂为空占位。
   let live2dConfig: Live2DConfig | null = null;
   let modPath = "";
   let unbindFeatureHotkeys: (() => void) | null = null;
+  let unbindOverlayKeyListeners: (() => void) | null = null;
   let unlistenSettings: UnlistenFn | null = null;
+  let unlistenKeyState: UnlistenFn | null = null;
+  let unlistenMouseState: UnlistenFn | null = null;
+  let globalKeyboardEnabled = false;
+  let globalMouseEnabled = false;
+
+
+  // =========================================================================
+  // 叠加层事件驱动（按键/鼠标 → background_layers 显示/隐藏）
+  // =========================================================================
+
+  /**
+   * 绑定本地键盘事件到叠加层（非 global_keyboard 模式时使用）。
+   * global_keyboard 模式下由后端 global-key-state 事件驱动。
+   */
+  function bindOverlayKeyListeners() {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (globalKeyboardEnabled) return; // 后端已处理
+      live2dPlayer?.setBackgroundLayersByEvent(`keydown:${e.code}`, true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (globalKeyboardEnabled) return;
+      live2dPlayer?.setBackgroundLayersByEvent(`keydown:${e.code}`, false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    unbindOverlayKeyListeners = () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }
+
+  /**
+   * 监听后端 global-key-state 事件（全局键盘按下/松开），驱动叠加层。
+   */
+  async function listenGlobalKeyState() {
+    unlistenKeyState = await listen<{ code: string; pressed: boolean }>(
+      "global-key-state",
+      (event) => {
+        const { code, pressed } = event.payload;
+        live2dPlayer?.setBackgroundLayersByEvent(`keydown:${code}`, pressed);
+      },
+    );
+  }
+
+  /**
+   * 监听后端 global-mouse-state 事件（全局鼠标按下/松开），驱动叠加层。
+   */
+  async function listenGlobalMouseState() {
+    unlistenMouseState = await listen<{ button: string; pressed: boolean }>(
+      "global-mouse-state",
+      (event) => {
+        const { button, pressed } = event.payload;
+        // button 为 "global_click" / "global_right_click"
+        live2dPlayer?.setBackgroundLayersByEvent(button, pressed);
+      },
+    );
+  }
 
 
   function bindFeatureHotkeys() {
@@ -238,6 +298,8 @@ Live2D 渲染层暂为空占位。
 
       modPath = mod.path;
       live2dConfig = mod.live2d;
+      globalKeyboardEnabled = Boolean(mod.manifest?.global_keyboard);
+      globalMouseEnabled = Boolean(mod.manifest?.global_mouse);
 
       console.log("[Live2D Page] Canvas element:", live2dCanvas?.clientWidth, "x", live2dCanvas?.clientHeight);
       console.log("[Live2D Page] Canvas parent:", live2dCanvas?.parentElement?.clientWidth, "x", live2dCanvas?.parentElement?.clientHeight);
@@ -360,6 +422,7 @@ Live2D 渲染层暂为空占位。
     console.log("[Live2D Page] onMount: window.innerWidth:", window.innerWidth, "window.innerHeight:", window.innerHeight);
     bindFeatureHotkeys();
     bindDebugControls();
+    bindOverlayKeyListeners();
     const init = async () => {
       unlistenSettings = await listen<UserSettings>(
         "settings-change",
@@ -371,6 +434,11 @@ Live2D 渲染层暂为空占位。
 
       await loadUserSettings();
       await initLive2DPlayer();
+
+      // 叠加层事件监听（全局键盘/鼠标按下松开）
+      await listenGlobalKeyState();
+      await listenGlobalMouseState();
+
       await core.init();
     };
 
@@ -380,7 +448,10 @@ Live2D 渲染层暂为空占位。
   onDestroy(() => {
     unbindFeatureHotkeys?.();
     unbindDebugControls?.();
+    unbindOverlayKeyListeners?.();
     unlistenSettings?.();
+    unlistenKeyState?.();
+    unlistenMouseState?.();
     live2dPlayer?.destroy();
     core.destroy();
   });
@@ -424,7 +495,21 @@ Live2D 渲染层暂为空占位。
         ? '2px solid ' + debugColors.character
         : 'none'}; outline-offset: -2px;"
       bind:this={live2dCanvas}
-      onmousedown={core.handleMouseDown}
+      onmousedown={(e) => {
+        core.handleMouseDown(e);
+        if (!globalMouseEnabled && e.button === 0) {
+          live2dPlayer?.setBackgroundLayersByEvent("click", true);
+        } else if (!globalMouseEnabled && e.button === 2) {
+          live2dPlayer?.setBackgroundLayersByEvent("right_click", true);
+        }
+      }}
+      onmouseup={(e) => {
+        if (!globalMouseEnabled && e.button === 0) {
+          live2dPlayer?.setBackgroundLayersByEvent("click", false);
+        } else if (!globalMouseEnabled && e.button === 2) {
+          live2dPlayer?.setBackgroundLayersByEvent("right_click", false);
+        }
+      }}
     ></canvas>
 
     {#if showModDataPanel}

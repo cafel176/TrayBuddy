@@ -575,6 +575,7 @@
     "quickRightClick": "Right Click",
     "quickGlobalClick": "Global Click",
     "quickGlobalRightClick": "Global Right Click",
+    "quickGlobalKeydown": "Global Keydown",
     "quickLogin": "Login",
     "whenCondition": "When {state}",
 

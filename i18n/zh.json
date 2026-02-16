@@ -574,6 +574,7 @@
     "quickRightClick": "右键",
     "quickGlobalClick": "全局点击",
     "quickGlobalRightClick": "全局右键",
+    "quickGlobalKeydown": "全局按键",
     "quickLogin": "登录",
     "whenCondition": "当 {state} 时",
 

@@ -2257,6 +2257,13 @@ function populateManifestForm() {
 
   // 根据类型切换资产编辑区
   toggleAssetSections(modType);
+
+  // Live2D mod 不需要角色配置和边框配置（这两项仅用于序列帧）
+  const isLive2d = modType === 'live2d';
+  const charSection = document.getElementById('section-character-config');
+  const borderSection = document.getElementById('section-border-config');
+  if (charSection) charSection.style.display = isLive2d ? 'none' : '';
+  if (borderSection) borderSection.style.display = isLive2d ? 'none' : '';
   
   // 更新动画下拉列表
   updateAnimaSelects();
@@ -4373,8 +4380,31 @@ function ensureLive2dData() {
       },
       motions: [],
       expressions: [],
+      resources: [],
+      background_layers: [],
       states: []
     };
+  }
+  // 兼容旧数据：确保 resources 字段存在
+  if (!Array.isArray(currentMod.assets.live2d.resources)) {
+    currentMod.assets.live2d.resources = [];
+  }
+  // 兼容旧数据：确保 background_layers 字段存在
+  if (!Array.isArray(currentMod.assets.live2d.background_layers)) {
+    currentMod.assets.live2d.background_layers = [];
+  }
+  // 兼容旧数据：将 event (string) 迁移为 events (string[])
+  for (const res of currentMod.assets.live2d.resources) {
+    if (!Array.isArray(res.events)) {
+      res.events = res.event ? [res.event] : [];
+      delete res.event;
+    }
+  }
+  for (const lyr of currentMod.assets.live2d.background_layers) {
+    if (!Array.isArray(lyr.events)) {
+      lyr.events = lyr.event ? [lyr.event] : [];
+      delete lyr.event;
+    }
   }
   return currentMod.assets.live2d;
 }
@@ -4394,6 +4424,12 @@ function renderLive2dAssets() {
   
   // 渲染表情列表
   renderLive2dExpressions(live2d.expressions || []);
+  
+  // 渲染图片资源列表
+  renderLive2dResources(live2d.resources || []);
+  
+  // 渲染背景层列表
+  renderLive2dBackgroundLayers(live2d.background_layers || []);
   
   // 渲染状态映射列表
   renderLive2dStates(live2d.states || []);
@@ -4632,13 +4668,17 @@ async function syncLive2dAssetsFromFiles() {
 
     // --- 解析动作列表（从 model3.json） ---
     const newMotions = [];
-    const motionFilesSeen = new Set(); // 用于去重
+    const motionFilesSeen = new Set(); // 基于文件路径去重
+    const motionNamesSeen = new Set(); // 基于名称去重
     for (const [groupName, motionArr] of Object.entries(rawMotions)) {
       if (!Array.isArray(motionArr)) continue;
       for (const m of motionArr) {
         const file = m.File || m.file || '';
-        const baseName = file.replace(/\\/g, '/').split('/').pop().replace(/\.motion3\.json$/i, '').replace(/\.json$/i, '');
-        motionFilesSeen.add(file.replace(/\\/g, '/'));
+        const normalizedFile = file.replace(/\\/g, '/');
+        const baseName = normalizedFile.split('/').pop().replace(/\.motion3\.json$/i, '').replace(/\.json$/i, '');
+        if (motionNamesSeen.has(baseName)) continue;
+        motionFilesSeen.add(normalizedFile);
+        motionNamesSeen.add(baseName);
         newMotions.push({
           name: baseName,
           file: file,
@@ -4663,8 +4703,8 @@ async function syncLive2dAssetsFromFiles() {
         for await (const entry of motionsDirHandle.values()) {
           if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.motion3.json')) {
             const filePath = `${motionsDir}/${entry.name}`;
-            if (!motionFilesSeen.has(filePath.replace(/\\/g, '/'))) {
-              const baseName = entry.name.replace(/\.motion3\.json$/i, '');
+            const baseName = entry.name.replace(/\.motion3\.json$/i, '');
+            if (!motionFilesSeen.has(filePath.replace(/\\/g, '/')) && !motionNamesSeen.has(baseName)) {
               newMotions.push({
                 name: baseName,
                 file: filePath,
@@ -4674,6 +4714,7 @@ async function syncLive2dAssetsFromFiles() {
                 fade_out_ms: 200,
                 loop: false
               });
+              motionNamesSeen.add(baseName);
             }
           }
         }
@@ -4685,11 +4726,14 @@ async function syncLive2dAssetsFromFiles() {
     // --- 解析表情列表（从 model3.json） ---
     const newExpressions = [];
     const exprFilesSeen = new Set();
+    const exprNamesSeen = new Set();
     if (Array.isArray(rawExpressions)) {
       for (const e of rawExpressions) {
         const name = e.Name || e.name || '';
         const file = e.File || e.file || '';
+        if (exprNamesSeen.has(name)) continue;
         exprFilesSeen.add(file.replace(/\\/g, '/'));
+        exprNamesSeen.add(name);
         newExpressions.push({ name, file });
       }
     }
@@ -4706,9 +4750,10 @@ async function syncLive2dAssetsFromFiles() {
         for await (const entry of exprDirHandle.values()) {
           if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.exp3.json')) {
             const filePath = `${expressionsDir}/${entry.name}`;
-            if (!exprFilesSeen.has(filePath.replace(/\\/g, '/'))) {
-              const baseName = entry.name.replace(/\.exp3\.json$/i, '');
+            const baseName = entry.name.replace(/\.exp3\.json$/i, '');
+            if (!exprFilesSeen.has(filePath.replace(/\\/g, '/')) && !exprNamesSeen.has(baseName)) {
               newExpressions.push({ name: baseName, file: filePath });
+              exprNamesSeen.add(baseName);
             }
           }
         }
@@ -4717,9 +4762,58 @@ async function syncLive2dAssetsFromFiles() {
       }
     }
 
-    // 覆盖动作和表情
+    // --- 扫描图片资源目录（递归扫描 base_dir 下的子目录中的图片文件） ---
+    const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'];
+    const newResources = [];
+    // 保留已有资源的自定义字段（如 event）
+    const existingResMap = {};
+    if (Array.isArray(live2d.resources)) {
+      for (const r of live2d.resources) {
+        if (r.file) existingResMap[r.file] = r;
+      }
+    }
+
+    // 排除已知的非资源目录（纹理目录、动作目录、表情目录）
+    const excludeDirs = new Set();
+    const texturesDir = (live2d.model.textures_dir || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    if (texturesDir) excludeDirs.add(texturesDir.split('/')[0]);
+    if (motionsDir) excludeDirs.add(motionsDir.replace(/\\/g, '/').split('/')[0]);
+    if (expressionsDir) excludeDirs.add(expressionsDir.replace(/\\/g, '/').split('/')[0]);
+
+    // 递归扫描图片文件
+    async function scanImagesRecursive(handle, prefix) {
+      for await (const entry of handle.values()) {
+        if (entry.kind === 'file') {
+          const lower = entry.name.toLowerCase();
+          if (IMAGE_EXTS.some(ext => lower.endsWith(ext))) {
+            const filePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+            const baseName = entry.name.replace(/\.[^.]+$/, '');
+            const existing = existingResMap[filePath];
+            newResources.push({
+              name: existing?.name || baseName,
+              file: filePath,
+              dir: prefix || '',
+              events: existing?.events || (existing?.event ? [existing.event] : []),
+            });
+          }
+        } else if (entry.kind === 'directory') {
+          const subPrefix = prefix ? `${prefix}/${entry.name}` : entry.name;
+          await scanImagesRecursive(entry, subPrefix);
+        }
+      }
+    }
+
+    // 扫描 base_dir 下的子目录（排除纹理/动作/表情和模型数据目录）
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'directory' && !excludeDirs.has(entry.name)) {
+        await scanImagesRecursive(entry, entry.name);
+      }
+    }
+
+    // 覆盖动作、表情和资源
     live2d.motions = newMotions;
     live2d.expressions = newExpressions;
+    live2d.resources = newResources;
 
     // --- 同步状态-动画映射 (states) ---
     const existingStatesMap = {};
@@ -4752,7 +4846,8 @@ async function syncLive2dAssetsFromFiles() {
 
     const msg = window.i18n.t('msg_sync_assets_success')
       .replace('{motions}', newMotions.length)
-      .replace('{expressions}', newExpressions.length);
+      .replace('{expressions}', newExpressions.length)
+      .replace('{resources}', newResources.length);
     showToast(msg, 'success');
   } catch (err) {
     console.error('syncLive2dAssetsFromFiles error:', err);
@@ -4775,9 +4870,10 @@ async function syncLive2dAssetsFromFiles() {
  * - 参数 Name 直接是单个按键名称（已知键名映射）
  *
  * 对每个识别到的参数：
- * 1. 创建一个过渡状态 `key_<keyCode>`，设置该参数 value=1，next_state=idle
+ * 1. 创建一个过渡状态 `key_<keyCode>`，设置该参数 value=1
  * 2. 创建一个触发器 `keydown:<KeyCode>`（或 click），触发该过渡状态
- * 3. 在 idle 状态的 live2d_params 中将该参数重置为 0
+ * 3. 对通用键盘按下参数，创建 `key_any` 状态和 `global_keydown` 触发器
+ * 4. 在 idle 状态的 live2d_params 中将该参数重置为 0
  */
 async function generateKeyboardEventsFromFiles() {
   if (!currentMod) {
@@ -4859,12 +4955,17 @@ async function generateKeyboardEventsFromFiles() {
 
     // ======== Id 特殊匹配规则 ========
     const MOUSE_ID_MAP = {
-      'ParamMouseLeftDown': { event: 'click', stateName: 'key_mouse_left' },
-      'ParamMouseRightDown': null,
+      'ParamMouseLeftDown': { event: 'global_click', stateName: 'key_mouse_left' },
+      'ParamMouseRightDown': { event: 'global_right_click', stateName: 'key_mouse_right' },
     };
+
+    // ======== 通用键盘按下参数（Name 包含"键盘按下"/"keyboard down"等） ========
+    const GENERIC_KEYBOARD_NAMES = ['键盘按下', 'keyboard down', 'key down', 'keydown'];
+    const GENERIC_KEYBOARD_IDS = ['CatParamLeftHandDown'];
 
     // ======== 收集需要生成的键盘参数 ========
     const keyParams = [];
+    const genericKeyboardParams = []; // 通用键盘按下参数，需附加到所有按键状态
     const seenEvents = new Set();
 
     for (const p of allParams) {
@@ -4890,11 +4991,17 @@ async function generateKeyboardEventsFromFiles() {
       // 跳过鼠标坐标参数（已由 mouseFollow 处理）
       if (paramId === 'ParamMouseX' || paramId === 'ParamMouseY') continue;
 
-      // 2. 检查是否在键盘分组中
+      // 2. 检查是否是通用键盘按下参数（如 CatParamLeftHandDown）
+      const nameLower = paramName.toLowerCase();
+      if (GENERIC_KEYBOARD_IDS.includes(paramId) || GENERIC_KEYBOARD_NAMES.includes(nameLower)) {
+        genericKeyboardParams.push(paramId);
+        continue;
+      }
+
+      // 3. 检查是否在键盘分组中
       const inKeyboardGroup = groupId && keyboardGroupIds.has(groupId);
 
-      // 3. 尝试从参数名映射到 KeyCode
-      const nameLower = paramName.toLowerCase();
+      // 4. 尝试从参数名映射到 KeyCode
       const keyCode = NAME_TO_KEYCODE[nameLower];
 
       if (inKeyboardGroup && keyCode) {
@@ -4942,17 +5049,43 @@ async function generateKeyboardEventsFromFiles() {
     let addedStates = 0;
     let addedTriggers = 0;
 
+    // 判断哪些是键盘按键状态（非鼠标），用于附加通用键盘参数
+    const keyboardStateNames = new Set();
+
     for (const kp of keyParams) {
+      const isKeyboardKey = kp.eventName.startsWith('keydown:');
+
       // 1. 创建过渡状态
       if (!existingStateNames.has(kp.stateName)) {
         const newState = createDefaultState(kp.stateName, false);
         newState.priority = 3;
-        newState.next_state = 'idle';
-        newState.live2d_params = [{ id: kp.paramId, value: 1 }];
+        newState.next_state = '';
+        const params = [{ id: kp.paramId, value: 1 }];
+        // 为键盘按键状态附加通用键盘参数
+        if (isKeyboardKey) {
+          for (const gp of genericKeyboardParams) {
+            params.push({ id: gp, value: 1 });
+          }
+        }
+        newState.live2d_params = params;
         manifest.states.push(newState);
         existingStateNames.add(kp.stateName);
         addedStates++;
+      } else if (isKeyboardKey && genericKeyboardParams.length > 0) {
+        // 已存在的键盘状态也补充通用键盘参数
+        const existingState = manifest.states.find(s => s.name === kp.stateName);
+        if (existingState) {
+          if (!Array.isArray(existingState.live2d_params)) existingState.live2d_params = [];
+          const existingIds = new Set(existingState.live2d_params.map(p => p.id));
+          for (const gp of genericKeyboardParams) {
+            if (!existingIds.has(gp)) {
+              existingState.live2d_params.push({ id: gp, value: 1 });
+            }
+          }
+        }
       }
+
+      if (isKeyboardKey) keyboardStateNames.add(kp.stateName);
 
       // 2. 创建触发器
       if (!existingTriggerEvents.has(kp.eventName)) {
@@ -4966,6 +5099,33 @@ async function generateKeyboardEventsFromFiles() {
         };
         manifest.triggers.push(newTrigger);
         existingTriggerEvents.add(kp.eventName);
+        addedTriggers++;
+      }
+    }
+
+    // 2.5 为通用键盘按下参数创建 global_keydown 状态和触发器
+    if (genericKeyboardParams.length > 0) {
+      const globalKeydownState = 'key_any';
+      if (!existingStateNames.has(globalKeydownState)) {
+        const newState = createDefaultState(globalKeydownState, false);
+        newState.priority = 3;
+        newState.next_state = '';
+        newState.live2d_params = genericKeyboardParams.map(gp => ({ id: gp, value: 1 }));
+        manifest.states.push(newState);
+        existingStateNames.add(globalKeydownState);
+        addedStates++;
+      }
+      if (!existingTriggerEvents.has('global_keydown')) {
+        const newTrigger = {
+          event: 'global_keydown',
+          can_trigger_states: [{
+            persistent_state: '',
+            states: [{ state: globalKeydownState, weight: 1 }],
+            allow_repeat: true,
+          }],
+        };
+        manifest.triggers.push(newTrigger);
+        existingTriggerEvents.add('global_keydown');
         addedTriggers++;
       }
     }
@@ -4988,11 +5148,23 @@ async function generateKeyboardEventsFromFiles() {
           existingParamIds.add(kp.paramId);
         }
       }
+      // 通用键盘参数也重置
+      for (const gp of genericKeyboardParams) {
+        if (!existingParamIds.has(gp)) {
+          idleState.live2d_params.push({ id: gp, value: 0 });
+          existingParamIds.add(gp);
+        }
+      }
     }
 
-    // 4. 同时开启 global_keyboard
+    // 4. 同时开启 global_keyboard 和 global_mouse（如有鼠标事件）
     manifest.global_keyboard = true;
     document.getElementById('global-keyboard').checked = true;
+    const hasMouseEvents = keyParams.some(kp => kp.eventName === 'global_click' || kp.eventName === 'global_right_click');
+    if (hasMouseEvents) {
+      manifest.global_mouse = true;
+      document.getElementById('global-mouse').checked = true;
+    }
 
     // 刷新 UI
     renderStates();
@@ -5336,6 +5508,84 @@ function renderLive2dExpressions(expressions) {
 }
 
 /**
+ * 渲染 Live2D 图片资源列表（支持筛选、高亮、拖拽、复制）
+ */
+function renderLive2dResources(resources) {
+  const list = document.getElementById('live2d-resources-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('live2d-resources-filter-name')?.value || '').trim();
+  const dirRaw = (document.getElementById('live2d-resources-filter-dir')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+  const dirNdl = dirRaw.toLowerCase();
+
+  resources.forEach((res, index) => {
+    const rName = String(res.name || '');
+    const rFile = String(res.file || '');
+    const rDir = String(res.dir || '');
+    const rEvents = Array.isArray(res.events) ? res.events : [];
+    if (nameNdl && !rName.toLowerCase().includes(nameNdl)) return;
+    if (dirNdl && !rDir.toLowerCase().includes(dirNdl)) return;
+
+    const eventsHtml = rEvents.length
+      ? rEvents.map(e => `<span class="event-tag">${escapeHtml(e)}</span>`).join(' ')
+      : '-';
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(res);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(rName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyLive2dItem('resource', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editLive2dResource(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteLive2dResource(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_resource_file_label')}:</span> ${escapeHtml(rFile)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_resource_dir_label')}:</span> ${highlightNeedleHtml(rDir || '-', dirRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_resource_events_label')}:</span> ${eventsHtml}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteLive2dItem('resource')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addLive2dResource()">➕ <span>${window.i18n.t('btn_add_resource')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  // 拖拽排序
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['live2d-resources-filter-name', 'live2d-resources-filter-dir'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const live2d = ensureLive2dData();
+      reorderArrayInPlaceByKeys(live2d.resources, orderedKeys, ensureTbUid);
+      renderLive2dAssets();
+      markUnsaved();
+    }
+  });
+}
+
+/**
  * 渲染 Live2D 状态映射列表（支持筛选、高亮、拖拽、复制）
  */
 function renderLive2dStates(states) {
@@ -5366,9 +5616,7 @@ function renderLive2dStates(states) {
     const trimmedName = sName.trim();
     const canAddState = !!trimmedName && !existingManifestStateNames.has(trimmedName);
     const addStateBtnHtml = `
-      <button class="btn btn-sm btn-secondary" onclick="addSameNameStateFromLive2dState(${index})" ${canAddState ? '' : 'disabled'}>
-        ➕ <span>${window.i18n.t('btn_add_same_name_state')}</span>
-      </button>
+      <button class="btn btn-sm btn-ghost" onclick="addSameNameStateFromLive2dState(${index})" ${canAddState ? '' : 'disabled'} title="${window.i18n.t('btn_add_same_name_state')}">➕</button>
     `;
 
     const card = document.createElement('div');
@@ -5652,6 +5900,379 @@ function saveLive2dExpression(index) {
   markUnsaved();
 }
 
+// --- 多事件标签输入器 (Event Tags Input) ---
+
+/**
+ * 在指定容器中渲染一个多事件标签输入器。
+ * 用户可输入事件名后按 Enter 或点击 + 添加，可点击 × 删除。
+ * @param {string} containerId 容器 DOM id
+ * @param {string[]} initialEvents 初始事件列表
+ * @param {string} placeholder 输入框占位文本
+ */
+function initEventsTagInput(containerId, initialEvents, placeholder) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container._events = [...(initialEvents || [])];
+
+  function render() {
+    const events = container._events;
+    container.innerHTML = `
+      <div class="events-tags-wrap">
+        ${events.map((ev, i) => `
+          <span class="event-tag event-tag-removable">
+            ${escapeHtml(ev)}
+            <button type="button" class="event-tag-remove" data-idx="${i}" title="${window.i18n.t('btn_delete')}">&times;</button>
+          </span>
+        `).join('')}
+        <div class="events-tag-input-row">
+          <input type="text" class="events-tag-input" placeholder="${escapeHtml(placeholder)}" />
+          <button type="button" class="btn btn-sm btn-ghost events-tag-add" title="${window.i18n.t('btn_add_event')}">+</button>
+        </div>
+      </div>
+    `;
+
+    // 绑定删除
+    container.querySelectorAll('.event-tag-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        container._events.splice(idx, 1);
+        render();
+      });
+    });
+
+    // 绑定添加
+    const input = container.querySelector('.events-tag-input');
+    const addBtn = container.querySelector('.events-tag-add');
+
+    function addEvent() {
+      const val = input.value.trim();
+      if (!val) return;
+      if (!container._events.includes(val)) {
+        container._events.push(val);
+      }
+      input.value = '';
+      render();
+    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addEvent();
+      }
+    });
+    addBtn.addEventListener('click', addEvent);
+  }
+
+  render();
+}
+
+/**
+ * 从容器读取当前事件列表
+ * @param {string} containerId 容器 DOM id
+ * @returns {string[]}
+ */
+function getEventsFromTagInput(containerId) {
+  const container = document.getElementById(containerId);
+  return container?._events || [];
+}
+
+// --- Live2D Resource CRUD ---
+
+function addLive2dResource() {
+  openLive2dResourceModal(window.i18n.t('btn_add_resource'), {
+    name: '',
+    file: '',
+    dir: '',
+    events: []
+  }, -1);
+}
+
+function editLive2dResource(index) {
+  const live2d = ensureLive2dData();
+  const res = live2d.resources[index];
+  if (!res) return;
+  openLive2dResourceModal(window.i18n.t('live2d_resource_name_label'), res, index);
+}
+
+function deleteLive2dResource(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_resource'))) return;
+  const live2d = ensureLive2dData();
+  live2d.resources.splice(index, 1);
+  renderLive2dAssets();
+  markUnsaved();
+}
+
+function openLive2dResourceModal(title, res, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_resource_name_label')} <span class="required">*</span></label>
+        <input type="text" id="live2d-edit-res-name" value="${escapeHtml(res.name || '')}" placeholder="${window.i18n.t('placeholder_live2d_res_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_resource_file_label')} <span class="required">*</span></label>
+        <input type="text" id="live2d-edit-res-file" value="${escapeHtml(res.file || '')}" placeholder="${window.i18n.t('placeholder_live2d_res_file')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_resource_dir_label')}</label>
+        <input type="text" id="live2d-edit-res-dir" value="${escapeHtml(res.dir || '')}" placeholder="${window.i18n.t('placeholder_live2d_res_dir')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('live2d_resource_events_label')}</label>
+        <div id="live2d-edit-res-events-tags"></div>
+        <small>${window.i18n.t('live2d_resource_events_hint')}</small>
+      </div>
+    </div>
+  `;
+
+  const events = Array.isArray(res.events) ? res.events : (res.event ? [res.event] : []);
+  initEventsTagInput('live2d-edit-res-events-tags', events, window.i18n.t('placeholder_event_name'));
+
+  modal._live2dSaveHandler = () => saveLive2dResource(index);
+  modal.classList.add('show');
+}
+
+function saveLive2dResource(index) {
+  const name = document.getElementById('live2d-edit-res-name').value.trim();
+  const file = document.getElementById('live2d-edit-res-file').value.trim();
+  if (!name) {
+    showToast(window.i18n.t('msg_enter_resource_name'), 'warning');
+    return;
+  }
+  if (!file) {
+    showToast(window.i18n.t('msg_enter_resource_file'), 'warning');
+    return;
+  }
+
+  const res = {
+    name,
+    file,
+    dir: document.getElementById('live2d-edit-res-dir').value.trim(),
+    events: getEventsFromTagInput('live2d-edit-res-events-tags'),
+  };
+
+  const live2d = ensureLive2dData();
+  if (index === -1) {
+    live2d.resources.push(res);
+  } else {
+    live2d.resources[index] = res;
+  }
+
+  closeAssetModal();
+  renderLive2dAssets();
+  markUnsaved();
+}
+
+// --- Live2D Background Layer CRUD ---
+
+/**
+ * 渲染 Live2D 背景层列表（支持筛选、高亮、拖拽、复制）
+ */
+function renderLive2dBackgroundLayers(layers) {
+  const list = document.getElementById('live2d-bg-layers-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('live2d-bg-layers-filter-name')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+
+  layers.forEach((lyr, index) => {
+    const lName = String(lyr.name || '');
+    const lFile = String(lyr.file || '');
+    const lLayer = String(lyr.layer || 'behind');
+    const lEvents = Array.isArray(lyr.events) ? lyr.events : [];
+    const lScale = lyr.scale ?? 1;
+    const lOffsetX = lyr.offset_x ?? 0;
+    const lOffsetY = lyr.offset_y ?? 0;
+    if (nameNdl && !lName.toLowerCase().includes(nameNdl)) return;
+
+    const layerLabel = lLayer === 'front' ? window.i18n.t('bg_layer_front') : window.i18n.t('bg_layer_behind');
+    const eventsHtml = lEvents.length
+      ? lEvents.map(e => `<span class="event-tag">${escapeHtml(e)}</span>`).join(' ')
+      : '-';
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(lyr);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(lName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyLive2dItem('bg_layer', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editLive2dBgLayer(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteLive2dBgLayer(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('bg_layer_file_label')}:</span> ${escapeHtml(lFile)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('bg_layer_layer_label')}:</span> ${escapeHtml(layerLabel)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('bg_layer_scale_label')}:</span> ${lScale}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('bg_layer_offset_label')}:</span> ${lOffsetX}, ${lOffsetY}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('bg_layer_events_label')}:</span> ${eventsHtml}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteLive2dItem('bg_layer')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addLive2dBgLayer()">➕ <span>${window.i18n.t('btn_add_bg_layer')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  // 拖拽排序
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['live2d-bg-layers-filter-name'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const live2d = ensureLive2dData();
+      reorderArrayInPlaceByKeys(live2d.background_layers, orderedKeys, ensureTbUid);
+      renderLive2dAssets();
+      markUnsaved();
+    }
+  });
+}
+
+function addLive2dBgLayer() {
+  openLive2dBgLayerModal(window.i18n.t('btn_add_bg_layer'), {
+    name: '',
+    file: '',
+    layer: 'behind',
+    scale: 1,
+    offset_x: 0,
+    offset_y: 0,
+    events: []
+  }, -1);
+}
+
+function editLive2dBgLayer(index) {
+  const live2d = ensureLive2dData();
+  const lyr = live2d.background_layers[index];
+  if (!lyr) return;
+  openLive2dBgLayerModal(window.i18n.t('bg_layer_name_label'), lyr, index);
+}
+
+function deleteLive2dBgLayer(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_bg_layer'))) return;
+  const live2d = ensureLive2dData();
+  live2d.background_layers.splice(index, 1);
+  renderLive2dAssets();
+  markUnsaved();
+}
+
+function openLive2dBgLayerModal(title, lyr, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+
+  const behindSel = (lyr.layer || 'behind') === 'behind' ? 'selected' : '';
+  const frontSel = (lyr.layer || 'behind') === 'front' ? 'selected' : '';
+
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('bg_layer_name_label')} <span class="required">*</span></label>
+        <input type="text" id="live2d-edit-bgl-name" value="${escapeHtml(lyr.name || '')}" placeholder="${window.i18n.t('placeholder_bg_layer_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('bg_layer_file_label')} <span class="required">*</span></label>
+        <input type="text" id="live2d-edit-bgl-file" value="${escapeHtml(lyr.file || '')}" placeholder="${window.i18n.t('placeholder_bg_layer_file')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('bg_layer_layer_label')}</label>
+        <select id="live2d-edit-bgl-layer">
+          <option value="behind" ${behindSel}>${window.i18n.t('bg_layer_behind')}</option>
+          <option value="front" ${frontSel}>${window.i18n.t('bg_layer_front')}</option>
+        </select>
+        <small>${window.i18n.t('bg_layer_layer_hint')}</small>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('bg_layer_scale_label')}</label>
+        <input type="number" id="live2d-edit-bgl-scale" value="${lyr.scale ?? 1}" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('bg_layer_offset_x_label')}</label>
+        <input type="number" id="live2d-edit-bgl-offset-x" value="${lyr.offset_x ?? 0}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('bg_layer_offset_y_label')}</label>
+        <input type="number" id="live2d-edit-bgl-offset-y" value="${lyr.offset_y ?? 0}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('bg_layer_events_label')}</label>
+        <div id="live2d-edit-bgl-events-tags"></div>
+        <small>${window.i18n.t('bg_layer_events_hint')}</small>
+      </div>
+    </div>
+  `;
+
+  const events = Array.isArray(lyr.events) ? lyr.events : (lyr.event ? [lyr.event] : []);
+  initEventsTagInput('live2d-edit-bgl-events-tags', events, window.i18n.t('placeholder_event_name'));
+
+  modal._live2dSaveHandler = () => saveLive2dBgLayer(index);
+  modal.classList.add('show');
+}
+
+function saveLive2dBgLayer(index) {
+  const name = document.getElementById('live2d-edit-bgl-name').value.trim();
+  const file = document.getElementById('live2d-edit-bgl-file').value.trim();
+  if (!name) {
+    showToast(window.i18n.t('msg_enter_bg_layer_name'), 'warning');
+    return;
+  }
+  if (!file) {
+    showToast(window.i18n.t('msg_enter_bg_layer_file'), 'warning');
+    return;
+  }
+
+  const lyr = {
+    name,
+    file,
+    layer: document.getElementById('live2d-edit-bgl-layer').value || 'behind',
+    scale: parseFloat(document.getElementById('live2d-edit-bgl-scale').value) || 1,
+    offset_x: parseInt(document.getElementById('live2d-edit-bgl-offset-x').value) || 0,
+    offset_y: parseInt(document.getElementById('live2d-edit-bgl-offset-y').value) || 0,
+    events: getEventsFromTagInput('live2d-edit-bgl-events-tags'),
+  };
+
+  const live2d = ensureLive2dData();
+  if (index === -1) {
+    live2d.background_layers.push(lyr);
+  } else {
+    live2d.background_layers[index] = lyr;
+  }
+
+  closeAssetModal();
+  renderLive2dAssets();
+  markUnsaved();
+}
+
 // --- Live2D State Mapping CRUD ---
 
 function addLive2dState() {
@@ -5760,14 +6381,14 @@ function saveLive2dState(index) {
 
 /**
  * 复制 Live2D 条目到剪贴板
- * @param {'motion'|'expression'|'state'} kind
+ * @param {'motion'|'expression'|'state'|'resource'|'bg_layer'} kind
  * @param {number} index
  */
 async function copyLive2dItem(kind, index) {
   if (!currentMod) return;
   const live2d = currentMod.assets?.live2d;
   if (!live2d) return;
-  const map = { motion: 'motions', expression: 'expressions', state: 'states' };
+  const map = { motion: 'motions', expression: 'expressions', state: 'states', resource: 'resources', bg_layer: 'background_layers' };
   const arr = live2d[map[kind]];
   const item = arr?.[index];
   if (!item) {
@@ -5785,12 +6406,12 @@ async function copyLive2dItem(kind, index) {
 
 /**
  * 从剪贴板粘贴 Live2D 条目
- * @param {'motion'|'expression'|'state'} kind
+ * @param {'motion'|'expression'|'state'|'resource'|'bg_layer'} kind
  */
 async function pasteLive2dItem(kind) {
   if (!currentMod) return;
   const live2d = ensureLive2dData();
-  const map = { motion: 'motions', expression: 'expressions', state: 'states' };
+  const map = { motion: 'motions', expression: 'expressions', state: 'states', resource: 'resources', bg_layer: 'background_layers' };
   const expectedType = `tbuddy_live2d_${kind}`;
   try {
     const text = await navigator.clipboard.readText();

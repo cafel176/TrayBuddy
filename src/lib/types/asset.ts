@@ -82,12 +82,23 @@ export interface Live2DState {
   offset_y: number;
 }
 
+export interface Live2DBackgroundLayer {
+  name: string;
+  file: string;
+  layer: string;
+  scale: number;
+  offset_x: number;
+  offset_y: number;
+  events: string[];
+}
+
 export interface Live2DConfig {
   schema_version: number;
   model: Live2DModelConfig;
   motions: Live2DMotion[];
   expressions: Live2DExpression[];
   states: Live2DState[];
+  background_layers: Live2DBackgroundLayer[];
 }
 
 

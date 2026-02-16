@@ -124,8 +124,8 @@
               </div>
             </section>
 
-            <!-- 角色配置 -->
-            <section class="form-section">
+            <!-- 角色配置（仅序列帧 mod 可见） -->
+            <section class="form-section" id="section-character-config">
               <h3 data-i18n="section_char_config">角色配置</h3>
               <div class="form-grid">
                 <div class="form-group">
@@ -144,8 +144,8 @@
               </div>
             </section>
 
-            <!-- 边框配置 -->
-            <section class="form-section">
+            <!-- 边框配置（仅序列帧 mod 可见） -->
+            <section class="form-section" id="section-border-config">
               <h3 data-i18n="section_border_config">边框配置</h3>
               <div class="form-grid">
                 <div class="form-group">
@@ -547,6 +547,50 @@
                   </div>
                 </div>
                 <div class="asset-list" id="live2d-expressions-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </details>
+
+              <!-- 图片资源列表 -->
+              <details class="form-section section-details">
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_live2d_resources">图片资源 (resources)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addLive2dResource()">➕ <span data-i18n="btn_add_resource">添加资源</span></button>
+                  </div>
+                </summary>
+                <small class="section-hint" data-i18n="live2d_resources_hint">Live2D 模型目录下的图片资源文件，可用于按键叠加层等功能</small>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="live2d-resources-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_dir">按目录筛选</label>
+                    <input type="text" id="live2d-resources-filter-dir" data-i18n-placeholder="placeholder_filter_dir" placeholder="输入目录关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="live2d-resources-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </details>
+
+              <!-- 背景/叠加图层 -->
+              <details class="form-section section-details">
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_live2d_bg_layers">背景/叠加图层 (background_layers)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addLive2dBgLayer()">➕ <span data-i18n="btn_add_bg_layer">添加图层</span></button>
+                  </div>
+                </summary>
+                <small class="section-hint" data-i18n="live2d_bg_layers_hint">配置在 Live2D 模型下方或上方渲染的图片层，用于静态背景、按键高亮叠加等</small>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="live2d-bg-layers-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="live2d-bg-layers-list">
                   <!-- 由 JS 动态填充 -->
                 </div>
               </details>

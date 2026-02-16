@@ -2624,11 +2624,14 @@ fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
                         let event_name = format!("keydown:{}", code);
                         println!("[GlobalKeyboard] Key pressed: {} (vk=0x{:02X})", code, vk);
                         let Some(app_state) = app_handle.try_state::<AppState>() else {
+                            prev_states[i] = pressed;
                             continue;
                         };
                         let rm = app_state.resource_manager.lock().unwrap();
                         let mut sm = app_state.state_manager.lock().unwrap();
                         let _ = TriggerManager::trigger_event(&event_name, false, &rm, &mut sm);
+                        // 同时触发 global_keydown（任意键按下通用事件）
+                        let _ = TriggerManager::trigger_event("global_keydown", false, &rm, &mut sm);
 
                         // 对分支选择相关按键，额外通知前端 UI
                         match code {
@@ -2639,6 +2642,18 @@ fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
                             }
                             _ => {}
                         }
+
+                        // 通知前端叠加层：按键按下
+                        let _ = app_handle.emit("global-key-state", serde_json::json!({
+                            "code": code,
+                            "pressed": true
+                        }));
+                    } else if !pressed && prev_states[i] {
+                        // 按键刚松开，通知前端叠加层
+                        let _ = app_handle.emit("global-key-state", serde_json::json!({
+                            "code": code,
+                            "pressed": false
+                        }));
                     }
 
                     prev_states[i] = pressed;
@@ -2707,11 +2722,24 @@ fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
                         // 鼠标按钮刚按下（边沿检测），触发事件
                         println!("[GlobalMouse] Button pressed: {} (vk=0x{:02X})", event_name, vk);
                         let Some(app_state) = app_handle.try_state::<AppState>() else {
+                            prev_states[i] = pressed;
                             continue;
                         };
                         let rm = app_state.resource_manager.lock().unwrap();
                         let mut sm = app_state.state_manager.lock().unwrap();
                         let _ = TriggerManager::trigger_event(event_name, false, &rm, &mut sm);
+
+                        // 通知前端叠加层：鼠标按下
+                        let _ = app_handle.emit("global-mouse-state", serde_json::json!({
+                            "button": event_name,
+                            "pressed": true
+                        }));
+                    } else if !pressed && prev_states[i] {
+                        // 鼠标按钮刚松开，通知前端叠加层
+                        let _ = app_handle.emit("global-mouse-state", serde_json::json!({
+                            "button": event_name,
+                            "pressed": false
+                        }));
                     }
 
                     prev_states[i] = pressed;
