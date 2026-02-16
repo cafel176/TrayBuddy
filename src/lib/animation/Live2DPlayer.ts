@@ -168,6 +168,10 @@ export class Live2DPlayer {
 
   // 全局鼠标追踪（穿透状态下也生效）
   private hasMouseParams = false;
+  private hasCustomMouseXY = false; // 模型是否有 ParamMouseX/Y 自定义参数
+  private mouseXYCleanup: (() => void) | null = null;
+  private latestMouseX = 0; // 归一化后的鼠标 X（-1 ~ 1 映射到参数范围）
+  private latestMouseY = 0; // 归一化后的鼠标 Y
 
   // Debug 视角控制
   private debugMode = false;
@@ -199,6 +203,7 @@ export class Live2DPlayer {
     this.unbindMouseFollow();
     this.cleanupDualArm();
     this.cleanupParamOverride();
+    this.cleanupMouseXYHook();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
 
@@ -517,29 +522,128 @@ export class Live2DPlayer {
   }
 
   /**
-   * 检测模型是否包含 ParamMouseX / ParamMouseY 参数
+   * 检测模型的鼠标追踪能力：
+   * 1. hasMouseParams: 模型是否支持 focus()（有 ParamAngleX/Y 或 ParamEyeBallX/Y）
+   * 2. hasCustomMouseXY: 模型是否有 ParamMouseX/Y 自定义参数（需直接写入）
    */
   private detectMouseParams(): void {
     this.hasMouseParams = false;
+    this.hasCustomMouseXY = false;
     if (!this.model) return;
     const coreModel = this.model.internalModel?.coreModel;
     if (!coreModel) return;
+
+    const hasParam = (name: string): boolean => {
+      const idx = coreModel.getParameterIndex?.(name);
+      return typeof idx === "number" && idx >= 0;
+    };
+
+    const hasAngle = hasParam("ParamAngleX") && hasParam("ParamAngleY");
+    const hasEyeBall = hasParam("ParamEyeBallX") && hasParam("ParamEyeBallY");
+    const hasMouse = hasParam("ParamMouseX") && hasParam("ParamMouseY");
+
+    // focus() 需要 angle 或 eyeball 参数
+    this.hasMouseParams = hasAngle || hasEyeBall || hasMouse;
+    // ParamMouseX/Y 是自定义参数，需要直接通过 coreModel 写入
+    this.hasCustomMouseXY = hasMouse;
+
+    console.log(`[Live2DPlayer] detectMouseParams: hasMouseParams=${this.hasMouseParams} (angle=${hasAngle} eyeBall=${hasEyeBall} mouseXY=${hasMouse})`);
+
+    // 如果有 ParamMouseX/Y，绑定每帧更新 hook
+    if (this.hasCustomMouseXY) {
+      this.setupMouseXYHook();
+    }
+  }
+
+  /**
+   * 绑定 beforeModelUpdate hook，每帧将鼠标坐标写入 ParamMouseX/Y。
+   * 这些参数在 BongoCat 模型中用作物理引擎输入（驱动衣巾晃动等），
+   * pixi-live2d-display 的 focus() 不会写入它们。
+   */
+  private setupMouseXYHook(): void {
+    this.cleanupMouseXYHook();
+    if (!this.model) return;
+    const internalModel = this.model.internalModel;
+    const coreModel = internalModel?.coreModel;
+    if (!coreModel) return;
+
     const idxX = coreModel.getParameterIndex?.("ParamMouseX");
     const idxY = coreModel.getParameterIndex?.("ParamMouseY");
-    this.hasMouseParams =
-      typeof idxX === "number" && idxX >= 0 &&
-      typeof idxY === "number" && idxY >= 0;
-    dbg("detectMouseParams", "hasMouseParams:", this.hasMouseParams, "idxX:", idxX, "idxY:", idxY);
+    if (typeof idxX !== "number" || idxX < 0 || typeof idxY !== "number" || idxY < 0) return;
+
+    // 获取参数的 min/max 范围以便归一化
+    const minX = coreModel.getParameterMinimumValue?.(idxX) ?? -10;
+    const maxX = coreModel.getParameterMaximumValue?.(idxX) ?? 10;
+    const minY = coreModel.getParameterMinimumValue?.(idxY) ?? -10;
+    const maxY = coreModel.getParameterMaximumValue?.(idxY) ?? 10;
+    const defaultX = coreModel.getParameterDefaultValue?.(idxX) ?? 0;
+    const defaultY = coreModel.getParameterDefaultValue?.(idxY) ?? 0;
+
+    console.log(`[Live2DPlayer] setupMouseXYHook: idxX=${idxX}(${minX}~${maxX},def=${defaultX}) idxY=${idxY}(${minY}~${maxY},def=${defaultY})`);
+
+    const handler = () => {
+      // latestMouseX/Y 是 -1~1 归一化值，映射到参数范围
+      const valX = this.latestMouseX >= 0
+        ? defaultX + this.latestMouseX * (maxX - defaultX)
+        : defaultX + this.latestMouseX * (defaultX - minX);
+      const valY = this.latestMouseY >= 0
+        ? defaultY + this.latestMouseY * (maxY - defaultY)
+        : defaultY + this.latestMouseY * (defaultY - minY);
+      coreModel.setParameterValueByIndex(idxX, valX);
+      coreModel.setParameterValueByIndex(idxY, valY);
+    };
+    internalModel.on("beforeModelUpdate", handler);
+    this.mouseXYCleanup = () => {
+      internalModel.off("beforeModelUpdate", handler);
+    };
+  }
+
+  private cleanupMouseXYHook(): void {
+    if (this.mouseXYCleanup) {
+      this.mouseXYCleanup();
+      this.mouseXYCleanup = null;
+    }
   }
 
   /**
    * 全局鼠标追踪：由外部传入窗口本地坐标（CSS 逻辑像素），
-   * 即使窗口处于穿透状态也能更新 ParamMouseX / ParamMouseY。
+   * 即使窗口处于穿透状态也能更新模型参数。
+   *
+   * 两条路径：
+   * 1. model.focus(canvasX, canvasY) → 更新 ParamAngleX/Y + ParamEyeBallX/Y
+   * 2. latestMouseX/Y → beforeModelUpdate hook → 直接写 ParamMouseX/Y
    */
   updateGlobalMouseFollow(localX: number, localY: number): void {
     if (!this.model || !this.featureFlags.mouseFollow || !this.hasMouseParams) return;
-    this.model.focus(localX, localY);
+
+    // 将窗口坐标转换为 canvas 内坐标
+    const rect = this.canvas.getBoundingClientRect();
+    const canvasX = localX - rect.left;
+    const canvasY = localY - rect.top;
+
+    // 路径 1: focus() 驱动 ParamAngleX/Y + ParamEyeBallX/Y
+    this.model.focus(canvasX, canvasY);
+
+    // 路径 2: 将坐标归一化到 -1~1 范围，用于 ParamMouseX/Y
+    // 以 canvas 中心为原点，坐标范围映射到 [-1, 1]
+    if (this.hasCustomMouseXY && rect.width > 0 && rect.height > 0) {
+      this.latestMouseX = Math.max(-1, Math.min(1, (canvasX - rect.width / 2) / (rect.width / 2)));
+      this.latestMouseY = Math.max(-1, Math.min(1, (canvasY - rect.height / 2) / (rect.height / 2)));
+    }
+
+    // DEBUG: 每5秒打印一次
+    if (!this._lastMouseLog || Date.now() - this._lastMouseLog > 5000) {
+      this._lastMouseLog = Date.now();
+      const fc = (this.model as any).internalModel?.focusController;
+      console.log(
+        `[Live2DPlayer][DEBUG] mouseFollow: window=(${localX.toFixed(1)},${localY.toFixed(1)}) canvas=(${canvasX.toFixed(1)},${canvasY.toFixed(1)})`,
+        `rect=${rect.width.toFixed(0)}x${rect.height.toFixed(0)}`,
+        `mouseXY=(${this.latestMouseX.toFixed(3)},${this.latestMouseY.toFixed(3)})`,
+        `focusCtrl=(${fc?.x?.toFixed(3)},${fc?.y?.toFixed(3)})`
+      );
+    }
   }
+  private _lastMouseLog: number = 0;
 
   private applyFeatureFlags(): void {
     if (!this.model) return;
