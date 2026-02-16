@@ -163,7 +163,6 @@ export class Live2DPlayer {
   private activeState: Live2DState | null = null;
   private animationScale = 1;
   private baseFitScale = 1;
-  private dualArmCleanup: (() => void) | null = null;
   private paramOverrideCleanup: (() => void) | null = null;
 
   // 全局鼠标追踪（穿透状态下也生效）
@@ -201,7 +200,6 @@ export class Live2DPlayer {
   destroy(): void {
     this.clearPlayTimer();
     this.unbindMouseFollow();
-    this.cleanupDualArm();
     this.cleanupParamOverride();
     this.cleanupMouseXYHook();
     this.resizeObserver?.disconnect();
@@ -384,7 +382,6 @@ export class Live2DPlayer {
 
     this.buildMotionMap();
     this.buildExpressionMap();
-    this.setupDualArmHiding();
     this.detectMouseParams();
     this.updateFitScale();
     this.applyFeatureFlags();
@@ -799,78 +796,13 @@ export class Live2DPlayer {
     dbg("buildExpressionMap", "expressionMap keys:", [...this.expressionMap.keys()]);
   }
 
-  /**
-   * 自动检测 PartArmA + PartArmB 双臂部件模式。
-   * 如果模型同时包含这两个部件，将 PartArmB 的 opacity 设为 0 并重置 ArmB 相关参数，
-   * 然后 hook internalModel.update()，在每帧动作系统更新后强制保持 ArmB 隐藏，
-   * 防止被动画系统覆盖。
-   */
-  private setupDualArmHiding(): void {
-    if (!this.model) return;
-
-    const internalModel = this.model.internalModel;
-    if (!internalModel) return;
-
-    const coreModel = internalModel.coreModel;
-    if (!coreModel) return;
-
-    // 使用 coreModel.getPartIndex(id) 检测是否同时存在 PartArmA 和 PartArmB
-    const armAIndex = coreModel.getPartIndex?.("PartArmA");
-    const armBIndex = coreModel.getPartIndex?.("PartArmB");
-
-    // getPartIndex 找不到时不返回 -1，而是创建 notExist 条目，
-    // 所以通过 _partIds 数组确认部件是否真实存在
-    const partIds: string[] = coreModel._partIds || [];
-    const hasArmA = partIds.includes("PartArmA");
-    const hasArmB = partIds.includes("PartArmB");
-
-    if (!hasArmA || !hasArmB) {
-      dbg("setupDualArmHiding", "dual arm parts not detected, skip. hasArmA:", hasArmA, "hasArmB:", hasArmB);
-      return;
-    }
-
-    dbg("setupDualArmHiding", "detected PartArmA at", armAIndex, "PartArmB at", armBIndex);
-
-    // 立即设置初始状态：ArmA=1, ArmB=0
-    coreModel.setPartOpacityByIndex(armAIndex, 1);
-    coreModel.setPartOpacityByIndex(armBIndex, 0);
-
-    // 重置 ArmB 相关参数到默认值
-    const armBParams = ["ParamArmLB", "ParamArmRB", "ParamHandLB", "ParamHandRB"];
-    for (const paramName of armBParams) {
-      const paramIdx = coreModel.getParameterIndex?.(paramName);
-      if (typeof paramIdx === "number" && paramIdx >= 0) {
-        const defaultValue = coreModel.getParameterDefaultValue?.(paramIdx) ?? 0;
-        coreModel.setParameterValueByIndex(paramIdx, defaultValue);
-        dbg("setupDualArmHiding", "reset param", paramName, "idx:", paramIdx, "to", defaultValue);
-      }
-    }
-
-    // 监听 beforeModelUpdate 事件，在 coreModel.update() 之前强制 ArmB opacity=0。
-    // internalModel.update() 流程: motionManager.update → physics → pose → emit("beforeModelUpdate") → coreModel.update()
-    // 在 beforeModelUpdate 时设置，确保 coreModel.update() 使用正确的 opacity 值渲染。
-    this.cleanupDualArm();
-    const handler = () => {
-      coreModel.setPartOpacityByIndex(armBIndex, 0);
-    };
-    internalModel.on("beforeModelUpdate", handler);
-    this.dualArmCleanup = () => {
-      internalModel.off("beforeModelUpdate", handler);
-    };
-
-    dbg("setupDualArmHiding", "beforeModelUpdate listener installed");
-  }
-
-  private cleanupDualArm(): void {
-    if (this.dualArmCleanup) {
-      this.dualArmCleanup();
-      this.dualArmCleanup = null;
-    }
-  }
 
   /**
    * 应用 Live2D 参数覆写。
-   * 在 beforeModelUpdate 事件中持续设置参数，确保 motion/physics 不会覆盖。
+   * 在 beforeModelUpdate 事件中持续设置参数/部件透明度，确保 motion/physics 不会覆盖。
+   * 支持两种 target 类型：
+   * - "Parameter"（默认）：通过 setParameterValueByIndex 设置参数值
+   * - "PartOpacity"：通过 setPartOpacityByIndex 设置部件透明度
    */
   applyLive2DParameters(params: Live2DParameterSetting[] | null | undefined): void {
     // 先清理旧的参数覆写监听
@@ -883,30 +815,52 @@ export class Live2DPlayer {
     if (!coreModel) return;
 
     // 预解析参数索引，跳过无效的
-    const entries: { idx: number; value: number; id: string }[] = [];
+    const paramEntries: { idx: number; value: number; id: string }[] = [];
+    const partEntries: { idx: number; value: number; id: string }[] = [];
+
     for (const p of params) {
       if (!p.id) continue;
-      const idx = coreModel.getParameterIndex?.(p.id);
-      if (typeof idx === "number" && idx >= 0) {
-        entries.push({ idx, value: p.value, id: p.id });
+      const target = p.target || "Parameter";
+
+      if (target === "PartOpacity") {
+        const idx = coreModel.getPartIndex?.(p.id);
+        const partIds: string[] = coreModel._partIds || [];
+        if (typeof idx === "number" && partIds.includes(p.id)) {
+          partEntries.push({ idx, value: p.value, id: p.id });
+        } else {
+          dbg("applyLive2DParameters", "part not found:", p.id);
+        }
       } else {
-        dbg("applyLive2DParameters", "parameter not found:", p.id);
+        const idx = coreModel.getParameterIndex?.(p.id);
+        if (typeof idx === "number" && idx >= 0) {
+          paramEntries.push({ idx, value: p.value, id: p.id });
+        } else {
+          dbg("applyLive2DParameters", "parameter not found:", p.id);
+        }
       }
     }
 
-    if (entries.length === 0) return;
+    if (paramEntries.length === 0 && partEntries.length === 0) return;
 
-    dbg("applyLive2DParameters", "applying", entries.length, "params:", entries.map(e => `${e.id}=${e.value}`));
+    dbg("applyLive2DParameters", "applying",
+      paramEntries.length, "params:", paramEntries.map(e => `${e.id}=${e.value}`),
+      partEntries.length, "parts:", partEntries.map(e => `${e.id}=${e.value}`));
 
     // 立即设置一次
-    for (const e of entries) {
+    for (const e of paramEntries) {
       coreModel.setParameterValueByIndex(e.idx, e.value);
+    }
+    for (const e of partEntries) {
+      coreModel.setPartOpacityByIndex(e.idx, e.value);
     }
 
     // 在每帧 beforeModelUpdate 时持续覆写，防止被 motion/physics 还原
     const handler = () => {
-      for (const e of entries) {
+      for (const e of paramEntries) {
         coreModel.setParameterValueByIndex(e.idx, e.value);
+      }
+      for (const e of partEntries) {
+        coreModel.setPartOpacityByIndex(e.idx, e.value);
       }
     };
     internalModel.on("beforeModelUpdate", handler);

@@ -181,10 +181,12 @@ export interface ModDataCounterConfig {
  * 进入某个状态时覆写 Live2D 模型参数。
  */
 export interface Live2DParameterSetting {
-  /** Live2D 参数 ID（如 "ParamAngleX", "ParamEyeLOpen"） */
+  /** Live2D 参数 ID（如 "ParamAngleX", "ParamEyeLOpen"）或部件 ID（如 "PartArmA"） */
   id: string;
   /** 目标值 */
   value: number;
+  /** 目标类型："Parameter"（默认）设置参数值，"PartOpacity" 设置部件透明度 */
+  target?: "Parameter" | "PartOpacity";
 }
 
 /**

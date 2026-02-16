@@ -129,6 +129,22 @@
         {
           "id": "ParamMouseRightDown",
           "value": 0
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0
+        },
+        {
+          "id": "Param6",
+          "value": 0
+        },
+        {
+          "id": "Param2",
+          "value": 0
+        },
+        {
+          "id": "Param66",
+          "value": 0
         }
       ],
       "branch": []
@@ -156,7 +172,113 @@
       "trigger_uptime": 0,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "ParamMouseLeftDown",
+          "value": 0
+        },
+        {
+          "id": "Param85",
+          "value": 0
+        },
+        {
+          "id": "Param86",
+          "value": 0
+        },
+        {
+          "id": "Param87",
+          "value": 0
+        },
+        {
+          "id": "Param88",
+          "value": 0
+        },
+        {
+          "id": "Param92",
+          "value": 0
+        },
+        {
+          "id": "Param93",
+          "value": 0
+        },
+        {
+          "id": "Param94",
+          "value": 0
+        },
+        {
+          "id": "Param95",
+          "value": 0
+        },
+        {
+          "id": "Param96",
+          "value": 0
+        },
+        {
+          "id": "Param97",
+          "value": 0
+        },
+        {
+          "id": "Param98",
+          "value": 0
+        },
+        {
+          "id": "Param99",
+          "value": 0
+        },
+        {
+          "id": "Param100",
+          "value": 0
+        },
+        {
+          "id": "Param101",
+          "value": 0
+        },
+        {
+          "id": "Param102",
+          "value": 0
+        },
+        {
+          "id": "Param103",
+          "value": 0
+        },
+        {
+          "id": "Param104",
+          "value": 0
+        },
+        {
+          "id": "Param105",
+          "value": 0
+        },
+        {
+          "id": "Param106",
+          "value": 0
+        },
+        {
+          "id": "Param107",
+          "value": 0
+        },
+        {
+          "id": "ParamMouseRightDown",
+          "value": 0
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0
+        },
+        {
+          "id": "Param6",
+          "value": 0
+        },
+        {
+          "id": "Param2",
+          "value": 0
+        },
+        {
+          "id": "Param66",
+          "value": 1
+        }
+      ]
     },
     "silence_start": {
       "name": "silence_start",
@@ -306,7 +428,113 @@
       "trigger_uptime": 0,
       "trigger_weather": [],
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "ParamMouseLeftDown",
+          "value": 0
+        },
+        {
+          "id": "Param85",
+          "value": 0
+        },
+        {
+          "id": "Param86",
+          "value": 0
+        },
+        {
+          "id": "Param87",
+          "value": 0
+        },
+        {
+          "id": "Param88",
+          "value": 0
+        },
+        {
+          "id": "Param92",
+          "value": 0
+        },
+        {
+          "id": "Param93",
+          "value": 0
+        },
+        {
+          "id": "Param94",
+          "value": 0
+        },
+        {
+          "id": "Param95",
+          "value": 0
+        },
+        {
+          "id": "Param96",
+          "value": 0
+        },
+        {
+          "id": "Param97",
+          "value": 0
+        },
+        {
+          "id": "Param98",
+          "value": 0
+        },
+        {
+          "id": "Param99",
+          "value": 0
+        },
+        {
+          "id": "Param100",
+          "value": 0
+        },
+        {
+          "id": "Param101",
+          "value": 0
+        },
+        {
+          "id": "Param102",
+          "value": 0
+        },
+        {
+          "id": "Param103",
+          "value": 0
+        },
+        {
+          "id": "Param104",
+          "value": 0
+        },
+        {
+          "id": "Param105",
+          "value": 0
+        },
+        {
+          "id": "Param106",
+          "value": 0
+        },
+        {
+          "id": "Param107",
+          "value": 0
+        },
+        {
+          "id": "ParamMouseRightDown",
+          "value": 0
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0
+        },
+        {
+          "id": "Param6",
+          "value": 1
+        },
+        {
+          "id": "Param2",
+          "value": 1
+        },
+        {
+          "id": "Param66",
+          "value": 0
+        }
+      ]
     },
     "music_start": {
       "name": "music_start",
@@ -437,6 +665,10 @@
         {
           "id": "ParamMouseLeftDown",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -467,6 +699,10 @@
       "live2d_params": [
         {
           "id": "Param85",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -499,6 +735,10 @@
         {
           "id": "Param86",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -529,6 +769,10 @@
       "live2d_params": [
         {
           "id": "Param87",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -561,6 +805,10 @@
         {
           "id": "Param88",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -591,6 +839,10 @@
       "live2d_params": [
         {
           "id": "Param92",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -623,6 +875,10 @@
         {
           "id": "Param93",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -653,6 +909,10 @@
       "live2d_params": [
         {
           "id": "Param94",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -685,6 +945,10 @@
         {
           "id": "Param95",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -715,6 +979,10 @@
       "live2d_params": [
         {
           "id": "Param96",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -747,6 +1015,10 @@
         {
           "id": "Param97",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -777,6 +1049,10 @@
       "live2d_params": [
         {
           "id": "Param98",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -809,6 +1085,10 @@
         {
           "id": "Param99",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -839,6 +1119,10 @@
       "live2d_params": [
         {
           "id": "Param100",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -871,6 +1155,10 @@
         {
           "id": "Param101",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -901,6 +1189,10 @@
       "live2d_params": [
         {
           "id": "Param102",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -933,6 +1225,10 @@
         {
           "id": "Param103",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -963,6 +1259,10 @@
       "live2d_params": [
         {
           "id": "Param104",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -995,6 +1295,10 @@
         {
           "id": "Param105",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -1025,6 +1329,10 @@
       "live2d_params": [
         {
           "id": "Param106",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],
@@ -1057,6 +1365,10 @@
         {
           "id": "Param107",
           "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 1
         }
       ],
       "branch": []
@@ -1087,6 +1399,10 @@
       "live2d_params": [
         {
           "id": "ParamMouseRightDown",
+          "value": 1
+        },
+        {
+          "id": "CatParamLeftHandDown",
           "value": 1
         }
       ],

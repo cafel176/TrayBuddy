@@ -423,15 +423,17 @@ impl Default for ModDataCounterConfig {
 
 /// Live2D 参数设置项
 ///
-/// 进入某个状态时，用于覆写 Live2D 模型的参数值。
-/// 每个条目指定一个参数 ID 和目标值。
+/// 进入某个状态时，用于覆写 Live2D 模型的参数值或部件透明度。
+/// 每个条目指定一个参数/部件 ID 和目标值。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Live2DParameterSetting {
-    /// Live2D 参数 ID（如 "ParamAngleX", "ParamEyeLOpen"）
+    /// Live2D 参数 ID（如 "ParamAngleX", "ParamEyeLOpen"）或部件 ID（如 "PartArmA"）
     pub id: Box<str>,
     /// 目标值
     pub value: f64,
+    /// 目标类型："Parameter"（默认）设置参数值，"PartOpacity" 设置部件透明度
+    pub target: Box<str>,
 }
 
 impl Default for Live2DParameterSetting {
@@ -439,6 +441,7 @@ impl Default for Live2DParameterSetting {
         Self {
             id: "".into(),
             value: 0.0,
+            target: "Parameter".into(),
         }
     }
 }

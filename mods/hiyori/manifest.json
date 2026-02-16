@@ -42,7 +42,10 @@
       "branch_show_bubble": true,
       "mod_data_counter": null,
       "branch": [],
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     "silence": {
       "name": "silence",
@@ -224,7 +227,10 @@
       "branch_show_bubble": true,
       "mod_data_counter": null,
       "branch": [],
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     "music_start": {
       "name": "music_start",
@@ -356,7 +362,10 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m01",
@@ -391,7 +400,10 @@
           "next_state": "hiyori_m04"
         }
       ],
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m04",
@@ -417,7 +429,10 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m06",
@@ -443,7 +458,10 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 0, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 1, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m10",
@@ -469,7 +487,10 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m09",
@@ -495,7 +516,10 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m07",
@@ -521,7 +545,10 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m05",
@@ -556,7 +583,10 @@
           "next_state": "hiyori_m07"
         }
       ],
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+      ]
     },
     {
       "name": "hiyori_m08",
@@ -591,7 +621,10 @@
           "next_state": "hiyori_m10"
         }
       ],
-      "live2d_params": null
+      "live2d_params": [
+        { "id": "PartArmA", "value": 0, "target": "PartOpacity" },
+        { "id": "PartArmB", "value": 1, "target": "PartOpacity" }
+      ]
     }
   ],
   "triggers": [
