@@ -20,6 +20,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::Manager;
+use super::mod_archive::ModArchiveReaderExt;
 
 /// 并发加载限制：限制同时加载大型配置或资源的线程数
 /// 避免在快速切换 Mod 时产生瞬时堆内存高峰
@@ -1297,6 +1298,11 @@ pub struct ResourceManager {
     mod_index: HashMap<String, ModLocator>,
     /// folder -> manifest.id（兼容旧逻辑/迁移用）
     folder_to_id: HashMap<String, String>,
+
+    /// 来自 .tbuddy 包的 mod_id 集合（用于区分磁盘 mod 和 archive mod）
+    archive_mod_ids: std::collections::HashSet<String>,
+    /// 对 ModArchiveStore 的引用（由 AppState 共享）
+    archive_store: Option<Arc<std::sync::Mutex<super::mod_archive::ModArchiveStore>>>,
 }
 
 impl ResourceManager {
@@ -1307,7 +1313,24 @@ impl ResourceManager {
             search_paths: Self::discover_mod_paths(app_handle),
             mod_index: HashMap::new(),
             folder_to_id: HashMap::new(),
+            archive_mod_ids: std::collections::HashSet::new(),
+            archive_store: None,
         }
+    }
+
+    /// 设置 archive store 引用（在 AppState 初始化后调用）
+    pub fn set_archive_store(&mut self, store: Arc<std::sync::Mutex<super::mod_archive::ModArchiveStore>>) {
+        self.archive_store = Some(store);
+    }
+
+    /// 获取 archive store 引用（用于外部导入操作）
+    pub fn get_archive_store(&self) -> Option<&Arc<std::sync::Mutex<super::mod_archive::ModArchiveStore>>> {
+        self.archive_store.as_ref()
+    }
+
+    /// 判断指定 mod 是否来自 .tbuddy archive
+    pub fn is_archive_mod(&self, mod_id: &str) -> bool {
+        self.archive_mod_ids.contains(mod_id)
     }
 
     // ========================================================================= //
@@ -1342,6 +1365,18 @@ impl ResourceManager {
             }
         }
 
+        // 2.5 mods_test 目录（仅 Debug 模式下加载，用于开发测试）
+        if let Ok(resource_dir) = app_handle.path().resource_dir() {
+            let mods_path = resource_dir.join("mods_test");
+            if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                #[cfg(debug_assertions)]
+                println!("[ResourceManager] 资源目录 mods_test: {:?}", canonical);
+                if canonical.is_dir() && !paths.contains(&canonical) {
+                    paths.push(canonical);
+                }
+            }
+        }
+
         // 3. 可执行文件所在目录的 mods
         if let Ok(exe_path) = std::env::current_exe() {
             // 尝试向上查找多级父目录中的 mods 文件夹
@@ -1366,6 +1401,29 @@ impl ResourceManager {
             }
         }
 
+        if let Ok(exe_path) = std::env::current_exe() {
+            // 尝试向上查找多级父目录中的 mods 文件夹
+            let mut current_dir = exe_path.parent();
+            for level in 1..=crate::modules::constants::MODS_SEARCH_MAX_LEVELS_EXE {
+                if let Some(dir) = current_dir {
+                    let mods_path = dir.join("mods_test");
+                    if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[ResourceManager] 程序目录 mods_test (level {}): {:?}",
+                            level, canonical
+                        );
+                        if canonical.is_dir() && !paths.contains(&canonical) {
+                            paths.push(canonical);
+                        }
+                    }
+                    current_dir = dir.parent();
+                } else {
+                    break;
+                }
+            }
+        }
+
         // 4. 开发环境：当前工作目录向上查找 mods
         if let Ok(cwd) = std::env::current_dir() {
             let mut current_dir = Some(cwd.as_path());
@@ -1376,6 +1434,29 @@ impl ResourceManager {
                         #[cfg(debug_assertions)]
                         println!(
                             "[ResourceManager] 项目目录 mods (level {}): {:?}",
+                            level, canonical
+                        );
+                        if canonical.is_dir() && !paths.contains(&canonical) {
+                            paths.push(canonical);
+                        }
+                    }
+                    current_dir = dir.parent();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // 4. 开发环境：当前工作目录向上查找 mods
+        if let Ok(cwd) = std::env::current_dir() {
+            let mut current_dir = Some(cwd.as_path());
+            for level in 1..=crate::modules::constants::MODS_SEARCH_MAX_LEVELS_CWD {
+                if let Some(dir) = current_dir {
+                    let mods_path = dir.join("mods_test");
+                    if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[ResourceManager] 项目目录 mods_test (level {}): {:?}",
                             level, canonical
                         );
                         if canonical.is_dir() && !paths.contains(&canonical) {
@@ -1455,6 +1536,7 @@ impl ResourceManager {
     fn rebuild_mod_index(&mut self) {
         self.mod_index.clear();
         self.folder_to_id.clear();
+        self.archive_mod_ids.clear();
 
         for base in &self.search_paths {
             let Ok(entries) = fs::read_dir(base) else {
@@ -1462,50 +1544,128 @@ impl ResourceManager {
             };
 
             for entry in entries.flatten() {
-                let dir_path = entry.path();
-                if !dir_path.is_dir() {
+                let entry_path = entry.path();
+
+                // ---------- 常规文件夹 Mod ----------
+                if entry_path.is_dir() {
+                    let folder = entry.file_name().to_string_lossy().into_owned();
+                    let canonical_dir = dunce::canonicalize(&entry_path).unwrap_or(entry_path);
+
+                    let manifest_path = canonical_dir.join("manifest.json");
+                    let (manifest_id, manifest_version) = if manifest_path.exists() {
+                        fs::read_to_string(&manifest_path)
+                            .ok()
+                            .and_then(|s| serde_json::from_str::<ModManifest>(&s).ok())
+                            .map(|m| (m.id.to_string(), m.version.to_string()))
+                            .unwrap_or_else(|| (folder.clone(), "".to_string()))
+                    } else {
+                        (folder.clone(), "".to_string())
+                    };
+
+                    self.folder_to_id
+                        .entry(folder.clone())
+                        .or_insert_with(|| manifest_id.clone());
+
+                    if let Some(existing) = self.mod_index.get(&manifest_id) {
+                        let ord = Self::compare_version(&manifest_version, &existing.version);
+                        if ord != Ordering::Greater {
+                            continue;
+                        }
+                    }
+
+                    self.mod_index.insert(
+                        manifest_id.clone(),
+                        ModLocator {
+                            id: manifest_id,
+                            version: manifest_version,
+                            folder,
+                            path: canonical_dir,
+                        },
+                    );
                     continue;
                 }
 
-                let folder = entry.file_name().to_string_lossy().into_owned();
-                let canonical_dir = dunce::canonicalize(&dir_path).unwrap_or(dir_path);
-
-                // 尝试读取 manifest.json 获取 (manifest.id, manifest.version)
-                let manifest_path = canonical_dir.join("manifest.json");
-                let (manifest_id, manifest_version) = if manifest_path.exists() {
-                    fs::read_to_string(&manifest_path)
-                        .ok()
-                        .and_then(|s| serde_json::from_str::<ModManifest>(&s).ok())
-                        .map(|m| (m.id.to_string(), m.version.to_string()))
-                        .unwrap_or_else(|| (folder.clone(), "".to_string()))
-                } else {
-                    (folder.clone(), "".to_string())
-                };
-
-                // folder -> id（首个发现者优先）
-                self.folder_to_id
-                    .entry(folder.clone())
-                    .or_insert_with(|| manifest_id.clone());
-
-                // id -> locator：
-                // - 若同 id 多个 mod：选择版本号更新的
-                // - 若版本号相同：保留先发现的
-                if let Some(existing) = self.mod_index.get(&manifest_id) {
-                    let ord = Self::compare_version(&manifest_version, &existing.version);
-                    if ord != Ordering::Greater {
+                // ---------- .tbuddy 包文件 ----------
+                if entry_path.is_file() {
+                    let fname = entry.file_name().to_string_lossy().to_lowercase();
+                    let is_tbuddy = fname.ends_with(".tbuddy");
+                    let is_sbuddy = fname.ends_with(".sbuddy");
+                    if !is_tbuddy && !is_sbuddy {
                         continue;
                     }
-                }
 
-                self.mod_index.insert(
-                    manifest_id.clone(),
-                    ModLocator {
-                        id: manifest_id,
-                        version: manifest_version,
-                        folder,
-                        path: canonical_dir,
-                    },
-                );
+                    // .sbuddy 需要外部加密工具支持
+                    if is_sbuddy && !super::mod_archive::is_sbuddy_supported() {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[ResourceManager] Skipping .sbuddy '{}' (sbuddy-crypto not found)",
+                            entry_path.display()
+                        );
+                        continue;
+                    }
+
+                    let Some(store_arc) = &self.archive_store else {
+                        continue;
+                    };
+                    let mut store = store_arc.lock().unwrap();
+
+                    // 尝试加载到内存并读取 manifest
+                    let (manifest_id, manifest_version) = if is_sbuddy {
+                        match store.load_sbuddy(&entry_path) {
+                            Ok((id, manifest)) => (id, manifest.version.to_string()),
+                            Err(e) => {
+                                #[cfg(debug_assertions)]
+                                println!(
+                                    "[ResourceManager] Failed to load .sbuddy '{}': {}",
+                                    entry_path.display(),
+                                    e
+                                );
+                                continue;
+                            }
+                        }
+                    } else {
+                        match store.load_tbuddy(&entry_path) {
+                            Ok((id, manifest)) => (id, manifest.version.to_string()),
+                            Err(e) => {
+                                #[cfg(debug_assertions)]
+                                println!(
+                                    "[ResourceManager] Failed to load .tbuddy '{}': {}",
+                                    entry_path.display(),
+                                    e
+                                );
+                                continue;
+                            }
+                        }
+                    };
+
+                    // 同 id 版本比较（文件夹 mod 优先；包文件之间比版本号）
+                    if let Some(existing) = self.mod_index.get(&manifest_id) {
+                        // 如果已有同 id 的文件夹 mod，跳过（文件夹优先）
+                        if !self.archive_mod_ids.contains(&manifest_id) {
+                            continue;
+                        }
+                        let ord = Self::compare_version(&manifest_version, &existing.version);
+                        if ord != Ordering::Greater {
+                            continue;
+                        }
+                    }
+
+                    let folder = entry.file_name().to_string_lossy().into_owned();
+                    self.folder_to_id
+                        .entry(folder.clone())
+                        .or_insert_with(|| manifest_id.clone());
+
+                    self.archive_mod_ids.insert(manifest_id.clone());
+                    self.mod_index.insert(
+                        manifest_id.clone(),
+                        ModLocator {
+                            id: manifest_id,
+                            version: manifest_version,
+                            folder,
+                            path: entry_path,  // .tbuddy / .sbuddy 文件路径
+                        },
+                    );
+                }
             }
         }
     }
@@ -1537,6 +1697,11 @@ impl ResourceManager {
         }
 
         None
+    }
+
+    /// 公开版本的 resolve_mod_path，供外部调用
+    pub fn resolve_mod_path_public(&mut self, mod_id_or_folder: &str) -> Option<PathBuf> {
+        self.resolve_mod_path(mod_id_or_folder)
     }
 
     /// 将传入的标识符解析为 manifest.id
@@ -1666,14 +1831,129 @@ impl ResourceManager {
 
     /// 从磁盘读取 Mod 信息（不加载到当前状态）
     ///
-    /// 用于 Mod 预览或加载前的检查
+    /// 用于 Mod 预览或加载前的检查。
+    /// 自动判断是文件夹 mod 还是 archive mod。
     pub fn read_mod_from_disk(&mut self, mod_id: &str) -> Result<ModInfo, String> {
+        // 先检查是否为 archive mod
+        if self.is_archive_mod(mod_id) {
+            return self.read_mod_from_archive(mod_id);
+        }
+
         // 查找 Mod 目录（优先使用 manifest.id 解析）
         let mod_path = self
             .resolve_mod_path(mod_id)
             .ok_or_else(|| format!("Mod '{}' not found", mod_id))?;
 
         self.read_mod_from_path(mod_path)
+    }
+
+    /// 从 archive 读取 Mod 信息
+    fn read_mod_from_archive(&self, mod_id: &str) -> Result<ModInfo, String> {
+        let store_arc = self
+            .archive_store
+            .as_ref()
+            .ok_or_else(|| "Archive store not initialized".to_string())?;
+        let store = store_arc.lock().unwrap();
+        let reader = store
+            .get(mod_id)
+            .ok_or_else(|| format!("Archive for mod '{}' not loaded", mod_id))?;
+
+        // 解析 manifest.json
+        let manifest: ModManifest = reader
+            .read_json("manifest.json")
+            .map_err(|e| format!("Failed to parse manifest from archive: {}", e))?;
+
+        // 解析资产定义
+        let imgs: Vec<AssetInfo> = reader.read_json_list("asset/img.json");
+        let sequences: Vec<AssetInfo> = reader.read_json_list("asset/sequence.json");
+        let live2d: Option<Live2DConfig> = if manifest.mod_type == ModType::Live2d {
+            reader.read_json_optional("asset/live2d.json")
+        } else {
+            None
+        };
+
+        // 解析多语言语音
+        let mut audios: HashMap<Box<str>, Vec<AudioInfo>> = HashMap::new();
+        for entry in reader.list_dir("audio") {
+            if entry.is_dir {
+                let lang: Box<str> = entry.path.into();
+                let speech: Vec<AudioInfo> =
+                    reader.read_json_list(&format!("audio/{}/speech.json", &*lang));
+                audios.insert(lang, speech);
+            }
+        }
+
+        // 解析多语言文本和角色信息
+        let mut info: HashMap<Box<str>, CharacterInfo> = HashMap::new();
+        let mut texts: HashMap<Box<str>, Vec<TextInfo>> = HashMap::new();
+        for entry in reader.list_dir("text") {
+            if entry.is_dir {
+                let lang: Box<str> = entry.path.clone().into();
+                if let Some(mut char_info) =
+                    reader.read_json_optional::<CharacterInfo>(&format!("text/{}/info.json", &entry.path))
+                {
+                    if char_info.id.is_empty() || char_info.id.as_ref() == "ERROR" {
+                        char_info.id = lang.clone();
+                    }
+                    info.insert(lang.clone(), char_info);
+                }
+                let speech_list: Vec<TextInfo> =
+                    reader.read_json_list(&format!("text/{}/speech.json", &entry.path));
+                texts.insert(lang, speech_list);
+            }
+        }
+
+        // 解析气泡样式
+        let bubble_style: Option<serde_json::Value> =
+            reader.read_json_optional("bubble_style.json");
+
+        // 探测预览图和图标
+        let mut icon_path_val = None;
+        let mut preview_path_val = None;
+
+        for ext in ["ico", "png"] {
+            let p = format!("icon.{}", ext);
+            if reader.file_exists(&p) {
+                icon_path_val = Some(p);
+                break;
+            }
+        }
+
+        for ext in ["png", "jpg", "jpeg", "webp"] {
+            let p = format!("preview.{}", ext);
+            if reader.file_exists(&p) {
+                preview_path_val = Some(p);
+                break;
+            }
+        }
+
+        // archive mod 的 path 使用特殊标记：tbuddy-archive://{mod_id}
+        // 前端通过此标记判断走 tbuddy-asset:// 协议
+        let virtual_path = PathBuf::from(format!("tbuddy-archive://{}", mod_id));
+
+        let mut mod_info = ModInfo {
+            path: virtual_path,
+            manifest,
+            imgs,
+            sequences,
+            live2d,
+            audios,
+            info,
+            texts,
+            bubble_style,
+            icon_path: icon_path_val.map(|s| s.into()),
+            preview_path: preview_path_val.map(|s| s.into()),
+            state_index: HashMap::new(),
+            trigger_index: HashMap::new(),
+            asset_index: HashMap::new(),
+            audio_index: HashMap::new(),
+            text_index: HashMap::new(),
+        };
+
+        mod_info.validate_and_fix_states();
+        mod_info.build_indices();
+
+        Ok(mod_info)
     }
 
     /// 从指定目录读取 Mod 信息（不通过索引解析 id）

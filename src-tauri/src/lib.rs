@@ -150,6 +150,8 @@ pub struct AppState {
     global_keyboard_enabled: Arc<std::sync::atomic::AtomicBool>,
     /// 全局鼠标监听开关：由当前 Mod 的 global_mouse 字段控制
     global_mouse_enabled: Arc<std::sync::atomic::AtomicBool>,
+    /// Mod 包内存存储：管理从 .tbuddy 加载到内存中的 archive 实例
+    pub archive_store: Arc<Mutex<modules::mod_archive::ModArchiveStore>>,
 }
 
 // ========================================================================= //
@@ -157,11 +159,68 @@ pub struct AppState {
 // ========================================================================= //
 
 /// 检查当前是否为 Release 优化构建
-///
-/// 该函数在运行时动态判断，主要用于启用某些仅在生产环境下需要的特性（如开机自启动）。
-/// 逻辑基于编译时宏 `debug_assertions`。
 fn is_release_build() -> bool {
     !cfg!(debug_assertions)
+}
+
+/// 根据文件扩展名推断 MIME 类型（用于自定义协议 tbuddy-asset://）
+fn guess_mime_type(path: &str) -> &'static str {
+    let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "json" | "json3" => "application/json",
+        "js" => "application/javascript",
+        "html" | "htm" => "text/html",
+        "css" => "text/css",
+        "txt" => "text/plain",
+        "xml" => "application/xml",
+        // 图片
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "ico" => "image/x-icon",
+        "bmp" => "image/bmp",
+        // 音频
+        "wav" => "audio/wav",
+        "mp3" => "audio/mpeg",
+        "ogg" => "audio/ogg",
+        "flac" => "audio/flac",
+        "aac" => "audio/aac",
+        "m4a" => "audio/mp4",
+        "weba" => "audio/webm",
+        // Live2D
+        "moc3" => "application/octet-stream",
+        "mtn" => "application/octet-stream",
+        "exp3" | "exp" => "application/json",
+        "physics3" | "physics" => "application/json",
+        "pose3" | "pose" => "application/json",
+        "model3" | "model" => "application/json",
+        // 其他
+        _ => "application/octet-stream",
+    }
+}
+
+/// 简单 URL 解码（百分号编码 → 原始字符）
+fn urlencoding_decode(input: &str) -> String {
+    let mut result = Vec::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(byte) = u8::from_str_radix(
+                &input[i + 1..i + 3],
+                16,
+            ) {
+                result.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        result.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&result).into_owned()
 }
 
 // ========================================================================= //
@@ -730,7 +789,9 @@ where
     Ok(mod_info)
 }
 
-/// 从指定目录路径加载 Mod（用于导入后立即加载某个具体目录）
+/// 从指定路径加载 Mod（支持文件夹路径和 .tbuddy 文件路径）
+///
+/// 用于导入后立即加载某个具体 mod
 #[tauri::command]
 async fn load_mod_from_path(
     mod_path: String,
@@ -739,7 +800,42 @@ async fn load_mod_from_path(
 ) -> Result<Arc<ModInfo>, String> {
     use std::path::PathBuf;
 
-    // 安全限制：仅允许加载 app_config_dir/mods 下的目录
+    let target_path = PathBuf::from(&mod_path);
+
+    // 如果是 .tbuddy 或 .sbuddy 文件，通过 archive store 中的 mod_id 加载
+    let is_archive_file = target_path.extension()
+        .map(|e| e == "tbuddy" || e == "sbuddy")
+        .unwrap_or(false);
+    if is_archive_file {
+        // 从 archive store 中查找对应的 mod_id
+        let mod_id = {
+            let rm = state.resource_manager.lock().unwrap();
+            if let Some(store) = rm.get_archive_store() {
+                let s = store.lock().unwrap();
+                // 用文件名推断 mod_id: "{mod_id}.tbuddy" 或 "{mod_id}.sbuddy"
+                let file_stem = target_path
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                if s.contains(&file_stem) {
+                    Some(file_stem)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if let Some(id) = mod_id {
+            let legacy_key = id.clone();
+            return load_mod_common(app, state, Some(legacy_key), move |rm| rm.load_mod(&id)).await;
+        } else {
+            return Err(format!("Archive mod not found in store for path: {}", mod_path));
+        }
+    }
+
+    // 文件夹路径：安全限制 + 原有逻辑
     let config_dir = app
         .path()
         .app_config_dir()
@@ -811,6 +907,9 @@ fn get_mod_path(state: State<'_, AppState>) -> Option<String> {
 }
 
 /// 判断指定路径是否存在（仅允许检查当前 Mod 目录内的路径）
+///
+/// 对于 archive mod：检查 archive 内文件是否存在
+/// 对于文件夹 mod：检查磁盘文件系统
 #[tauri::command]
 fn path_exists(path: String, state: State<'_, AppState>) -> bool {
     use std::path::PathBuf;
@@ -820,14 +919,29 @@ fn path_exists(path: String, state: State<'_, AppState>) -> bool {
         return false;
     };
 
-    // 注意：Path::starts_with 是词法比较，`..` 可能绕过；这里 canonicalize 后再比较。
+    let mod_path_str = mod_info.path.to_string_lossy();
+
+    // archive mod：tbuddy-archive://{mod_id}
+    if mod_path_str.starts_with("tbuddy-archive://") {
+        let mod_id = &mod_path_str["tbuddy-archive://".len()..];
+        // path 可能是绝对路径 "tbuddy-archive://mod_id/asset/xxx" 或相对路径 "asset/xxx"
+        let relative = if path.starts_with(&*mod_path_str) {
+            path[mod_path_str.len()..].trim_start_matches('/').to_string()
+        } else {
+            // 兼容：path 可能是 "tbuddy-archive://mod_id/asset/xxx" 格式
+            path.clone()
+        };
+        let store = state.archive_store.lock().unwrap();
+        return store.file_exists(mod_id, &relative);
+    }
+
+    // 文件夹 mod：原有逻辑
     let Ok(base) = dunce::canonicalize(&mod_info.path) else {
         return false;
     };
 
     let p = PathBuf::from(path);
     let Ok(p) = dunce::canonicalize(&p) else {
-        // canonicalize 失败通常表示路径不存在/无权限
         return false;
     };
 
@@ -1358,6 +1472,10 @@ fn get_process_debug_info() -> Option<ProcessDebugInfo> {
 /// 应用入口点
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 创建共享的 archive store（在 Builder 之前，因为 protocol handler 和 AppState 都需要引用它）
+    let shared_archive_store = Arc::new(Mutex::new(modules::mod_archive::ModArchiveStore::new()));
+    let protocol_store = shared_archive_store.clone();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -1365,9 +1483,85 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
         ))
-        .setup(|app| {
+        // ========== 自定义协议：tbuddy-asset:// ==========
+        // 用于从内存中的 .tbuddy archive 流式返回资源文件
+        // 前端发送的 URL 格式因平台而异：
+        //   Windows: http://tbuddy-asset.localhost/mod_id/path
+        //   macOS:   tbuddy-asset://localhost/mod_id/path
+        // Tauri 内部统一转换后传入回调的 URI 格式:
+        //   tbuddy-asset://localhost/mod_id/path
+        .register_uri_scheme_protocol("tbuddy-asset", move |_app, request| {
+            use tauri::http::Response;
+
+            let uri = request.uri().to_string();
+            #[cfg(debug_assertions)]
+            println!("[tbuddy-asset] Request URI: {}", uri);
+
+            // 去掉协议前缀，可能的格式:
+            //   "tbuddy-asset://localhost/mod_id/path"
+            //   "tbuddy-asset://mod_id/path"   (理论上)
+            //   "tbuddy-asset:///mod_id/path"   (某些情况)
+            let stripped = uri
+                .strip_prefix("tbuddy-asset://")
+                .or_else(|| uri.strip_prefix("tbuddy-asset:"))
+                .unwrap_or("");
+
+            // 去掉可能的 "localhost" 前缀
+            let stripped = stripped
+                .strip_prefix("localhost/")
+                .or_else(|| stripped.strip_prefix("localhost"))
+                .unwrap_or(stripped);
+
+            // 去掉开头的斜杠
+            let stripped = stripped.trim_start_matches('/');
+
+            let (mod_id, file_path) = match stripped.find('/') {
+                Some(pos) => (&stripped[..pos], &stripped[pos + 1..]),
+                None => (stripped, ""),
+            };
+
+            // URL 解码
+            let mod_id = urlencoding_decode(mod_id);
+            let file_path = urlencoding_decode(file_path);
+
+            #[cfg(debug_assertions)]
+            println!("[tbuddy-asset] mod_id={}, file_path={}", mod_id, file_path);
+
+            if mod_id.is_empty() || file_path.is_empty() {
+                return Response::builder()
+                    .status(400)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .body(b"Bad request: missing mod_id or path".to_vec())
+                    .unwrap();
+            }
+
+            let store = protocol_store.lock().unwrap();
+            match store.read_file(&mod_id, &file_path) {
+                Ok(data) => {
+                    let mime = guess_mime_type(&file_path);
+                    Response::builder()
+                        .status(200)
+                        .header("Content-Type", mime)
+                        .header("Access-Control-Allow-Origin", "*")
+                        .body(data)
+                        .unwrap()
+                }
+                Err(_e) => {
+                    #[cfg(debug_assertions)]
+                    println!("[tbuddy-asset] Not found: {}/{} - {}", mod_id, file_path, _e);
+                    Response::builder()
+                        .status(404)
+                        .header("Access-Control-Allow-Origin", "*")
+                        .body(format!("Not found: {}/{}", mod_id, file_path).into_bytes())
+                        .unwrap()
+                }
+            }
+        })
+        .setup(move |app| {
             // ========== 初始化核心管理器 ==========
             let rm = Arc::new(Mutex::new(ResourceManager::new(app.handle())));
+            // 将共享的 archive store 注入 ResourceManager，使其能扫描 .tbuddy 文件
+            rm.lock().unwrap().set_archive_store(shared_archive_store.clone());
             let mut sm = StateManager::new();
             let mut storage = Storage::new(app.handle());
 
@@ -1562,6 +1756,7 @@ pub fn run() {
                 session_locked: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 global_keyboard_enabled: Arc::new(std::sync::atomic::AtomicBool::new(initial_global_keyboard)),
                 global_mouse_enabled: Arc::new(std::sync::atomic::AtomicBool::new(initial_global_mouse)),
+                archive_store: shared_archive_store,
             });
 
             // ========== 监听设置变更以实时刷新托盘菜单 ==========
@@ -1737,6 +1932,8 @@ pub fn run() {
             import_mod_from_path_detailed,
             load_mod_from_path,
             import_mod,
+            is_sbuddy_supported,
+            export_mod_as_sbuddy,
             recreate_animation_window,
             // 环境信息
             get_datetime_info,
@@ -1753,6 +1950,7 @@ pub fn run() {
 
             open_storage_dir,
             open_dir,
+            get_tbuddy_source_path,
             show_context_menu,
             get_tray_position,
             get_saved_window_position,
@@ -1847,46 +2045,28 @@ fn read_tbuddy_manifest(
     Err("Invalid .tbuddy file (manifest.json not found)".into())
 }
 
-struct ImportedModDisk {
+struct ImportedModResult {
     pub id: String,
-    pub extracted_dir: std::path::PathBuf,
+    /// 复制到 mods 目录后的包文件路径（.tbuddy 或 .sbuddy）
+    pub archive_path: std::path::PathBuf,
+    /// 文件扩展名（"tbuddy" 或 "sbuddy"）
+    pub ext: String,
 }
 
-fn extract_tbuddy_to_mods_dir(app: &tauri::AppHandle, tbuddy_path: &std::path::Path) -> Result<ImportedModDisk, String> {
+/// 将 .tbuddy / .sbuddy 文件复制到 mods 目录下（不解压，保密要求）
+///
+/// 文件名格式: `{manifest.id}.{ext}`
+/// 如果目标已存在同名文件，先删除旧文件再复制
+fn copy_archive_to_mods_dir(app: &tauri::AppHandle, src_path: &std::path::Path) -> Result<ImportedModResult, String> {
     use std::fs;
-    use std::io;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
-    fn sanitize_windows_folder_name(input: &str) -> String {
-        // Windows 文件名非法字符：< > : " / \ | ? *
-        let mut s: String = input
-            .trim()
-            .chars()
-            .map(|c| if "<>:\"/\\|?*".contains(c) { '_' } else { c })
-            .collect();
-
-        // Windows 不允许尾随空格/点
-        while s.ends_with(' ') || s.ends_with('.') {
-            s.pop();
-        }
-
-        if s.is_empty() {
-            s = "imported".into();
-        }
-
-        // Windows 保留设备名（不区分大小写）
-        let upper = s.to_uppercase();
-        let reserved = [
-            "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-            "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-        ];
-        if reserved.contains(&upper.as_str()) {
-            s = format!("_{}", s);
-        }
-
-        s
+    let ext = src_path
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    if ext != "tbuddy" && ext != "sbuddy" {
+        return Err(format!("Unsupported file format: .{}", ext));
     }
-
 
     // 1) 目标 mods 目录
     let config_dir = app
@@ -1899,98 +2079,172 @@ fn extract_tbuddy_to_mods_dir(app: &tauri::AppHandle, tbuddy_path: &std::path::P
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
     }
 
-    // 2) 打开 zip
-    let file = fs::File::open(tbuddy_path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
+    // 2) 读取 manifest.id（纯内存操作）
+    let manifest_id = if ext == "sbuddy" {
+        // 先检查解密工具是否可用
+        if !modules::mod_archive::is_sbuddy_supported() {
+            return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+        }
+        // .sbuddy: 先解密再按 ZIP 读取 manifest
+        let data = fs::read(src_path).map_err(|e| e.to_string())?;
+        let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
+        let cursor = std::io::Cursor::new(&zip_data);
+        let mut archive = zip::ZipArchive::new(cursor)
+            .map_err(|_| "Invalid .sbuddy file (decrypted data is not valid zip)".to_string())?;
+        let root_folder = get_zip_root_folder(&mut archive)?;
+        let manifest = read_zip_manifest(&mut archive, &root_folder)?;
+        manifest.id.to_string()
+    } else {
+        // .tbuddy: 直接按 ZIP 读取 manifest
+        let file = fs::File::open(src_path).map_err(|e| e.to_string())?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
+        let root_folder = get_tbuddy_root_folder(&mut archive)?;
+        let manifest = read_tbuddy_manifest(&mut archive, &root_folder)?;
+        manifest.id.to_string()
+    };
 
-    // 3) 根目录名（用于 strip_prefix） + manifest.id（用于落盘目录名） + 时间戳（毫秒）
-    let root_folder = get_tbuddy_root_folder(&mut archive)?;
-    let manifest = read_tbuddy_manifest(&mut archive, &root_folder)?;
+    // 3) 构造目标文件名: {manifest.id}.{ext}
+    let target_name = format!("{}.{}", manifest_id, ext);
+    let target_path = mods_dir.join(&target_name);
 
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_millis();
+    // 4) 如果源文件与目标相同（已在 mods 目录中），无需复制
+    if let (Ok(src), Ok(dst)) = (dunce::canonicalize(src_path), dunce::canonicalize(&target_path)) {
+        if src == dst {
+            return Ok(ImportedModResult {
+                id: manifest_id,
+                archive_path: target_path,
+                ext: ext.to_string(),
+            });
+        }
+    }
 
-    // 用 manifest.id 作为目录基名更稳定，并对 Windows 非法字符做清理
-    let base_name = sanitize_windows_folder_name(manifest.id.as_ref());
-    let new_root = format!("{}_{}", base_name, ts);
+    // 5) 如果目标已存在，先删除旧文件
+    if target_path.exists() {
+        fs::remove_file(&target_path)
+            .map_err(|e| format!("Failed to remove existing file '{}': {}", target_name, e))?;
+    }
 
+    // 6) 复制文件（不解压/不解密）
+    fs::copy(src_path, &target_path)
+        .map_err(|e| format!("Failed to copy .{} file: {}", ext, e))?;
 
-    // 4) 解压（替换顶层目录名，避免冲突）
-    let root_prefix = std::path::PathBuf::from(&root_folder);
+    #[cfg(debug_assertions)]
+    println!("[import] Copied .{} to {:?}", ext, target_path);
+
+    Ok(ImportedModResult {
+        id: manifest_id,
+        archive_path: target_path,
+        ext: ext.to_string(),
+    })
+}
+
+/// 从 ZipArchive (Cursor<&Vec<u8>>) 中获取根目录名（用于解密后的 .sbuddy）
+fn get_zip_root_folder<R: std::io::Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>) -> Result<String, String> {
+    use std::path::Component;
+
+    let mut root: Option<String> = None;
+
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-        let Some(enclosed) = file.enclosed_name().map(|p| p.to_path_buf()) else {
+        let file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let Some(enclosed) = file.enclosed_name() else {
             continue;
         };
 
-        // 只处理 root_folder 下的内容
-        let rel = match enclosed.strip_prefix(&root_prefix) {
-            Ok(r) => r,
-            Err(_) => continue,
+        let Some(Component::Normal(first)) = enclosed.components().next() else {
+            continue;
         };
 
-        let outpath = if rel.as_os_str().is_empty() {
-            mods_dir.join(&new_root)
-        } else {
-            mods_dir.join(&new_root).join(rel)
-        };
-
-        if file.name().ends_with('/') {
-            fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
-        } else {
-            if let Some(p) = outpath.parent() {
-                if !p.exists() {
-                    fs::create_dir_all(p).map_err(|e| e.to_string())?;
-                }
-            }
-            let mut outfile = fs::File::create(&outpath).map_err(|e| e.to_string())?;
-            io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
-        }
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            if let Some(mode) = file.unix_mode() {
-                fs::set_permissions(&outpath, fs::Permissions::from_mode(mode))
-                    .map_err(|e| e.to_string())?;
+        let first = first.to_string_lossy().into_owned();
+        match root.as_ref() {
+            None => root = Some(first),
+            Some(existing) if existing == &first => {}
+            Some(existing) => {
+                return Err(format!(
+                    "Invalid archive (multiple root folders: '{}' and '{}')",
+                    existing, first
+                ));
             }
         }
     }
 
-    // 5) 返回 manifest.id 与实际落盘目录
-    let extracted_dir = mods_dir.join(&new_root);
-
-    Ok(ImportedModDisk {
-        id: manifest.id.to_string(),
-        extracted_dir,
-    })
-
+    root.ok_or_else(|| "Invalid archive (missing root folder)".into())
 }
 
-/// 预解析 Mod (.tbuddy 文件) 的 manifest（不落盘，用于前端冲突提示）
+/// 从 ZipArchive (Cursor<&Vec<u8>>) 中读取 manifest.json（用于解密后的 .sbuddy）
+fn read_zip_manifest<R: std::io::Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+    root_folder: &str,
+) -> Result<modules::resource::ModManifest, String> {
+    use std::io::Read;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let Some(enclosed) = file.enclosed_name() else {
+            continue;
+        };
+
+        let Some(first) = enclosed.components().next() else {
+            continue;
+        };
+        if first.as_os_str() != std::ffi::OsStr::new(root_folder) {
+            continue;
+        }
+
+        if enclosed
+            .file_name()
+            .map(|n| n == std::ffi::OsStr::new("manifest.json"))
+            .unwrap_or(false)
+        {
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf).map_err(|e| e.to_string())?;
+            let content = String::from_utf8(buf).map_err(|e| e.to_string())?;
+            return serde_json::from_str::<modules::resource::ModManifest>(&content)
+                .map_err(|e| format!("Failed to parse manifest: {}", e));
+        }
+    }
+
+    Err("Invalid archive (manifest.json not found)".into())
+}
+
+/// 预解析 Mod (.tbuddy / .sbuddy 文件) 的 manifest（不落盘，用于前端冲突提示）
 #[tauri::command]
 fn inspect_mod_tbuddy(file_path: String) -> Result<ModTbuddyPreflight, String> {
     use std::fs;
     use std::path::PathBuf;
 
-    let p = PathBuf::from(file_path);
-    let file = fs::File::open(&p).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
+    let p = PathBuf::from(&file_path);
+    let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
 
-    let root = get_tbuddy_root_folder(&mut archive)?;
-    let manifest = read_tbuddy_manifest(&mut archive, &root)?;
-
-    Ok(ModTbuddyPreflight {
-        id: manifest.id.to_string(),
-        version: manifest.version.to_string(),
-    })
+    if ext == "sbuddy" {
+        if !modules::mod_archive::is_sbuddy_supported() {
+            return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+        }
+        let data = fs::read(&p).map_err(|e| e.to_string())?;
+        let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
+        let cursor = std::io::Cursor::new(&zip_data);
+        let mut archive = zip::ZipArchive::new(cursor)
+            .map_err(|_| "Invalid .sbuddy file".to_string())?;
+        let root = get_zip_root_folder(&mut archive)?;
+        let manifest = read_zip_manifest(&mut archive, &root)?;
+        Ok(ModTbuddyPreflight {
+            id: manifest.id.to_string(),
+            version: manifest.version.to_string(),
+        })
+    } else {
+        let file = fs::File::open(&p).map_err(|e| e.to_string())?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
+        let root = get_tbuddy_root_folder(&mut archive)?;
+        let manifest = read_tbuddy_manifest(&mut archive, &root)?;
+        Ok(ModTbuddyPreflight {
+            id: manifest.id.to_string(),
+            version: manifest.version.to_string(),
+        })
+    }
 }
 
-/// 选择并预解析 Mod (.tbuddy 文件) 的 manifest（不落盘）
+/// 选择并预解析 Mod (.tbuddy / .sbuddy 文件) 的 manifest（不落盘）
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ModTbuddyPick {
@@ -2004,10 +2258,12 @@ fn pick_mod_tbuddy(app: tauri::AppHandle) -> Result<ModTbuddyPick, String> {
     use std::fs;
     use tauri_plugin_dialog::DialogExt;
 
+    println!("[pick_mod_tbuddy] called");
+
     let file_path = app
         .dialog()
         .file()
-        .add_filter("TrayBuddy Mod", &["tbuddy"])
+        .add_filter("TrayBuddy Mod", &["tbuddy", "sbuddy"])
         .blocking_pick_file();
 
     let selected_path = match file_path {
@@ -2015,20 +2271,40 @@ fn pick_mod_tbuddy(app: tauri::AppHandle) -> Result<ModTbuddyPick, String> {
             tauri_plugin_dialog::FilePath::Path(p) => p,
             _ => return Err("Unsupported file path".into()),
         },
-        None => return Err("Canceled".into()),
+        None => {
+            return Err("Canceled".into());
+        }
     };
 
-    let file = fs::File::open(&selected_path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
+    let ext = selected_path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
 
-    let root = get_tbuddy_root_folder(&mut archive)?;
-    let manifest = read_tbuddy_manifest(&mut archive, &root)?;
+    let (id, version) = if ext == "sbuddy" {
+        // 先检查解密工具是否可用
+        let supported = modules::mod_archive::is_sbuddy_supported();
+        if !supported {
+            return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+        }
+        let data = fs::read(&selected_path).map_err(|e| e.to_string())?;
+        let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
+        let cursor = std::io::Cursor::new(&zip_data);
+        let mut archive = zip::ZipArchive::new(cursor)
+            .map_err(|_| "Invalid .sbuddy file".to_string())?;
+        let root = get_zip_root_folder(&mut archive)?;
+        let manifest = read_zip_manifest(&mut archive, &root)?;
+        (manifest.id.to_string(), manifest.version.to_string())
+    } else {
+        let file = fs::File::open(&selected_path).map_err(|e| e.to_string())?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
+        let root = get_tbuddy_root_folder(&mut archive)?;
+        let manifest = read_tbuddy_manifest(&mut archive, &root)?;
+        (manifest.id.to_string(), manifest.version.to_string())
+    };
 
     Ok(ModTbuddyPick {
         file_path: selected_path.to_string_lossy().into_owned(),
-        id: manifest.id.to_string(),
-        version: manifest.version.to_string(),
+        id,
+        version,
     })
 }
 
@@ -2040,51 +2316,76 @@ struct ImportModResult {
     pub extracted_path: String,
 }
 
-/// 从指定路径导入 Mod (.tbuddy 文件)
+/// 从指定路径导入 Mod (.tbuddy / .sbuddy 文件)
 ///
-/// - 顶层目录会自动追加时间戳，避免文件夹重复
+/// 将文件复制到 mods 目录下，然后加载到内存中的 archive store
 #[tauri::command]
 async fn import_mod_from_path(
     app: tauri::AppHandle,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     file_path: String,
 ) -> Result<String, String> {
     use std::path::PathBuf;
 
-    let tbuddy_path = PathBuf::from(file_path);
-    let imported = extract_tbuddy_to_mods_dir(&app, &tbuddy_path)?;
+    let src_path = PathBuf::from(file_path);
+    let imported = copy_archive_to_mods_dir(&app, &src_path)?;
+
+    // 将新复制的包文件加载到内存 archive store
+    {
+        let rm = state.resource_manager.lock().unwrap();
+        if let Some(store) = rm.get_archive_store() {
+            let mut s = store.lock().unwrap();
+            if imported.ext == "sbuddy" {
+                let _ = s.load_sbuddy(&imported.archive_path);
+            } else {
+                let _ = s.load_tbuddy(&imported.archive_path);
+            }
+        }
+    }
 
     let _ = emit(&app, events::REFRESH_MODS, imported.id.as_str());
 
     Ok(imported.id)
 }
 
-/// 从指定路径导入 Mod (.tbuddy 文件)，并返回导入目录路径
+/// 从指定路径导入 Mod (.tbuddy / .sbuddy 文件)，并返回包文件路径
 #[tauri::command]
 async fn import_mod_from_path_detailed(
     app: tauri::AppHandle,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     file_path: String,
 ) -> Result<ImportModResult, String> {
     use std::path::PathBuf;
 
-    let tbuddy_path = PathBuf::from(file_path);
-    let imported = extract_tbuddy_to_mods_dir(&app, &tbuddy_path)?;
+    let src_path = PathBuf::from(file_path);
+    let imported = copy_archive_to_mods_dir(&app, &src_path)?;
+
+    // 将新复制的包文件加载到内存 archive store
+    {
+        let rm = state.resource_manager.lock().unwrap();
+        if let Some(store) = rm.get_archive_store() {
+            let mut s = store.lock().unwrap();
+            if imported.ext == "sbuddy" {
+                let _ = s.load_sbuddy(&imported.archive_path);
+            } else {
+                let _ = s.load_tbuddy(&imported.archive_path);
+            }
+        }
+    }
 
     let _ = emit(&app, events::REFRESH_MODS, imported.id.as_str());
 
     Ok(ImportModResult {
         id: imported.id,
-        extracted_path: imported.extracted_dir.to_string_lossy().into_owned(),
+        extracted_path: imported.archive_path.to_string_lossy().into_owned(),
     })
 }
 
 
 
-/// 导入 Mod (.tbuddy 文件)
+/// 导入 Mod (.tbuddy / .sbuddy 文件)
 ///
 /// 兼容旧前端：仍由后端弹出文件选择框。
-/// 新实现同样会在顶层目录追加时间戳。
 #[tauri::command]
 async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     use tauri_plugin_dialog::DialogExt;
@@ -2092,7 +2393,7 @@ async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result
     let file_path = app
         .dialog()
         .file()
-        .add_filter("TrayBuddy Mod", &["tbuddy"])
+        .add_filter("TrayBuddy Mod", &["tbuddy", "sbuddy"])
         .blocking_pick_file();
 
     let selected_path = match file_path {
@@ -2106,6 +2407,151 @@ async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result
     import_mod_from_path(app, state, selected_path.to_string_lossy().into_owned()).await
 }
 
+
+
+
+/// 检查 sbuddy-crypto 外部工具是否可用
+#[tauri::command]
+fn is_sbuddy_supported() -> bool {
+    modules::mod_archive::is_sbuddy_supported()
+}
+
+/// 将 Mod 导出为 .sbuddy（加密）
+///
+/// 支持 .tbuddy 包、.sbuddy 包和文件夹 mod。
+/// - .tbuddy：读取 ZIP 数据 → 加密 → 导出
+/// - .sbuddy：直接复制源文件 → 导出
+/// - 文件夹 mod：打包为 ZIP → 加密 → 导出
+///
+/// 弹出保存文件对话框，用户选择保存路径后写入。
+#[tauri::command]
+fn export_mod_as_sbuddy(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    mod_id: String,
+) -> Result<(), String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    // 1) 尝试从 archive_store 获取源文件信息
+    let archive_source_path = {
+        let store = state.archive_store.lock().unwrap();
+        store.get_source(&mod_id).map(|s| s.file_path.clone())
+    };
+
+    // 2) 根据源文件类型决定生成 .sbuddy 的方式
+    let sbuddy_data = if let Some(ref src_path) = archive_source_path {
+        let ext = src_path.extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+
+        if ext == "sbuddy" {
+            // .sbuddy 源：直接复制文件内容
+            std::fs::read(src_path)
+                .map_err(|e| format!("Failed to read .sbuddy file: {}", e))?
+        } else if ext == "tbuddy" {
+            // .tbuddy 源：读取 ZIP → 加密
+            let zip_data = std::fs::read(src_path)
+                .map_err(|e| format!("Failed to read .tbuddy file: {}", e))?;
+            modules::mod_archive::encrypt_sbuddy(&zip_data)?
+        } else {
+            // 其他类型：回退到文件夹打包
+            let zip_data = zip_mod_directory(&state, &mod_id)?;
+            modules::mod_archive::encrypt_sbuddy(&zip_data)?
+        }
+    } else {
+        // 文件夹 mod：打包为 ZIP → 加密
+        let zip_data = zip_mod_directory(&state, &mod_id)?;
+        modules::mod_archive::encrypt_sbuddy(&zip_data)?
+    };
+
+    // 3) 弹出保存文件对话框
+    let default_name = format!("{}.sbuddy", mod_id);
+    let save_path = app
+        .dialog()
+        .file()
+        .set_file_name(&default_name)
+        .add_filter("SBuddy Encrypted Mod", &["sbuddy"])
+        .blocking_save_file();
+
+    let save_path = match save_path {
+        Some(path) => match path {
+            tauri_plugin_dialog::FilePath::Path(p) => p,
+            _ => return Err("Unsupported file path".into()),
+        },
+        None => return Err("Canceled".into()),
+    };
+
+    // 4) 写入文件
+    std::fs::write(&save_path, &sbuddy_data)
+        .map_err(|e| format!("Failed to write .sbuddy file: {}", e))?;
+
+    Ok(())
+}
+
+/// 将文件夹 mod 打包为 ZIP（内存中），用于导出
+fn zip_mod_directory(
+    state: &State<'_, AppState>,
+    mod_id: &str,
+) -> Result<Vec<u8>, String> {
+    use std::io::{Write, Cursor};
+    use zip::write::{SimpleFileOptions, ZipWriter};
+
+    // 解析 mod 的实际目录路径
+    let mod_path = {
+        let mut mgr = state.resource_manager.lock().unwrap();
+        mgr.resolve_mod_path_public(mod_id)
+            .ok_or_else(|| format!("Mod '{}' not found", mod_id))?
+    };
+
+    if !mod_path.is_dir() {
+        return Err(format!("Mod path is not a directory: {}", mod_path.display()));
+    }
+
+    let buf = Cursor::new(Vec::new());
+    let mut zip = ZipWriter::new(buf);
+    let options = SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    // 递归添加文件
+    fn add_dir_to_zip(
+        zip: &mut ZipWriter<Cursor<Vec<u8>>>,
+        base: &std::path::Path,
+        current: &std::path::Path,
+        options: SimpleFileOptions,
+    ) -> Result<(), String> {
+        let entries = std::fs::read_dir(current)
+            .map_err(|e| format!("Failed to read directory {}: {}", current.display(), e))?;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+            let path = entry.path();
+            let relative = path.strip_prefix(base)
+                .map_err(|e| format!("Failed to compute relative path: {}", e))?;
+            let name = relative.to_string_lossy().replace('\\', "/");
+
+            if path.is_dir() {
+                zip.add_directory(&format!("{}/", name), options)
+                    .map_err(|e| format!("Failed to add directory to zip: {}", e))?;
+                add_dir_to_zip(zip, base, &path, options)?;
+            } else {
+                zip.start_file(&name, options)
+                    .map_err(|e| format!("Failed to start file in zip: {}", e))?;
+                let data = std::fs::read(&path)
+                    .map_err(|e| format!("Failed to read file {}: {}", path.display(), e))?;
+                zip.write_all(&data)
+                    .map_err(|e| format!("Failed to write file to zip: {}", e))?;
+            }
+        }
+        Ok(())
+    }
+
+    add_dir_to_zip(&mut zip, &mod_path, &mod_path, options)?;
+
+    let cursor = zip.finish()
+        .map_err(|e| format!("Failed to finalize zip: {}", e))?;
+
+    Ok(cursor.into_inner())
+}
 
 /// 获取系统观察器调试信息
 #[tauri::command]
@@ -2374,6 +2820,18 @@ fn open_storage_dir(app_handle: tauri::AppHandle) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+/// 获取 tbuddy archive mod 的 .tbuddy 文件实际磁盘路径
+///
+/// 对于 archive mod，返回 .tbuddy 文件所在的磁盘路径；
+/// 对于普通文件夹 mod，返回 None。
+#[tauri::command]
+fn get_tbuddy_source_path(state: State<'_, AppState>, mod_id: String) -> Option<String> {
+    let store = state.archive_store.lock().unwrap();
+    store
+        .get_source(&mod_id)
+        .map(|s| s.file_path.to_string_lossy().into_owned())
 }
 
 /// 打开指定目录

@@ -32,19 +32,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../mods/cat": "mods/cat",
-      "../mods/ema": "mods/ema",
-      "../mods/ema3": "mods/ema3",
-      "../mods/jump": "mods/jump",
-      "../mods/knight": "mods/knight",
-      "../mods/machine": "mods/machine",
-      "../mods/mastermind": "mods/mastermind",
-      "../mods/sunflower": "mods/sunflower",
-      "../mods/tutorial": "mods/tutorial",
-      "../mods/hiyori": "mods/hiyori",
-
-      "../mods/bubble_style.json": "mods/bubble_style.json",     
-      "../mods/mod-guide.md": "mods/mod-guide.md",   
+      "../mods": "mods",  
       "../config": "config",
       "../i18n": "i18n",
       "../mod-tool": "mod-tool",

@@ -240,7 +240,24 @@ document.addEventListener('DOMContentLoaded', () => {
   initDatePickers();
   initSectionDetailsClickGuards();
   initGlobalScrollActions();
+  detectSbuddyCryptoAvailability();
 });
+
+/**
+ * 检测 sbuddy-crypto.exe 是否存在于同目录下。
+ * 如果可用，则显示导出 .sbuddy 按钮。
+ */
+async function detectSbuddyCryptoAvailability() {
+  try {
+    const resp = await fetch('./sbuddy-crypto.exe', { method: 'HEAD' });
+    if (resp.ok) {
+      const btn = document.getElementById('exportSbuddyBtn');
+      if (btn) btn.style.display = '';
+    }
+  } catch (_) {
+    // sbuddy-crypto.exe 不可用，保持按钮隐藏
+  }
+}
 
 /**
  * 初始化日期选择器事件监听
@@ -1941,6 +1958,115 @@ async function exportMod() {
   } catch (e) {
     if (e.name !== 'AbortError') {
       console.error('Failed to export:', e);
+      showToast(window.i18n.t('msg_export_failed', { error: e.message }), 'error');
+    }
+  }
+}
+
+/**
+ * 导出 Mod 为 .sbuddy（加密包）
+ *
+ * 由于加密逻辑已移至独立的 sbuddy-crypto 外部工具，
+ * mod-tool（浏览器环境）无法直接调用二进制程序。
+ *
+ * 流程：先导出为 .tbuddy，然后用同目录下的 to-sbuddy 脚本将其转换为 .sbuddy。
+ */
+async function exportModSbuddy() {
+  if (!currentMod) return;
+
+  collectManifestData();
+  collectBubbleStyle();
+
+  try {
+    showToast(window.i18n.t('msg_exporting_sbuddy') || window.i18n.t('msg_exporting'), 'info');
+    const jszip = new JSZip();
+    const root = jszip.folder(currentMod.manifest.id);
+
+    // ---- 与 exportMod 完全相同的打包逻辑 ----
+    root.file('manifest.json', stringifyForSave(currentMod.manifest));
+    if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
+      root.file('bubble_style.json', stringifyForSave(currentMod.bubbleStyle));
+    }
+
+    const asset = root.folder('asset');
+    const isLive2dExport = currentMod.manifest.mod_type === 'live2d';
+    if (isLive2dExport) {
+      if (currentMod.assets.live2d) {
+        asset.file('live2d.json', stringifyForSave(currentMod.assets.live2d));
+      }
+    } else {
+      asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
+      asset.file('img.json', stringifyForSave(currentMod.assets.img));
+      asset.folder('sequence');
+      asset.folder('img');
+    }
+
+    const text = root.folder('text');
+    for (const [lang, data] of Object.entries(currentMod.texts)) {
+      const langDir = text.folder(lang);
+      if (data.info) langDir.file('info.json', stringifyForSave(data.info));
+      if (currentMod.textSpeechEnabled === true) {
+        langDir.file('speech.json', stringifyForSave(data.speech));
+      }
+    }
+
+    if (currentMod.audioSpeechEnabled === true) {
+      const audio = root.folder('audio');
+      for (const [lang, data] of Object.entries(currentMod.audio)) {
+        const langDir = audio.folder(lang);
+        langDir.file('speech.json', stringifyForSave(data));
+        langDir.folder('speech');
+      }
+    }
+
+    if (currentMod.previewData) {
+      const actualExt = getExtensionFromDataUrl(currentMod.previewData) || currentPreviewExt;
+      const base64Data = currentMod.previewData.split(',')[1];
+      root.file(`preview.${actualExt}`, base64Data, { base64: true });
+    }
+
+    if (currentMod.iconData) {
+      const base64Data = currentMod.iconData.split(',')[1];
+      root.file('icon.ico', base64Data, { base64: true });
+    }
+
+    if (modFolderHandle) {
+      if (isLive2dExport) {
+        try {
+          const assetDirHandle = await modFolderHandle.getDirectoryHandle('asset');
+          const live2dDirHandle = await assetDirHandle.getDirectoryHandle('live2d');
+          await addAllFilesToZipFromDirectory(live2dDirHandle, root, 'asset/live2d');
+        } catch (e) { /* skip */ }
+        await addNonJsonFilesToZipFromDirectory(modFolderHandle, root, { skipDirs: ['asset/live2d'] });
+      } else {
+        await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
+      }
+    }
+    // ---- 打包逻辑结束 ----
+
+    // 生成 ZIP 字节并保存为 .tbuddy
+    const zipBlob = await jszip.generateAsync({ type: 'blob' });
+
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: `${currentMod.manifest.id}.tbuddy`,
+      types: [{ description: 'TrayBuddy Mod', accept: { 'application/octet-stream': ['.tbuddy'] } }]
+    });
+
+    const writable = await fileHandle.createWritable();
+    await writable.write(zipBlob);
+    await writable.close();
+
+    // 提示用户使用 sbuddy-crypto 工具转换
+    showToast(
+      window.i18n.t('msg_export_sbuddy_tbuddy_saved') ||
+      '已保存为 .tbuddy，请使用 to-sbuddy 脚本或 sbuddy-crypto encrypt 命令将其转换为 .sbuddy',
+      'info',
+      8000
+    );
+
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      console.error('Failed to export for .sbuddy:', e);
       showToast(window.i18n.t('msg_export_failed', { error: e.message }), 'error');
     }
   }

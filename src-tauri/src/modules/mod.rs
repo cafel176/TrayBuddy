@@ -16,6 +16,7 @@ pub mod constants;
 pub mod environment;
 pub mod event_manager;
 pub mod media_observer;
+pub mod mod_archive;
 pub mod process_observer;
 pub mod resource;
 pub mod state;

@@ -1,0 +1,679 @@
+{
+  "id": "MaoProLive2D",
+  "version": "1.0.0",
+  "author": "Live2D Inc.",
+  "mod_type": "live2d",
+  "default_audio_lang_id": "zh",
+  "default_text_lang_id": "zh",
+  "character": {
+    "z_offset": 1,
+    "canvas_fit_preference": "legacy"
+  },
+  "border": {
+    "anima": "",
+    "enable": false,
+    "z_offset": 2
+  },
+  "show_mod_data_panel": false,
+  "mod_data_default_int": 0,
+  "global_keyboard": false,
+  "global_mouse": false,
+  "important_states": {
+    "idle": {
+      "name": "idle",
+      "persistent": true,
+      "anima": "mtn_01",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0.1,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "silence": {
+      "name": "silence",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "silence_start": {
+      "name": "silence_start",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "silence",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "silence_end": {
+      "name": "silence_end",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "music": {
+      "name": "music",
+      "persistent": true,
+      "anima": "mtn_01",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0.1,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": [],
+      "live2d_params": null
+    },
+    "music_start": {
+      "name": "music_start",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "music",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "music_end": {
+      "name": "music_end",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "birthday": {
+      "name": "birthday",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "firstday": {
+      "name": "firstday",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "trigger_uptime": 0,
+      "live2d_params": null
+    },
+    "dragging": {
+      "name": "dragging",
+      "persistent": true,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": null
+    },
+    "drag_start": {
+      "name": "drag_start",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "dragging",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": null
+    },
+    "drag_end": {
+      "name": "drag_end",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 999,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": null
+    }
+  },
+  "states": [
+    {
+      "name": "mtn_02",
+      "persistent": false,
+      "anima": "mtn_02",
+      "audio": "",
+      "text": "mtn_02",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": [
+        {
+          "text": "mtn_03",
+          "next_state": "mtn_03"
+        },
+        {
+          "text": "mtn_04",
+          "next_state": "mtn_04"
+        }
+      ],
+      "live2d_params": null
+    },
+    {
+      "name": "mtn_03",
+      "persistent": false,
+      "anima": "mtn_03",
+      "audio": "",
+      "text": "mtn_03",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": [
+        {
+          "text": "special_01",
+          "next_state": "special_01"
+        },
+        {
+          "text": "special_02",
+          "next_state": "special_02"
+        }
+      ],
+      "live2d_params": null
+    },
+    {
+      "name": "mtn_04",
+      "persistent": false,
+      "anima": "mtn_04",
+      "audio": "",
+      "text": "mtn_04",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": [
+        {
+          "text": "special_02",
+          "next_state": "special_02"
+        },
+        {
+          "text": "special_03",
+          "next_state": "special_03"
+        }
+      ],
+      "live2d_params": null
+    },
+    {
+      "name": "special_01",
+      "persistent": false,
+      "anima": "special_01",
+      "audio": "",
+      "text": "special_01",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": [],
+      "live2d_params": null
+    },
+    {
+      "name": "special_02",
+      "persistent": false,
+      "anima": "special_02",
+      "audio": "",
+      "text": "special_02",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": [],
+      "live2d_params": null
+    },
+    {
+      "name": "special_03",
+      "persistent": false,
+      "anima": "special_03",
+      "audio": "",
+      "text": "special_03",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "branch": [],
+      "live2d_params": null
+    }
+  ],
+  "triggers": [
+    {
+      "event": "click",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "mtn_02",
+              "weight": 1
+            },
+            {
+              "state": "mtn_03",
+              "weight": 1
+            },
+            {
+              "state": "mtn_04",
+              "weight": 1
+            },
+            {
+              "state": "special_01",
+              "weight": 1
+            },
+            {
+              "state": "special_02",
+              "weight": 1
+            },
+            {
+              "state": "special_03",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "mtn_02",
+              "weight": 1
+            },
+            {
+              "state": "mtn_03",
+              "weight": 1
+            },
+            {
+              "state": "mtn_04",
+              "weight": 1
+            },
+            {
+              "state": "special_01",
+              "weight": 1
+            },
+            {
+              "state": "special_02",
+              "weight": 1
+            },
+            {
+              "state": "special_03",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        }
+      ]
+    },
+    {
+      "event": "keydown:Space",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "mtn_02",
+              "weight": 1
+            },
+            {
+              "state": "mtn_03",
+              "weight": 1
+            },
+            {
+              "state": "mtn_04",
+              "weight": 1
+            },
+            {
+              "state": "special_01",
+              "weight": 1
+            },
+            {
+              "state": "special_02",
+              "weight": 1
+            },
+            {
+              "state": "special_03",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        },
+        {
+          "persistent_state": "music",
+          "states": [
+            {
+              "state": "mtn_02",
+              "weight": 1
+            },
+            {
+              "state": "mtn_03",
+              "weight": 1
+            },
+            {
+              "state": "mtn_04",
+              "weight": 1
+            },
+            {
+              "state": "special_01",
+              "weight": 1
+            },
+            {
+              "state": "special_02",
+              "weight": 1
+            },
+            {
+              "state": "special_03",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        }
+      ]
+    },
+    {
+      "event": "login",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "special_03",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "right_click",
+      "can_trigger_states": []
+    },
+    {
+      "event": "global_click",
+      "can_trigger_states": []
+    },
+    {
+      "event": "global_right_click",
+      "can_trigger_states": []
+    }
+  ]
+}

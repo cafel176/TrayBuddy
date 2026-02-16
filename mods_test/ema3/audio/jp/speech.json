@@ -1,0 +1,158 @@
+[
+  {
+    "name": "morning",
+    "audio": "jp/speech/morning.wav"
+  },
+  {
+    "name": "noon",
+    "audio": "jp/speech/noon.wav"
+  },
+  {
+    "name": "evening",
+    "audio": "jp/speech/evening.wav"
+  },
+  {
+    "name": "night",
+    "audio": "jp/speech/night.wav"
+  },
+  {
+    "name": "firstday_1",
+    "audio": "jp/speech/firstday_1.wav"
+  },
+  {
+    "name": "firstday_2",
+    "audio": "jp/speech/firstday_2.wav"
+  },
+  {
+    "name": "firstday_3",
+    "audio": "jp/speech/firstday_3.wav"
+  },
+  {
+    "name": "firstday_4",
+    "audio": "jp/speech/firstday_4.wav"
+  },
+  {
+    "name": "birthday_1",
+    "audio": "jp/speech/birthday_1.wav"
+  },
+  {
+    "name": "birthday_2",
+    "audio": "jp/speech/birthday_2.wav"
+  },
+  {
+    "name": "amazing",
+    "audio": "jp/speech/amazing.ogg"
+  },
+  {
+    "name": "amaz_cry",
+    "audio": "jp/speech/amaz_cry.ogg"
+  },
+  {
+    "name": "cry",
+    "audio": "jp/speech/kiang.ogg"
+  },
+  {
+    "name": "random1_1",
+    "audio": "jp/speech/random1_1.ogg"
+  },
+  {
+    "name": "music_random1_1",
+    "audio": "jp/speech/music_random1_1.wav"
+  },
+  {
+    "name": "random2_1",
+    "audio": "jp/speech/random2_1.wav"
+  },
+  {
+    "name": "random2_2",
+    "audio": "jp/speech/random2_2.wav"
+  },
+  {
+    "name": "random2_3",
+    "audio": "jp/speech/random2_3.wav"
+  },
+  {
+    "name": "random3_1",
+    "audio": "jp/speech/random3_1.wav"
+  },
+  {
+    "name": "random3_2",
+    "audio": "jp/speech/random3_2.wav"
+  },
+  {
+    "name": "random3_3",
+    "audio": "jp/speech/random3_3.wav"
+  },
+  {
+    "name": "random4_1",
+    "audio": "jp/speech/random4_1.wav"
+  },
+  {
+    "name": "random4_2",
+    "audio": "jp/speech/random4_2.wav"
+  },
+  {
+    "name": "random4_3",
+    "audio": "jp/speech/random4_3.wav"
+  },
+  {
+    "name": "random4_4",
+    "audio": "jp/speech/random4_4.wav"
+  },
+  {
+    "name": "ema_birthday_1",
+    "audio": "jp/speech/ema_birthday_1.wav"
+  },
+  {
+    "name": "ema_birthday_2",
+    "audio": "jp/speech/ema_birthday_2.wav"
+  },
+  {
+    "name": "ema_birthday_3",
+    "audio": "jp/speech/ema_birthday_3.ogg"
+  },
+  {
+    "name": "ema_birthday_4",
+    "audio": "jp/speech/ema_birthday_4.wav"
+  },
+  {
+    "name": "work",
+    "audio": "jp/speech/work.wav"
+  },
+  {
+    "name": "long_time",
+    "audio": "jp/speech/long_time.wav"
+  },
+  {
+    "name": "every_hour",
+    "audio": "jp/speech/every_hour.wav"
+  },
+  {
+    "name": "random5_1",
+    "audio": "jp/speech/random5_1.wav"
+  },
+  {
+    "name": "random6_1",
+    "audio": "jp/speech/random6_1.wav"
+  },
+  {
+    "name": "random7_1",
+    "audio": "jp/speech/random7_1.wav"
+  },
+  {
+    "name": "cold",
+    "audio": "jp/speech/cold.wav"
+  },
+  {
+    "name": "hot",
+    "audio": "jp/speech/hot.wav"
+  },
+  {
+    "name": "rain",
+    "audio": "jp/speech/rain.wav"
+  },
+  {
+    "name": "snow",
+    "audio": "jp/speech/snow.wav"
+  }
+]

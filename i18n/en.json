@@ -636,6 +636,7 @@
     "importAndLoadSuccess": "Import and reload success",
     "importFailed": "Import failed",
     "unrecognizedFile": "Unrecognized file (not a valid .tbuddy archive)",
+    "sbuddyNotSupported": "Cannot load .sbuddy file: decryption tool (sbuddy-crypto) not found. Please place sbuddy-crypto in the program directory",
     "loadListFailed": "Failed to load mod list:",
     "loadDetailsFailed": "Failed to load details:",
 
@@ -644,7 +645,11 @@
     "conflictLoaded": "Loaded",
     "conflictImported": "Incoming",
     "keepLoaded": "Keep loaded",
-    "keepImported": "Keep incoming"
+    "keepImported": "Keep incoming",
+    "exportSbuddy": "Export as .sbuddy",
+    "exporting": "Exporting...",
+    "exportSuccess": "Export success",
+    "exportFailed": "Export failed"
   },
   "menu": {
     "about": "About",

@@ -22,10 +22,11 @@
  * ```
  */
 
-import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LRUCache } from "../utils/LRUCache";
 import { getModPath, clearModPathCache } from "../utils/modPath";
+import { buildModAssetUrl, isArchiveAssetUrl, archiveAssetUrlToVirtualPath } from "../utils/modAssetUrl";
 import type { AudioInfo, UserSettings } from "../types/asset";
 
 // ============================================================================
@@ -61,9 +62,17 @@ function logAudioError(...args: unknown[]): void {
   console.error("[AudioManager]", ...args);
 }
 
-/** 将 Tauri `convertFileSrc` 生成的 asset URL 反解为本地文件路径（用于预检存在性） */
-function assetUrlToFilePath(url: string): string | null {
+/**
+ * 将音频 URL 反解为可用于 `path_exists` 预检的路径。
+ * - archive mod URL (http://tbuddy-asset.localhost/mod_id/...) → 虚拟路径 "tbuddy-archive://mod_id/..."
+ * - folder mod URL (https://asset.localhost/...) → 本地文件路径
+ */
+function assetUrlToCheckPath(url: string): string | null {
   try {
+    // archive mod URL: 包含 "tbuddy-asset" 关键字
+    if (isArchiveAssetUrl(url)) {
+      return archiveAssetUrlToVirtualPath(url);
+    }
     const u = new URL(url);
     // pathname 形如: "/D%3A%2FTrayBuddy%2Fmods%2F..."
     const raw = u.pathname.startsWith("/") ? u.pathname.slice(1) : u.pathname;
@@ -259,6 +268,7 @@ export class AudioManager {
         logAudio(`Constructed audio path: ${audioPath}`);
 
         // 关键：播放前先检查文件是否存在
+        // archive mod 路径以 tbuddy-archive:// 开头，path_exists 命令已支持
         const exists = await existsInCurrentMod(audioPath);
         if (!exists) {
           logAudio(`Audio file missing: '${audioName}', skipping playback`);
@@ -266,13 +276,13 @@ export class AudioManager {
           return true;
         }
 
-        audioUrl = convertFileSrc(audioPath);
+        audioUrl = buildModAssetUrl(modPath, `audio/${audioInfo.audio}`);
         logAudio(`Converted audio URL: ${audioUrl}`);
         audioUrlCache.set(cacheKey, audioUrl); // 仅在确认存在后再缓存
       } else {
         // 缓存命中：同样做一次预检（避免缓存过期/文件被删除后触发 onerror）
         logAudio(`Cache hit for '${audioName}'`);
-        const cachedPath = assetUrlToFilePath(audioUrl);
+        const cachedPath = assetUrlToCheckPath(audioUrl);
         if (cachedPath) {
           const exists = await existsInCurrentMod(cachedPath);
           if (!exists) {

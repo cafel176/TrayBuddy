@@ -25,10 +25,10 @@
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { convertFileSrc } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
   import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
   import { t, onLangChange } from "$lib/i18n";
+  import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
   import type {
     AssetInfo,
     AudioInfo,
@@ -231,8 +231,7 @@
 
   function getAssetSrc(relativePath: string): string {
     if (!currentModInfo) return "";
-    const fullPath = `${currentModInfo.path}/${relativePath}`;
-    return convertFileSrc(fullPath);
+    return buildModAssetUrl(currentModInfo.path, relativePath);
   }
 
   function openImageViewer(src: string, title: string) {
@@ -264,8 +263,7 @@
 
     if (!currentModInfo) return;
 
-    const fullPath = `${currentModInfo.path}/audio/${audioPath}`;
-    const src = convertFileSrc(fullPath);
+    const src = buildModAssetUrl(currentModInfo.path, `audio/${audioPath}`);
 
     currentAudio = new Audio(src);
     playingAudioName = audioName;

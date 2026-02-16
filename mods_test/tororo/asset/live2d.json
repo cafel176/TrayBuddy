@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "tororo",
+    "base_dir": "asset/live2d/",
+    "model_json": "tororo.model3.json",
+    "textures_dir": "tororo.1024",
+    "motions_dir": "animations",
+    "expressions_dir": "",
+    "physics_json": "",
+    "pose_json": "",
+    "eye_blink": false,
+    "lip_sync": false
+  },
+  "motions": [
+    {
+      "name": "00_idle",
+      "file": "animations/00_idle.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "02",
+      "file": "animations/02.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "03",
+      "file": "animations/03.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "01",
+      "file": "animations/01.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "07",
+      "file": "animations/07.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "06",
+      "file": "animations/06.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "08",
+      "file": "animations/08.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "05",
+      "file": "animations/05.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    },
+    {
+      "name": "04",
+      "file": "animations/04.motion3.json",
+      "group": "Default",
+      "priority": "Normal",
+      "fade_in_ms": 200,
+      "fade_out_ms": 200,
+      "loop": false
+    }
+  ],
+  "expressions": [],
+  "states": [
+    {
+      "state": "00_idle",
+      "motion": "00_idle",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "02",
+      "motion": "02",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "03",
+      "motion": "03",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "01",
+      "motion": "01",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "07",
+      "motion": "07",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "06",
+      "motion": "06",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "08",
+      "motion": "08",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "05",
+      "motion": "05",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "04",
+      "motion": "04",
+      "expression": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    }
+  ]
+}

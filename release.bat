@@ -34,6 +34,10 @@ echo Packing mods to .tbuddy files...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1"
 if errorlevel 1 goto :_tb_pack_failed
 
+echo Packing mods_test to .tbuddy files...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1" -ModsDir "%~dp0mods_test" -NoClean
+if errorlevel 1 goto :_tb_pack_failed
+
 echo Building Tauri app...
 call pnpm tauri build --verbose > tauri-build.log 2>&1
 if errorlevel 1 goto :_tb_build_failed

@@ -634,6 +634,7 @@
     "importAndLoadSuccess": "导入并重新加载成功",
     "importFailed": "导入失败",
     "unrecognizedFile": "无法识别的文件 (不是有效的 .tbuddy 压缩包)",
+    "sbuddyNotSupported": "无法加载 .sbuddy 文件：未找到解密工具 (sbuddy-crypto)，请将 sbuddy-crypto 放置在程序目录下",
     "loadListFailed": "加载 Mod 列表失败:",
     "loadDetailsFailed": "加载详情失败:",
 
@@ -642,7 +643,11 @@
     "conflictLoaded": "已加载",
     "conflictImported": "新导入",
     "keepLoaded": "保留已加载",
-    "keepImported": "保留新导入"
+    "keepImported": "保留新导入",
+    "exportSbuddy": "导出为 .sbuddy",
+    "exporting": "导出中...",
+    "exportSuccess": "导出成功",
+    "exportFailed": "导出失败"
   },
   "menu": {
     "about": "关于本程序",

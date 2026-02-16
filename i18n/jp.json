@@ -636,6 +636,7 @@
     "importAndLoadSuccess": "インポートして再読み込みしました",
     "importFailed": "インポート失敗",
     "unrecognizedFile": "認識できないファイル (.tbuddy 形式ではありません)",
+    "sbuddyNotSupported": ".sbuddy ファイルを読み込めません：復号ツール (sbuddy-crypto) が見つかりません。プログラムディレクトリに sbuddy-crypto を配置してください",
     "loadListFailed": "Modリストの読み込みに失敗しました:",
     "loadDetailsFailed": "詳細の読み込みに失敗しました:",
 
@@ -644,7 +645,11 @@
     "conflictLoaded": "読み込み中",
     "conflictImported": "新規",
     "keepLoaded": "読み込み中を保持",
-    "keepImported": "新規を保持"
+    "keepImported": "新規を保持",
+    "exportSbuddy": ".sbuddy にエクスポート",
+    "exporting": "エクスポート中...",
+    "exportSuccess": "エクスポート成功",
+    "exportFailed": "エクスポート失敗"
   },
   "menu": {
     "about": "このアプリについて",

@@ -1,8 +1,9 @@
 <script lang="ts">
-    import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+    import { invoke } from "@tauri-apps/api/core";
     import { onMount, onDestroy } from "svelte";
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { listen } from "@tauri-apps/api/event";
+    import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
     import {
         t,
         initI18n,
@@ -81,6 +82,9 @@
     let conflictIncomingVersion = $state("");
     let pendingImportPath = $state<string | null>(null);
 
+    // 导出为 .sbuddy 相关
+    let exporting = $state(false);
+
 
     /** 当前语言下的角色信息 (响应式) */
     let activeCharInfo = $derived.by(() => {
@@ -153,8 +157,7 @@
             const previewExtensions = ['png', 'jpg', 'jpeg', 'webp'];
             
             for (const ext of previewExtensions) {
-                const testPath = `${info.path}/preview.${ext}`.replace(/\\/g, "/");
-                const testSrc = convertFileSrc(testPath);
+                const testSrc = buildModAssetUrl(info.path, `preview.${ext}`);
                 
                 // 测试图片是否可以加载
                 const success = await new Promise<boolean>((resolve) => {
@@ -211,11 +214,44 @@
             return;
         }
         try {
+            // tbuddy 包形式的 mod：打开 .tbuddy 文件所在目录并选中该文件
+            if (selectedModInfo.path.startsWith("tbuddy-archive://")) {
+                const modId = selectedModInfo.manifest?.id ?? selectedModInfo.path.replace("tbuddy-archive://", "");
+                const sourcePath: string | null = await invoke("get_tbuddy_source_path", { modId });
+                if (sourcePath) {
+                    await invoke("open_path", { path: sourcePath });
+                    statusMsg = _("modWindow.modDirOpened");
+                    return;
+                }
+            }
             await invoke("open_dir", { path: selectedModInfo.path });
             statusMsg = _("modWindow.modDirOpened");
         } catch (e) {
             console.error("Failed to open mod directory:", e);
             statusMsg = _("modWindow.modDirOpenFailed");
+        }
+    }
+
+    async function exportAsSbuddy() {
+        if (!selectedModInfo) return;
+        exporting = true;
+        statusMsg = _("modWindow.exporting");
+        try {
+            await invoke("export_mod_as_sbuddy", { modId: selectedModInfo.manifest.id });
+            statusMsg = _("modWindow.exportSuccess");
+        } catch (e) {
+            const errMsg = toErrorMessage(e);
+            if (errMsg === "Canceled" || String(e).includes("Canceled")) return;
+            if (errMsg.includes("sbuddy-crypto not found") || errMsg.includes("sbuddy not supported")) {
+                await message(
+                    _("modWindow.sbuddyNotSupported"),
+                    { title: _("common.appName"), kind: "error" }
+                );
+            } else {
+                statusMsg = `${_("modWindow.exportFailed")}: ${errMsg}`;
+            }
+        } finally {
+            exporting = false;
         }
     }
 
@@ -267,16 +303,23 @@
 
     function toErrorMessage(e: unknown): string {
         if (typeof e === "string") return e;
-        if (e && typeof e === "object" && "message" in e) {
-            const msg = (e as { message?: unknown }).message;
-            if (typeof msg === "string") return msg;
+        if (e && typeof e === "object") {
+            // Tauri v2 可能将错误包装为 { message: string } 或其他形式
+            const obj = e as Record<string, unknown>;
+            if (typeof obj.message === "string") return obj.message;
+            // 尝试所有字符串值
+            for (const val of Object.values(obj)) {
+                if (typeof val === "string") return val;
+            }
         }
         return String(e);
     }
 
     async function showImportError(e: unknown) {
         let errorMsg = toErrorMessage(e);
-        if (errorMsg.includes("Invalid .tbuddy file")) {
+        if (errorMsg.includes("sbuddy-crypto not found") || errorMsg.includes("sbuddy not supported")) {
+            errorMsg = _("modWindow.sbuddyNotSupported");
+        } else if (errorMsg.includes("Invalid .tbuddy file")) {
             errorMsg = _("modWindow.unrecognizedFile");
         }
 
@@ -353,7 +396,21 @@
     async function importMod() {
         try {
             const picked = (await invoke("pick_mod_tbuddy")) as ModTbuddyPick;
-            if (!picked?.filePath) return;
+            if (!picked?.filePath) {
+                return;
+            }
+
+            // 如果选择了 .sbuddy 文件，先检查解密工具是否可用
+            if (picked.filePath.toLowerCase().endsWith(".sbuddy")) {
+                const supported = await invoke("is_sbuddy_supported") as boolean;
+                if (!supported) {
+                    await message(
+                        _("modWindow.sbuddyNotSupported"),
+                        { title: _("common.appName"), kind: "error" }
+                    );
+                    return;
+                }
+            }
 
             // 如果发现已经加载了同 id 的 mod，则弹窗提示并询问保留哪个
             if (currentModName && picked.id === currentModName) {
@@ -367,8 +424,20 @@
 
             await doImportFromPath(picked.filePath);
         } catch (e) {
-            // 后端 file picker 取消会返回 "Canceled"
-            if (toErrorMessage(e) === "Canceled") return;
+            // 将错误转为字符串进行匹配（兼容 Tauri v2 各种错误格式）
+            const errStr = String(e);
+            const errMsg = toErrorMessage(e);
+            if (errMsg === "Canceled" || errStr.includes("Canceled")) {
+                return;
+            }
+            if (errMsg.includes("sbuddy-crypto not found") || errMsg.includes("sbuddy not supported")
+                || errStr.includes("sbuddy-crypto not found") || errStr.includes("sbuddy not supported")) {
+                await message(
+                    _("modWindow.sbuddyNotSupported"),
+                    { title: _("common.appName"), kind: "error" }
+                );
+                return;
+            }
             await showImportError(e);
         }
     }
@@ -500,6 +569,15 @@
                     {#if selectedModInfo}
                         <button class="secondary-btn" onclick={openModDir}>
                             {_("modWindow.openModDir")}
+                        </button>
+                    {/if}
+                    {#if selectedModInfo}
+                        <button
+                            class="secondary-btn export-sbuddy-btn"
+                            disabled={exporting}
+                            onclick={exportAsSbuddy}
+                        >
+                            {exporting ? _("modWindow.exporting") : _("modWindow.exportSbuddy")}
                         </button>
                     {/if}
                 </div>

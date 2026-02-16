@@ -17,3 +17,10 @@ check-tool/bundle_analyzer/Logs/
 *.log
 
 text_list/data
+
+# sbuddy-crypto（加密工具，不开源）
+sbuddy-crypto/
+sbuddy-crypto.exe
+mod-tool/sbuddy-crypto.exe
+mod-tool/to-sbuddy.bat
+src-tauri/sbuddy-crypto.exe

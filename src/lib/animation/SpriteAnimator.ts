@@ -26,6 +26,7 @@
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { LRUCache } from "../utils/LRUCache";
 import { getModPath, clearModPathCache } from "../utils/modPath";
+import { buildModAssetUrl } from "../utils/modAssetUrl";
 import type { AssetInfo, AnimationConfig } from "../types/asset";
 
 // ============================================================================
@@ -280,10 +281,8 @@ export type { AssetInfo, AnimationConfig };
  * - 处理默认值（如未定义的帧数默认为 1）
  */
 function buildAnimationConfig(asset: AssetInfo, modPath: string): AnimationConfig {
-  // 构建资产文件的完整路径
-  const rawPath = `${modPath}/asset/${asset.img}`;
-  // 将本地文件路径转换为可在 WebView 中使用的 URL
-  const imgSrc = convertFileSrc(rawPath.replace(/\\/g, '/'));
+  // 构建资产文件的完整 URL（自动适配文件夹 mod 和 archive mod）
+  const imgSrc = buildModAssetUrl(modPath, `asset/${asset.img}`);
   
   return {
     frameCountX: asset.frame_num_x || 1,        // X 轴帧数（列数）
