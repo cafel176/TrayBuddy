@@ -203,6 +203,21 @@
               </div>
             </section>
 
+            <!-- 鼠标设置 -->
+            <section class="form-section">
+              <h3 data-i18n="section_mouse">鼠标设置</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="global-mouse" data-i18n="global_mouse_label">全局鼠标监听</label>
+                  <label class="switch">
+                    <input type="checkbox" id="global-mouse">
+                    <span class="slider"></span>
+                  </label>
+                  <small data-i18n="global_mouse_hint">开启后鼠标点击任意位置都可触发 global_click / global_right_click 事件</small>
+                </div>
+              </div>
+            </section>
+
             <!-- 预览图 -->
             <section class="form-section">
               <h3 data-i18n="section_preview">预览图</h3>
@@ -340,6 +355,8 @@
               <div class="event-docs">
                 <div class="event-doc-item"><code>click</code> <span data-i18n="event_click">点击角色</span></div>
                 <div class="event-doc-item"><code>right_click</code> <span data-i18n="event_right_click">右键点击角色</span></div>
+                <div class="event-doc-item"><code>global_click</code> <span data-i18n="event_global_click">全局左键点击（需开启全局鼠标监听）</span></div>
+                <div class="event-doc-item"><code>global_right_click</code> <span data-i18n="event_global_right_click">全局右键点击（需开启全局鼠标监听）</span></div>
                 <div class="event-doc-item"><code>keydown:&lt;Key&gt;</code> <span data-i18n="event_keydown_space">按键触发（例如：keydown:Space）</span></div>
                 <div class="event-doc-item"><code>login</code> <span data-i18n="event_login">启动/登录</span></div>
                 <div class="event-doc-item"><code>drag_start</code> <span data-i18n="event_drag_start">开始拖动窗口</span></div>
@@ -1449,8 +1466,8 @@
         <div class="form-grid">
           <div class="form-group full-width">
             <label><span data-i18n="event_name_label">事件名称</span> <span class="required">*</span></label>
-            <input type="text" id="trigger-event" data-i18n-placeholder="placeholder_trigger_event" placeholder="例如: click, right_click, login, work, music_start">
-            <small data-i18n="event_name_hint">常用事件: click, right_click, login, work, birthday, firstday, music_start, music_end, login_silence, keydown:Space</small>
+            <input type="text" id="trigger-event" data-i18n-placeholder="placeholder_trigger_event" placeholder="例如: click, right_click, global_click, login, work, music_start">
+            <small data-i18n="event_name_hint">常用事件: click, right_click, global_click, global_right_click, login, work, birthday, firstday, music_start, music_end, login_silence, keydown:Space</small>
 
           </div>
         </div>

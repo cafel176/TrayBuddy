@@ -148,6 +148,8 @@ pub struct AppState {
     session_locked: Arc<std::sync::atomic::AtomicBool>,
     /// 全局键盘监听开关：由当前 Mod 的 global_keyboard 字段控制
     global_keyboard_enabled: Arc<std::sync::atomic::AtomicBool>,
+    /// 全局鼠标监听开关：由当前 Mod 的 global_mouse 字段控制
+    global_mouse_enabled: Arc<std::sync::atomic::AtomicBool>,
 }
 
 // ========================================================================= //
@@ -680,6 +682,12 @@ where
     // 4.5. 更新全局键盘监听开关
     state.global_keyboard_enabled.store(
         mod_info.manifest.global_keyboard,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+
+    // 4.6. 更新全局鼠标监听开关
+    state.global_mouse_enabled.store(
+        mod_info.manifest.global_mouse,
         std::sync::atomic::Ordering::Relaxed,
     );
 
@@ -1490,6 +1498,14 @@ pub fn run() {
                     .unwrap_or(false)
             };
 
+            // 从已加载的 Mod 中读取 global_mouse 初始值
+            let initial_global_mouse = {
+                let rm_guard = rm.lock().unwrap();
+                rm_guard.current_mod.as_ref()
+                    .map(|m| m.manifest.global_mouse)
+                    .unwrap_or(false)
+            };
+
             // ========== 初始化状态 ==========
             let is_silence = storage.data.settings.silence_mode;
 
@@ -1545,6 +1561,7 @@ pub fn run() {
                 media_observer: Mutex::new(None),
                 session_locked: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 global_keyboard_enabled: Arc::new(std::sync::atomic::AtomicBool::new(initial_global_keyboard)),
+                global_mouse_enabled: Arc::new(std::sync::atomic::AtomicBool::new(initial_global_mouse)),
             });
 
             // ========== 监听设置变更以实时刷新托盘菜单 ==========
@@ -2622,6 +2639,79 @@ fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
                             }
                             _ => {}
                         }
+                    }
+
+                    prev_states[i] = pressed;
+                }
+            }
+        });
+    }
+}
+
+/// 启动全局鼠标监听器（独立线程）
+///
+/// 当 Mod 的 `global_mouse` 为 true 时，通过 `GetAsyncKeyState` 轮询鼠标按钮状态，
+/// 将检测到的按下以 `global_click` / `global_right_click` 事件发送到触发器系统。
+/// 这使得即使鼠标未点击在角色身上，也能触发对应事件。
+fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::sync::atomic::Ordering;
+        use std::time::Duration;
+        use tauri::Manager;
+
+        let enabled = {
+            let app_state = app_handle.state::<AppState>();
+            app_state.global_mouse_enabled.clone()
+        };
+
+        std::thread::spawn(move || {
+            use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+
+            /// 鼠标按钮映射：(虚拟键码, 事件名称)
+            const MOUSE_MAP: &[(i32, &str)] = &[
+                (0x01, "global_click"),        // VK_LBUTTON
+                (0x02, "global_right_click"),   // VK_RBUTTON
+            ];
+
+            let mut prev_states = [false; 2];
+            let mut logged_enabled = false;
+            let mut logged_disabled = false;
+
+            loop {
+                std::thread::sleep(Duration::from_millis(50));
+
+                if !enabled.load(Ordering::Relaxed) {
+                    if !logged_disabled {
+                        println!("[GlobalMouse] Listener is DISABLED (global_mouse=false)");
+                        logged_disabled = true;
+                        logged_enabled = false;
+                    }
+                    // 禁用时重置状态，防止重新启用时误触发
+                    for s in prev_states.iter_mut() {
+                        *s = false;
+                    }
+                    continue;
+                }
+
+                if !logged_enabled {
+                    println!("[GlobalMouse] Listener is ENABLED (global_mouse=true)");
+                    logged_enabled = true;
+                    logged_disabled = false;
+                }
+
+                for (i, &(vk, event_name)) in MOUSE_MAP.iter().enumerate() {
+                    let pressed = unsafe { GetAsyncKeyState(vk) < 0 };
+
+                    if pressed && !prev_states[i] {
+                        // 鼠标按钮刚按下（边沿检测），触发事件
+                        println!("[GlobalMouse] Button pressed: {} (vk=0x{:02X})", event_name, vk);
+                        let Some(app_state) = app_handle.try_state::<AppState>() else {
+                            continue;
+                        };
+                        let rm = app_state.resource_manager.lock().unwrap();
+                        let mut sm = app_state.state_manager.lock().unwrap();
+                        let _ = TriggerManager::trigger_event(event_name, false, &rm, &mut sm);
                     }
 
                     prev_states[i] = pressed;
@@ -3930,6 +4020,9 @@ fn start_background_services(app_handle: &tauri::AppHandle) {
 
     // 启动全局键盘监听器（独立线程）
     start_global_keyboard_listener(app_handle.clone());
+
+    // 启动全局鼠标监听器（独立线程）
+    start_global_mouse_listener(app_handle.clone());
 
     // 启动系统状态观察器（独立线程，无锁）
 

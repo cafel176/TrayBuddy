@@ -16,6 +16,7 @@
   "show_mod_data_panel": true,
   "mod_data_default_int": 0,
   "global_keyboard": false,
+  "global_mouse": false,
   "important_states": {
     "idle": {
       "name": "idle",
@@ -991,6 +992,18 @@
     },
     {
       "event": "music_end",
+      "can_trigger_states": []
+    },
+    {
+      "event": "right_click",
+      "can_trigger_states": []
+    },
+    {
+      "event": "global_click",
+      "can_trigger_states": []
+    },
+    {
+      "event": "global_right_click",
       "can_trigger_states": []
     }
   ],

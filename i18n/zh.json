@@ -572,6 +572,8 @@
     "triggerBtn": "触发",
     "quickClick": "点击",
     "quickRightClick": "右键",
+    "quickGlobalClick": "全局点击",
+    "quickGlobalRightClick": "全局右键",
     "quickLogin": "登录",
     "whenCondition": "当 {state} 时",
 
@@ -581,7 +583,7 @@
 
     "noTriggers": "当前 Mod 未定义触发器",
     "manualTrigger": "手动触发事件",
-    "inputPlaceholder": "输入事件名称 (如 click, right_click, login)",
+    "inputPlaceholder": "输入事件名称 (如 click, right_click, global_click, login)",
     "eventLog": "事件日志",
     "noEvents": "暂无事件",
     "refreshData": "刷新数据",

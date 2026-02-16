@@ -6,6 +6,8 @@
  * ## 支持的事件
  * - `click` - 点击桌面宠物
  * - `right_click` - 右键点击桌面宠物
+ * - `global_click` - 全局左键点击（不要求窗口焦点，由后端轮询触发）
+ * - `global_right_click` - 全局右键点击（不要求窗口焦点，由后端轮询触发）
  * - `login` - 应用启动（登录）
  * - `drag_start` - 开始拖动 Animation window
  * - `drag_end` - 结束拖动 Animation window
@@ -30,6 +32,8 @@ import { invoke } from "@tauri-apps/api/core";
 export type TriggerEvent =
   | "click"
   | "right_click"
+  | "global_click"
+  | "global_right_click"
   | "login"
   | "login_silence"
   | "firstday"
@@ -42,6 +46,8 @@ export type TriggerEvent =
 const SUPPORTED_EVENTS: readonly TriggerEvent[] = [
   "click",
   "right_click",
+  "global_click",
+  "global_right_click",
   "login",
   "login_silence",
   "firstday",

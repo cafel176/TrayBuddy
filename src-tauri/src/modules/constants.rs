@@ -139,6 +139,12 @@ pub const EVENT_CLICK: &str = "click";
 /// 右键点击事件
 pub const EVENT_RIGHT_CLICK: &str = "right_click";
 
+/// 全局左键点击事件（不要求窗口焦点）
+pub const EVENT_GLOBAL_CLICK: &str = "global_click";
+
+/// 全局右键点击事件（不要求窗口焦点）
+pub const EVENT_GLOBAL_RIGHT_CLICK: &str = "global_right_click";
+
 /// 登录事件
 pub const EVENT_LOGIN: &str = "login";
 

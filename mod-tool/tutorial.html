@@ -162,6 +162,9 @@
       <h4 data-i18n="section_global_keyboard">全局键盘监听</h4>
       <p data-i18n="global_keyboard_desc">配置 global_keyboard 为 true 后，即使动画窗口未获得焦点，也能触发 keydown 事件。适用于需要实时响应键盘输入的桌面宠物模型。</p>
 
+      <h4 data-i18n="section_global_mouse">全局鼠标监听</h4>
+      <p data-i18n="global_mouse_desc">配置 global_mouse 为 true 后，鼠标点击任意位置都可触发 global_click / global_right_click 事件，无需点击在角色身上。</p>
+
       <h4 data-i18n="section_preview_icon">预览图与图标</h4>
       <p data-i18n="preview_icon_desc">预览图支持 PNG/JPG/JPEG/WebP 格式，图标支持 ICO 格式。</p>
 
@@ -224,6 +227,8 @@
         <tr><th data-i18n="table_event">事件名</th><th data-i18n="table_timing">触发时机</th></tr>
         <tr><td>click</td><td data-i18n="event_click">用户点击角色</td></tr>
         <tr><td>right_click</td><td data-i18n="event_right_click">用户右键点击角色</td></tr>
+        <tr><td>global_click</td><td data-i18n="event_global_click">全局左键点击（需开启全局鼠标监听）</td></tr>
+        <tr><td>global_right_click</td><td data-i18n="event_global_right_click">全局右键点击（需开启全局鼠标监听）</td></tr>
         <tr><td>login</td><td data-i18n="event_login">程序启动</td></tr>
         <tr><td>drag_start</td><td data-i18n="event_drag_start">开始拖动窗口</td></tr>
         <tr><td>drag_end</td><td data-i18n="event_drag_end">结束拖动窗口</td></tr>

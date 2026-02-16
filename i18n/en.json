@@ -573,6 +573,8 @@
     "triggerBtn": "Trigger",
     "quickClick": "Click",
     "quickRightClick": "Right Click",
+    "quickGlobalClick": "Global Click",
+    "quickGlobalRightClick": "Global Right Click",
     "quickLogin": "Login",
     "whenCondition": "When {state}",
 
@@ -582,7 +584,7 @@
 
     "noTriggers": "No triggers defined in current Mod",
     "manualTrigger": "Manual Trigger",
-    "inputPlaceholder": "Enter event name (e.g. click, right_click, login)",
+    "inputPlaceholder": "Enter event name (e.g. click, right_click, global_click, login)",
     "eventLog": "Event Log",
     "noEvents": "No events yet",
     "refreshData": "Refresh Data",

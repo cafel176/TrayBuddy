@@ -573,6 +573,8 @@
     "triggerBtn": "トリガー",
     "quickClick": "クリック",
     "quickRightClick": "右クリック",
+    "quickGlobalClick": "グローバルクリック",
+    "quickGlobalRightClick": "グローバル右クリック",
     "quickLogin": "ログイン",
     "whenCondition": "{state} の時",
 
@@ -582,7 +584,7 @@
 
     "noTriggers": "現在の Mod にトリガーが定義されていません",
     "manualTrigger": "手動トリガー",
-    "inputPlaceholder": "イベント名を入力 (例: click, right_click, login)",
+    "inputPlaceholder": "イベント名を入力 (例: click, right_click, global_click, login)",
     "eventLog": "イベントログ",
     "noEvents": "イベントなし",
     "refreshData": "データを更新",

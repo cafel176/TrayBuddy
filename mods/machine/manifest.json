@@ -16,6 +16,7 @@
   "show_mod_data_panel": true,
   "mod_data_default_int": 100,
   "global_keyboard": false,
+  "global_mouse": false,
   "important_states": {
     "idle": {
       "name": "idle",
@@ -656,6 +657,18 @@
           "allow_repeat": true
         }
       ]
+    },
+    {
+      "event": "right_click",
+      "can_trigger_states": []
+    },
+    {
+      "event": "global_click",
+      "can_trigger_states": []
+    },
+    {
+      "event": "global_right_click",
+      "can_trigger_states": []
     }
   ],
   "mod_type": "sequence"

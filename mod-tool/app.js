@@ -1345,6 +1345,7 @@ function normalizeManifestForEditor(manifest) {
   if (typeof manifest.show_mod_data_panel !== 'boolean') manifest.show_mod_data_panel = false;
   if (!Number.isFinite(Number(manifest.mod_data_default_int))) manifest.mod_data_default_int = 0;
   if (typeof manifest.global_keyboard !== 'boolean') manifest.global_keyboard = false;
+  if (typeof manifest.global_mouse !== 'boolean') manifest.global_mouse = false;
 
   manifest.character = manifest.character || { z_offset: 1 };
   if (!Number.isFinite(Number(manifest.character.z_offset))) manifest.character.z_offset = 1;
@@ -2244,6 +2245,9 @@ function populateManifestForm() {
   // 全局键盘
   document.getElementById('global-keyboard').checked = m.global_keyboard === true;
 
+  // 全局鼠标
+  document.getElementById('global-mouse').checked = m.global_mouse === true;
+
   // Mod 类型显示
   const modType = m.mod_type || 'sequence';
   const modTypeDisplay = document.getElementById('mod-type-display');
@@ -2313,6 +2317,9 @@ function collectManifestData() {
 
   // 全局键盘
   m.global_keyboard = document.getElementById('global-keyboard').checked;
+
+  // 全局鼠标
+  m.global_mouse = document.getElementById('global-mouse').checked;
 
   // 收集 Live2D 模型配置
   if (m.mod_type === 'live2d') {

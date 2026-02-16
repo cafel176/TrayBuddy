@@ -342,8 +342,8 @@ pub struct TextInfo {
     pub name: Box<str>,
     /// 显示的文本内容
     pub text: Box<str>,
-    /// 文本显示持续时间（秒），默认 3 秒
-    pub duration: u32,
+    /// 文本显示持续时间（秒），支持小数，默认 3 秒
+    pub duration: f64,
 }
 
 impl Default for TextInfo {
@@ -351,7 +351,7 @@ impl Default for TextInfo {
         Self {
             name: default_name(),
             text: "".into(),
-            duration: 3,
+            duration: 3.0,
         }
     }
 }
@@ -905,6 +905,9 @@ pub struct ModManifest {
     /// 全局键盘监听：为 true 时即使动画窗口未获得焦点也能触发 keydown 事件
     pub global_keyboard: bool,
 
+    /// 全局鼠标监听：为 true 时即使鼠标未点击角色也能触发 global_click / global_right_click 事件
+    pub global_mouse: bool,
+
     /// 核心状态（如 idle）
     pub important_states: HashMap<Box<str>, StateInfo>,
     /// 其他状态列表
@@ -927,6 +930,7 @@ impl Default for ModManifest {
             show_mod_data_panel: false,
             mod_data_default_int: 0,
             global_keyboard: false,
+            global_mouse: false,
             important_states: HashMap::new(),
             states: Vec::new(),
             triggers: Vec::new(),
