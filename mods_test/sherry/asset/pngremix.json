@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "橘雪莉",
+    "pngremix_file": "asset/橘雪莉251004.pngRemix",
+    "default_state_index": 0,
+    "max_fps": 60
+  },
+  "features": {
+    "mouse_follow": true,
+    "auto_blink": true,
+    "click_bounce": true,
+    "click_bounce_amp": 50,
+    "click_bounce_duration": 0.5,
+    "blink_speed": 1.0,
+    "blink_chance": 6,
+    "blink_hold_ratio": 0.2
+  },
+  "expressions": [
+    {
+      "name": "normal",
+      "state_index": 0
+    },
+    {
+      "name": "shy",
+      "state_index": 1
+    },
+    {
+      "name": "surprised",
+      "state_index": 2
+    },
+    {
+      "name": "serious",
+      "state_index": 3
+    },
+    {
+      "name": "cry",
+      "state_index": 4
+    }
+  ],
+  "motions": [
+    {
+      "name": "raise_hand",
+      "hotkey": "F2",
+      "description": "抬单手/指人/抬手/苹果身"
+    },
+    {
+      "name": "point",
+      "hotkey": "F3",
+      "description": "指人/身体/抬手/苹果身"
+    },
+    {
+      "name": "body_alt",
+      "hotkey": "F4",
+      "description": "抬单手/身体/抬手/苹果身"
+    },
+    {
+      "name": "apple_hide",
+      "hotkey": "F5",
+      "description": "抬单手/指人/身体/抬手身"
+    },
+    {
+      "name": "raise_hide",
+      "hotkey": "F6",
+      "description": "抬单手/指人/身体/苹果身"
+    }
+  ],
+  "states": [
+    {
+      "state": "idle",
+      "expression": "normal",
+      "motion": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "shy",
+      "expression": "shy",
+      "motion": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "surprised",
+      "expression": "surprised",
+      "motion": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "serious",
+      "expression": "serious",
+      "motion": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "cry",
+      "expression": "cry",
+      "motion": "",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "wave",
+      "expression": "",
+      "motion": "raise_hand",
+      "scale": 1.0,
+      "offset_x": 0,
+      "offset_y": 0
+    }
+  ]
+}
