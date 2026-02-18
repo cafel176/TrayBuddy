@@ -13,13 +13,14 @@ PngRemix 渲染层暂为空占位。
   import { invoke } from "@tauri-apps/api/core";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
-  import type { PngRemixConfig, ModData, ModType } from "$lib/types/asset";
+  import type { PngRemixConfig, ModData, ModType, PngRemixParameterSetting } from "$lib/types/asset";
   import type { Live2DParameterSetting } from "$lib/types/asset";
 
   import {
     createWindowCore,
     type ModDataToast,
   } from "$lib/animation/WindowCore";
+  import { PngRemixPlayer } from "$lib/animation/PngRemixPlayer";
 
   interface ModManifest {
     mod_type?: ModType;
@@ -78,9 +79,10 @@ PngRemix 渲染层暂为空占位。
 
   let pngremixConfig: PngRemixConfig | null = null;
   let modPath = "";
+  let player: PngRemixPlayer | null = null;
 
   // =========================================================================
-  // PngRemix Player 占位（未实现渲染逻辑）
+  // PngRemix Player 初始化
   // =========================================================================
 
   async function initPngRemixPlayer() {
@@ -111,7 +113,10 @@ PngRemix 渲染层暂为空占位。
         states: pngremixConfig.states.length,
       });
 
-      // TODO: 初始化 PngRemixPlayer 渲染引擎
+      // 初始化 PngRemixPlayer 渲染引擎
+      player = new PngRemixPlayer(pngremixCanvas);
+      await player.init(modPath, pngremixConfig);
+      player.setAnimationScale(animationScale);
     } catch (error) {
       console.error("Failed to init PngRemix player:", error);
     }
@@ -123,11 +128,24 @@ PngRemix 渲染层暂为空占位。
     onComplete: () => void,
     _live2dParams?: Live2DParameterSetting[],
   ): Promise<boolean> {
-    if (!pngremixConfig) return false;
-    // TODO: 实现 PngRemix 播放逻辑
-    // PngRemix 无播放时长概念，始终"播放中"
-    console.log("[PngRemix Page] playAnimation:", assetName, "playOnce:", playOnce);
-    return true;
+    if (!pngremixConfig || !player) return false;
+
+    // 查找该状态是否有 pngremix_params 需要应用
+    // WindowCore 会把 StateInfo.pngremix_params 作为 live2dParams 传入
+    // 但我们需要把它们转为 PngRemixParameterSetting
+    const pngremixParams: PngRemixParameterSetting[] = [];
+    if (_live2dParams && _live2dParams.length > 0) {
+      // live2dParams 中嵌入的 pngremix 参数格式：id = "expression:xxx" or "motion:xxx"
+      for (const p of _live2dParams) {
+        if (p.id.startsWith("expression:")) {
+          pngremixParams.push({ type: "expression", name: p.id.slice("expression:".length) });
+        } else if (p.id.startsWith("motion:")) {
+          pngremixParams.push({ type: "motion", name: p.id.slice("motion:".length) });
+        }
+      }
+    }
+
+    return player.playFromAnima(assetName, playOnce, onComplete, pngremixParams.length > 0 ? pngremixParams : undefined);
   }
 
   const core = createWindowCore({
@@ -203,15 +221,15 @@ PngRemix 渲染层暂为空占位。
     callbacks: {
       playAnimation,
       onAnimationScaleChanged: () => {
-        // TODO: 通知 PngRemixPlayer 缩放变化
+        if (player) player.setAnimationScale(animationScale);
       },
-      isPixelOpaqueAtWindowPos: (_windowX: number, _windowY: number) => {
-        // TODO: 实现像素透明检测
-        return false;
+      // PngRemix：不做像素级命中测试（避免 getImageData 的巨大开销），
+      // 直接视为不透明，让 WindowCore 走“窗口内交互”逻辑。
+      isPixelOpaqueAtWindowPos: () => true,
+      onCursorMove: (localX: number, localY: number) => {
+        if (player) player.updateGlobalMouseFollow(localX, localY);
       },
-      onCursorMove: (_localX: number, _localY: number) => {
-        // TODO: 实现鼠标跟随
-      },
+      skipBackendCursorIcon: true,
     },
   });
 
@@ -226,6 +244,10 @@ PngRemix 渲染层暂为空占位。
   });
 
   onDestroy(() => {
+    if (player) {
+      player.destroy();
+      player = null;
+    }
     core.destroy();
   });
 
@@ -269,6 +291,7 @@ PngRemix 渲染层暂为空占位。
         : 'none'}; outline-offset: -2px;"
       bind:this={pngremixCanvas}
       onmousedown={(e) => {
+        if (player) player.triggerClickBounce();
         core.handleMouseDown(e);
       }}
     ></canvas>
