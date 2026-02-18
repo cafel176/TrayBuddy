@@ -5904,8 +5904,10 @@ function renderPngRemixMotions(motions) {
         </div>
       </div>
       <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_motion_hotkey_label')}:</span> ${escapeHtml(motion.hotkey || '')}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_motion_desc_label')}:</span> ${escapeHtml(motion.description || '')}</div>
       </div>
+
     `;
     list.appendChild(card);
   });
@@ -5980,11 +5982,16 @@ function openPngRemixMotionModal(title, motion, index) {
         <input type="text" id="pngremix-edit-motion-name" value="${escapeHtml(motion.name || '')}" placeholder="${window.i18n.t('placeholder_pngremix_motion_name')}">
       </div>
       <div class="form-group">
+        <label>${window.i18n.t('pngremix_motion_hotkey_label')}</label>
+        <input type="text" id="pngremix-edit-motion-hotkey" value="${escapeHtml(motion.hotkey || '')}" placeholder="${window.i18n.t('pngremix_enter_hotkey')}">
+      </div>
+      <div class="form-group">
         <label>${window.i18n.t('pngremix_motion_desc_label')}</label>
         <input type="text" id="pngremix-edit-motion-desc" value="${escapeHtml(motion.description || '')}" placeholder="${window.i18n.t('pngremix_enter_description')}">
       </div>
     </div>
   `;
+
 
   modal._live2dSaveHandler = () => savePngRemixMotion(index);
   modal.classList.add('show');
@@ -5997,8 +6004,10 @@ function savePngRemixMotion(index) {
     return;
   }
 
+  const hotkey = document.getElementById('pngremix-edit-motion-hotkey').value.trim();
   const motion = {
     name: name,
+    hotkey: hotkey,
     description: document.getElementById('pngremix-edit-motion-desc').value.trim()
   };
 
@@ -6066,9 +6075,12 @@ function renderPngRemixStates(states) {
       <div class="asset-card-body">
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_motion_label')}:</span> ${highlightNeedleHtml(sMotion, motionRaw)}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_expression_label')}:</span> ${highlightNeedleHtml(sExpr, exprRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_talk_open_label')}:</span> ${(st.should_talk && st.open_mouth) ? 'true' : 'false'}</div>
+
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_scale_label')}:</span> ${st.scale ?? 1.0}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_offset_x_label')}/${window.i18n.t('pngremix_state_offset_y_label')}:</span> ${st.offset_x ?? 0}, ${st.offset_y ?? 0}</div>
       </div>
+
     `;
     list.appendChild(card);
   });
@@ -6107,11 +6119,14 @@ function addPngRemixState() {
     state: '',
     motion: '',
     expression: '',
+    should_talk: false,
+    open_mouth: false,
     scale: 1.0,
     offset_x: 0,
     offset_y: 0
   }, -1);
 }
+
 
 function editPngRemixState(index) {
   const pngremix = ensurePngRemixData();
@@ -6157,6 +6172,14 @@ function openPngRemixStateModal(title, state, index) {
         </select>
       </div>
       <div class="form-group">
+        <label>${window.i18n.t('pngremix_state_talk_open_label')}</label>
+        <label class="switch">
+          <input type="checkbox" id="pngremix-edit-state-talk-open" ${(state.should_talk || state.open_mouth) ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
         <label>${window.i18n.t('pngremix_state_scale_label')}</label>
         <input type="number" id="pngremix-edit-state-scale" value="${state.scale ?? 1.0}" step="0.1" min="0.1">
       </div>
@@ -6171,6 +6194,7 @@ function openPngRemixStateModal(title, state, index) {
     </div>
   `;
 
+
   modal._live2dSaveHandler = () => savePngRemixState(index);
   modal.classList.add('show');
 }
@@ -6182,10 +6206,13 @@ function savePngRemixState(index) {
     return;
   }
 
+  const talkOpen = document.getElementById('pngremix-edit-state-talk-open').checked;
   const state = {
     state: stateName,
     motion: document.getElementById('pngremix-edit-state-motion').value,
     expression: document.getElementById('pngremix-edit-state-expression').value,
+    should_talk: talkOpen,
+    open_mouth: talkOpen,
     scale: parseFloat(document.getElementById('pngremix-edit-state-scale').value) || 1.0,
     offset_x: parseInt(document.getElementById('pngremix-edit-state-offset-x').value) || 0,
     offset_y: parseInt(document.getElementById('pngremix-edit-state-offset-y').value) || 0

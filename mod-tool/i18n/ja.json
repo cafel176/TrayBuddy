@@ -588,8 +588,13 @@
   "pngremix_state_expression_label": "表情",
   "pngremix_state_motion_label": "モーション",
   "pngremix_state_scale_label": "スケール",
+  "pngremix_state_talk_open_label": "話す+口を開く（should_talk + open_mouth）",
+  "pngremix_state_should_talk_label": "話す（should_talk）",
+  "pngremix_state_open_mouth_label": "口を開く（open_mouth）",
   "pngremix_state_offset_x_label": "X オフセット",
+
   "pngremix_state_offset_y_label": "Y オフセット",
+
   "msg_enter_pngremix_state": "状態名を入力してください",
   "msg_confirm_delete_pngremix_expression": "この表情を削除してもよろしいですか？",
   "msg_confirm_delete_pngremix_motion": "このモーションを削除してもよろしいですか？",

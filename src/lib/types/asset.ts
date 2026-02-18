@@ -81,10 +81,15 @@ export interface PngRemixState {
   state: string;
   expression: string;
   motion: string;
+  /** 是否处于说话驱动（用于 should_talk/open_mouth 口型层显示） */
+  should_talk?: boolean;
+  /** 张嘴（should_talk=true 时，true=张嘴层，false=闭嘴层） */
+  open_mouth?: boolean;
   scale: number;
   offset_x: number;
   offset_y: number;
 }
+
 
 export interface PngRemixConfig {
   schema_version: number;

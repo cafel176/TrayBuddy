@@ -381,7 +381,17 @@ class RuntimeScene {
   _lastBounceY = 0;
   _clickBounce = { active: false, t: 0, dur: 0.5, amp: 50 };
   hasAnimatedTextures = false;
+
+  // Visibility overrides keyed by RuntimeNode.key
+  // - boolean: quick override
+  // - { visible: boolean, source?: string, hotkey?: string }
   visibilityOverrides: Record<string, any> = {};
+
+  // Hotkey groups derived from Remix save (raw.saved_keys / raw.saved_disappear)
+  // Keep it loosely typed for compatibility across different exports.
+  hotkeyGroups: any[] = [];
+  availableHotkeys: Set<string> = new Set();
+
 
   spriteDrawableByIndex = new Map<number, any>();
   nodes: RuntimeNode[] = [];
@@ -390,6 +400,7 @@ class RuntimeScene {
 
   constructor(model: any) { this.model = model; }
 }
+
 
 // ============================================================================
 // Deep clone / state machine
@@ -489,8 +500,113 @@ function getMouthBool(scene: RuntimeScene, st: any, baseKey: string, fallback = 
 }
 
 // ============================================================================
+// Hotkey helpers (saved_keys / saved_disappear)
+// ============================================================================
+
+function normalizeKeyName(key: any): string {
+  const s = String(key || "").trim().toUpperCase();
+  if (!s) return "";
+
+  // Accept F1..F12
+  const m = /^F(\d{1,2})$/.exec(s);
+  if (m) {
+    const n = Number(m[1]);
+    if (Number.isFinite(n) && n >= 1 && n <= 12) return `F${n}`;
+  }
+
+  // Common variants
+  if (s.startsWith("KEY_")) return normalizeKeyName(s.slice(4));
+  return s;
+}
+
+function normalizeSavedDisappearEvent(ev: any): { hotkey: string; label: string } {
+  if (!ev) return { hotkey: "", label: "" };
+
+  // Some exports use plain strings like "F2"
+  if (typeof ev === "string") {
+    const k = normalizeKeyName(ev);
+    return { hotkey: k, label: k || ev };
+  }
+
+  // Numbers might be keycode
+  if (typeof ev === "number") {
+    // Godot F1..F12 keycodes are not guaranteed here, so keep as label.
+    return { hotkey: "", label: String(ev) };
+  }
+
+  // Object: try best-effort map to F1..F12 (matches preview tool behavior)
+  if (typeof ev === "object") {
+    const keycode = Number((ev as any).keycode ?? (ev as any).physical_keycode ?? (ev as any).physicalKeycode ?? NaN);
+    if (Number.isFinite(keycode)) {
+      // Godot 4: F1..F12 often map around 112..123 (browser-like). Best-effort.
+      if (keycode >= 112 && keycode <= 123) {
+        const k = `F${keycode - 111}`;
+        return { hotkey: k, label: k };
+      }
+    }
+
+    const keyText = (ev as any).key ?? (ev as any).as_text ?? (ev as any).asText ?? (ev as any).text;
+    if (typeof keyText === "string") {
+      const k = normalizeKeyName(keyText);
+      return { hotkey: k, label: k || keyText };
+    }
+
+    return { hotkey: "", label: String((ev as any).type || "") };
+  }
+
+  return { hotkey: "", label: String(ev) };
+}
+
+function buildHotkeyGroups(scene: RuntimeScene) {
+  // Match preview tool semantics (other-tool/pngRemix预览):
+  // - `saved_keys` and `saved_disappear` are both treated as "hide on key".
+  // - When hotkey k is applied: visible = !savedKeys.has(k)
+  const groupsByParent = new Map<any, {
+    parentId: any;
+    nodes: Array<{ node: RuntimeNode; savedKeys: Set<string> }>;
+  }>();
+  const available = new Set<string>();
+
+  for (const n of scene.nodes) {
+    const raw = n.raw || {};
+    if (raw.is_asset !== true) continue;
+
+    const saved = Array.isArray((raw as any).saved_keys) ? (raw as any).saved_keys : [];
+    const keysFromSavedKeys = saved
+      .map(normalizeKeyName)
+      .filter((x: string) => x.length > 0);
+
+    const disappear = Array.isArray((raw as any).saved_disappear) ? (raw as any).saved_disappear : [];
+    const keysFromDisappear: string[] = [];
+    for (const ev of disappear) {
+      const { hotkey } = normalizeSavedDisappearEvent(ev);
+      if (hotkey) keysFromDisappear.push(hotkey);
+    }
+
+    const savedKeys = new Set<string>([...keysFromSavedKeys, ...keysFromDisappear]);
+    if (savedKeys.size === 0) continue;
+
+    const pid = n.parentId ?? null;
+    if (!groupsByParent.has(pid)) {
+      groupsByParent.set(pid, { parentId: pid, nodes: [] });
+    }
+
+    const g = groupsByParent.get(pid)!;
+    g.nodes.push({ node: n, savedKeys });
+
+    for (const k of savedKeys) available.add(k);
+  }
+
+  scene.hotkeyGroups = Array.from(groupsByParent.values());
+  scene.availableHotkeys = available;
+}
+
+
+
+// ============================================================================
 // Blink system
 // ============================================================================
+
 
 function getBlinkSpeedSeconds(features: PngRemixConfig["features"]): number {
   const s = Number(features?.blink_speed); return Number.isFinite(s) && s > 0 ? s : 1;
@@ -1065,6 +1181,8 @@ async function buildRuntimeScene(normalizedModel: any): Promise<RuntimeScene> {
   }
   assignNodePaths(scene);
   initNodeStateMachine(scene);
+  buildHotkeyGroups(scene);
+
 
   scene.hasAnimatedTextures = false;
   const loadJobs = scene.nodes.map(async (n) => {
@@ -1411,49 +1529,147 @@ export class PngRemixPlayer {
     }
   }
 
-  private applyPngRemixStateMapping(state: { expression: string; motion: string; scale: number; offset_x: number; offset_y: number }): void {
+  private applyPngRemixStateMapping(state: PngRemixConfig["states"][number]): void {
+    const scene = this.scene;
+    if (!scene) return;
+
+    // Mouth state overrides (optional)
+    // - should_talk=true + open_mouth=true  => mouthState=1（张嘴）
+    // - should_talk=true + open_mouth=false => mouthState=0（闭嘴）
+    // - should_talk=false                  => mouthState=0（闭嘴）
+    const coerceOptBool = (v: any): boolean | null => {
+      if (typeof v === "boolean") return v;
+      if (v === 0 || v === 1) return !!v;
+      return null;
+    };
+
+    const shouldTalk = coerceOptBool((state as any).should_talk);
+    const openMouth = coerceOptBool((state as any).open_mouth);
+
+    if (shouldTalk !== null) {
+      scene.mouthState = shouldTalk ? (openMouth ? 1 : 0) : 0;
+    } else if (openMouth !== null) {
+      scene.mouthState = openMouth ? 1 : 0;
+    }
+
     // View overrides
-    this.stateScale = Number(state.scale) || 1;
-    this.stateOffsetX = Number(state.offset_x) || 0;
-    this.stateOffsetY = Number(state.offset_y) || 0;
+    this.stateScale = Number((state as any).scale) || 1;
+    this.stateOffsetX = Number((state as any).offset_x) || 0;
+    this.stateOffsetY = Number((state as any).offset_y) || 0;
     this.recomputeView();
 
     // Expression/motion
-    const expr = String(state.expression || "").trim();
+    const expr = String((state as any).expression || "").trim();
     if (expr) this.playExpression(expr);
-    const motion = String(state.motion || "").trim();
+    const motion = String((state as any).motion || "").trim();
     if (motion) this.playMotion(motion);
   }
+
 
   private applyHotkey(hotkey: string): void {
     const scene = this.scene;
     if (!scene) return;
 
-    const key = String(hotkey || "").trim().toUpperCase();
-    if (!key) return;
+    const k = normalizeKeyName(hotkey);
+    if (!k) return;
 
-    let toggled = 0;
-    for (const node of scene.nodes) {
-      const raw = node.raw;
-      if (!raw || raw.is_asset !== true) continue;
-
-      const keys: string[] = [];
-      const k1 = (raw as any).saved_keys;
-      const k2 = (raw as any).savedKeys;
-      if (Array.isArray(k1)) for (const it of k1) if (typeof it === "string") keys.push(it);
-      if (Array.isArray(k2)) for (const it of k2) if (typeof it === "string") keys.push(it);
-
-      const hit = keys.some((s) => String(s || "").trim().toUpperCase() === key);
-      if (!hit) continue;
-
-      raw.was_active_before = !raw.was_active_before;
-      delete scene.visibilityOverrides[node.key];
-      toggled++;
+    // If the scene was created by an older instance, rebuild groups lazily.
+    if (!scene.availableHotkeys || !(scene.availableHotkeys instanceof Set) || !scene.hotkeyGroups) {
+      buildHotkeyGroups(scene);
     }
 
-    // If nothing matched, silently ignore (some models store hotkey bindings in non-string InputEvent objects).
-    void toggled;
+    // Clear previous hotkey-created overrides (keep manual overrides).
+    if (scene.visibilityOverrides) {
+      for (const key of Object.keys(scene.visibilityOverrides)) {
+        const v = scene.visibilityOverrides[key];
+        const src = (v && typeof v === "object") ? String((v as any).source || "") : "";
+        if (src === "hotkey" || src.startsWith("hotkey")) {
+          delete scene.visibilityOverrides[key];
+        }
+      }
+    }
+
+    const applyByScan = () => {
+      // Fallback path: scan raw sprite bindings directly.
+      // This matches preview tool behavior: saved_keys + saved_disappear are "hide on key".
+      const byParent = new Map<any, RuntimeNode[]>();
+      for (const node of scene.nodes) {
+        const raw = node.raw || {};
+        if ((raw as any).is_asset !== true) continue;
+        const pid = node.parentId ?? null;
+        if (!byParent.has(pid)) byParent.set(pid, []);
+        byParent.get(pid)!.push(node);
+      }
+
+      const getSavedKeys = (raw: any): Set<string> => {
+        const sk = raw && Array.isArray(raw.saved_keys) ? raw.saved_keys : [];
+        const keysFromSaved = sk.map(normalizeKeyName).filter((x: string) => x.length > 0);
+
+        const sd = raw && Array.isArray(raw.saved_disappear) ? raw.saved_disappear : [];
+        const keysFromDisappear: string[] = [];
+        for (const ev of sd) {
+          const { hotkey } = normalizeSavedDisappearEvent(ev);
+          if (hotkey) keysFromDisappear.push(hotkey);
+        }
+
+        return new Set<string>([...keysFromSaved, ...keysFromDisappear]);
+      };
+
+      for (const [, nodes] of byParent) {
+        // Only consider "binding groups" to avoid forcing visibility for unrelated single assets.
+        if (nodes.length < 2) continue;
+
+        const savedByNode = new Map<RuntimeNode, Set<string>>();
+        for (const n of nodes) {
+          const s = getSavedKeys(n.raw);
+          if (s.size > 0) savedByNode.set(n, s);
+        }
+
+        // Skip groups that do not mention this hotkey.
+        const groupRelevant = nodes.some((n) => (savedByNode.get(n) || new Set<string>()).has(k));
+        if (!groupRelevant) continue;
+
+        for (const n of nodes) {
+          const savedKeys = savedByNode.get(n) || new Set<string>();
+          const visible = !savedKeys.has(k);
+          scene.visibilityOverrides[n.key] = { visible, source: "hotkey", hotkey: k };
+        }
+      }
+    };
+
+    // Prefer prebuilt groups if available; otherwise fall back to scanning.
+    if (!scene.availableHotkeys || !scene.availableHotkeys.has(k) || !scene.hotkeyGroups || scene.hotkeyGroups.length === 0) {
+      applyByScan();
+      return;
+    }
+
+    // Apply hotkey overrides using preview-tool semantics.
+    // For each hotkey group: if the node's savedKeys contains k -> hide; otherwise show.
+    let applied = false;
+    for (const g of scene.hotkeyGroups || []) {
+      const nodes = (g && Array.isArray((g as any).nodes)) ? (g as any).nodes : [];
+      if (!nodes.length) continue;
+
+      // Skip groups that do not mention this hotkey, to avoid force-showing unrelated assets.
+      const groupRelevant = nodes.some((x: any) => x?.savedKeys instanceof Set && x.savedKeys.has(k));
+      if (!groupRelevant) continue;
+      applied = true;
+
+      for (const x of nodes) {
+        const savedKeys = (x as any)?.savedKeys;
+        const hideOnKey = savedKeys instanceof Set && savedKeys.has(k);
+        scene.visibilityOverrides[x.node.key] = {
+          visible: !hideOnKey,
+          source: "hotkey",
+          hotkey: k,
+        };
+      }
+    }
+
+    if (!applied) applyByScan();
   }
+
+
 
   private resizeCanvas(): void {
     // Avoid getBoundingClientRect() in the hot path (can trigger layout).

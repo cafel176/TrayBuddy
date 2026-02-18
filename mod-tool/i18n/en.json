@@ -588,8 +588,13 @@
   "pngremix_state_expression_label": "Expression",
   "pngremix_state_motion_label": "Motion",
   "pngremix_state_scale_label": "Scale",
+  "pngremix_state_talk_open_label": "Talk + Mouth Open (should_talk + open_mouth)",
+  "pngremix_state_should_talk_label": "Talking Driven (should_talk)",
+  "pngremix_state_open_mouth_label": "Mouth Open (open_mouth)",
   "pngremix_state_offset_x_label": "X Offset",
+
   "pngremix_state_offset_y_label": "Y Offset",
+
   "msg_enter_pngremix_state": "Please enter state name",
   "msg_confirm_delete_pngremix_expression": "Are you sure you want to delete this expression?",
   "msg_confirm_delete_pngremix_motion": "Are you sure you want to delete this motion?",

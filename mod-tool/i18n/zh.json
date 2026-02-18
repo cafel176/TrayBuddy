@@ -588,8 +588,13 @@
   "pngremix_state_expression_label": "表情",
   "pngremix_state_motion_label": "动作",
   "pngremix_state_scale_label": "缩放",
+  "pngremix_state_talk_open_label": "说话+张嘴（should_talk + open_mouth）",
+  "pngremix_state_should_talk_label": "说话驱动 (should_talk)",
+  "pngremix_state_open_mouth_label": "张嘴 (open_mouth)",
   "pngremix_state_offset_x_label": "X 偏移",
+
   "pngremix_state_offset_y_label": "Y 偏移",
+
   "msg_enter_pngremix_state": "请输入状态名称",
   "msg_confirm_delete_pngremix_expression": "确定要删除这个表情吗？",
   "msg_confirm_delete_pngremix_motion": "确定要删除这个动作吗？",
