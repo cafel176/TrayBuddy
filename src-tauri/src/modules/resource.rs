@@ -513,6 +513,8 @@ pub struct PngRemixState {
     pub expression: Box<str>,
     /// 对应的动作名
     pub motion: Box<str>,
+    /// 口型状态：0=Closed, 1=Open, 2=Screaming
+    pub mouth_state: Option<u8>,
     /// 缩放比例
     pub scale: f64,
     /// X 偏移
@@ -527,6 +529,7 @@ impl Default for PngRemixState {
             state: "".into(),
             expression: "".into(),
             motion: "".into(),
+            mouth_state: None,
             scale: 1.0,
             offset_x: 0,
             offset_y: 0,

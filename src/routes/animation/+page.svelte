@@ -132,6 +132,8 @@
     assetName: string,
     playOnce: boolean,
     onComplete: () => void,
+    _live2dParams?: unknown,
+    _pngremixParams?: unknown,
   ): Promise<boolean> {
     if (!assetName) return false;
 

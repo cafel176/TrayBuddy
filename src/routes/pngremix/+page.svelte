@@ -127,25 +127,10 @@ PngRemix 渲染层暂为空占位。
     playOnce: boolean,
     onComplete: () => void,
     _live2dParams?: Live2DParameterSetting[],
+    pngremixParams?: PngRemixParameterSetting[],
   ): Promise<boolean> {
     if (!pngremixConfig || !player) return false;
-
-    // 查找该状态是否有 pngremix_params 需要应用
-    // WindowCore 会把 StateInfo.pngremix_params 作为 live2dParams 传入
-    // 但我们需要把它们转为 PngRemixParameterSetting
-    const pngremixParams: PngRemixParameterSetting[] = [];
-    if (_live2dParams && _live2dParams.length > 0) {
-      // live2dParams 中嵌入的 pngremix 参数格式：id = "expression:xxx" or "motion:xxx"
-      for (const p of _live2dParams) {
-        if (p.id.startsWith("expression:")) {
-          pngremixParams.push({ type: "expression", name: p.id.slice("expression:".length) });
-        } else if (p.id.startsWith("motion:")) {
-          pngremixParams.push({ type: "motion", name: p.id.slice("motion:".length) });
-        }
-      }
-    }
-
-    return player.playFromAnima(assetName, playOnce, onComplete, pngremixParams.length > 0 ? pngremixParams : undefined);
+    return player.playFromAnima(assetName, playOnce, onComplete, pngremixParams);
   }
 
   const core = createWindowCore({

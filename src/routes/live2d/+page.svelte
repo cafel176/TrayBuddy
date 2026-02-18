@@ -322,6 +322,7 @@ Live2D 渲染层暂为空占位。
     playOnce: boolean,
     onComplete: () => void,
     live2dParams?: Live2DParameterSetting[],
+    _pngremixParams?: unknown,
   ): Promise<boolean> {
     if (!live2dPlayer || !live2dConfig) return false;
     return live2dPlayer.playFromAnima(assetName, {

@@ -16,6 +16,7 @@ import type {
   UserSettings,
   ModData,
   Live2DParameterSetting,
+  PngRemixParameterSetting,
 } from "$lib/types/asset";
 import type BubbleManager from "$lib/bubble/BubbleManager.svelte";
 import type { BubbleConfig } from "$lib/bubble/BubbleManager.svelte";
@@ -81,6 +82,7 @@ export type WindowCoreCallbacks = {
     playOnce: boolean,
     onComplete: () => void,
     live2dParams?: Live2DParameterSetting[],
+    pngremixParams?: PngRemixParameterSetting[],
   ) => Promise<boolean>;
   onAnimationScaleChanged?: () => void;
   onBorderConfigLoaded?: (config: BorderConfig | null) => Promise<void> | void;
@@ -779,8 +781,9 @@ export function createWindowCore(options: {
     bubbleComplete = false;
 
     const hasLive2dParams = Array.isArray(state.live2d_params) && state.live2d_params.length > 0;
+    const hasPngremixParams = Array.isArray(state.pngremix_params) && state.pngremix_params.length > 0;
 
-    if (!state.anima && !hasLive2dParams) {
+    if (!state.anima && !hasLive2dParams && !hasPngremixParams) {
       animationComplete = true;
       checkComplete();
     } else {
@@ -788,7 +791,7 @@ export function createWindowCore(options: {
         if (playSessionToken !== token) return;
         animationComplete = true;
         checkComplete();
-      }, state.live2d_params);
+      }, state.live2d_params, state.pngremix_params);
 
       if (playSessionToken !== token) return;
 
