@@ -10,10 +10,10 @@
     "mouse_follow": true,
     "auto_blink": true,
     "click_bounce": true,
-    "click_bounce_amp": 50,
+    "click_bounce_amp": 75,
     "click_bounce_duration": 0.5,
     "blink_speed": 1,
-    "blink_chance": 6,
+    "blink_chance": 3,
     "blink_hold_ratio": 0.2
   },
   "expressions": [
