@@ -588,10 +588,13 @@
   "pngremix_state_expression_label": "Expression",
   "pngremix_state_motion_label": "Motion",
   "pngremix_state_scale_label": "Scale",
-  "pngremix_state_talk_open_label": "Talk + Mouth Open (should_talk + open_mouth)",
-  "pngremix_state_should_talk_label": "Talking Driven (should_talk)",
-  "pngremix_state_open_mouth_label": "Mouth Open (open_mouth)",
+  "pngremix_state_mouth_state_label": "Mouth (mouth_state)",
+  "pngremix_mouth_state_inherit": "No override",
+  "pngremix_mouth_state_closed": "Closed (0)",
+  "pngremix_mouth_state_open": "Open (1)",
+  "pngremix_mouth_state_screaming": "Screaming (2)",
   "pngremix_state_offset_x_label": "X Offset",
+
 
   "pngremix_state_offset_y_label": "Y Offset",
 

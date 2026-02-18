@@ -5606,8 +5606,10 @@ function ensurePngRemixData() {
       states: []
     };
   }
+
   return currentMod.assets.pngremix;
 }
+
 
 /**
  * 从表单收集 PngRemix 模型和特性配置
@@ -5689,6 +5691,54 @@ function getPngRemixExpressionSelectOptions(currentValue = '') {
   });
   return html;
 }
+
+function normalizePngRemixMouthStateValue(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  const i = Math.floor(n);
+  if (i === 0 || i === 1 || i === 2) return i;
+  return null;
+}
+
+function formatPngRemixMouthState(v) {
+  const ms = normalizePngRemixMouthStateValue(v);
+  if (ms === 0) return window.i18n.t('pngremix_mouth_state_closed');
+  if (ms === 1) return window.i18n.t('pngremix_mouth_state_open');
+  if (ms === 2) return window.i18n.t('pngremix_mouth_state_screaming');
+  return window.i18n.t('pngremix_mouth_state_inherit');
+}
+
+function getPngRemixMouthStateSelectOptions(currentValue) {
+  const ms = normalizePngRemixMouthStateValue(currentValue);
+  const opts = [
+    { value: '', label: window.i18n.t('pngremix_mouth_state_inherit') },
+    { value: '0', label: window.i18n.t('pngremix_mouth_state_closed') },
+    { value: '1', label: window.i18n.t('pngremix_mouth_state_open') },
+    { value: '2', label: window.i18n.t('pngremix_mouth_state_screaming') },
+  ];
+  return opts.map(o => {
+    const selected = (o.value === '' ? ms === null : String(ms) === o.value) ? ' selected' : '';
+    return `<option value="${o.value}"${selected}>${escapeHtml(o.label)}</option>`;
+  }).join('');
+}
+
+function normalizePngRemixDataInPlace(pngremix) {
+  if (!pngremix || typeof pngremix !== 'object') return;
+  if (!Array.isArray(pngremix.states)) return;
+
+  for (const st of pngremix.states) {
+    if (!st || typeof st !== 'object') continue;
+
+    // 规范 mouth_state
+    const ms = normalizePngRemixMouthStateValue(st.mouth_state);
+    if (ms !== null) {
+      st.mouth_state = ms;
+    } else if (Object.prototype.hasOwnProperty.call(st, 'mouth_state')) {
+      delete st.mouth_state;
+    }
+  }
+}
+
 
 // ---- PngRemix 剪贴板 ----
 
@@ -6075,9 +6125,10 @@ function renderPngRemixStates(states) {
       <div class="asset-card-body">
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_motion_label')}:</span> ${highlightNeedleHtml(sMotion, motionRaw)}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_expression_label')}:</span> ${highlightNeedleHtml(sExpr, exprRaw)}</div>
-        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_talk_open_label')}:</span> ${(st.should_talk && st.open_mouth) ? 'true' : 'false'}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_mouth_state_label')}:</span> ${formatPngRemixMouthState(st.mouth_state)}</div>
 
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_scale_label')}:</span> ${st.scale ?? 1.0}</div>
+
         <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_offset_x_label')}/${window.i18n.t('pngremix_state_offset_y_label')}:</span> ${st.offset_x ?? 0}, ${st.offset_y ?? 0}</div>
       </div>
 
@@ -6119,13 +6170,13 @@ function addPngRemixState() {
     state: '',
     motion: '',
     expression: '',
-    should_talk: false,
-    open_mouth: false,
+    mouth_state: undefined,
     scale: 1.0,
     offset_x: 0,
     offset_y: 0
   }, -1);
 }
+
 
 
 function editPngRemixState(index) {
@@ -6172,12 +6223,12 @@ function openPngRemixStateModal(title, state, index) {
         </select>
       </div>
       <div class="form-group">
-        <label>${window.i18n.t('pngremix_state_talk_open_label')}</label>
-        <label class="switch">
-          <input type="checkbox" id="pngremix-edit-state-talk-open" ${(state.should_talk || state.open_mouth) ? 'checked' : ''}>
-          <span class="slider"></span>
-        </label>
+        <label>${window.i18n.t('pngremix_state_mouth_state_label')}</label>
+        <select id="pngremix-edit-state-mouth-state">
+          ${getPngRemixMouthStateSelectOptions(state.mouth_state)}
+        </select>
       </div>
+
 
       <div class="form-group">
         <label>${window.i18n.t('pngremix_state_scale_label')}</label>
@@ -6206,17 +6257,19 @@ function savePngRemixState(index) {
     return;
   }
 
-  const talkOpen = document.getElementById('pngremix-edit-state-talk-open').checked;
+  const mouthStateStr = document.getElementById('pngremix-edit-state-mouth-state').value;
+  const mouthState = mouthStateStr === '' ? null : normalizePngRemixMouthStateValue(mouthStateStr);
+
   const state = {
     state: stateName,
     motion: document.getElementById('pngremix-edit-state-motion').value,
     expression: document.getElementById('pngremix-edit-state-expression').value,
-    should_talk: talkOpen,
-    open_mouth: talkOpen,
     scale: parseFloat(document.getElementById('pngremix-edit-state-scale').value) || 1.0,
     offset_x: parseInt(document.getElementById('pngremix-edit-state-offset-x').value) || 0,
     offset_y: parseInt(document.getElementById('pngremix-edit-state-offset-y').value) || 0
   };
+  if (mouthState !== null) state.mouth_state = mouthState;
+
 
   const pngremix = ensurePngRemixData();
   if (index === -1) {

@@ -754,7 +754,7 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
 
   // Helper: followPositionCalculations
   // 注意：这里不要再对 targetPos 做一次 lerp。
-  // 因为后面 runtimeFollowPos 还会 lerp(targetPos)，对“移动目标”会形成二阶低通，体感更黏、更滞后。
+  // 因为后面 runtimeFollowPos 还会 lerp(targetPos)，对"移动目标"会形成二阶低通，体感更黏、更滞后。
   // 直接计算目标位置（targetPos），只保留 runtimeFollowPos 的一次平滑即可。
   function followPositionCalculations(dir: Vec2, mDist: Vec2 | null) {
     const posXMin = getMouthNumber(scene, st, "pos_x_min", 0);
@@ -1381,7 +1381,7 @@ export class PngRemixPlayer {
 
   /**
    * Update mouse position from WindowCore cursor tracking.
-   * 注意：WindowCore 传入的是“窗口视口坐标”（CSS 逻辑像素），不是 canvas 内部坐标。
+   * 注意：WindowCore 传入的是"窗口视口坐标"（CSS 逻辑像素），不是 canvas 内部坐标。
    * 如果直接当成 canvas 坐标，会在某些布局（如 canvas 不在 (0,0)）下产生跳变，表现为鬼畜抖动/点头。
    */
   updateGlobalMouseFollow(localX: number, localY: number): void {
@@ -1534,23 +1534,14 @@ export class PngRemixPlayer {
     if (!scene) return;
 
     // Mouth state overrides (optional)
-    // - should_talk=true + open_mouth=true  => mouthState=1（张嘴）
-    // - should_talk=true + open_mouth=false => mouthState=0（闭嘴）
-    // - should_talk=false                  => mouthState=0（闭嘴）
-    const coerceOptBool = (v: any): boolean | null => {
-      if (typeof v === "boolean") return v;
-      if (v === 0 || v === 1) return !!v;
-      return null;
-    };
-
-    const shouldTalk = coerceOptBool((state as any).should_talk);
-    const openMouth = coerceOptBool((state as any).open_mouth);
-
-    if (shouldTalk !== null) {
-      scene.mouthState = shouldTalk ? (openMouth ? 1 : 0) : 0;
-    } else if (openMouth !== null) {
-      scene.mouthState = openMouth ? 1 : 0;
+    // 对齐预览工具（other-tool/pngRemix预览）的语义：
+    // - mouth_state: 0=Closed, 1=Open, 2=Screaming
+    // - 渲染阶段以 `mouthState !== 0` 作为"张嘴中"判定
+    const mouthStateRaw = Number((state as any).mouth_state);
+    if (Number.isFinite(mouthStateRaw)) {
+      scene.mouthState = clamp(Math.floor(mouthStateRaw), 0, 2);
     }
+
 
     // View overrides
     this.stateScale = Number((state as any).scale) || 1;

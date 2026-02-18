@@ -588,10 +588,13 @@
   "pngremix_state_expression_label": "表情",
   "pngremix_state_motion_label": "动作",
   "pngremix_state_scale_label": "缩放",
-  "pngremix_state_talk_open_label": "说话+张嘴（should_talk + open_mouth）",
-  "pngremix_state_should_talk_label": "说话驱动 (should_talk)",
-  "pngremix_state_open_mouth_label": "张嘴 (open_mouth)",
+  "pngremix_state_mouth_state_label": "口型 (mouth_state)",
+  "pngremix_mouth_state_inherit": "不覆写",
+  "pngremix_mouth_state_closed": "闭嘴 (0)",
+  "pngremix_mouth_state_open": "张嘴 (1)",
+  "pngremix_mouth_state_screaming": "大叫 (2)",
   "pngremix_state_offset_x_label": "X 偏移",
+
 
   "pngremix_state_offset_y_label": "Y 偏移",
 

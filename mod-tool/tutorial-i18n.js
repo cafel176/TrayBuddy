@@ -272,8 +272,10 @@ const tutorialTranslations = {
     pngremix_state_name_desc: "状态名称（与 manifest 中的状态名对应）",
     pngremix_state_expression_desc: "关联的表情名称（可选）",
     pngremix_state_motion_desc: "关联的动作名称（可选）",
+    pngremix_state_mouth_state_desc: "口型状态：0=闭嘴，1=张嘴，2=大叫；为空表示不覆写",
     pngremix_state_scale_desc: "模型缩放比例",
     pngremix_state_offset_desc: "位置偏移量",
+
     section_pngremix_params_config: "PngRemix 参数覆写",
     pngremix_params_config_desc: "在状态编辑面板中，PngRemix 类型的 Mod 可使用 pngremix_params 在进入状态时切换表情或触发动作。每条参数包含 type（expression 或 motion）和 name。",
     callout_pngremix_tip_title: "💡 提示",
@@ -583,8 +585,10 @@ const tutorialTranslations = {
     pngremix_state_name_desc: "State name (corresponds to manifest state names)",
     pngremix_state_expression_desc: "Associated expression name (optional)",
     pngremix_state_motion_desc: "Associated motion name (optional)",
+    pngremix_state_mouth_state_desc: "Mouth state: 0=Closed, 1=Open, 2=Screaming; empty means no override",
     pngremix_state_scale_desc: "Model scale factor",
     pngremix_state_offset_desc: "Position offset",
+
     section_pngremix_params_config: "PngRemix Parameter Override",
     pngremix_params_config_desc: "In the state edit panel, PngRemix Mods can use pngremix_params to switch expressions or trigger motions when entering a state. Each parameter has a type (expression or motion) and a name.",
     callout_pngremix_tip_title: "💡 Tip",
@@ -894,8 +898,10 @@ const tutorialTranslations = {
     pngremix_state_name_desc: "状態名（manifest の状態名に対応）",
     pngremix_state_expression_desc: "関連する表情名（任意）",
     pngremix_state_motion_desc: "関連するモーション名（任意）",
+    pngremix_state_mouth_state_desc: "口の状態：0=閉じる、1=開く、2=叫ぶ；空は上書きしない",
     pngremix_state_scale_desc: "モデルのスケール係数",
     pngremix_state_offset_desc: "位置オフセット",
+
     section_pngremix_params_config: "PngRemix パラメーター上書き",
     pngremix_params_config_desc: "状態編集パネルで、PngRemix タイプの Mod は pngremix_params を使用して状態に入る時に表情を切り替えたり、モーションをトリガーしたりできます。各パラメータには type（expression または motion）と name があります。",
     callout_pngremix_tip_title: "💡 ヒント",

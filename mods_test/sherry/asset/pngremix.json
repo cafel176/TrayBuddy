@@ -70,58 +70,52 @@
       "state": "idle",
       "motion": "idle",
       "expression": "normal",
-      "should_talk": false,
-      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
-      "offset_y": 0
+      "offset_y": 0,
+      "mouth_state": 0
     },
     {
       "state": "think_point",
       "motion": "think_point",
       "expression": "normal",
-      "should_talk": false,
-      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
-      "offset_y": 0
+      "offset_y": 0,
+      "mouth_state": 0
     },
     {
       "state": "apple",
       "motion": "apple_bomb",
       "expression": "normal",
-      "should_talk": false,
-      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
-      "offset_y": 0
+      "offset_y": 0,
+      "mouth_state": 0
     },
     {
       "state": "serious",
       "motion": "search",
       "expression": "serious",
-      "should_talk": false,
-      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
-      "offset_y": 0
+      "offset_y": 0,
+      "mouth_state": 0
     },
     {
       "state": "cry",
       "motion": "raise",
       "expression": "cry",
-      "should_talk": false,
-      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
-      "offset_y": 0
+      "offset_y": 0,
+      "mouth_state": 0
     },
     {
       "state": "apple2",
       "motion": "apple_bomb",
       "expression": "surprised",
-      "should_talk": true,
-      "open_mouth": true,
+      "mouth_state": 1,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
@@ -130,8 +124,7 @@
       "state": "think_point2",
       "motion": "think_point",
       "expression": "shy",
-      "should_talk": true,
-      "open_mouth": true,
+      "mouth_state": 1,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
