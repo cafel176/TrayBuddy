@@ -1146,6 +1146,11 @@ export class PngRemixPlayer {
   // Animation scale (from WindowCore)
   private animationScale = 0.4;
 
+  // Per-State view overrides (from pngremixConfig.states mapping)
+  private stateScale = 1;
+  private stateOffsetX = 0;
+  private stateOffsetY = 0;
+
   // Current expression/motion state
   private currentExpression: PngRemixExpression | null = null;
   private currentMotion: PngRemixMotion | null = null;
@@ -1201,13 +1206,7 @@ export class PngRemixPlayer {
     // Setup canvas and fit
     this.resizeCanvas();
     this.bindResize();
-    const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
-    this.zoom = fit.zoom;
-    this.panX = fit.panX;
-    this.panY = fit.panY;
-
-    // Apply animation scale
-    this.setAnimationScale(this.animationScale);
+    this.recomputeView();
 
     // Start playback
     this.startPlayback();
@@ -1234,7 +1233,10 @@ export class PngRemixPlayer {
     this.hitTestCtx = null;
   }
 
-  /** Called by WindowCore when state changes (expression/motion) */
+  /**
+   * Called by WindowCore when backend enters a new StateInfo.
+   * assetName == StateInfo.anima. For pngremix, we map it via pngremixConfig.states.
+   */
   playFromAnima(
     animaName: string,
     playOnce: boolean,
@@ -1243,18 +1245,19 @@ export class PngRemixPlayer {
   ): boolean {
     if (!this.scene || !this.config) return false;
 
-    if (pngremixParams && pngremixParams.length > 0) {
-      for (const p of pngremixParams) {
-        if (p.type === "expression") this.playExpression(p.name);
-        else if (p.type === "motion") this.playMotion(p.name);
-      }
+    // 1) Apply state mapping: StateInfo.anima -> PngRemixState (expression/motion/scale/offset)
+    const key = String(animaName || "").trim();
+    const mapping = this.config.states?.find((s) => String(s?.state || "").trim() === key) || null;
+    if (mapping) {
+      this.applyPngRemixStateMapping(mapping);
     }
 
-    // PngRemix has no finite animation duration concept
-    // For playOnce, immediately call onComplete
-    if (playOnce) {
-      setTimeout(onComplete, 100);
-    }
+    // 2) Apply explicit overrides (if provided)
+    this.applyPngRemixParams(pngremixParams);
+
+    // PngRemix has no finite animation duration concept.
+    // For playOnce, call onComplete shortly after applying switches.
+    if (playOnce) setTimeout(onComplete, 100);
     return true;
   }
 
@@ -1332,13 +1335,7 @@ export class PngRemixPlayer {
   setAnimationScale(scale: number): void {
     this.animationScale = scale;
     if (!this.scene) return;
-    // Use animationScale as camera zoom modifier
-    const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
-    this.zoom = fit.zoom * (scale / 0.4);
-    this.panX = fit.panX;
-    this.panY = fit.panY;
-    this.cameraDirty = true;
-    this.mouseDirty = true;
+    this.recomputeView();
   }
 
   setFeatureFlags(flags: PngRemixFeatureFlags): void {
@@ -1369,6 +1366,8 @@ export class PngRemixPlayer {
     const motion = this.config.motions.find((m) => m.name === name);
     if (!motion) { console.warn("[PngRemixPlayer] Motion not found:", name); return; }
     this.currentMotion = motion;
+    const hotkey = String(motion.hotkey || "").trim();
+    if (hotkey) this.applyHotkey(hotkey);
   }
 
   // ==== PRIVATE ====
@@ -1385,6 +1384,75 @@ export class PngRemixPlayer {
       this.scene._clickBounce.amp = f.click_bounce_amp || 50;
       this.scene._clickBounce.dur = f.click_bounce_duration || 0.5;
     }
+  }
+
+  private recomputeView(): void {
+    if (!this.scene) return;
+
+    const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
+    const factor = (this.animationScale / 0.4) * (Number(this.stateScale) || 1);
+    const dpr = window.devicePixelRatio || 1;
+
+    // fit.panX/panY are derived from fit.zoom, so they should be scaled together.
+    this.zoom = fit.zoom * factor;
+    this.panX = fit.panX * factor + (Number(this.stateOffsetX) || 0) * dpr;
+    this.panY = fit.panY * factor + (Number(this.stateOffsetY) || 0) * dpr;
+
+    this.cameraDirty = true;
+    this.mouseDirty = true;
+  }
+
+  private applyPngRemixParams(pngremixParams?: PngRemixParameterSetting[]): void {
+    if (!this.scene || !this.config) return;
+    if (!pngremixParams || pngremixParams.length === 0) return;
+    for (const p of pngremixParams) {
+      if (p.type === "expression") this.playExpression(p.name);
+      else if (p.type === "motion") this.playMotion(p.name);
+    }
+  }
+
+  private applyPngRemixStateMapping(state: { expression: string; motion: string; scale: number; offset_x: number; offset_y: number }): void {
+    // View overrides
+    this.stateScale = Number(state.scale) || 1;
+    this.stateOffsetX = Number(state.offset_x) || 0;
+    this.stateOffsetY = Number(state.offset_y) || 0;
+    this.recomputeView();
+
+    // Expression/motion
+    const expr = String(state.expression || "").trim();
+    if (expr) this.playExpression(expr);
+    const motion = String(state.motion || "").trim();
+    if (motion) this.playMotion(motion);
+  }
+
+  private applyHotkey(hotkey: string): void {
+    const scene = this.scene;
+    if (!scene) return;
+
+    const key = String(hotkey || "").trim().toUpperCase();
+    if (!key) return;
+
+    let toggled = 0;
+    for (const node of scene.nodes) {
+      const raw = node.raw;
+      if (!raw || raw.is_asset !== true) continue;
+
+      const keys: string[] = [];
+      const k1 = (raw as any).saved_keys;
+      const k2 = (raw as any).savedKeys;
+      if (Array.isArray(k1)) for (const it of k1) if (typeof it === "string") keys.push(it);
+      if (Array.isArray(k2)) for (const it of k2) if (typeof it === "string") keys.push(it);
+
+      const hit = keys.some((s) => String(s || "").trim().toUpperCase() === key);
+      if (!hit) continue;
+
+      raw.was_active_before = !raw.was_active_before;
+      delete scene.visibilityOverrides[node.key];
+      toggled++;
+    }
+
+    // If nothing matched, silently ignore (some models store hotkey bindings in non-string InputEvent objects).
+    void toggled;
   }
 
   private resizeCanvas(): void {
@@ -1407,14 +1475,7 @@ export class PngRemixPlayer {
   private bindResize(): void {
     this.resizeObserver = new ResizeObserver(() => {
       this.resizeCanvas();
-      if (this.scene) {
-        const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
-        this.zoom = fit.zoom * (this.animationScale / 0.4);
-        this.panX = fit.panX;
-        this.panY = fit.panY;
-        this.cameraDirty = true;
-        this.mouseDirty = true;
-      }
+      this.recomputeView();
     });
     this.resizeObserver.observe(this.canvas);
   }
