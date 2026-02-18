@@ -36,6 +36,7 @@
     CharacterConfig,
     Live2DConfig,
     ModType,
+    PngRemixConfig,
     StateInfo,
     TriggerInfo,
   } from "$lib/types/asset";
@@ -87,6 +88,7 @@
     imgs: AssetInfo[];
     sequences: AssetInfo[];
     live2d?: Live2DConfig;
+    pngremix?: PngRemixConfig;
     audios: Record<string, AudioInfo[]>;
     texts: Record<string, TextInfo[]>;
     info: Record<string, CharacterInfo>;
@@ -298,8 +300,27 @@
     return (currentModInfo?.manifest.mod_type ?? "sequence") as ModType;
   }
 
+  function getModTypeLabel(): string {
+    switch (getModType()) {
+      case "live2d":
+        return _("resource.modTypeLive2D");
+      case "pngremix":
+        return _("resource.modTypePngRemix");
+      default:
+        return _("resource.modTypeSequence");
+    }
+  }
+
   function isLive2dMod(): boolean {
     return getModType() === "live2d";
+  }
+
+  function isPngremixMod(): boolean {
+    return getModType() === "pngremix";
+  }
+
+  function isSequenceMod(): boolean {
+    return getModType() === "sequence";
   }
 
   // ======================================================================= //
@@ -418,6 +439,19 @@
             <span class="stat-value">{currentModInfo.live2d?.states.length ?? 0}</span>
             <span class="stat-label">{_("resource.statLive2DStates")}</span>
           </div>
+        {:else if isPngremixMod()}
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.pngremix?.expressions.length ?? 0}</span>
+            <span class="stat-label">Expressions</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.pngremix?.motions.length ?? 0}</span>
+            <span class="stat-label">Motions</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.pngremix?.states.length ?? 0}</span>
+            <span class="stat-label">States</span>
+          </div>
         {:else}
           <div class="stat-item">
             <span class="stat-value">{currentModInfo.imgs.length}</span>
@@ -460,11 +494,7 @@
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.modType")}</span>
-                <span class="info-value">
-                  {getModType() === "live2d"
-                    ? _("resource.modTypeLive2D")
-                    : _("resource.modTypeSequence")}
-                </span>
+                <span class="info-value">{getModTypeLabel()}</span>
               </div>
 
               <div class="info-row">
@@ -519,6 +549,7 @@
             </div>
 
 
+            {#if isSequenceMod()}
             <h5>{_("resource.characterConfig")}</h5>
             <div class="info-grid compact">
               <div class="info-row">
@@ -564,6 +595,7 @@
               </div>
 
             </div>
+            {/if}
           </div>
         </details>
 
@@ -1185,7 +1217,7 @@
           </details>
         {/if}
 
-        {#if !isLive2dMod()}
+        {#if isSequenceMod()}
           <!-- 静态图片资源 -->
           <details>
             <summary
@@ -1514,6 +1546,155 @@
               {:else}
                 <div class="info-row">
                   <span class="info-label">{_("resource.live2dAssets")}</span>
+                  <span class="info-value">{_("resource.notSet")}</span>
+                </div>
+              {/if}
+            </div>
+          </details>
+        {/if}
+
+        <!-- PngRemix 资源 -->
+        {#if isPngremixMod()}
+          <details>
+            <summary>PngRemix Assets</summary>
+            <div class="tab-content">
+              {#if currentModInfo.pngremix}
+                <h5>Model</h5>
+                <div class="info-grid">
+                  <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value">{currentModInfo.pngremix.model.name}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">File</span>
+                    <span class="info-value">{currentModInfo.pngremix.model.pngremix_file}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Default State Index</span>
+                    <span class="info-value">{currentModInfo.pngremix.model.default_state_index}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Max FPS</span>
+                    <span class="info-value">{currentModInfo.pngremix.model.max_fps}</span>
+                  </div>
+                </div>
+
+                <h5>Features</h5>
+                <div class="info-grid">
+                  <div class="info-row">
+                    <span class="info-label">Mouse Follow</span>
+                    <span class="info-value">{currentModInfo.pngremix.features.mouse_follow ? _("common.yes") : _("common.no")}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Auto Blink</span>
+                    <span class="info-value">{currentModInfo.pngremix.features.auto_blink ? _("common.yes") : _("common.no")}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Click Bounce</span>
+                    <span class="info-value">{currentModInfo.pngremix.features.click_bounce ? _("common.yes") : _("common.no")}</span>
+                  </div>
+                  {#if currentModInfo.pngremix.features.click_bounce}
+                    <div class="info-row">
+                      <span class="info-label">Bounce Amp / Duration</span>
+                      <span class="info-value">{currentModInfo.pngremix.features.click_bounce_amp} / {currentModInfo.pngremix.features.click_bounce_duration}s</span>
+                    </div>
+                  {/if}
+                  {#if currentModInfo.pngremix.features.auto_blink}
+                    <div class="info-row">
+                      <span class="info-label">Blink Speed / Chance / Hold</span>
+                      <span class="info-value">{currentModInfo.pngremix.features.blink_speed} / {currentModInfo.pngremix.features.blink_chance} / {currentModInfo.pngremix.features.blink_hold_ratio}</span>
+                    </div>
+                  {/if}
+                </div>
+
+                <details open class="live2d-section">
+                  <summary>
+                    Expressions ({currentModInfo.pngremix.expressions.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.pngremix.expressions as expr}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{expr.name}</span>
+                        </div>
+                        <div class="state-detail">
+                          <div class="detail-item">
+                            <span class="detail-label">State Index</span>
+                            {expr.state_index}
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
+                <details open class="live2d-section">
+                  <summary>
+                    Motions ({currentModInfo.pngremix.motions.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.pngremix.motions as motion}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{motion.name}</span>
+                        </div>
+                        <div class="state-detail">
+                          <div class="detail-item">
+                            <span class="detail-label">Hotkey</span>
+                            {motion.hotkey}
+                          </div>
+                          {#if motion.description}
+                            <div class="detail-item">
+                              <span class="detail-label">Description</span>
+                              {motion.description}
+                            </div>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
+                <details open class="live2d-section">
+                  <summary>
+                    States ({currentModInfo.pngremix.states.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.pngremix.states as pstate}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{pstate.state}</span>
+                        </div>
+                        <div class="state-detail">
+                          {#if pstate.expression}
+                            <div class="detail-item">
+                              <span class="detail-label">Expression</span>
+                              {pstate.expression}
+                            </div>
+                          {/if}
+                          {#if pstate.motion}
+                            <div class="detail-item">
+                              <span class="detail-label">Motion</span>
+                              {pstate.motion}
+                            </div>
+                          {/if}
+                          <div class="detail-item">
+                            <span class="detail-label">Scale</span>
+                            {pstate.scale}
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">Offset</span>
+                            {pstate.offset_x},{pstate.offset_y}
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
+              {:else}
+                <div class="info-row">
+                  <span class="info-label">PngRemix Assets</span>
                   <span class="info-value">{_("resource.notSet")}</span>
                 </div>
               {/if}

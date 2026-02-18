@@ -25,6 +25,9 @@ pub const WINDOW_LABEL_ANIMATION: &str = "animation";
 /// Live2D 窗口标签
 pub const WINDOW_LABEL_LIVE2D: &str = "live2d";
 
+/// PngRemix 窗口标签
+pub const WINDOW_LABEL_PNGREMIX: &str = "pngremix";
+
 /// 设置窗口标签
 pub const WINDOW_LABEL_SETTINGS: &str = "settings";
 

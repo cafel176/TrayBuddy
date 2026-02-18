@@ -10,7 +10,8 @@
     "about",
     "reminder",
     "memo",
-    "live2d"
+    "live2d",
+    "pngremix"
   ],
   "permissions": [
     "core:default",

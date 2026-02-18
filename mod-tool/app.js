@@ -1734,15 +1734,24 @@ async function saveMod() {
     // 创建 asset 目录并保存
     const assetDir = await modFolderHandle.getDirectoryHandle('asset', { create: true });
     
-    const isLive2d = currentMod.manifest.mod_type === 'live2d';
+    const modType = currentMod.manifest.mod_type || 'sequence';
 
-    if (isLive2d) {
+    if (modType === 'live2d') {
       // 保存 live2d.json
       if (currentMod.assets.live2d) {
         const live2dHandle = await assetDir.getFileHandle('live2d.json', { create: true });
         const live2dWritable = await live2dHandle.createWritable();
         await live2dWritable.write(stringifyForSave(currentMod.assets.live2d));
         await live2dWritable.close();
+      }
+    } else if (modType === 'pngremix') {
+      // PngRemix 资源由外部 .pngremix 文件管理
+      // 如果有 pngremix.json 配置，保存它
+      if (currentMod.assets.pngremix) {
+        const pngremixHandle = await assetDir.getFileHandle('pngremix.json', { create: true });
+        const pngremixWritable = await pngremixHandle.createWritable();
+        await pngremixWritable.write(stringifyForSave(currentMod.assets.pngremix));
+        await pngremixWritable.close();
       }
     } else {
       // 保存 sequence.json
@@ -1759,7 +1768,7 @@ async function saveMod() {
     }
     
     // 创建 asset 子目录
-    if (!isLive2d) {
+    if (isSequenceModType(modType)) {
       await assetDir.getDirectoryHandle('sequence', { create: true });
       await assetDir.getDirectoryHandle('img', { create: true });
     }
@@ -1834,7 +1843,7 @@ async function saveMod() {
 
     // 复制源目录中的资源文件到目标目录
     if (sourceFolderHandle) {
-      if (isLive2d) {
+      if (modType === 'live2d') {
         // Live2D mod：将 asset/live2d/ 下所有文件（含 .json）完整复制
         try {
           const srcAssetDir = await sourceFolderHandle.getDirectoryHandle('asset');
@@ -1845,6 +1854,9 @@ async function saveMod() {
         }
         // 其余非 json 文件照常复制，但跳过 asset/live2d 目录（已完整处理）
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle, { skipDirs: ['asset/live2d'] });
+      } else if (modType === 'pngremix') {
+        // PngRemix mod：复制 .pngremix 等资源文件
+        await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
       } else {
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
       }
@@ -1881,10 +1893,14 @@ async function exportMod() {
     }
     
     const asset = root.folder('asset');
-    const isLive2dExport = currentMod.manifest.mod_type === 'live2d';
-    if (isLive2dExport) {
+    const exportModType = currentMod.manifest.mod_type || 'sequence';
+    if (exportModType === 'live2d') {
       if (currentMod.assets.live2d) {
         asset.file('live2d.json', stringifyForSave(currentMod.assets.live2d));
+      }
+    } else if (exportModType === 'pngremix') {
+      if (currentMod.assets.pngremix) {
+        asset.file('pngremix.json', stringifyForSave(currentMod.assets.pngremix));
       }
     } else {
       asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
@@ -1926,7 +1942,7 @@ async function exportMod() {
 
     // 把当前 Mod 目录下的资产文件打包进去
     if (modFolderHandle) {
-      if (isLive2dExport) {
+      if (exportModType === 'live2d') {
         // Live2D mod：将 asset/live2d/ 下所有文件（含 .json）完整打包
         try {
           const assetDirHandle = await modFolderHandle.getDirectoryHandle('asset');
@@ -1989,10 +2005,14 @@ async function exportModSbuddy() {
     }
 
     const asset = root.folder('asset');
-    const isLive2dExport = currentMod.manifest.mod_type === 'live2d';
-    if (isLive2dExport) {
+    const exportModType2 = currentMod.manifest.mod_type || 'sequence';
+    if (exportModType2 === 'live2d') {
       if (currentMod.assets.live2d) {
         asset.file('live2d.json', stringifyForSave(currentMod.assets.live2d));
+      }
+    } else if (exportModType2 === 'pngremix') {
+      if (currentMod.assets.pngremix) {
+        asset.file('pngremix.json', stringifyForSave(currentMod.assets.pngremix));
       }
     } else {
       asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
@@ -2031,7 +2051,7 @@ async function exportModSbuddy() {
     }
 
     if (modFolderHandle) {
-      if (isLive2dExport) {
+      if (exportModType2 === 'live2d') {
         try {
           const assetDirHandle = await modFolderHandle.getDirectoryHandle('asset');
           const live2dDirHandle = await assetDirHandle.getDirectoryHandle('live2d');
@@ -2378,18 +2398,18 @@ function populateManifestForm() {
   const modType = m.mod_type || 'sequence';
   const modTypeDisplay = document.getElementById('mod-type-display');
   if (modTypeDisplay) {
-    modTypeDisplay.value = modType === 'live2d' ? 'Live2D' : window.i18n.t('mod_type_sequence');
+    modTypeDisplay.value = getModTypeDisplayText(modType);
   }
 
   // 根据类型切换资产编辑区
   toggleAssetSections(modType);
 
-  // Live2D mod 不需要角色配置和边框配置（这两项仅用于序列帧）
-  const isLive2d = modType === 'live2d';
+  // 角色配置和边框配置仅用于序列帧
+  const isSeqMod = isSequenceModType(modType);
   const charSection = document.getElementById('section-character-config');
   const borderSection = document.getElementById('section-border-config');
-  if (charSection) charSection.style.display = isLive2d ? 'none' : '';
-  if (borderSection) borderSection.style.display = isLive2d ? 'none' : '';
+  if (charSection) charSection.style.display = isSeqMod ? '' : 'none';
+  if (borderSection) borderSection.style.display = isSeqMod ? '' : 'none';
   
   // 更新动画下拉列表
   updateAnimaSelects();
@@ -2458,21 +2478,32 @@ function collectManifestData() {
   if (m.mod_type === 'live2d') {
     collectLive2dModelData();
   }
+  // PngRemix: 资源由外部 .pngremix 文件管理，无需额外收集
 }
 
 /**
  * 更新动画下拉列表
  */
 function updateAnimaSelects() {
-  const isLive2d = currentMod?.manifest?.mod_type === 'live2d';
+  const modType = getModType();
   let allAnimas;
   
-  if (isLive2d && currentMod.assets.live2d) {
+  if (modType === 'live2d' && currentMod.assets.live2d) {
     // Live2D: 使用 states 中的 state 名称作为动画名
     const live2d = currentMod.assets.live2d;
     const stateNames = (live2d.states || []).map(s => s.state);
     const motionNames = (live2d.motions || []).map(m => m.name);
     allAnimas = [...new Set([...stateNames, ...motionNames])];
+  } else if (modType === 'pngremix') {
+    // PngRemix: 使用 pngremix states 的 state 名称
+    const pngremix = currentMod.assets.pngremix;
+    if (pngremix) {
+      const stateNames = (pngremix.states || []).map(s => s.state);
+      const exprNames = (pngremix.expressions || []).map(e => e.name);
+      allAnimas = [...new Set([...stateNames, ...exprNames])];
+    } else {
+      allAnimas = [];
+    }
   } else {
     allAnimas = [
       ...currentMod.assets.sequence.map(a => a.name),
@@ -3170,11 +3201,11 @@ function openStateModal(title, state) {
     document.getElementById('state-counter-value').value = 0;
   }
   
-  // Live2D 参数覆写（仅 live2d 模式可见）
-  const isLive2d = currentMod?.manifest?.mod_type === 'live2d';
+  // Live2D / PngRemix 参数覆写面板可见性
+  const modType = getModType();
   const live2dParamsPanel = document.getElementById('state-live2d-params-options');
   if (live2dParamsPanel) {
-    live2dParamsPanel.style.display = isLive2d ? '' : 'none';
+    live2dParamsPanel.style.display = (modType === 'live2d' || modType === 'pngremix') ? '' : 'none';
   }
   renderLive2DParams(state.live2d_params || []);
 
@@ -4170,11 +4201,13 @@ function syncHighlightTextareaScroll(textareaEl) {
 function renderAssets() {
   if (!currentMod) return;
   
-  const isLive2d = currentMod.manifest.mod_type === 'live2d';
-  toggleAssetSections(isLive2d ? 'live2d' : 'sequence');
+  const modType = getModType();
+  toggleAssetSections(modType);
   
-  if (isLive2d) {
+  if (modType === 'live2d') {
     renderLive2dAssets();
+  } else if (modType === 'pngremix') {
+    // PngRemix 资源由外部 .pngremix 文件管理，编辑器暂不渲染
   } else {
     renderAssetList('sequence', currentMod.assets.sequence);
     renderAssetList('img', currentMod.assets.img);
@@ -4465,6 +4498,26 @@ function getModType() {
 }
 
 /**
+ * 获取 Mod 类型的显示文本
+ */
+function getModTypeDisplayText(modType) {
+  const mt = modType || getModType();
+  switch (mt) {
+    case 'live2d': return 'Live2D';
+    case 'pngremix': return window.i18n.t('mod_type_pngremix');
+    default: return window.i18n.t('mod_type_sequence');
+  }
+}
+
+/**
+ * 判断是否为序列帧 Mod（仅序列帧才有 sequence/img 资源和角色/边框配置）
+ */
+function isSequenceModType(modType) {
+  const mt = modType || getModType();
+  return mt === 'sequence';
+}
+
+/**
  * 切换资产编辑区显示
  */
 function toggleAssetSections(modType) {
@@ -4477,6 +4530,11 @@ function toggleAssetSections(modType) {
     if (live2dSection) live2dSection.style.display = '';
     if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_live2d');
     if (descEl) descEl.textContent = window.i18n.t('assets_desc_live2d');
+  } else if (modType === 'pngremix') {
+    if (seqSection) seqSection.style.display = 'none';
+    if (live2dSection) live2dSection.style.display = 'none';
+    if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_pngremix');
+    if (descEl) descEl.textContent = window.i18n.t('assets_desc_pngremix');
   } else {
     if (seqSection) seqSection.style.display = '';
     if (live2dSection) live2dSection.style.display = 'none';

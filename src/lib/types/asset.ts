@@ -42,7 +42,65 @@ export interface AssetInfo {
   offset_y: number;
 }
 
-export type ModType = "sequence" | "live2d";
+export type ModType = "sequence" | "live2d" | "pngremix";
+
+// ============================================================================
+// PngRemix 相关接口
+// ============================================================================
+
+export interface PngRemixModelConfig {
+  name: string;
+  pngremix_file: string;
+  default_state_index: number;
+  max_fps: number;
+}
+
+export interface PngRemixFeatures {
+  mouse_follow: boolean;
+  auto_blink: boolean;
+  click_bounce: boolean;
+  click_bounce_amp: number;
+  click_bounce_duration: number;
+  blink_speed: number;
+  blink_chance: number;
+  blink_hold_ratio: number;
+}
+
+export interface PngRemixExpression {
+  name: string;
+  state_index: number;
+}
+
+export interface PngRemixMotion {
+  name: string;
+  hotkey: string;
+  description: string;
+}
+
+export interface PngRemixState {
+  state: string;
+  expression: string;
+  motion: string;
+  scale: number;
+  offset_x: number;
+  offset_y: number;
+}
+
+export interface PngRemixConfig {
+  schema_version: number;
+  model: PngRemixModelConfig;
+  features: PngRemixFeatures;
+  expressions: PngRemixExpression[];
+  motions: PngRemixMotion[];
+  states: PngRemixState[];
+}
+
+export interface PngRemixParameterSetting {
+  /** 参数类型："expression" 切换表情，"motion" 触发动作 */
+  type: "expression" | "motion";
+  /** 表情名或动作名 */
+  name: string;
+}
 
 export interface Live2DModelConfig {
   name: string;
@@ -264,6 +322,9 @@ export interface StateInfo {
 
   /** Live2D 参数覆写（仅 live2d 类型 Mod 有效） */
   live2d_params?: Live2DParameterSetting[];
+
+  /** PngRemix 参数覆写（仅 pngremix 类型 Mod 有效） */
+  pngremix_params?: PngRemixParameterSetting[];
 
   /** 是否显示对话分支气泡 UI（默认 true） */
   branch_show_bubble?: boolean;

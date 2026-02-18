@@ -412,10 +412,12 @@
   "mod_type_label": "Mod 类型",
   "mod_type_sequence": "序列帧动画",
   "mod_type_live2d": "Live2D 模型",
+  "mod_type_pngremix": "PngRemix",
   "mod_type_hint": "创建后类型不可更改",
   "mod_type_display_label": "Mod 类型",
 
   "assets_desc_live2d": "管理 Live2D 模型配置、动作、表情和状态动画映射",
+  "assets_desc_pngremix": "PngRemix 资源由外部 .pngremix 文件管理，请使用 PNGTuber Remix 编辑器编辑",
   "section_live2d_model": "模型配置 (live2d.json - model)",
   "live2d_model_name_label": "模型名称",
   "live2d_base_dir_label": "模型基础目录",

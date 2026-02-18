@@ -25,6 +25,7 @@
     "appTitle": "TrayBuddy デバッガー",
     "animationTitle": "TrayBuddy アニメーション",
     "live2dTitle": "TrayBuddy Live2D",
+    "pngremixTitle": "TrayBuddy PngRemix",
     "modsTitle": "TrayBuddy Mod マネージャー",
 
     "settingsTitle": "TrayBuddy 設定",
@@ -381,6 +382,7 @@
     "modType": "Mod タイプ",
     "modTypeSequence": "シーケンス",
     "modTypeLive2D": "Live2D",
+    "modTypePngRemix": "PngRemix",
     "bubbleStyle": "吹き出しスタイル",
 
     "iconPath": "アイコンパス",

@@ -396,6 +396,191 @@ impl Default for Live2DConfig {
     }
 }
 
+// ========================================================================= //
+// PngRemix 配置定义
+// ========================================================================= //
+
+/// PngRemix 模型配置
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct PngRemixModelConfig {
+    /// 模型名称
+    pub name: Box<str>,
+    /// .pngRemix 文件路径（相对于 Mod 根目录）
+    pub pngremix_file: Box<str>,
+    /// 默认 state 索引
+    pub default_state_index: u32,
+    /// 帧率限制
+    pub max_fps: u32,
+}
+
+impl Default for PngRemixModelConfig {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            pngremix_file: "".into(),
+            default_state_index: 0,
+            max_fps: 60,
+        }
+    }
+}
+
+/// PngRemix 特性开关配置
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct PngRemixFeatures {
+    /// 鼠标跟随
+    pub mouse_follow: bool,
+    /// 自动眨眼
+    pub auto_blink: bool,
+    /// 点击跳跃
+    pub click_bounce: bool,
+    /// 点击跳跃幅度
+    pub click_bounce_amp: f64,
+    /// 点击跳跃时长（秒）
+    pub click_bounce_duration: f64,
+    /// 眨眼速度
+    pub blink_speed: f64,
+    /// 眨眼概率（每秒）
+    pub blink_chance: f64,
+    /// 眨眼闭眼保持比例
+    pub blink_hold_ratio: f64,
+}
+
+impl Default for PngRemixFeatures {
+    fn default() -> Self {
+        Self {
+            mouse_follow: true,
+            auto_blink: true,
+            click_bounce: true,
+            click_bounce_amp: 50.0,
+            click_bounce_duration: 0.5,
+            blink_speed: 1.0,
+            blink_chance: 6.0,
+            blink_hold_ratio: 0.2,
+        }
+    }
+}
+
+/// PngRemix 表情定义
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct PngRemixExpression {
+    /// 表情名称
+    pub name: Box<str>,
+    /// 对应 .pngRemix 文件中的 state 索引
+    pub state_index: u32,
+}
+
+impl Default for PngRemixExpression {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            state_index: 0,
+        }
+    }
+}
+
+/// PngRemix 动作定义
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct PngRemixMotion {
+    /// 动作名称
+    pub name: Box<str>,
+    /// 对应的 Hotkey（如 "F1"-"F9"）
+    pub hotkey: Box<str>,
+    /// 动作描述
+    pub description: Box<str>,
+}
+
+impl Default for PngRemixMotion {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            hotkey: "".into(),
+            description: "".into(),
+        }
+    }
+}
+
+/// PngRemix 状态映射
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct PngRemixState {
+    /// 状态名称（对应 StateInfo.anima）
+    pub state: Box<str>,
+    /// 对应的表情名
+    pub expression: Box<str>,
+    /// 对应的动作名
+    pub motion: Box<str>,
+    /// 缩放比例
+    pub scale: f64,
+    /// X 偏移
+    pub offset_x: i32,
+    /// Y 偏移
+    pub offset_y: i32,
+}
+
+impl Default for PngRemixState {
+    fn default() -> Self {
+        Self {
+            state: "".into(),
+            expression: "".into(),
+            motion: "".into(),
+            scale: 1.0,
+            offset_x: 0,
+            offset_y: 0,
+        }
+    }
+}
+
+/// PngRemix 完整配置（对应 asset/pngremix.json）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct PngRemixConfig {
+    pub schema_version: u32,
+    pub model: PngRemixModelConfig,
+    pub features: PngRemixFeatures,
+    pub expressions: Vec<PngRemixExpression>,
+    pub motions: Vec<PngRemixMotion>,
+    pub states: Vec<PngRemixState>,
+}
+
+impl Default for PngRemixConfig {
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            model: PngRemixModelConfig::default(),
+            features: PngRemixFeatures::default(),
+            expressions: Vec::new(),
+            motions: Vec::new(),
+            states: Vec::new(),
+        }
+    }
+}
+
+/// PngRemix 参数设置项
+///
+/// 进入某个状态时覆写 PngRemix 的表情和动作
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct PngRemixParameterSetting {
+    /// 参数类型："expression" 切换表情，"motion" 触发动作
+    #[serde(rename = "type")]
+    pub param_type: Box<str>,
+    /// 表情名或动作名
+    pub name: Box<str>,
+}
+
+impl Default for PngRemixParameterSetting {
+    fn default() -> Self {
+        Self {
+            param_type: "expression".into(),
+            name: "".into(),
+        }
+    }
+}
+
 
 // ========================================================================= //
 // 音频定义
@@ -689,6 +874,10 @@ pub struct StateInfo {
     /// 仅对 mod_type = "live2d" 的 Mod 有效
     pub live2d_params: Option<Vec<Live2DParameterSetting>>,
 
+    /// PngRemix 参数覆写：进入该状态时切换表情/触发动作
+    /// 仅对 mod_type = "pngremix" 的 Mod 有效
+    pub pngremix_params: Option<Vec<PngRemixParameterSetting>>,
+
     /// 分支气泡交互控制：标记是否在界面上显示对话分支按钮
     pub branch_show_bubble: bool,
     /// 固定对话分支选项：用户交互式的后续状态选择
@@ -721,6 +910,7 @@ impl Default for StateInfo {
             trigger_weather: Vec::new(),
             mod_data_counter: None,
             live2d_params: None,
+            pngremix_params: None,
             branch_show_bubble: true,
             branch: Vec::new(),
         }
@@ -958,6 +1148,7 @@ impl Default for BorderConfig {
 pub enum ModType {
     Sequence,
     Live2d,
+    Pngremix,
 }
 
 impl Default for ModType {
@@ -977,7 +1168,7 @@ pub struct ModManifest {
     /// 作者
     pub author: Box<str>,
 
-    /// Mod 类型（sequence / live2d）
+    /// Mod 类型（sequence / live2d / pngremix）
     pub mod_type: ModType,
 
     /// 默认语音语言 ID
@@ -1065,6 +1256,8 @@ pub struct ModInfo {
     pub sequences: Vec<AssetInfo>,
     /// Live2D 动画配置（仅 live2d Mod 有值）
     pub live2d: Option<Live2DConfig>,
+    /// PngRemix 动画配置（仅 pngremix Mod 有值）
+    pub pngremix: Option<PngRemixConfig>,
     /// 语音资源（语言代码 -> 语音列表）
     pub audios: HashMap<Box<str>, Vec<AudioInfo>>,
 
@@ -1765,6 +1958,11 @@ impl ResourceManager {
         } else {
             None
         };
+        let pngremix = if manifest.mod_type == ModType::Pngremix {
+            crate::modules::utils::fs::load_json_obj(&assets_path.join("pngremix.json"))
+        } else {
+            None
+        };
 
 
         // 解析多语言语音
@@ -1806,6 +2004,7 @@ impl ResourceManager {
             imgs,
             sequences,
             live2d,
+            pngremix,
             audios,
             info,
 
@@ -1868,6 +2067,11 @@ impl ResourceManager {
         let sequences: Vec<AssetInfo> = reader.read_json_list("asset/sequence.json");
         let live2d: Option<Live2DConfig> = if manifest.mod_type == ModType::Live2d {
             reader.read_json_optional("asset/live2d.json")
+        } else {
+            None
+        };
+        let pngremix: Option<PngRemixConfig> = if manifest.mod_type == ModType::Pngremix {
+            reader.read_json_optional("asset/pngremix.json")
         } else {
             None
         };
@@ -1937,6 +2141,7 @@ impl ResourceManager {
             imgs,
             sequences,
             live2d,
+            pngremix,
             audios,
             info,
             texts,

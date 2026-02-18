@@ -25,6 +25,7 @@
     "appTitle": "TrayBuddy 调试器",
     "animationTitle": "TrayBuddy 动画",
     "live2dTitle": "TrayBuddy Live2D",
+    "pngremixTitle": "TrayBuddy PngRemix",
     "modsTitle": "TrayBuddy Mod 管理器",
 
     "settingsTitle": "TrayBuddy 用户设置",
@@ -381,6 +382,7 @@
     "modType": "Mod 类型",
     "modTypeSequence": "序列帧",
     "modTypeLive2D": "Live2D",
+    "modTypePngRemix": "PngRemix",
     "bubbleStyle": "气泡样式",
 
     "iconPath": "图标路径",

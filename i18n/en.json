@@ -25,6 +25,7 @@
     "appTitle": "TrayBuddy Debugger",
     "animationTitle": "TrayBuddy Animation",
     "live2dTitle": "TrayBuddy Live2D",
+    "pngremixTitle": "TrayBuddy PngRemix",
     "modsTitle": "TrayBuddy Mod Manager",
 
     "settingsTitle": "TrayBuddy Settings",
@@ -381,6 +382,7 @@
     "modType": "Mod Type",
     "modTypeSequence": "Sequence",
     "modTypeLive2D": "Live2D",
+    "modTypePngRemix": "PngRemix",
     "bubbleStyle": "Bubble Style",
 
     "iconPath": "Icon Path",

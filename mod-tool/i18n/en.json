@@ -412,10 +412,12 @@
   "mod_type_label": "Mod Type",
   "mod_type_sequence": "Sequence Animation",
   "mod_type_live2d": "Live2D Model",
+  "mod_type_pngremix": "PngRemix",
   "mod_type_hint": "Type cannot be changed after creation",
   "mod_type_display_label": "Mod Type",
 
   "assets_desc_live2d": "Manage Live2D model config, motions, expressions and state-animation mappings",
+  "assets_desc_pngremix": "PngRemix assets are managed by external .pngremix files. Please use PNGTuber Remix editor to edit them",
   "section_live2d_model": "Model Config (live2d.json - model)",
   "live2d_model_name_label": "Model Name",
   "live2d_base_dir_label": "Base Directory",
