@@ -329,9 +329,9 @@
   },
   "states": [
     {
-      "name": "shy",
+      "name": "think_point",
       "persistent": false,
-      "anima": "shy",
+      "anima": "think_point",
       "audio": "",
       "text": "Wait",
       "priority": 2,
@@ -339,7 +339,7 @@
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "",
+      "next_state": "think_point2",
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
@@ -355,19 +355,19 @@
       "pngremix_params": [
         {
           "type": "expression",
-          "name": "shy"
+          "name": "normal"
         },
         {
           "type": "motion",
-          "name": "point"
+          "name": "think_point"
         }
       ],
       "branch": []
     },
     {
-      "name": "surprised",
+      "name": "apple",
       "persistent": false,
-      "anima": "surprised",
+      "anima": "apple",
       "audio": "",
       "text": "Wait",
       "priority": 2,
@@ -375,7 +375,7 @@
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "",
+      "next_state": "apple2",
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
@@ -391,79 +391,11 @@
       "pngremix_params": [
         {
           "type": "expression",
-          "name": "surprised"
+          "name": "normal"
         },
         {
           "type": "motion",
-          "name": "body_alt"
-        }
-      ],
-      "branch": []
-    },
-    {
-      "name": "wave",
-      "persistent": false,
-      "anima": "wave",
-      "audio": "",
-      "text": "Wait",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "trigger_counter_start": -2147483648,
-      "trigger_counter_end": 2147483647,
-      "trigger_temp_start": -2147483648,
-      "trigger_temp_end": 2147483647,
-      "trigger_uptime": 0,
-      "trigger_weather": [],
-      "branch_show_bubble": false,
-      "mod_data_counter": null,
-      "live2d_params": null,
-      "pngremix_params": [
-        {
-          "type": "motion",
-          "name": "raise_hand"
-        }
-      ],
-      "branch": []
-    },
-    {
-      "name": "cry",
-      "persistent": false,
-      "anima": "cry",
-      "audio": "",
-      "text": "Wait",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "trigger_counter_start": -2147483648,
-      "trigger_counter_end": 2147483647,
-      "trigger_temp_start": -2147483648,
-      "trigger_temp_end": 2147483647,
-      "trigger_uptime": 0,
-      "trigger_weather": [],
-      "branch_show_bubble": false,
-      "mod_data_counter": null,
-      "live2d_params": null,
-      "pngremix_params": [
-        {
-          "type": "expression",
-          "name": "cry"
-        },
-        {
-          "type": "motion",
-          "name": "raise_hide"
+          "name": "apple_bomb"
         }
       ],
       "branch": []
@@ -499,7 +431,115 @@
         },
         {
           "type": "motion",
-          "name": "apple_hide"
+          "name": "search"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "cry",
+      "persistent": false,
+      "anima": "cry",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "cry"
+        },
+        {
+          "type": "motion",
+          "name": "raise"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "apple2",
+      "persistent": false,
+      "anima": "apple2",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "surprised"
+        },
+        {
+          "type": "motion",
+          "name": "apple_bomb"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "think_point2",
+      "persistent": false,
+      "anima": "think_point2",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "shy"
+        },
+        {
+          "type": "motion",
+          "name": "think_point"
         }
       ],
       "branch": []
@@ -513,23 +553,19 @@
           "persistent_state": "",
           "states": [
             {
-              "state": "shy",
+              "state": "think_point",
               "weight": 1
             },
             {
-              "state": "surprised",
-              "weight": 1
-            },
-            {
-              "state": "wave",
-              "weight": 1
-            },
-            {
-              "state": "cry",
+              "state": "apple",
               "weight": 1
             },
             {
               "state": "serious",
+              "weight": 1
+            },
+            {
+              "state": "cry",
               "weight": 1
             }
           ],

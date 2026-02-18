@@ -40,27 +40,27 @@
   ],
   "motions": [
     {
-      "name": "raise_hand",
+      "name": "idle",
       "hotkey": "F2",
       "description": "抬单手/指人/抬手/苹果身"
     },
     {
-      "name": "point",
+      "name": "search",
       "hotkey": "F3",
       "description": "指人/身体/抬手/苹果身"
     },
     {
-      "name": "body_alt",
+      "name": "think_point",
       "hotkey": "F4",
       "description": "抬单手/身体/抬手/苹果身"
     },
     {
-      "name": "apple_hide",
+      "name": "apple_bomb",
       "hotkey": "F5",
       "description": "抬单手/指人/身体/抬手身"
     },
     {
-      "name": "raise_hide",
+      "name": "raise",
       "hotkey": "F6",
       "description": "抬单手/指人/身体/苹果身"
     }
@@ -68,7 +68,7 @@
   "states": [
     {
       "state": "idle",
-      "motion": "raise_hand",
+      "motion": "idle",
       "expression": "normal",
       "should_talk": false,
       "open_mouth": false,
@@ -77,9 +77,9 @@
       "offset_y": 0
     },
     {
-      "state": "shy",
-      "motion": "point",
-      "expression": "shy",
+      "state": "think_point",
+      "motion": "think_point",
+      "expression": "normal",
       "should_talk": false,
       "open_mouth": false,
       "scale": 1,
@@ -87,9 +87,9 @@
       "offset_y": 0
     },
     {
-      "state": "surprised",
-      "motion": "body_alt",
-      "expression": "surprised",
+      "state": "apple",
+      "motion": "apple_bomb",
+      "expression": "normal",
       "should_talk": false,
       "open_mouth": false,
       "scale": 1,
@@ -98,7 +98,7 @@
     },
     {
       "state": "serious",
-      "motion": "apple_hide",
+      "motion": "search",
       "expression": "serious",
       "should_talk": false,
       "open_mouth": false,
@@ -108,7 +108,7 @@
     },
     {
       "state": "cry",
-      "motion": "raise_hide",
+      "motion": "raise",
       "expression": "cry",
       "should_talk": false,
       "open_mouth": false,
@@ -117,9 +117,21 @@
       "offset_y": 0
     },
     {
-      "state": "wave",
-      "expression": "",
-      "motion": "raise_hand",
+      "state": "apple2",
+      "motion": "apple_bomb",
+      "expression": "surprised",
+      "should_talk": true,
+      "open_mouth": true,
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "think_point2",
+      "motion": "think_point",
+      "expression": "shy",
+      "should_talk": true,
+      "open_mouth": true,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
