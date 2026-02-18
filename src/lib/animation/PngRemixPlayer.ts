@@ -1153,8 +1153,21 @@ export class PngRemixPlayer {
   // Resize observer
   private resizeObserver: ResizeObserver | null = null;
 
+  // Hit-test buffer (for transparent-pixel click-through)
+  private hitTestCanvas: HTMLCanvasElement | null = null;
+  private hitTestCtx: CanvasRenderingContext2D | null = null;
+  private hitTestScale = 0.25; // smaller = faster readback
+  private hitTestDirty = true;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+
+    // Create an offscreen hit-test buffer. We keep it small and enable willReadFrequently.
+    this.hitTestCanvas = document.createElement("canvas");
+    this.hitTestCtx = this.hitTestCanvas.getContext("2d", {
+      alpha: true,
+      willReadFrequently: true,
+    });
   }
 
   // ==== PUBLIC API ====
@@ -1217,6 +1230,8 @@ export class PngRemixPlayer {
     }
     this.scene = null;
     this.config = null;
+    this.hitTestCanvas = null;
+    this.hitTestCtx = null;
   }
 
   /** Called by WindowCore when state changes (expression/motion) */
@@ -1271,47 +1286,44 @@ export class PngRemixPlayer {
    * @returns true = 不透明（拦截鼠标），false = 透明（允许穿透）
    */
   isPixelOpaqueAtScreen(screenX: number, screenY: number, alphaThreshold = 10): boolean {
-    if (!this.canvas) return false;
-    const ctx = this.canvas.getContext("2d");
-    if (!ctx) return false;
-
     const rect = this.canvas.getBoundingClientRect();
+
+    // screenX/screenY 为窗口视口坐标（CSS 逻辑像素）。先转为 canvas 内部坐标（CSS）。
+    const cssX = screenX - rect.left;
+    const cssY = screenY - rect.top;
+
+    if (cssX < 0 || cssY < 0 || cssX >= rect.width || cssY >= rect.height) {
+      return false;
+    }
+
+    // Prefer hit-test buffer to avoid getImageData on the main render canvas.
+    if (this.hitTestDirty) this.updateHitTestBuffer();
+    const hit = this.hitTestCanvas;
+    const ctx = this.hitTestCtx;
+    if (!hit || !ctx || hit.width <= 0 || hit.height <= 0) return false;
+
     const dpr = window.devicePixelRatio || 1;
+    const scale = clamp(this.hitTestScale, 0.05, 1);
 
-    // 多层采样：在模型周围 ~30px CSS 范围内就判定为"在交互区"
-    const MARGINS = [0, 15, 30];
+    // Map to device pixels then to hit buffer pixels.
+    const px = cssX * dpr;
+    const py = cssY * dpr;
+    let hx = Math.floor(px * scale);
+    let hy = Math.floor(py * scale);
 
-    for (const margin of MARGINS) {
-      const offsets = margin === 0
-        ? [[0, 0]]
-        : [
-            [-margin, 0], [margin, 0],
-            [0, -margin], [0, margin],
-            [-margin, -margin], [margin, -margin],
-            [-margin, margin], [margin, margin],
-          ];
+    // Read a tiny block (3x3) to be robust against AA edges.
+    const startX = clamp(hx - 1, 0, Math.max(0, hit.width - 1));
+    const startY = clamp(hy - 1, 0, Math.max(0, hit.height - 1));
+    const w = Math.min(3, hit.width - startX);
+    const h = Math.min(3, hit.height - startY);
 
-      for (const [dx, dy] of offsets) {
-        // screenX/screenY 是窗口内 CSS 逻辑坐标，需减去 canvas 元素的偏移
-        const cssX = screenX - rect.left + dx;
-        const cssY = screenY - rect.top + dy;
-
-        if (cssX < 0 || cssY < 0 || cssX >= rect.width || cssY >= rect.height) {
-          continue;
-        }
-
-        const px = Math.round(cssX * dpr);
-        const py = Math.round(cssY * dpr);
-
-        if (px < 0 || py < 0 || px >= this.canvas.width || py >= this.canvas.height) {
-          continue;
-        }
-
-        try {
-          const data = ctx.getImageData(px, py, 1, 1).data;
-          if (data[3] >= alphaThreshold) return true;
-        } catch { /* ignore */ }
+    try {
+      const data = ctx.getImageData(startX, startY, w, h).data;
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] >= alphaThreshold) return true;
       }
+    } catch {
+      return false;
     }
 
     return false;
@@ -1388,6 +1400,7 @@ export class PngRemixPlayer {
       this.canvas.height = h;
       this.cameraDirty = true;
       this.mouseDirty = true;
+      this.hitTestDirty = true;
     }
   }
 
@@ -1428,6 +1441,30 @@ export class PngRemixPlayer {
     this.mouseDirty = true;
 
     if (source !== "windowcore") this.lastLocalMouseTs = performance.now();
+  }
+
+  private updateHitTestBuffer(): void {
+    const src = this.canvas;
+    const dst = this.hitTestCanvas;
+    const ctx = this.hitTestCtx;
+    if (!dst || !ctx) return;
+
+    const scale = clamp(this.hitTestScale, 0.05, 1);
+    const w = Math.max(1, Math.floor(src.width * scale));
+    const h = Math.max(1, Math.floor(src.height * scale));
+
+    if (dst.width !== w || dst.height !== h) {
+      dst.width = w;
+      dst.height = h;
+    }
+
+    // Copy the final composited frame (with alpha) into the small buffer.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, w, h);
+
+    this.hitTestDirty = false;
   }
 
   private syncMouseFollowBindings(): void {
@@ -1545,6 +1582,9 @@ export class PngRemixPlayer {
       stepSceneRuntime(this.scene, dtSec, this.enableMouseFollow, this.mouseWorld, this.hasMouse);
       this.resizeCanvas();
       renderScene(this.scene, this.canvas, this.zoom, this.panX, this.panY);
+      // Update hit-test alpha buffer after we rendered a new frame.
+      this.hitTestDirty = true;
+      this.updateHitTestBuffer();
 
       this.scene._rafId = requestAnimationFrame(frame);
     };

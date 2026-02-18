@@ -223,9 +223,11 @@ PngRemix 渲染层暂为空占位。
       onAnimationScaleChanged: () => {
         if (player) player.setAnimationScale(animationScale);
       },
-      // PngRemix：不做像素级命中测试（避免 getImageData 的巨大开销），
-      // 直接视为不透明，让 WindowCore 走“窗口内交互”逻辑。
-      isPixelOpaqueAtWindowPos: () => true,
+      // PngRemix：透明像素穿透（使用 PngRemixPlayer 内部的低分辨率 alpha 命中缓冲，避免主画布 getImageData 开销）
+      isPixelOpaqueAtWindowPos: (windowX: number, windowY: number) => {
+        if (!player) return false;
+        return player.isPixelOpaqueAtScreen(windowX, windowY);
+      },
       onCursorMove: (localX: number, localY: number) => {
         if (player) player.updateGlobalMouseFollow(localX, localY);
       },
