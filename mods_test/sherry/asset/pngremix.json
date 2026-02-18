@@ -68,40 +68,50 @@
   "states": [
     {
       "state": "idle",
+      "motion": "raise_hand",
       "expression": "normal",
-      "motion": "",
+      "should_talk": false,
+      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
     {
       "state": "shy",
+      "motion": "point",
       "expression": "shy",
-      "motion": "",
+      "should_talk": false,
+      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
     {
       "state": "surprised",
+      "motion": "body_alt",
       "expression": "surprised",
-      "motion": "",
+      "should_talk": false,
+      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
     {
       "state": "serious",
+      "motion": "apple_hide",
       "expression": "serious",
-      "motion": "",
+      "should_talk": false,
+      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0
     },
     {
       "state": "cry",
+      "motion": "raise_hide",
       "expression": "cry",
-      "motion": "",
+      "should_talk": false,
+      "open_mouth": false,
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0

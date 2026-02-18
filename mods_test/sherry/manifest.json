@@ -202,7 +202,7 @@
     "music": {
       "name": "music",
       "persistent": true,
-      "anima": "",
+      "anima": "idle",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -214,15 +214,17 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0.1,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": true,
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
     },
     "music_start": {
       "name": "music_start",
@@ -325,11 +327,215 @@
       "branch_show_bubble": true
     }
   },
-  "states": [],
+  "states": [
+    {
+      "name": "shy",
+      "persistent": false,
+      "anima": "shy",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "shy"
+        },
+        {
+          "type": "motion",
+          "name": "point"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "surprised",
+      "persistent": false,
+      "anima": "surprised",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "surprised"
+        },
+        {
+          "type": "motion",
+          "name": "body_alt"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "wave",
+      "persistent": false,
+      "anima": "wave",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "motion",
+          "name": "raise_hand"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "cry",
+      "persistent": false,
+      "anima": "cry",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "cry"
+        },
+        {
+          "type": "motion",
+          "name": "raise_hide"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "serious",
+      "persistent": false,
+      "anima": "serious",
+      "audio": "",
+      "text": "Wait",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "serious"
+        },
+        {
+          "type": "motion",
+          "name": "apple_hide"
+        }
+      ],
+      "branch": []
+    }
+  ],
   "triggers": [
     {
       "event": "click",
-      "can_trigger_states": []
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "shy",
+              "weight": 1
+            },
+            {
+              "state": "surprised",
+              "weight": 1
+            },
+            {
+              "state": "wave",
+              "weight": 1
+            },
+            {
+              "state": "cry",
+              "weight": 1
+            },
+            {
+              "state": "serious",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": false
+        }
+      ]
     },
     {
       "event": "right_click",
