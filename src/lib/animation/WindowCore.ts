@@ -90,6 +90,8 @@ export type WindowCoreCallbacks = {
   isPixelOpaqueAtWindowPos?: (windowX: number, windowY: number) => boolean;
   /** 全局鼠标追踪：每次光标轮询时传入窗口本地坐标（CSS 逻辑像素） */
   onCursorMove?: (localX: number, localY: number) => void;
+  /** 跳过后端 setCursorIcon 调用，完全由前端 CSS cursor 控制鼠标图标 */
+  skipBackendCursorIcon?: boolean;
 };
 
 export type WindowCore = {
@@ -331,14 +333,16 @@ export function createWindowCore(options: {
 
           // 每次轮询都通过 Tauri 在 OS 层面设置 cursor，
           // 因为 WebView2 在 ignore_cursor_events 切换后不会自动更新 CSS cursor
-          if (opaque) {
-            try {
-              await getCurrentWindow().setCursorIcon("grab");
-            } catch { /* ignore */ }
-          } else {
-            try {
-              await getCurrentWindow().setCursorIcon("default");
-            } catch { /* ignore */ }
+          if (!callbacks.skipBackendCursorIcon) {
+            if (opaque) {
+              try {
+                await getCurrentWindow().setCursorIcon("grab");
+              } catch { /* ignore */ }
+            } else {
+              try {
+                await getCurrentWindow().setCursorIcon("default");
+              } catch { /* ignore */ }
+            }
           }
           return;
         }
