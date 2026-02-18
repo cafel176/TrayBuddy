@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "",
+    "pngremix_file": "asset/model.pngRemix",
+    "default_state_index": 0,
+    "max_fps": 60
+  },
+  "features": {
+    "mouse_follow": true,
+    "auto_blink": true,
+    "click_bounce": true,
+    "click_bounce_amp": 50,
+    "click_bounce_duration": 0.5,
+    "blink_speed": 1.0,
+    "blink_chance": 10,
+    "blink_hold_ratio": 0.2
+  },
+  "expressions": [],
+  "motions": [],
+  "states": []
+}

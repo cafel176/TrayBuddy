@@ -4,7 +4,8 @@
   "assets": {
     "sequence": "asset/sequence.json",
     "img": "asset/img.json",
-    "live2d": "asset/live2d.json"
+    "live2d": "asset/live2d.json",
+    "pngremix": "asset/pngremix.json"
   },
   "text_langs": ["zh", "en", "jp"],
   "audio_langs": ["zh", "en", "jp"]

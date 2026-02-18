@@ -43,7 +43,10 @@
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "pngremix_params": [
-        { "type": "expression", "name": "normal" }
+        {
+          "type": "expression",
+          "name": "normal"
+        }
       ]
     },
     "silence": {

@@ -639,6 +639,153 @@
               </details>
 
             </div>
+
+            <!-- PngRemix 编辑区 (仅 pngremix 类型显示) -->
+            <div id="assets-pngremix-section" style="display:none;">
+
+              <!-- 模型配置 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_pngremix_model">模型配置 (pngremix.json - model)</span></h3>
+                </summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label data-i18n="pngremix_model_name_label">模型名称</label>
+                    <input type="text" id="pngremix-model-name" data-i18n-placeholder="placeholder_pngremix_model_name" placeholder="例如: 橘雪莉">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_file_label">.pngRemix 文件路径</label>
+                    <input type="text" id="pngremix-model-file" data-i18n-placeholder="placeholder_pngremix_file" placeholder="例如: asset/model.pngRemix">
+                    <small data-i18n="pngremix_file_hint">.pngRemix 文件相对于 Mod 根目录的路径</small>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_default_state_label">默认 State 索引</label>
+                    <input type="number" id="pngremix-default-state-index" value="0" min="0">
+                    <small data-i18n="pngremix_default_state_hint">初始时使用的 pngRemix state 索引（默认 0）</small>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_max_fps_label">帧率上限</label>
+                    <input type="number" id="pngremix-max-fps" value="60" min="1" max="120">
+                  </div>
+                </div>
+              </details>
+
+              <!-- 特性开关 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_pngremix_features">特性开关 (features)</span></h3>
+                </summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label data-i18n="pngremix_mouse_follow_label">鼠标跟随</label>
+                    <label class="switch">
+                      <input type="checkbox" id="pngremix-mouse-follow" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_auto_blink_label">自动眨眼</label>
+                    <label class="switch">
+                      <input type="checkbox" id="pngremix-auto-blink" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_click_bounce_label">点击跳跃</label>
+                    <label class="switch">
+                      <input type="checkbox" id="pngremix-click-bounce" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_click_bounce_amp_label">跳跃幅度 (px)</label>
+                    <input type="number" id="pngremix-click-bounce-amp" value="50" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_click_bounce_duration_label">跳跃时长 (秒)</label>
+                    <input type="number" id="pngremix-click-bounce-duration" value="0.5" min="0" step="0.1">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_blink_speed_label">眨眼检查间隔 (秒)</label>
+                    <input type="number" id="pngremix-blink-speed" value="1.0" min="0.1" step="0.1">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_blink_chance_label">眨眼概率分母 (1/N)</label>
+                    <input type="number" id="pngremix-blink-chance" value="10" min="1">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="pngremix_blink_hold_ratio_label">闭眼持续比例</label>
+                    <input type="number" id="pngremix-blink-hold-ratio" value="0.2" min="0" max="1" step="0.05">
+                  </div>
+                </div>
+              </details>
+
+              <!-- 表情列表 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_pngremix_expressions">表情列表 (expressions)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addPngRemixExpression()">➕ <span data-i18n="btn_add_expression">添加表情</span></button>
+                  </div>
+                </summary>
+                <small class="section-hint" data-i18n="pngremix_expressions_hint">表情对应 .pngRemix 文件中的 State 索引切换</small>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="pngremix-expressions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderPngRemixAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="pngremix-expressions-list">
+                </div>
+              </details>
+
+              <!-- 动作列表 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_pngremix_motions">动作列表 (motions)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addPngRemixMotion()">➕ <span data-i18n="btn_add_motion">添加动作</span></button>
+                  </div>
+                </summary>
+                <small class="section-hint" data-i18n="pngremix_motions_hint">动作对应 .pngRemix 文件中的 Hotkey (F1-F9) 组件显隐切换</small>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="pngremix-motions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderPngRemixAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="pngremix-motions-list">
+                </div>
+              </details>
+
+              <!-- 状态映射 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_pngremix_states">状态-动画映射 (states)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addPngRemixState()">➕ <span data-i18n="btn_add_pngremix_state">添加映射</span></button>
+                  </div>
+                </summary>
+                <small class="section-hint" data-i18n="pngremix_states_hint">将 Mod 的状态名称映射到 PngRemix 表情和动作</small>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="pngremix-states-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderPngRemixAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_motion">按动作筛选</label>
+                    <input type="text" id="pngremix-states-filter-motion" data-i18n-placeholder="placeholder_filter_motion" placeholder="输入动作关键字..." oninput="renderPngRemixAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_expression">按表情筛选</label>
+                    <input type="text" id="pngremix-states-filter-expression" data-i18n-placeholder="placeholder_filter_expression" placeholder="输入表情关键字..." oninput="renderPngRemixAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="pngremix-states-list">
+                </div>
+              </details>
+
+            </div>
           </div>
         </div>
 
@@ -1337,6 +1484,20 @@
             </div>
             <small class="section-hint" data-i18n="live2d_params_hint">进入该状态时设置 Live2D 模型参数（如 ParamAngleX, ParamEyeLOpen 等）</small>
             <div class="live2d-param-list" id="live2d-param-list">
+              <!-- 由 JS 动态填充 -->
+            </div>
+          </div>
+        </details>
+
+        <details class="advanced-options" id="state-pngremix-params-options" style="margin-top: 12px; display: none;">
+          <summary><span data-i18n="section_pngremix_params">PngRemix 参数覆写 (PngRemix Parameters)</span></summary>
+          <div class="advanced-options-content">
+            <div class="section-header" style="margin-top: 0;">
+              <h4 data-i18n="section_pngremix_params">PngRemix 参数覆写</h4>
+              <button class="btn btn-sm btn-secondary" onclick="addPngRemixParam()">➕ <span data-i18n="btn_add_pngremix_param">添加参数</span></button>
+            </div>
+            <small class="section-hint" data-i18n="pngremix_params_hint">进入该状态时切换 PngRemix 表情或触发动作</small>
+            <div class="pngremix-param-list" id="pngremix-param-list">
               <!-- 由 JS 动态填充 -->
             </div>
           </div>

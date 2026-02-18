@@ -796,7 +796,7 @@ async function loadModTbuddy() {
     
     currentMod = {
       manifest: manifest,
-      assets: { sequence: [], img: [], live2d: null },
+      assets: { sequence: [], img: [], live2d: null, pngremix: null },
       texts: {},
       audio: {},
       bubbleStyle: null,
@@ -819,6 +819,9 @@ async function loadModTbuddy() {
     
     const live2dFile = zipData.file(`${rootPath}asset/live2d.json`);
     if (live2dFile) currentMod.assets.live2d = JSON.parse(await live2dFile.async('string'));
+
+    const pngremixFile2 = zipData.file(`${rootPath}asset/pngremix.json`);
+    if (pngremixFile2) currentMod.assets.pngremix = JSON.parse(await pngremixFile2.async('string'));
 
     const bubbleFile = zipData.file(`${rootPath}bubble_style.json`);
     if (bubbleFile) {
@@ -943,7 +946,8 @@ async function loadModFolder() {
       assets: {
         sequence: [],
         img: [],
-        live2d: null
+        live2d: null,
+        pngremix: null
       },
       texts: {},
       audio: {},
@@ -986,6 +990,16 @@ async function loadModFolder() {
       currentMod.assets.live2d = JSON.parse(await live2dFile.text());
     } catch (e) {
       console.log('No live2d.json found');
+    }
+
+    // 读取 asset/pngremix.json
+    try {
+      const assetDir = await modFolderHandle.getDirectoryHandle('asset');
+      const pngremixHandle = await assetDir.getFileHandle('pngremix.json');
+      const pngremixFile = await pngremixHandle.getFile();
+      currentMod.assets.pngremix = JSON.parse(await pngremixFile.text());
+    } catch (e) {
+      console.log('No pngremix.json found');
     }
 
     // 读取 bubble_style.json
@@ -1181,7 +1195,7 @@ async function createModFromTemplate(modId, modName, modAuthor, modType = 'seque
     : null;
 
   // 4. 动态读取 assets
-  const assets = { sequence: [], img: [], live2d: null };
+  const assets = { sequence: [], img: [], live2d: null, pngremix: null };
   if (structure.assets) {
     const assetPromises = Object.entries(structure.assets).map(async ([key, path]) => {
       const data = await fetchJsonSafe(`${base}/${path}`);
@@ -1189,8 +1203,8 @@ async function createModFromTemplate(modId, modName, modAuthor, modType = 'seque
     });
     const assetResults = await Promise.all(assetPromises);
     assetResults.forEach(([key, data]) => {
-      if (key === 'live2d') {
-        assets.live2d = (data && typeof data === 'object') ? deepClone(data) : null;
+      if (key === 'live2d' || key === 'pngremix') {
+        assets[key] = (data && typeof data === 'object') ? deepClone(data) : null;
       } else {
         assets[key] = Array.isArray(data) ? deepClone(data) : [];
       }
@@ -2478,7 +2492,10 @@ function collectManifestData() {
   if (m.mod_type === 'live2d') {
     collectLive2dModelData();
   }
-  // PngRemix: 资源由外部 .pngremix 文件管理，无需额外收集
+  // 收集 PngRemix 配置
+  if (m.mod_type === 'pngremix') {
+    collectPngRemixModelData();
+  }
 }
 
 /**
@@ -3089,7 +3106,7 @@ function openStateModal(title, state) {
   document.getElementById('state-modal-title').textContent = title;
 
   // 默认折叠各折叠签
-  ['state-limits-options', 'state-can-trigger-options', 'state-data-counter-options', 'state-live2d-params-options', 'state-branch-options'].forEach((id) => {
+  ['state-limits-options', 'state-can-trigger-options', 'state-data-counter-options', 'state-live2d-params-options', 'state-pngremix-params-options', 'state-branch-options'].forEach((id) => {
     const el = document.getElementById(id);
     if (el && el.tagName === 'DETAILS') {
       el.open = false;
@@ -3201,13 +3218,20 @@ function openStateModal(title, state) {
     document.getElementById('state-counter-value').value = 0;
   }
   
-  // Live2D / PngRemix 参数覆写面板可见性
+  // Live2D 参数覆写面板可见性
   const modType = getModType();
   const live2dParamsPanel = document.getElementById('state-live2d-params-options');
   if (live2dParamsPanel) {
-    live2dParamsPanel.style.display = (modType === 'live2d' || modType === 'pngremix') ? '' : 'none';
+    live2dParamsPanel.style.display = modType === 'live2d' ? '' : 'none';
   }
   renderLive2DParams(state.live2d_params || []);
+
+  // PngRemix 参数覆写面板可见性
+  const pngremixParamsPanel = document.getElementById('state-pngremix-params-options');
+  if (pngremixParamsPanel) {
+    pngremixParamsPanel.style.display = modType === 'pngremix' ? '' : 'none';
+  }
+  renderPngRemixParams(state.pngremix_params || []);
 
   // 渲染分支
   renderBranches(state.branch || []);
@@ -3535,6 +3559,7 @@ function saveState() {
     branch_show_bubble: document.getElementById('state-branch-show-bubble').checked,
     mod_data_counter: collectDataCounter(),
     live2d_params: collectLive2DParams(),
+    pngremix_params: collectPngRemixParams(),
     branch: collectBranches()
   };
   
@@ -4207,7 +4232,7 @@ function renderAssets() {
   if (modType === 'live2d') {
     renderLive2dAssets();
   } else if (modType === 'pngremix') {
-    // PngRemix 资源由外部 .pngremix 文件管理，编辑器暂不渲染
+    renderPngRemixAssets();
   } else {
     renderAssetList('sequence', currentMod.assets.sequence);
     renderAssetList('img', currentMod.assets.img);
@@ -4523,21 +4548,25 @@ function isSequenceModType(modType) {
 function toggleAssetSections(modType) {
   const seqSection = document.getElementById('assets-sequence-section');
   const live2dSection = document.getElementById('assets-live2d-section');
+  const pngremixSection = document.getElementById('assets-pngremix-section');
   const descEl = document.getElementById('assets-desc-text');
   
   if (modType === 'live2d') {
     if (seqSection) seqSection.style.display = 'none';
     if (live2dSection) live2dSection.style.display = '';
+    if (pngremixSection) pngremixSection.style.display = 'none';
     if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_live2d');
     if (descEl) descEl.textContent = window.i18n.t('assets_desc_live2d');
   } else if (modType === 'pngremix') {
     if (seqSection) seqSection.style.display = 'none';
     if (live2dSection) live2dSection.style.display = 'none';
+    if (pngremixSection) pngremixSection.style.display = '';
     if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_pngremix');
     if (descEl) descEl.textContent = window.i18n.t('assets_desc_pngremix');
   } else {
     if (seqSection) seqSection.style.display = '';
     if (live2dSection) live2dSection.style.display = 'none';
+    if (pngremixSection) pngremixSection.style.display = 'none';
     if (descEl) descEl.setAttribute('data-i18n', 'assets_desc');
     if (descEl) descEl.textContent = window.i18n.t('assets_desc');
   }
@@ -5543,6 +5572,786 @@ function renderLive2dParamsBrowser(cdiData) {
   }
 
   container.innerHTML = html;
+}
+
+// ============================================================================
+// PngRemix 资产管理
+// ============================================================================
+
+/**
+ * 确保 pngremix 数据对象存在
+ */
+function ensurePngRemixData() {
+  if (!currentMod.assets.pngremix) {
+    currentMod.assets.pngremix = {
+      schema_version: 1,
+      model: {
+        name: '',
+        pngremix_file: 'asset/model.pngRemix',
+        default_state_index: 0,
+        max_fps: 60
+      },
+      features: {
+        mouse_follow: true,
+        auto_blink: true,
+        click_bounce: true,
+        click_bounce_amp: 50,
+        click_bounce_duration: 0.5,
+        blink_speed: 1.0,
+        blink_chance: 10,
+        blink_hold_ratio: 0.2
+      },
+      expressions: [],
+      motions: [],
+      states: []
+    };
+  }
+  return currentMod.assets.pngremix;
+}
+
+/**
+ * 从表单收集 PngRemix 模型和特性配置
+ */
+function collectPngRemixModelData() {
+  ensurePngRemixData();
+  const p = currentMod.assets.pngremix;
+
+  p.model.name = document.getElementById('pngremix-model-name')?.value?.trim() || '';
+  p.model.pngremix_file = document.getElementById('pngremix-model-file')?.value?.trim() || 'asset/model.pngRemix';
+  p.model.default_state_index = parseInt(document.getElementById('pngremix-default-state-index')?.value) || 0;
+  p.model.max_fps = parseInt(document.getElementById('pngremix-max-fps')?.value) || 60;
+
+  p.features.mouse_follow = document.getElementById('pngremix-mouse-follow')?.checked ?? true;
+  p.features.auto_blink = document.getElementById('pngremix-auto-blink')?.checked ?? true;
+  p.features.click_bounce = document.getElementById('pngremix-click-bounce')?.checked ?? true;
+  p.features.click_bounce_amp = parseFloat(document.getElementById('pngremix-click-bounce-amp')?.value) || 50;
+  p.features.click_bounce_duration = parseFloat(document.getElementById('pngremix-click-bounce-duration')?.value) || 0.5;
+  p.features.blink_speed = parseFloat(document.getElementById('pngremix-blink-speed')?.value) || 1.0;
+  p.features.blink_chance = parseInt(document.getElementById('pngremix-blink-chance')?.value) || 10;
+  p.features.blink_hold_ratio = parseFloat(document.getElementById('pngremix-blink-hold-ratio')?.value) || 0.2;
+}
+
+/**
+ * 填充 PngRemix 模型和特性表单
+ */
+function populatePngRemixForm() {
+  ensurePngRemixData();
+  const p = currentMod.assets.pngremix;
+
+  const el = (id) => document.getElementById(id);
+  if (el('pngremix-model-name')) el('pngremix-model-name').value = p.model.name || '';
+  if (el('pngremix-model-file')) el('pngremix-model-file').value = p.model.pngremix_file || 'asset/model.pngRemix';
+  if (el('pngremix-default-state-index')) el('pngremix-default-state-index').value = p.model.default_state_index ?? 0;
+  if (el('pngremix-max-fps')) el('pngremix-max-fps').value = p.model.max_fps ?? 60;
+
+  if (el('pngremix-mouse-follow')) el('pngremix-mouse-follow').checked = p.features.mouse_follow !== false;
+  if (el('pngremix-auto-blink')) el('pngremix-auto-blink').checked = p.features.auto_blink !== false;
+  if (el('pngremix-click-bounce')) el('pngremix-click-bounce').checked = p.features.click_bounce !== false;
+  if (el('pngremix-click-bounce-amp')) el('pngremix-click-bounce-amp').value = p.features.click_bounce_amp ?? 50;
+  if (el('pngremix-click-bounce-duration')) el('pngremix-click-bounce-duration').value = p.features.click_bounce_duration ?? 0.5;
+  if (el('pngremix-blink-speed')) el('pngremix-blink-speed').value = p.features.blink_speed ?? 1.0;
+  if (el('pngremix-blink-chance')) el('pngremix-blink-chance').value = p.features.blink_chance ?? 10;
+  if (el('pngremix-blink-hold-ratio')) el('pngremix-blink-hold-ratio').value = p.features.blink_hold_ratio ?? 0.2;
+}
+
+/**
+ * 渲染 PngRemix 所有子列表
+ */
+function renderPngRemixAssets() {
+  ensurePngRemixData();
+  populatePngRemixForm();
+  const p = currentMod.assets.pngremix;
+  renderPngRemixExpressions(p.expressions || []);
+  renderPngRemixMotions(p.motions || []);
+  renderPngRemixStates(p.states || []);
+}
+
+// ---- PngRemix 下拉选项辅助 ----
+
+function getPngRemixMotionSelectOptions(currentValue = '') {
+  const pngremix = currentMod?.assets?.pngremix;
+  const motions = pngremix?.motions || [];
+  let html = `<option value="">${window.i18n.t('select_motion_placeholder')}</option>`;
+  motions.forEach(m => {
+    const selected = m.name === currentValue ? ' selected' : '';
+    html += `<option value="${escapeHtml(m.name)}"${selected}>${escapeHtml(m.name)}</option>`;
+  });
+  return html;
+}
+
+function getPngRemixExpressionSelectOptions(currentValue = '') {
+  const pngremix = currentMod?.assets?.pngremix;
+  const expressions = pngremix?.expressions || [];
+  let html = `<option value="">${window.i18n.t('select_expression_placeholder')}</option>`;
+  expressions.forEach(e => {
+    const selected = e.name === currentValue ? ' selected' : '';
+    html += `<option value="${escapeHtml(e.name)}"${selected}>${escapeHtml(e.name)}</option>`;
+  });
+  return html;
+}
+
+// ---- PngRemix 剪贴板 ----
+
+async function copyPngRemixItem(kind, index) {
+  if (!currentMod) return;
+  const pngremix = currentMod.assets?.pngremix;
+  if (!pngremix) return;
+  const map = { motion: 'motions', expression: 'expressions', state: 'states' };
+  const arr = pngremix[map[kind]];
+  const item = arr?.[index];
+  if (!item) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'warning');
+    return;
+  }
+  try {
+    const data = { type: `tbuddy_pngremix_${kind}`, data: item };
+    await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    showToast(window.i18n.t('msg_copied_to_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_read_failed'), 'error');
+  }
+}
+
+async function pastePngRemixItem(kind) {
+  if (!currentMod) return;
+  const pngremix = ensurePngRemixData();
+  const map = { motion: 'motions', expression: 'expressions', state: 'states' };
+  const expectedType = `tbuddy_pngremix_${kind}`;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== expectedType || typeof parsed.data !== 'object') {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+      return;
+    }
+    pngremix[map[kind]].push(parsed.data);
+    renderPngRemixAssets();
+    updateAnimaSelects();
+    markUnsaved();
+    showToast(window.i18n.t('msg_pasted_from_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+  }
+}
+
+// ---- PngRemix 表情（card + modal）----
+
+function renderPngRemixExpressions(expressions) {
+  const list = document.getElementById('pngremix-expressions-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('pngremix-expressions-filter-name')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+
+  expressions.forEach((expr, index) => {
+    const eName = String(expr.name || '');
+    if (nameNdl && !eName.toLowerCase().includes(nameNdl)) return;
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(expr);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(eName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyPngRemixItem('expression', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editPngRemixExpression(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deletePngRemixExpression(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_expr_state_index_label')}:</span> ${expr.state_index ?? 0}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pastePngRemixItem('expression')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addPngRemixExpression()">➕ <span>${window.i18n.t('btn_add_expression')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['pngremix-expressions-filter-name'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const pngremix = ensurePngRemixData();
+      reorderArrayInPlaceByKeys(pngremix.expressions, orderedKeys, ensureTbUid);
+      renderPngRemixAssets();
+      updateAnimaSelects();
+      markUnsaved();
+    }
+  });
+}
+
+function addPngRemixExpression() {
+  openPngRemixExpressionModal(window.i18n.t('btn_add_expression'), {
+    name: '',
+    state_index: 0
+  }, -1);
+}
+
+function editPngRemixExpression(index) {
+  const pngremix = ensurePngRemixData();
+  const expr = pngremix.expressions[index];
+  if (!expr) return;
+  openPngRemixExpressionModal(window.i18n.t('pngremix_expr_name_label'), expr, index);
+}
+
+function deletePngRemixExpression(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_expression') || '确定删除？')) return;
+  ensurePngRemixData();
+  currentMod.assets.pngremix.expressions.splice(index, 1);
+  renderPngRemixAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+function openPngRemixExpressionModal(title, expr, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_expr_name_label')} <span class="required">*</span></label>
+        <input type="text" id="pngremix-edit-expr-name" value="${escapeHtml(expr.name || '')}" placeholder="${window.i18n.t('placeholder_pngremix_expr_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_expr_state_index_label')}</label>
+        <input type="number" id="pngremix-edit-expr-state-index" value="${expr.state_index ?? 0}" min="0">
+        <small>${window.i18n.t('pngremix_default_state_hint')}</small>
+      </div>
+    </div>
+  `;
+
+  modal._live2dSaveHandler = () => savePngRemixExpression(index);
+  modal.classList.add('show');
+}
+
+function savePngRemixExpression(index) {
+  const name = document.getElementById('pngremix-edit-expr-name').value.trim();
+  if (!name) {
+    showToast(window.i18n.t('msg_enter_expression_name'), 'warning');
+    return;
+  }
+
+  const expr = {
+    name: name,
+    state_index: parseInt(document.getElementById('pngremix-edit-expr-state-index').value) || 0
+  };
+
+  const pngremix = ensurePngRemixData();
+  if (index === -1) {
+    pngremix.expressions.push(expr);
+  } else {
+    pngremix.expressions[index] = expr;
+  }
+
+  closeAssetModal();
+  renderPngRemixAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+// ---- PngRemix 动作（card + modal）----
+
+function renderPngRemixMotions(motions) {
+  const list = document.getElementById('pngremix-motions-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('pngremix-motions-filter-name')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+
+  motions.forEach((motion, index) => {
+    const mName = String(motion.name || '');
+    if (nameNdl && !mName.toLowerCase().includes(nameNdl)) return;
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(motion);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(mName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="copyPngRemixItem('motion', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editPngRemixMotion(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deletePngRemixMotion(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_motion_desc_label')}:</span> ${escapeHtml(motion.description || '')}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pastePngRemixItem('motion')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addPngRemixMotion()">➕ <span>${window.i18n.t('btn_add_motion')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['pngremix-motions-filter-name'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const pngremix = ensurePngRemixData();
+      reorderArrayInPlaceByKeys(pngremix.motions, orderedKeys, ensureTbUid);
+      renderPngRemixAssets();
+      updateAnimaSelects();
+      markUnsaved();
+    }
+  });
+}
+
+function addPngRemixMotion() {
+  openPngRemixMotionModal(window.i18n.t('btn_add_motion'), {
+    name: '',
+    hotkey: 'F1',
+    description: ''
+  }, -1);
+}
+
+function editPngRemixMotion(index) {
+  const pngremix = ensurePngRemixData();
+  const motion = pngremix.motions[index];
+  if (!motion) return;
+  openPngRemixMotionModal(window.i18n.t('pngremix_motion_name_label'), motion, index);
+}
+
+function deletePngRemixMotion(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_motion') || '确定删除？')) return;
+  ensurePngRemixData();
+  currentMod.assets.pngremix.motions.splice(index, 1);
+  renderPngRemixAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+function openPngRemixMotionModal(title, motion, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_motion_name_label')} <span class="required">*</span></label>
+        <input type="text" id="pngremix-edit-motion-name" value="${escapeHtml(motion.name || '')}" placeholder="${window.i18n.t('placeholder_pngremix_motion_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_motion_desc_label')}</label>
+        <input type="text" id="pngremix-edit-motion-desc" value="${escapeHtml(motion.description || '')}" placeholder="${window.i18n.t('pngremix_enter_description')}">
+      </div>
+    </div>
+  `;
+
+  modal._live2dSaveHandler = () => savePngRemixMotion(index);
+  modal.classList.add('show');
+}
+
+function savePngRemixMotion(index) {
+  const name = document.getElementById('pngremix-edit-motion-name').value.trim();
+  if (!name) {
+    showToast(window.i18n.t('msg_enter_motion_name'), 'warning');
+    return;
+  }
+
+  const motion = {
+    name: name,
+    description: document.getElementById('pngremix-edit-motion-desc').value.trim()
+  };
+
+  const pngremix = ensurePngRemixData();
+  if (index === -1) {
+    pngremix.motions.push(motion);
+  } else {
+    pngremix.motions[index] = motion;
+  }
+
+  closeAssetModal();
+  renderPngRemixAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+// ---- PngRemix 状态映射（card + modal）----
+
+function renderPngRemixStates(states) {
+  const list = document.getElementById('pngremix-states-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('pngremix-states-filter-name')?.value || '').trim();
+  const motionRaw = (document.getElementById('pngremix-states-filter-motion')?.value || '').trim();
+  const exprRaw = (document.getElementById('pngremix-states-filter-expression')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+  const motionNdl = motionRaw.toLowerCase();
+  const exprNdl = exprRaw.toLowerCase();
+
+  const existingManifestStateNames = new Set(
+    getAllStateNames().map(n => String(n || '').trim()).filter(Boolean)
+  );
+
+  states.forEach((st, index) => {
+    const sName = String(st.state || '');
+    const sMotion = String(st.motion || '');
+    const sExpr = String(st.expression || '');
+    if (nameNdl && !sName.toLowerCase().includes(nameNdl)) return;
+    if (motionNdl && !sMotion.toLowerCase().includes(motionNdl)) return;
+    if (exprNdl && !sExpr.toLowerCase().includes(exprNdl)) return;
+
+    const trimmedName = sName.trim();
+    const canAddState = !!trimmedName && !existingManifestStateNames.has(trimmedName);
+    const addStateBtnHtml = `
+      <button class="btn btn-sm btn-ghost" onclick="createStateFromPngRemixMapping(${index})" ${canAddState ? '' : 'disabled'} title="${window.i18n.t('btn_add_same_name_state')}">➕</button>
+    `;
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(st);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(sName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          ${addStateBtnHtml}
+          <button class="btn btn-sm btn-ghost" onclick="copyPngRemixItem('state', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editPngRemixState(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deletePngRemixState(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_motion_label')}:</span> ${highlightNeedleHtml(sMotion, motionRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_expression_label')}:</span> ${highlightNeedleHtml(sExpr, exprRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_scale_label')}:</span> ${st.scale ?? 1.0}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('pngremix_state_offset_x_label')}/${window.i18n.t('pngremix_state_offset_y_label')}:</span> ${st.offset_x ?? 0}, ${st.offset_y ?? 0}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pastePngRemixItem('state')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addPngRemixState()">➕ <span>${window.i18n.t('btn_add_pngremix_state')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['pngremix-states-filter-name', 'pngremix-states-filter-motion', 'pngremix-states-filter-expression'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const pngremix = ensurePngRemixData();
+      reorderArrayInPlaceByKeys(pngremix.states, orderedKeys, ensureTbUid);
+      renderPngRemixAssets();
+      updateAnimaSelects();
+      markUnsaved();
+    }
+  });
+}
+
+function addPngRemixState() {
+  openPngRemixStateModal(window.i18n.t('btn_add_pngremix_state'), {
+    state: '',
+    motion: '',
+    expression: '',
+    scale: 1.0,
+    offset_x: 0,
+    offset_y: 0
+  }, -1);
+}
+
+function editPngRemixState(index) {
+  const pngremix = ensurePngRemixData();
+  const state = pngremix.states[index];
+  if (!state) return;
+  openPngRemixStateModal(window.i18n.t('pngremix_state_name_label'), state, index);
+}
+
+function deletePngRemixState(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_state') || '确定删除？')) return;
+  ensurePngRemixData();
+  currentMod.assets.pngremix.states.splice(index, 1);
+  renderPngRemixAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+function openPngRemixStateModal(title, state, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_state_name_label')} <span class="required">*</span></label>
+        <input type="text" id="pngremix-edit-state-name" value="${escapeHtml(state.state || '')}" placeholder="${window.i18n.t('placeholder_state_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_state_motion_label')}</label>
+        <select id="pngremix-edit-state-motion">
+          ${getPngRemixMotionSelectOptions(state.motion)}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_state_expression_label')}</label>
+        <select id="pngremix-edit-state-expression">
+          ${getPngRemixExpressionSelectOptions(state.expression)}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_state_scale_label')}</label>
+        <input type="number" id="pngremix-edit-state-scale" value="${state.scale ?? 1.0}" step="0.1" min="0.1">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_state_offset_x_label')}</label>
+        <input type="number" id="pngremix-edit-state-offset-x" value="${state.offset_x ?? 0}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('pngremix_state_offset_y_label')}</label>
+        <input type="number" id="pngremix-edit-state-offset-y" value="${state.offset_y ?? 0}">
+      </div>
+    </div>
+  `;
+
+  modal._live2dSaveHandler = () => savePngRemixState(index);
+  modal.classList.add('show');
+}
+
+function savePngRemixState(index) {
+  const stateName = document.getElementById('pngremix-edit-state-name').value.trim();
+  if (!stateName) {
+    showToast(window.i18n.t('msg_enter_pngremix_state'), 'warning');
+    return;
+  }
+
+  const state = {
+    state: stateName,
+    motion: document.getElementById('pngremix-edit-state-motion').value,
+    expression: document.getElementById('pngremix-edit-state-expression').value,
+    scale: parseFloat(document.getElementById('pngremix-edit-state-scale').value) || 1.0,
+    offset_x: parseInt(document.getElementById('pngremix-edit-state-offset-x').value) || 0,
+    offset_y: parseInt(document.getElementById('pngremix-edit-state-offset-y').value) || 0
+  };
+
+  const pngremix = ensurePngRemixData();
+  if (index === -1) {
+    pngremix.states.push(state);
+  } else {
+    pngremix.states[index] = state;
+  }
+
+  closeAssetModal();
+  renderPngRemixAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+/**
+ * 从 PngRemix 状态映射创建同名 manifest 状态
+ */
+function createStateFromPngRemixMapping(index) {
+  ensurePngRemixData();
+  const mapping = currentMod.assets.pngremix.states[index];
+  if (!mapping) return;
+
+  const stateName = mapping.state;
+  const exists = currentMod.manifest.states.some(s => s.name === stateName) ||
+                 (currentMod.manifest.important_states && currentMod.manifest.important_states[stateName]);
+  if (exists) {
+    showToast(window.i18n.t('msg_state_same_name_exists'), 'warning');
+    return;
+  }
+
+  const newState = createDefaultState(stateName);
+  newState.anima = stateName;
+
+  const params = [];
+  if (mapping.expression) {
+    params.push({ type: 'expression', name: mapping.expression });
+  }
+  if (mapping.motion) {
+    params.push({ type: 'motion', name: mapping.motion });
+  }
+  if (params.length > 0) {
+    newState.pngremix_params = params;
+  }
+
+  const textLang = currentTextLang;
+  if (currentMod.texts[textLang]?.speech) {
+    const matchText = currentMod.texts[textLang].speech.find(t => t.name === stateName);
+    if (matchText) newState.text = stateName;
+  }
+  const audioLang = currentAudioLang;
+  if (currentMod.audio[audioLang]) {
+    const matchAudio = currentMod.audio[audioLang].find(a => a.name === stateName);
+    if (matchAudio) newState.audio = stateName;
+  }
+
+  currentMod.manifest.states.push(newState);
+  renderStates();
+  renderPngRemixAssets();
+  markUnsaved();
+  showToast(window.i18n.t('msg_state_created_from_pngremix') || '已从 PngRemix 映射创建同名状态', 'success');
+}
+
+// ============================================================================
+// PngRemix 参数覆写（状态编辑弹窗）
+// ============================================================================
+
+/**
+ * 渲染 PngRemix 参数列表
+ */
+function renderPngRemixParams(params) {
+  const list = document.getElementById('pngremix-param-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (!Array.isArray(params)) return;
+
+  // 获取可用的表情和动作名
+  const exprNames = currentMod?.assets?.pngremix?.expressions?.map(e => e.name) || [];
+  const motionNames = currentMod?.assets?.pngremix?.motions?.map(m => m.name) || [];
+
+  params.forEach((param, index) => {
+    const item = document.createElement('div');
+    item.className = 'branch-item';
+
+    // 构建类型下拉
+    const typeSelect = `<select data-pngremix-param-type="${index}" style="width:120px;">
+      <option value="expression" ${param.type === 'expression' ? 'selected' : ''}>${window.i18n.t('pngremix_param_type_expression') || '表情'}</option>
+      <option value="motion" ${param.type === 'motion' ? 'selected' : ''}>${window.i18n.t('pngremix_param_type_motion') || '动作'}</option>
+    </select>`;
+
+    // 构建名称下拉（根据类型显示对应选项）
+    const names = param.type === 'motion' ? motionNames : exprNames;
+    let nameOptions = `<option value="">--</option>`;
+    names.forEach(n => {
+      nameOptions += `<option value="${escapeHtml(n)}" ${n === param.name ? 'selected' : ''}>${escapeHtml(n)}</option>`;
+    });
+    // 如果当前值不在列表中，也加上
+    if (param.name && !names.includes(param.name)) {
+      nameOptions += `<option value="${escapeHtml(param.name)}" selected>${escapeHtml(param.name)}</option>`;
+    }
+    const nameSelect = `<select data-pngremix-param-name="${index}" style="flex:1;">${nameOptions}</select>`;
+
+    item.innerHTML = `
+      ${typeSelect}
+      ${nameSelect}
+      <button class="btn btn-sm btn-ghost" onclick="removePngRemixParam(${index})">🗑️</button>
+    `;
+
+    // 当类型改变时，更新名称下拉选项
+    item.querySelector(`[data-pngremix-param-type="${index}"]`).addEventListener('change', function() {
+      const newType = this.value;
+      const nameEl = item.querySelector(`[data-pngremix-param-name="${index}"]`);
+      const currentNames = newType === 'motion' ? motionNames : exprNames;
+      nameEl.innerHTML = '<option value="">--</option>' + currentNames.map(n => 
+        `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`
+      ).join('');
+    });
+
+    list.appendChild(item);
+  });
+}
+
+/**
+ * 添加 PngRemix 参数项
+ */
+function addPngRemixParam() {
+  const list = document.getElementById('pngremix-param-list');
+  if (!list) return;
+
+  const params = collectPngRemixParams() || [];
+  params.push({ type: 'expression', name: '' });
+  renderPngRemixParams(params);
+}
+
+/**
+ * 删除 PngRemix 参数项
+ */
+function removePngRemixParam(index) {
+  const params = collectPngRemixParams() || [];
+  params.splice(index, 1);
+  renderPngRemixParams(params);
+}
+
+/**
+ * 收集 PngRemix 参数列表
+ */
+function collectPngRemixParams() {
+  const list = document.getElementById('pngremix-param-list');
+  if (!list) return null;
+
+  const params = [];
+  list.querySelectorAll('[data-pngremix-param-type]').forEach((el) => {
+    const type = el.value;
+    const idx = el.getAttribute('data-pngremix-param-type');
+    const nameEl = list.querySelector(`[data-pngremix-param-name="${idx}"]`);
+    const name = nameEl?.value?.trim() || '';
+    if (name) {
+      params.push({ type, name });
+    }
+  });
+
+  return params.length > 0 ? params : null;
 }
 
 /**

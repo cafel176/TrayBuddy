@@ -35,6 +35,7 @@
       <li><a href="#bubble" data-i18n="toc_bubble">气泡样式配置</a></li>
       <li><a href="#assets" data-i18n="toc_assets">动画管理</a></li>
       <li><a href="#live2d" data-i18n="toc_live2d">Live2D 动画</a></li>
+      <li><a href="#pngremix" data-i18n="toc_pngremix">PngRemix 动画</a></li>
       <li><a href="#texts" data-i18n="toc_texts">多语言文本</a></li>
       <li><a href="#audio" data-i18n="toc_audio">多语言音频</a></li>
       <li><a href="#save-export" data-i18n="toc_save_export">保存与导出</a></li>
@@ -121,7 +122,7 @@
       <p data-i18n="tbuddy_desc">.tbuddy 是 TrayBuddy 专用的 Mod 包格式，本质上是一个 ZIP 压缩包。点击「📦 打开 .tbuddy」选择文件后自动加载。</p>
 
       <h3 data-i18n="section_create_mod">创建新 Mod</h3>
-      <p data-i18n="create_mod_desc">点击「➕ 新建 Mod」，填写 Mod ID、名称和作者，选择 Mod 类型（序列帧动画或 Live2D），系统会创建一个包含默认配置的新 Mod。</p>
+      <p data-i18n="create_mod_desc">点击「➕ 新建 Mod」，填写 Mod ID、名称和作者，选择 Mod 类型（序列帧动画、Live2D 或 PngRemix），系统会创建一个包含默认配置的新 Mod。</p>
     </section>
 
     <!-- 基础信息配置 -->
@@ -372,6 +373,72 @@
       </div>
     </section>
 
+    <!-- PngRemix 动画 -->
+    <section id="pngremix">
+      <h2 data-i18n="section_pngremix">🧩 PngRemix 动画</h2>
+      <p data-i18n="pngremix_desc">PngRemix Mod 使用 PNGTuber Remix 编辑器创建的 .pngRemix 二进制模型文件。创建新 Mod 时选择 "PngRemix" 类型即可。</p>
+
+      <h3 data-i18n="section_pngremix_model_config">模型配置</h3>
+      <p data-i18n="pngremix_model_config_desc">在「动画」标签页中配置 PngRemix 模型的基本参数。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="pngremix_field_name_desc">模型显示名称</td></tr>
+        <tr><td>pngremix_file</td><td data-i18n="pngremix_field_file_desc">.pngRemix 模型文件路径（相对于 asset/ 目录）</td></tr>
+        <tr><td>default_state_index</td><td data-i18n="pngremix_field_default_state_desc">模型加载后的初始显示状态索引（从 0 开始）</td></tr>
+        <tr><td>max_fps</td><td data-i18n="pngremix_field_max_fps_desc">PngRemix 渲染的最大帧率（0 表示不限制）</td></tr>
+      </table>
+
+      <h3 data-i18n="section_pngremix_features_config">功能特性</h3>
+      <p data-i18n="pngremix_features_config_desc">配置 PngRemix 模型的交互功能：鼠标跟随、自动眨眼、点击弹跳等。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>mouse_follow</td><td data-i18n="pngremix_feature_mouse_follow_desc">模型是否跟随鼠标方向</td></tr>
+        <tr><td>auto_blink</td><td data-i18n="pngremix_feature_auto_blink_desc">是否自动播放眨眼动画</td></tr>
+        <tr><td>click_bounce</td><td data-i18n="pngremix_feature_click_bounce_desc">点击时是否播放弹跳效果</td></tr>
+        <tr><td>blink_speed</td><td data-i18n="pngremix_feature_blink_speed_desc">眨眼动画速度（秒）</td></tr>
+        <tr><td>blink_chance</td><td data-i18n="pngremix_feature_blink_chance_desc">眨眼触发概率（0.0-1.0）</td></tr>
+        <tr><td>blink_hold_ratio</td><td data-i18n="pngremix_feature_blink_hold_desc">眨眼闭合保持比例（0.0-1.0）</td></tr>
+        <tr><td>click_bounce_amp</td><td data-i18n="pngremix_feature_bounce_amp_desc">弹跳幅度（像素）</td></tr>
+        <tr><td>click_bounce_duration</td><td data-i18n="pngremix_feature_bounce_dur_desc">弹跳持续时间（秒）</td></tr>
+      </table>
+
+      <h3 data-i18n="section_pngremix_expressions_config">表情配置</h3>
+      <p data-i18n="pngremix_expressions_config_desc">管理 PngRemix 模型的表情列表。每个表情通过切换状态索引实现。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="pngremix_expression_name_desc">表情名称，供状态映射和 pngremix_params 引用</td></tr>
+        <tr><td>state_index</td><td data-i18n="pngremix_expression_index_desc">对应的模型状态索引（从 0 开始）</td></tr>
+      </table>
+
+      <h3 data-i18n="section_pngremix_motions_config">动作配置</h3>
+      <p data-i18n="pngremix_motions_config_desc">管理 PngRemix 模型的动作列表。动作可通过热键触发。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="pngremix_motion_name_desc">动作名称，供状态映射和 pngremix_params 引用</td></tr>
+        <tr><td>hotkey</td><td data-i18n="pngremix_motion_hotkey_desc">绑定的热键（如 F1-F9）</td></tr>
+        <tr><td>description</td><td data-i18n="pngremix_motion_description_desc">动作的描述说明</td></tr>
+      </table>
+
+      <h3 data-i18n="section_pngremix_states_config">状态映射</h3>
+      <p data-i18n="pngremix_states_config_desc">状态映射定义了每个应用状态应使用的 PngRemix 表情和动作。这些条目会在「状态和触发」页的动画下拉中可选。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>state</td><td data-i18n="pngremix_state_name_desc">状态名称（与 manifest 中的状态名对应）</td></tr>
+        <tr><td>expression</td><td data-i18n="pngremix_state_expression_desc">关联的表情名称（可选）</td></tr>
+        <tr><td>motion</td><td data-i18n="pngremix_state_motion_desc">关联的动作名称（可选）</td></tr>
+        <tr><td>scale</td><td data-i18n="pngremix_state_scale_desc">模型缩放比例</td></tr>
+        <tr><td>offset_x / offset_y</td><td data-i18n="pngremix_state_offset_desc">位置偏移量</td></tr>
+      </table>
+
+      <h3 data-i18n="section_pngremix_params_config">PngRemix 参数覆写</h3>
+      <p data-i18n="pngremix_params_config_desc">在状态编辑面板中，PngRemix 类型的 Mod 可使用 pngremix_params 在进入状态时切换表情或触发动作。每条参数包含 type（expression 或 motion）和 name。</p>
+
+      <div class="callout callout-info">
+        <div class="callout-title" data-i18n="callout_pngremix_tip_title">💡 提示</div>
+        <p data-i18n="callout_pngremix_tip_desc">.pngRemix 模型文件需要使用 PNGTuber Remix 编辑器创建。将 .pngRemix 文件放置到 asset/ 目录下，然后在编辑器中配置路径。</p>
+      </div>
+    </section>
+
     <!-- 文本管理 -->
     <section id="texts">
       <h2 data-i18n="section_texts">📝 多语言文本</h2>
@@ -417,7 +484,9 @@
         <li><code>bubble_style.json</code>（开启气泡样式时生成）</li>
         <li><code>asset/sequence.json</code>, <code>asset/img.json</code>（序列帧 Mod）</li>
         <li><code>asset/live2d.json</code>（Live2D Mod）</li>
+        <li><code>asset/pngremix.json</code>（PngRemix Mod）</li>
         <li><code>asset/live2d/</code> <span data-i18n="live2d_export_all_files">下的所有文件（.model3.json、.moc3、贴图、.motion3.json、.exp3.json 等）将完整打包</span>（Live2D Mod）</li>
+        <li><code>asset/*.pngRemix</code>（PngRemix Mod）</li>
         <li><code>text/[lang]/info.json</code>, <code>text/[lang]/speech.json</code>（开启文本对话时生成）</li>
         <li><code>audio/[lang]/speech.json</code>（开启音频对话时生成）</li>
         <li><code>preview.(png/jpg/jpeg/webp)</code>, <code>icon.ico</code></li>
@@ -455,6 +524,19 @@
 │       ├── textures/        # 贴图
 │       ├── motions/         # 动作 (.motion3.json)
 │       └── expressions/     # 表情 (.exp3.json)
+├── audio/[lang]/
+│   ├── speech.json, speech/
+└── text/[lang]/
+    ├── info.json, speech.json</code></pre>
+      <h4 data-i18n="structure_pngremix_title">PngRemix Mod (mod_type: "pngremix")</h4>
+      <pre><code>mods/my_mod/
+├── manifest.json            # Mod 主配置文件
+├── preview.png              # 预览图
+├── icon.ico                 # 图标
+├── bubble_style.json        # [可选] 气泡样式
+├── asset/
+│   ├── pngremix.json        # PngRemix 配置（表情/动作/状态映射）
+│   └── *.pngRemix           # PngRemix 模型文件
 ├── audio/[lang]/
 │   ├── speech.json, speech/
 └── text/[lang]/
