@@ -163,6 +163,9 @@ pub const EVENT_GLOBAL_RIGHT_CLICK_UP: &str = "global_right_click_up";
 /// 全局键盘按下事件（任意键按下时触发，不要求窗口焦点）
 pub const EVENT_GLOBAL_KEYDOWN: &str = "global_keydown";
 
+/// 全局键盘松开事件（任意键松开时触发，不要求窗口焦点）
+pub const EVENT_GLOBAL_KEYUP: &str = "global_keyup";
+
 /// 登录事件
 pub const EVENT_LOGIN: &str = "login";
 

@@ -33,29 +33,17 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0.1,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": [
-        {
-          "id": "ParamMouseLeftDown",
-          "value": 0
-        },
-        {
-          "id": "ParamMouseRightDown",
-          "value": 0
-        },
-        {
-          "id": "CatParamLeftHandDown",
-          "value": 0
-        }
-      ]
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
     },
     "silence": {
       "name": "silence",
@@ -367,7 +355,7 @@
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "Wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -391,6 +379,7 @@
           "value": 1
         }
       ],
+      "pngremix_params": null,
       "branch": []
     },
     {
@@ -398,7 +387,7 @@
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "Wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -422,6 +411,7 @@
           "value": 1
         }
       ],
+      "pngremix_params": null,
       "branch": []
     },
     {
@@ -429,7 +419,7 @@
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "Wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -453,6 +443,103 @@
           "value": 1
         }
       ],
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "key_up",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": [
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0
+        }
+      ],
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "key_mouse_left_up",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": [
+        {
+          "id": "ParamMouseLeftDown",
+          "value": 0
+        }
+      ],
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "key_mouse_right_up",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": false,
+      "mod_data_counter": null,
+      "live2d_params": [
+        {
+          "id": "ParamMouseRightDown",
+          "value": 0
+        }
+      ],
+      "pngremix_params": null,
       "branch": []
     }
   ],
@@ -586,6 +673,51 @@
           "states": [
             {
               "state": "key_down",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "global_keyup",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "global_click_up",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_mouse_left_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "global_right_click_up",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_mouse_right_up",
               "weight": 1
             }
           ],

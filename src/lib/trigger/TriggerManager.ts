@@ -13,6 +13,7 @@
  * - `global_right_click` - 全局右键点击（不要求窗口焦点，由后端轮询触发）
  * - `global_right_click_up` - 全局右键松开（不要求窗口焦点，由后端轮询触发）
  * - `global_keydown` - 全局键盘按下（任意键按下时触发，不要求窗口焦点）
+ * - `global_keyup` - 全局键盘松开（任意键松开时触发，不要求窗口焦点）
  * - `login` - 应用启动（登录）
  * - `drag_start` - 开始拖动 Animation window
  * - `drag_end` - 结束拖动 Animation window
@@ -44,6 +45,7 @@ export type TriggerEvent =
   | "global_right_click"
   | "global_right_click_up"
   | "global_keydown"
+  | "global_keyup"
   | "login"
   | "login_silence"
   | "firstday"
@@ -63,6 +65,7 @@ const SUPPORTED_EVENTS: readonly TriggerEvent[] = [
   "global_right_click",
   "global_right_click_up",
   "global_keydown",
+  "global_keyup",
   "login",
   "login_silence",
   "firstday",
@@ -88,7 +91,8 @@ export class TriggerManager {
   isEventSupported(eventName: string): boolean {
     return (
       SUPPORTED_EVENTS.includes(eventName as TriggerEvent) ||
-      eventName.startsWith("keydown:")
+      eventName.startsWith("keydown:") ||
+      eventName.startsWith("keyup:")
     );
   }
 

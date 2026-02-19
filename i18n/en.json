@@ -590,7 +590,8 @@
     "quickGlobalClickUp": "Global Click Up",
     "quickGlobalRightClick": "Global Right Click Down",
     "quickGlobalRightClickUp": "Global Right Click Up",
-    "quickGlobalKeydown": "Global Keydown",
+    "quickGlobalKeydown": "Global Key Down",
+    "quickGlobalKeyup": "Global Key Up",
     "quickLogin": "Login",
     "whenCondition": "When {state}",
 
@@ -600,7 +601,7 @@
 
     "noTriggers": "No triggers defined in current Mod",
     "manualTrigger": "Manual Trigger",
-    "inputPlaceholder": "Enter event name (e.g. click, click_up, right_click, right_click_up, global_click, global_click_up, login)",
+    "inputPlaceholder": "Enter event name (e.g. click, click_up, right_click, right_click_up, global_click, global_click_up, global_keydown, global_keyup, keydown:<Key>, keyup:<Key>, login)",
     "eventLog": "Event Log",
     "noEvents": "No events yet",
     "refreshData": "Refresh Data",

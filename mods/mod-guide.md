@@ -99,7 +99,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `border` | Object | 边框配置 |
 ||| `show_mod_data_panel` | Boolean | 是否在动画窗口左上角显示 Mod 数据面板 |
 ||| `mod_data_default_int` | Number | Mod 数据的默认初始整数值 (首次加载该 Mod 时写入) |
-||| `global_keyboard` | Boolean | 是否开启全局键盘监听（开启后无需聚焦动画窗口也能触发键盘事件） |
+||| `global_keyboard` | Boolean | 是否开启全局键盘监听（开启后无需聚焦动画窗口也能触发 keydown/keyup/global_keydown/global_keyup） |
 ||| `global_mouse` | Boolean | 是否开启全局鼠标监听（开启后鼠标点击/松开任意位置可触发 global_click/global_click_up/global_right_click/global_right_click_up） |
 ||| `important_states` | Object | 关键状态映射 (如 `idle`, `silence`)，Key 为状态名，Value 为状态对象 |
 ||| `states` | Array | 其他普通状态定义数组 |
@@ -168,7 +168,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 
 ||| 字段 | 类型 | 说明 |
 ||| :--- | :--- | :--- |
-||| `event` | String | 事件名称（如 `click`, `click_up`, `right_click`, `right_click_up`, `global_click`, `global_click_up`, `global_right_click`, `global_right_click_up`, `global_keydown`, `login`, `work`, `birthday`, `firstday`, `login_silence`, `music_start`, `music_end`, `drag_start`, `drag_end`, `keydown:<Key>`） |
+||| `event` | String | 事件名称（如 `click`, `click_up`, `right_click`, `right_click_up`, `global_click`, `global_click_up`, `global_right_click`, `global_right_click_up`, `global_keydown`, `global_keyup`, `login`, `work`, `birthday`, `firstday`, `login_silence`, `music_start`, `music_end`, `drag_start`, `drag_end`, `keydown:<Key>`, `keyup:<Key>`） |
 ||| `can_trigger_states` | Array | 触发条件状态组数组，定义在不同持久状态下可触发的状态列表 |
 
 

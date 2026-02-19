@@ -589,7 +589,8 @@
     "quickGlobalClickUp": "全局松开",
     "quickGlobalRightClick": "全局右键按下",
     "quickGlobalRightClickUp": "全局右键松开",
-    "quickGlobalKeydown": "全局按键",
+    "quickGlobalKeydown": "全局按键按下",
+    "quickGlobalKeyup": "全局按键松开",
     "quickLogin": "登录",
     "whenCondition": "当 {state} 时",
 
@@ -599,7 +600,7 @@
 
     "noTriggers": "当前 Mod 未定义触发器",
     "manualTrigger": "手动触发事件",
-    "inputPlaceholder": "输入事件名称 (如 click, click_up, right_click, right_click_up, global_click, global_click_up, login)",
+    "inputPlaceholder": "输入事件名称 (如 click, click_up, right_click, right_click_up, global_click, global_click_up, global_keydown, global_keyup, keydown:<Key>, keyup:<Key>, login)",
     "eventLog": "事件日志",
     "noEvents": "暂无事件",
     "refreshData": "刷新数据",

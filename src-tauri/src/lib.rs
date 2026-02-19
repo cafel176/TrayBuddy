@@ -3222,7 +3222,29 @@ fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
                             "pressed": true
                         }));
                     } else if !pressed && prev_states[i] {
-                        // 按键刚松开，通知前端叠加层
+                        // 按键刚松开：
+                        // 1) 触发 keyup:<KeyCode> 与 global_keyup（松开边沿）
+                        let up_event_name = format!("keyup:{}", code);
+                        println!("[GlobalKeyboard] Key released: {} (vk=0x{:02X})", code, vk);
+                        let Some(app_state) = app_handle.try_state::<AppState>() else {
+                            prev_states[i] = pressed;
+                            continue;
+                        };
+                        let rm = app_state.resource_manager.lock().unwrap();
+                        let mut sm = app_state.state_manager.lock().unwrap();
+                        let _ = TriggerManager::trigger_event(&up_event_name, false, &rm, &mut sm);
+                        let _ = TriggerManager::trigger_event("global_keyup", false, &rm, &mut sm);
+
+                        // 2) 对分支选择相关按键，额外通知前端 UI
+                        match code {
+                            "Space" | "Enter" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" => {
+                                println!("[GlobalKeyboard] Emitting global-keyup: {}", code);
+                                let _ = app_handle.emit("global-keyup", code);
+                            }
+                            _ => {}
+                        }
+
+                        // 3) 通知前端叠加层：按键松开
                         let _ = app_handle.emit("global-key-state", serde_json::json!({
                             "code": code,
                             "pressed": false

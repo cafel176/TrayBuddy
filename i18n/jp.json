@@ -591,6 +591,7 @@
     "quickGlobalRightClick": "グローバル右押下",
     "quickGlobalRightClickUp": "グローバル右解放",
     "quickGlobalKeydown": "グローバルキー押下",
+    "quickGlobalKeyup": "グローバルキー解放",
     "quickLogin": "ログイン",
     "whenCondition": "{state} の時",
 
@@ -600,7 +601,7 @@
 
     "noTriggers": "現在の Mod にトリガーが定義されていません",
     "manualTrigger": "手動トリガー",
-    "inputPlaceholder": "イベント名を入力 (例: click, click_up, right_click, right_click_up, global_click, global_click_up, login)",
+    "inputPlaceholder": "イベント名を入力 (例: click, click_up, right_click, right_click_up, global_click, global_click_up, global_keydown, global_keyup, keydown:<Key>, keyup:<Key>, login)",
     "eventLog": "イベントログ",
     "noEvents": "イベントなし",
     "refreshData": "データを更新",

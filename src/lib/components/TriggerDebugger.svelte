@@ -568,6 +568,9 @@
       <button class="btn-quick" onclick={() => triggerEvent("global_keydown")}
         >{_("trigger.quickGlobalKeydown")}</button
       >
+      <button class="btn-quick" onclick={() => triggerEvent("global_keyup")}
+        >{_("trigger.quickGlobalKeyup")}</button
+      >
       <button class="btn-quick" onclick={() => triggerEvent("login")}
         >{_("trigger.quickLogin")}</button
       >
