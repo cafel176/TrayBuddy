@@ -1433,6 +1433,10 @@
                     <span class="info-value">{currentModInfo.live2d.model.breath_json || _("resource.notSet")}</span>
                   </div>
                   <div class="info-row">
+                    <span class="info-label">{_("resource.live2dModelScale")}</span>
+                    <span class="info-value">{currentModInfo.live2d.model.scale ?? 1}</span>
+                  </div>
+                  <div class="info-row">
                     <span class="info-label">{_("resource.live2dEyeBlink")}</span>
                     <span class="info-value">{currentModInfo.live2d.model.eye_blink ? _("common.yes") : _("common.no")}</span>
                   </div>

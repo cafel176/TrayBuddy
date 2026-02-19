@@ -424,6 +424,8 @@
   "live2d_base_dir_hint": "Directory containing Live2D model files (relative to Mod root)",
   "live2d_model_json_label": "Model Definition File",
   "live2d_model_json_hint": "e.g., model.model3.json",
+  "live2d_model_scale_label": "Model Scale",
+  "live2d_model_scale_hint": "Overall scale for window preview (default 1; <1 shrinks)",
   "live2d_textures_dir_label": "Textures Directory",
   "live2d_motions_dir_label": "Motions Directory",
   "live2d_expressions_dir_label": "Expressions Directory",

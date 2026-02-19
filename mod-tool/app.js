@@ -4588,6 +4588,7 @@ function ensureLive2dData() {
         expressions_dir: '',
         physics_json: '',
         pose_json: '',
+        scale: 1,
         eye_blink: true,
         lip_sync: true
       },
@@ -4656,6 +4657,7 @@ function populateLive2dModelForm(model) {
   document.getElementById('live2d-model-name').value = model.name || '';
   document.getElementById('live2d-base-dir').value = model.base_dir || '';
   document.getElementById('live2d-model-json').value = model.model_json || '';
+  document.getElementById('live2d-model-scale').value = model.scale ?? 1;
   document.getElementById('live2d-textures-dir').value = model.textures_dir || '';
   document.getElementById('live2d-motions-dir').value = model.motions_dir || '';
   document.getElementById('live2d-expressions-dir').value = model.expressions_dir || '';
@@ -4689,6 +4691,7 @@ function collectLive2dModelData() {
   model.name = document.getElementById('live2d-model-name').value.trim();
   model.base_dir = document.getElementById('live2d-base-dir').value.trim();
   model.model_json = document.getElementById('live2d-model-json').value.trim();
+  model.scale = parseFloat(document.getElementById('live2d-model-scale').value) || 1;
   model.textures_dir = document.getElementById('live2d-textures-dir').value.trim();
   model.motions_dir = document.getElementById('live2d-motions-dir').value.trim();
   model.expressions_dir = document.getElementById('live2d-expressions-dir').value.trim();

@@ -128,6 +128,8 @@ export interface Live2DModelConfig {
   physics_json: string;
   pose_json: string;
   breath_json: string;
+  /** 模型整体缩放（窗口预览用，避免模型过大超出窗口） */
+  scale: number;
   eye_blink: boolean;
   lip_sync: boolean;
 }

@@ -186,6 +186,7 @@ export class Live2DPlayer {
   private motionFinishHandler: (() => void) | null = null;
   private activeState: Live2DState | null = null;
   private animationScale = 1;
+  private modelScale = 1;
   private baseFitScale = 1;
   private paramOverrideCleanup: (() => void) | null = null;
 
@@ -262,7 +263,7 @@ export class Live2DPlayer {
 
   setAnimationScale(scale: number): void {
     this.animationScale = scale;
-    this.applyStateTransform();
+    this.applyCurrentTransform();
   }
 
   /**
@@ -357,13 +358,27 @@ export class Live2DPlayer {
   }
 
   getDebugInfo(): { scale: number; offsetX: number; offsetY: number; baseFitScale: number; finalScale: number } {
-    const stateScale = this.activeState ? (Number.isFinite(this.activeState.scale) ? this.activeState.scale : 1) : 1;
+    const stateScale = this.activeState
+      ? (Number.isFinite(this.activeState.scale) ? this.activeState.scale : 1)
+      : 1;
+
+    const anim = Number.isFinite(this.animationScale) && this.animationScale > 0
+      ? this.animationScale
+      : 0.4;
+    const animFactor = anim / 0.4;
+
+    const modelScale = Number.isFinite(this.modelScale) && this.modelScale > 0
+      ? this.modelScale
+      : 1;
+
+    const globalScale = animFactor * modelScale;
+
     return {
       scale: this.debugScale,
       offsetX: this.debugOffsetX,
       offsetY: this.debugOffsetY,
       baseFitScale: this.baseFitScale,
-      finalScale: this.baseFitScale * stateScale * this.debugScale,
+      finalScale: this.baseFitScale * globalScale * stateScale * this.debugScale,
     };
   }
 
@@ -371,6 +386,7 @@ export class Live2DPlayer {
     dbg("load", "modPath:", modPath, "model:", config.model.model_json);
     this.config = config;
     this.modPath = modPath;
+    this.modelScale = Number((config.model as any)?.scale) || 1;
     this.motionMap.clear();
     this.expressionMap.clear();
 
@@ -525,7 +541,7 @@ export class Live2DPlayer {
       dbg("resize", "parentSize:", width, "x", height);
       this.app.renderer.resize(width, height);
       this.updateFitScale();
-      this.applyStateTransform();
+      this.applyCurrentTransform();
     });
     this.resizeObserver.observe(target);
   }
@@ -716,7 +732,17 @@ export class Live2DPlayer {
     const stateScale = Number.isFinite(this.activeState.scale)
       ? this.activeState.scale
       : 1;
-    const scale = this.baseFitScale * stateScale * this.debugScale;
+
+    const anim = Number.isFinite(this.animationScale) && this.animationScale > 0
+      ? this.animationScale
+      : 0.4;
+    const animFactor = anim / 0.4;
+
+    const modelScale = Number.isFinite(this.modelScale) && this.modelScale > 0
+      ? this.modelScale
+      : 1;
+
+    const scale = this.baseFitScale * animFactor * modelScale * stateScale * this.debugScale;
 
     this.model.scale.set(scale);
 
@@ -741,7 +767,16 @@ export class Live2DPlayer {
   private applyInitialTransform(): void {
     if (!this.model || !this.app) return;
 
-    const scale = this.baseFitScale * this.debugScale;
+    const anim = Number.isFinite(this.animationScale) && this.animationScale > 0
+      ? this.animationScale
+      : 0.4;
+    const animFactor = anim / 0.4;
+
+    const modelScale = Number.isFinite(this.modelScale) && this.modelScale > 0
+      ? this.modelScale
+      : 1;
+
+    const scale = this.baseFitScale * animFactor * modelScale * this.debugScale;
     this.model.scale.set(scale);
 
     const { width: viewW, height: viewH } = this.getLogicalSize();
@@ -750,6 +785,11 @@ export class Live2DPlayer {
 
     dbg("applyInitialTransform", "scale:", scale.toFixed(4),
       "pos:", this.model.x.toFixed(1), this.model.y.toFixed(1));
+  }
+
+  private applyCurrentTransform(): void {
+    if (this.activeState) this.applyStateTransform();
+    else this.applyInitialTransform();
   }
 
   private buildMotionMap(): void {

@@ -452,6 +452,7 @@
     "live2dPhysics": "Physics",
     "live2dPose": "Pose",
     "live2dBreath": "Breath",
+    "live2dModelScale": "Model Scale",
     "live2dEyeBlink": "Eye Blink",
     "live2dLipSync": "Lip Sync",
     "live2dMotions": "Motions",

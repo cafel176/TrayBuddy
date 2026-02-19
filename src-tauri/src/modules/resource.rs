@@ -197,6 +197,8 @@ pub struct Live2DModelConfig {
     pub physics_json: Box<str>,
     pub pose_json: Box<str>,
     pub breath_json: Box<str>,
+    /// 模型整体缩放（窗口预览用，避免模型过大超出窗口）
+    pub scale: f64,
     pub eye_blink: bool,
     pub lip_sync: bool,
 }
@@ -213,6 +215,7 @@ impl Default for Live2DModelConfig {
             physics_json: "".into(),
             pose_json: "".into(),
             breath_json: "".into(),
+            scale: 1.0,
             eye_blink: false,
             lip_sync: false,
         }

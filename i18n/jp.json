@@ -452,6 +452,7 @@
     "live2dPhysics": "物理設定",
     "live2dPose": "ポーズ設定",
     "live2dBreath": "呼吸設定",
+    "live2dModelScale": "モデルスケール",
     "live2dEyeBlink": "まばたき",
     "live2dLipSync": "リップシンク",
     "live2dMotions": "モーション",

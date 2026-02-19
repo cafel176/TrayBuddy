@@ -10,7 +10,8 @@
     "physics_json": "",
     "pose_json": "",
     "eye_blink": true,
-    "lip_sync": true
+    "lip_sync": true,
+    "scale": 1
   },
   "motions": [
     {
@@ -215,7 +216,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:KeyA"]
+      "events": [
+        "keydown:KeyA"
+      ]
     },
     {
       "name": "KeyD",
@@ -224,7 +227,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:KeyD"]
+      "events": [
+        "keydown:KeyD"
+      ]
     },
     {
       "name": "KeyE",
@@ -233,7 +238,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:KeyE"]
+      "events": [
+        "keydown:KeyE"
+      ]
     },
     {
       "name": "KeyR",
@@ -242,7 +249,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:KeyR"]
+      "events": [
+        "keydown:KeyR"
+      ]
     },
     {
       "name": "KeyQ",
@@ -251,7 +260,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:KeyQ"]
+      "events": [
+        "keydown:KeyQ"
+      ]
     },
     {
       "name": "KeyS",
@@ -260,7 +271,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:KeyS"]
+      "events": [
+        "keydown:KeyS"
+      ]
     },
     {
       "name": "KeyW",
@@ -269,7 +282,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:KeyW"]
+      "events": [
+        "keydown:KeyW"
+      ]
     },
     {
       "name": "Space",
@@ -278,7 +293,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Space"]
+      "events": [
+        "keydown:Space"
+      ]
     },
     {
       "name": "Num1",
@@ -287,7 +304,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Digit1"]
+      "events": [
+        "keydown:Digit1"
+      ]
     },
     {
       "name": "Num2",
@@ -296,7 +315,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Digit2"]
+      "events": [
+        "keydown:Digit2"
+      ]
     },
     {
       "name": "Num3",
@@ -305,7 +326,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Digit3"]
+      "events": [
+        "keydown:Digit3"
+      ]
     },
     {
       "name": "Num4",
@@ -314,7 +337,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Digit4"]
+      "events": [
+        "keydown:Digit4"
+      ]
     },
     {
       "name": "Num5",
@@ -323,7 +348,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Digit5"]
+      "events": [
+        "keydown:Digit5"
+      ]
     },
     {
       "name": "Num6",
@@ -332,7 +359,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Digit6"]
+      "events": [
+        "keydown:Digit6"
+      ]
     },
     {
       "name": "Num7",
@@ -341,7 +370,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": ["keydown:Digit7"]
+      "events": [
+        "keydown:Digit7"
+      ]
     }
   ]
 }

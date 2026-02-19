@@ -424,6 +424,8 @@
   "live2d_base_dir_hint": "Live2D モデルファイルのディレクトリ（Mod ルートからの相対パス）",
   "live2d_model_json_label": "モデル定義ファイル",
   "live2d_model_json_hint": "例: model.model3.json",
+  "live2d_model_scale_label": "モデルスケール",
+  "live2d_model_scale_hint": "ウィンドウプレビュー用の全体スケール（デフォルト 1；1 未満で縮小）",
   "live2d_textures_dir_label": "テクスチャディレクトリ",
   "live2d_motions_dir_label": "モーションディレクトリ",
   "live2d_expressions_dir_label": "表情ディレクトリ",

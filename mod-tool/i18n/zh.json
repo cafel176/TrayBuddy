@@ -424,6 +424,8 @@
   "live2d_base_dir_hint": "Live2D 模型文件所在目录（相对于 Mod 根目录）",
   "live2d_model_json_label": "模型定义文件",
   "live2d_model_json_hint": "例如: model.model3.json",
+  "live2d_model_scale_label": "模型缩放",
+  "live2d_model_scale_hint": "窗口预览时的整体缩放系数（默认 1；小于 1 会缩小）",
   "live2d_textures_dir_label": "纹理目录",
   "live2d_motions_dir_label": "动作目录",
   "live2d_expressions_dir_label": "表情目录",

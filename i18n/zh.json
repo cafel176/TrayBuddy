@@ -451,6 +451,7 @@
     "live2dPhysics": "物理配置",
     "live2dPose": "姿势配置",
     "live2dBreath": "呼吸配置",
+    "live2dModelScale": "模型缩放",
     "live2dEyeBlink": "眨眼",
     "live2dLipSync": "口型同步",
     "live2dMotions": "动作",
