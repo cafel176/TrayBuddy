@@ -482,6 +482,7 @@ export function createWindowCore(options: {
 
     if (isMouseDown) {
       triggerManager?.trigger("click");
+      triggerManager?.trigger("click_up");
 
       try {
         await invoke("record_click_event");
@@ -499,6 +500,7 @@ export function createWindowCore(options: {
     e.preventDefault();
 
     triggerManager?.trigger("right_click");
+    triggerManager?.trigger("right_click_up");
 
     try {
       await invoke("show_context_menu");

@@ -5,9 +5,13 @@
  *
  * ## 支持的事件
  * - `click` - 点击桌面宠物
+ * - `click_up` - 左键松开（在动画窗口内释放左键时触发）
  * - `right_click` - 右键点击桌面宠物
+ * - `right_click_up` - 右键松开（在动画窗口内释放右键时触发）
  * - `global_click` - 全局左键点击（不要求窗口焦点，由后端轮询触发）
+ * - `global_click_up` - 全局左键松开（不要求窗口焦点，由后端轮询触发）
  * - `global_right_click` - 全局右键点击（不要求窗口焦点，由后端轮询触发）
+ * - `global_right_click_up` - 全局右键松开（不要求窗口焦点，由后端轮询触发）
  * - `global_keydown` - 全局键盘按下（任意键按下时触发，不要求窗口焦点）
  * - `login` - 应用启动（登录）
  * - `drag_start` - 开始拖动 Animation window
@@ -32,9 +36,13 @@ import { invoke } from "@tauri-apps/api/core";
 /** 支持的触发事件类型 */
 export type TriggerEvent =
   | "click"
+  | "click_up"
   | "right_click"
+  | "right_click_up"
   | "global_click"
+  | "global_click_up"
   | "global_right_click"
+  | "global_right_click_up"
   | "global_keydown"
   | "login"
   | "login_silence"
@@ -47,9 +55,13 @@ export type TriggerEvent =
 /** 已支持的事件列表 */
 const SUPPORTED_EVENTS: readonly TriggerEvent[] = [
   "click",
+  "click_up",
   "right_click",
+  "right_click_up",
   "global_click",
+  "global_click_up",
   "global_right_click",
+  "global_right_click_up",
   "global_keydown",
   "login",
   "login_silence",

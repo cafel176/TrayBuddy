@@ -3308,11 +3308,30 @@ fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
                             "pressed": true
                         }));
                     } else if !pressed && prev_states[i] {
-                        // 鼠标按钮刚松开，通知前端叠加层
+                        // 鼠标按钮刚松开：
+                        // 1) 通知前端叠加层
                         let _ = app_handle.emit("global-mouse-state", serde_json::json!({
                             "button": event_name,
                             "pressed": false
                         }));
+
+                        // 2) 触发 "*_up" 事件（可用于在松开瞬间切换状态）
+                        let up_event_name = match event_name {
+                            "global_click" => "global_click_up",
+                            "global_right_click" => "global_right_click_up",
+                            _ => "",
+                        };
+
+                        if !up_event_name.is_empty() {
+                            println!("[GlobalMouse] Button released: {} (vk=0x{:02X})", up_event_name, vk);
+                            let Some(app_state) = app_handle.try_state::<AppState>() else {
+                                prev_states[i] = pressed;
+                                continue;
+                            };
+                            let rm = app_state.resource_manager.lock().unwrap();
+                            let mut sm = app_state.state_manager.lock().unwrap();
+                            let _ = TriggerManager::trigger_event(up_event_name, false, &rm, &mut sm);
+                        }
                     }
 
                     prev_states[i] = pressed;

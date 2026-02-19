@@ -24,8 +24,6 @@
     StateInfo,
     StateChangeEvent,
     TriggerInfo,
-    TriggerStateGroup,
-    BranchInfo,
   } from "$lib/types/asset";
 
   // ======================================================================= //
@@ -546,14 +544,26 @@
       <button class="btn-quick" onclick={() => triggerEvent("click")}
         >{_("trigger.quickClick")}</button
       >
+      <button class="btn-quick" onclick={() => triggerEvent("click_up")}
+        >{_("trigger.quickClickUp")}</button
+      >
       <button class="btn-quick" onclick={() => triggerEvent("right_click")}
         >{_("trigger.quickRightClick")}</button
+      >
+      <button class="btn-quick" onclick={() => triggerEvent("right_click_up")}
+        >{_("trigger.quickRightClickUp")}</button
       >
       <button class="btn-quick" onclick={() => triggerEvent("global_click")}
         >{_("trigger.quickGlobalClick")}</button
       >
+      <button class="btn-quick" onclick={() => triggerEvent("global_click_up")}
+        >{_("trigger.quickGlobalClickUp")}</button
+      >
       <button class="btn-quick" onclick={() => triggerEvent("global_right_click")}
         >{_("trigger.quickGlobalRightClick")}</button
+      >
+      <button class="btn-quick" onclick={() => triggerEvent("global_right_click_up")}
+        >{_("trigger.quickGlobalRightClickUp")}</button
       >
       <button class="btn-quick" onclick={() => triggerEvent("global_keydown")}
         >{_("trigger.quickGlobalKeydown")}</button
