@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "望",
+    "pngremix_file": "asset/望.pngRemix",
+    "default_state_index": 0,
+    "max_fps": 241
+  },
+  "features": {
+    "mouse_follow": true,
+    "auto_blink": true,
+    "click_bounce": true,
+    "click_bounce_amp": 50,
+    "click_bounce_duration": 0.5,
+    "blink_speed": 1,
+    "blink_chance": 10,
+    "blink_hold_ratio": 0.2
+  },
+  "expressions": [
+    {
+      "name": "state_0",
+      "state_index": 0
+    },
+    {
+      "name": "state_1",
+      "state_index": 1
+    },
+    {
+      "name": "state_2",
+      "state_index": 2
+    },
+    {
+      "name": "state_3",
+      "state_index": 3
+    },
+    {
+      "name": "state_4",
+      "state_index": 4
+    },
+    {
+      "name": "state_5",
+      "state_index": 5
+    },
+    {
+      "name": "state_6",
+      "state_index": 6
+    },
+    {
+      "name": "state_7",
+      "state_index": 7
+    },
+    {
+      "name": "state_8",
+      "state_index": 8
+    }
+  ],
+  "motions": [],
+  "states": [
+    {
+      "state": "state_0",
+      "expression": "state_0",
+      "motion": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "state_1",
+      "motion": "",
+      "expression": "state_1",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0,
+      "mouth_state": 1
+    },
+    {
+      "state": "state_2",
+      "expression": "state_2",
+      "motion": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "state_3",
+      "motion": "",
+      "expression": "state_3",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0,
+      "mouth_state": 1
+    },
+    {
+      "state": "state_4",
+      "expression": "state_4",
+      "motion": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "state_5",
+      "motion": "",
+      "expression": "state_5",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0,
+      "mouth_state": 1
+    },
+    {
+      "state": "state_6",
+      "expression": "state_6",
+      "motion": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    },
+    {
+      "state": "state_7",
+      "motion": "",
+      "expression": "state_7",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0,
+      "mouth_state": 1
+    },
+    {
+      "state": "state_8",
+      "expression": "state_8",
+      "motion": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    }
+  ]
+}

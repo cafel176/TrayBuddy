@@ -5668,6 +5668,458 @@ function renderPngRemixAssets() {
   renderPngRemixStates(p.states || []);
 }
 
+// ---- PngRemix：从文件同步 ----
+
+function _normalizePngRemixKeyName(key) {
+  const s = String(key || '').trim().toUpperCase();
+  if (!s) return '';
+
+  // Accept F1..F12
+  const m = /^F(\d{1,2})$/.exec(s);
+  if (m) {
+    const n = Number(m[1]);
+    if (Number.isFinite(n) && n >= 1 && n <= 12) return `F${n}`;
+  }
+
+  // Common variants
+  if (s.startsWith('KEY_')) return _normalizePngRemixKeyName(s.slice(4));
+  return s;
+}
+
+function _normalizePngRemixSavedDisappearEvent(ev) {
+  if (!ev) return { hotkey: '', label: '' };
+
+  if (typeof ev === 'string') {
+    const k = _normalizePngRemixKeyName(ev);
+    return { hotkey: k, label: k || ev };
+  }
+
+  if (typeof ev === 'number') {
+    return { hotkey: '', label: String(ev) };
+  }
+
+  if (typeof ev === 'object') {
+    const keycode = Number(ev.keycode ?? ev.physical_keycode ?? ev.physicalKeycode ?? NaN);
+    if (Number.isFinite(keycode)) {
+      // Godot 4: F1..F12 often map around 112..123
+      if (keycode >= 112 && keycode <= 123) {
+        const k = `F${keycode - 111}`;
+        return { hotkey: k, label: k };
+      }
+    }
+
+    const keyText = ev.key ?? ev.as_text ?? ev.asText ?? ev.text;
+    if (typeof keyText === 'string') {
+      const k = _normalizePngRemixKeyName(keyText);
+      return { hotkey: k, label: k || keyText };
+    }
+
+    return { hotkey: '', label: String(ev.type || '') };
+  }
+
+  return { hotkey: '', label: String(ev) };
+}
+
+function _computePngRemixStateCount(decoded) {
+  if (!decoded || typeof decoded !== 'object') return 0;
+
+  const settings = decoded.settings_dict && typeof decoded.settings_dict === 'object' ? decoded.settings_dict : {};
+  let stateCount = 0;
+
+  if (Array.isArray(settings.states)) stateCount = settings.states.length;
+
+  if (!stateCount) {
+    const sprites = Array.isArray(decoded.sprites_array) ? decoded.sprites_array : [];
+    for (const s of sprites) {
+      if (s && Array.isArray(s.states)) {
+        stateCount = Math.max(stateCount, s.states.length);
+      }
+    }
+  }
+
+  return Math.max(0, Math.floor(stateCount) || 0);
+}
+
+function _derivePngRemixStateNames(decoded, stateCount, existingExpressions) {
+  const settings = decoded?.settings_dict && typeof decoded.settings_dict === 'object' ? decoded.settings_dict : {};
+  const rawStates = Array.isArray(settings.states) ? settings.states : [];
+
+  const existingByIndex = new Map();
+  if (Array.isArray(existingExpressions)) {
+    for (const e of existingExpressions) {
+      const idx = Number(e?.state_index);
+      if (Number.isFinite(idx)) existingByIndex.set(Math.floor(idx), String(e?.name || '').trim());
+    }
+  }
+
+  function pickNameFromEntry(entry) {
+    if (!entry) return '';
+    if (typeof entry === 'string') return entry.trim();
+    if (typeof entry === 'object') {
+      const candidates = [entry.name, entry.state_name, entry.stateName, entry.label, entry.title];
+      for (const c of candidates) {
+        const t = String(c || '').trim();
+        if (t) return t;
+      }
+    }
+    return '';
+  }
+
+  const used = new Set();
+  const out = [];
+  for (let i = 0; i < stateCount; i++) {
+    let name = pickNameFromEntry(rawStates[i]);
+
+    // fallback to existing
+    if (!name) name = String(existingByIndex.get(i) || '').trim();
+
+    // fallback to generated
+    if (!name) name = `state_${i}`;
+
+    // ensure uniqueness
+    let base = name;
+    let suffix = 2;
+    while (used.has(name)) {
+      name = `${base}_${suffix++}`;
+    }
+
+    used.add(name);
+    out.push(name);
+  }
+
+  return out;
+}
+
+async function _resolvePngRemixFileInModFolder() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return null;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_sync_need_folder'), 'warning');
+    return null;
+  }
+
+  collectPngRemixModelData();
+  const pngremix = ensurePngRemixData();
+
+  let relPath = String(pngremix?.model?.pngremix_file || '').trim();
+  if (!relPath) {
+    relPath = 'asset/model.pngRemix';
+    pngremix.model.pngremix_file = relPath;
+  }
+
+  async function tryOpenByRelPath(p) {
+    const parts = String(p || '').replace(/\\/g, '/').split('/').filter(Boolean);
+    if (parts.length === 0) return null;
+
+    let dirHandle = modFolderHandle;
+    for (let i = 0; i < parts.length - 1; i++) {
+      dirHandle = await dirHandle.getDirectoryHandle(parts[i]);
+    }
+
+    const fileHandle = await dirHandle.getFileHandle(parts[parts.length - 1]);
+    return { fileHandle, relPath: parts.join('/') };
+  }
+
+  async function scanCandidates() {
+    const out = [];
+
+    // root
+    for await (const entry of modFolderHandle.values()) {
+      if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.pngremix')) {
+        out.push(entry.name);
+      }
+    }
+
+    // asset/
+    try {
+      const assetDir = await modFolderHandle.getDirectoryHandle('asset');
+      for await (const entry of assetDir.values()) {
+        if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.pngremix')) {
+          out.push(`asset/${entry.name}`);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // prefer asset/ then stable sort
+    out.sort((a, b) => {
+      const aa = a.startsWith('asset/') ? 0 : 1;
+      const bb = b.startsWith('asset/') ? 0 : 1;
+      if (aa !== bb) return aa - bb;
+      return a.localeCompare(b);
+    });
+
+    return out;
+  }
+
+  try {
+    const opened = await tryOpenByRelPath(relPath);
+    if (opened) return { ...opened, pngremix };
+  } catch (e) {
+    // path invalid, fall back to scan
+  }
+
+  const candidates = await scanCandidates();
+  if (candidates.length === 0) {
+    showToast(window.i18n.t('msg_sync_no_pngremix_found'), 'warning');
+    return null;
+  }
+
+  if (candidates.length === 1) {
+    relPath = candidates[0];
+  } else {
+    const choice = prompt(
+      window.i18n.t('msg_sync_choose_pngremix').replace('{files}', candidates.join('\n')),
+      candidates[0]
+    );
+    if (!choice) return null;
+    relPath = choice.trim();
+  }
+
+  // update form value
+  pngremix.model.pngremix_file = relPath;
+  populatePngRemixForm();
+
+  try {
+    const opened = await tryOpenByRelPath(relPath);
+    if (opened) return { ...opened, pngremix };
+  } catch (e) {
+    showToast(window.i18n.t('msg_sync_pngremix_file_not_found'), 'error');
+    return null;
+  }
+
+  return null;
+}
+
+async function _decodePngRemixFileFromModFolder() {
+  if (!window.PngRemixDecoder || typeof window.PngRemixDecoder.decode !== 'function') {
+    showToast(window.i18n.t('msg_pngremix_decoder_missing'), 'error');
+    return null;
+  }
+
+  const resolved = await _resolvePngRemixFileInModFolder();
+  if (!resolved) return null;
+
+  const { fileHandle } = resolved;
+  const file = await fileHandle.getFile();
+  const ab = await file.arrayBuffer();
+  const decoded = window.PngRemixDecoder.decode(ab);
+
+  return { ...resolved, decoded };
+}
+
+/**
+ * 从文件同步 PngRemix 配置
+ * - 读取 .pngRemix 文件的 settings_dict 中的部分字段（如 blink_speed/blink_chance）
+ */
+async function syncPngRemixConfigFromFiles() {
+  if (!confirm(window.i18n.t('msg_sync_pngremix_config_confirm'))) return;
+
+  try {
+    const resolved = await _decodePngRemixFileFromModFolder();
+    if (!resolved) return;
+
+    const { decoded, relPath } = resolved;
+    const p = ensurePngRemixData();
+
+    // Fill model name if empty
+    if (!String(p.model.name || '').trim()) {
+      const base = String(relPath || '').replace(/\\/g, '/').split('/').pop() || '';
+      p.model.name = base.replace(/\.[^.]+$/, '');
+    }
+
+    // Sync blink tuning from file settings if present
+    const settings = decoded?.settings_dict && typeof decoded.settings_dict === 'object' ? decoded.settings_dict : {};
+
+    const blinkSpeed = Number(settings.blink_speed);
+    if (Number.isFinite(blinkSpeed) && blinkSpeed > 0) {
+      p.features.blink_speed = blinkSpeed;
+    }
+
+    const blinkChance = Number(settings.blink_chance);
+    if (Number.isFinite(blinkChance) && blinkChance >= 1) {
+      p.features.blink_chance = Math.floor(blinkChance);
+    }
+
+    // Optional: max_fps
+    const maxFps = Number(settings.max_fps ?? settings.max_fps_limit ?? NaN);
+    if (Number.isFinite(maxFps) && maxFps >= 0) {
+      p.model.max_fps = Math.floor(maxFps);
+    }
+
+    populatePngRemixForm();
+    markUnsaved();
+
+    showToast(window.i18n.t('msg_sync_pngremix_config_success'), 'success');
+  } catch (err) {
+    console.error('syncPngRemixConfigFromFiles error:', err);
+    const msg = window.i18n.t('msg_sync_failed').replace('{error}', err?.message || String(err));
+    showToast(msg, 'error');
+  }
+}
+
+/**
+ * 从文件同步 PngRemix 资产
+ * - expressions: 从 stateCount/设置 states 推导
+ * - motions: 扫描 sprites_array[*].saved_keys/saved_disappear 推导可用热键
+ */
+async function syncPngRemixAssetsFromFiles() {
+  if (!confirm(window.i18n.t('msg_sync_pngremix_assets_confirm'))) return;
+
+  try {
+    const resolved = await _decodePngRemixFileFromModFolder();
+    if (!resolved) return;
+
+    const { decoded } = resolved;
+    const p = ensurePngRemixData();
+
+    const stateCount = _computePngRemixStateCount(decoded);
+    const stateNames = _derivePngRemixStateNames(decoded, stateCount, p.expressions);
+
+    const newExpressions = [];
+    for (let i = 0; i < stateCount; i++) {
+      newExpressions.push({ name: stateNames[i], state_index: i });
+    }
+
+    // Scan hotkeys
+    const sprites = Array.isArray(decoded?.sprites_array) ? decoded.sprites_array : [];
+    const hotkeys = new Set();
+
+    for (const s of sprites) {
+      if (!s || typeof s !== 'object') continue;
+      if (s.is_asset !== true) continue;
+
+      const saved = Array.isArray(s.saved_keys) ? s.saved_keys : [];
+      for (const k of saved) {
+        const nk = _normalizePngRemixKeyName(k);
+        if (nk) hotkeys.add(nk);
+      }
+
+      const disappear = Array.isArray(s.saved_disappear) ? s.saved_disappear : [];
+      for (const ev of disappear) {
+        const { hotkey } = _normalizePngRemixSavedDisappearEvent(ev);
+        if (hotkey) hotkeys.add(hotkey);
+      }
+    }
+
+    const keysSorted = Array.from(hotkeys).sort((a, b) => {
+      const ma = /^F(\d+)$/.exec(a);
+      const mb = /^F(\d+)$/.exec(b);
+      if (ma && mb) return Number(ma[1]) - Number(mb[1]);
+      if (ma) return -1;
+      if (mb) return 1;
+      return String(a).localeCompare(String(b));
+    });
+
+    const existingByHotkey = new Map();
+    for (const m of (p.motions || [])) {
+      const hk = _normalizePngRemixKeyName(m?.hotkey);
+      if (hk) existingByHotkey.set(hk, m);
+    }
+
+    const usedMotionNames = new Set();
+    const newMotions = [];
+    for (const hk of keysSorted) {
+      const prev = existingByHotkey.get(hk);
+      const baseName = String(prev?.name || hk).trim() || hk;
+      let name = baseName;
+      let suffix = 2;
+      while (usedMotionNames.has(name)) {
+        name = `${baseName}_${suffix++}`;
+      }
+      usedMotionNames.add(name);
+
+      newMotions.push({
+        name,
+        hotkey: hk,
+        description: String(prev?.description || '').trim(),
+      });
+    }
+
+    // Apply overrides
+    p.expressions = newExpressions;
+    p.motions = newMotions;
+
+    // Preserve existing state mappings; ensure we at least have quick mappings for motions/expressions
+    const existingStates = Array.isArray(p.states) ? p.states : [];
+    const existingStatesMap = {};
+    for (const st of existingStates) {
+      if (st && st.state) existingStatesMap[String(st.state)] = st;
+    }
+
+    const usedStateKeys = new Set();
+    const syncedStates = [];
+
+    // 1) Expressions
+    for (const e of newExpressions) {
+      const k = String(e.name || '').trim();
+      if (!k) continue;
+      usedStateKeys.add(k);
+      if (existingStatesMap[k]) {
+        syncedStates.push(existingStatesMap[k]);
+      } else {
+        syncedStates.push({
+          state: k,
+          expression: k,
+          motion: '',
+          scale: 1,
+          offset_x: 0,
+          offset_y: 0
+        });
+      }
+    }
+
+    // 2) Motions
+    for (const m of newMotions) {
+      const k = String(m.name || '').trim();
+      if (!k) continue;
+      if (usedStateKeys.has(k)) continue;
+      usedStateKeys.add(k);
+      if (existingStatesMap[k]) {
+        syncedStates.push(existingStatesMap[k]);
+      } else {
+        syncedStates.push({
+          state: k,
+          expression: '',
+          motion: k,
+          scale: 1,
+          offset_x: 0,
+          offset_y: 0
+        });
+      }
+    }
+
+    // 3) Append remaining existing mappings (preserve custom mappings like idle/work/etc.)
+    for (const st of existingStates) {
+      const k = String(st?.state || '').trim();
+      if (!k) continue;
+      if (usedStateKeys.has(k)) continue;
+      syncedStates.push(st);
+    }
+
+    p.states = syncedStates;
+    normalizePngRemixDataInPlace(p);
+
+    // Refresh UI
+    renderPngRemixAssets();
+    updateAnimaSelects();
+    markUnsaved();
+
+    const msg = window.i18n.t('msg_sync_pngremix_assets_success')
+      .replace('{motions}', newMotions.length)
+      .replace('{expressions}', newExpressions.length)
+      .replace('{states}', p.states.length);
+    showToast(msg, 'success');
+  } catch (err) {
+    console.error('syncPngRemixAssetsFromFiles error:', err);
+    const msg = window.i18n.t('msg_sync_failed').replace('{error}', err?.message || String(err));
+    showToast(msg, 'error');
+  }
+}
+
 // ---- PngRemix 下拉选项辅助 ----
 
 function getPngRemixMotionSelectOptions(currentValue = '') {

@@ -58,7 +58,29 @@ mods/<mod_id>/
         └── speech.json
 ```
 
+### 1.3 PngRemix Mod（mod_type: "pngremix"）
+
+```text
+mods/<mod_id>/
+├── manifest.json            # Mod 主要信息清单（必需）
+├── preview.png              # Mod 预览图
+├── icon.ico                 # Mod 图标
+├── bubble_style.json        # [可选] 气泡样式自定义配置
+├── asset/
+│   ├── pngremix.json        # PngRemix 配置（模型/特性/表情/动作/状态映射）
+│   └── *.pngRemix           # PngRemix 模型文件（二进制）
+├── audio/                   # [可选] 音频资源（同序列帧 Mod）
+│   └── <lang>/
+│       ├── speech.json
+│       └── speech/
+└── text/                    # 文本资源（同序列帧 Mod）
+    └── <lang>/
+        ├── info.json
+        └── speech.json
+```
+
 ---
+
 
 ## 2. 配置文件说明
 
@@ -70,13 +92,15 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `id` | String | mod唯一标识符 |
 ||| `version` | String | 适用版本号 |
 ||| `author` | String | 作者名称 |
-||| `mod_type` | String | Mod 类型：`sequence`（序列帧动画）或 `live2d`（Live2D 模型） |
+||| `mod_type` | String | Mod 类型：`sequence`（序列帧动画）/ `live2d`（Live2D 模型）/ `pngremix`（PngRemix 模型） |
 ||| `default_audio_lang_id` | String | 找不到对应语言的语音文件时，会使用默认id语言的音频文件 |
 ||| `default_text_lang_id` | String | 找不到对应语言的文本时，会使用默认id语言的文本 |
 ||| `character` | Object | 角色渲染配置 |
 ||| `border` | Object | 边框配置 |
 ||| `show_mod_data_panel` | Boolean | 是否在动画窗口左上角显示 Mod 数据面板 |
 ||| `mod_data_default_int` | Number | Mod 数据的默认初始整数值 (首次加载该 Mod 时写入) |
+||| `global_keyboard` | Boolean | 是否开启全局键盘监听（开启后无需聚焦动画窗口也能触发键盘事件） |
+||| `global_mouse` | Boolean | 是否开启全局鼠标监听（开启后鼠标点击任意位置可触发 global_click/global_right_click） |
 ||| `important_states` | Object | 关键状态映射 (如 `idle`, `silence`)，Key 为状态名，Value 为状态对象 |
 ||| `states` | Array | 其他普通状态定义数组 |
 ||| `triggers` | Array | 事件触发定义数组 |
@@ -124,6 +148,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `trigger_uptime` | Number | 启动时长触发门槛（分钟）。当“本次程序启动已运行分钟数” >= trigger_uptime 时，该状态才允许触发。默认 0（不限制） |
 ||| `trigger_weather` | Array | 天气触发条件（数组任意匹配）。空数组表示不限制；若数组项为纯数字则匹配 environment.condition_code（weatherCode），否则匹配 environment.condition（天气描述，精确匹配）。默认 [] |
 ||| `mod_data_counter` | Object / null | 进入该状态时对 Mod 数据执行的操作 (可选) |
+||| `live2d_params` | Array | （Live2D Mod）进入该状态时覆写 Live2D 参数（数组；可为空） |
+||| `pngremix_params` | Array | （PngRemix Mod）进入该状态时触发表情/动作（数组；可为空；元素为 `{type,name}`） |
 
 ||| `branch_show_bubble` | Boolean | “显示气泡”：控制对话分支选项是否以气泡形式展示（默认 true） |
 ||| `branch` | Array | 固定对话分支选项数组，用于交互式对话（为空则无分支） |
@@ -142,10 +168,9 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 
 ||| 字段 | 类型 | 说明 |
 ||| :--- | :--- | :--- |
-||| `event` | String | 事件名称（如 `click`, `login`, `work`, `birthday`, `firstday`, `login_silence`, `music_start`, `music_end`, `animation_drag_start`, `animation_drag_end`, `keydown:<Key>`） |
+||| `event` | String | 事件名称（如 `click`, `right_click`, `global_click`, `global_right_click`, `global_keydown`, `login`, `work`, `birthday`, `firstday`, `login_silence`, `music_start`, `music_end`, `drag_start`, `drag_end`, `keydown:<Key>`） |
 ||| `can_trigger_states` | Array | 触发条件状态组数组，定义在不同持久状态下可触发的状态列表 |
 
-- **提示**：拖拽相关的事件名是 `animation_drag_start` / `animation_drag_end`，不要与状态名 `drag_start` / `drag_end` 混淆。
 
 #### 2.1.6 触发条件状态组对象 (TriggerStateGroup Object)
 用于触发器对象的 `can_trigger_states` 数组。
@@ -326,15 +351,43 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 }
 ```
 
-### 2.5 `audio/[lang]/speech.json`
+### 2.5 `asset/pngremix.json`（PngRemix Mod 专用）
+定义 PngRemix 模型的配置信息，包含模型基础参数、交互特性、表情/动作列表与状态映射。
+
+#### 2.5.1 顶层结构
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `schema_version` | Number | 配置版本号（当前为 `1`） |
+||| `model` | Object | 模型基础配置 |
+||| `features` | Object | 交互特性（鼠标跟随、自动眨眼、点击弹跳等） |
+||| `expressions` | Array | 表情列表 |
+||| `motions` | Array | 动作列表 |
+||| `states` | Array | 状态-动画映射列表 |
+
+> **注意**：`features.blink_chance` 的语义为 `1/N`（N>=1，值越大越不容易触发眨眼）。
+
+#### 2.5.2 状态映射对象 (State Mapping Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `state` | String | 映射名称（对应 manifest 状态的 `anima` 字段值） |
+||| `expression` | String | 关联的表情名称（引用 `expressions[].name`，可为空） |
+||| `motion` | String | 关联的动作名称（引用 `motions[].name`，可为空） |
+||| `mouth_state` | Number | 口型状态：0=Closed，1=Open，2=Screaming；可省略表示不覆写 |
+||| `scale` | Number | 模型缩放比例（默认 `1`） |
+||| `offset_x` / `offset_y` | Number | 位置偏移（默认 `0`） |
+
+### 2.6 `audio/[lang]/speech.json`
 定义音频文件与状态/文本的关联。
+
 
 ||| 字段 | 类型 | 说明 |
 ||| :--- | :--- | :--- |
 ||| `name` | String | 关联的标识名称 (对应 `manifest` 中的 `audio` 字段) |
 ||| `audio` | String | 音频文件路径（相对 `audio/` 目录，如 `jp/speech/morning.wav`） |
 
-### 2.6 `text/[lang]/info.json`
+### 2.7 `text/[lang]/info.json`
 定义角色在该语言下的基础信息。
 
 ||| 字段 | 类型 | 说明 |
@@ -344,7 +397,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `name` | String | 角色在该语言下的显示名称 |
 ||| `description` | String | 角色描述 |
 
-### 2.7 `text/[lang]/speech.json`
+### 2.8 `text/[lang]/speech.json`
 定义对应事件触发时显示的文本。
 
 ||| 字段 | 类型 | 说明 |
@@ -353,7 +406,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `text` | String | 显示的对话内容（支持简易 Markdown，支持变量如 `{nickname}` / `{days_used}` / `{usage_hours}` / `{total_usage_hours}` / `{uptime}`） |
 ||| `duration` | Number | 气泡持续时间（秒，可选）。默认 5 秒，文本显示完成后开始计时 |
 
-#### 2.6.1 简易 Markdown 语法
+#### 2.8.1 简易 Markdown 语法
 气泡系统支持以下 Markdown 语法：
 
 ||| 语法 | 说明 | 示例 |
@@ -371,7 +424,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 }
 ```
 
-### 2.8 `bubble_style.json` (可选)
+### 2.9 `bubble_style.json` (可选)
 用于自定义对话气泡的视觉样式（颜色、边框、字体大小等）。若不存在，则使用系统默认样式。
 
 ---

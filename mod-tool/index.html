@@ -643,6 +643,12 @@
             <!-- PngRemix 编辑区 (仅 pngremix 类型显示) -->
             <div id="assets-pngremix-section" style="display:none;">
 
+              <!-- 同步按钮 -->
+              <div class="section-actions" style="margin-bottom: 12px;">
+                <button class="btn btn-secondary" onclick="syncPngRemixConfigFromFiles()">🔄 <span data-i18n="btn_sync_config_from_files">从文件同步配置</span></button>
+                <button class="btn btn-secondary" onclick="syncPngRemixAssetsFromFiles()">🔄 <span data-i18n="btn_sync_assets_from_files">从文件同步资产</span></button>
+              </div>
+
               <!-- 模型配置 -->
               <details class="form-section section-details" open>
                 <summary class="section-header">
@@ -1707,6 +1713,7 @@
   <!-- Toast 通知 -->
   <div class="toast-container" id="toast-container"></div>
 
+  <script src="pngremix-decoder.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
