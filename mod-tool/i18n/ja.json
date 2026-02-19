@@ -554,6 +554,8 @@
   "pngremix_file_hint": ".pngRemix バイナリモデルファイルパス（asset/ ディレクトリからの相対パス）",
   "pngremix_default_state_label": "デフォルト状態インデックス",
   "pngremix_default_state_hint": "モデル読み込み後の初期表示状態インデックス（0 から開始）",
+  "pngremix_model_scale_label": "モデルスケール",
+  "pngremix_model_scale_hint": "ウィンドウプレビュー用の全体スケール（デフォルト 1；1 未満で縮小）",
   "pngremix_max_fps_label": "最大 FPS",
   "pngremix_max_fps_hint": "PngRemix レンダリングの最大フレームレート（0 = 制限なし）",
 

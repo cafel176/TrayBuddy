@@ -554,6 +554,8 @@
   "pngremix_file_hint": ".pngRemix 二进制模型文件路径（相对于 asset/ 目录）",
   "pngremix_default_state_label": "默认状态索引",
   "pngremix_default_state_hint": "模型加载后的初始显示状态索引（从 0 开始）",
+  "pngremix_model_scale_label": "模型缩放",
+  "pngremix_model_scale_hint": "窗口预览时的整体缩放系数（默认 1；小于 1 会缩小）",
   "pngremix_max_fps_label": "最大帧率",
   "pngremix_max_fps_hint": "PngRemix 渲染的最大帧率（0 表示不限制）",
 

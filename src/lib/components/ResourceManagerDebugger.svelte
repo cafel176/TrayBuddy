@@ -1574,6 +1574,10 @@
                     <span class="info-value">{currentModInfo.pngremix.model.default_state_index}</span>
                   </div>
                   <div class="info-row">
+                    <span class="info-label">Scale</span>
+                    <span class="info-value">{currentModInfo.pngremix.model.scale ?? 1}</span>
+                  </div>
+                  <div class="info-row">
                     <span class="info-label">Max FPS</span>
                     <span class="info-value">{currentModInfo.pngremix.model.max_fps}</span>
                   </div>

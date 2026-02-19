@@ -5589,6 +5589,7 @@ function ensurePngRemixData() {
         name: '',
         pngremix_file: 'asset/model.pngRemix',
         default_state_index: 0,
+        scale: 1,
         max_fps: 60
       },
       features: {
@@ -5621,6 +5622,7 @@ function collectPngRemixModelData() {
   p.model.name = document.getElementById('pngremix-model-name')?.value?.trim() || '';
   p.model.pngremix_file = document.getElementById('pngremix-model-file')?.value?.trim() || 'asset/model.pngRemix';
   p.model.default_state_index = parseInt(document.getElementById('pngremix-default-state-index')?.value) || 0;
+  p.model.scale = parseFloat(document.getElementById('pngremix-model-scale')?.value) || 1;
   p.model.max_fps = parseInt(document.getElementById('pngremix-max-fps')?.value) || 60;
 
   p.features.mouse_follow = document.getElementById('pngremix-mouse-follow')?.checked ?? true;
@@ -5644,6 +5646,7 @@ function populatePngRemixForm() {
   if (el('pngremix-model-name')) el('pngremix-model-name').value = p.model.name || '';
   if (el('pngremix-model-file')) el('pngremix-model-file').value = p.model.pngremix_file || 'asset/model.pngRemix';
   if (el('pngremix-default-state-index')) el('pngremix-default-state-index').value = p.model.default_state_index ?? 0;
+  if (el('pngremix-model-scale')) el('pngremix-model-scale').value = p.model.scale ?? 1;
   if (el('pngremix-max-fps')) el('pngremix-max-fps').value = p.model.max_fps ?? 60;
 
   if (el('pngremix-mouse-follow')) el('pngremix-mouse-follow').checked = p.features.mouse_follow !== false;

@@ -4,7 +4,8 @@
     "name": "望",
     "pngremix_file": "asset/望.pngRemix",
     "default_state_index": 0,
-    "max_fps": 241
+    "max_fps": 241,
+    "scale": 0.8
   },
   "features": {
     "mouse_follow": true,

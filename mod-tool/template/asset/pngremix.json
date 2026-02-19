@@ -4,6 +4,7 @@
     "name": "",
     "pngremix_file": "asset/model.pngRemix",
     "default_state_index": 0,
+    "scale": 1,
     "max_fps": 60
   },
   "features": {

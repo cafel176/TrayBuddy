@@ -1264,6 +1264,9 @@ export class PngRemixPlayer {
   // Animation scale (from WindowCore)
   private animationScale = 0.4;
 
+  // Model scale (from pngremixConfig.model.scale)
+  private modelScale = 1;
+
   // Per-State view overrides (from pngremixConfig.states mapping)
   private stateScale = 1;
   private stateOffsetX = 0;
@@ -1320,6 +1323,9 @@ export class PngRemixPlayer {
     if (config.model.default_state_index > 0) {
       materializeSceneState(this.scene, config.model.default_state_index);
     }
+
+    // Apply model scale
+    this.modelScale = Number((config.model as any)?.scale) || 1;
 
     // Setup canvas and fit
     this.resizeCanvas();
@@ -1508,7 +1514,7 @@ export class PngRemixPlayer {
     if (!this.scene) return;
 
     const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
-    const factor = (this.animationScale / 0.4) * (Number(this.stateScale) || 1);
+    const factor = (this.animationScale / 0.4) * (Number(this.modelScale) || 1) * (Number(this.stateScale) || 1);
     const dpr = window.devicePixelRatio || 1;
 
     // fit.panX/panY are derived from fit.zoom, so they should be scaled together.

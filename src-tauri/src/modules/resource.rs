@@ -410,6 +410,8 @@ pub struct PngRemixModelConfig {
     pub pngremix_file: Box<str>,
     /// 默认 state 索引
     pub default_state_index: u32,
+    /// 模型整体缩放（窗口预览用，避免模型过大超出窗口）
+    pub scale: f64,
     /// 帧率限制
     pub max_fps: u32,
 }
@@ -420,6 +422,7 @@ impl Default for PngRemixModelConfig {
             name: "".into(),
             pngremix_file: "".into(),
             default_state_index: 0,
+            scale: 1.0,
             max_fps: 60,
         }
     }

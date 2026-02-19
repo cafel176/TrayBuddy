@@ -52,6 +52,8 @@ export interface PngRemixModelConfig {
   name: string;
   pngremix_file: string;
   default_state_index: number;
+  /** 模型整体缩放（窗口预览用，避免模型过大超出画布） */
+  scale: number;
   max_fps: number;
 }
 

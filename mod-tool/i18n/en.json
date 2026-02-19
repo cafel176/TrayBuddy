@@ -554,6 +554,8 @@
   "pngremix_file_hint": ".pngRemix binary model file path (relative to asset/ directory)",
   "pngremix_default_state_label": "Default State Index",
   "pngremix_default_state_hint": "Initial display state index after model loads (starting from 0)",
+  "pngremix_model_scale_label": "Model Scale",
+  "pngremix_model_scale_hint": "Overall scale for window preview (default 1; <1 shrinks)",
   "pngremix_max_fps_label": "Max FPS",
   "pngremix_max_fps_hint": "Maximum frame rate for PngRemix rendering (0 = unlimited)",
 
