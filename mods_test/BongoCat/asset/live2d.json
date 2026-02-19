@@ -10,9 +10,12 @@
     "physics_json": "cat.physics3.json",
     "pose_json": "",
     "eye_blink": true,
-    "lip_sync": true
+    "lip_sync": true,
+    "scale": 1
   },
   "motions": [],
   "expressions": [],
-  "states": []
+  "states": [],
+  "resources": [],
+  "background_layers": []
 }

@@ -362,23 +362,18 @@ export class Live2DPlayer {
       ? (Number.isFinite(this.activeState.scale) ? this.activeState.scale : 1)
       : 1;
 
-    const anim = Number.isFinite(this.animationScale) && this.animationScale > 0
-      ? this.animationScale
-      : 0.4;
-    const animFactor = anim / 0.4;
-
     const modelScale = Number.isFinite(this.modelScale) && this.modelScale > 0
       ? this.modelScale
       : 1;
 
-    const globalScale = animFactor * modelScale;
-
+    // Live2D 窗口缩放：历史上并不使用 WindowCore 的 animationScale。
+    // 为了避免用户已有的 animation_scale=1 等配置引入 2.5x 放大，这里保持只由 mod 的 scale / state.scale / debug 影响。
     return {
       scale: this.debugScale,
       offsetX: this.debugOffsetX,
       offsetY: this.debugOffsetY,
       baseFitScale: this.baseFitScale,
-      finalScale: this.baseFitScale * globalScale * stateScale * this.debugScale,
+      finalScale: this.baseFitScale * modelScale * stateScale * this.debugScale,
     };
   }
 
@@ -733,16 +728,11 @@ export class Live2DPlayer {
       ? this.activeState.scale
       : 1;
 
-    const anim = Number.isFinite(this.animationScale) && this.animationScale > 0
-      ? this.animationScale
-      : 0.4;
-    const animFactor = anim / 0.4;
-
     const modelScale = Number.isFinite(this.modelScale) && this.modelScale > 0
       ? this.modelScale
       : 1;
 
-    const scale = this.baseFitScale * animFactor * modelScale * stateScale * this.debugScale;
+    const scale = this.baseFitScale * modelScale * stateScale * this.debugScale;
 
     this.model.scale.set(scale);
 
@@ -767,16 +757,11 @@ export class Live2DPlayer {
   private applyInitialTransform(): void {
     if (!this.model || !this.app) return;
 
-    const anim = Number.isFinite(this.animationScale) && this.animationScale > 0
-      ? this.animationScale
-      : 0.4;
-    const animFactor = anim / 0.4;
-
     const modelScale = Number.isFinite(this.modelScale) && this.modelScale > 0
       ? this.modelScale
       : 1;
 
-    const scale = this.baseFitScale * animFactor * modelScale * this.debugScale;
+    const scale = this.baseFitScale * modelScale * this.debugScale;
     this.model.scale.set(scale);
 
     const { width: viewW, height: viewH } = this.getLogicalSize();

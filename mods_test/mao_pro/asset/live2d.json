@@ -10,7 +10,8 @@
     "physics_json": "mao_pro.physics3.json",
     "pose_json": "mao_pro.pose3.json",
     "eye_blink": true,
-    "lip_sync": true
+    "lip_sync": true,
+    "scale": 1
   },
   "motions": [
     {
@@ -168,5 +169,7 @@
       "offset_x": 0,
       "offset_y": 0
     }
-  ]
+  ],
+  "resources": [],
+  "background_layers": []
 }

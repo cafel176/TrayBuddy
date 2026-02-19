@@ -43,8 +43,14 @@
       "mod_data_counter": null,
       "branch": [],
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     "silence": {
@@ -228,8 +234,14 @@
       "mod_data_counter": null,
       "branch": [],
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     "music_start": {
@@ -363,8 +375,14 @@
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     {
@@ -401,8 +419,14 @@
         }
       ],
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     {
@@ -430,8 +454,14 @@
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     {
@@ -459,8 +489,14 @@
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "live2d_params": [
-        { "id": "PartArmA", "value": 0, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 1, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 0
+        },
+        {
+          "id": "PartArmB",
+          "value": 1
+        }
       ]
     },
     {
@@ -488,8 +524,14 @@
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     {
@@ -517,8 +559,14 @@
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     {
@@ -546,8 +594,14 @@
       "mod_data_counter": null,
       "branch_show_bubble": true,
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     {
@@ -584,8 +638,14 @@
         }
       ],
       "live2d_params": [
-        { "id": "PartArmA", "value": 1, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 0, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 1
+        },
+        {
+          "id": "PartArmB",
+          "value": 0
+        }
       ]
     },
     {
@@ -622,8 +682,14 @@
         }
       ],
       "live2d_params": [
-        { "id": "PartArmA", "value": 0, "target": "PartOpacity" },
-        { "id": "PartArmB", "value": 1, "target": "PartOpacity" }
+        {
+          "id": "PartArmA",
+          "value": 0
+        },
+        {
+          "id": "PartArmB",
+          "value": 1
+        }
       ]
     }
   ],
