@@ -525,6 +525,17 @@ export function createWindowCore(options: {
     }
   }
 
+  function handleGlobalKeyup(e: KeyboardEvent) {
+    const keyCode = e.code;
+
+    // 当 global_keyboard 开启时，后端轮询线程已处理 keyup 事件，
+    // 前端不再转发 keyup 触发，避免重复触发。
+    if (!globalKeyboardEnabled) {
+      triggerManager?.trigger(`keyup:${keyCode}`);
+    }
+  }
+
+
   /**
    * 处理后端全局键盘轮询发来的按键事件（不需要窗口 focus）。
    * 仅在 globalKeyboardEnabled 时有效，用于隐藏分支选择场景。
@@ -851,6 +862,8 @@ export function createWindowCore(options: {
       startCursorPolling();
 
       window.addEventListener("keydown", handleGlobalKeydown);
+      window.addEventListener("keyup", handleGlobalKeyup);
+
 
       // 监听后端全局键盘轮询事件（不需要窗口 focus 即可触发分支选择）
       unlistenGlobalKeydown = await listen<string>("global-keydown", (event) => {
@@ -1072,6 +1085,8 @@ export function createWindowCore(options: {
 
   function destroy() {
     window.removeEventListener("keydown", handleGlobalKeydown);
+    window.removeEventListener("keyup", handleGlobalKeyup);
+
     removeGlobalMouseListeners();
     stopDragEndPoll();
     stopCursorPolling();

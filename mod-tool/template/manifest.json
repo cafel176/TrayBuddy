@@ -342,6 +342,10 @@
       "can_trigger_states": []
     },
     {
+      "event": "keyup:Space",
+      "can_trigger_states": []
+    },
+    {
       "event": "login",
       "can_trigger_states": []
     },

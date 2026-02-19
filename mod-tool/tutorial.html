@@ -223,18 +223,24 @@
       <p data-i18n="branch_show_bubble_desc">“显示气泡”(branch_show_bubble) 用于控制分支选项是否以气泡形式展示；该选项位于「对话分支」折叠区内。</p>
 
       <h3 data-i18n="section_triggers">触发器配置</h3>
-      <p data-i18n="triggers_desc">触发器定义事件与状态的关联。常用事件（支持 <code>keydown:&lt;Key&gt;</code>）：</p>
+      <p data-i18n="triggers_desc">触发器定义事件与状态的关联。常用事件（支持 <code>keydown:&lt;Key&gt;</code>/<code>keyup:&lt;Key&gt;</code>）：</p>
       <table>
         <tr><th data-i18n="table_event">事件名</th><th data-i18n="table_timing">触发时机</th></tr>
         <tr><td>click</td><td data-i18n="event_click">用户点击角色</td></tr>
+        <tr><td>click_up</td><td data-i18n="event_click_up">左键松开（窗口内）</td></tr>
         <tr><td>right_click</td><td data-i18n="event_right_click">用户右键点击角色</td></tr>
+        <tr><td>right_click_up</td><td data-i18n="event_right_click_up">右键松开（窗口内）</td></tr>
         <tr><td>global_click</td><td data-i18n="event_global_click">全局左键点击（需开启全局鼠标监听）</td></tr>
+        <tr><td>global_click_up</td><td data-i18n="event_global_click_up">全局左键松开（需开启全局鼠标监听）</td></tr>
         <tr><td>global_right_click</td><td data-i18n="event_global_right_click">全局右键点击（需开启全局鼠标监听）</td></tr>
+        <tr><td>global_right_click_up</td><td data-i18n="event_global_right_click_up">全局右键松开（需开启全局鼠标监听）</td></tr>
         <tr><td>global_keydown</td><td data-i18n="event_global_keydown">全局键盘按下（任意键，需开启全局键盘监听）</td></tr>
+        <tr><td>global_keyup</td><td data-i18n="event_global_keyup">全局键盘松开（任意键，需开启全局键盘监听）</td></tr>
         <tr><td>login</td><td data-i18n="event_login">程序启动</td></tr>
         <tr><td>drag_start</td><td data-i18n="event_drag_start">开始拖动窗口</td></tr>
         <tr><td>drag_end</td><td data-i18n="event_drag_end">结束拖动窗口</td></tr>
         <tr><td><code>keydown:&lt;Key&gt;</code></td><td data-i18n="event_keydown_space">按键触发（例如：keydown:Space）</td></tr>
+        <tr><td><code>keyup:&lt;Key&gt;</code></td><td data-i18n="event_keyup_space">按键松开触发（例如：keyup:Space）</td></tr>
         <tr><td>birthday</td><td data-i18n="event_birthday">生日事件</td></tr>
         <tr><td>firstday</td><td data-i18n="event_firstday">首次启动事件</td></tr>
         <tr><td>login_silence</td><td data-i18n="event_login_silence">启动后进入静默/无声状态</td></tr>

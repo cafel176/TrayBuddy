@@ -592,6 +592,8 @@
     "quickGlobalRightClickUp": "グローバル右解放",
     "quickGlobalKeydown": "グローバルキー押下",
     "quickGlobalKeyup": "グローバルキー解放",
+    "quickKeydownSpace": "キー押下: Space",
+    "quickKeyupSpace": "キー解放: Space",
     "quickLogin": "ログイン",
     "whenCondition": "{state} の時",
 

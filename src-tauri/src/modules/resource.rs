@@ -290,7 +290,8 @@ impl Default for Live2DState {
 
 /// 将 JSON 中的单个字符串或字符串数组统一反序列化为 `Vec<String>`。
 ///
-/// 兼容旧格式（`"event": "keydown:KeyA"`）和新格式（`"events": ["keydown:KeyA", "keydown:KeyW"]`）。
+/// 兼容旧格式（`"event": "keydown:KeyA"` / `"event": "keyup:KeyA"`）
+/// 和新格式（`"events": ["keydown:KeyA", "keyup:KeyA"]`）。
 fn deserialize_string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: serde::Deserializer<'de>,

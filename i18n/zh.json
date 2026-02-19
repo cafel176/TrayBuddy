@@ -591,6 +591,8 @@
     "quickGlobalRightClickUp": "全局右键松开",
     "quickGlobalKeydown": "全局按键按下",
     "quickGlobalKeyup": "全局按键松开",
+    "quickKeydownSpace": "按键按下:Space",
+    "quickKeyupSpace": "按键松开:Space",
     "quickLogin": "登录",
     "whenCondition": "当 {state} 时",
 

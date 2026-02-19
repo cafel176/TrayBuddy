@@ -571,6 +571,12 @@
       <button class="btn-quick" onclick={() => triggerEvent("global_keyup")}
         >{_("trigger.quickGlobalKeyup")}</button
       >
+      <button class="btn-quick" onclick={() => triggerEvent("keydown:Space")}
+        >{_("trigger.quickKeydownSpace")}</button
+      >
+      <button class="btn-quick" onclick={() => triggerEvent("keyup:Space")}
+        >{_("trigger.quickKeyupSpace")}</button
+      >
       <button class="btn-quick" onclick={() => triggerEvent("login")}
         >{_("trigger.quickLogin")}</button
       >

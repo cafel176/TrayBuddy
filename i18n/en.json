@@ -592,6 +592,8 @@
     "quickGlobalRightClickUp": "Global Right Click Up",
     "quickGlobalKeydown": "Global Key Down",
     "quickGlobalKeyup": "Global Key Up",
+    "quickKeydownSpace": "Key Down: Space",
+    "quickKeyupSpace": "Key Up: Space",
     "quickLogin": "Login",
     "whenCondition": "When {state}",
 
