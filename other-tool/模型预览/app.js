@@ -3,7 +3,8 @@ import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControl
 import { FBXLoader } from './vendor/three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { MMDLoader } from './vendor/three/examples/jsm/loaders/MMDLoader.js';
-import { VRMLoaderPlugin, VRMUtils } from './vendor/three-vrm/three-vrm.module.js';
+import { VRMLoaderPlugin, VRMUtils, VRMHumanBoneName, VRMHumanBoneParentMap } from './vendor/three-vrm/three-vrm.module.js';
+
 
 // Surface module load failures in UI
 window.addEventListener('error', (e) => {
@@ -314,7 +315,340 @@ function urlModifier(url) {
   return url;
 }
 
+function getVrmBoneNode(vrm, boneName) {
+  if (!vrm?.humanoid || !boneName) return null;
+
+  // Drive normalized bones. Raw bones will be updated in vrm.update(dt).
+  if (typeof vrm.humanoid.getNormalizedBoneNode === 'function') {
+    return vrm.humanoid.getNormalizedBoneNode(boneName);
+  }
+
+  if (typeof vrm.humanoid.getRawBoneNode === 'function') {
+    return vrm.humanoid.getRawBoneNode(boneName);
+  }
+
+  if (typeof vrm.humanoid.getBoneNode === 'function') {
+    return vrm.humanoid.getBoneNode(boneName);
+  }
+
+  return null;
+}
+
+async function loadVrmaGltf(vrmaFile) {
+  const url = URL.createObjectURL(vrmaFile);
+
+  try {
+    const loader = new GLTFLoader();
+    const gltf = await new Promise((resolve, reject) => {
+      loader.load(url, (g) => resolve(g), undefined, (err) => reject(err));
+    });
+
+    return gltf;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function getBoneDepth(boneName) {
+  let d = 0;
+  let cur = boneName;
+  while (cur != null) {
+    cur = VRMHumanBoneParentMap?.[cur] ?? null;
+    if (cur != null) d++;
+    else break;
+    if (d > 64) break;
+  }
+  return d;
+}
+
+function sortedHumanoidBones(boneNames) {
+  const list = Array.from(new Set(boneNames)).filter(Boolean);
+  list.sort((a, b) => getBoneDepth(a) - getBoneDepth(b));
+  return list;
+}
+
+async function retargetVrmaToVrmClipBaked(vrmaFile, vrmaGltf, vrm, { fps = 30 } = {}) {
+  const parser = vrmaGltf?.parser;
+  const json = parser?.json;
+  const ext = json?.extensions?.VRMC_vrm_animation
+    || vrmaGltf?.userData?.gltfExtensions?.VRMC_vrm_animation
+    || null;
+
+  if (!ext) {
+    throw new Error('该 .vrma 缺少 glTF 扩展 VRMC_vrm_animation');
+  }
+
+  const humanBones = ext?.humanoid?.humanBones;
+  if (!humanBones || typeof humanBones !== 'object') {
+    throw new Error('该 .vrma 缺少 humanoid.humanBones 映射');
+  }
+
+  const srcClip = (Array.isArray(vrmaGltf?.animations) && vrmaGltf.animations[0]) ? vrmaGltf.animations[0] : null;
+  if (!srcClip) {
+    throw new Error('该 .vrma 不包含 glTF animations');
+  }
+
+  // Collect source/target nodes
+  /** @type {Map<string, THREE.Object3D>} */
+  const srcNodeByBone = new Map();
+  /** @type {Map<string, THREE.Object3D>} */
+  const dstNodeByBone = new Map();
+
+  for (const [boneName, def] of Object.entries(humanBones)) {
+    const nodeIndex = def?.node;
+    if (!Number.isInteger(nodeIndex)) continue;
+    if (typeof parser?.getDependency !== 'function') continue;
+
+    try {
+      const srcNode = await parser.getDependency('node', nodeIndex);
+      if (srcNode) srcNodeByBone.set(boneName, srcNode);
+    } catch {}
+
+    const dstNode = getVrmBoneNode(vrm, boneName);
+    if (dstNode) dstNodeByBone.set(boneName, dstNode);
+  }
+
+  const bones = sortedHumanoidBones(
+    Array.from(srcNodeByBone.keys()).filter((b) => dstNodeByBone.has(b))
+  );
+
+  if (!bones.length) {
+    throw new Error('该 .vrma 的 humanoid 骨骼映射与当前 VRM 不匹配（找不到可重定向的骨骼）。');
+  }
+
+  // Cache rest world transforms
+  vrmaGltf.scene.updateWorldMatrix(true, true);
+  model?.updateWorldMatrix?.(true, true);
+
+  /** @type {Map<string, THREE.Quaternion>} */
+  const srcRestWorldQ = new Map();
+  /** @type {Map<string, THREE.Vector3>} */
+  const srcRestWorldP = new Map();
+
+  /** @type {Map<string, THREE.Quaternion>} */
+  const dstRestWorldQ = new Map();
+  /** @type {Map<string, THREE.Vector3>} */
+  const dstRestWorldP = new Map();
+
+  const tmpQ = new THREE.Quaternion();
+  const tmpV = new THREE.Vector3();
+
+  for (const b of bones) {
+    const s = srcNodeByBone.get(b);
+    const d = dstNodeByBone.get(b);
+    if (!s || !d) continue;
+
+    srcRestWorldQ.set(b, s.getWorldQuaternion(tmpQ).clone());
+    srcRestWorldP.set(b, s.getWorldPosition(tmpV).clone());
+
+    dstRestWorldQ.set(b, d.getWorldQuaternion(tmpQ).clone());
+    dstRestWorldP.set(b, d.getWorldPosition(tmpV).clone());
+  }
+
+  // Prepare sampling timeline
+  const duration = Math.max(0, Number(srcClip.duration) || 0);
+  const safeFps = Math.min(120, Math.max(5, Number(fps) || 30));
+  const step = 1 / safeFps;
+  const frameCount = Math.max(2, Math.ceil(duration * safeFps) + 1);
+  const times = new Float32Array(frameCount);
+  for (let i = 0; i < frameCount; i++) {
+    const t = i * step;
+    times[i] = t > duration ? duration : t;
+  }
+
+  // Source mixer to evaluate pose
+  const srcMixer = new THREE.AnimationMixer(vrmaGltf.scene);
+  const srcAction = srcMixer.clipAction(srcClip);
+  srcAction.play();
+
+  /** @type {Map<string, Float32Array>} */
+  const rotValuesByBone = new Map();
+  /** @type {Float32Array|null} */
+  let hipsPosValues = null;
+
+  for (const b of bones) {
+    rotValuesByBone.set(b, new Float32Array(frameCount * 4));
+  }
+
+  if (dstNodeByBone.has(VRMHumanBoneName.Hips) || dstNodeByBone.has('hips')) {
+    hipsPosValues = new Float32Array(frameCount * 3);
+  }
+
+  // Per-frame retargeting
+  const invSrcRestQ = new THREE.Quaternion();
+  const deltaWorldQ = new THREE.Quaternion();
+  const desiredWorldQ = new THREE.Quaternion();
+  const invParentWorldQ = new THREE.Quaternion();
+  const localQ = new THREE.Quaternion();
+
+  const desiredWorldQByBone = new Map();
+
+  const dstParentWorldQStatic = new Map();
+  const dstParentWorldMStatic = new Map();
+
+  for (const b of bones) {
+    const d = dstNodeByBone.get(b);
+    if (!d) continue;
+    // Parent world transforms at rest (parent nodes are not animated by our tracks directly)
+    dstParentWorldQStatic.set(b, d.parent ? d.parent.getWorldQuaternion(tmpQ).clone() : new THREE.Quaternion());
+    dstParentWorldMStatic.set(b, d.parent ? d.parent.matrixWorld.clone() : new THREE.Matrix4());
+  }
+
+  for (let fi = 0; fi < frameCount; fi++) {
+    const t = times[fi];
+
+    // Evaluate source rig at time t
+    srcMixer.setTime(t);
+    vrmaGltf.scene.updateWorldMatrix(true, true);
+
+    desiredWorldQByBone.clear();
+
+    // First pass: compute desired world rotations from world-delta
+    for (const b of bones) {
+      const s = srcNodeByBone.get(b);
+      const d = dstNodeByBone.get(b);
+      if (!s || !d) continue;
+
+      const sRest = srcRestWorldQ.get(b);
+      const dRest = dstRestWorldQ.get(b);
+      if (!sRest || !dRest) continue;
+
+      const sWorld = s.getWorldQuaternion(tmpQ).clone();
+
+      invSrcRestQ.copy(sRest).invert();
+      deltaWorldQ.copy(sWorld).multiply(invSrcRestQ).normalize();
+
+      desiredWorldQ.copy(deltaWorldQ).multiply(dRest).normalize();
+      desiredWorldQByBone.set(b, desiredWorldQ.clone());
+    }
+
+    // Second pass: convert desired world rotations into local rotations in humanoid hierarchy order
+    for (const b of bones) {
+      const d = dstNodeByBone.get(b);
+      if (!d) continue;
+
+      const worldQ = desiredWorldQByBone.get(b);
+      if (!worldQ) continue;
+
+      const parentBone = VRMHumanBoneParentMap?.[b] ?? null;
+
+      let parentWorldQ = null;
+      if (parentBone && desiredWorldQByBone.has(parentBone)) {
+        parentWorldQ = desiredWorldQByBone.get(parentBone);
+      }
+
+      if (!parentWorldQ) {
+        // Use static parent world (rig root)
+        parentWorldQ = dstParentWorldQStatic.get(b) || new THREE.Quaternion();
+      }
+
+      invParentWorldQ.copy(parentWorldQ).invert();
+      localQ.copy(worldQ).premultiply(invParentWorldQ).normalize();
+
+      const arr = rotValuesByBone.get(b);
+      if (!arr) continue;
+      const o = fi * 4;
+      arr[o] = localQ.x;
+      arr[o + 1] = localQ.y;
+      arr[o + 2] = localQ.z;
+      arr[o + 3] = localQ.w;
+    }
+
+    // Hips translation (world-delta, converted to local)
+    if (hipsPosValues) {
+      const hipsName = dstNodeByBone.has(VRMHumanBoneName.Hips) ? VRMHumanBoneName.Hips : 'hips';
+      const sHips = srcNodeByBone.get(hipsName);
+      const dHips = dstNodeByBone.get(hipsName);
+      const sRestP = srcRestWorldP.get(hipsName);
+      const dRestP = dstRestWorldP.get(hipsName);
+
+      if (sHips && dHips && sRestP && dRestP) {
+        const sWorldP = sHips.getWorldPosition(tmpV).clone();
+        const deltaP = sWorldP.sub(sRestP);
+        const desiredWorldP = dRestP.clone().add(deltaP);
+
+        const parentM = dstParentWorldMStatic.get(hipsName) || (dHips.parent ? dHips.parent.matrixWorld : new THREE.Matrix4());
+        const invParentM = parentM.clone().invert();
+        const localP = desiredWorldP.applyMatrix4(invParentM);
+
+        const o = fi * 3;
+        hipsPosValues[o] = localP.x;
+        hipsPosValues[o + 1] = localP.y;
+        hipsPosValues[o + 2] = localP.z;
+      }
+    }
+  }
+
+  srcAction.stop();
+
+  const tracks = [];
+  for (const b of bones) {
+    const d = dstNodeByBone.get(b);
+    if (!d) continue;
+
+    const arr = rotValuesByBone.get(b);
+    if (!arr) continue;
+
+    tracks.push(new THREE.QuaternionKeyframeTrack(`${d.uuid}.quaternion`, times, arr));
+  }
+
+  if (hipsPosValues) {
+    const hipsName = dstNodeByBone.has(VRMHumanBoneName.Hips) ? VRMHumanBoneName.Hips : 'hips';
+    const dHips = dstNodeByBone.get(hipsName);
+    if (dHips) {
+      tracks.push(new THREE.VectorKeyframeTrack(`${dHips.uuid}.position`, times, hipsPosValues));
+    }
+  }
+
+  const name = `[VRMA] ${(vrmaFile?.name || 'VRMA')}`;
+  const clip = new THREE.AnimationClip(name, duration || -1, tracks);
+  clip.userData = { ...(clip.userData || {}), baked: true, fps: safeFps, bones: bones.length, frames: frameCount };
+  return clip;
+}
+
+async function applyVrmaToCurrentModel(vrmaFile) {
+  if (!vrmaFile) return;
+
+  if (!model || !currentVrm) {
+    setStatus('需要先加载 VRM 模型（.vrm），才能应用 .vrma 动画。', 'err');
+    return;
+  }
+
+  setLoading(true, '正在加载 VRMA...');
+
+  try {
+    // Reset normalized pose to avoid accumulating offsets
+    try { currentVrm?.humanoid?.resetNormalizedPose?.(); } catch {}
+
+    const vrmaGltf = await loadVrmaGltf(vrmaFile);
+    const clip = await retargetVrmaToVrmClipBaked(vrmaFile, vrmaGltf, currentVrm, { fps: 30 });
+
+    // Remove previously added VRMA clips
+    clips = (clips || []).filter((c) => !(c?.userData?.isVrma));
+    clip.userData = { ...(clip.userData || {}), isVrma: true };
+
+    clips = [...clips, clip];
+    animCountEl.textContent = String(clips.length);
+    populateAnimations();
+
+    if (!mixer) mixer = new THREE.AnimationMixer(model);
+
+    setUiEnabled(true);
+    animSelect.value = String(clips.length - 1);
+    playSelectedAnimation(true);
+
+    const ui = clip?.userData || {};
+    setStatus(`VRMA 已加载（bones:${ui.bones || '-'} frames:${ui.frames || '-'} fps:${ui.fps || '-'})`, 'ok');
+  } catch (e) {
+    console.error(e);
+    setStatus('VRMA 加载/重定向失败：' + String(e?.message || e), 'err');
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function loadFbxFromFiles(files) {
+
   const list = Array.from(files || []);
   const fbx = list.find(f => (f.name || '').toLowerCase().endsWith('.fbx'));
   if (!fbx) {
@@ -569,18 +903,43 @@ async function loadPmxFromFiles(files) {
 }
 
 async function loadAnyModelFromFiles(files) {
-  const list = Array.from(files || []);
+  const listAll = Array.from(files || []);
+
+  const vrmaFile = listAll.find(f => (f.name || '').toLowerCase().endsWith('.vrma')) || null;
+  const list = listAll.filter(f => !((f.name || '').toLowerCase().endsWith('.vrma')));
+
   const hasVrm = list.some(f => (f.name || '').toLowerCase().endsWith('.vrm'));
   const hasFbx = list.some(f => (f.name || '').toLowerCase().endsWith('.fbx'));
   const hasPmx = list.some(f => (f.name || '').toLowerCase().endsWith('.pmx'))
     || list.some(f => (f.name || '').toLowerCase().endsWith('.pmd'));
 
-  if (hasVrm) return loadVrmFromFiles(list);
-  if (hasFbx) return loadFbxFromFiles(list);
-  if (hasPmx) return loadPmxFromFiles(list);
+  if (hasVrm) {
+    await loadVrmFromFiles(list);
+    if (vrmaFile) await applyVrmaToCurrentModel(vrmaFile);
+    return;
+  }
+
+  if (hasFbx) {
+    if (vrmaFile) setStatus('已检测到 .vrma，但 VRMA 目前仅支持 VRM 模型（.vrm）。', 'err');
+    await loadFbxFromFiles(list);
+    return;
+  }
+
+  if (hasPmx) {
+    if (vrmaFile) setStatus('已检测到 .vrma，但 VRMA 目前仅支持 VRM 模型（.vrm）。', 'err');
+    await loadPmxFromFiles(list);
+    return;
+  }
+
+  if (vrmaFile) {
+    // Only VRMA provided: apply to currently loaded VRM
+    await applyVrmaToCurrentModel(vrmaFile);
+    return;
+  }
 
   setStatus(t('msg_need_model') || '请提供 .fbx / .vrm / .pmx 文件', 'err');
 }
+
 
 // UI events
 ['dragenter', 'dragover'].forEach(evt => {
