@@ -309,6 +309,11 @@ export class ThreeDPlayer {
   private currentOffsetX = 0;
   private currentOffsetY = 0;
 
+  /** T-pose 基准：脚底 Y、模型高度、hips 世界 X */
+  private baseFootY = 0;
+  private baseModelHeight = 1;
+  private baseHipsWorldX = 0;
+
   private isRendering = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -390,6 +395,9 @@ export class ThreeDPlayer {
     this.currentModelScale = 1;
     this.currentOffsetX = 0;
     this.currentOffsetY = 0;
+    this.baseFootY = 0;
+    this.baseModelHeight = 1;
+    this.baseHipsWorldX = 0;
 
     dbg("destroy", "done");
   }
@@ -451,6 +459,22 @@ export class ThreeDPlayer {
     });
 
     this.scene.add(this.model);
+
+    // 记录 T-pose 基准几何信息
+    const initBox = new THREE.Box3().setFromObject(this.model);
+    this.baseFootY = initBox.min.y;
+    this.baseModelHeight = Math.max(initBox.max.y - initBox.min.y, 0.01);
+
+    // 将模型下移使脚底对齐到 Y=0
+    this.model.position.y = -this.baseFootY;
+
+    // 记录 T-pose 时 hips 的世界 X 坐标，用于切换动画时对齐
+    const hipsNode = getVrmBoneNode(vrm, VRMHumanBoneName.Hips);
+    if (hipsNode) {
+      this.model.updateWorldMatrix(true, true);
+      const tmpV = new THREE.Vector3();
+      this.baseHipsWorldX = hipsNode.getWorldPosition(tmpV).x;
+    }
 
     // Apply model-level scale & offset
     this.currentModelScale = config.model.scale || 1;
@@ -554,6 +578,10 @@ export class ThreeDPlayer {
 
     action.reset().play();
     this.currentAction = action;
+
+    // 切换动画后对齐 hips：评估第一帧，测量 hips 水平偏移，
+    // 调整模型根节点 X 补偿，使角色始终居中
+    this.alignModelToBaseHips();
 
     // Handle completion for playOnce
     if (options.playOnce) {
@@ -757,30 +785,49 @@ export class ThreeDPlayer {
   private fitCameraToModel(): void {
     if (!this.model || !this.camera) return;
 
-    const box = new THREE.Box3().setFromObject(this.model);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
+    const modelHeight = this.baseModelHeight;
+    if (modelHeight <= 0) return;
 
-    if (size.y <= 0) return;
+    // 脚底在 Y=0，视觉中心在半身高
+    const centerY = modelHeight / 2;
 
-    // Calculate camera distance to fit the model height in view
     const fov = this.camera.fov * (Math.PI / 180);
-    const modelHeight = size.y;
-    // NOTE: animationScale 已由 Rust 端通过缩放窗口/canvas 物理尺寸实现，
-    // 这里不再用 animationScale 调整相机距离，否则会导致"双重缩放"。
-    // 只使用 config 中的 model.scale（用户控制模型在窗口内的相对大小）。
     const effectiveScale = this.currentModelScale;
-    // 相机距离：让模型尽量填满 canvas 高度
     const fitDistance = (modelHeight / 2) / Math.tan(fov / 2) / effectiveScale;
 
-    // Apply offset (in model-space units)
     const offsetX = this.currentOffsetX * modelHeight;
     const offsetY = this.currentOffsetY * modelHeight;
 
-    // Look at model center with offset
-    this.camera.position.set(center.x + offsetX, center.y + offsetY, fitDistance);
-    this.camera.lookAt(center.x + offsetX, center.y + offsetY, center.z);
+    this.camera.position.set(offsetX, centerY + offsetY, fitDistance);
+    this.camera.lookAt(offsetX, centerY + offsetY, 0);
     this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * 切换动画后对齐模型：让 mixer 评估当前帧（t=0），
+   * 测量 hips 的实际世界 X 与 T-pose 基准的差值，
+   * 调整模型根节点 position.x 补偿，使角色水平居中。
+   * 动画内部的自然摆动不受影响（只补偿初始偏移量）。
+   */
+  private alignModelToBaseHips(): void {
+    if (!this.model || !this.vrm || !this.mixer) return;
+
+    const hipsNode = getVrmBoneNode(this.vrm, VRMHumanBoneName.Hips);
+    if (!hipsNode) return;
+
+    // 先重置模型 X 到 0，让 mixer 评估得到纯动画值
+    this.model.position.x = 0;
+
+    // 让 mixer 评估当前帧（刚 reset+play 所以是 t=0）
+    this.mixer.setTime(0);
+    this.model.updateWorldMatrix(true, true);
+
+    // 获取动画第一帧 hips 的世界 X
+    const tmpV = new THREE.Vector3();
+    const currentHipsX = hipsNode.getWorldPosition(tmpV).x;
+
+    // 补偿差值：将模型反向平移，使 hips 回到 T-pose 的基准 X
+    this.model.position.x = this.baseHipsWorldX - currentHipsX;
   }
 
   private clearPlayTimer(): void {
