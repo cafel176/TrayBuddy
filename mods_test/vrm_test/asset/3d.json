@@ -4,7 +4,7 @@
     "name": "HatsuneMikuNT",
     "type": "vrm",
     "file": "asset/3d/HatsuneMikuNT.vrm",
-    "scale": 1.0,
+    "scale": 0.9,
     "offset_x": 0,
     "offset_y": 0,
     "texture_base_dir": ""

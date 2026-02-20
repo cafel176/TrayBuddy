@@ -586,8 +586,9 @@ export class ThreeDPlayer {
 
   setAnimationScale(scale: number): void {
     this.animationScale = scale;
-    // For 3D, animation_scale affects the camera distance / model scale
-    this.fitCameraToModel();
+    // NOTE: animationScale 通过 Rust 端缩放窗口/canvas 物理尺寸实现，
+    // 不需要在 3D 渲染层面调整相机。ResizeObserver 会在 canvas 大小变化时
+    // 自动触发 handleResize + fitCameraToModel。
   }
 
   setVisible(visible: boolean): void {
@@ -765,9 +766,12 @@ export class ThreeDPlayer {
     // Calculate camera distance to fit the model height in view
     const fov = this.camera.fov * (Math.PI / 180);
     const modelHeight = size.y;
-    const effectiveScale = this.currentModelScale * this.animationScale;
-    // Fill ~95% of viewport height (minimal padding), then adjust by scale
-    const fitDistance = (modelHeight / 2) / Math.tan(fov / 2) * 0.85 / effectiveScale;
+    // NOTE: animationScale 已由 Rust 端通过缩放窗口/canvas 物理尺寸实现，
+    // 这里不再用 animationScale 调整相机距离，否则会导致"双重缩放"。
+    // 只使用 config 中的 model.scale（用户控制模型在窗口内的相对大小）。
+    const effectiveScale = this.currentModelScale;
+    // 相机距离：让模型尽量填满 canvas 高度
+    const fitDistance = (modelHeight / 2) / Math.tan(fov / 2) / effectiveScale;
 
     // Apply offset (in model-space units)
     const offsetX = this.currentOffsetX * modelHeight;
