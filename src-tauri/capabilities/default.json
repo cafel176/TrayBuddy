@@ -11,7 +11,8 @@
     "reminder",
     "memo",
     "live2d",
-    "pngremix"
+    "pngremix",
+    "threed"
   ],
   "permissions": [
     "core:default",

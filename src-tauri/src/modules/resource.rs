@@ -592,9 +592,168 @@ impl Default for PngRemixParameterSetting {
 }
 
 
+
+
+// ========================================================================= //
+// 3D 配置定义
+// ========================================================================= //
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ThreeDModelType {
+    Vrm,
+    Pmx,
+}
+
+impl Default for ThreeDModelType {
+    fn default() -> Self {
+        Self::Vrm
+    }
+}
+
+/// 3D 模型基础配置
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ThreeDModelConfig {
+    /// 模型显示名
+    pub name: Box<str>,
+
+    /// 模型类型：vrm / pmx
+    #[serde(rename = "type")]
+    pub model_type: ThreeDModelType,
+
+    /// 模型文件路径（相对于 Mod 根目录）
+    pub file: Box<str>,
+
+    /// 模型整体缩放（窗口预览用）
+    pub scale: f64,
+    /// X 偏移
+    pub offset_x: i32,
+    /// Y 偏移
+    pub offset_y: i32,
+
+    /// 贴图根目录（PMX 常用；相对 Mod 根目录）。为空表示不指定。
+    pub texture_base_dir: Box<str>,
+}
+
+impl Default for ThreeDModelConfig {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            model_type: ThreeDModelType::Vrm,
+            file: "".into(),
+            scale: 1.0,
+            offset_x: 0,
+            offset_y: 0,
+            texture_base_dir: "".into(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ThreeDAnimationType {
+    Vrma,
+    Vmd,
+}
+
+impl Default for ThreeDAnimationType {
+    fn default() -> Self {
+        Self::Vrma
+    }
+}
+
+/// 3D 动画条目
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ThreeDAnimation {
+    /// 动画逻辑名（供状态映射引用）
+    pub name: Box<str>,
+
+    /// 动画类型：vrma / vmd
+    #[serde(rename = "type")]
+    pub animation_type: ThreeDAnimationType,
+
+    /// 动画文件路径（相对于 Mod 根目录）
+    pub file: Box<str>,
+
+    /// 播放倍速
+    pub speed: f64,
+
+    /// VRMA bake 采样 FPS（仅 vrma 使用；默认 30）
+    pub vrma_fps: u32,
+}
+
+impl Default for ThreeDAnimation {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            animation_type: ThreeDAnimationType::Vrma,
+            file: "".into(),
+            speed: 1.0,
+            vrma_fps: 60,
+        }
+    }
+}
+
+/// 3D 状态映射
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ThreeDState {
+    /// 状态名称（对应 StateInfo.anima）
+    pub state: Box<str>,
+
+    /// 对应动画名（ThreeDAnimation.name）
+    pub animation: Box<str>,
+
+    /// 缩放比例
+    pub scale: f64,
+
+    /// X 偏移
+    pub offset_x: i32,
+
+    /// Y 偏移
+    pub offset_y: i32,
+}
+
+impl Default for ThreeDState {
+    fn default() -> Self {
+        Self {
+            state: "".into(),
+            animation: "".into(),
+            scale: 1.0,
+            offset_x: 0,
+            offset_y: 0,
+        }
+    }
+}
+
+/// 3D 完整配置（对应 asset/3d.json）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ThreeDConfig {
+    pub schema_version: u32,
+    pub model: ThreeDModelConfig,
+    pub animations: Vec<ThreeDAnimation>,
+    pub states: Vec<ThreeDState>,
+}
+
+impl Default for ThreeDConfig {
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            model: ThreeDModelConfig::default(),
+            animations: Vec::new(),
+            states: Vec::new(),
+        }
+    }
+}
+
+
 // ========================================================================= //
 // 音频定义
 // ========================================================================= //
+
 
 /// 语音资源信息
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1159,6 +1318,10 @@ pub enum ModType {
     Sequence,
     Live2d,
     Pngremix,
+
+    /// 3D Mod（VRM/PMX + VRMA/VMD）
+    #[serde(rename = "3d")]
+    ThreeD,
 }
 
 impl Default for ModType {
@@ -1178,7 +1341,7 @@ pub struct ModManifest {
     /// 作者
     pub author: Box<str>,
 
-    /// Mod 类型（sequence / live2d / pngremix）
+    /// Mod 类型（sequence / live2d / pngremix / 3d）
     pub mod_type: ModType,
 
     /// 默认语音语言 ID
@@ -1268,6 +1431,8 @@ pub struct ModInfo {
     pub live2d: Option<Live2DConfig>,
     /// PngRemix 动画配置（仅 pngremix Mod 有值）
     pub pngremix: Option<PngRemixConfig>,
+    /// 3D 动画配置（仅 3d Mod 有值）
+    pub threed: Option<ThreeDConfig>,
     /// 语音资源（语言代码 -> 语音列表）
     pub audios: HashMap<Box<str>, Vec<AudioInfo>>,
 
@@ -1973,6 +2138,11 @@ impl ResourceManager {
         } else {
             None
         };
+        let threed = if manifest.mod_type == ModType::ThreeD {
+            crate::modules::utils::fs::load_json_obj(&assets_path.join("3d.json"))
+        } else {
+            None
+        };
 
 
         // 解析多语言语音
@@ -2015,6 +2185,7 @@ impl ResourceManager {
             sequences,
             live2d,
             pngremix,
+            threed,
             audios,
             info,
 
@@ -2085,6 +2256,11 @@ impl ResourceManager {
         } else {
             None
         };
+        let threed: Option<ThreeDConfig> = if manifest.mod_type == ModType::ThreeD {
+            reader.read_json_optional("asset/3d.json")
+        } else {
+            None
+        };
 
         // 解析多语言语音
         let mut audios: HashMap<Box<str>, Vec<AudioInfo>> = HashMap::new();
@@ -2152,6 +2328,7 @@ impl ResourceManager {
             sequences,
             live2d,
             pngremix,
+            threed,
             audios,
             info,
             texts,

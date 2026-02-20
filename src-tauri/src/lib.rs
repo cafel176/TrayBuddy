@@ -37,7 +37,7 @@ use modules::constants::{
     STATE_MUSIC_START,     STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_MAIN,
     WINDOW_LABEL_MEMO, WINDOW_LABEL_MODS, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_REMINDER, WINDOW_LABEL_REMINDER_ALERT,
-    WINDOW_LABEL_SETTINGS, EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK,
+    WINDOW_LABEL_SETTINGS, WINDOW_LABEL_THREED, EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK,
     WORK_EVENT_COOLDOWN_SECS
 };
 
@@ -373,7 +373,7 @@ fn update_settings(
     // 0. 主播模式副作用：用于窗口捕捉
     // 开启时让渲染窗口进入任务栏/可枚举窗口列表（skip_taskbar = false）
     let should_skip_taskbar = !settings.streamer_mode;
-    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX] {
+    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED] {
         if let Some(window) = app.get_webview_window(label) {
             if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
                 eprintln!(
@@ -760,6 +760,7 @@ where
             ModType::Live2d => WINDOW_LABEL_LIVE2D,
             ModType::Sequence => WINDOW_LABEL_ANIMATION,
             ModType::Pngremix => WINDOW_LABEL_PNGREMIX,
+            ModType::ThreeD => WINDOW_LABEL_THREED,
         };
         if let Some(old_window) = app.get_webview_window(old_label) {
             let _ = old_window.destroy();
@@ -779,6 +780,9 @@ where
         }
         ModType::Pngremix => {
             recreate_pngremix_window(app.clone()).await?;
+        }
+        ModType::ThreeD => {
+            recreate_threed_window(app.clone()).await?;
         }
     }
 
@@ -1149,7 +1153,7 @@ fn trigger_event(
 /// 同时适配 animation 窗口和 live2d 窗口
 #[tauri::command]
 fn set_ignore_cursor_events(ignore: bool, app: tauri::AppHandle) -> Result<(), String> {
-    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX] {
+    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED] {
         if let Some(window) = app.get_webview_window(label) {
             window
                 .set_ignore_cursor_events(ignore)
@@ -1229,6 +1233,7 @@ fn is_cursor_in_interact_area(
         .get_webview_window(WINDOW_LABEL_ANIMATION)
         .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
         .or_else(|| app.get_webview_window(WINDOW_LABEL_PNGREMIX))
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_THREED))
         .ok_or("No render window found")?;
 
     let position = window.outer_position().map_err(|e| e.to_string())?;
@@ -1362,7 +1367,7 @@ fn set_animation_scale(
     let new_width = BUBBLE_AREA_WIDTH.max(animation_width);
     let new_height = BUBBLE_AREA_HEIGHT + animation_height;
 
-    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX] {
+    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED] {
         if let Some(window) = app.get_webview_window(label) {
             window
                 .set_size(LogicalSize::new(new_width, new_height))
@@ -1842,6 +1847,7 @@ pub fn run() {
                     } else if window.label() == WINDOW_LABEL_ANIMATION
                         || window.label() == WINDOW_LABEL_LIVE2D
                         || window.label() == WINDOW_LABEL_PNGREMIX
+                        || window.label() == WINDOW_LABEL_THREED
                     {
                         let app_state: State<AppState> = window.state();
                         let mut storage = app_state.storage.lock().unwrap();
@@ -1852,6 +1858,7 @@ pub fn run() {
                     if window.label() == WINDOW_LABEL_ANIMATION
                         || window.label() == WINDOW_LABEL_LIVE2D
                         || window.label() == WINDOW_LABEL_PNGREMIX
+                        || window.label() == WINDOW_LABEL_THREED
                     {
                         // 发送窗口位置更新事件（发送动画区域顶部位置，与保存一致）
                         if let Ok(position) = window.outer_position() {
@@ -1945,6 +1952,7 @@ pub fn run() {
             is_sbuddy_supported,
             export_mod_as_sbuddy,
             recreate_animation_window,
+            recreate_threed_window,
             // 环境信息
             get_datetime_info,
             get_location_info,
@@ -2802,6 +2810,25 @@ fn inner_create_live2d_window(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 重新创建 3D 窗口
+///
+/// 用于在 Mod 加载后刷新窗口资源
+#[tauri::command]
+async fn recreate_threed_window(app: tauri::AppHandle) -> Result<(), String> {
+    // 1. 关闭现有窗口
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL_THREED) {
+        let _ = window.destroy();
+
+        tokio::time::sleep(std::time::Duration::from_millis(
+            modules::constants::WINDOW_RESIZE_DELAY_MS + 200,
+        ))
+        .await;
+    }
+
+    // 2. 创建新窗口
+    inner_create_threed_window(&app)
+}
+
 /// 重新创建 PngRemix 窗口
 ///
 /// 用于在 Mod 加载后刷新窗口资源
@@ -2901,6 +2928,91 @@ fn inner_create_pngremix_window(app: &tauri::AppHandle) -> Result<(), String> {
         let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
 
         let _ = pngremix_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+    }
+
+    Ok(())
+}
+
+/// 内部函数：创建 3D 窗口
+fn inner_create_threed_window(app: &tauri::AppHandle) -> Result<(), String> {
+    let state: State<'_, AppState> = app.state();
+
+    // 1. 获取缩放和位置设置
+    let (scale, saved_position, is_silence, streamer_mode) = {
+        let storage = state.storage.lock().unwrap();
+        (
+            storage.data.settings.animation_scale as f64,
+            (
+                storage.data.info.animation_window_x,
+                storage.data.info.animation_window_y,
+            ),
+            storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
+        )
+    };
+
+    // 2. 计算窗口尺寸（与其他渲染窗口保持一致）
+    let bubble_area_height = BUBBLE_AREA_HEIGHT;
+    let bubble_area_width = BUBBLE_AREA_WIDTH;
+    let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+    let window_width = bubble_area_width.max(animation_area_width);
+    let window_height = bubble_area_height + animation_area_height;
+
+    // 3. 构建并创建窗口
+    if let Some(_existing) = app.get_webview_window(WINDOW_LABEL_THREED) {
+        return Ok(());
+    }
+
+    let threed_window =
+        WebviewWindowBuilder::new(app, WINDOW_LABEL_THREED, WebviewUrl::App(WINDOW_LABEL_THREED.into()))
+            .title(get_i18n_text(app, "common.threeDTitle"))
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(!streamer_mode)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+    // 应用当前 Mod 图标
+    apply_window_icon(app, &threed_window);
+
+    // 关闭时隐藏窗口
+    let w_clone = threed_window.clone();
+    threed_window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w_clone.hide();
+        }
+    });
+
+    // 4. 初始鼠标穿透
+    if is_silence {
+        let _ = threed_window.set_ignore_cursor_events(true);
+    }
+
+    // 5. 设置窗口位置
+    if let (Some(x), Some(y)) = saved_position {
+        let window_y = y - bubble_area_height;
+        let _ = threed_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+    } else if let Some(monitor) = threed_window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        let _ = threed_window
             .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
     }
 
@@ -3484,10 +3596,11 @@ fn save_animation_window_position(window: &tauri::Window) {
         return;
     }
 
-    // 获取渲染窗口（animation、live2d 或 pngremix）
+    // 获取渲染窗口（animation、live2d、pngremix 或 threed）
     let render_window = app.get_webview_window(WINDOW_LABEL_ANIMATION)
         .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
-        .or_else(|| app.get_webview_window(WINDOW_LABEL_PNGREMIX));
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_PNGREMIX))
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_THREED));
 
     if let Some(win) = render_window {
         if let Ok(position) = win.outer_position() {
@@ -4052,7 +4165,7 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
             // 2. 主播模式副作用：用于窗口捕捉（开启时不再 skip_taskbar）
             if id == "toggle_streamer_mode" {
                 let should_skip_taskbar = !settings.streamer_mode;
-                for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX] {
+                for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED] {
                     if let Some(window) = app.get_webview_window(label) {
                         if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
                             eprintln!(
@@ -4183,10 +4296,11 @@ fn get_saved_window_position(state: State<'_, AppState>) -> (Option<f64>, Option
 /// 将窗口移动到任务栏上方的默认位置，并清空用户保存的位置信息
 #[tauri::command]
 fn reset_animation_window_position(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    // 1. 获取渲染窗口（animation、live2d 或 pngremix）
+    // 1. 获取渲染窗口（animation、live2d、pngremix 或 threed）
     let window = app.get_webview_window(WINDOW_LABEL_ANIMATION)
         .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
         .or_else(|| app.get_webview_window(WINDOW_LABEL_PNGREMIX))
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_THREED))
         .ok_or_else(|| "No render window found".to_string())?;
 
     // 2. 获取当前的缩放比例

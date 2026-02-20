@@ -37,6 +37,7 @@
     Live2DConfig,
     ModType,
     PngRemixConfig,
+    ThreeDConfig,
     StateInfo,
     TriggerInfo,
   } from "$lib/types/asset";
@@ -89,6 +90,7 @@
     sequences: AssetInfo[];
     live2d?: Live2DConfig;
     pngremix?: PngRemixConfig;
+    threed?: ThreeDConfig;
     audios: Record<string, AudioInfo[]>;
     texts: Record<string, TextInfo[]>;
     info: Record<string, CharacterInfo>;
@@ -306,6 +308,8 @@
         return _("resource.modTypeLive2D");
       case "pngremix":
         return _("resource.modTypePngRemix");
+      case "3d":
+        return "3D";
       default:
         return _("resource.modTypeSequence");
     }
@@ -321,6 +325,10 @@
 
   function isSequenceMod(): boolean {
     return getModType() === "sequence";
+  }
+
+  function isThreeDMod(): boolean {
+    return getModType() === "3d";
   }
 
   // ======================================================================= //
@@ -450,6 +458,15 @@
           </div>
           <div class="stat-item">
             <span class="stat-value">{currentModInfo.pngremix?.states.length ?? 0}</span>
+            <span class="stat-label">States</span>
+          </div>
+        {:else if isThreeDMod()}
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.threed?.animations.length ?? 0}</span>
+            <span class="stat-label">Animations</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{currentModInfo.threed?.states.length ?? 0}</span>
             <span class="stat-label">States</span>
           </div>
         {:else}
@@ -1703,6 +1720,117 @@
               {:else}
                 <div class="info-row">
                   <span class="info-label">PngRemix Assets</span>
+                  <span class="info-value">{_("resource.notSet")}</span>
+                </div>
+              {/if}
+            </div>
+          </details>
+        {/if}
+
+        <!-- 3D 资源 -->
+        {#if isThreeDMod()}
+          <details>
+            <summary>3D Assets</summary>
+            <div class="tab-content">
+              {#if currentModInfo.threed}
+                <h5>Model</h5>
+                <div class="info-grid">
+                  <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value">{currentModInfo.threed.model.name}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Type</span>
+                    <span class="info-value">{currentModInfo.threed.model.type}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">File</span>
+                    <span class="info-value">{currentModInfo.threed.model.file}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Scale</span>
+                    <span class="info-value">{currentModInfo.threed.model.scale}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Offset</span>
+                    <span class="info-value">{currentModInfo.threed.model.offset_x}, {currentModInfo.threed.model.offset_y}</span>
+                  </div>
+                  {#if currentModInfo.threed.model.texture_base_dir}
+                    <div class="info-row">
+                      <span class="info-label">Texture Base Dir</span>
+                      <span class="info-value">{currentModInfo.threed.model.texture_base_dir}</span>
+                    </div>
+                  {/if}
+                </div>
+
+                <details open class="live2d-section">
+                  <summary>
+                    Animations ({currentModInfo.threed.animations.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.threed.animations as anim}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{anim.name}</span>
+                          <span class="motion-group">{anim.type}</span>
+                        </div>
+                        <div class="state-detail">
+                          <div class="detail-item">
+                            <span class="detail-label">File</span>
+                            {anim.file}
+                          </div>
+                          <!-- <div class="detail-item">
+                            <span class="detail-label">Loop</span>
+                            {anim.loop ? _("common.yes") : _("common.no")}
+                          </div> -->
+                          <div class="detail-item">
+                            <span class="detail-label">Speed</span>
+                            {anim.speed}
+                          </div>
+                          {#if anim.type === "vrma"}
+                            <div class="detail-item">
+                              <span class="detail-label">VRMA FPS</span>
+                              {anim.vrma_fps}
+                            </div>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
+                <details open class="live2d-section">
+                  <summary>
+                    States ({currentModInfo.threed.states.length})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.threed.states as tstate}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{tstate.state}</span>
+                        </div>
+                        <div class="state-detail">
+                          <div class="detail-item">
+                            <span class="detail-label">Animation</span>
+                            {tstate.animation}
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">Scale</span>
+                            {tstate.scale}
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">Offset</span>
+                            {tstate.offset_x}, {tstate.offset_y}
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
+              {:else}
+                <div class="info-row">
+                  <span class="info-label">3D Assets</span>
                   <span class="info-value">{_("resource.notSet")}</span>
                 </div>
               {/if}

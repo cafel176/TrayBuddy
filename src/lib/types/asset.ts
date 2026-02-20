@@ -42,7 +42,7 @@ export interface AssetInfo {
   offset_y: number;
 }
 
-export type ModType = "sequence" | "live2d" | "pngremix";
+export type ModType = "sequence" | "live2d" | "pngremix" | "3d";
 
 // ============================================================================
 // PngRemix 相关接口
@@ -175,6 +175,50 @@ export interface Live2DConfig {
   expressions: Live2DExpression[];
   states: Live2DState[];
   background_layers: Live2DBackgroundLayer[];
+}
+
+// ============================================================================
+// 3D 相关接口
+// ============================================================================
+
+export type ThreeDModelType = "vrm" | "pmx";
+export type ThreeDAnimationType = "vrma" | "vmd";
+
+export interface ThreeDModelConfig {
+  name: string;
+  type: ThreeDModelType;
+  file: string;
+  scale: number;
+  offset_x: number;
+  offset_y: number;
+  texture_base_dir: string;
+}
+
+export interface ThreeDAnimation {
+  name: string;
+  type: ThreeDAnimationType;
+  file: string;
+
+  /** 播放倍速 */
+  speed: number;
+
+  /** VRMA bake 采样 FPS（仅 vrma 使用） */
+  vrma_fps: number;
+}
+
+export interface ThreeDState {
+  state: string;
+  animation: string;
+  scale: number;
+  offset_x: number;
+  offset_y: number;
+}
+
+export interface ThreeDConfig {
+  schema_version: number;
+  model: ThreeDModelConfig;
+  animations: ThreeDAnimation[];
+  states: ThreeDState[];
 }
 
 
