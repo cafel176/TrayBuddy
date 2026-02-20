@@ -129,3 +129,24 @@ export function buildModAssetUrlForLive2D(modPath: string, relativePath: string)
   const raw = convertFileSrc(fullPath);
   return raw.replace(/%2F/gi, "/").replace(/%3A/gi, ":");
 }
+
+/**
+ * 构建 Mod 资源的可访问 URL（3D 专用）
+ *
+ * 与 `buildModAssetUrlForLive2D` 相同策略：对于文件夹 mod，还原 `%2F` 和 `%3A`，
+ * 保持 URL 层级结构，使 three.js 的 GLTFLoader 相对路径解析正确工作。
+ *
+ * @param modPath - Mod 根路径
+ * @param relativePath - 相对路径
+ * @returns 可在 WebView 中使用的 URL（保留路径层级）
+ */
+export function buildModAssetUrlFor3D(modPath: string, relativePath: string): string {
+  if (isArchiveMod(modPath)) {
+    return buildModAssetUrl(modPath, relativePath);
+  }
+
+  // 文件夹 mod：convertFileSrc + 还原编码
+  const fullPath = `${modPath}/${relativePath}`.replace(/\\/g, "/");
+  const raw = convertFileSrc(fullPath);
+  return raw.replace(/%2F/gi, "/").replace(/%3A/gi, ":");
+}
