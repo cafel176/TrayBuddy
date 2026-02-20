@@ -24,3 +24,16 @@ sbuddy-crypto.exe
 mod-tool/sbuddy-crypto.exe
 mod-tool/to-sbuddy.bat
 src-tauri/sbuddy-crypto.exe
+
+my-tool/ExportVrma/Library
+my-tool/ExportVrma/Logs
+my-tool/ExportVrma/ProjectSettings
+my-tool/ExportVrma/UserSettings
+my-tool/ExportVrma/Temp
+my-tool/ExportVrma/Packages
+my-tool/ExportVrma/Assets/Models/*.meta
+my-tool/ExportVrma/Assets/Animations/*.meta
+my-tool/ExportVrma/Assets/*.meta
+my-tool/ExportVrma/Assets/Editor/*.meta
+my-tool/ExportVrma/Assets/AnimBaked
+my-tool/ExportVrma/Assets/AnimExports
