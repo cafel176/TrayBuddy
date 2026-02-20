@@ -43,10 +43,12 @@
 
         <div class="drop-zone" id="dropZone">
           <div class="drop-zone-icon">📦</div>
-          <p data-i18n="drop_zone_text">拖拽 FBX / VRM / PMX（可连同贴图一起）到这里<br>也可额外拖入 VRM Animation <code>.vrma</code> 动画文件</p>
-          <div class="hint" data-i18n="drop_zone_hint">支持：.fbx/.vrm/.pmx（必选其一）、VRMA：.vrma（可选，仅对 VRM 生效）、贴图（可选：.png/.jpg/.jpeg/.bmp/.tga 等）</div>
+          <p data-i18n="drop_zone_text">拖拽 FBX / VRM / PMX（可连同贴图一起）到这里<br>也可额外拖入 VRMA <code>.vrma</code>（给 VRM）或 VMD <code>.vmd</code>（给 PMX）动画文件</p>
+
+          <div class="hint" data-i18n="drop_zone_hint">支持：.fbx/.vrm/.pmx（必选其一）、VRMA：.vrma（可选，仅对 VRM 生效）、VMD：.vmd（可选，仅对 PMX 生效）、贴图（可选：.png/.jpg/.jpeg/.bmp/.tga 等）</div>
         </div>
-        <input id="fileInput" type="file" accept=".fbx,.vrm,.pmx,.pmd,.vrma,image/*,.tga,.bmp,.dds" multiple hidden />
+        <input id="fileInput" type="file" accept=".fbx,.vrm,.pmx,.pmd,.vrma,.vmd,image/*,.tga,.bmp,.dds" multiple hidden />
+
 
 
         <div class="info" id="fileInfo" style="display:none;">

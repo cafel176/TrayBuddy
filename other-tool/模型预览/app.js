@@ -87,6 +87,10 @@ let clips = [];
 /** @type {any|null} */
 let currentVrm = null;
 
+/** @type {{mesh:any, ikSolver:any, grantSolver:any, backupBones:Float32Array|null}|null} */
+let currentMmd = null;
+
+
 let isPlaying = false;
 let isScrubbing = false;
 
@@ -136,6 +140,10 @@ function disposeModel() {
   // Dispose VRM if exists
   const vrm = currentVrm;
   currentVrm = null;
+
+  // Dispose MMD runtime
+  currentMmd = null;
+
 
   if (vrm?.scene) {
     try {
@@ -647,7 +655,297 @@ async function applyVrmaToCurrentModel(vrmaFile) {
   }
 }
 
+// --- MMD (PMX + VMD) helpers ---
+function makeBlobUrlWithExt(file, ext) {
+  const baseUrl = URL.createObjectURL(file);
+  // Add a fragment so loaders can infer extension from URL.
+  return { baseUrl, url: baseUrl + `#file.${ext}` };
+}
+
+async function loadVmdAnimationForMesh(loader, mesh, vmdFiles) {
+  const list = Array.from(vmdFiles || []).filter(Boolean);
+  if (!list.length) return null;
+
+  const urls = [];
+  try {
+    for (const f of list) {
+      urls.push(makeBlobUrlWithExt(f, 'vmd'));
+    }
+
+    const input = urls.length === 1 ? urls[0].url : urls.map(u => u.url);
+
+    const clip = await new Promise((resolve, reject) => {
+      loader.loadAnimation(
+        input,
+        mesh,
+        (anim) => resolve(anim),
+        (ev) => {
+          if (ev?.total) {
+            const p = Math.round((ev.loaded / ev.total) * 100);
+            loadingText.textContent = (t('loading_progress') || '正在加载... {p}%').replace('{p}', String(p));
+          }
+        },
+        (err) => reject(err)
+      );
+    });
+
+    return clip;
+  } finally {
+    for (const u of urls) {
+      try { URL.revokeObjectURL(u.baseUrl); } catch {}
+    }
+  }
+}
+
+function createMmdIkSolver(mesh, iks = []) {
+  const _q = new THREE.Quaternion();
+  const _targetPos = new THREE.Vector3();
+  const _targetVec = new THREE.Vector3();
+  const _effectorPos = new THREE.Vector3();
+  const _effectorVec = new THREE.Vector3();
+  const _linkPos = new THREE.Vector3();
+  const _invLinkQ = new THREE.Quaternion();
+  const _linkScale = new THREE.Vector3();
+  const _axis = new THREE.Vector3();
+  const _vector = new THREE.Vector3();
+
+  return {
+    mesh,
+    iks,
+
+    update() {
+      for (let i = 0; i < (this.iks?.length || 0); i++) {
+        this.updateOne(this.iks[i]);
+      }
+    },
+
+    updateOne(ik) {
+      const bones = this.mesh?.skeleton?.bones;
+      if (!bones || !ik) return;
+
+      const effector = bones[ik.effector];
+      const target = bones[ik.target];
+      if (!effector || !target) return;
+
+      _targetPos.setFromMatrixPosition(target.matrixWorld);
+
+      const links = ik.links || [];
+      const iteration = ik.iteration !== undefined ? ik.iteration : 1;
+
+      for (let i = 0; i < iteration; i++) {
+        let rotated = false;
+
+        for (let j = 0; j < links.length; j++) {
+          const linkBone = bones[links[j].index];
+          if (!linkBone) continue;
+
+          // MMD performance optimization: skip following links
+          if (links[j].enabled === false) break;
+
+          const limitation = links[j].limitation;
+          const rotationMin = links[j].rotationMin;
+          const rotationMax = links[j].rotationMax;
+
+          linkBone.matrixWorld.decompose(_linkPos, _invLinkQ, _linkScale);
+          _invLinkQ.invert();
+          _effectorPos.setFromMatrixPosition(effector.matrixWorld);
+
+          _effectorVec.subVectors(_effectorPos, _linkPos);
+          _effectorVec.applyQuaternion(_invLinkQ);
+          _effectorVec.normalize();
+
+          _targetVec.subVectors(_targetPos, _linkPos);
+          _targetVec.applyQuaternion(_invLinkQ);
+          _targetVec.normalize();
+
+          let angle = _targetVec.dot(_effectorVec);
+          angle = Math.min(1, Math.max(-1, angle));
+          angle = Math.acos(angle);
+
+          if (angle < 1e-5) continue;
+
+          if (ik.minAngle !== undefined && angle < ik.minAngle) angle = ik.minAngle;
+          if (ik.maxAngle !== undefined && angle > ik.maxAngle) angle = ik.maxAngle;
+
+          _axis.crossVectors(_effectorVec, _targetVec);
+          _axis.normalize();
+
+          _q.setFromAxisAngle(_axis, angle);
+          linkBone.quaternion.multiply(_q);
+
+          if (limitation !== undefined) {
+            // NOTE: This is how three.js defines limitation; keep compatible.
+            let c = linkBone.quaternion.w;
+            c = Math.min(1, Math.max(-1, c));
+            const c2 = Math.sqrt(Math.max(0, 1 - c * c));
+            linkBone.quaternion.set(limitation.x * c2, limitation.y * c2, limitation.z * c2, c);
+          }
+
+          if (rotationMin !== undefined) {
+            linkBone.rotation.setFromVector3(_vector.setFromEuler(linkBone.rotation).max(rotationMin));
+          }
+
+          if (rotationMax !== undefined) {
+            linkBone.rotation.setFromVector3(_vector.setFromEuler(linkBone.rotation).min(rotationMax));
+          }
+
+          linkBone.updateMatrixWorld(true);
+          rotated = true;
+        }
+
+        if (!rotated) break;
+      }
+    },
+  };
+}
+
+function createMmdGrantSolver(mesh, grants = []) {
+  const _q = new THREE.Quaternion();
+
+  return {
+    mesh,
+    grants,
+
+    update() {
+      for (let i = 0; i < (this.grants?.length || 0); i++) {
+        this.updateOne(this.grants[i]);
+      }
+    },
+
+    updateOne(grant) {
+      const bones = this.mesh?.skeleton?.bones;
+      if (!bones || !grant) return;
+
+      const bone = bones[grant.index];
+      const parentBone = bones[grant.parentIndex];
+      if (!bone || !parentBone) return;
+
+      // Most PMX uses global grant.
+      if (grant.affectRotation) {
+        _q.set(0, 0, 0, 1);
+        _q.slerp(parentBone.quaternion, grant.ratio ?? 1);
+        bone.quaternion.multiply(_q);
+      }
+
+      if (grant.affectPosition) {
+        // Best-effort: local position add.
+        bone.position.addScaledVector(parentBone.position, grant.ratio ?? 1);
+      }
+    },
+  };
+}
+
+function ensureMmdRuntime(mesh) {
+  const mmd = mesh?.geometry?.userData?.MMD;
+  if (!mesh?.skeleton || !mmd) return null;
+
+  const ikSolver = (Array.isArray(mmd.iks) && mmd.iks.length) ? createMmdIkSolver(mesh, mmd.iks) : null;
+  const grantSolver = (Array.isArray(mmd.grants) && mmd.grants.length) ? createMmdGrantSolver(mesh, mmd.grants) : null;
+
+  return {
+    mesh,
+    ikSolver,
+    grantSolver,
+    backupBones: null,
+  };
+}
+
+function mmdRestoreBones(mmdState) {
+  const mesh = mmdState?.mesh;
+  const bones = mesh?.skeleton?.bones;
+  const backup = mmdState?.backupBones;
+  if (!mesh || !bones || !backup) return;
+
+  for (let i = 0; i < bones.length; i++) {
+    bones[i].position.fromArray(backup, i * 7);
+    bones[i].quaternion.fromArray(backup, i * 7 + 3);
+  }
+}
+
+function mmdSaveBones(mmdState) {
+  const mesh = mmdState?.mesh;
+  const bones = mesh?.skeleton?.bones;
+  if (!mesh || !bones) return;
+
+  if (!mmdState.backupBones || mmdState.backupBones.length !== bones.length * 7) {
+    mmdState.backupBones = new Float32Array(bones.length * 7);
+  }
+
+  const backup = mmdState.backupBones;
+  for (let i = 0; i < bones.length; i++) {
+    bones[i].position.toArray(backup, i * 7);
+    bones[i].quaternion.toArray(backup, i * 7 + 3);
+  }
+}
+
+function updateMmdAnimation(dt) {
+  if (!currentMmd || !mixer) return;
+
+  // Avoid accumulating IK/Grant transforms across frames
+  mmdRestoreBones(currentMmd);
+
+  // Apply VMD keyframes
+  mixer.update(dt);
+
+  // Backup bone pose for next frame
+  mmdSaveBones(currentMmd);
+
+  // Apply IK and Grant
+  if (currentMmd.ikSolver) {
+    currentMmd.mesh.updateMatrixWorld(true);
+    currentMmd.ikSolver.update();
+  }
+  if (currentMmd.grantSolver) {
+    currentMmd.grantSolver.update();
+  }
+}
+
+async function applyVmdToCurrentPmx(vmdFiles) {
+  if (!model || !model.isSkinnedMesh) {
+    setStatus('请先加载 PMX/PMD 模型，再导入 .vmd 动画。', 'err');
+    return;
+  }
+
+  setLoading(true, '正在加载 VMD...');
+  setStatus('');
+
+  try {
+    const manager = new THREE.LoadingManager();
+    manager.setURLModifier(urlModifier);
+
+    const loader = new MMDLoader(manager);
+    const clip = await loadVmdAnimationForMesh(loader, model, vmdFiles);
+
+    if (!clip) {
+      setStatus('未找到可用的 .vmd 动画文件。', 'err');
+      return;
+    }
+
+    currentMmd = ensureMmdRuntime(model);
+
+    clips = [clip];
+    animCountEl.textContent = String(clips.length);
+    populateAnimations();
+
+    mixer = new THREE.AnimationMixer(model);
+    setSpeedValue(Number(speed.value || 1));
+    setUiEnabled(true);
+    playSelectedAnimation(true);
+
+    // Initialize backup after first evaluation
+    mmdSaveBones(currentMmd);
+
+    setStatus('VMD 已加载并开始播放。', 'ok');
+  } catch (e) {
+    console.error(e);
+    setStatus('VMD 加载失败：' + String(e?.message || e), 'err');
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function loadFbxFromFiles(files) {
+
 
   const list = Array.from(files || []);
   const fbx = list.find(f => (f.name || '').toLowerCase().endsWith('.fbx'));
@@ -813,7 +1111,7 @@ async function loadVrmFromFiles(files) {
   }
 }
 
-async function loadPmxFromFiles(files) {
+async function loadPmxFromFiles(files, vmdFiles = []) {
   const list = Array.from(files || []);
   const pmxFile = list.find(f => (f.name || '').toLowerCase().endsWith('.pmx'))
     || list.find(f => (f.name || '').toLowerCase().endsWith('.pmd'));
@@ -873,27 +1171,57 @@ async function loadPmxFromFiles(files) {
     fitCameraToObject(model);
 
     modelNameEl.textContent = pmxFile.name;
-    animCountEl.textContent = String(clips.length);
     fileInfo.style.display = '';
 
-    populateAnimations();
-
-    if (clips.length > 0) {
-      mixer = new THREE.AnimationMixer(model);
-      setSpeedValue(1);
-      setUiEnabled(true);
-      playSelectedAnimation(true);
-      setStatus((t('msg_loaded') || '已加载') + ` (${clips.length} anim)`, 'ok');
+    // Optional: load VMD and play
+    if (Array.isArray(vmdFiles) && vmdFiles.length > 0) {
+      loadingText.textContent = '正在加载 VMD...';
+      const clip = await loadVmdAnimationForMesh(loader, model, vmdFiles);
+      if (clip) {
+        currentMmd = ensureMmdRuntime(model);
+        clips = [clip];
+        mixer = new THREE.AnimationMixer(model);
+        setSpeedValue(1);
+        setUiEnabled(true);
+        animCountEl.textContent = String(clips.length);
+        populateAnimations();
+        playSelectedAnimation(true);
+        mmdSaveBones(currentMmd);
+        setStatus((t('msg_loaded') || '已加载') + ` (${clips.length} anim; VMD)`, 'ok');
+      } else {
+        currentMmd = null;
+        animCountEl.textContent = String(clips.length);
+        populateAnimations();
+        setUiEnabled(true);
+        animSelect.disabled = true;
+        playBtn.disabled = true;
+        pauseBtn.disabled = true;
+        timeline.disabled = true;
+        setStatus((t('msg_loaded') || '已加载') + '（VMD 加载失败；请检查 .vmd 文件）', 'err');
+      }
     } else {
-      mixer = null;
-      action = null;
-      setUiEnabled(true);
-      animSelect.disabled = true;
-      playBtn.disabled = true;
-      pauseBtn.disabled = true;
-      timeline.disabled = true;
-      setStatus((t('msg_loaded') || '已加载') + '（未发现动画；PMX 动画通常需要另导入 .vmd）', 'ok');
+      currentMmd = null;
+      animCountEl.textContent = String(clips.length);
+      populateAnimations();
+
+      if (clips.length > 0) {
+        mixer = new THREE.AnimationMixer(model);
+        setSpeedValue(1);
+        setUiEnabled(true);
+        playSelectedAnimation(true);
+        setStatus((t('msg_loaded') || '已加载') + ` (${clips.length} anim)`, 'ok');
+      } else {
+        mixer = null;
+        action = null;
+        setUiEnabled(true);
+        animSelect.disabled = true;
+        playBtn.disabled = true;
+        pauseBtn.disabled = true;
+        timeline.disabled = true;
+        setStatus((t('msg_loaded') || '已加载') + '（未发现动画；PMX 动画通常需要另导入 .vmd）', 'ok');
+      }
     }
+
   } catch (e) {
     console.error(e);
     setStatus((t('msg_failed') || '加载失败：') + ' ' + String(e?.message || e), 'err');
@@ -906,7 +1234,13 @@ async function loadAnyModelFromFiles(files) {
   const listAll = Array.from(files || []);
 
   const vrmaFile = listAll.find(f => (f.name || '').toLowerCase().endsWith('.vrma')) || null;
-  const list = listAll.filter(f => !((f.name || '').toLowerCase().endsWith('.vrma')));
+  const vmdFiles = listAll.filter(f => (f.name || '').toLowerCase().endsWith('.vmd'));
+
+  // Exclude non-texture animation containers from model/texture pipeline
+  const list = listAll.filter(f => {
+    const n = (f.name || '').toLowerCase();
+    return !(n.endsWith('.vrma') || n.endsWith('.vmd'));
+  });
 
   const hasVrm = list.some(f => (f.name || '').toLowerCase().endsWith('.vrm'));
   const hasFbx = list.some(f => (f.name || '').toLowerCase().endsWith('.fbx'));
@@ -914,6 +1248,10 @@ async function loadAnyModelFromFiles(files) {
     || list.some(f => (f.name || '').toLowerCase().endsWith('.pmd'));
 
   if (hasVrm) {
+    if (vmdFiles.length) {
+      setStatus('已检测到 .vmd，但 VMD 目前仅支持 PMX/PMD。', 'err');
+    }
+
     await loadVrmFromFiles(list);
     if (vrmaFile) await applyVrmaToCurrentModel(vrmaFile);
     return;
@@ -921,24 +1259,31 @@ async function loadAnyModelFromFiles(files) {
 
   if (hasFbx) {
     if (vrmaFile) setStatus('已检测到 .vrma，但 VRMA 目前仅支持 VRM 模型（.vrm）。', 'err');
+    if (vmdFiles.length) setStatus('已检测到 .vmd，但 VMD 目前仅支持 PMX/PMD。', 'err');
     await loadFbxFromFiles(list);
     return;
   }
 
   if (hasPmx) {
     if (vrmaFile) setStatus('已检测到 .vrma，但 VRMA 目前仅支持 VRM 模型（.vrm）。', 'err');
-    await loadPmxFromFiles(list);
+    await loadPmxFromFiles(list, vmdFiles);
     return;
   }
 
+  // Only animation file(s) provided
   if (vrmaFile) {
-    // Only VRMA provided: apply to currently loaded VRM
     await applyVrmaToCurrentModel(vrmaFile);
+    return;
+  }
+
+  if (vmdFiles.length) {
+    await applyVmdToCurrentPmx(vmdFiles);
     return;
   }
 
   setStatus(t('msg_need_model') || '请提供 .fbx / .vrm / .pmx 文件', 'err');
 }
+
 
 
 // UI events
@@ -1005,8 +1350,27 @@ timeline.addEventListener('input', () => {
   const p = Number(timeline.value || 0);
   const target = d * p;
   action.time = target;
-  if (mixer) mixer.setTime(target);
+
+  if (mixer) {
+    if (currentMmd) {
+      // Keep IK/Grant consistent while scrubbing
+      mmdRestoreBones(currentMmd);
+      mixer.setTime(target);
+      mmdSaveBones(currentMmd);
+      if (currentMmd.ikSolver) {
+        currentMmd.mesh.updateMatrixWorld(true);
+        currentMmd.ikSolver.update();
+      }
+      if (currentMmd.grantSolver) {
+        currentMmd.grantSolver.update();
+      }
+    } else {
+      mixer.setTime(target);
+    }
+  }
+
   updateTimeUi();
+
 });
 
 timeline.addEventListener('change', () => {
@@ -1025,8 +1389,13 @@ function animate() {
 
   if (mixer && isPlaying && !isScrubbing) {
     // timeScale 已由 speed 控制
-    mixer.update(dt);
+    if (currentMmd) {
+      updateMmdAnimation(dt);
+    } else {
+      mixer.update(dt);
+    }
   }
+
 
   controls.update();
   renderer.render(scene, camera);
