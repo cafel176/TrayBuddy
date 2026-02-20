@@ -253,6 +253,7 @@
       getBorderPlayerReady: () => Boolean(borderAnimator),
       onCharacterConfigLoaded: handleCharacterConfig,
     },
+    windowType: "sequence",
   });
 
   async function initSequenceMemoryDebug() {

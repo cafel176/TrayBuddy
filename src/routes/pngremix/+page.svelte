@@ -218,6 +218,7 @@ PngRemix 渲染层暂为空占位。
       },
       skipBackendCursorIcon: true,
     },
+    windowType: "pngremix",
   });
 
   onMount(() => {

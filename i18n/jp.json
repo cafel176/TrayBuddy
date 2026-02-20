@@ -56,7 +56,12 @@
     "layout": "レイアウト"
   },
   "layout": {
-    "title": "アニメーションウィンドウレイアウトデバッガー",
+    "title": "レンダリングウィンドウレイアウトデバッガー",
+    "currentWindowType": "現在のウィンドウタイプ",
+    "windowTypeSequence": "シーケンスアニメ",
+    "windowTypeLive2D": "Live2D",
+    "windowTypePngRemix": "PngRemix",
+    "windowType3D": "3D",
     "canvasInfo": "キャンバス詳細情報",
     "debugBorders": "ビジュアルデバッグ",
     "enableBorders": "ランダムカラー枠を表示",
@@ -67,10 +72,13 @@
     "canvasDisplay": "表示サイズ",
     "canvasZIndex": "レイヤー",
     "characterCanvas": "キャラクターキャンバス",
+    "canvasLive2D": "Live2D キャンバス",
+    "canvasPngRemix": "PngRemix キャンバス",
+    "canvas3D": "3D キャンバス",
     "borderCanvas": "ボーダーキャンバス",
     "bubbleArea": "フキダシエリア",
     "bubbleCanvas": "フキダシ内容",
-    "noAnimationWindow": "アニメーションウィンドウが見つかりません",
+    "noRenderWindow": "レンダリングウィンドウが見つかりません",
     "waitingInfo": "データを取得中...",
     "style": "スタイル",
     "opacity": "不透明度"

@@ -213,6 +213,7 @@
       },
       skipBackendCursorIcon: true,
     },
+    windowType: "3d",
   });
 
   onMount(() => {

@@ -417,6 +417,7 @@ Live2D 渲染层暂为空占位。
         live2dPlayer?.updateGlobalMouseFollow(localX, localY);
       },
     },
+    windowType: "live2d",
   });
 
   onMount(() => {

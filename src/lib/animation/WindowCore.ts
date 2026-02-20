@@ -108,12 +108,17 @@ export type WindowCore = {
   handleContextMenu: (e: MouseEvent) => void;
 };
 
+export type WindowType = "sequence" | "live2d" | "pngremix" | "3d";
+
 export function createWindowCore(options: {
   bindings: WindowCoreBindings;
   refs: WindowCoreRefs;
   callbacks: WindowCoreCallbacks;
+  /** 当前渲染窗口类型，用于布局调试器区分不同窗口 */
+  windowType?: WindowType;
 }): WindowCore {
   const { bindings, refs, callbacks } = options;
+  const windowType: WindowType = options.windowType ?? "sequence";
 
   let audioManager: AudioManager | null = null;
   let triggerManager: TriggerManager | null = null;
@@ -1055,7 +1060,7 @@ export function createWindowCore(options: {
         const bubbleInfo = getInfo(bubbleEl, "bubbleCanvas");
         if (bubbleInfo) info.push(bubbleInfo);
 
-        emit("layout-info", info);
+        emit("layout-info", { windowType, canvases: info });
       });
 
       await listen<boolean>("toggle-debug-borders", (event) => {

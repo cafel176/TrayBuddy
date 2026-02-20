@@ -56,7 +56,12 @@
     "layout": "布局渲染"
   },
   "layout": {
-    "title": "动画窗口布局调试",
+    "title": "渲染窗口布局调试",
+    "currentWindowType": "当前窗口类型",
+    "windowTypeSequence": "序列帧动画",
+    "windowTypeLive2D": "Live2D",
+    "windowTypePngRemix": "PngRemix",
+    "windowType3D": "3D",
     "canvasInfo": "画布详细信息",
     "debugBorders": "可视化调试",
     "enableBorders": "开启随机颜色边框",
@@ -67,10 +72,13 @@
     "canvasDisplay": "显示尺寸",
     "canvasZIndex": "层级",
     "characterCanvas": "角色画布",
+    "canvasLive2D": "Live2D 画布",
+    "canvasPngRemix": "PngRemix 画布",
+    "canvas3D": "3D 画布",
     "borderCanvas": "边框画布",
     "bubbleArea": "气泡区域",
     "bubbleCanvas": "气泡内容",
-    "noAnimationWindow": "未检测到动画窗口",
+    "noRenderWindow": "未检测到渲染窗口",
     "waitingInfo": "正在请求布局数据...",
     "style": "样式",
     "opacity": "不透明度"

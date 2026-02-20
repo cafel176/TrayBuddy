@@ -56,7 +56,12 @@
     "layout": "Layout"
   },
   "layout": {
-    "title": "Animation Window Layout Debugger",
+    "title": "Render Window Layout Debugger",
+    "currentWindowType": "Current Window Type",
+    "windowTypeSequence": "Sequence Animation",
+    "windowTypeLive2D": "Live2D",
+    "windowTypePngRemix": "PngRemix",
+    "windowType3D": "3D",
     "canvasInfo": "Canvas Detailed Info",
     "debugBorders": "Visual Debugging",
     "enableBorders": "Enable Random Color Borders",
@@ -67,10 +72,13 @@
     "canvasDisplay": "Display Size",
     "canvasZIndex": "Z-Index",
     "characterCanvas": "Character Canvas",
+    "canvasLive2D": "Live2D Canvas",
+    "canvasPngRemix": "PngRemix Canvas",
+    "canvas3D": "3D Canvas",
     "borderCanvas": "Border Canvas",
     "bubbleArea": "Bubble Area",
     "bubbleCanvas": "Bubble Content",
-    "noAnimationWindow": "Animation window not detected",
+    "noRenderWindow": "No render window detected",
     "waitingInfo": "Requesting layout data...",
     "style": "Style",
     "opacity": "Opacity"

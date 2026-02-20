@@ -1,12 +1,13 @@
 <!--
 ========================================================================= 
-动画窗口布局监视器 (LayoutDebugger.svelte)
+渲染窗口布局监视器 (LayoutDebugger.svelte)
 =========================================================================
 
 功能概述:
-- 监视 animation 窗口内主要元素的布局信息（Canvas 尺寸、Z-Index 等）
+- 监视当前活跃渲染窗口（Sequence / Live2D / PngRemix / 3D）的布局信息
+- 显示当前窗口类型和画布元素的尺寸、层级等详细数据
 - 提供跨窗口控制，实现可视化调试边框切换
-- 与 animation 窗口通过 Tauri 事件进行实时数据同步
+- 与渲染窗口通过 Tauri 事件进行实时数据同步
 =========================================================================
 -->
 
@@ -27,12 +28,23 @@
         opacity: string;
     }
 
+    /** 布局信息事件载荷（含窗口类型） */
+    interface LayoutInfoPayload {
+        windowType: string;
+        canvases: CanvasLayoutInfo[];
+    }
+
+    type WindowType = "sequence" | "live2d" | "pngremix" | "3d";
+
     // ======================================================================= //
     // 响应式状态
     // ======================================================================= //
 
     /** 调试边框状态 */
     let debugBorders = $state(false);
+
+    /** 当前检测到的渲染窗口类型 */
+    let currentWindowType = $state<WindowType | null>(null);
 
     /** 当前捕获到的画布信息 */
     let canvases = $state<CanvasLayoutInfo[]>([]);
@@ -51,17 +63,81 @@
     }
 
     // ======================================================================= //
+    // 窗口类型相关工具函数
+    // ======================================================================= //
+
+    /** 获取窗口类型的显示文本 */
+    function getWindowTypeLabel(wt: WindowType): string {
+        switch (wt) {
+            case "sequence": return _("layout.windowTypeSequence");
+            case "live2d": return _("layout.windowTypeLive2D");
+            case "pngremix": return _("layout.windowTypePngRemix");
+            case "3d": return _("layout.windowType3D");
+            default: return wt;
+        }
+    }
+
+    /** 获取窗口类型对应的 badge 颜色 */
+    function getWindowTypeBadgeClass(wt: WindowType): string {
+        switch (wt) {
+            case "sequence": return "badge-sequence";
+            case "live2d": return "badge-live2d";
+            case "pngremix": return "badge-pngremix";
+            case "3d": return "badge-3d";
+            default: return "";
+        }
+    }
+
+    /** 获取画布名称的显示文本（根据窗口类型映射） */
+    function getCanvasLabel(name: string): string {
+        switch (name) {
+            case "character": {
+                // 根据窗口类型显示更具体的名称
+                switch (currentWindowType) {
+                    case "live2d": return _("layout.canvasLive2D");
+                    case "pngremix": return _("layout.canvasPngRemix");
+                    case "3d": return _("layout.canvas3D");
+                    default: return _("layout.characterCanvas");
+                }
+            }
+            case "border": return _("layout.borderCanvas");
+            case "bubbleArea": return _("layout.bubbleArea");
+            case "bubbleCanvas": return _("layout.bubbleCanvas");
+            default: return name;
+        }
+    }
+
+    /** 获取画布名称对应的图标 */
+    function getCanvasIcon(name: string): string {
+        switch (name) {
+            case "character": {
+                switch (currentWindowType) {
+                    case "live2d": return "🎭";
+                    case "pngremix": return "🧩";
+                    case "3d": return "🎮";
+                    default: return "🎬";
+                }
+            }
+            case "border": return "🖼️";
+            case "bubbleArea": return "☁️";
+            case "bubbleCanvas": return "💬";
+            default: return "📦";
+        }
+    }
+
+    // ======================================================================= //
     // 功能函数
     // ======================================================================= //
 
     /**
      * 刷新布局信息
-     * 向 animation 窗口请求最新的 DOM/Canvas 数据
+     * 向渲染窗口请求最新的 DOM/Canvas 数据
      */
     async function refreshLayout() {
         loading = true;
         canvases = [];
-        // 发送请求给动画窗口
+        currentWindowType = null;
+        // 发送请求给渲染窗口
         await emit("request-layout-info");
 
         // 1秒后如果还没响应则结束加载状态
@@ -91,11 +167,19 @@
 
         // 异步初始化
         const init = async () => {
-            // 监听动画窗口传回的布局数据
-            unlistenInfo = await listen<CanvasLayoutInfo[]>(
+            // 监听渲染窗口传回的布局数据（新格式：含 windowType）
+            unlistenInfo = await listen<LayoutInfoPayload | CanvasLayoutInfo[]>(
                 "layout-info",
                 (event) => {
-                    canvases = event.payload;
+                    const payload = event.payload;
+                    // 兼容旧格式（纯数组）和新格式（含 windowType）
+                    if (Array.isArray(payload)) {
+                        canvases = payload;
+                        currentWindowType = null;
+                    } else {
+                        canvases = payload.canvases;
+                        currentWindowType = (payload.windowType as WindowType) || null;
+                    }
                     loading = false;
                 },
             );
@@ -103,7 +187,7 @@
             // 初始加载
             refreshLayout();
 
-            // 通知动画窗口：布局调试页签已激活
+            // 通知渲染窗口：布局调试页签已激活
             await emit("layout-debugger-status", true);
         };
 
@@ -112,7 +196,7 @@
         return () => {
             unlistenInfo?.();
             unsubLang?.();
-            // 通知动画窗口：布局调试页签已关闭
+            // 通知渲染窗口：布局调试页签已关闭
             emit("layout-debugger-status", false);
         };
     });
@@ -120,6 +204,16 @@
 
 <div class="layout-debugger">
     <h3>{_("layout.title")}</h3>
+
+    <!-- 当前窗口类型指示器 -->
+    {#if currentWindowType}
+        <div class="window-type-indicator">
+            <span class="wt-label">{_("layout.currentWindowType")}</span>
+            <span class="wt-badge {getWindowTypeBadgeClass(currentWindowType)}">
+                {getWindowTypeLabel(currentWindowType)}
+            </span>
+        </div>
+    {/if}
 
     <!-- 可视化控制区域 -->
     <div class="section controls">
@@ -154,22 +248,9 @@
                     <div class="canvas-card">
                         <div class="card-title">
                             <span class="icon">
-                                {#if canvas.name === "character"}🎬
-                                {:else if canvas.name === "border"}🖼️
-                                {:else if canvas.name === "bubbleArea"}☁️
-                                {:else if canvas.name === "bubbleCanvas"}💬
-                                {:else}📦
-                                {/if}
+                                {getCanvasIcon(canvas.name)}
                             </span>
-                            {canvas.name === "character"
-                                ? _("layout.characterCanvas")
-                                : canvas.name === "border"
-                                  ? _("layout.borderCanvas")
-                                  : canvas.name === "bubbleArea"
-                                    ? _("layout.bubbleArea")
-                                    : canvas.name === "bubbleCanvas"
-                                      ? _("layout.bubbleCanvas")
-                                      : canvas.name}
+                            {getCanvasLabel(canvas.name)}
                         </div>
                         <div class="info-rows">
                             <div class="row">
@@ -208,7 +289,7 @@
             </div>
         {:else}
             <div class="empty-state">
-                <p>{_("layout.noAnimationWindow")}</p>
+                <p>{_("layout.noRenderWindow")}</p>
             </div>
         {/if}
     </div>
@@ -250,6 +331,55 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 12px;
+    }
+
+    /* ----------------------------------------------------------------------- */
+    /* 窗口类型指示器 */
+    /* ----------------------------------------------------------------------- */
+
+    .window-type-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+    }
+
+    .wt-label {
+        font-size: 0.85em;
+        color: #95a5a6;
+        font-weight: 500;
+    }
+
+    .wt-badge {
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.85em;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-sequence {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .badge-live2d {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .badge-pngremix {
+        background: #fce4ec;
+        color: #c62828;
+    }
+
+    .badge-3d {
+        background: #f3e5f5;
+        color: #7b1fa2;
     }
 
     /* ----------------------------------------------------------------------- */
@@ -425,6 +555,35 @@
 
         h4 {
             color: #bdc3c7;
+        }
+
+        .window-type-indicator {
+            background: #34495e;
+            border-color: #455a64;
+        }
+
+        .wt-label {
+            color: #95a5a6;
+        }
+
+        .badge-sequence {
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+
+        .badge-live2d {
+            background: #0d47a1;
+            color: #90caf9;
+        }
+
+        .badge-pngremix {
+            background: #880e4f;
+            color: #f48fb1;
+        }
+
+        .badge-3d {
+            background: #4a148c;
+            color: #ce93d8;
         }
 
         .control-card {
