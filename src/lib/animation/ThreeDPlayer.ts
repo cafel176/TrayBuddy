@@ -303,6 +303,12 @@ export class ThreeDPlayer {
   private playTimer: ReturnType<typeof setTimeout> | null = null;
   private animationScale = 1;
 
+  /** 当前生效的模型缩放（model.scale * state.scale） */
+  private currentModelScale = 1;
+  /** 当前生效的偏移（model offset + state offset） */
+  private currentOffsetX = 0;
+  private currentOffsetY = 0;
+
   private isRendering = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -381,6 +387,9 @@ export class ThreeDPlayer {
     this.gltfLoader = null;
     this.clipCache.clear();
     this.config = null;
+    this.currentModelScale = 1;
+    this.currentOffsetX = 0;
+    this.currentOffsetY = 0;
 
     dbg("destroy", "done");
   }
@@ -443,6 +452,11 @@ export class ThreeDPlayer {
 
     this.scene.add(this.model);
 
+    // Apply model-level scale & offset
+    this.currentModelScale = config.model.scale || 1;
+    this.currentOffsetX = config.model.offset_x || 0;
+    this.currentOffsetY = config.model.offset_y || 0;
+
     // Create mixer
     this.mixer = new THREE.AnimationMixer(this.model);
 
@@ -474,12 +488,24 @@ export class ThreeDPlayer {
 
     // Resolve animation name
     let animationName = assetName;
+    let stateScale = 1;
+    let stateOffsetX = 0;
+    let stateOffsetY = 0;
     const stateEntry = this.config.states?.find(
       (s: ThreeDState) => s.state === assetName,
     );
     if (stateEntry) {
       animationName = stateEntry.animation;
+      stateScale = stateEntry.scale || 1;
+      stateOffsetX = stateEntry.offset_x || 0;
+      stateOffsetY = stateEntry.offset_y || 0;
     }
+
+    // Apply state-level scale/offset override (composed with model-level)
+    this.currentModelScale = (this.config.model.scale || 1) * stateScale;
+    this.currentOffsetX = (this.config.model.offset_x || 0) + stateOffsetX;
+    this.currentOffsetY = (this.config.model.offset_y || 0) + stateOffsetY;
+    this.fitCameraToModel();
 
     // Find animation config
     const animConfig = this.config.animations.find(
@@ -739,12 +765,17 @@ export class ThreeDPlayer {
     // Calculate camera distance to fit the model height in view
     const fov = this.camera.fov * (Math.PI / 180);
     const modelHeight = size.y;
-    // Add padding (fill ~85% of viewport height)
-    const fitDistance = (modelHeight / 2) / Math.tan(fov / 2) * 1.15;
+    const effectiveScale = this.currentModelScale * this.animationScale;
+    // Fill ~95% of viewport height (minimal padding), then adjust by scale
+    const fitDistance = (modelHeight / 2) / Math.tan(fov / 2) * 0.85 / effectiveScale;
 
-    // Look at model center
-    this.camera.position.set(center.x, center.y, fitDistance);
-    this.camera.lookAt(center.x, center.y, center.z);
+    // Apply offset (in model-space units)
+    const offsetX = this.currentOffsetX * modelHeight;
+    const offsetY = this.currentOffsetY * modelHeight;
+
+    // Look at model center with offset
+    this.camera.position.set(center.x + offsetX, center.y + offsetY, fitDistance);
+    this.camera.lookAt(center.x + offsetX, center.y + offsetY, center.z);
     this.camera.updateProjectionMatrix();
   }
 

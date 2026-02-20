@@ -393,12 +393,20 @@
         {
           "persistent_state": "idle",
           "states": [
+            {
+              "state": "idle_2",
+              "weight": 1
+            }
           ],
           "allow_repeat": false
         },
         {
           "persistent_state": "music",
           "states": [
+            {
+              "state": "idle_2",
+              "weight": 1
+            }
           ],
           "allow_repeat": false
         }
@@ -424,16 +432,6 @@
     {
       "event": "login",
       "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            {
-              "state": "idle_1",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
       ]
     },
     {

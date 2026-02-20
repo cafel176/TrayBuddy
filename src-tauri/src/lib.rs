@@ -1789,6 +1789,9 @@ pub fn run() {
                 Some(ModType::Pngremix) => {
                     inner_create_pngremix_window(app.handle())?;
                 }
+                Some(ModType::ThreeD) => {
+                    inner_create_threed_window(app.handle())?;
+                }
                 _ => {
                     // 默认（Sequence 或无 Mod）创建序列帧动画窗口
                     inner_create_animation_window(app.handle())?;
