@@ -628,12 +628,17 @@ const processor = {
   },
 
   downloadBlob(blob, name) {
+    if (typeof window.downloadBlob === 'function') {
+      window.downloadBlob(blob, name, { revokeDelay: 10000, appendToBody: false });
+      return;
+    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
+
 };
 
 // --- 8. 事件处理 ---

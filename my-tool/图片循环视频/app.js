@@ -571,14 +571,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function downloadBlob(blob, filename) {
+    const downloadBlob = (blob, filename) => {
+        if (typeof window.downloadBlob === 'function') {
+            window.downloadBlob(blob, filename, { revokeDelay: 0, appendToBody: false });
+            return;
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
-    }
+    };
+
 
     // --- Language Change Handler ---
     window.addEventListener('languageChanged', () => {

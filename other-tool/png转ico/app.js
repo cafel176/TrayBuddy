@@ -133,6 +133,10 @@ fileInput.addEventListener('change', (e) => {
 clearBtn.addEventListener('click', clearAll);
 
 function downloadBlob(blob, fileName) {
+  if (typeof window.downloadBlob === 'function') {
+    window.downloadBlob(blob, fileName, { revokeDelay: 1000, appendToBody: true });
+    return;
+  }
   const a = document.createElement('a');
   const url = URL.createObjectURL(blob);
   a.href = url;
@@ -142,6 +146,7 @@ function downloadBlob(blob, fileName) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
 
 async function fileToImage(file) {
   const url = URL.createObjectURL(file);
