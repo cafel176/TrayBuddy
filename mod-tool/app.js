@@ -796,7 +796,7 @@ async function loadModTbuddy() {
     
     currentMod = {
       manifest: manifest,
-      assets: { sequence: [], img: [], live2d: null, pngremix: null },
+      assets: { sequence: [], img: [], live2d: null, pngremix: null, threed: null },
       texts: {},
       audio: {},
       bubbleStyle: null,
@@ -822,6 +822,9 @@ async function loadModTbuddy() {
 
     const pngremixFile2 = zipData.file(`${rootPath}asset/pngremix.json`);
     if (pngremixFile2) currentMod.assets.pngremix = JSON.parse(await pngremixFile2.async('string'));
+
+    const threedFile = zipData.file(`${rootPath}asset/3d.json`);
+    if (threedFile) currentMod.assets.threed = JSON.parse(await threedFile.async('string'));
 
     const bubbleFile = zipData.file(`${rootPath}bubble_style.json`);
     if (bubbleFile) {
@@ -947,7 +950,8 @@ async function loadModFolder() {
         sequence: [],
         img: [],
         live2d: null,
-        pngremix: null
+        pngremix: null,
+        threed: null
       },
       texts: {},
       audio: {},
@@ -1000,6 +1004,16 @@ async function loadModFolder() {
       currentMod.assets.pngremix = JSON.parse(await pngremixFile.text());
     } catch (e) {
       console.log('No pngremix.json found');
+    }
+
+    // 读取 asset/3d.json
+    try {
+      const assetDir = await modFolderHandle.getDirectoryHandle('asset');
+      const threedHandle = await assetDir.getFileHandle('3d.json');
+      const threedFile = await threedHandle.getFile();
+      currentMod.assets.threed = JSON.parse(await threedFile.text());
+    } catch (e) {
+      console.log('No 3d.json found');
     }
 
     // 读取 bubble_style.json
@@ -1195,7 +1209,7 @@ async function createModFromTemplate(modId, modName, modAuthor, modType = 'seque
     : null;
 
   // 4. 动态读取 assets
-  const assets = { sequence: [], img: [], live2d: null, pngremix: null };
+  const assets = { sequence: [], img: [], live2d: null, pngremix: null, threed: null };
   if (structure.assets) {
     const assetPromises = Object.entries(structure.assets).map(async ([key, path]) => {
       const data = await fetchJsonSafe(`${base}/${path}`);
@@ -1203,7 +1217,7 @@ async function createModFromTemplate(modId, modName, modAuthor, modType = 'seque
     });
     const assetResults = await Promise.all(assetPromises);
     assetResults.forEach(([key, data]) => {
-      if (key === 'live2d' || key === 'pngremix') {
+      if (key === 'live2d' || key === 'pngremix' || key === 'threed') {
         assets[key] = (data && typeof data === 'object') ? deepClone(data) : null;
       } else {
         assets[key] = Array.isArray(data) ? deepClone(data) : [];
@@ -1369,8 +1383,9 @@ function normalizeStateForEditor(state) {
 function normalizeManifestForEditor(manifest) {
   if (!manifest || typeof manifest !== 'object') return;
 
-  // mod_type 默认 sequence
+  // mod_type 默认 sequence；主程序使用 '3d'，编辑器内部统一用 'threed'
   if (!manifest.mod_type) manifest.mod_type = 'sequence';
+  if (manifest.mod_type === '3d') manifest.mod_type = 'threed';
 
   // ema 字段补齐
   if (typeof manifest.show_mod_data_panel !== 'boolean') manifest.show_mod_data_panel = false;
@@ -1498,6 +1513,16 @@ function deepClone(obj) {
  */
 function stringifyForSave(obj) {
   return JSON.stringify(obj, null, 2).replace(/\\\\n/g, '\\n');
+}
+
+/**
+ * 获取保存用的 manifest 副本
+ * 编辑器内部使用 'threed'，保存时映射回主程序使用的 '3d'
+ */
+function getManifestForSave() {
+  const m = deepClone(currentMod.manifest);
+  if (m.mod_type === 'threed') m.mod_type = '3d';
+  return m;
 }
 
 /**
@@ -1734,7 +1759,7 @@ async function saveMod() {
     // 保存 manifest.json
     const manifestHandle = await modFolderHandle.getFileHandle('manifest.json', { create: true });
     const manifestWritable = await manifestHandle.createWritable();
-    await manifestWritable.write(stringifyForSave(currentMod.manifest));
+    await manifestWritable.write(stringifyForSave(getManifestForSave()));
     await manifestWritable.close();
 
     // 保存 bubble_style.json (仅当启用时)
@@ -1766,6 +1791,13 @@ async function saveMod() {
         const pngremixWritable = await pngremixHandle.createWritable();
         await pngremixWritable.write(stringifyForSave(currentMod.assets.pngremix));
         await pngremixWritable.close();
+      }
+    } else if (modType === 'threed') {
+      if (currentMod.assets.threed) {
+        const threedHandle = await assetDir.getFileHandle('3d.json', { create: true });
+        const threedWritable = await threedHandle.createWritable();
+        await threedWritable.write(stringifyForSave(currentMod.assets.threed));
+        await threedWritable.close();
       }
     } else {
       // 保存 sequence.json
@@ -1901,7 +1933,7 @@ async function exportMod() {
     const root = jszip.folder(currentMod.manifest.id);
     
     // 写入基础 JSON
-    root.file('manifest.json', stringifyForSave(currentMod.manifest));
+    root.file('manifest.json', stringifyForSave(getManifestForSave()));
     if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
       root.file('bubble_style.json', stringifyForSave(currentMod.bubbleStyle));
     }
@@ -1915,6 +1947,10 @@ async function exportMod() {
     } else if (exportModType === 'pngremix') {
       if (currentMod.assets.pngremix) {
         asset.file('pngremix.json', stringifyForSave(currentMod.assets.pngremix));
+      }
+    } else if (exportModType === 'threed') {
+      if (currentMod.assets.threed) {
+        asset.file('3d.json', stringifyForSave(currentMod.assets.threed));
       }
     } else {
       asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
@@ -1967,6 +2003,16 @@ async function exportMod() {
         }
         // 其余非 json 文件照常打包，但跳过 asset/live2d 目录（已完整处理）
         await addNonJsonFilesToZipFromDirectory(modFolderHandle, root, { skipDirs: ['asset/live2d'] });
+      } else if (exportModType === 'threed') {
+        // 3D mod：将 asset/3d/ 下所有文件（含 .vrm .vrma）完整打包
+        try {
+          const assetDirHandle = await modFolderHandle.getDirectoryHandle('asset');
+          const threedDirHandle = await assetDirHandle.getDirectoryHandle('3d');
+          await addAllFilesToZipFromDirectory(threedDirHandle, root, 'asset/3d');
+        } catch (e) {
+          // asset/3d 目录不存在则跳过
+        }
+        await addNonJsonFilesToZipFromDirectory(modFolderHandle, root, { skipDirs: ['asset/3d'] });
       } else {
         await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
       }
@@ -2013,7 +2059,7 @@ async function exportModSbuddy() {
     const root = jszip.folder(currentMod.manifest.id);
 
     // ---- 与 exportMod 完全相同的打包逻辑 ----
-    root.file('manifest.json', stringifyForSave(currentMod.manifest));
+    root.file('manifest.json', stringifyForSave(getManifestForSave()));
     if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
       root.file('bubble_style.json', stringifyForSave(currentMod.bubbleStyle));
     }
@@ -2027,6 +2073,10 @@ async function exportModSbuddy() {
     } else if (exportModType2 === 'pngremix') {
       if (currentMod.assets.pngremix) {
         asset.file('pngremix.json', stringifyForSave(currentMod.assets.pngremix));
+      }
+    } else if (exportModType2 === 'threed') {
+      if (currentMod.assets.threed) {
+        asset.file('3d.json', stringifyForSave(currentMod.assets.threed));
       }
     } else {
       asset.file('sequence.json', stringifyForSave(currentMod.assets.sequence));
@@ -2072,6 +2122,13 @@ async function exportModSbuddy() {
           await addAllFilesToZipFromDirectory(live2dDirHandle, root, 'asset/live2d');
         } catch (e) { /* skip */ }
         await addNonJsonFilesToZipFromDirectory(modFolderHandle, root, { skipDirs: ['asset/live2d'] });
+      } else if (exportModType2 === 'threed') {
+        try {
+          const assetDirHandle = await modFolderHandle.getDirectoryHandle('asset');
+          const threedDirHandle = await assetDirHandle.getDirectoryHandle('3d');
+          await addAllFilesToZipFromDirectory(threedDirHandle, root, 'asset/3d');
+        } catch (e) { /* skip */ }
+        await addNonJsonFilesToZipFromDirectory(modFolderHandle, root, { skipDirs: ['asset/3d'] });
       } else {
         await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
       }
@@ -2496,6 +2553,10 @@ function collectManifestData() {
   if (m.mod_type === 'pngremix') {
     collectPngRemixModelData();
   }
+  // 收集 3D 配置
+  if (m.mod_type === 'threed') {
+    collectThreeDModelData();
+  }
 }
 
 /**
@@ -2518,6 +2579,13 @@ function updateAnimaSelects() {
       const stateNames = (pngremix.states || []).map(s => s.state);
       const exprNames = (pngremix.expressions || []).map(e => e.name);
       allAnimas = [...new Set([...stateNames, ...exprNames])];
+    } else {
+      allAnimas = [];
+    }
+  } else if (modType === 'threed') {
+    const threed = currentMod.assets.threed;
+    if (threed) {
+      allAnimas = (threed.animations || []).map(a => a.name).filter(Boolean);
     } else {
       allAnimas = [];
     }
@@ -4233,6 +4301,8 @@ function renderAssets() {
     renderLive2dAssets();
   } else if (modType === 'pngremix') {
     renderPngRemixAssets();
+  } else if (modType === 'threed') {
+    renderThreeDAssets();
   } else {
     renderAssetList('sequence', currentMod.assets.sequence);
     renderAssetList('img', currentMod.assets.img);
@@ -4530,6 +4600,7 @@ function getModTypeDisplayText(modType) {
   switch (mt) {
     case 'live2d': return 'Live2D';
     case 'pngremix': return window.i18n.t('mod_type_pngremix');
+    case 'threed': return window.i18n.t('mod_type_threed');
     default: return window.i18n.t('mod_type_sequence');
   }
 }
@@ -4549,24 +4620,35 @@ function toggleAssetSections(modType) {
   const seqSection = document.getElementById('assets-sequence-section');
   const live2dSection = document.getElementById('assets-live2d-section');
   const pngremixSection = document.getElementById('assets-pngremix-section');
+  const threedSection = document.getElementById('assets-threed-section');
   const descEl = document.getElementById('assets-desc-text');
   
   if (modType === 'live2d') {
     if (seqSection) seqSection.style.display = 'none';
     if (live2dSection) live2dSection.style.display = '';
     if (pngremixSection) pngremixSection.style.display = 'none';
+    if (threedSection) threedSection.style.display = 'none';
     if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_live2d');
     if (descEl) descEl.textContent = window.i18n.t('assets_desc_live2d');
   } else if (modType === 'pngremix') {
     if (seqSection) seqSection.style.display = 'none';
     if (live2dSection) live2dSection.style.display = 'none';
     if (pngremixSection) pngremixSection.style.display = '';
+    if (threedSection) threedSection.style.display = 'none';
     if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_pngremix');
     if (descEl) descEl.textContent = window.i18n.t('assets_desc_pngremix');
+  } else if (modType === 'threed') {
+    if (seqSection) seqSection.style.display = 'none';
+    if (live2dSection) live2dSection.style.display = 'none';
+    if (pngremixSection) pngremixSection.style.display = 'none';
+    if (threedSection) threedSection.style.display = '';
+    if (descEl) descEl.setAttribute('data-i18n', 'assets_desc_threed');
+    if (descEl) descEl.textContent = window.i18n.t('assets_desc_threed');
   } else {
     if (seqSection) seqSection.style.display = '';
     if (live2dSection) live2dSection.style.display = 'none';
     if (pngremixSection) pngremixSection.style.display = 'none';
+    if (threedSection) threedSection.style.display = 'none';
     if (descEl) descEl.setAttribute('data-i18n', 'assets_desc');
     if (descEl) descEl.textContent = window.i18n.t('assets_desc');
   }
@@ -6892,6 +6974,511 @@ function collectPngRemixParams() {
   return params.length > 0 ? params : null;
 }
 
+// ============================================================================
+// 3D (ThreeD / VRM) 支持
+// ============================================================================
+
+/**
+ * 确保 threed 数据结构存在
+ */
+function ensureThreeDData() {
+  if (!currentMod.assets.threed) {
+    currentMod.assets.threed = {
+      schema_version: 1,
+      model: {
+        name: '',
+        type: 'vrm',
+        file: 'asset/3d/model.vrm',
+        scale: 1,
+        offset_x: 0,
+        offset_y: 0,
+        texture_base_dir: ''
+      },
+      animations: []
+    };
+  }
+  return currentMod.assets.threed;
+}
+
+/**
+ * 从表单收集 3D 模型配置
+ */
+function collectThreeDModelData() {
+  ensureThreeDData();
+  const t = currentMod.assets.threed;
+
+  t.model.name = document.getElementById('threed-model-name')?.value?.trim() || '';
+  t.model.type = document.getElementById('threed-model-type')?.value || 'vrm';
+  t.model.file = document.getElementById('threed-model-file')?.value?.trim() || 'asset/3d/model.vrm';
+  t.model.scale = parseFloat(document.getElementById('threed-model-scale')?.value) || 1;
+  t.model.offset_x = parseFloat(document.getElementById('threed-model-offset-x')?.value) || 0;
+  t.model.offset_y = parseFloat(document.getElementById('threed-model-offset-y')?.value) || 0;
+  t.model.texture_base_dir = document.getElementById('threed-texture-base-dir')?.value?.trim() || '';
+}
+
+/**
+ * 填充 3D 模型表单
+ */
+function populateThreeDModelForm() {
+  ensureThreeDData();
+  const t = currentMod.assets.threed;
+
+  const el = (id) => document.getElementById(id);
+  if (el('threed-model-name')) el('threed-model-name').value = t.model.name || '';
+  if (el('threed-model-type')) el('threed-model-type').value = t.model.type || 'vrm';
+  if (el('threed-model-file')) el('threed-model-file').value = t.model.file || 'asset/3d/model.vrm';
+  if (el('threed-model-scale')) el('threed-model-scale').value = t.model.scale ?? 1;
+  if (el('threed-model-offset-x')) el('threed-model-offset-x').value = t.model.offset_x ?? 0;
+  if (el('threed-model-offset-y')) el('threed-model-offset-y').value = t.model.offset_y ?? 0;
+  if (el('threed-texture-base-dir')) el('threed-texture-base-dir').value = t.model.texture_base_dir || '';
+}
+
+/**
+ * 从文件同步 3D 模型配置
+ * 自动扫描 asset/3d/ 目录下的 .vrm 文件，推断并填充模型配置字段
+ */
+async function syncThreeDConfigFromFiles() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_sync_need_folder'), 'warning');
+    return;
+  }
+  if (!confirm(window.i18n.t('msg_sync_threed_config_confirm'))) return;
+
+  try {
+    collectThreeDModelData();
+    const threed = ensureThreeDData();
+
+    // 导航到 asset/3d/ 目录
+    let dirHandle = modFolderHandle;
+    for (const part of ['asset', '3d']) {
+      dirHandle = await dirHandle.getDirectoryHandle(part);
+    }
+
+    // 扫描 .vrm 文件
+    const vrmFiles = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.vrm')) {
+        vrmFiles.push(entry.name);
+      }
+    }
+
+    if (vrmFiles.length === 0) {
+      showToast(window.i18n.t('msg_sync_threed_no_vrm_found'), 'warning');
+      return;
+    }
+
+    let chosenVrm;
+    if (vrmFiles.length === 1) {
+      chosenVrm = vrmFiles[0];
+    } else {
+      const choice = prompt(
+        window.i18n.t('msg_sync_threed_choose_vrm').replace('{files}', vrmFiles.join('\n')),
+        vrmFiles[0]
+      );
+      if (!choice) return;
+      chosenVrm = choice.trim();
+    }
+
+    // 填充模型配置
+    const nameFromFile = chosenVrm.replace(/\.vrm$/i, '');
+    if (!threed.model.name) {
+      threed.model.name = nameFromFile;
+    }
+    threed.model.type = 'vrm';
+    threed.model.file = 'asset/3d/' + chosenVrm;
+
+    // 回写模型配置到表单
+    populateThreeDModelForm();
+    markUnsaved();
+
+    showToast(window.i18n.t('msg_sync_threed_config_success'), 'success');
+  } catch (err) {
+    console.error('syncThreeDConfigFromFiles error:', err);
+    if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
+      showToast(window.i18n.t('msg_sync_threed_dir_not_found'), 'error');
+    } else {
+      const msg = window.i18n.t('msg_sync_failed').replace('{error}', err.message || String(err));
+      showToast(msg, 'error');
+    }
+  }
+}
+
+/**
+ * 从文件同步 3D 资产（动画）
+ * 扫描 asset/3d/ 目录下的 .vrma 文件，自动生成动画列表
+ */
+async function syncThreeDAssetsFromFiles() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_sync_need_folder'), 'warning');
+    return;
+  }
+  if (!confirm(window.i18n.t('msg_sync_threed_assets_confirm'))) return;
+
+  try {
+    collectThreeDModelData();
+    const threed = ensureThreeDData();
+
+    // 导航到 asset/3d/ 目录
+    let dirHandle = modFolderHandle;
+    for (const part of ['asset', '3d']) {
+      dirHandle = await dirHandle.getDirectoryHandle(part);
+    }
+
+    // 扫描 .vrma 文件
+    const vrmaFiles = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.vrma')) {
+        vrmaFiles.push(entry.name);
+      }
+    }
+
+    if (vrmaFiles.length === 0) {
+      showToast(window.i18n.t('msg_sync_threed_no_vrma_found'), 'warning');
+      return;
+    }
+
+    // 生成动画列表
+    const newAnimations = [];
+    const namesSeen = new Set();
+    for (const fileName of vrmaFiles) {
+      const baseName = fileName.replace(/\.vrma$/i, '');
+      // 将文件名中的空格替换为下划线，转小写作为动画名
+      const animName = baseName.replace(/\s+/g, '_').toLowerCase();
+      if (namesSeen.has(animName)) continue;
+      namesSeen.add(animName);
+      newAnimations.push({
+        name: animName,
+        type: 'vrma',
+        file: 'asset/3d/' + fileName,
+        speed: 1.0,
+        vrma_fps: 60
+      });
+    }
+
+    threed.animations = newAnimations;
+
+    // 重新渲染
+    renderThreeDAssets();
+    updateAnimaSelects();
+    markUnsaved();
+
+    const msg = window.i18n.t('msg_sync_threed_assets_success')
+      .replace('{count}', String(newAnimations.length));
+    showToast(msg, 'success');
+  } catch (err) {
+    console.error('syncThreeDAssetsFromFiles error:', err);
+    if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
+      showToast(window.i18n.t('msg_sync_threed_dir_not_found'), 'error');
+    } else {
+      const msg = window.i18n.t('msg_sync_failed').replace('{error}', err.message || String(err));
+      showToast(msg, 'error');
+    }
+  }
+}
+
+/**
+ * 渲染 3D 所有子列表
+ */
+function renderThreeDAssets() {
+  ensureThreeDData();
+  populateThreeDModelForm();
+  const t = currentMod.assets.threed;
+  renderThreeDAnimations(t.animations || []);
+}
+
+/**
+ * 获取 3D 动画名称下拉选项
+ */
+function getThreeDAnimationSelectOptions(selectedValue) {
+  const threed = ensureThreeDData();
+  const anims = threed.animations || [];
+  let html = `<option value="">-- ${window.i18n.t('select_anima_placeholder')} --</option>`;
+  anims.forEach(a => {
+    const n = a.name || '';
+    html += `<option value="${escapeHtml(n)}" ${n === selectedValue ? 'selected' : ''}>${escapeHtml(n)}</option>`;
+  });
+  if (selectedValue && !anims.some(a => a.name === selectedValue)) {
+    html += `<option value="${escapeHtml(selectedValue)}" selected>${escapeHtml(selectedValue)}</option>`;
+  }
+  return html;
+}
+
+/**
+ * 渲染 3D 动画列表
+ */
+function renderThreeDAnimations(animations) {
+  const list = document.getElementById('threed-animations-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const nameRaw = (document.getElementById('threed-animations-filter-name')?.value || '').trim();
+  const fileRaw = (document.getElementById('threed-animations-filter-file')?.value || '').trim();
+  const nameNdl = nameRaw.toLowerCase();
+  const fileNdl = fileRaw.toLowerCase();
+
+  const existingManifestStateNames = new Set(
+    getAllStateNames().map(n => String(n || '').trim()).filter(Boolean)
+  );
+
+  animations.forEach((anim, index) => {
+    const aName = String(anim.name || '');
+    const aFile = String(anim.file || '');
+    if (nameNdl && !aName.toLowerCase().includes(nameNdl)) return;
+    if (fileNdl && !aFile.toLowerCase().includes(fileNdl)) return;
+
+    const trimmedName = aName.trim();
+    const canAddState = !!trimmedName && !existingManifestStateNames.has(trimmedName);
+    const addStateBtnHtml = `
+      <button class="btn btn-sm btn-ghost" onclick="addSameNameStateFromThreeDAnimation(${index})" ${canAddState ? '' : 'disabled'} title="${window.i18n.t('btn_add_same_name_state')}">➕</button>
+    `;
+
+    const card = document.createElement('div');
+    card.className = 'asset-card tb-sort-item';
+    card.dataset.sortKey = ensureTbUid(anim);
+    card.innerHTML = `
+      <div class="asset-card-header">
+        <div class="tb-title-with-handle">
+          ${renderSortHandleHtml()}
+          <span class="asset-card-name">${highlightNeedleHtml(aName, nameRaw)}</span>
+        </div>
+        <div class="asset-card-actions">
+          ${addStateBtnHtml}
+          <button class="btn btn-sm btn-ghost" onclick="copyThreeDItem('animation', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editThreeDAnimation(${index})">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteThreeDAnimation(${index})">🗑️</button>
+        </div>
+      </div>
+      <div class="asset-card-body">
+        <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_type_label')}:</span> ${escapeHtml(anim.type || 'vrma')}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_file_label')}:</span> ${highlightNeedleHtml(aFile, fileRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_speed_label')}:</span> ${anim.speed ?? 1.0}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_fps_label')}:</span> ${anim.vrma_fps ?? 60}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'section-footer';
+  footer.innerHTML = `
+    <button class="btn btn-sm btn-ghost" onclick="pasteThreeDItem('animation')">📋 <span>${window.i18n.t('btn_paste_from_clipboard')}</span></button>
+    <button class="btn btn-sm btn-primary" onclick="addThreeDAnimation()">➕ <span>${window.i18n.t('btn_add_threed_animation')}</span></button>
+  `;
+  list.appendChild(footer);
+
+  enableTbSortable(list, {
+    canStart: () => {
+      const ids = ['threed-animations-filter-name', 'threed-animations-filter-file'];
+      const hasFilters = ids.some(id => (document.getElementById(id)?.value || '').trim());
+      if (hasFilters) {
+        showToast(window.i18n.t('msg_clear_filters_to_reorder'), 'warning');
+        return false;
+      }
+      return true;
+    },
+    onSortedKeys: (orderedKeys) => {
+      if (!currentMod) return;
+      const threed = ensureThreeDData();
+      reorderArrayInPlaceByKeys(threed.animations, orderedKeys, ensureTbUid);
+      renderThreeDAssets();
+      updateAnimaSelects();
+      markUnsaved();
+    }
+  });
+}
+
+function addThreeDAnimation() {
+  openThreeDAnimationModal(window.i18n.t('btn_add_threed_animation'), {
+    name: '',
+    type: 'vrma',
+    file: '',
+    speed: 1.0,
+    vrma_fps: 60
+  }, -1);
+}
+
+function editThreeDAnimation(index) {
+  const threed = ensureThreeDData();
+  const anim = threed.animations[index];
+  if (!anim) return;
+  openThreeDAnimationModal(window.i18n.t('threed_anim_name_label'), anim, index);
+}
+
+function deleteThreeDAnimation(index) {
+  if (!confirm(window.i18n.t('msg_confirm_delete_threed_animation') || '确定删除？')) return;
+  ensureThreeDData();
+  currentMod.assets.threed.animations.splice(index, 1);
+  renderThreeDAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+function openThreeDAnimationModal(title, anim, index) {
+  const modal = document.getElementById('asset-modal');
+  if (!modal) return;
+  document.getElementById('asset-modal-title').textContent = title;
+
+  const body = document.getElementById('asset-modal-body');
+  if (!modal._originalBodyHTML) {
+    modal._originalBodyHTML = body.innerHTML;
+  }
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>${window.i18n.t('threed_anim_name_label')} <span class="required">*</span></label>
+        <input type="text" id="threed-edit-anim-name" value="${escapeHtml(anim.name || '')}" placeholder="${window.i18n.t('placeholder_threed_anim_name')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('threed_anim_type_label')}</label>
+        <select id="threed-edit-anim-type">
+          <option value="vrma" ${anim.type === 'vrma' ? 'selected' : ''}>VRMA</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('threed_anim_file_label')} <span class="required">*</span></label>
+        <input type="text" id="threed-edit-anim-file" value="${escapeHtml(anim.file || '')}" placeholder="${window.i18n.t('placeholder_threed_anim_file')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('threed_anim_speed_label')}</label>
+        <input type="number" id="threed-edit-anim-speed" value="${anim.speed ?? 1.0}" step="0.1" min="0.1">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n.t('threed_anim_fps_label')}</label>
+        <input type="number" id="threed-edit-anim-fps" value="${anim.vrma_fps ?? 60}" min="1" max="120">
+      </div>
+    </div>
+  `;
+
+  modal._live2dSaveHandler = () => saveThreeDAnimation(index);
+  modal.classList.add('show');
+}
+
+function saveThreeDAnimation(index) {
+  const name = document.getElementById('threed-edit-anim-name').value.trim();
+  if (!name) {
+    showToast(window.i18n.t('msg_enter_threed_anim_name'), 'warning');
+    return;
+  }
+
+  const anim = {
+    name: name,
+    type: document.getElementById('threed-edit-anim-type').value || 'vrma',
+    file: document.getElementById('threed-edit-anim-file').value.trim(),
+    speed: parseFloat(document.getElementById('threed-edit-anim-speed').value) || 1.0,
+    vrma_fps: parseInt(document.getElementById('threed-edit-anim-fps').value) || 60
+  };
+
+  const threed = ensureThreeDData();
+  if (index === -1) {
+    threed.animations.push(anim);
+  } else {
+    threed.animations[index] = anim;
+  }
+
+  closeAssetModal();
+  renderThreeDAssets();
+  updateAnimaSelects();
+  markUnsaved();
+}
+
+/**
+ * 从 3D 动画创建同名 manifest 状态
+ */
+function addSameNameStateFromThreeDAnimation(index) {
+  if (!currentMod) return;
+
+  const threed = ensureThreeDData();
+  const anim = threed.animations?.[index];
+  if (!anim) return;
+
+  const stateName = String(anim.name || '').trim();
+  if (!stateName) {
+    showToast(window.i18n.t('msg_enter_threed_anim_name') || '请先填写动画名称', 'warning');
+    return;
+  }
+
+  const exists = getAllStateNames().some(n => String(n || '').trim() === stateName);
+  if (exists) {
+    showToast(window.i18n.t('msg_state_same_name_exists') || '已存在同名状态', 'warning');
+    return;
+  }
+
+  if (!currentMod.manifest.states) {
+    currentMod.manifest.states = [];
+  }
+
+  const state = createDefaultState(stateName, false);
+  state.anima = stateName;
+
+  if (doesAnySpeechTextExistByName(stateName)) {
+    state.text = stateName;
+  }
+  if (doesAnyAudioEntryExistByName(stateName)) {
+    state.audio = stateName;
+  }
+
+  currentMod.manifest.states.push(state);
+
+  renderStates();
+  renderThreeDAssets();
+  markUnsaved();
+  showToast(window.i18n.t('msg_state_created_from_threed') || '已从 3D 动画创建同名状态', 'success');
+}
+
+/**
+ * 复制 3D 项目到剪贴板
+ */
+function copyThreeDItem(type, index) {
+  const threed = ensureThreeDData();
+  let item;
+  if (type === 'animation') {
+    item = threed.animations?.[index];
+  }
+  if (!item) {
+    showToast(window.i18n.t('msg_no_data_to_copy'), 'warning');
+    return;
+  }
+  const data = deepClone(item);
+  delete data._tb_uid;
+  navigator.clipboard.writeText(JSON.stringify({ _type: `threed_${type}`, data }))
+    .then(() => showToast(window.i18n.t('msg_copied_to_clipboard'), 'success'))
+    .catch(() => showToast(window.i18n.t('msg_clipboard_read_failed'), 'error'));
+}
+
+/**
+ * 从剪贴板粘贴 3D 项目
+ */
+async function pasteThreeDItem(type) {
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed._type !== `threed_${type}` || !parsed.data) {
+      showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+      return;
+    }
+    const threed = ensureThreeDData();
+    const newItem = deepClone(parsed.data);
+    delete newItem._tb_uid;
+    if (type === 'animation') {
+      threed.animations.push(newItem);
+    }
+    renderThreeDAssets();
+    updateAnimaSelects();
+    markUnsaved();
+    showToast(window.i18n.t('msg_pasted_from_clipboard'), 'success');
+  } catch (e) {
+    showToast(window.i18n.t('msg_clipboard_empty'), 'warning');
+  }
+}
+
 /**
  * 渲染 Live2D 动作列表（支持筛选、高亮、拖拽、复制）
  */
@@ -8761,6 +9348,14 @@ function addSameNameStateFromSpeechText(index) {
     state.anima = speechName;
   }
 
+  // 若存在同名的 3D 动画，则自动关联动画
+  if (!state.anima) {
+    const threedMatch = findThreeDAnimationByName(speechName);
+    if (threedMatch) {
+      state.anima = speechName;
+    }
+  }
+
   // 若任意语言音频存在同名条目，则自动关联该音频
   if (doesAnyAudioEntryExistByName(speechName)) {
     state.audio = speechName;
@@ -8802,6 +9397,17 @@ function findLive2dStateByName(name) {
   const target = String(name || '').trim();
   if (!target) return null;
   return live2d.states.find(s => String(s?.state || '').trim() === target) || null;
+}
+
+/**
+ * 根据名称查找 3D 动画
+ */
+function findThreeDAnimationByName(name) {
+  const threed = currentMod?.assets?.threed;
+  if (!threed || !Array.isArray(threed.animations)) return null;
+  const target = String(name || '').trim();
+  if (!target) return null;
+  return threed.animations.find(a => String(a?.name || '').trim() === target) || null;
 }
 
 /**

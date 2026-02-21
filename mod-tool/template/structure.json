@@ -5,7 +5,8 @@
     "sequence": "asset/sequence.json",
     "img": "asset/img.json",
     "live2d": "asset/live2d.json",
-    "pngremix": "asset/pngremix.json"
+    "pngremix": "asset/pngremix.json",
+    "threed": "asset/3d.json"
   },
   "text_langs": ["zh", "en", "jp"],
   "audio_langs": ["zh", "en", "jp"]

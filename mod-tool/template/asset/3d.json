@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "",
+    "type": "vrm",
+    "file": "asset/3d/model.vrm",
+    "scale": 1,
+    "offset_x": 0,
+    "offset_y": 0,
+    "texture_base_dir": ""
+  },
+  "animations": []
+}

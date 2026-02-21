@@ -632,6 +632,59 @@
   "pngremix_param_name_label": "名前",
 
   "placeholder_pngremix_model_name": "例: my_character",
-  "placeholder_pngremix_file": "例: my_character.pngRemix"
+  "placeholder_pngremix_file": "例: my_character.pngRemix",
+
+  "mod_type_threed": "3D モデル",
+  "assets_desc_threed": "3D (VRM) モデル設定、アニメーション、状態マッピングを管理",
+
+  "section_threed_model": "モデル設定 (3d.json - model)",
+  "threed_model_name_label": "モデル名",
+  "threed_model_type_label": "モデルタイプ",
+  "threed_model_type_hint": "現在は VRM 形式のみ対応",
+  "threed_model_file_label": "モデルファイル",
+  "threed_model_file_hint": "モデルファイルパス（Mod ルートからの相対パス）",
+  "threed_model_scale_label": "モデルスケール",
+  "threed_model_scale_hint": "全体スケール係数（デフォルト 1）",
+  "threed_model_offset_x_label": "X オフセット (offset_x)",
+  "threed_model_offset_y_label": "Y オフセット (offset_y)",
+  "threed_texture_base_dir_label": "テクスチャベースディレクトリ",
+  "threed_texture_base_dir_hint": "任意、テクスチャファイルのディレクトリ",
+
+  "section_threed_animations": "アニメーションリスト (animations)",
+  "btn_add_threed_animation": "アニメーションを追加",
+  "threed_anim_name_label": "アニメーション名",
+  "threed_anim_type_label": "アニメーションタイプ",
+  "threed_anim_file_label": "アニメーションファイル",
+  "threed_anim_speed_label": "再生速度",
+  "threed_anim_fps_label": "VRMA FPS",
+
+  "section_threed_states": "状態-アニメーションマッピング (states)",
+  "threed_states_hint": "Mod の状態名を 3D アニメーションにマッピング",
+  "btn_add_threed_state": "マッピングを追加",
+  "threed_state_name_label": "状態名",
+  "threed_state_animation_label": "アニメーション",
+  "threed_state_scale_hint": "空欄でモデルのデフォルトスケールを使用",
+
+  "placeholder_threed_model_name": "例: HatsuneMiku",
+  "placeholder_threed_model_file": "例: asset/3d/model.vrm",
+  "placeholder_threed_anim_name": "例: idle_1",
+  "placeholder_threed_anim_file": "例: asset/3d/PET_IDLE.vrma",
+
+  "msg_enter_threed_anim_name": "アニメーション名を入力してください",
+  "msg_enter_threed_state": "状態名を入力してください",
+  "msg_confirm_delete_threed_animation": "このアニメーションを削除してもよろしいですか？",
+  "msg_confirm_delete_threed_state": "このマッピングを削除してもよろしいですか？",
+  "msg_state_created_from_threed": "3D アニメーションから同名の状態を作成しました",
+
+  "btn_sync_threed_config": "ファイルから設定を同期",
+  "btn_sync_threed_assets": "ファイルからアセットを同期",
+  "msg_sync_threed_config_confirm": "asset/3d/ ディレクトリから .vrm モデルファイルを自動検出し、モデル設定（name、type、file）に反映します。現在のモデル設定は上書きされます。続行しますか？",
+  "msg_sync_threed_assets_confirm": "asset/3d/ ディレクトリ内の全 .vrma アニメーションファイルをスキャンし、アニメーションリストを再生成します。現在のアニメーションリストは上書きされます。続行しますか？",
+  "msg_sync_threed_config_success": "3D モデル設定の同期が完了しました",
+  "msg_sync_threed_assets_success": "3D アセット同期完了：アニメーション {count} 件",
+  "msg_sync_threed_no_vrm_found": "asset/3d/ ディレクトリに .vrm モデルファイルが見つかりません",
+  "msg_sync_threed_no_vrma_found": "asset/3d/ ディレクトリに .vrma アニメーションファイルが見つかりません",
+  "msg_sync_threed_choose_vrm": "複数の .vrm ファイルが見つかりました。使用するファイル名を入力してください：\n{files}",
+  "msg_sync_threed_dir_not_found": "asset/3d/ ディレクトリが見つかりません。Mod のディレクトリ構造を確認してください"
 }
 

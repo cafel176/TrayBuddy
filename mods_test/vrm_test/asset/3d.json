@@ -11,17 +11,17 @@
   },
   "animations": [
     {
-      "name": "idle_1",
+      "name": "pet_idle_1",
       "type": "vrma",
       "file": "asset/3d/PET_IDLE 1.vrma",
-      "speed": 1.0,
+      "speed": 1,
       "vrma_fps": 60
     },
     {
-      "name": "idle_2",
+      "name": "pet_idle_2",
       "type": "vrma",
       "file": "asset/3d/PET_IDLE_2.vrma",
-      "speed": 1.0,
+      "speed": 1,
       "vrma_fps": 60
     }
   ]

@@ -632,6 +632,59 @@
   "pngremix_param_name_label": "名称",
 
   "placeholder_pngremix_model_name": "例如: my_character",
-  "placeholder_pngremix_file": "例如: my_character.pngRemix"
+  "placeholder_pngremix_file": "例如: my_character.pngRemix",
+
+  "mod_type_threed": "3D 模型",
+  "assets_desc_threed": "管理 3D (VRM) 模型配置、动画和状态映射",
+
+  "section_threed_model": "模型配置 (3d.json - model)",
+  "threed_model_name_label": "模型名称",
+  "threed_model_type_label": "模型类型",
+  "threed_model_type_hint": "目前仅支持 VRM 格式",
+  "threed_model_file_label": "模型文件",
+  "threed_model_file_hint": "模型文件路径（相对于 Mod 根目录）",
+  "threed_model_scale_label": "模型缩放 (scale)",
+  "threed_model_scale_hint": "整体缩放系数（默认 1）",
+  "threed_model_offset_x_label": "X 偏移 (offset_x)",
+  "threed_model_offset_y_label": "Y 偏移 (offset_y)",
+  "threed_texture_base_dir_label": "纹理基础目录",
+  "threed_texture_base_dir_hint": "可选，纹理文件所在目录",
+
+  "section_threed_animations": "动画列表 (animations)",
+  "btn_add_threed_animation": "添加动画",
+  "threed_anim_name_label": "动画名称",
+  "threed_anim_type_label": "动画类型",
+  "threed_anim_file_label": "动画文件",
+  "threed_anim_speed_label": "播放速度",
+  "threed_anim_fps_label": "VRMA 帧率",
+
+  "section_threed_states": "状态-动画映射 (states)",
+  "threed_states_hint": "将 Mod 的状态名称映射到 3D 动画",
+  "btn_add_threed_state": "添加映射",
+  "threed_state_name_label": "状态名称",
+  "threed_state_animation_label": "动画",
+  "threed_state_scale_hint": "留空使用模型默认缩放",
+
+  "placeholder_threed_model_name": "例如: HatsuneMiku",
+  "placeholder_threed_model_file": "例如: asset/3d/model.vrm",
+  "placeholder_threed_anim_name": "例如: idle_1",
+  "placeholder_threed_anim_file": "例如: asset/3d/PET_IDLE.vrma",
+
+  "msg_enter_threed_anim_name": "请输入动画名称",
+  "msg_enter_threed_state": "请输入状态名称",
+  "msg_confirm_delete_threed_animation": "确定要删除这个动画吗？",
+  "msg_confirm_delete_threed_state": "确定要删除这个映射吗？",
+  "msg_state_created_from_threed": "已从 3D 动画创建同名状态",
+
+  "btn_sync_threed_config": "从文件同步配置",
+  "btn_sync_threed_assets": "从文件同步资源",
+  "msg_sync_threed_config_confirm": "将从 asset/3d/ 目录自动识别 .vrm 模型文件并填充模型配置（name、type、file）。当前的模型配置将被覆盖。是否继续？",
+  "msg_sync_threed_assets_confirm": "将从 asset/3d/ 目录扫描所有 .vrma 动画文件并重新生成动画列表。当前的动画列表将被覆盖。是否继续？",
+  "msg_sync_threed_config_success": "3D 模型配置同步完成",
+  "msg_sync_threed_assets_success": "3D 资源同步完成：{count} 个动画",
+  "msg_sync_threed_no_vrm_found": "在 asset/3d/ 目录下未找到 .vrm 模型文件",
+  "msg_sync_threed_no_vrma_found": "在 asset/3d/ 目录下未找到 .vrma 动画文件",
+  "msg_sync_threed_choose_vrm": "在目录中找到多个 .vrm 文件，请输入要使用的文件名：\n{files}",
+  "msg_sync_threed_dir_not_found": "未找到 asset/3d/ 目录，请检查 Mod 目录结构"
 }
 

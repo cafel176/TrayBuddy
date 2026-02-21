@@ -632,6 +632,59 @@
   "pngremix_param_name_label": "Name",
 
   "placeholder_pngremix_model_name": "e.g., my_character",
-  "placeholder_pngremix_file": "e.g., my_character.pngRemix"
+  "placeholder_pngremix_file": "e.g., my_character.pngRemix",
+
+  "mod_type_threed": "3D Model",
+  "assets_desc_threed": "Manage 3D (VRM) model config, animations, and state mappings",
+
+  "section_threed_model": "Model Config (3d.json - model)",
+  "threed_model_name_label": "Model Name",
+  "threed_model_type_label": "Model Type",
+  "threed_model_type_hint": "Currently only VRM format is supported",
+  "threed_model_file_label": "Model File",
+  "threed_model_file_hint": "Model file path (relative to Mod root)",
+  "threed_model_scale_label": "Model Scale",
+  "threed_model_scale_hint": "Overall scale factor (default 1)",
+  "threed_model_offset_x_label": "X Offset (offset_x)",
+  "threed_model_offset_y_label": "Y Offset (offset_y)",
+  "threed_texture_base_dir_label": "Texture Base Directory",
+  "threed_texture_base_dir_hint": "Optional, directory containing texture files",
+
+  "section_threed_animations": "Animations (animations)",
+  "btn_add_threed_animation": "Add Animation",
+  "threed_anim_name_label": "Animation Name",
+  "threed_anim_type_label": "Animation Type",
+  "threed_anim_file_label": "Animation File",
+  "threed_anim_speed_label": "Playback Speed",
+  "threed_anim_fps_label": "VRMA FPS",
+
+  "section_threed_states": "State-Animation Mapping (states)",
+  "threed_states_hint": "Map Mod state names to 3D animations",
+  "btn_add_threed_state": "Add Mapping",
+  "threed_state_name_label": "State Name",
+  "threed_state_animation_label": "Animation",
+  "threed_state_scale_hint": "Leave empty to use model default scale",
+
+  "placeholder_threed_model_name": "e.g., HatsuneMiku",
+  "placeholder_threed_model_file": "e.g., asset/3d/model.vrm",
+  "placeholder_threed_anim_name": "e.g., idle_1",
+  "placeholder_threed_anim_file": "e.g., asset/3d/PET_IDLE.vrma",
+
+  "msg_enter_threed_anim_name": "Please enter animation name",
+  "msg_enter_threed_state": "Please enter state name",
+  "msg_confirm_delete_threed_animation": "Are you sure you want to delete this animation?",
+  "msg_confirm_delete_threed_state": "Are you sure you want to delete this mapping?",
+  "msg_state_created_from_threed": "Created state from 3D animation",
+
+  "btn_sync_threed_config": "Sync Config from Files",
+  "btn_sync_threed_assets": "Sync Assets from Files",
+  "msg_sync_threed_config_confirm": "This will auto-detect .vrm model files in the asset/3d/ directory and fill model configuration (name, type, file). Current model config will be overwritten. Continue?",
+  "msg_sync_threed_assets_confirm": "This will scan all .vrma animation files in the asset/3d/ directory and regenerate the animation list. Current animation list will be overwritten. Continue?",
+  "msg_sync_threed_config_success": "3D model configuration synced successfully",
+  "msg_sync_threed_assets_success": "3D assets synced: {count} animations",
+  "msg_sync_threed_no_vrm_found": "No .vrm model file found in the asset/3d/ directory",
+  "msg_sync_threed_no_vrma_found": "No .vrma animation file found in the asset/3d/ directory",
+  "msg_sync_threed_choose_vrm": "Multiple .vrm files found. Please enter the filename to use:\n{files}",
+  "msg_sync_threed_dir_not_found": "asset/3d/ directory not found. Please check the Mod directory structure"
 }
 

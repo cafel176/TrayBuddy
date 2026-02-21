@@ -655,6 +655,83 @@
 
             </div>
 
+            <!-- 3D 编辑区 (仅 threed 类型显示) -->
+            <div id="assets-threed-section" style="display:none;">
+
+              <!-- 同步按钮 -->
+              <div class="section-actions" style="margin-bottom: 12px;">
+                <button class="btn btn-secondary" onclick="syncThreeDConfigFromFiles()">🔄 <span data-i18n="btn_sync_threed_config">从文件同步配置</span></button>
+                <button class="btn btn-secondary" onclick="syncThreeDAssetsFromFiles()">🔄 <span data-i18n="btn_sync_threed_assets">从文件同步资源</span></button>
+              </div>
+
+              <!-- 模型配置 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_threed_model">模型配置 (3d.json - model)</span></h3>
+                </summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label data-i18n="threed_model_name_label">模型名称</label>
+                    <input type="text" id="threed-model-name" data-i18n-placeholder="placeholder_threed_model_name" placeholder="例如: HatsuneMiku">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="threed_model_type_label">模型类型</label>
+                    <select id="threed-model-type">
+                      <option value="vrm">VRM</option>
+                    </select>
+                    <small data-i18n="threed_model_type_hint">目前仅支持 VRM 格式</small>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="threed_model_file_label">模型文件</label>
+                    <input type="text" id="threed-model-file" data-i18n-placeholder="placeholder_threed_model_file" placeholder="例如: asset/3d/model.vrm">
+                    <small data-i18n="threed_model_file_hint">模型文件路径（相对于 Mod 根目录）</small>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="threed_model_scale_label">模型缩放 (scale)</label>
+                    <input type="number" id="threed-model-scale" value="1" min="0.01" step="0.05">
+                    <small data-i18n="threed_model_scale_hint">整体缩放系数（默认 1）</small>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="threed_model_offset_x_label">X 偏移 (offset_x)</label>
+                    <input type="number" id="threed-model-offset-x" value="0" step="0.01">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="threed_model_offset_y_label">Y 偏移 (offset_y)</label>
+                    <input type="number" id="threed-model-offset-y" value="0" step="0.01">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="threed_texture_base_dir_label">纹理基础目录</label>
+                    <input type="text" id="threed-texture-base-dir" placeholder="">
+                    <small data-i18n="threed_texture_base_dir_hint">可选，纹理文件所在目录</small>
+                  </div>
+                </div>
+              </details>
+
+              <!-- 动画列表 -->
+              <details class="form-section section-details" open>
+                <summary class="section-header">
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_threed_animations">动画列表 (animations)</span></h3>
+                  <div class="section-actions">
+                    <button class="btn btn-sm btn-primary" onclick="addThreeDAnimation()">➕ <span data-i18n="btn_add_threed_animation">添加动画</span></button>
+                  </div>
+                </summary>
+                <div class="list-filters">
+                  <div class="form-group">
+                    <label data-i18n="filter_by_name">按名称筛选</label>
+                    <input type="text" id="threed-animations-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderThreeDAssets()">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="filter_by_file">按文件筛选</label>
+                    <input type="text" id="threed-animations-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="输入文件关键字..." oninput="renderThreeDAssets()">
+                  </div>
+                </div>
+                <div class="asset-list" id="threed-animations-list">
+                  <!-- 由 JS 动态填充 -->
+                </div>
+              </details>
+
+            </div>
+
             <!-- PngRemix 编辑区 (仅 pngremix 类型显示) -->
             <div id="assets-pngremix-section" style="display:none;">
 
@@ -1680,6 +1757,13 @@
               <span class="mod-type-card">
                 <span class="mod-type-icon">🧩</span>
                 <span class="mod-type-name" data-i18n="mod_type_pngremix">PngRemix</span>
+              </span>
+            </label>
+            <label class="mod-type-option">
+              <input type="radio" name="new-mod-type" value="threed">
+              <span class="mod-type-card">
+                <span class="mod-type-icon">🧊</span>
+                <span class="mod-type-name" data-i18n="mod_type_threed">3D 模型</span>
               </span>
             </label>
           </div>
