@@ -239,10 +239,10 @@ impl ProcessObserver {
         let running = self.running.clone();
         let app_handle = app_handle.clone();
 
-        std::thread::spawn(move || {
+        tauri::async_runtime::spawn(async move {
             #[cfg(target_os = "windows")]
             {
-                Self::process_event_loop(app_handle, tx, running);
+                Self::process_event_loop(app_handle, tx, running).await;
             }
             #[cfg(not(target_os = "windows"))]
             {
@@ -251,6 +251,7 @@ impl ProcessObserver {
                 eprintln!("[ProcessObserver] 进程监测仅支持 Windows 平台");
             }
         });
+
 
         rx
     }
@@ -264,7 +265,7 @@ impl ProcessObserver {
     // ---------------------------------------------------------------------
 
     #[cfg(target_os = "windows")]
-    fn process_event_loop(
+    async fn process_event_loop(
         app_handle: tauri::AppHandle,
         tx: mpsc::UnboundedSender<ProcessStartEvent>,
         running: Arc<std::sync::atomic::AtomicBool>,
@@ -273,6 +274,7 @@ impl ProcessObserver {
         use std::sync::atomic::Ordering;
         use std::time::{Duration, Instant};
 
+
         use crate::modules::event_manager::{emit_debug_update, DEBUG_EVENT_TYPE_PROCESS};
 
         let start_time = Instant::now();
@@ -280,6 +282,8 @@ impl ProcessObserver {
         // 轮询间隔：尽量轻量，且可接受的响应速度
         let poll_interval = Duration::from_millis(900);
         let poll_interval_ms = poll_interval.as_millis() as u64;
+        let mut ticker = tokio::time::interval(poll_interval);
+
 
         // 观察器启动时先做一次快照，把“已有进程”记为已见过，避免启动瞬间触发大量 work
         // 同时记录“已存在的进程名集合”，用于抑制同一应用启动时的多子进程重复触发。
@@ -322,10 +326,11 @@ impl ProcessObserver {
         }
 
         while running.load(Ordering::SeqCst) {
-            std::thread::sleep(poll_interval);
+            ticker.tick().await;
             if !running.load(Ordering::SeqCst) {
                 break;
             }
+
 
             // 每轮重新枚举进程，构建当前 PID 集合与进程名集合
             let processes = Self::enumerate_processes();

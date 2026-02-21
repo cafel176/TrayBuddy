@@ -202,14 +202,15 @@ impl SystemObserver {
                 WINEVENT_OUTOFCONTEXT,
             );
 
-            // 启动检查逻辑线程（接收信号并去抖动）
+            // 启动检查逻辑任务（接收信号并去抖动）
             let app_handle_clone = app_handle.clone();
             let running_clone = running.clone();
             let tx_clone_for_check = rx; // 其实是 rx
 
-            thread::spawn(move || {
-                Self::check_loop(app_handle_clone, running_clone, tx_clone_for_check);
+            tauri::async_runtime::spawn(async move {
+                Self::check_loop(app_handle_clone, running_clone, tx_clone_for_check).await;
             });
+
 
             // 消息循环
             let mut msg = MSG::default();
@@ -228,7 +229,7 @@ impl SystemObserver {
     }
 
     /// 检查循环（带去抖动）
-    fn check_loop(
+    async fn check_loop(
         app_handle: tauri::AppHandle,
         running: Arc<std::sync::atomic::AtomicBool>,
         mut rx: mpsc::UnboundedReceiver<()>,
@@ -236,36 +237,34 @@ impl SystemObserver {
         // 本地状态，记录是否是我们自动开启了免打扰
         let mut we_enabled_dnd = false;
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            // 立即执行一次初始检查，填充调试信息
-            Self::check_and_update_state(&app_handle, &mut we_enabled_dnd);
+        // 立即执行一次初始检查，填充调试信息
+        Self::check_and_update_state(&app_handle, &mut we_enabled_dnd).await;
 
-            while running.load(std::sync::atomic::Ordering::SeqCst) {
-                // 等待信号，或者每 N 秒自动检查一次（保底）
-                let _ = tokio::select! {
-                    _ = rx.recv() => {},
-                    _ = tokio::time::sleep(Duration::from_secs(
-                        crate::modules::constants::SYSTEM_OBSERVER_POLL_INTERVAL_SECS,
-                    )) => {},
-                };
+        while running.load(std::sync::atomic::Ordering::SeqCst) {
+            // 等待信号，或者每 N 秒自动检查一次（保底）
+            let _ = tokio::select! {
+                _ = rx.recv() => {},
+                _ = tokio::time::sleep(Duration::from_secs(
+                    crate::modules::constants::SYSTEM_OBSERVER_POLL_INTERVAL_SECS,
+                )) => {},
+            };
 
-                // 去抖动：等待 500ms，让窗口动效完成
-                tokio::time::sleep(Duration::from_millis(
-                    crate::modules::constants::SYSTEM_OBSERVER_DEBOUNCE_MS,
-                ))
-                .await;
-                // 清空期间积压的信号
-                while rx.try_recv().is_ok() {}
+            // 去抖动：等待 500ms，让窗口动效完成
+            tokio::time::sleep(Duration::from_millis(
+                crate::modules::constants::SYSTEM_OBSERVER_DEBOUNCE_MS,
+            ))
+            .await;
+            // 清空期间积压的信号
+            while rx.try_recv().is_ok() {}
 
-                // 执行检查
-                Self::check_and_update_state(&app_handle, &mut we_enabled_dnd);
-            }
-        });
+            // 执行检查
+            Self::check_and_update_state(&app_handle, &mut we_enabled_dnd).await;
+        }
     }
 
     /// 执行一次全屏检查和状态更新
-    fn check_and_update_state(app_handle: &tauri::AppHandle, we_enabled_dnd: &mut bool) {
+    async fn check_and_update_state(app_handle: &tauri::AppHandle, we_enabled_dnd: &mut bool) {
+
         let app_state: tauri::State<AppState> = app_handle.state();
 
         // 1. 获取设置
@@ -293,8 +292,11 @@ impl SystemObserver {
             app_state.session_locked.load(std::sync::atomic::Ordering::SeqCst)
         };
 
-        // 3. 检测是否全屏/繁忙 (耗时操作，使用 block_in_place)
-        let is_fullscreen = tokio::task::block_in_place(|| unsafe { Self::is_fullscreen_busy() });
+        // 3. 检测是否全屏/繁忙（耗时操作，放到阻塞线程池）
+        let is_fullscreen = tokio::task::spawn_blocking(|| unsafe { Self::is_fullscreen_busy() })
+            .await
+            .unwrap_or(false);
+
 
         // 更新调试信息
         let debug_info = SystemDebugInfo {

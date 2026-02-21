@@ -410,12 +410,10 @@ impl MediaObserver {
         let running = self.running.clone();
 
         // 启动异步监听任务
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(async move {
-                Self::media_event_loop(tx, running, app_handle, skip_delay).await;
-            });
+        tauri::async_runtime::spawn(async move {
+            Self::media_event_loop(tx, running, app_handle, skip_delay).await;
         });
+
 
         rx
     }
@@ -492,15 +490,19 @@ impl MediaObserver {
         // 获取 GSMTC 媒体会话管理器（可选，用于获取元数据）
         // 仅在支持的系统上尝试初始化
         let gsmtc_manager = if gsmtc_supported {
-            tokio::task::block_in_place(|| {
+            tokio::task::spawn_blocking(|| {
                 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
                 GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
                     .ok()
                     .and_then(|op| op.get().ok())
             })
+            .await
+            .ok()
+            .flatten()
         } else {
             None
         };
+
 
         // 创建内部事件通道
         let (internal_tx, mut internal_rx) = tokio_mpsc::unbounded_channel::<()>();
@@ -538,7 +540,7 @@ impl MediaObserver {
 
         // 获取初始状态并发送
         let (initial_event, initial_source) =
-            Self::get_combined_media_state_with_source(gsmtc_manager.as_ref());
+            Self::get_combined_media_state_with_source(gsmtc_manager.as_ref()).await;
 
         // 更新初始调试信息
         Self::update_debug_info(
@@ -549,7 +551,9 @@ impl MediaObserver {
             &session_tokens,
             &initial_event,
             &initial_source,
-        );
+        )
+        .await;
+
 
         // 更新初始状态
         if running.load(Ordering::SeqCst) {
@@ -590,11 +594,18 @@ impl MediaObserver {
 
             // 获取当前状态（混合 GSMTC + Core Audio）
             let (current_event, state_source) =
-                Self::get_combined_media_state_with_source(gsmtc_manager.as_ref());
+                Self::get_combined_media_state_with_source(gsmtc_manager.as_ref()).await;
 
             // 检查是否有变化
-            let mut state_guard = state.lock().unwrap();
-            let has_changed = state_guard.has_changed(&current_event);
+            let (has_changed, has_played, last_status) = {
+                let state_guard = state.lock().unwrap();
+                (
+                    state_guard.has_changed(&current_event),
+                    state_guard.has_played,
+                    state_guard.last_status.clone(),
+                )
+            };
+
 
             // 只在状态变化时更新调试信息（减少内存分配）
             if has_changed {
@@ -606,22 +617,21 @@ impl MediaObserver {
                     &session_tokens,
                     &current_event,
                     &state_source,
-                );
+                )
+                .await;
             }
 
             if has_changed {
                 let should_send = match current_event.status {
                     MediaPlaybackStatus::Playing => true,
-                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => {
-                        state_guard.has_played
-                    }
+                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped => has_played,
                     MediaPlaybackStatus::Unknown => true,
                 };
 
                 #[cfg(debug_assertions)]
                 println!(
                     "[MediaObserver] 状态变化 - 从 {:?} -> {:?}, App: {}, 标题: {:?}, 来源: {}, 发送事件: {}",
-                    state_guard.last_status,
+                    last_status,
                     current_event.status,
                     current_event.app_id.as_deref().unwrap_or("None"),
                     current_event.title.as_deref(),
@@ -630,6 +640,7 @@ impl MediaObserver {
                 );
 
                 update_cached_media_state(&current_event);
+                let mut state_guard = state.lock().unwrap();
                 state_guard.update(&current_event);
                 drop(state_guard);
 
@@ -637,6 +648,7 @@ impl MediaObserver {
                     break;
                 }
             }
+
         }
 
         // 清理 GSMTC 事件监听
@@ -666,13 +678,14 @@ impl MediaObserver {
 
     /// 获取混合媒体状态（优先 GSMTC，回退到 Core Audio）
     #[cfg(windows)]
-    fn get_combined_media_state(
+    async fn get_combined_media_state(
         gsmtc_manager: Option<
             &windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager,
         >,
     ) -> MediaStateEvent {
-        Self::get_combined_media_state_with_source(gsmtc_manager).0
+        Self::get_combined_media_state_with_source(gsmtc_manager).await.0
     }
+
 
     /// 获取综合媒体状态，执行跨 API 的数据融合逻辑
     /// 
@@ -688,7 +701,7 @@ impl MediaObserver {
     ///    - 否则，返回 `Paused` 状态，以便角色维持对应的“听歌结束/待机”动作。
     /// 4. **Default**: 返回 `Stopped`。
     #[cfg(windows)]
-    fn get_combined_media_state_with_source(
+    async fn get_combined_media_state_with_source(
         gsmtc_manager: Option<
             &windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager,
         >,
@@ -697,7 +710,11 @@ impl MediaObserver {
         let gsmtc_event = gsmtc_manager.map(Self::get_gsmtc_media_state);
 
         // 从 Core Audio 获取状态（检测所有播放音频的进程）
-        let core_audio_event = tokio::task::block_in_place(|| Self::get_core_audio_media_state());
+        let core_audio_event = tokio::task::spawn_blocking(|| Self::get_core_audio_media_state())
+            .await
+            .ok()
+            .flatten();
+
 
         // 判断逻辑：
         // 1. 如果 GSMTC 检测到正在播放 -> 返回 GSMTC 结果（有元数据）
@@ -800,7 +817,7 @@ impl MediaObserver {
 
     /// 更新调试信息
     #[cfg(windows)]
-    fn update_debug_info(
+    async fn update_debug_info(
         app_handle: &tauri::AppHandle,
         running: &Arc<std::sync::atomic::AtomicBool>,
         gsmtc_manager: Option<
@@ -829,8 +846,10 @@ impl MediaObserver {
             .map(Self::collect_gsmtc_sessions)
             .unwrap_or_default();
 
-        let core_audio_sessions =
-            tokio::task::block_in_place(|| Self::collect_core_audio_sessions());
+        let core_audio_sessions = tokio::task::spawn_blocking(|| Self::collect_core_audio_sessions())
+            .await
+            .unwrap_or_default();
+
 
         let debug_info = MediaDebugInfo {
             observer_running: running.load(Ordering::SeqCst),

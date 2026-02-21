@@ -51,7 +51,7 @@ function send(res, status, body, headers = {}) {
   res.end(body);
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   try {
     const rawUrl = req.url || '/';
     const urlPath = decodeURIComponent(rawUrl.split('?')[0]);
@@ -63,34 +63,36 @@ const server = http.createServer((req, res) => {
     }
 
     // Default to index.html for root or directories
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+    const stat = await fs.promises.stat(filePath).catch(() => null);
+    if (stat && stat.isDirectory()) {
       filePath = path.join(filePath, 'index.html');
     }
 
-    if (!fs.existsSync(filePath)) {
-      console.error(`[404] File Not Found: ${filePath}`);
-      return send(res, 404, `404 Not Found: ${urlPath}`, { 'Content-Type': 'text/plain; charset=utf-8' });
+    let data;
+    try {
+      data = await fs.promises.readFile(filePath);
+    } catch (err) {
+      if (err && err.code === 'ENOENT') {
+        console.error(`[404] File Not Found: ${filePath}`);
+        return send(res, 404, `404 Not Found: ${urlPath}`, { 'Content-Type': 'text/plain; charset=utf-8' });
+      }
+      console.error(`[500] Read Error: ${filePath}`, err);
+      return send(res, 500, 'Internal Server Error', { 'Content-Type': 'text/plain; charset=utf-8' });
     }
 
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        console.error(`[500] Read Error: ${filePath}`, err);
-        return send(res, 500, 'Internal Server Error', { 'Content-Type': 'text/plain; charset=utf-8' });
-      }
-
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = MIME[ext] || 'application/octet-stream';
-      send(res, 200, data, {
-        'Content-Type': contentType,
-        'Cache-Control': 'no-cache',
-        'Access-Control-Allow-Origin': '*'
-      });
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME[ext] || 'application/octet-stream';
+    send(res, 200, data, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-cache',
+      'Access-Control-Allow-Origin': '*'
     });
   } catch (e) {
     console.error(`[500] Critical Error:`, e);
     send(res, 500, String(e && e.stack ? e.stack : e), { 'Content-Type': 'text/plain; charset=utf-8' });
   }
 });
+
 
 server.listen(PORT, HOST, () => {
   console.log(`Dev server running at http://${HOST}:${PORT}`);

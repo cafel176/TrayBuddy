@@ -650,10 +650,8 @@ pub fn init_environment(app_handle: Option<tauri::AppHandle>) {
         })
     });
 
-    // 在独立运行时中执行异步初始化逻辑
-    let rt = tokio::runtime::Runtime::new()
-        .expect("Failed to create tokio runtime for environment init");
-    rt.block_on(async {
+    // 在后台异步任务中执行初始化逻辑，避免阻塞当前线程
+    tauri::async_runtime::spawn(async move {
         let mut location_result: Option<GeoLocation> = None;
         let mut weather_result: Option<WeatherInfo> = None;
 
@@ -691,10 +689,11 @@ pub fn init_environment(app_handle: Option<tauri::AppHandle>) {
             #[cfg(debug_assertions)]
             println!("[Environment] Event emitted to frontend");
         }
+
+        #[cfg(debug_assertions)]
+        println!("[Environment] Initialization complete");
     });
 
-    #[cfg(debug_assertions)]
-    println!("[Environment] Initialization complete");
 }
 
 /// 获取缓存的地理位置（无需创建 EnvironmentManager）

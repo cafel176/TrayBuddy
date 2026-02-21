@@ -669,17 +669,19 @@ impl StateManager {
         };
         self.set_timer_enabled(should_enable);
 
-        std::thread::spawn(move || {
+        tauri::async_runtime::spawn(async move {
             #[cfg(debug_assertions)]
             println!("[StateManager] 定时触发器线程启动");
 
             let mut last_trigger_time = SystemTime::now();
+            let mut ticker = tokio::time::interval(Duration::from_secs(
+                crate::modules::constants::TIMER_TRIGGER_CHECK_INTERVAL_SECS,
+            ));
 
             loop {
                 // 定期检查
-                std::thread::sleep(Duration::from_secs(
-                    crate::modules::constants::TIMER_TRIGGER_CHECK_INTERVAL_SECS,
-                ));
+                ticker.tick().await;
+
 
                 // 快速检查开关（无锁操作）
                 if !timer_enabled.load(Ordering::Relaxed) {

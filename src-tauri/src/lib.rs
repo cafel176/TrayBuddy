@@ -2275,17 +2275,21 @@ struct ModTbuddyPick {
 }
 
 #[tauri::command]
-fn pick_mod_tbuddy(app: tauri::AppHandle) -> Result<ModTbuddyPick, String> {
-    use std::fs;
+async fn pick_mod_tbuddy(app: tauri::AppHandle) -> Result<ModTbuddyPick, String> {
     use tauri_plugin_dialog::DialogExt;
 
     println!("[pick_mod_tbuddy] called");
 
-    let file_path = app
-        .dialog()
-        .file()
-        .add_filter("TrayBuddy Mod", &["tbuddy", "sbuddy"])
-        .blocking_pick_file();
+    let app_for_dialog = app.clone();
+    let file_path = tokio::task::spawn_blocking(move || {
+        app_for_dialog
+            .dialog()
+            .file()
+            .add_filter("TrayBuddy Mod", &["tbuddy", "sbuddy"])
+            .blocking_pick_file()
+    })
+    .await
+    .map_err(|e| format!("Open dialog failed: {}", e))?;
 
     let selected_path = match file_path {
         Some(path) => match path {
@@ -2297,30 +2301,39 @@ fn pick_mod_tbuddy(app: tauri::AppHandle) -> Result<ModTbuddyPick, String> {
         }
     };
 
-    let ext = selected_path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let selected_path_clone = selected_path.clone();
+    let (id, version) = tokio::task::spawn_blocking(move || -> Result<(String, String), String> {
 
-    let (id, version) = if ext == "sbuddy" {
-        // 先检查解密工具是否可用
-        let supported = modules::mod_archive::is_sbuddy_supported();
-        if !supported {
-            return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+        let ext = selected_path_clone
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+
+        if ext == "sbuddy" {
+            // 先检查解密工具是否可用
+            let supported = modules::mod_archive::is_sbuddy_supported();
+            if !supported {
+                return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+            }
+            let data = std::fs::read(&selected_path_clone).map_err(|e| e.to_string())?;
+            let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
+            let cursor = std::io::Cursor::new(&zip_data);
+            let mut archive = zip::ZipArchive::new(cursor)
+                .map_err(|_| "Invalid .sbuddy file".to_string())?;
+            let root = get_zip_root_folder(&mut archive)?;
+            let manifest = read_zip_manifest(&mut archive, &root)?;
+            Ok((manifest.id.to_string(), manifest.version.to_string()))
+        } else {
+            let file = std::fs::File::open(&selected_path_clone).map_err(|e| e.to_string())?;
+            let mut archive = zip::ZipArchive::new(file)
+                .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
+            let root = get_tbuddy_root_folder(&mut archive)?;
+            let manifest = read_tbuddy_manifest(&mut archive, &root)?;
+            Ok((manifest.id.to_string(), manifest.version.to_string()))
         }
-        let data = fs::read(&selected_path).map_err(|e| e.to_string())?;
-        let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
-        let cursor = std::io::Cursor::new(&zip_data);
-        let mut archive = zip::ZipArchive::new(cursor)
-            .map_err(|_| "Invalid .sbuddy file".to_string())?;
-        let root = get_zip_root_folder(&mut archive)?;
-        let manifest = read_zip_manifest(&mut archive, &root)?;
-        (manifest.id.to_string(), manifest.version.to_string())
-    } else {
-        let file = fs::File::open(&selected_path).map_err(|e| e.to_string())?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
-        let root = get_tbuddy_root_folder(&mut archive)?;
-        let manifest = read_tbuddy_manifest(&mut archive, &root)?;
-        (manifest.id.to_string(), manifest.version.to_string())
-    };
+    })
+    .await
+    .map_err(|e| format!("Parse mod failed: {}", e))??;
 
     Ok(ModTbuddyPick {
         file_path: selected_path.to_string_lossy().into_owned(),
@@ -2328,6 +2341,7 @@ fn pick_mod_tbuddy(app: tauri::AppHandle) -> Result<ModTbuddyPick, String> {
         version,
     })
 }
+
 
 
 #[derive(Debug, serde::Serialize)]
@@ -2419,11 +2433,17 @@ async fn import_mod_from_path_detailed(
 async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     use tauri_plugin_dialog::DialogExt;
 
-    let file_path = app
-        .dialog()
-        .file()
-        .add_filter("TrayBuddy Mod", &["tbuddy", "sbuddy"])
-        .blocking_pick_file();
+    let app_for_dialog = app.clone();
+    let file_path = tokio::task::spawn_blocking(move || {
+        app_for_dialog
+            .dialog()
+            .file()
+            .add_filter("TrayBuddy Mod", &["tbuddy", "sbuddy"])
+            .blocking_pick_file()
+    })
+    .await
+    .map_err(|e| format!("Open dialog failed: {}", e))?;
+
 
     let selected_path = match file_path {
         Some(path) => match path {
@@ -2454,53 +2474,69 @@ fn is_sbuddy_supported() -> bool {
 ///
 /// 弹出保存文件对话框，用户选择保存路径后写入。
 #[tauri::command]
-fn export_mod_as_sbuddy(
+async fn export_mod_as_sbuddy(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
     mod_id: String,
 ) -> Result<(), String> {
     use tauri_plugin_dialog::DialogExt;
 
-    // 1) 尝试从 archive_store 获取源文件信息
-    let archive_source_path = {
-        let store = state.archive_store.lock().unwrap();
-        store.get_source(&mod_id).map(|s| s.file_path.clone())
-    };
+    // 1) 后台生成加密数据（避免阻塞命令线程）
+    let app_for_build = app.clone();
+    let mod_id_for_build = mod_id.clone();
+    let sbuddy_data = tokio::task::spawn_blocking(move || {
+        let state: State<AppState> = app_for_build.state();
 
-    // 2) 根据源文件类型决定生成 .sbuddy 的方式
-    let sbuddy_data = if let Some(ref src_path) = archive_source_path {
-        let ext = src_path.extension()
-            .map(|e| e.to_string_lossy().to_lowercase())
-            .unwrap_or_default();
+        // 尝试从 archive_store 获取源文件信息
+        let archive_source_path = {
+            let store = state.archive_store.lock().unwrap();
+            store.get_source(&mod_id_for_build).map(|s| s.file_path.clone())
+        };
 
-        if ext == "sbuddy" {
-            // .sbuddy 源：直接复制文件内容
-            std::fs::read(src_path)
-                .map_err(|e| format!("Failed to read .sbuddy file: {}", e))?
-        } else if ext == "tbuddy" {
-            // .tbuddy 源：读取 ZIP → 加密
-            let zip_data = std::fs::read(src_path)
-                .map_err(|e| format!("Failed to read .tbuddy file: {}", e))?;
-            modules::mod_archive::encrypt_sbuddy(&zip_data)?
+        // 根据源文件类型决定生成 .sbuddy 的方式
+        let sbuddy_data = if let Some(ref src_path) = archive_source_path {
+            let ext = src_path
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+
+            if ext == "sbuddy" {
+                // .sbuddy 源：直接复制文件内容
+                std::fs::read(src_path)
+                    .map_err(|e| format!("Failed to read .sbuddy file: {}", e))?
+            } else if ext == "tbuddy" {
+                // .tbuddy 源：读取 ZIP → 加密
+                let zip_data = std::fs::read(src_path)
+                    .map_err(|e| format!("Failed to read .tbuddy file: {}", e))?;
+                modules::mod_archive::encrypt_sbuddy(&zip_data)?
+            } else {
+                // 其他类型：回退到文件夹打包
+                let zip_data = zip_mod_directory(&state, &mod_id_for_build)?;
+                modules::mod_archive::encrypt_sbuddy(&zip_data)?
+            }
         } else {
-            // 其他类型：回退到文件夹打包
-            let zip_data = zip_mod_directory(&state, &mod_id)?;
+            // 文件夹 mod：打包为 ZIP → 加密
+            let zip_data = zip_mod_directory(&state, &mod_id_for_build)?;
             modules::mod_archive::encrypt_sbuddy(&zip_data)?
-        }
-    } else {
-        // 文件夹 mod：打包为 ZIP → 加密
-        let zip_data = zip_mod_directory(&state, &mod_id)?;
-        modules::mod_archive::encrypt_sbuddy(&zip_data)?
-    };
+        };
 
-    // 3) 弹出保存文件对话框
+        Ok::<Vec<u8>, String>(sbuddy_data)
+    })
+    .await
+    .map_err(|e| format!("Build sbuddy failed: {}", e))??;
+
+    // 2) 弹出保存文件对话框
     let default_name = format!("{}.sbuddy", mod_id);
-    let save_path = app
-        .dialog()
-        .file()
-        .set_file_name(&default_name)
-        .add_filter("SBuddy Encrypted Mod", &["sbuddy"])
-        .blocking_save_file();
+    let app_for_dialog = app.clone();
+    let save_path = tokio::task::spawn_blocking(move || {
+        app_for_dialog
+            .dialog()
+            .file()
+            .set_file_name(&default_name)
+            .add_filter("SBuddy Encrypted Mod", &["sbuddy"])
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| format!("Open dialog failed: {}", e))?;
 
     let save_path = match save_path {
         Some(path) => match path {
@@ -2510,12 +2546,18 @@ fn export_mod_as_sbuddy(
         None => return Err("Canceled".into()),
     };
 
-    // 4) 写入文件
-    std::fs::write(&save_path, &sbuddy_data)
-        .map_err(|e| format!("Failed to write .sbuddy file: {}", e))?;
+    // 3) 写入文件
+    let save_path_clone = save_path.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::write(&save_path_clone, &sbuddy_data)
+            .map_err(|e| format!("Failed to write .sbuddy file: {}", e))
+    })
+    .await
+    .map_err(|e| format!("Write sbuddy failed: {}", e))??;
 
     Ok(())
 }
+
 
 /// 将文件夹 mod 打包为 ZIP（内存中），用于导出
 fn zip_mod_directory(
@@ -3106,137 +3148,128 @@ fn open_dir(path: String) -> Result<(), String> {
 
 /// 启动媒体监听器（独立线程）
 fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
-    std::thread::spawn(move || {
+    tauri::async_runtime::spawn(async move {
         let mut observer = MediaObserver::new();
         let rx = observer.start(app_handle.clone(), skip_delay);
 
-        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-        rt.block_on(async move {
-            let mut rx = rx;
-            while let Some(event) = rx.recv().await {
-                let app_state: State<AppState> = app_handle.state();
+        let mut rx = rx;
+        while let Some(event) = rx.recv().await {
+            let app_state: State<AppState> = app_handle.state();
 
-                // 检查是否处于免打扰模式
-                let is_silence = {
-                    let storage = app_state.storage.lock().unwrap();
-                    storage.data.settings.silence_mode
-                };
+            // 检查是否处于免打扰模式
+            let is_silence = {
+                let storage = app_state.storage.lock().unwrap();
+                storage.data.settings.silence_mode
+            };
 
-                if is_silence {
-                    // 免打扰模式下忽略媒体状态变化
-                    continue;
-                }
-
-                // 等待状态解锁
-                use crate::modules::constants::{
-                    STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS,
-                };
-                for _ in 0..STATE_LOCK_MAX_RETRIES {
-                    let is_locked = {
-                        let sm = app_state.state_manager.lock().unwrap();
-                        sm.is_locked()
-                    };
-                    if !is_locked {
-                        break;
-                    }
-                    tokio::time::sleep(tokio::time::Duration::from_millis(
-                        STATE_LOCK_WAIT_INTERVAL_MS,
-                    ))
-                    .await;
-                }
-
-                match event.status {
-                    MediaPlaybackStatus::Playing => {
-                        let rm = app_state.resource_manager.lock().unwrap();
-                        let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_START, false, &rm, &mut sm);
-                    }
-                    MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped | MediaPlaybackStatus::Unknown => {
-                        let rm = app_state.resource_manager.lock().unwrap();
-                        let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_event(EVENT_MUSIC_END, false, &rm, &mut sm);
-                    }
-                    _ => {}
-                }
+            if is_silence {
+                // 免打扰模式下忽略媒体状态变化
+                continue;
             }
-        });
+
+            // 等待状态解锁
+            use crate::modules::constants::{
+                STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS,
+            };
+            for _ in 0..STATE_LOCK_MAX_RETRIES {
+                let is_locked = {
+                    let sm = app_state.state_manager.lock().unwrap();
+                    sm.is_locked()
+                };
+                if !is_locked {
+                    break;
+                }
+                tokio::time::sleep(tokio::time::Duration::from_millis(
+                    STATE_LOCK_WAIT_INTERVAL_MS,
+                ))
+                .await;
+            }
+
+            match event.status {
+                MediaPlaybackStatus::Playing => {
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    let mut sm = app_state.state_manager.lock().unwrap();
+                    let _ = TriggerManager::trigger_event(EVENT_MUSIC_START, false, &rm, &mut sm);
+                }
+                MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped | MediaPlaybackStatus::Unknown => {
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    let mut sm = app_state.state_manager.lock().unwrap();
+                    let _ = TriggerManager::trigger_event(EVENT_MUSIC_END, false, &rm, &mut sm);
+                }
+                _ => {}
+            }
+        }
     });
 }
+
 
 /// 启动进程监测器（独立线程）
 ///
 /// - 监听“新进程启动”
 /// - 若进程名包含 `config/process_observer_keywords.json` 中的任意关键字，则触发一次 `work` 事件
 fn start_process_observer(app_handle: tauri::AppHandle) {
-    std::thread::spawn(move || {
+    tauri::async_runtime::spawn(async move {
         let mut observer = ProcessObserver::new();
         let rx = observer.start(app_handle.clone());
 
-        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-        rt.block_on(async move {
-            let mut rx = rx;
+        let mut rx = rx;
 
-            while let Some(ProcessStartEvent { pid, process_name, matched_keyword }) = rx.recv().await {
-                let app_state: State<AppState> = app_handle.state();
+        while let Some(ProcessStartEvent { pid, process_name, matched_keyword }) = rx.recv().await {
+            let app_state: State<AppState> = app_handle.state();
 
-                // 免打扰模式下不触发 work
-
-                let is_silence = {
-                    let storage = app_state.storage.lock().unwrap();
-                    storage.data.settings.silence_mode
-                };
-                if is_silence {
-                    continue;
-                }
-
-                // 等待状态解锁（避免与 play_once 状态冲突）
-                use crate::modules::constants::{STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS};
-                for _ in 0..STATE_LOCK_MAX_RETRIES {
-                    let is_locked = {
-                        let sm = app_state.state_manager.lock().unwrap();
-                        sm.is_locked()
-                    };
-                    if !is_locked {
-                        break;
-                    }
-                    tokio::time::sleep(tokio::time::Duration::from_millis(
-                        STATE_LOCK_WAIT_INTERVAL_MS,
-                    ))
-                    .await;
-                }
-
-
-
-                // work 事件节流：间隔不足则跳过
-                let now_ts = chrono::Local::now().timestamp();
-                let should_fire = {
-                    let mut guard = LAST_WORK_EVENT_AT.lock().unwrap();
-                    let ok = guard.map_or(true, |last| now_ts - last >= WORK_EVENT_COOLDOWN_SECS);
-                    if ok {
-                        *guard = Some(now_ts);
-                    }
-                    ok
-                };
-
-                if !should_fire {
-                    continue;
-                }
-
-                #[cfg(debug_assertions)]
-                println!(
-                    "[ProcessObserver] New process matched: pid={}, name={}, keyword={}",
-                    pid, process_name, matched_keyword
-                );
-
-                let rm = app_state.resource_manager.lock().unwrap();
-                let mut sm = app_state.state_manager.lock().unwrap();
-                let _ = TriggerManager::trigger_event(EVENT_WORK, false, &rm, &mut sm);
-
-
+            // 免打扰模式下不触发 work
+            let is_silence = {
+                let storage = app_state.storage.lock().unwrap();
+                storage.data.settings.silence_mode
+            };
+            if is_silence {
+                continue;
             }
-        });
+
+            // 等待状态解锁（避免与 play_once 状态冲突）
+            use crate::modules::constants::{STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS};
+            for _ in 0..STATE_LOCK_MAX_RETRIES {
+                let is_locked = {
+                    let sm = app_state.state_manager.lock().unwrap();
+                    sm.is_locked()
+                };
+                if !is_locked {
+                    break;
+                }
+                tokio::time::sleep(tokio::time::Duration::from_millis(
+                    STATE_LOCK_WAIT_INTERVAL_MS,
+                ))
+                .await;
+            }
+
+            // work 事件节流：间隔不足则跳过
+            let now_ts = chrono::Local::now().timestamp();
+            let should_fire = {
+                let mut guard = LAST_WORK_EVENT_AT.lock().unwrap();
+                let ok = guard.map_or(true, |last| now_ts - last >= WORK_EVENT_COOLDOWN_SECS);
+                if ok {
+                    *guard = Some(now_ts);
+                }
+                ok
+            };
+
+            if !should_fire {
+                continue;
+            }
+
+            #[cfg(debug_assertions)]
+            println!(
+                "[ProcessObserver] New process matched: pid={}, name={}, keyword={}",
+                pid, process_name, matched_keyword
+            );
+
+            let rm = app_state.resource_manager.lock().unwrap();
+            let mut sm = app_state.state_manager.lock().unwrap();
+            let _ = TriggerManager::trigger_event(EVENT_WORK, false, &rm, &mut sm);
+        }
     });
 }
+
 
 /// 启动全局键盘监听器（独立线程）
 ///
@@ -3255,7 +3288,7 @@ fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
             app_state.global_keyboard_enabled.clone()
         };
 
-        std::thread::spawn(move || {
+        tauri::async_runtime::spawn(async move {
             use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
 
             /// 虚拟键码到 KeyboardEvent.code 的映射
@@ -3289,9 +3322,11 @@ fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
             let mut prev_states = vec![false; KEY_MAP.len()];
             let mut logged_enabled = false;
             let mut logged_disabled = false;
+            let mut ticker = tokio::time::interval(Duration::from_millis(50));
 
             loop {
-                std::thread::sleep(Duration::from_millis(50));
+                ticker.tick().await;
+
 
                 if !enabled.load(Ordering::Relaxed) {
                     if !logged_disabled {
@@ -3398,7 +3433,7 @@ fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
             app_state.global_mouse_enabled.clone()
         };
 
-        std::thread::spawn(move || {
+        tauri::async_runtime::spawn(async move {
             use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
 
             /// 鼠标按钮映射：(虚拟键码, 事件名称)
@@ -3410,9 +3445,11 @@ fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
             let mut prev_states = [false; 2];
             let mut logged_enabled = false;
             let mut logged_disabled = false;
+            let mut ticker = tokio::time::interval(Duration::from_millis(50));
 
             loop {
-                std::thread::sleep(Duration::from_millis(50));
+                ticker.tick().await;
+
 
                 if !enabled.load(Ordering::Relaxed) {
                     if !logged_disabled {
@@ -3488,70 +3525,80 @@ fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
 
 /// 启动提醒调度器（独立线程）
 fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
-    std::thread::spawn(move || {
+    tauri::async_runtime::spawn(async move {
         use chrono::Local;
         use std::time::Duration;
 
+        let mut ticker = tokio::time::interval(Duration::from_secs(1));
+
         loop {
-            std::thread::sleep(Duration::from_secs(1));
+            ticker.tick().await;
 
-            let now_ts = Local::now().timestamp();
-            let mut due: Vec<ReminderAlertPayload> = Vec::new();
-            let mut changed = false;
+            let app_handle_for_storage = app_handle.clone();
+            let (due, _changed) = tokio::task::spawn_blocking(move || {
 
-            {
-                let app_state: State<AppState> = app_handle.state();
-                let mut storage = app_state.storage.lock().unwrap();
+                let now_ts = Local::now().timestamp();
+                let mut due: Vec<ReminderAlertPayload> = Vec::new();
+                let mut changed = false;
 
-                for r in storage.data.info.reminders.iter_mut() {
-                    if !r.enabled {
-                        continue;
-                    }
+                {
+                    let app_state: State<AppState> = app_handle_for_storage.state();
+                    let mut storage = app_state.storage.lock().unwrap();
 
-                    if r.next_trigger_at == 0 {
-                        // 兜底：如果前端/历史数据没填 next_trigger_at，后端自动归一化
-                        let normalized = normalize_reminder(r.clone(), now_ts);
-                        *r = normalized;
-                        changed = true;
-                    }
-
-                    if r.next_trigger_at > 0 && r.next_trigger_at <= now_ts {
-                        // 去重：避免同一秒多次触发
-                        if r.last_trigger_at
-                            .map(|t| now_ts.saturating_sub(t) < 2)
-                            .unwrap_or(false)
-                        {
+                    for r in storage.data.info.reminders.iter_mut() {
+                        if !r.enabled {
                             continue;
                         }
 
-                        due.push(ReminderAlertPayload {
-                            id: r.id.clone(),
-                            text: r.text.to_string(),
-                            scheduled_at: r.next_trigger_at,
-                            fired_at: now_ts,
-                        });
-
-                        r.last_trigger_at = Some(now_ts);
-
-                        match &r.schedule {
-                            ReminderSchedule::Weekly { days, hour, minute } => {
-                                r.next_trigger_at =
-                                    compute_next_weekly_trigger_at(now_ts, days, *hour, *minute);
-                            }
-                            ReminderSchedule::Absolute { .. } | ReminderSchedule::After { .. } => {
-                                // 一次性提醒触发后自动关闭
-                                r.enabled = false;
-                            }
+                        if r.next_trigger_at == 0 {
+                            // 兜底：如果前端/历史数据没填 next_trigger_at，后端自动归一化
+                            let normalized = normalize_reminder(r.clone(), now_ts);
+                            *r = normalized;
+                            changed = true;
                         }
 
-                        changed = true;
+                        if r.next_trigger_at > 0 && r.next_trigger_at <= now_ts {
+                            // 去重：避免同一秒多次触发
+                            if r.last_trigger_at
+                                .map(|t| now_ts.saturating_sub(t) < 2)
+                                .unwrap_or(false)
+                            {
+                                continue;
+                            }
+
+                            due.push(ReminderAlertPayload {
+                                id: r.id.clone(),
+                                text: r.text.to_string(),
+                                scheduled_at: r.next_trigger_at,
+                                fired_at: now_ts,
+                            });
+
+                            r.last_trigger_at = Some(now_ts);
+
+                            match &r.schedule {
+                                ReminderSchedule::Weekly { days, hour, minute } => {
+                                    r.next_trigger_at =
+                                        compute_next_weekly_trigger_at(now_ts, days, *hour, *minute);
+                                }
+                                ReminderSchedule::Absolute { .. } | ReminderSchedule::After { .. } => {
+                                    // 一次性提醒触发后自动关闭
+                                    r.enabled = false;
+                                }
+                            }
+
+                            changed = true;
+                        }
+                    }
+
+                    if changed {
+                        let _ = storage.save();
                     }
                 }
 
-                if changed {
-                    let _ = storage.save();
-                }
-            }
+                (due, changed)
+            })
+            .await
+            .unwrap_or_default();
 
             if due.is_empty() {
                 continue;
@@ -3585,6 +3632,7 @@ fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
         }
     });
 }
+
 
 
 /// 保存动画窗口位置
@@ -4877,19 +4925,19 @@ fn trigger_login_events(app_handle: &tauri::AppHandle) {
 fn start_session_observer(app_handle: tauri::AppHandle) {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
-    use std::thread;
 
     // 非Windows平台使用简化的轮询方式
     let login_triggered = Arc::new(AtomicBool::new(false));
 
-    thread::spawn(move || {
+    tauri::async_runtime::spawn(async move {
         println!("[SessionObserver] 非Windows平台启动简化的会话检测线程");
 
         // 只需要触发一次，触发后退出循环
         loop {
-            std::thread::sleep(std::time::Duration::from_secs(
+            tokio::time::sleep(std::time::Duration::from_secs(
                 modules::constants::SESSION_OBSERVER_POLL_INTERVAL_SECS,
-            ));
+            ))
+            .await;
 
             // 启动后台服务
             start_background_services_non_windows(&app_handle);
@@ -4900,7 +4948,9 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
                 true,
                 Ordering::SeqCst,
                 Ordering::Relaxed,
-            ).is_ok() {
+            )
+            .is_ok()
+            {
                 println!("[SessionObserver] 非Windows平台模拟登录事件");
                 trigger_login_events_non_windows(&app_handle);
                 break; // 触发后退出循环
@@ -4908,6 +4958,7 @@ fn start_session_observer(app_handle: tauri::AppHandle) {
         }
     });
 }
+
 
 /// 非Windows平台启动后台服务
 #[cfg(not(target_os = "windows"))]
