@@ -452,25 +452,7 @@
       "event": "click",
       "can_trigger_states": [
         {
-          "persistent_state": "idle",
-          "states": [
-            {
-              "state": "random1",
-              "weight": 1
-            },
-            {
-              "state": "random2",
-              "weight": 1
-            },
-            {
-              "state": "random3",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        },
-        {
-          "persistent_state": "music",
+          "persistent_state": "",
           "states": [
             {
               "state": "random1",
@@ -488,59 +470,6 @@
           "allow_repeat": true
         }
       ]
-    },
-    {
-      "event": "keydown:Space",
-      "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            {
-              "state": "random1",
-              "weight": 1
-            },
-            {
-              "state": "random2",
-              "weight": 1
-            },
-            {
-              "state": "random3",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        },
-        {
-          "persistent_state": "music",
-          "states": [
-            {
-              "state": "random1",
-              "weight": 1
-            },
-            {
-              "state": "random2",
-              "weight": 1
-            },
-            {
-              "state": "random3",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "right_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_right_click",
-      "can_trigger_states": []
     }
   ],
   "mod_type": "sequence"

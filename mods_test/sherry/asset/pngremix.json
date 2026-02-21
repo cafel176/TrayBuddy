@@ -4,7 +4,8 @@
     "name": "橘雪莉",
     "pngremix_file": "asset/橘雪莉251004.pngRemix",
     "default_state_index": 0,
-    "max_fps": 60
+    "max_fps": 60,
+    "scale": 1
   },
   "features": {
     "mouse_follow": true,

@@ -642,14 +642,14 @@
               <!-- Live2D 参数浏览器 -->
               <details class="form-section section-details" id="live2d-params-browser-section">
                 <summary class="section-header">
-                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span>模型参数浏览器 (Parameters)</h3>
+                  <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="params_browser_title">模型参数浏览器 (Parameters)</span></h3>
                   <div class="section-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="loadLive2dParamsBrowser()">🔄 从文件读取</button>
+                    <button class="btn btn-sm btn-secondary" onclick="loadLive2dParamsBrowser()"><span data-i18n="params_browser_load_btn">🔄 从文件读取</span></button>
                   </div>
                 </summary>
-                <small class="section-hint">显示 cdi3.json 中定义的所有 Live2D 模型参数，按分组折叠展示</small>
+                <small class="section-hint" data-i18n="params_browser_hint">显示 cdi3.json 中定义的所有 Live2D 模型参数，按分组折叠展示</small>
                 <div id="live2d-params-browser-content">
-                  <p style="color: var(--text-secondary); font-style: italic; padding: 8px 0;">点击「从文件读取」加载模型参数信息</p>
+                  <p style="color: var(--text-secondary); font-style: italic; padding: 8px 0;" data-i18n="params_browser_placeholder">点击「从文件读取」加载模型参数信息</p>
                 </div>
               </details>
 
@@ -1467,7 +1467,7 @@
                     <label data-i18n="trigger_weather_label">触发天气</label>
                     <select id="state-trigger-weather" multiple size="8">
 
-                      <option value="" disabled>(不限制：不选择任何项)</option>
+                      <option value="" disabled data-i18n="trigger_weather_no_limit">(不限制：不选择任何项)</option>
 
 
                       <option value="113">113 - Clear/Sunny</option>

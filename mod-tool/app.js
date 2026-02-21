@@ -973,7 +973,7 @@ async function loadModFolder() {
       const seqFile = await seqHandle.getFile();
       currentMod.assets.sequence = JSON.parse(await seqFile.text());
     } catch (e) {
-      console.log('No sequence.json found');
+      console.debug('No sequence.json found');
     }
     
     // 读取 asset/img.json
@@ -983,7 +983,7 @@ async function loadModFolder() {
       const imgFile = await imgHandle.getFile();
       currentMod.assets.img = JSON.parse(await imgFile.text());
     } catch (e) {
-      console.log('No img.json found');
+      console.debug('No img.json found');
     }
 
     // 读取 asset/live2d.json
@@ -993,7 +993,7 @@ async function loadModFolder() {
       const live2dFile = await live2dHandle.getFile();
       currentMod.assets.live2d = JSON.parse(await live2dFile.text());
     } catch (e) {
-      console.log('No live2d.json found');
+      console.debug('No live2d.json found');
     }
 
     // 读取 asset/pngremix.json
@@ -1003,7 +1003,7 @@ async function loadModFolder() {
       const pngremixFile = await pngremixHandle.getFile();
       currentMod.assets.pngremix = JSON.parse(await pngremixFile.text());
     } catch (e) {
-      console.log('No pngremix.json found');
+      console.debug('No pngremix.json found');
     }
 
     // 读取 asset/3d.json
@@ -1013,7 +1013,7 @@ async function loadModFolder() {
       const threedFile = await threedHandle.getFile();
       currentMod.assets.threed = JSON.parse(await threedFile.text());
     } catch (e) {
-      console.log('No 3d.json found');
+      console.debug('No 3d.json found');
     }
 
     // 读取 bubble_style.json
@@ -1023,7 +1023,7 @@ async function loadModFolder() {
       currentMod.bubbleStyle = JSON.parse(await bubbleFile.text());
       currentMod.bubbleEnabled = true;
     } catch (e) {
-      console.log('No bubble_style.json found');
+      console.debug('No bubble_style.json found');
     }
     
     // 读取 text 目录
@@ -1055,7 +1055,7 @@ async function loadModFolder() {
         }
       }
     } catch (e) {
-      console.log('No text directory found');
+      console.debug('No text directory found');
     }
     currentMod.textSpeechEnabled = foundTextSpeech;
     
@@ -1078,7 +1078,7 @@ async function loadModFolder() {
         }
       }
     } catch (e) {
-      console.log('No audio directory found');
+      console.debug('No audio directory found');
     }
     currentMod.audioSpeechEnabled = foundAudioSpeech;
     
@@ -1112,7 +1112,7 @@ async function loadModFolder() {
       };
       reader.readAsDataURL(iconFile);
     } catch (e) {
-      console.log('No icon.ico found');
+      console.debug('No icon.ico found');
     }
     
     finishLoading(manifest);
@@ -1903,6 +1903,17 @@ async function saveMod() {
       } else if (modType === 'pngremix') {
         // PngRemix mod：复制 .pngremix 等资源文件
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
+      } else if (modType === 'threed') {
+        // 3D mod：将 asset/3d/ 下所有文件（含 .json 配置）完整复制
+        try {
+          const srcAssetDir = await sourceFolderHandle.getDirectoryHandle('asset');
+          const srcThreeDDir = await srcAssetDir.getDirectoryHandle('3d');
+          await copyAllFilesBetweenDirectories(srcThreeDDir, modFolderHandle, 'asset/3d');
+        } catch (e) {
+          // asset/3d 目录不存在则跳过
+        }
+        // 其余非 json 文件照常复制，但跳过 asset/3d 目录（已完整处理）
+        await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle, { skipDirs: ['asset/3d'] });
       } else {
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
       }
@@ -2917,14 +2928,14 @@ function renderStates() {
 }
 
 /**
- * 渲染核心状态列表（idle / music）
+ * 渲染核心状态列表（idle / silence / dragging / music）
  */
 function renderCoreStates() {
   const container = document.getElementById('core-states-list');
   if (!container) return;
   container.innerHTML = '';
 
-  const coreKeys = ['idle', 'music'];
+  const coreKeys = ['idle', 'silence', 'dragging', 'music'];
   const importantStates = currentMod.manifest.important_states || {};
 
   coreKeys.forEach(key => {
@@ -2959,8 +2970,8 @@ function renderImportantStates() {
   const textNeedle = filters.text.toLowerCase();
 
   const importantStates = currentMod.manifest.important_states || {};
-  const coreKeys = ['idle', 'music'];
-  const stateOrder = ['silence', 'silence_start', 'silence_end', 'dragging', 'drag_start', 'drag_end', 'music_start', 'music_end', 'birthday', 'firstday'];
+  const coreKeys = ['idle', 'silence', 'dragging', 'music'];
+  const stateOrder = ['silence_start', 'silence_end', 'drag_start', 'drag_end', 'music_start', 'music_end', 'birthday', 'firstday'];
 
   const shouldRender = (key, state) => {
     const displayName = String(state?.name || key);
@@ -3232,7 +3243,7 @@ function openStateModal(title, state) {
         if (!Array.from(el.options).some((o) => o.value === v)) {
           const opt = document.createElement('option');
           opt.value = v;
-          opt.textContent = `${v} - (custom)`;
+          opt.textContent = `${v} - (${window.i18n.t('custom_option')})`;
           opt.dataset.custom = '1';
           el.appendChild(opt);
         }
@@ -5491,7 +5502,7 @@ async function loadLive2dParamsBrowser() {
     return;
   }
   if (currentMod.manifest.mod_type !== 'live2d') {
-    showToast('此功能仅适用于 Live2D 类型的 Mod', 'warning');
+    showToast(window.i18n.t('msg_params_live2d_only'), 'warning');
     return;
   }
   if (!modFolderHandle) {
@@ -5512,7 +5523,7 @@ async function loadLive2dParamsBrowser() {
     const cdiPath = fileRefs.DisplayInfo || fileRefs.displayInfo || '';
 
     if (!cdiPath) {
-      showToast('model3.json 中未找到 DisplayInfo (cdi3.json) 路径', 'warning');
+      showToast(window.i18n.t('msg_params_no_display_info'), 'warning');
       return;
     }
 
@@ -5527,10 +5538,10 @@ async function loadLive2dParamsBrowser() {
     const cdiData = JSON.parse(await cdiFile.text());
 
     renderLive2dParamsBrowser(cdiData);
-    showToast(`已加载 ${(cdiData.Parameters || []).length} 个参数`, 'success');
+    showToast(window.i18n.t('msg_params_loaded', { count: (cdiData.Parameters || []).length }), 'success');
   } catch (err) {
     console.error('loadLive2dParamsBrowser error:', err);
-    showToast('读取参数失败: ' + (err.message || String(err)), 'error');
+    showToast(window.i18n.t('msg_params_load_failed', { error: err.message || String(err) }), 'error');
   }
 }
 
@@ -5547,7 +5558,7 @@ function renderLive2dParamsBrowser(cdiData) {
   const combinedParams = cdiData.CombinedParameters || [];
 
   if (allParams.length === 0) {
-    container.innerHTML = '<p style="color: var(--text-secondary); font-style: italic; padding: 8px 0;">未找到任何参数定义</p>';
+    container.innerHTML = `<p style="color: var(--text-secondary); font-style: italic; padding: 8px 0;">${escapeHtml(window.i18n.t('msg_params_none_found'))}</p>`;
     return;
   }
 
@@ -5585,7 +5596,7 @@ function renderLive2dParamsBrowser(cdiData) {
   function renderParamRow(p) {
     const comboInfo = combinedMap[p.Id];
     const comboHtml = comboInfo
-      ? `<span class="param-combo" title="组合参数">🔗 ${comboInfo.map(ids => ids.join(', ')).join(' | ')}</span>`
+      ? `<span class="param-combo" title="${escapeHtml(window.i18n.t('params_combined'))}">🔗 ${comboInfo.map(ids => ids.join(', ')).join(' | ')}</span>`
       : '';
     return `
       <div class="param-row">
@@ -5599,10 +5610,7 @@ function renderLive2dParamsBrowser(cdiData) {
 
   // 统计信息
   html += `<div class="params-summary" style="margin-bottom: 12px; padding: 8px 12px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px; font-size: 13px;">
-    📊 共 <strong>${allParams.length}</strong> 个参数，
-    <strong>${paramGroups.length}</strong> 个分组，
-    <strong>${parts.length}</strong> 个部件，
-    <strong>${combinedParams.length}</strong> 组组合参数
+    📊 ${window.i18n.t('params_summary', { params: allParams.length, groups: paramGroups.length, parts: parts.length, combined: combinedParams.length })}
   </div>`;
 
   // 未分组参数
@@ -5610,8 +5618,8 @@ function renderLive2dParamsBrowser(cdiData) {
     html += `
       <details class="param-group-details" open>
         <summary class="param-group-summary">
-          <span class="param-group-name">未分组 (ungrouped)</span>
-          <span class="param-group-count">${ungrouped.length} 个参数</span>
+          <span class="param-group-name">${escapeHtml(window.i18n.t('params_ungrouped'))}</span>
+          <span class="param-group-count">${window.i18n.t('params_count', { count: ungrouped.length })}</span>
         </summary>
         <div class="param-group-list">
           ${ungrouped.map(renderParamRow).join('')}
@@ -5629,7 +5637,7 @@ function renderLive2dParamsBrowser(cdiData) {
         <summary class="param-group-summary">
           <span class="param-group-name">${escapeHtml(gName)}</span>
           <span class="param-group-id">${escapeHtml(gid)}</span>
-          <span class="param-group-count">${gParams.length} 个参数</span>
+          <span class="param-group-count">${window.i18n.t('params_count', { count: gParams.length })}</span>
         </summary>
         <div class="param-group-list">
           ${gParams.map(renderParamRow).join('')}

@@ -485,26 +485,6 @@
           "allow_repeat": true
         }
       ]
-    },
-    {
-      "event": "drag_start",
-      "can_trigger_states": []
-    },
-    {
-      "event": "drag_end",
-      "can_trigger_states": []
-    },
-    {
-      "event": "right_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_right_click",
-      "can_trigger_states": []
     }
   ]
 }

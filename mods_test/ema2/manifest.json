@@ -186,7 +186,7 @@
     "dragging": {
       "name": "dragging",
       "persistent": true,
-      "anima": "",
+      "anima": "idle2",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -202,12 +202,13 @@
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
-      "trigger_weather": [],
-      "mod_data_counter": null,
-      "branch_show_bubble": true,
-      "branch": [],
       "trigger_uptime": 0,
-      "live2d_params": null
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
     },
     "drag_start": {
       "name": "drag_start",
@@ -1211,84 +1212,6 @@
       "live2d_params": null
     },
     {
-      "name": "test1",
-      "persistent": false,
-      "anima": "",
-      "audio": "",
-      "text": "test1",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "trigger_counter_start": -2147483648,
-      "trigger_counter_end": 2147483647,
-      "trigger_temp_start": -2147483648,
-      "trigger_temp_end": 2147483647,
-      "branch_show_bubble": true,
-      "trigger_weather": [],
-      "mod_data_counter": null,
-      "branch": [],
-      "trigger_uptime": 0,
-      "live2d_params": null
-    },
-    {
-      "name": "test2",
-      "persistent": false,
-      "anima": "",
-      "audio": "",
-      "text": "test2",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "trigger_counter_start": -2147483648,
-      "trigger_counter_end": 2147483647,
-      "trigger_temp_start": -2147483648,
-      "trigger_temp_end": 2147483647,
-      "branch_show_bubble": true,
-      "trigger_weather": [],
-      "mod_data_counter": null,
-      "branch": [],
-      "trigger_uptime": 0,
-      "live2d_params": null
-    },
-    {
-      "name": "test3",
-      "persistent": false,
-      "anima": "",
-      "audio": "",
-      "text": "test3",
-      "priority": 2,
-      "date_start": "",
-      "date_end": "",
-      "time_start": "",
-      "time_end": "",
-      "next_state": "",
-      "can_trigger_states": [],
-      "trigger_time": 0,
-      "trigger_rate": 0,
-      "trigger_counter_start": -2147483648,
-      "trigger_counter_end": 2147483647,
-      "trigger_temp_start": -2147483648,
-      "trigger_temp_end": 2147483647,
-      "branch_show_bubble": true,
-      "trigger_weather": [],
-      "mod_data_counter": null,
-      "branch": [],
-      "trigger_uptime": 0,
-      "live2d_params": null
-    },
-    {
       "name": "work",
       "persistent": false,
       "anima": "",
@@ -1829,7 +1752,12 @@
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": [],
+          "states": [
+            {
+              "state": "drag_start",
+              "weight": 1
+            }
+          ],
           "allow_repeat": true
         }
       ]
@@ -1839,7 +1767,12 @@
       "can_trigger_states": [
         {
           "persistent_state": "",
-          "states": [],
+          "states": [
+            {
+              "state": "drag_end",
+              "weight": 1
+            }
+          ],
           "allow_repeat": true
         }
       ]
@@ -1858,18 +1791,6 @@
           "allow_repeat": true
         }
       ]
-    },
-    {
-      "event": "right_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_right_click",
-      "can_trigger_states": []
     }
   ],
   "mod_type": "sequence"

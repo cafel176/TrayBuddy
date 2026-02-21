@@ -165,21 +165,6 @@
     "duration": 3
   },
   {
-    "name": "test1",
-    "text": "测试1",
-    "duration": 3
-  },
-  {
-    "name": "test2",
-    "text": "测试2",
-    "duration": 3
-  },
-  {
-    "name": "test3",
-    "text": "测试3",
-    "duration": 3
-  },
-  {
     "name": "work",
     "text": "欸，你现在要开始工作了吗？\n辛苦了，别太勉强自己哦。",
     "duration": 3

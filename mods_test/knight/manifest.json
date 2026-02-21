@@ -913,42 +913,7 @@
       "event": "click",
       "can_trigger_states": [
         {
-          "persistent_state": "idle",
-          "states": [
-            {
-              "state": "click",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        },
-        {
-          "persistent_state": "music",
-          "states": [
-            {
-              "state": "click",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "keydown:Space",
-      "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            {
-              "state": "click",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        },
-        {
-          "persistent_state": "music",
+          "persistent_state": "",
           "states": [
             {
               "state": "click",
@@ -973,38 +938,6 @@
           "allow_repeat": true
         }
       ]
-    },
-    {
-      "event": "birthday",
-      "can_trigger_states": []
-    },
-    {
-      "event": "firstday",
-      "can_trigger_states": []
-    },
-    {
-      "event": "login_silence",
-      "can_trigger_states": []
-    },
-    {
-      "event": "music_start",
-      "can_trigger_states": []
-    },
-    {
-      "event": "music_end",
-      "can_trigger_states": []
-    },
-    {
-      "event": "right_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_right_click",
-      "can_trigger_states": []
     }
   ],
   "mod_type": "sequence"

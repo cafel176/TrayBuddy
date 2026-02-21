@@ -687,6 +687,22 @@
   "msg_sync_threed_no_vrm_found": "在 asset/3d/ 目录下未找到 .vrm/.pmx 模型文件",
   "msg_sync_threed_no_vrma_found": "在 asset/3d/ 目录下未找到 .vrma/.vmd 动画文件",
   "msg_sync_threed_choose_vrm": "在目录中找到多个模型文件，请输入要使用的文件名：\n{files}",
-  "msg_sync_threed_dir_not_found": "未找到 asset/3d/ 目录，请检查 Mod 目录结构"
+  "msg_sync_threed_dir_not_found": "未找到 asset/3d/ 目录，请检查 Mod 目录结构",
+
+  "msg_params_live2d_only": "此功能仅适用于 Live2D 类型的 Mod",
+  "msg_params_no_display_info": "model3.json 中未找到 DisplayInfo (cdi3.json) 路径",
+  "msg_params_loaded": "已加载 {count} 个参数",
+  "msg_params_load_failed": "读取参数失败: {error}",
+  "msg_params_none_found": "未找到任何参数定义",
+  "params_combined": "组合参数",
+  "params_summary": "共 <strong>{params}</strong> 个参数，<strong>{groups}</strong> 个分组，<strong>{parts}</strong> 个部件，<strong>{combined}</strong> 组组合参数",
+  "params_ungrouped": "未分组 (ungrouped)",
+  "params_count": "{count} 个参数",
+  "params_browser_title": "模型参数浏览器 (Parameters)",
+  "params_browser_load_btn": "🔄 从文件读取",
+  "params_browser_hint": "显示 cdi3.json 中定义的所有 Live2D 模型参数，按分组折叠展示",
+  "params_browser_placeholder": "点击「从文件读取」加载模型参数信息",
+  "trigger_weather_no_limit": "(不限制：不选择任何项)",
+  "custom_option": "自定义"
 }
 

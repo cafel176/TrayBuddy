@@ -79,6 +79,34 @@ mods/<mod_id>/
         └── speech.json
 ```
 
+### 1.4 3D Mod（mod_type: "3d"）
+
+```text
+mods/<mod_id>/
+├── manifest.json            # Mod 主要信息清单（必需）
+├── preview.png              # Mod 预览图
+├── icon.ico                 # Mod 图标
+├── bubble_style.json        # [可选] 气泡样式自定义配置
+├── asset/
+│   ├── 3d.json              # 3D 模型配置（模型/动画/状态映射）
+│   └── 3d/                  # 3D 资源目录
+│       ├── <model>.vrm      # VRM 模型文件（VRM 类型）
+│       ├── <model>.pmx      # 或 PMX 模型文件（PMX 类型）
+│       ├── textures/        # [可选] PMX 纹理文件目录
+│       │   └── *.png / *.bmp / *.tga / *.jpg
+│       └── animations/      # 动画文件目录
+│           ├── *.vrma        # VRM Animation 文件（VRM 类型）
+│           └── *.vmd         # VMD 动画文件（PMX 类型）
+├── audio/                   # [可选] 音频资源（同序列帧 Mod）
+│   └── <lang>/
+│       ├── speech.json
+│       └── speech/
+└── text/                    # 文本资源（同序列帧 Mod）
+    └── <lang>/
+        ├── info.json
+        └── speech.json
+```
+
 ---
 
 
@@ -92,7 +120,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `id` | String | mod唯一标识符 |
 ||| `version` | String | 适用版本号 |
 ||| `author` | String | 作者名称 |
-||| `mod_type` | String | Mod 类型：`sequence`（序列帧动画）/ `live2d`（Live2D 模型）/ `pngremix`（PngRemix 模型） |
+||| `mod_type` | String | Mod 类型：`sequence`（序列帧动画）/ `live2d`（Live2D 模型）/ `pngremix`（PngRemix 模型）/ `3d`（3D 模型，VRM/PMX） |
 ||| `default_audio_lang_id` | String | 找不到对应语言的语音文件时，会使用默认id语言的音频文件 |
 ||| `default_text_lang_id` | String | 找不到对应语言的文本时，会使用默认id语言的文本 |
 ||| `character` | Object | 角色渲染配置 |
@@ -378,7 +406,97 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `scale` | Number | 模型缩放比例（默认 `1`） |
 ||| `offset_x` / `offset_y` | Number | 位置偏移（默认 `0`） |
 
-### 2.6 `audio/[lang]/speech.json`
+### 2.6 `asset/3d.json`（3D Mod 专用）
+定义 3D 模型的配置信息，包含模型基础参数、动画列表与状态映射。
+
+#### 2.6.1 顶层结构
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `schema_version` | Number | 配置版本号（当前为 `1`） |
+||| `model` | Object | 模型基础配置 |
+||| `animations` | Array | 动画列表 |
+||| `states` | Array | [可选] 状态-动画映射列表（省略时，`manifest` 状态的 `anima` 直接匹配 `animations[].name`） |
+
+#### 2.6.2 模型配置对象 (model)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 模型显示名称 |
+||| `type` | String | 模型类型：`vrm`（VRM 格式）/ `pmx`（PMX 格式） |
+||| `file` | String | 模型文件路径，相对于 Mod 根目录（如 `asset/3d/model.vrm`） |
+||| `scale` | Number | 整体缩放系数（默认 `1`） |
+||| `offset_x` | Number | X 轴偏移（默认 `0`） |
+||| `offset_y` | Number | Y 轴偏移（默认 `0`） |
+||| `texture_base_dir` | String | [可选] 纹理文件基础目录，主要用于 PMX 模型（如 `asset/3d/textures`） |
+||| `animation_base_dir` | String | [可选] 动画文件基础目录（如 `asset/3d/animations`）。动画的 `file` 字段相对于此目录 |
+
+#### 2.6.3 动画对象 (Animation Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 动画名称，供状态映射引用 |
+||| `type` | String | 动画类型：`vrma`（VRM Animation）/ `vmd`（VMD 格式） |
+||| `file` | String | 动画文件路径（相对于 `animation_base_dir`，如 `PET_IDLE.vrma`） |
+||| `loop` | Boolean | [可选] 是否循环播放 |
+||| `speed` | Number | 播放速度（默认 `1`） |
+||| `fps` | Number | 帧率（默认 `60`），主要用于 VRMA 动画 |
+
+#### 2.6.4 状态映射对象 (State Mapping Object)
+当 `states` 数组存在时，用于将 `manifest` 状态的 `anima` 字段映射到具体的 3D 动画。
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `state` | String | 映射名称（对应 manifest 状态的 `anima` 字段值） |
+||| `animation` | String | 关联的动画名称（引用 `animations[].name`） |
+||| `scale` | Number | [可选] 缩放比例覆写（省略使用模型默认值） |
+||| `offset_x` / `offset_y` | Number | [可选] 位置偏移覆写（省略使用模型默认值） |
+
+> **注意**：当 `asset/3d.json` 不存在时，系统会自动扫描 `asset/3d/` 目录下的 `.vrm`/`.pmx` 模型文件和 `.vrma`/`.vmd` 动画文件，按优先级自动选择。
+
+**示例（VRM）：**
+```json
+{
+  "schema_version": 1,
+  "model": {
+    "name": "HatsuneMikuNT",
+    "type": "vrm",
+    "file": "asset/3d/HatsuneMikuNT.vrm",
+    "scale": 0.9,
+    "offset_x": 0,
+    "offset_y": 0,
+    "texture_base_dir": "",
+    "animation_base_dir": "asset/3d/animations"
+  },
+  "animations": [
+    { "name": "pet_idle_1", "type": "vrma", "file": "PET_IDLE 1.vrma", "speed": 1, "fps": 60 },
+    { "name": "pet_idle_2", "type": "vrma", "file": "PET_IDLE_2.vrma", "speed": 1, "fps": 60 }
+  ]
+}
+```
+
+**示例（PMX）：**
+```json
+{
+  "schema_version": 1,
+  "model": {
+    "name": "MyModel",
+    "type": "pmx",
+    "file": "asset/3d/MyModel.pmx",
+    "scale": 0.9,
+    "offset_x": 0,
+    "offset_y": 0,
+    "texture_base_dir": "asset/3d/textures",
+    "animation_base_dir": "asset/3d/animations"
+  },
+  "animations": [
+    { "name": "idle", "type": "vmd", "file": "idle.vmd", "speed": 1, "fps": 60 },
+    { "name": "wave", "type": "vmd", "file": "wave.vmd", "speed": 1, "fps": 60 }
+  ]
+}
+```
+
+### 2.7 `audio/[lang]/speech.json`
 定义音频文件与状态/文本的关联。
 
 
@@ -387,7 +505,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `name` | String | 关联的标识名称 (对应 `manifest` 中的 `audio` 字段) |
 ||| `audio` | String | 音频文件路径（相对 `audio/` 目录，如 `jp/speech/morning.wav`） |
 
-### 2.7 `text/[lang]/info.json`
+### 2.8 `text/[lang]/info.json`
 定义角色在该语言下的基础信息。
 
 ||| 字段 | 类型 | 说明 |
@@ -397,7 +515,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `name` | String | 角色在该语言下的显示名称 |
 ||| `description` | String | 角色描述 |
 
-### 2.8 `text/[lang]/speech.json`
+### 2.9 `text/[lang]/speech.json`
 定义对应事件触发时显示的文本。
 
 ||| 字段 | 类型 | 说明 |
@@ -424,7 +542,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 }
 ```
 
-### 2.9 `bubble_style.json` (可选)
+### 2.10 `bubble_style.json` (可选)
 用于自定义对话气泡的视觉样式（颜色、边框、字体大小等）。若不存在，则使用系统默认样式。
 
 ---

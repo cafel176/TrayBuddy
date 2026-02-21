@@ -687,6 +687,22 @@
   "msg_sync_threed_no_vrm_found": "No .vrm/.pmx model file found in the asset/3d/ directory",
   "msg_sync_threed_no_vrma_found": "No .vrma/.vmd animation file found in the asset/3d/ directory",
   "msg_sync_threed_choose_vrm": "Multiple model files found. Please enter the filename to use:\n{files}",
-  "msg_sync_threed_dir_not_found": "asset/3d/ directory not found. Please check the Mod directory structure"
+  "msg_sync_threed_dir_not_found": "asset/3d/ directory not found. Please check the Mod directory structure",
+
+  "msg_params_live2d_only": "This feature is only available for Live2D type Mods",
+  "msg_params_no_display_info": "DisplayInfo (cdi3.json) path not found in model3.json",
+  "msg_params_loaded": "Loaded {count} parameters",
+  "msg_params_load_failed": "Failed to load parameters: {error}",
+  "msg_params_none_found": "No parameter definitions found",
+  "params_combined": "Combined Parameters",
+  "params_summary": "<strong>{params}</strong> parameters, <strong>{groups}</strong> groups, <strong>{parts}</strong> parts, <strong>{combined}</strong> combined parameters",
+  "params_ungrouped": "Ungrouped",
+  "params_count": "{count} parameters",
+  "params_browser_title": "Model Parameters Browser",
+  "params_browser_load_btn": "🔄 Load from File",
+  "params_browser_hint": "Display all Live2D model parameters defined in cdi3.json, grouped and collapsible",
+  "params_browser_placeholder": "Click \"Load from File\" to load model parameter info",
+  "trigger_weather_no_limit": "(No restriction: do not select any item)",
+  "custom_option": "custom"
 }
 

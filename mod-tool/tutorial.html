@@ -36,6 +36,7 @@
       <li><a href="#assets" data-i18n="toc_assets">动画管理</a></li>
       <li><a href="#live2d" data-i18n="toc_live2d">Live2D 动画</a></li>
       <li><a href="#pngremix" data-i18n="toc_pngremix">PngRemix 动画</a></li>
+      <li><a href="#threed" data-i18n="toc_threed">3D 动画</a></li>
       <li><a href="#texts" data-i18n="toc_texts">多语言文本</a></li>
       <li><a href="#audio" data-i18n="toc_audio">多语言音频</a></li>
       <li><a href="#save-export" data-i18n="toc_save_export">保存与导出</a></li>
@@ -122,7 +123,7 @@
       <p data-i18n="tbuddy_desc">.tbuddy 是 TrayBuddy 专用的 Mod 包格式，本质上是一个 ZIP 压缩包。点击「📦 打开 .tbuddy」选择文件后自动加载。</p>
 
       <h3 data-i18n="section_create_mod">创建新 Mod</h3>
-      <p data-i18n="create_mod_desc">点击「➕ 新建 Mod」，填写 Mod ID、名称和作者，选择 Mod 类型（序列帧动画、Live2D 或 PngRemix），系统会创建一个包含默认配置的新 Mod。</p>
+      <p data-i18n="create_mod_desc">点击「➕ 新建 Mod」，填写 Mod ID、名称和作者，选择 Mod 类型（序列帧动画、Live2D、PngRemix 或 3D 模型），系统会创建一个包含默认配置的新 Mod。</p>
     </section>
 
     <!-- 基础信息配置 -->
@@ -447,6 +448,56 @@
       </div>
     </section>
 
+    <!-- 3D 动画 -->
+    <section id="threed">
+      <h2 data-i18n="section_threed">🧊 3D 动画</h2>
+      <p data-i18n="threed_desc">3D Mod 使用 VRM 或 PMX 模型文件进行 3D 渲染。创建新 Mod 时选择 "3D 模型" 类型即可。支持 VRM + VRMA 和 PMX + VMD 两种模型/动画组合。</p>
+
+      <h3 data-i18n="section_threed_model_config">模型配置</h3>
+      <p data-i18n="threed_model_config_desc">在「动画」标签页中配置 3D 模型的基本参数。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="threed_field_name_desc">模型显示名称</td></tr>
+        <tr><td>type</td><td data-i18n="threed_field_type_desc">模型类型：vrm（VRM 格式）或 pmx（PMX 格式）</td></tr>
+        <tr><td>file</td><td data-i18n="threed_field_file_desc">模型文件路径（相对于 Mod 根目录，如 asset/3d/model.vrm）</td></tr>
+        <tr><td>scale</td><td data-i18n="threed_field_scale_desc">整体缩放系数（默认 1）</td></tr>
+        <tr><td>offset_x / offset_y</td><td data-i18n="threed_field_offset_desc">位置偏移量</td></tr>
+        <tr><td>texture_base_dir</td><td data-i18n="threed_field_texture_dir_desc">纹理文件基础目录（PMX 模型使用，可选）</td></tr>
+        <tr><td>animation_base_dir</td><td data-i18n="threed_field_anim_dir_desc">动画文件基础目录（如 asset/3d/animations）</td></tr>
+      </table>
+
+      <h3 data-i18n="section_threed_animations_config">动画配置</h3>
+      <p data-i18n="threed_animations_config_desc">管理 3D 模型的动画列表。VRM 模型使用 .vrma 格式动画，PMX 模型使用 .vmd 格式动画。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td>name</td><td data-i18n="threed_anim_field_name_desc">动画名称，供状态映射引用</td></tr>
+        <tr><td>type</td><td data-i18n="threed_anim_field_type_desc">动画类型：vrma（VRM Animation）或 vmd（VMD 格式）</td></tr>
+        <tr><td>file</td><td data-i18n="threed_anim_field_file_desc">动画文件路径（相对于 animation_base_dir）</td></tr>
+        <tr><td>speed</td><td data-i18n="threed_anim_field_speed_desc">播放速度（默认 1）</td></tr>
+        <tr><td>fps</td><td data-i18n="threed_anim_field_fps_desc">帧率（默认 60），主要用于 VRMA 动画</td></tr>
+      </table>
+
+      <h3 data-i18n="section_threed_sync">从文件同步</h3>
+      <p data-i18n="threed_sync_desc">编辑器提供两个同步功能，可以自动扫描 asset/3d/ 目录：</p>
+      <ul>
+        <li data-i18n="threed_sync_config"><strong>从文件同步配置</strong>：自动检测 .vrm/.pmx 模型文件，填充 name、type、file 等模型配置</li>
+        <li data-i18n="threed_sync_assets"><strong>从文件同步资源</strong>：扫描 .vrma/.vmd 动画文件，自动生成动画列表</li>
+      </ul>
+
+      <h3 data-i18n="section_threed_add_state">新增同名状态</h3>
+      <p data-i18n="threed_add_state_desc">每个动画条目右侧的「新增同名状态」按钮可快速在 manifest 中创建对应的状态，并自动设置关联动画名。</p>
+
+      <div class="callout callout-info">
+        <div class="callout-title" data-i18n="callout_threed_tip_title">💡 提示</div>
+        <p data-i18n="callout_threed_tip_desc">3D 模型文件（.vrm/.pmx）和动画文件（.vrma/.vmd）需要手动放置到 asset/3d/ 目录下。PMX 模型的纹理文件放置到 asset/3d/textures/ 目录。</p>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title" data-i18n="callout_threed_format_title">💡 支持的格式</div>
+        <p data-i18n="callout_threed_format_desc">VRM 模型搭配 VRMA 动画使用（通过 Three.js + @pixiv/three-vrm 渲染）；PMX 模型搭配 VMD 动画使用（通过 Three.js MMDLoader 渲染）。纹理支持 PNG、BMP、TGA、JPG、WebP。</p>
+      </div>
+    </section>
+
     <!-- 文本管理 -->
     <section id="texts">
       <h2 data-i18n="section_texts">📝 多语言文本</h2>
@@ -549,9 +600,23 @@
 │   ├── speech.json, speech/
 └── text/[lang]/
     ├── info.json, speech.json</code></pre>
+      <h4 data-i18n="structure_threed_title">3D Mod (mod_type: "3d")</h4>
+      <pre><code>mods/my_mod/
+├── manifest.json            # Mod 主配置文件
+├── preview.png              # 预览图
+├── icon.ico                 # 图标
+├── bubble_style.json        # [可选] 气泡样式
+├── asset/
+│   ├── 3d.json              # 3D 配置（模型/动画）
+│   └── 3d/                  # 3D 资源目录
+│       ├── *.vrm / *.pmx    # 模型文件
+│       ├── textures/        # [PMX] 纹理
+│       └── animations/      # 动画 (.vrma / .vmd)
+├── audio/[lang]/
+│   ├── speech.json, speech/
+└── text/[lang]/
+    ├── info.json, speech.json</code></pre>
     </section>
-
-    <!-- 常见问题 -->
     <section id="faq">
       <h2 data-i18n="section_faq">❓ 常见问题</h2>
       <h4 data-i18n="faq_browser_q">Q: 为什么无法打开文件夹？</h4>

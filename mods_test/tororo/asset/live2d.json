@@ -10,7 +10,8 @@
     "physics_json": "",
     "pose_json": "",
     "eye_blink": false,
-    "lip_sync": false
+    "lip_sync": false,
+    "scale": 1
   },
   "motions": [
     {
@@ -169,5 +170,7 @@
       "offset_x": 0,
       "offset_y": 0
     }
-  ]
+  ],
+  "resources": [],
+  "background_layers": []
 }

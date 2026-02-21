@@ -114,5 +114,45 @@
   {
     "name": "ema_birthday_4",
     "audio": "jp/speech/ema_birthday_4.wav"
+  },
+  {
+    "name": "work",
+    "audio": "jp/speech/work.wav"
+  },
+  {
+    "name": "long_time",
+    "audio": "jp/speech/long_time.wav"
+  },
+  {
+    "name": "every_hour",
+    "audio": "jp/speech/every_hour.wav"
+  },
+  {
+    "name": "random5_1",
+    "audio": "jp/speech/random5_1.wav"
+  },
+  {
+    "name": "random6_1",
+    "audio": "jp/speech/random6_1.wav"
+  },
+  {
+    "name": "random7_1",
+    "audio": "jp/speech/random7_1.wav"
+  },
+  {
+    "name": "cold",
+    "audio": "jp/speech/cold.wav"
+  },
+  {
+    "name": "hot",
+    "audio": "jp/speech/hot.wav"
+  },
+  {
+    "name": "rain",
+    "audio": "jp/speech/rain.wav"
+  },
+  {
+    "name": "snow",
+    "audio": "jp/speech/snow.wav"
   }
 ]

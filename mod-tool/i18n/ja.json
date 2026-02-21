@@ -687,6 +687,22 @@
   "msg_sync_threed_no_vrm_found": "asset/3d/ ディレクトリに .vrm/.pmx モデルファイルが見つかりません",
   "msg_sync_threed_no_vrma_found": "asset/3d/ ディレクトリに .vrma/.vmd アニメーションファイルが見つかりません",
   "msg_sync_threed_choose_vrm": "複数のモデルファイルが見つかりました。使用するファイル名を入力してください：\n{files}",
-  "msg_sync_threed_dir_not_found": "asset/3d/ ディレクトリが見つかりません。Mod のディレクトリ構造を確認してください"
+  "msg_sync_threed_dir_not_found": "asset/3d/ ディレクトリが見つかりません。Mod のディレクトリ構造を確認してください",
+
+  "msg_params_live2d_only": "この機能は Live2D タイプの Mod でのみ使用できます",
+  "msg_params_no_display_info": "model3.json に DisplayInfo (cdi3.json) パスが見つかりません",
+  "msg_params_loaded": "{count} 個のパラメータを読み込みました",
+  "msg_params_load_failed": "パラメータの読み込みに失敗しました: {error}",
+  "msg_params_none_found": "パラメータ定義が見つかりません",
+  "params_combined": "組み合わせパラメータ",
+  "params_summary": "パラメータ <strong>{params}</strong> 個、グループ <strong>{groups}</strong> 個、パーツ <strong>{parts}</strong> 個、組み合わせ <strong>{combined}</strong> 組",
+  "params_ungrouped": "未分類 (ungrouped)",
+  "params_count": "{count} 個のパラメータ",
+  "params_browser_title": "モデルパラメータブラウザ (Parameters)",
+  "params_browser_load_btn": "🔄 ファイルから読み込み",
+  "params_browser_hint": "cdi3.json に定義された全 Live2D モデルパラメータをグループ別に表示",
+  "params_browser_placeholder": "「ファイルから読み込み」をクリックしてモデルパラメータ情報を読み込みます",
+  "trigger_weather_no_limit": "(制限なし：いずれも選択しないでください)",
+  "custom_option": "カスタム"
 }
 
