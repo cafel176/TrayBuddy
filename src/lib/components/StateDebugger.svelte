@@ -24,7 +24,9 @@
   import type {
     StateInfo,
     StateChangeEvent,
-    BranchInfo,
+    CanTriggerState,
+    Live2DParameterSetting,
+    PngRemixParameterSetting,
   } from "$lib/types/asset";
   import { t, onLangChange } from "$lib/i18n";
 
@@ -103,6 +105,74 @@
     return s > I32_MIN || e < I32_MAX;
   }
 
+  function formatTempRange(start?: number, end?: number): string {
+    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
+    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
+
+    const sText = s <= I32_MIN ? "*" : `${s}°C`;
+    const eText = e >= I32_MAX ? "*" : `${e}°C`;
+    return `[${sText}, ${eText}]`;
+  }
+
+  function isTempRangeLimited(state: StateInfo): boolean {
+    const s = Number.isFinite(Number(state.trigger_temp_start))
+      ? Number(state.trigger_temp_start)
+      : I32_MIN;
+    const e = Number.isFinite(Number(state.trigger_temp_end))
+      ? Number(state.trigger_temp_end)
+      : I32_MAX;
+    return s > I32_MIN || e < I32_MAX;
+  }
+
+  function formatWeather(weather?: string[]): string {
+    return weather && weather.length > 0 ? weather.join(", ") : "";
+  }
+
+  function formatUptimeMinutes(minutes?: number): string {
+    return _("state.uptimeMinutes", { minutes: minutes ?? 0 });
+  }
+
+  function isModDataCounterEffective(counter?: {
+    op: string;
+    value: number;
+  } | null): boolean {
+    if (!counter) return false;
+    if ((counter.op === "add" || counter.op === "sub") && counter.value === 0) {
+      return false;
+    }
+    return true;
+  }
+
+  function formatModDataCounter(counter?: { op: string; value: number } | null): string {
+    return counter ? `${counter.op} ${counter.value}` : "";
+  }
+
+  function formatModDataCounterOp(counter?: { op: string } | null): string {
+    return counter?.op ?? "";
+  }
+
+
+  function formatTriggerableStates(states?: CanTriggerState[]): string {
+    if (!states || states.length === 0) return "";
+    return states
+      .map((s) => `${s.state}${(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}`)
+      .join(", ");
+  }
+
+
+  function formatLive2dParams(params?: Live2DParameterSetting[]): string {
+    if (!params || params.length === 0) return "";
+    return params
+      .map((p) =>
+        `${p.id}=${p.value}${p.target === "PartOpacity" ? " (PartOpacity)" : ""}`,
+      )
+      .join(", ");
+  }
+
+  function formatPngRemixParams(params?: PngRemixParameterSetting[]): string {
+    if (!params || params.length === 0) return "";
+    return params.map((p) => `${p.type}:${p.name}`).join(", ");
+  }
 
   // ======================================================================= //
   // 前端播放状态 (来自 animation 窗口)
@@ -312,14 +382,53 @@
               <span class="label">{_("state.nextStateLabel")}</span>
               <span class="next-state-value">{currentState.next_state}</span>
             </div>{/if}
-          {#if currentState.mod_data_counter}<div class="detail-row">
-              <span class="label">{_("state.modDataCounterLabel")}</span>
-              <span class="counter-value">{currentState.mod_data_counter.op} {currentState.mod_data_counter.value}</span>
+          {#if (currentState.trigger_time ?? 0) > 0 && (currentState.trigger_rate ?? 0) > 0}<div class="detail-row">
+              <span class="label">{_("state.timerLabel")}</span>
+              {_("state.timerDesc", {
+                interval: currentState.trigger_time ?? 0,
+                chance: ((currentState.trigger_rate ?? 0) * 100).toFixed(0),
+              })}
             </div>{/if}
-          <div class="detail-row">
-            <span class="label">{_("state.triggerCounterRangeLabel")}</span>
-            <span class="counter-value">{formatTriggerCounterRange(currentState.trigger_counter_start, currentState.trigger_counter_end)}</span>
-          </div>
+          {#if isModDataCounterEffective(currentState.mod_data_counter)}<div class="detail-row">
+              <span class="label">{_("state.modDataCounterLabel")}</span>
+              <span class="counter-value">{formatModDataCounter(currentState.mod_data_counter)}</span>
+            </div>{/if}
+          {#if isTriggerCounterRangeLimited(currentState)}<div class="detail-row">
+              <span class="label">{_("state.triggerCounterRangeLabel")}</span>
+              <span class="counter-value">{formatTriggerCounterRange(currentState.trigger_counter_start, currentState.trigger_counter_end)}</span>
+            </div>{/if}
+          {#if isTempRangeLimited(currentState)}<div class="detail-row">
+              <span class="label">{_("state.triggerTempRangeLabel")}</span>
+              {formatTempRange(currentState.trigger_temp_start, currentState.trigger_temp_end)}
+            </div>{/if}
+          {#if (currentState.trigger_uptime ?? 0) > 0}<div class="detail-row">
+              <span class="label">{_("state.triggerUptimeLabel")}</span>
+              {formatUptimeMinutes(currentState.trigger_uptime)}
+            </div>{/if}
+          {#if currentState.trigger_weather && currentState.trigger_weather.length > 0}<div class="detail-row">
+              <span class="label">{_("state.triggerWeatherLabel")}</span>
+              {formatWeather(currentState.trigger_weather)}
+            </div>{/if}
+          {#if currentState.date_start || currentState.date_end}<div class="detail-row">
+              <span class="label">{_("state.dateRangeLabel")}</span>
+              {currentState.date_start || "*"} ~ {currentState.date_end || "*"}
+            </div>{/if}
+          {#if currentState.time_start || currentState.time_end}<div class="detail-row">
+              <span class="label">{_("state.timeRangeLabel")}</span>
+              {currentState.time_start || "*"} ~ {currentState.time_end || "*"}
+            </div>{/if}
+          {#if currentState.can_trigger_states && currentState.can_trigger_states.length > 0}<div class="detail-row">
+              <span class="label">{_("state.triggerableLabel")}</span>
+              {formatTriggerableStates(currentState.can_trigger_states)}
+            </div>{/if}
+          {#if currentState.live2d_params && currentState.live2d_params.length > 0}<div class="detail-row">
+              <span class="label">{_("state.live2dParamsLabel")}</span>
+              {formatLive2dParams(currentState.live2d_params)}
+            </div>{/if}
+          {#if currentState.pngremix_params && currentState.pngremix_params.length > 0}<div class="detail-row">
+              <span class="label">{_("state.pngremixParamsLabel")}</span>
+              {formatPngRemixParams(currentState.pngremix_params)}
+            </div>{/if}
           {#if currentState.branch_show_bubble === false}<div class="detail-row">
               <span class="label">{_("state.branchShowBubbleLabel")}</span>
               <span class="bubble-value">{_("common.no")}</span>
@@ -441,15 +550,15 @@
           <span class="col-resources">
             {#if state.anima}<span
                 class="resource-tag anima"
-                title={_("state.animationLabel")}>🎬{state.anima}</span
+                title={`${_("state.animationLabel")} ${state.anima}`}>🎬{state.anima}</span
               >{/if}
             {#if state.audio}<span
                 class="resource-tag audio"
-                title={_("state.audioLabel")}>🔊{state.audio}</span
+                title={`${_("state.audioLabel")} ${state.audio}`}>🔊{state.audio}</span
               >{/if}
             {#if state.text}<span
                 class="resource-tag text"
-                title={_("state.textLabel")}>💬{state.text}</span
+                title={`${_("state.textLabel")} ${state.text}`}>💬{state.text}</span
               >{/if}
           </span>
           <span class="col-extra">
@@ -467,11 +576,11 @@
                 })}>⏱{state.trigger_time}s</span
               >
             {/if}
-            {#if state.mod_data_counter}
+            {#if isModDataCounterEffective(state.mod_data_counter)}
               <span
                 class="extra-tag counter"
-                title={_("state.modDataCounterLabel") + " " + state.mod_data_counter.op + " " + state.mod_data_counter.value}
-                >🔢{state.mod_data_counter.op}</span
+                title={_("state.modDataCounterLabel") + " " + formatModDataCounter(state.mod_data_counter)}
+                >🔢{formatModDataCounterOp(state.mod_data_counter)}</span
               >
             {/if}
             {#if isTriggerCounterRangeLimited(state)}
@@ -525,6 +634,46 @@
                   start: state.time_start || "*",
                   end: state.time_end || "*",
                 })}>🕐</span
+              >
+            {/if}
+            {#if isTempRangeLimited(state)}
+              <span
+                class="extra-tag temp"
+                title={_("state.tempTooltip", {
+                  range: formatTempRange(state.trigger_temp_start, state.trigger_temp_end),
+                })}>🌡</span
+              >
+            {/if}
+            {#if (state.trigger_uptime ?? 0) > 0}
+              <span
+                class="extra-tag uptime"
+                title={_("state.uptimeTooltip", {
+                  minutes: state.trigger_uptime ?? 0,
+                })}>⏳</span
+              >
+            {/if}
+            {#if state.trigger_weather && state.trigger_weather.length > 0}
+              <span
+                class="extra-tag weather"
+                title={_("state.weatherTooltip", {
+                  weather: formatWeather(state.trigger_weather),
+                })}>☁</span
+              >
+            {/if}
+            {#if state.live2d_params && state.live2d_params.length > 0}
+              <span
+                class="extra-tag live2d"
+                title={_("state.live2dParamsTooltip", {
+                  params: formatLive2dParams(state.live2d_params),
+                })}>🎭</span
+              >
+            {/if}
+            {#if state.pngremix_params && state.pngremix_params.length > 0}
+              <span
+                class="extra-tag pngremix"
+                title={_("state.pngremixParamsTooltip", {
+                  params: formatPngRemixParams(state.pngremix_params),
+                })}>🧩</span
               >
             {/if}
           </span>

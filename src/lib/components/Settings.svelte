@@ -338,7 +338,7 @@
         : "silence_end";
     try {
       await invoke("force_change_state", { name: targetState });
-      console.log(
+      console.debug(
         `[Settings] DND effect applied: force changed state to ${targetState}`,
       );
     } catch (err) {

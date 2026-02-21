@@ -60,6 +60,7 @@
     show_mod_data_panel: boolean;
     mod_data_default_int: number;
     global_keyboard: boolean;
+    global_mouse: boolean;
     important_states: Record<string, StateInfo>;
     states: StateInfo[];
     triggers: TriggerInfo[];
@@ -138,6 +139,21 @@
     const sText = s <= I32_MIN ? "*" : String(s);
     const eText = e >= I32_MAX ? "*" : String(e);
     return `[${sText}, ${eText}]`;
+  }
+
+  function formatTempRange(start?: number, end?: number): string {
+    const sText = start != null ? `${start}°C` : "*";
+    const eText = end != null ? `${end}°C` : "*";
+    return `[${sText}, ${eText}]`;
+  }
+
+  function formatMouthState(ms?: 0 | 1 | 2): string {
+    switch (ms) {
+      case 0: return _("resource.pngremixMouthStateClosed");
+      case 1: return _("resource.pngremixMouthStateOpen");
+      case 2: return _("resource.pngremixMouthStateScreaming");
+      default: return _("resource.pngremixMouthStateInherit");
+    }
   }
 
 
@@ -450,24 +466,20 @@
         {:else if isPngremixMod()}
           <div class="stat-item">
             <span class="stat-value">{currentModInfo.pngremix?.expressions.length ?? 0}</span>
-            <span class="stat-label">Expressions</span>
+            <span class="stat-label">{_("resource.statPngRemixExpressions")}</span>
           </div>
           <div class="stat-item">
             <span class="stat-value">{currentModInfo.pngremix?.motions.length ?? 0}</span>
-            <span class="stat-label">Motions</span>
+            <span class="stat-label">{_("resource.statPngRemixMotions")}</span>
           </div>
           <div class="stat-item">
             <span class="stat-value">{currentModInfo.pngremix?.states.length ?? 0}</span>
-            <span class="stat-label">States</span>
+            <span class="stat-label">{_("resource.statPngRemixStates")}</span>
           </div>
         {:else if isThreeDMod()}
           <div class="stat-item">
             <span class="stat-value">{currentModInfo.threed?.animations.length ?? 0}</span>
-            <span class="stat-label">Animations</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">{currentModInfo.threed?.states.length ?? 0}</span>
-            <span class="stat-label">States</span>
+            <span class="stat-label">{_("resource.statThreeDAnimations")}</span>
           </div>
         {:else}
           <div class="stat-item">
@@ -561,6 +573,12 @@
                 <span class="info-label">{_("resource.globalKeyboard")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.global_keyboard ? _("common.yes") : _("common.no")}</span
+                >
+              </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.globalMouse")}</span>
+                <span class="info-value"
+                  >{currentModInfo.manifest.global_mouse ? _("common.yes") : _("common.no")}</span
                 >
               </div>
             </div>
@@ -736,6 +754,48 @@
                           <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                           <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                         </div>
+                        {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerTempRange")}</span>
+                            <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>
+                          </div>
+                        {/if}
+                        {#if state.trigger_uptime}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerUptime")}</span>
+                            {state.trigger_uptime} {_("resource.minutes")}
+                          </div>
+                        {/if}
+                        {#if state.trigger_weather && state.trigger_weather.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerWeather")}</span>
+                            <div class="tag-list">
+                              {#each state.trigger_weather as w}
+                                <span class="tag state-tag">{w}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                        {#if state.live2d_params && state.live2d_params.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dParamsOverride")}</span>
+                            <div class="tag-list">
+                              {#each state.live2d_params as p}
+                                <span class="tag state-tag">{p.id}: {p.value}{p.target === "PartOpacity" ? " (Part)" : ""}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                        {#if state.pngremix_params && state.pngremix_params.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.pngremixParamsOverride")}</span>
+                            <div class="tag-list">
+                              {#each state.pngremix_params as p}
+                                <span class="tag state-tag">{p.type}: {p.name}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
                         {#if state.branch_show_bubble === false}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.branchShowBubble")}</span>
@@ -860,6 +920,48 @@
                           <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                           <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                         </div>
+                        {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerTempRange")}</span>
+                            <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>
+                          </div>
+                        {/if}
+                        {#if state.trigger_uptime}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerUptime")}</span>
+                            {state.trigger_uptime} {_("resource.minutes")}
+                          </div>
+                        {/if}
+                        {#if state.trigger_weather && state.trigger_weather.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.triggerWeather")}</span>
+                            <div class="tag-list">
+                              {#each state.trigger_weather as w}
+                                <span class="tag state-tag">{w}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                        {#if state.live2d_params && state.live2d_params.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dParamsOverride")}</span>
+                            <div class="tag-list">
+                              {#each state.live2d_params as p}
+                                <span class="tag state-tag">{p.id}: {p.value}{p.target === "PartOpacity" ? " (Part)" : ""}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                        {#if state.pngremix_params && state.pngremix_params.length > 0}
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.pngremixParamsOverride")}</span>
+                            <div class="tag-list">
+                              {#each state.pngremix_params as p}
+                                <span class="tag state-tag">{p.type}: {p.name}</span>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
                         {#if state.branch_show_bubble === false}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.branchShowBubble")}</span>
@@ -999,6 +1101,48 @@
                             <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                             <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                           </div>
+                          {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.triggerTempRange")}</span>
+                              <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>
+                            </div>
+                          {/if}
+                          {#if state.trigger_uptime}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.triggerUptime")}</span>
+                              {state.trigger_uptime} {_("resource.minutes")}
+                            </div>
+                          {/if}
+                          {#if state.trigger_weather && state.trigger_weather.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.triggerWeather")}</span>
+                              <div class="tag-list">
+                                {#each state.trigger_weather as w}
+                                  <span class="tag state-tag">{w}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                          {#if state.live2d_params && state.live2d_params.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.live2dParamsOverride")}</span>
+                              <div class="tag-list">
+                                {#each state.live2d_params as p}
+                                  <span class="tag state-tag">{p.id}: {p.value}{p.target === "PartOpacity" ? " (Part)" : ""}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                          {#if state.pngremix_params && state.pngremix_params.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.pngremixParamsOverride")}</span>
+                              <div class="tag-list">
+                                {#each state.pngremix_params as p}
+                                  <span class="tag state-tag">{p.type}: {p.name}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
                           {#if state.branch_show_bubble === false}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.branchShowBubble")}</span>
@@ -1126,6 +1270,48 @@
                             <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                             <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                           </div>
+                          {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.triggerTempRange")}</span>
+                              <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>
+                            </div>
+                          {/if}
+                          {#if state.trigger_uptime}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.triggerUptime")}</span>
+                              {state.trigger_uptime} {_("resource.minutes")}
+                            </div>
+                          {/if}
+                          {#if state.trigger_weather && state.trigger_weather.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.triggerWeather")}</span>
+                              <div class="tag-list">
+                                {#each state.trigger_weather as w}
+                                  <span class="tag state-tag">{w}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                          {#if state.live2d_params && state.live2d_params.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.live2dParamsOverride")}</span>
+                              <div class="tag-list">
+                                {#each state.live2d_params as p}
+                                  <span class="tag state-tag">{p.id}: {p.value}{p.target === "PartOpacity" ? " (Part)" : ""}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
+                          {#if state.pngremix_params && state.pngremix_params.length > 0}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.pngremixParamsOverride")}</span>
+                              <div class="tag-list">
+                                {#each state.pngremix_params as p}
+                                  <span class="tag state-tag">{p.type}: {p.name}</span>
+                                {/each}
+                              </div>
+                            </div>
+                          {/if}
                           {#if state.branch_show_bubble === false}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.branchShowBubble")}</span>
@@ -1577,56 +1763,56 @@
         <!-- PngRemix 资源 -->
         {#if isPngremixMod()}
           <details>
-            <summary>PngRemix Assets</summary>
+            <summary>{_("resource.pngremixAssets")}</summary>
             <div class="tab-content">
               {#if currentModInfo.pngremix}
-                <h5>Model</h5>
+                <h5>{_("resource.pngremixModel")}</h5>
                 <div class="info-grid">
                   <div class="info-row">
-                    <span class="info-label">Name</span>
+                    <span class="info-label">{_("resource.pngremixName")}</span>
                     <span class="info-value">{currentModInfo.pngremix.model.name}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">File</span>
+                    <span class="info-label">{_("resource.pngremixFile")}</span>
                     <span class="info-value">{currentModInfo.pngremix.model.pngremix_file}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Default State Index</span>
+                    <span class="info-label">{_("resource.pngremixDefaultStateIndex")}</span>
                     <span class="info-value">{currentModInfo.pngremix.model.default_state_index}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Scale</span>
+                    <span class="info-label">{_("resource.pngremixScale")}</span>
                     <span class="info-value">{currentModInfo.pngremix.model.scale ?? 1}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Max FPS</span>
+                    <span class="info-label">{_("resource.pngremixMaxFps")}</span>
                     <span class="info-value">{currentModInfo.pngremix.model.max_fps}</span>
                   </div>
                 </div>
 
-                <h5>Features</h5>
+                <h5>{_("resource.pngremixFeatures")}</h5>
                 <div class="info-grid">
                   <div class="info-row">
-                    <span class="info-label">Mouse Follow</span>
+                    <span class="info-label">{_("resource.pngremixMouseFollow")}</span>
                     <span class="info-value">{currentModInfo.pngremix.features.mouse_follow ? _("common.yes") : _("common.no")}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Auto Blink</span>
+                    <span class="info-label">{_("resource.pngremixAutoBlink")}</span>
                     <span class="info-value">{currentModInfo.pngremix.features.auto_blink ? _("common.yes") : _("common.no")}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Click Bounce</span>
+                    <span class="info-label">{_("resource.pngremixClickBounce")}</span>
                     <span class="info-value">{currentModInfo.pngremix.features.click_bounce ? _("common.yes") : _("common.no")}</span>
                   </div>
                   {#if currentModInfo.pngremix.features.click_bounce}
                     <div class="info-row">
-                      <span class="info-label">Bounce Amp / Duration</span>
+                      <span class="info-label">{_("resource.pngremixBounceAmpDuration")}</span>
                       <span class="info-value">{currentModInfo.pngremix.features.click_bounce_amp} / {currentModInfo.pngremix.features.click_bounce_duration}s</span>
                     </div>
                   {/if}
                   {#if currentModInfo.pngremix.features.auto_blink}
                     <div class="info-row">
-                      <span class="info-label">Blink Speed / Chance / Hold</span>
+                      <span class="info-label">{_("resource.pngremixBlinkParams")}</span>
                       <span class="info-value">{currentModInfo.pngremix.features.blink_speed} / {currentModInfo.pngremix.features.blink_chance} / {currentModInfo.pngremix.features.blink_hold_ratio}</span>
                     </div>
                   {/if}
@@ -1634,7 +1820,7 @@
 
                 <details open class="live2d-section">
                   <summary>
-                    Expressions ({currentModInfo.pngremix.expressions.length})
+                    {_("resource.pngremixExpressions")} ({currentModInfo.pngremix.expressions.length})
                   </summary>
                   <div class="state-list">
                     {#each currentModInfo.pngremix.expressions as expr}
@@ -1644,7 +1830,7 @@
                         </div>
                         <div class="state-detail">
                           <div class="detail-item">
-                            <span class="detail-label">State Index</span>
+                            <span class="detail-label">{_("resource.pngremixStateIndex")}</span>
                             {expr.state_index}
                           </div>
                         </div>
@@ -1655,7 +1841,7 @@
 
                 <details open class="live2d-section">
                   <summary>
-                    Motions ({currentModInfo.pngremix.motions.length})
+                    {_("resource.pngremixMotions")} ({currentModInfo.pngremix.motions.length})
                   </summary>
                   <div class="state-list">
                     {#each currentModInfo.pngremix.motions as motion}
@@ -1665,12 +1851,12 @@
                         </div>
                         <div class="state-detail">
                           <div class="detail-item">
-                            <span class="detail-label">Hotkey</span>
+                            <span class="detail-label">{_("resource.pngremixHotkey")}</span>
                             {motion.hotkey}
                           </div>
                           {#if motion.description}
                             <div class="detail-item">
-                              <span class="detail-label">Description</span>
+                              <span class="detail-label">{_("resource.pngremixDescription")}</span>
                               {motion.description}
                             </div>
                           {/if}
@@ -1682,7 +1868,7 @@
 
                 <details open class="live2d-section">
                   <summary>
-                    States ({currentModInfo.pngremix.states.length})
+                    {_("resource.pngremixStates")} ({currentModInfo.pngremix.states.length})
                   </summary>
                   <div class="state-list">
                     {#each currentModInfo.pngremix.states as pstate}
@@ -1693,22 +1879,26 @@
                         <div class="state-detail">
                           {#if pstate.expression}
                             <div class="detail-item">
-                              <span class="detail-label">Expression</span>
+                              <span class="detail-label">{_("resource.live2dStateExpression")}</span>
                               {pstate.expression}
                             </div>
                           {/if}
                           {#if pstate.motion}
                             <div class="detail-item">
-                              <span class="detail-label">Motion</span>
+                              <span class="detail-label">{_("resource.live2dStateMotion")}</span>
                               {pstate.motion}
                             </div>
                           {/if}
                           <div class="detail-item">
-                            <span class="detail-label">Scale</span>
+                            <span class="detail-label">{_("resource.pngremixMouthState")}</span>
+                            {formatMouthState(pstate.mouth_state)}
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.live2dStateScale")}</span>
                             {pstate.scale}
                           </div>
                           <div class="detail-item">
-                            <span class="detail-label">Offset</span>
+                            <span class="detail-label">{_("resource.live2dStateOffset")}</span>
                             {pstate.offset_x},{pstate.offset_y}
                           </div>
                         </div>
@@ -1719,7 +1909,7 @@
 
               {:else}
                 <div class="info-row">
-                  <span class="info-label">PngRemix Assets</span>
+                  <span class="info-label">{_("resource.pngremixAssets")}</span>
                   <span class="info-value">{_("resource.notSet")}</span>
                 </div>
               {/if}
@@ -1730,40 +1920,40 @@
         <!-- 3D 资源 -->
         {#if isThreeDMod()}
           <details>
-            <summary>3D Assets</summary>
+            <summary>{_("resource.threeDAssets")}</summary>
             <div class="tab-content">
               {#if currentModInfo.threed}
-                <h5>Model</h5>
+                <h5>{_("resource.threeDModel")}</h5>
                 <div class="info-grid">
                   <div class="info-row">
-                    <span class="info-label">Name</span>
+                    <span class="info-label">{_("resource.pngremixName")}</span>
                     <span class="info-value">{currentModInfo.threed.model.name}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Type</span>
+                    <span class="info-label">{_("resource.threeDModelType")}</span>
                     <span class="info-value">{currentModInfo.threed.model.type}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">File</span>
+                    <span class="info-label">{_("resource.pngremixFile")}</span>
                     <span class="info-value">{currentModInfo.threed.model.file}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Scale</span>
+                    <span class="info-label">{_("resource.pngremixScale")}</span>
                     <span class="info-value">{currentModInfo.threed.model.scale}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Offset</span>
+                    <span class="info-label">{_("resource.live2dStateOffset")}</span>
                     <span class="info-value">{currentModInfo.threed.model.offset_x}, {currentModInfo.threed.model.offset_y}</span>
                   </div>
                   {#if currentModInfo.threed.model.texture_base_dir}
                     <div class="info-row">
-                      <span class="info-label">Texture Base Dir</span>
+                      <span class="info-label">{_("resource.threeDTextureBaseDir")}</span>
                       <span class="info-value">{currentModInfo.threed.model.texture_base_dir}</span>
                     </div>
                   {/if}
                   {#if currentModInfo.threed.model.animation_base_dir}
                     <div class="info-row">
-                      <span class="info-label">Animation Base Dir</span>
+                      <span class="info-label">{_("resource.threeDAnimationBaseDir")}</span>
                       <span class="info-value">{currentModInfo.threed.model.animation_base_dir}</span>
                     </div>
                   {/if}
@@ -1771,7 +1961,7 @@
 
                 <details open class="live2d-section">
                   <summary>
-                    Animations ({currentModInfo.threed.animations.length})
+                    {_("resource.threeDAnimations")} ({currentModInfo.threed.animations.length})
                   </summary>
                   <div class="state-list">
                     {#each currentModInfo.threed.animations as anim}
@@ -1782,19 +1972,15 @@
                         </div>
                         <div class="state-detail">
                           <div class="detail-item">
-                            <span class="detail-label">File</span>
+                            <span class="detail-label">{_("resource.pngremixFile")}</span>
                             {anim.file}
                           </div>
-                          <!-- <div class="detail-item">
-                            <span class="detail-label">Loop</span>
-                            {anim.loop ? _("common.yes") : _("common.no")}
-                          </div> -->
                           <div class="detail-item">
-                            <span class="detail-label">Speed</span>
+                            <span class="detail-label">{_("resource.threeDSpeed")}</span>
                             {anim.speed}
                           </div>
                             <div class="detail-item">
-                              <span class="detail-label">FPS</span>
+                              <span class="detail-label">{_("resource.threeDFps")}</span>
                               {anim.fps}
                             </div>
                         </div>
@@ -1803,38 +1989,11 @@
                   </div>
                 </details>
 
-                <details open class="live2d-section">
-                  <summary>
-                    States ({currentModInfo.threed.states.length})
-                  </summary>
-                  <div class="state-list">
-                    {#each currentModInfo.threed.states as tstate}
-                      <div class="state-card">
-                        <div class="state-header">
-                          <span class="state-name">{tstate.state}</span>
-                        </div>
-                        <div class="state-detail">
-                          <div class="detail-item">
-                            <span class="detail-label">Animation</span>
-                            {tstate.animation}
-                          </div>
-                          <div class="detail-item">
-                            <span class="detail-label">Scale</span>
-                            {tstate.scale}
-                          </div>
-                          <div class="detail-item">
-                            <span class="detail-label">Offset</span>
-                            {tstate.offset_x}, {tstate.offset_y}
-                          </div>
-                        </div>
-                      </div>
-                    {/each}
-                  </div>
-                </details>
+
 
               {:else}
                 <div class="info-row">
-                  <span class="info-label">3D Assets</span>
+                  <span class="info-label">{_("resource.threeDAssets")}</span>
                   <span class="info-value">{_("resource.notSet")}</span>
                 </div>
               {/if}

@@ -271,7 +271,7 @@
     let unlistenReceived: UnlistenFn | undefined;
 
     listen<EnvironmentUpdateEvent>("environment-updated", (event) => {
-      console.log(
+      console.debug(
         "[EnvironmentDebugger] Received environment update:",
         event.payload,
       );
@@ -536,7 +536,7 @@
           </div>
           <div class="api-item">
             <span class="label">{_("environment.response")}</span>
-            <span class="value">JSON (lang_zh)</span>
+            <span class="value">{_("environment.responseJsonZh")}</span>
           </div>
           <div class="api-item">
             <span class="label">{_("environment.cache")}</span>
@@ -561,7 +561,7 @@
           <a
             href="https://github.com/chubin/wttr.in"
             target="_blank"
-            rel="noopener">GitHub</a
+            rel="noopener">{_("environment.github")}</a
           >
         </div>
       </div>

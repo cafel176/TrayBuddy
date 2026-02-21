@@ -24,6 +24,9 @@
     StateInfo,
     StateChangeEvent,
     TriggerInfo,
+    CanTriggerState,
+    Live2DParameterSetting,
+    PngRemixParameterSetting,
   } from "$lib/types/asset";
 
   // ======================================================================= //
@@ -55,6 +58,63 @@
     return `[${sText}, ${eText}]`;
   }
 
+  function formatTempRange(start?: number, end?: number): string {
+    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
+    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
+
+    const sText = s <= I32_MIN ? "*" : `${s}°C`;
+    const eText = e >= I32_MAX ? "*" : `${e}°C`;
+    return `[${sText}, ${eText}]`;
+  }
+
+  function isTempRangeLimited(state: StateInfo): boolean {
+    const s = Number.isFinite(Number(state.trigger_temp_start))
+      ? Number(state.trigger_temp_start)
+      : I32_MIN;
+    const e = Number.isFinite(Number(state.trigger_temp_end))
+      ? Number(state.trigger_temp_end)
+      : I32_MAX;
+    return s > I32_MIN || e < I32_MAX;
+  }
+
+  function isTriggerCounterRangeLimited(state: StateInfo): boolean {
+    const s = Number.isFinite(Number(state.trigger_counter_start))
+      ? Number(state.trigger_counter_start)
+      : I32_MIN;
+    const e = Number.isFinite(Number(state.trigger_counter_end))
+      ? Number(state.trigger_counter_end)
+      : I32_MAX;
+    return s > I32_MIN || e < I32_MAX;
+  }
+
+  function formatWeather(weather?: string[]): string {
+    return weather && weather.length > 0 ? weather.join(", ") : "";
+  }
+
+  function formatUptimeMinutes(minutes?: number): string {
+    return _("state.uptimeMinutes", { minutes: minutes ?? 0 });
+  }
+
+  function formatTriggerableStates(states?: CanTriggerState[]): string {
+    if (!states || states.length === 0) return "";
+    return states
+      .map((s) => `${s.state}${(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}`)
+      .join(", ");
+  }
+
+  function formatLive2dParams(params?: Live2DParameterSetting[]): string {
+    if (!params || params.length === 0) return "";
+    return params
+      .map((p) =>
+        `${p.id}=${p.value}${p.target === "PartOpacity" ? " (PartOpacity)" : ""}`,
+      )
+      .join(", ");
+  }
+
+  function formatPngRemixParams(params?: PngRemixParameterSetting[]): string {
+    if (!params || params.length === 0) return "";
+    return params.map((p) => `${p.type}:${p.name}`).join(", ");
+  }
 
   // ======================================================================= //
   // 响应式状态
@@ -305,14 +365,53 @@
               <span class="label">{_("state.nextStateLabel")}</span>
               <span class="next-state-value">{currentState.next_state}</span>
             </div>{/if}
+          {#if (currentState.trigger_time ?? 0) > 0 && (currentState.trigger_rate ?? 0) > 0}<div class="detail-row">
+              <span class="label">{_("state.timerLabel")}</span>
+              {_("state.timerDesc", {
+                interval: currentState.trigger_time ?? 0,
+                chance: ((currentState.trigger_rate ?? 0) * 100).toFixed(0),
+              })}
+            </div>{/if}
           {#if currentState.mod_data_counter}<div class="detail-row">
               <span class="label">{_("state.modDataCounterLabel")}</span>
               <span class="counter-value">{currentState.mod_data_counter.op} {currentState.mod_data_counter.value}</span>
             </div>{/if}
-          <div class="detail-row">
-            <span class="label">{_("state.triggerCounterRangeLabel")}</span>
-            <span class="counter-value">{formatTriggerCounterRange(currentState.trigger_counter_start, currentState.trigger_counter_end)}</span>
-          </div>
+          {#if isTriggerCounterRangeLimited(currentState)}<div class="detail-row">
+              <span class="label">{_("state.triggerCounterRangeLabel")}</span>
+              <span class="counter-value">{formatTriggerCounterRange(currentState.trigger_counter_start, currentState.trigger_counter_end)}</span>
+            </div>{/if}
+          {#if isTempRangeLimited(currentState)}<div class="detail-row">
+              <span class="label">{_("state.triggerTempRangeLabel")}</span>
+              {formatTempRange(currentState.trigger_temp_start, currentState.trigger_temp_end)}
+            </div>{/if}
+          {#if (currentState.trigger_uptime ?? 0) > 0}<div class="detail-row">
+              <span class="label">{_("state.triggerUptimeLabel")}</span>
+              {formatUptimeMinutes(currentState.trigger_uptime)}
+            </div>{/if}
+          {#if currentState.trigger_weather && currentState.trigger_weather.length > 0}<div class="detail-row">
+              <span class="label">{_("state.triggerWeatherLabel")}</span>
+              {formatWeather(currentState.trigger_weather)}
+            </div>{/if}
+          {#if currentState.date_start || currentState.date_end}<div class="detail-row">
+              <span class="label">{_("state.dateRangeLabel")}</span>
+              {currentState.date_start || "*"} ~ {currentState.date_end || "*"}
+            </div>{/if}
+          {#if currentState.time_start || currentState.time_end}<div class="detail-row">
+              <span class="label">{_("state.timeRangeLabel")}</span>
+              {currentState.time_start || "*"} ~ {currentState.time_end || "*"}
+            </div>{/if}
+          {#if currentState.can_trigger_states && currentState.can_trigger_states.length > 0}<div class="detail-row">
+              <span class="label">{_("state.triggerableLabel")}</span>
+              {formatTriggerableStates(currentState.can_trigger_states)}
+            </div>{/if}
+          {#if currentState.live2d_params && currentState.live2d_params.length > 0}<div class="detail-row">
+              <span class="label">{_("state.live2dParamsLabel")}</span>
+              {formatLive2dParams(currentState.live2d_params)}
+            </div>{/if}
+          {#if currentState.pngremix_params && currentState.pngremix_params.length > 0}<div class="detail-row">
+              <span class="label">{_("state.pngremixParamsLabel")}</span>
+              {formatPngRemixParams(currentState.pngremix_params)}
+            </div>{/if}
           {#if currentState.branch_show_bubble === false}<div class="detail-row">
               <span class="label">{_("state.branchShowBubbleLabel")}</span>
               <span class="bubble-value">{_("common.no")}</span>
@@ -438,6 +537,62 @@
             {/if}
           </span>
         </div>
+        {#if persistentState.mod_data_counter}
+          <div class="info-row">
+            <span class="label">{_("state.modDataCounterLabel")}</span>
+            <span class="value">
+              {persistentState.mod_data_counter.op} {persistentState.mod_data_counter.value}
+            </span>
+          </div>
+        {/if}
+        {#if isTriggerCounterRangeLimited(persistentState)}
+          <div class="info-row">
+            <span class="label">{_("state.triggerCounterRangeLabel")}</span>
+            <span class="value">
+              {formatTriggerCounterRange(persistentState.trigger_counter_start, persistentState.trigger_counter_end)}
+            </span>
+          </div>
+        {/if}
+        {#if isTempRangeLimited(persistentState)}
+          <div class="info-row">
+            <span class="label">{_("state.triggerTempRangeLabel")}</span>
+            <span class="value">
+              {formatTempRange(persistentState.trigger_temp_start, persistentState.trigger_temp_end)}
+            </span>
+          </div>
+        {/if}
+        {#if (persistentState.trigger_uptime ?? 0) > 0}
+          <div class="info-row">
+            <span class="label">{_("state.triggerUptimeLabel")}</span>
+            <span class="value">
+              {formatUptimeMinutes(persistentState.trigger_uptime)}
+            </span>
+          </div>
+        {/if}
+        {#if persistentState.trigger_weather && persistentState.trigger_weather.length > 0}
+          <div class="info-row">
+            <span class="label">{_("state.triggerWeatherLabel")}</span>
+            <span class="value">
+              {formatWeather(persistentState.trigger_weather)}
+            </span>
+          </div>
+        {/if}
+        {#if persistentState.live2d_params && persistentState.live2d_params.length > 0}
+          <div class="info-row">
+            <span class="label">{_("state.live2dParamsLabel")}</span>
+            <span class="value">
+              {formatLive2dParams(persistentState.live2d_params)}
+            </span>
+          </div>
+        {/if}
+        {#if persistentState.pngremix_params && persistentState.pngremix_params.length > 0}
+          <div class="info-row">
+            <span class="label">{_("state.pngremixParamsLabel")}</span>
+            <span class="value">
+              {formatPngRemixParams(persistentState.pngremix_params)}
+            </span>
+          </div>
+        {/if}
         <!-- 可触发的状态列表 -->
         <div class="info-row">
           <span class="label">{_("trigger.triggerableStates")}</span>
