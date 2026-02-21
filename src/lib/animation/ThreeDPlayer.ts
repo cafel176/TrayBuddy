@@ -331,7 +331,7 @@ export class ThreeDPlayer {
   private renderer: THREE.WebGLRenderer | null = null;
   private scene: THREE.Scene | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
-  private clock: THREE.Clock | null = null;
+  private timer: THREE.Timer | null = null;
   private mixer: THREE.AnimationMixer | null = null;
   private currentAction: THREE.AnimationAction | null = null;
   private vrm: VRM | null = null;
@@ -353,6 +353,10 @@ export class ThreeDPlayer {
 
   /** 过渡状态：剩余时间 > 0 表示正在过渡中 */
   private fadeRemaining = 0;
+  /** 过渡总时长，用于计算 lerp 进度 */
+  private fadeDurationTotal = 0;
+  /** 过渡开始时的 model.position.x，用于平滑 lerp */
+  private fadeStartModelX = 0;
   /** 过渡中需要在结束时 stop 的旧 action */
   private fadingOutAction: THREE.AnimationAction | null = null;
 
@@ -366,6 +370,9 @@ export class ThreeDPlayer {
   private baseFootY = 0;
   private baseModelHeight = 1;
   private baseHipsWorldX = 0;
+
+  /** 非过渡期间使用的 hips X 静态补偿值 */
+  private hipsXCompensation = 0;
 
   private isRendering = false;
 
@@ -401,7 +408,8 @@ export class ThreeDPlayer {
     dir.position.set(3, 5, 2);
     this.scene.add(dir);
 
-    this.clock = new THREE.Clock();
+    this.timer = new THREE.Timer();
+    this.timer.connect(document);
 
     this.gltfLoader = new GLTFLoader();
     this.gltfLoader.register((parser) => new VRMLoaderPlugin(parser));
@@ -443,7 +451,8 @@ export class ThreeDPlayer {
     this.renderer = null;
     this.scene = null;
     this.camera = null;
-    this.clock = null;
+    this.timer?.dispose();
+    this.timer = null;
     this.gltfLoader = null;
     this.clipCache.clear();
     this.config = null;
@@ -453,6 +462,9 @@ export class ThreeDPlayer {
     this.baseFootY = 0;
     this.baseModelHeight = 1;
     this.baseHipsWorldX = 0;
+    this.hipsXCompensation = 0;
+    this.fadeDurationTotal = 0;
+    this.fadeStartModelX = 0;
 
     dbg("destroy", "done");
   }
@@ -643,21 +655,44 @@ export class ThreeDPlayer {
     const prevAction = this.currentAction;
     const fadeDuration = this.transitionDuration;
 
-    if (prevAction && prevAction !== action && fadeDuration > 0) {
+    // 如果之前有正在 fadeOut 的旧 action（上一次过渡未完成），立即 stop 它
+    if (this.fadingOutAction && this.fadingOutAction !== prevAction && this.fadingOutAction !== action) {
+      this.fadingOutAction.stop();
+      this.fadingOutAction = null;
+      this.fadeRemaining = 0;
+    }
+
+    const sameAction = prevAction === action;
+
+    if (prevAction && !sameAction && fadeDuration > 0) {
       // 标准 fadeOut/fadeIn 过渡
+      dbg("playFromAnima", "transition:", prevAction.getClip().name, "→", clip.name, "dur:", fadeDuration);
+
+      // 确保 prevAction 处于运行状态，否则 fadeOut 不会被 mixer 驱动
+      if (!prevAction.isRunning()) {
+        prevAction.enabled = true;
+        prevAction.play();
+        prevAction.setEffectiveWeight(1);
+      }
+
       prevAction.fadeOut(fadeDuration);
       action.reset().fadeIn(fadeDuration).play();
 
-      // 启动过渡状态追踪
+      // 启动过渡状态追踪，记录起始 model.x 用于 lerp
       this.fadeRemaining = fadeDuration;
+      this.fadeDurationTotal = fadeDuration;
+      this.fadeStartModelX = this.model?.position.x ?? 0;
       this.fadingOutAction = prevAction;
     } else {
-      // 无过渡 / 首次播放 / 同一个 clip：一次性对齐
+      // 无过渡 / 首次播放 / 同一个 clip
+      dbg("playFromAnima", "direct play:", clip.name);
       if (prevAction) prevAction.stop();
       action.reset().play();
       this.fadeRemaining = 0;
       this.fadingOutAction = null;
-      this.alignHipsXOnce();
+      // 立即让 mixer 评估一帧，然后计算静态补偿
+      this.mixer.update(0);
+      this.computeHipsXCompensation();
     }
 
     this.currentAction = action;
@@ -815,7 +850,8 @@ export class ThreeDPlayer {
       if (!this.isRendering) return;
       this.animationFrameId = requestAnimationFrame(animate);
 
-      const dt = this.clock?.getDelta() ?? 0;
+      this.timer?.update();
+      const dt = this.timer?.getDelta() ?? 0;
 
       // Update VRM (spring bones, lookAt, etc.)
       if (this.vrm?.update) {
@@ -827,21 +863,35 @@ export class ThreeDPlayer {
         this.mixer.update(dt);
       }
 
-      // 动画过渡期间：每帧对齐 hips X 防止瞬移
+      // 过渡期间：用 lerp 从起始 model.x 平滑过渡到 align 目标值
+      // 过渡结束：stop 旧 action，计算新动画的静态补偿值
+      // 非过渡期间：使用静态补偿值，让动画自身 hips 位移自然表达
       if (this.fadeRemaining > 0) {
         this.fadeRemaining -= dt;
         if (this.fadeRemaining <= 0) {
-          // 过渡结束：stop 旧 action，做一次最终对齐
           this.fadeRemaining = 0;
           if (this.fadingOutAction) {
             this.fadingOutAction.stop();
             this.fadingOutAction = null;
           }
-          this.alignHipsXOnce();
+          // 过渡结束：计算仅有新动画时的静态补偿值
+          this.computeHipsXCompensation();
         } else {
-          // 过渡中：每帧持续对齐
-          this.alignHipsXContinuous();
+          // 过渡中：计算 align 目标值，然后用 lerp 平滑过渡
+          const alignTarget = this.getAlignHipsX();
+          if (alignTarget !== null && this.model) {
+            // 过渡进度 0→1，使用 smoothstep
+            const elapsed = this.fadeDurationTotal - this.fadeRemaining;
+            const raw = Math.min(elapsed / this.fadeDurationTotal, 1);
+            const t = raw * raw * (3 - 2 * raw); // smoothstep
+            this.model.position.x = this.fadeStartModelX + (alignTarget - this.fadeStartModelX) * t;
+          }
         }
+      }
+
+      // 非过渡期间：应用静态补偿值
+      if (this.fadeRemaining <= 0 && this.model) {
+        this.model.position.x = this.hipsXCompensation;
       }
 
       // Render
@@ -904,42 +954,57 @@ export class ThreeDPlayer {
   }
 
   /**
-   * 过渡期间每帧调用：持续对齐 hips X，防止两个动画混合时模型瞬移。
+   * 计算当前 hips 对齐后 model.position.x 应该是什么值（不实际修改 model）。
+   * 用于过渡期间 lerp。
    */
-  private alignHipsXContinuous(): void {
-    if (!this.model || !this.vrm) return;
+  private getAlignHipsX(): number | null {
+    if (!this.model || !this.vrm) return null;
 
     const hipsNode = getVrmBoneNode(this.vrm, VRMHumanBoneName.Hips);
-    if (!hipsNode) return;
+    if (!hipsNode) return null;
 
-    // 暂时将模型 X 归零，让 hips 的世界位置反映纯动画混合值
+    const savedX = this.model.position.x;
     this.model.position.x = 0;
     this.model.updateWorldMatrix(true, true);
 
     const tmpV = new THREE.Vector3();
     const currentHipsX = hipsNode.getWorldPosition(tmpV).x;
+    const targetX = this.baseHipsWorldX - currentHipsX;
 
-    this.model.position.x = this.baseHipsWorldX - currentHipsX;
+    // 恢复原来的 model.x（不实际修改）
+    this.model.position.x = savedX;
+
+    return targetX;
   }
 
   /**
-   * 非过渡时一次性对齐：评估当前帧 hips X，设定补偿值后不再更新。
-   * 用于无过渡的直接切换，以及过渡结束的最后一帧。
+   * 计算当前动画状态下的 hips X 静态补偿值。
+   * 在过渡结束或无过渡直接切换时调用一次。
+   * 补偿值 = baseHipsWorldX - 当前动画 hips 世界 X，
+   * 之后非过渡期间每帧直接使用此固定值，让动画自身 hips 位移自然表达。
    */
-  private alignHipsXOnce(): void {
-    if (!this.model || !this.vrm || !this.mixer) return;
+  private computeHipsXCompensation(): void {
+    if (!this.model || !this.vrm) {
+      this.hipsXCompensation = 0;
+      return;
+    }
 
     const hipsNode = getVrmBoneNode(this.vrm, VRMHumanBoneName.Hips);
-    if (!hipsNode) return;
+    if (!hipsNode) {
+      this.hipsXCompensation = 0;
+      return;
+    }
 
     this.model.position.x = 0;
-    this.mixer.update(0);
     this.model.updateWorldMatrix(true, true);
 
     const tmpV = new THREE.Vector3();
     const currentHipsX = hipsNode.getWorldPosition(tmpV).x;
 
-    this.model.position.x = this.baseHipsWorldX - currentHipsX;
+    this.hipsXCompensation = this.baseHipsWorldX - currentHipsX;
+    this.model.position.x = this.hipsXCompensation;
+
+    dbg("computeHipsXCompensation", "compensation:", this.hipsXCompensation);
   }
 
   private clearPlayTimer(): void {
