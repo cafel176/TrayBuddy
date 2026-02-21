@@ -42,6 +42,7 @@
     exportMemoryLogsCSV,
     getCacheStats,
     initMemoryDebug,
+    clearImageCache,
   } from "$lib/animation/SpriteAnimator";
   import type { BorderConfig, CharacterConfig, ModData } from "$lib/types/asset";
   import {
@@ -277,6 +278,7 @@
     core.destroy();
     characterAnimator?.destroy();
     borderAnimator?.destroy();
+    clearImageCache();
   });
 </script>
 

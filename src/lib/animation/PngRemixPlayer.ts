@@ -1351,6 +1351,15 @@ export class PngRemixPlayer {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
+    // 显式关闭 ImageBitmap 以立即释放 GPU 纹理资源
+    if (this.scene?.spriteDrawableByIndex) {
+      for (const drawable of this.scene.spriteDrawableByIndex.values()) {
+        if (drawable instanceof ImageBitmap) {
+          drawable.close();
+        }
+      }
+      this.scene.spriteDrawableByIndex.clear();
+    }
     this.scene = null;
     this.config = null;
     this.hitTestCanvas = null;
