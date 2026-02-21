@@ -327,7 +327,9 @@ export class ThreeDPlayer {
       canvas: this.canvas,
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: false,
+      // 必须为 true，否则 readPixels（异步轮询的像素穿透检测）
+      // 读到的 buffer 已被清空，alpha 全为 0，导致穿透检测失效
+      preserveDrawingBuffer: true,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
