@@ -3,8 +3,10 @@
   "logo": "WebM ↔ MOV 変換",
   "mode_webm2mov": "WebM → MOV",
   "mode_mov2webm": "MOV → WebM",
+  "mode_toggle_aria": "変換モード切替",
 
   "reset_btn": "最初から",
+
 
   "upload_title_webm2mov": "WebM 動画ファイルをクリックまたはドラッグ＆ドロップ",
   "upload_hint_webm2mov": "透明チャンネル付き WebM (VP8/VP9) に対応",
@@ -21,6 +23,13 @@
   "settings_title": "変換設定",
   "fps_label": "出力フレームレート (FPS)",
   "fps_auto": "自動検出",
+  "fps_24": "24 FPS",
+  "fps_25": "25 FPS",
+  "fps_30": "30 FPS",
+  "fps_60": "60 FPS",
+  "video_info": "{size} | {fps} FPS | {duration}",
+
+
 
   "mov_codec_label": "MOV コーデック",
   "codec_png": "PNG (ロスレス、透明対応)",
@@ -60,5 +69,19 @@
   "alert_decode_failed": "この動画はブラウザでデコードできません。より一般的なエンコード（例: H.264 MOV）にするか、ffmpeg/編集ソフトで再エンコードしてください。",
   "mov_preview_unavailable": "この MOV はブラウザでプレビューできませんが、変換は可能です",
 
+  "debug_panel_title": "デバッグログ (debug=1)",
+  "debug_expand": "展開",
+  "debug_collapse": "折りたたむ",
+  "debug_copy": "コピー",
+  "debug_clear": "クリア",
+  "debug_hide": "非表示",
+
+  "error_frames_too_many": "フレーム数が多すぎます（{count}）。FPS を下げるか、動画の長さを短くしてください。",
+  "error_raw_frame_invalid": "RAW フレームデータの長さが不正です: {actual} < {expected}",
+  "error_mov_codec_unsupported": "未対応の MOV コーデック: {codec}",
+  "error_webcodecs_alpha_unsupported": "WebCodecs の alpha エンコードは未対応のため、MediaRecorder にフォールバックします",
+  "error_no_supported_codec": "対応する動画コーデックが見つかりません",
+  "error_video_encoder": "VideoEncoder エラー：{message}",
   "error_processing": "処理エラー："
+
 }

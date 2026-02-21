@@ -105,6 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const debugLogs = [];
     let debugPanelEl = null;
     let debugLogEl = null;
+    let debugTitleEl = null;
+    let debugToggleBtn = null;
+    let debugCopyBtn = null;
+    let debugClearBtn = null;
+    let debugHideBtn = null;
+    let debugPanelCollapsed = true;
+
 
     function dbg(...args) {
         const ts = new Date().toISOString();
@@ -133,7 +140,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (DEBUG) console.error('[TB]', ...args);
     }
 
+    function updateDebugPanelText() {
+        if (!debugPanelEl) return;
+        if (debugTitleEl) {
+            debugTitleEl.textContent = t('debug_panel_title');
+        }
+        if (debugToggleBtn) {
+            debugToggleBtn.textContent = debugPanelCollapsed
+                ? t('debug_expand')
+                : t('debug_collapse');
+        }
+        if (debugCopyBtn) debugCopyBtn.textContent = t('debug_copy');
+        if (debugClearBtn) debugClearBtn.textContent = t('debug_clear');
+        if (debugHideBtn) debugHideBtn.textContent = t('debug_hide');
+
+    }
+
     function initDebugPanel() {
+
         if (!DEBUG_PANEL) return;
         if (debugPanelEl) return;
 
@@ -158,41 +182,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;';
 
-        const title = document.createElement('div');
-        title.textContent = '调试日志 (debug=1)';
-        title.style.cssText = 'font-weight:700;font-size:13px;';
+        debugTitleEl = document.createElement('div');
+        debugTitleEl.style.cssText = 'font-weight:700;font-size:13px;';
 
-        let collapsed = true;
-
-        const toggleBtn = document.createElement('button');
-        toggleBtn.type = 'button';
-        toggleBtn.textContent = '展开';
-        toggleBtn.className = 'secondary';
-        toggleBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
+        debugToggleBtn = document.createElement('button');
+        debugToggleBtn.type = 'button';
+        debugToggleBtn.className = 'secondary';
+        debugToggleBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
 
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;align-items:center;';
 
-        const copyBtn = document.createElement('button');
-        copyBtn.type = 'button';
-        copyBtn.textContent = '复制';
-        copyBtn.className = 'secondary';
-        copyBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
+        debugCopyBtn = document.createElement('button');
+        debugCopyBtn.type = 'button';
+        debugCopyBtn.className = 'secondary';
+        debugCopyBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
 
-        const clearBtn = document.createElement('button');
-        clearBtn.type = 'button';
-        clearBtn.textContent = '清空';
-        clearBtn.className = 'secondary';
-        clearBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
+        debugClearBtn = document.createElement('button');
+        debugClearBtn.type = 'button';
+        debugClearBtn.className = 'secondary';
+        debugClearBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
 
-        const hideBtn = document.createElement('button');
-        hideBtn.type = 'button';
-        hideBtn.textContent = '隐藏';
-        hideBtn.className = 'secondary';
-        hideBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
+        debugHideBtn = document.createElement('button');
+        debugHideBtn.type = 'button';
+        debugHideBtn.className = 'secondary';
+        debugHideBtn.style.cssText = 'padding:6px 10px;border-radius:8px;';
 
-        actions.append(toggleBtn, copyBtn, clearBtn, hideBtn);
-        header.append(title, actions);
+        actions.append(debugToggleBtn, debugCopyBtn, debugClearBtn, debugHideBtn);
+        header.append(debugTitleEl, actions);
+
 
         debugLogEl = document.createElement('textarea');
         debugLogEl.readOnly = true;
@@ -216,14 +234,14 @@ document.addEventListener('DOMContentLoaded', () => {
         debugLogEl.style.display = 'none';
         document.body.appendChild(debugPanelEl);
 
-        toggleBtn.addEventListener('click', () => {
-            collapsed = !collapsed;
-            debugLogEl.style.display = collapsed ? 'none' : 'block';
-            toggleBtn.textContent = collapsed ? '展开' : '收起';
+        debugToggleBtn.addEventListener('click', () => {
+            debugPanelCollapsed = !debugPanelCollapsed;
+            debugLogEl.style.display = debugPanelCollapsed ? 'none' : 'block';
+            updateDebugPanelText();
         });
 
 
-        copyBtn.addEventListener('click', async () => {
+        debugCopyBtn.addEventListener('click', async () => {
             try {
                 await navigator.clipboard.writeText(debugLogEl.value);
                 dbg('copied logs to clipboard');
@@ -232,19 +250,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        clearBtn.addEventListener('click', () => {
+        debugClearBtn.addEventListener('click', () => {
             debugLogs.length = 0;
             debugLogEl.value = '';
             dbg('cleared logs');
         });
 
-        hideBtn.addEventListener('click', () => {
+        debugHideBtn.addEventListener('click', () => {
             debugPanelEl.remove();
             debugPanelEl = null;
             debugLogEl = null;
+            debugTitleEl = null;
+            debugToggleBtn = null;
+            debugCopyBtn = null;
+            debugClearBtn = null;
+            debugHideBtn = null;
         });
 
+        updateDebugPanelText();
         dbg('debug panel initialized');
+
     }
 
     initDebugPanel();
@@ -348,11 +373,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Helpers ---
-    function t(key, fallback) {
-        const v = window.i18n && typeof window.i18n.t === 'function' ? window.i18n.t(key) : null;
-        if (!v || v === key) return fallback ?? key;
+    function t(key, params, fallback) {
+        let resolvedParams = params;
+        let resolvedFallback = fallback;
+        if (typeof params === 'string' && fallback === undefined) {
+            resolvedParams = null;
+            resolvedFallback = params;
+        }
+        const v = window.i18n && typeof window.i18n.t === 'function'
+            ? window.i18n.t(key, resolvedParams)
+            : null;
+        if (!v || v === key) return resolvedFallback ?? key;
         return v;
     }
+
 
 
     function setI18nKey(el, key) {
@@ -391,7 +425,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateVideoInfo() {
         const fpsStr = Number.isInteger(detectedFps) ? detectedFps.toString() : detectedFps.toFixed(2);
         const durationStr = formatTime(duration || 0);
-        videoInfoText.textContent = `${videoWidth}×${videoHeight} | ${fpsStr} FPS | ${durationStr}`;
+        const sizeText = `${videoWidth}×${videoHeight}`;
+        videoInfoText.textContent = t(
+            'video_info',
+            { size: sizeText, fps: fpsStr, duration: durationStr },
+            `${sizeText} | ${fpsStr} FPS | ${durationStr}`
+        );
+
     }
 
     function setLoading(progress01, text) {
@@ -525,6 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Keep mode UI in sync with language switching
     window.addEventListener('languageChanged', () => {
         applyModeUI();
+        updateDebugPanelText();
     });
 
     // Initial UI
@@ -595,8 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const ok = mode === 'webm2mov' ? isWebmFile(file) : isMovFile(file);
         if (!ok) {
             alert(mode === 'webm2mov'
-                ? t('alert_webm_only', '请上传 WebM 格式的视频文件')
-                : t('alert_mov_only', '请上传 MOV 格式的视频文件'));
+                ? t('alert_webm_only')
+                : t('alert_mov_only'));
+
             return;
         }
 
@@ -641,23 +683,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         if (movFallback) {
                             updateVideoInfo();
-                            videoInfoText.textContent += ` | ${t('mov_preview_unavailable', '该 MOV 浏览器无法预览，但仍可转换')}`;
+                            videoInfoText.textContent += ` | ${t('mov_preview_unavailable')}`;
+
                             return;
                         }
 
-                        alert(t('alert_decode_failed', '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264 MOV），或用 ffmpeg/专业软件先转码。'));
+                        alert(t('alert_decode_failed'));
                         resetStateToUpload();
+
                     } catch (e) {
-                        alert(t('alert_decode_failed', '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264 MOV），或用 ffmpeg/专业软件先转码。'));
+                        alert(t('alert_decode_failed'));
                         resetStateToUpload();
                     }
+
                 })();
                 return;
             }
 
             // Non MOV->WebM: fail normally
-            alert(t('alert_decode_failed', '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264 MOV），或用 ffmpeg/专业软件先转码。'));
+            alert(t('alert_decode_failed'));
             resetStateToUpload();
+
         };
         videoPlayer.addEventListener('error', onError, { once: true });
 
@@ -810,7 +856,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const chunkOffset = view.getUint32(stco.dataStart + 8);
 
         if (sampleCount > 12000) {
-            throw new Error(`帧数过多（${sampleCount}），请降低 FPS 或缩短视频时长再试。`);
+            throw new Error(t('error_frames_too_many', { count: sampleCount }));
+
         }
 
         const samples = [];
@@ -839,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (parsed.codecFourCC === 'raw ') {
             const expected = parsed.width * parsed.height * 4;
             if (sampleBytes.byteLength < expected) {
-                throw new Error(`RAW 帧数据长度不正确：${sampleBytes.byteLength} < ${expected}`);
+                throw new Error(t('error_raw_frame_invalid', { actual: sampleBytes.byteLength, expected }));
             }
             const src = new Uint8ClampedArray(sampleBytes.buffer, sampleBytes.byteOffset, expected);
             const copy = new Uint8ClampedArray(src);
@@ -859,7 +906,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return ctx.getImageData(0, 0, canvas.width, canvas.height);
         }
 
-        throw new Error(`暂不支持的 MOV codec: ${parsed.codecFourCC}`);
+        throw new Error(t('error_mov_codec_unsupported', { codec: parsed.codecFourCC }));
+
     }
 
     async function extractFramesFromMovFallback(parsed, onProgress) {
@@ -1031,7 +1079,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const fps = fpsOption === 'auto' ? detectedFps : parseInt(fpsOption);
 
         loadingOverlay.classList.remove('hidden');
-        setLoading(0, t('extracting_frames', '正在提取帧...'));
+        setLoading(0, t('extracting_frames'));
+
 
         try {
             dbg('convert clicked', {
@@ -1053,7 +1102,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     await movFallbackPromise;
                 }
                 if (!movFallback) {
-                    throw new Error(t('alert_decode_failed', '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264 MOV），或用 ffmpeg/专业软件先转码。'));
+                    throw new Error(t('alert_decode_failed'));
+
                 }
 
                 dbg('extract frames via movFallback', {
@@ -1065,27 +1115,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 frames = await extractFramesFromMovFallback(movFallback, (p) => {
-                    setLoading(p * 0.5, t('extracting_frames', '正在提取帧...'));
+                    setLoading(p * 0.5, t('extracting_frames'));
                 });
+
 
                 dbg('movFallback frames extracted', { frames: frames.length });
             } else {
                 dbg('extract frames via <video>', { fps, duration, expectedFrames: Math.round(Math.max(0, duration || 0) * fps) });
 
                 frames = await extractFrames(fps, (p) => {
-                    setLoading(p * 0.5, t('extracting_frames', '正在提取帧...'));
+                    setLoading(p * 0.5, t('extracting_frames'));
                 });
+
 
                 dbg('video frames extracted', { frames: frames.length });
             }
 
 
             if (mode === 'webm2mov') {
-                setLoading(0.5, t('encoding_mov', '正在编码 MOV...'));
+                setLoading(0.5, t('encoding_mov'));
+
                 const codec = outputMovCodec.value;
 
                 const movData = await buildMovFile(frames, fps, codec, (p) => {
-                    setLoading(0.5 + p * 0.5, t('encoding_mov', '正在编码 MOV...'));
+                    setLoading(0.5 + p * 0.5, t('encoding_mov'));
+
                 });
 
                 const blob = new Blob([movData], { type: 'video/quicktime' });
@@ -1097,14 +1151,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // MOV -> WebM
-            setLoading(0.5, t('encoding_webm', '正在编码 WebM...'));
+            setLoading(0.5, t('encoding_webm'));
+
 
             const format = outputWebmFormat.value;
             const quality = parseFloat(outputWebmQuality.value);
 
             const encoded = await encodeWebmFromFrames(frames, fps, format, quality, (p) => {
-                setLoading(0.5 + p * 0.5, t('encoding_webm', '正在编码 WebM...'));
+                setLoading(0.5 + p * 0.5, t('encoding_webm'));
             });
+
 
             const blob = encoded.blob;
             const usedFormat = encoded.usedFormat;
@@ -1132,7 +1188,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingOverlay.classList.add('hidden');
         } catch (e) {
             console.error(e);
-            alert(t('error_processing', '处理出错：') + (e && e.message ? e.message : String(e)));
+            alert(t('error_processing') + (e && e.message ? e.message : String(e)));
+
             loadingOverlay.classList.add('hidden');
         }
     });
@@ -1145,8 +1202,9 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             const onError = () => {
                 cleanup();
-                reject(new Error(t('alert_decode_failed', '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264 MOV），或用 ffmpeg/专业软件先转码。')));
+                reject(new Error(t('alert_decode_failed')));
             };
+
             const cleanup = () => {
                 videoPlayer.removeEventListener('seeked', onSeeked);
                 videoPlayer.removeEventListener('error', onError);
@@ -1172,7 +1230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Basic safety limit to avoid huge memory usage
         if (totalFrames > 12000) {
-            throw new Error(`帧数过多（${totalFrames}），请降低 FPS 或缩短视频时长再试。`);
+            throw new Error(t('error_frames_too_many', { count: totalFrames }));
         }
 
         const canvas = document.createElement('canvas');
@@ -1660,7 +1718,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // If we need alpha but no "alpha: keep" config is supported, force fallback path.
         if (hasAlpha && (!codecConfig || codecConfig.alpha !== 'keep')) {
-            throw new Error('WebCodecs alpha encoding not supported; fallback to MediaRecorder');
+            throw new Error(t('error_webcodecs_alpha_unsupported'));
+
         }
 
         if (!codecConfig) {
@@ -1868,7 +1927,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Reinitialize icons
-    if (window.lucide) {
-        lucide.createIcons();
-    }
-});
+    

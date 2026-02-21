@@ -8,6 +8,10 @@
 
   "canvas_height": "高度:",
   "preset_mobile": "手机竖屏",
+  "preset_1080p": "1080p",
+  "preset_720p": "720p",
+  "preset_4_3": "4:3",
+
   
   "section_bg_color": "🎨 背景颜色",
   "bg_primary": "主色调:",
@@ -79,6 +83,8 @@
   "theme_apply": "一键套用",
   
   "enable_corner_frame": "菱形边框",
+  "export_filename": "二次元背景_{timestamp}.{ext}",
+
 
 
   "corner_frame_size": "边框大小:",

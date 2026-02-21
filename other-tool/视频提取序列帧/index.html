@@ -10,11 +10,12 @@
 </head>
 <body>
     <header>
-        <div class="logo">Video2Timesheet</div>
+        <div class="logo" data-i18n="logo">Video2Timesheet</div>
         <div class="header-actions">
             <button id="reset-btn" class="secondary hidden" data-i18n="reset_btn">重新开始</button>
         </div>
     </header>
+
 
     <main>
         <!-- Step 1: Upload -->
@@ -44,7 +45,7 @@
 
                 <div class="controls-grid">
                     <div class="input-group">
-                        <label><span data-i18n="fps_label">帧率 (FPS)</span> <span id="total-frames-estimate" style="color: var(--accent); margin-left: 10px;">(预计 0 帧)</span></label>
+                        <label><span data-i18n="fps_label">帧率 (FPS)</span> <span id="total-frames-estimate" data-i18n="estimate_frames" data-i18n-n="0" style="color: var(--accent); margin-left: 10px;"></span></label>
                         <input type="number" id="fps-input" value="12" min="1" max="60">
                     </div>
                     <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 0.5rem;">
@@ -73,7 +74,9 @@
                         <label data-i18n="bg_remove_label">背景剔除颜色 (点击预览图大图拾取)</label>
                         <div class="color-picker-container">
                             <div id="color-preview" class="color-preview" style="background: transparent;"></div>
-                            <input type="text" id="color-hex" placeholder="#000000" style="width: 100px;">
+                            <input type="text" id="color-hex" placeholder="" data-i18n-placeholder="color_hex_placeholder" style="width: 100px;">
+
+
                             <button id="open-picker-btn" class="secondary" data-i18n="open_picker">打开拾色器</button>
                         </div>
                     </div>
@@ -101,8 +104,9 @@
             <div id="preview-card" class="card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h3 data-i18n="preview_title">预览轮播</h3>
-                    <span id="preview-info" style="color: var(--text-muted); font-size: 0.9rem;">第 0 / 0 帧</span>
+                    <span id="preview-info" style="color: var(--text-muted); font-size: 0.9rem;" data-i18n="preview_info" data-i18n-current="0" data-i18n-total="0">第 0 / 0 帧</span>
                 </div>
+
                 <div class="preview-container">
                     <canvas id="preview-canvas"></canvas>
                     <div class="preview-progress-container">

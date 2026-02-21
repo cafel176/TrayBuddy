@@ -4,6 +4,8 @@
   "import_title": "📁 Import Frames",
   "drop_zone_text": "Drag PNG images here<br>or click to select files",
   "base_size_title": "📐 Base Dimension (based on first image)",
+  "base_size_value": "{w} × {h} px",
+
   "size_warning": "⚠️ Some images have inconsistent sizes and will be ignored during generation",
   "clear_btn": "Clear All Frames",
   "settings_title": "⚙️ Settings",

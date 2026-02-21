@@ -584,7 +584,8 @@ function initPreviewUpload() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        previewImage.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        previewImage.innerHTML = `<img src="${e.target.result}" alt="${window.i18n.t('preview_alt')}">`;
+
         if (currentMod) {
           currentMod.previewData = e.target.result;
           // 从上传的文件中获取扩展名
@@ -608,7 +609,8 @@ function initPreviewUpload() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        iconImage.innerHTML = `<img src="${e.target.result}" alt="Icon">`;
+        iconImage.innerHTML = `<img src="${e.target.result}" alt="${window.i18n.t('icon_alt')}">`;
+
         if (currentMod) {
           currentMod.iconData = e.target.result;
           markUnsaved();
@@ -1091,7 +1093,8 @@ async function loadModFolder() {
         const reader = new FileReader();
         reader.onload = (e) => {
           currentMod.previewData = e.target.result;
-          document.getElementById('preview-image').innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+          document.getElementById('preview-image').innerHTML = `<img src="${e.target.result}" alt="${window.i18n.t('preview_alt')}">`;
+
         };
         reader.readAsDataURL(previewFile);
         currentPreviewExt = ext;
@@ -1108,7 +1111,8 @@ async function loadModFolder() {
       const reader = new FileReader();
       reader.onload = (e) => {
         currentMod.iconData = e.target.result;
-        document.getElementById('icon-image').innerHTML = `<img src="${e.target.result}" alt="Icon">`;
+        document.getElementById('icon-image').innerHTML = `<img src="${e.target.result}" alt="${window.i18n.t('icon_alt')}">`;
+
       };
       reader.readAsDataURL(iconFile);
     } catch (e) {
@@ -2502,14 +2506,16 @@ function populateManifestForm() {
   
   // 显示预览图
   if (currentMod.previewData) {
-    document.getElementById('preview-image').innerHTML = `<img src="${currentMod.previewData}" alt="Preview">`;
+    document.getElementById('preview-image').innerHTML = `<img src="${currentMod.previewData}" alt="${window.i18n.t('preview_alt')}">`;
+
   } else {
     document.getElementById('preview-image').innerHTML = `<span class="preview-placeholder">${window.i18n.t('preview_placeholder')}</span>`;
   }
   
   // 显示图标
   if (currentMod.iconData) {
-    document.getElementById('icon-image').innerHTML = `<img src="${currentMod.iconData}" alt="Icon">`;
+    document.getElementById('icon-image').innerHTML = `<img src="${currentMod.iconData}" alt="${window.i18n.t('icon_alt')}">`;
+
   } else {
     document.getElementById('icon-image').innerHTML = `<span class="preview-placeholder">${window.i18n.t('icon_placeholder')}</span>`;
   }
@@ -3508,14 +3514,17 @@ function renderLive2DParams(params) {
   const targetLabel = t ? t('live2d_param_target_label') : 'Target';
   const targetParameter = t ? t('live2d_param_target_parameter') : 'Parameter';
   const targetPart = t ? t('live2d_param_target_partopacity') : 'PartOpacity';
+  const paramIdPlaceholder = t ? t('live2d_param_id_placeholder') : 'ParamAngleX';
 
 
   params.forEach((param, index) => {
+
     const item = document.createElement('div');
     const target = param.target === 'PartOpacity' ? 'PartOpacity' : 'Parameter';
     item.className = 'branch-item';
     item.innerHTML = `
-      <input type="text" data-live2d-param-id="${index}" value="${param.id || ''}" placeholder="ParamAngleX" style="flex:1;">
+      <input type="text" data-live2d-param-id="${index}" value="${param.id || ''}" placeholder="${paramIdPlaceholder}" style="flex:1;">
+
       <input type="number" data-live2d-param-value="${index}" value="${param.value ?? 0}" step="0.1" style="width:100px;">
       <select data-live2d-param-target="${index}" title="${targetLabel}" style="width:140px;">
         <option value="Parameter" ${target === 'Parameter' ? 'selected' : ''}>${targetParameter}</option>
@@ -3537,12 +3546,15 @@ function addLive2DParam() {
   const targetLabel = t ? t('live2d_param_target_label') : 'Target';
   const targetParameter = t ? t('live2d_param_target_parameter') : 'Parameter';
   const targetPart = t ? t('live2d_param_target_partopacity') : 'PartOpacity';
+  const paramIdPlaceholder = t ? t('live2d_param_id_placeholder') : 'ParamAngleX';
 
 
   const item = document.createElement('div');
+
   item.className = 'branch-item';
   item.innerHTML = `
-    <input type="text" data-live2d-param-id="${index}" value="" placeholder="ParamAngleX" style="flex:1;">
+    <input type="text" data-live2d-param-id="${index}" value="" placeholder="${paramIdPlaceholder}" style="flex:1;">
+
     <input type="number" data-live2d-param-value="${index}" value="0" step="0.1" style="width:100px;">
     <select data-live2d-param-target="${index}" title="${targetLabel}" style="width:140px;">
       <option value="Parameter" selected>${targetParameter}</option>
@@ -6437,7 +6449,7 @@ function editPngRemixExpression(index) {
 }
 
 function deletePngRemixExpression(index) {
-  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_expression') || '确定删除？')) return;
+  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_expression'))) return;
   ensurePngRemixData();
   currentMod.assets.pngremix.expressions.splice(index, 1);
   renderPngRemixAssets();
@@ -6580,7 +6592,7 @@ function editPngRemixMotion(index) {
 }
 
 function deletePngRemixMotion(index) {
-  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_motion') || '确定删除？')) return;
+  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_motion'))) return;
   ensurePngRemixData();
   currentMod.assets.pngremix.motions.splice(index, 1);
   renderPngRemixAssets();
@@ -6760,7 +6772,7 @@ function editPngRemixState(index) {
 }
 
 function deletePngRemixState(index) {
-  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_state') || '确定删除？')) return;
+  if (!confirm(window.i18n.t('msg_confirm_delete_pngremix_state'))) return;
   ensurePngRemixData();
   currentMod.assets.pngremix.states.splice(index, 1);
   renderPngRemixAssets();
@@ -7413,7 +7425,7 @@ function editThreeDAnimation(index) {
 }
 
 function deleteThreeDAnimation(index) {
-  if (!confirm(window.i18n.t('msg_confirm_delete_threed_animation') || '确定删除？')) return;
+  if (!confirm(window.i18n.t('msg_confirm_delete_threed_animation'))) return;
   ensureThreeDData();
   currentMod.assets.threed.animations.splice(index, 1);
   renderThreeDAssets();

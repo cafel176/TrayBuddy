@@ -8,10 +8,17 @@
   "reset_btn": "別の画像を選択",
   "settings_title": "動画設定",
   "direction_label": "移動方向",
+  "direction_left_title": "左へ",
+  "direction_right_title": "右へ",
+
   "speed_label": "移動速度 (ピクセル/秒)",
   "duration_label": "動画の長さ (秒)",
   "fps_label": "フレームレート (FPS)",
+  "fps_24": "24 FPS",
+  "fps_30": "30 FPS",
+  "fps_60": "60 FPS",
   "info_image_size": "画像サイズ",
+
   "info_total_frames": "総フレーム数",
   "info_loop_time": "1ループ時間",
   "output_title": "出力設定",
@@ -30,5 +37,8 @@
   "alert_upload_image": "画像ファイルをアップロードしてください",
   "alert_no_image": "先に画像をアップロードしてください",
   "gif_lib_hint": "GIF ライブラリが読み込まれていません。WebM 形式でエクスポートします。",
-  "error_processing": "処理エラー："
+  "error_processing": "処理エラー：",
+  "error_no_supported_codec": "対応する動画コーデックが見つかりません",
+  "error_video_encoder": "VideoEncoder エラー：{message}"
+
 }

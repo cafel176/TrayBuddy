@@ -101,13 +101,15 @@ function updateCalcInfo() {
     calcInfo.classList.add('show');
     
     if (window.i18n) {
-        calcValue.textContent = window.i18n.t('calc_value_template')
-            .replace('{w}', frameWidth)
-            .replace('{h}', frameHeight)
-            .replace('{total}', totalFrames);
+        calcValue.textContent = window.i18n.t('calc_value_template', {
+            w: frameWidth,
+            h: frameHeight,
+            total: totalFrames
+        });
     } else {
         calcValue.textContent = `每帧 ${frameWidth} × ${frameHeight} px，共 ${totalFrames} 帧`;
     }
+
 }
 
 // 更新预览
@@ -275,7 +277,9 @@ function displayResults() {
         
         // 点击单独下载
         item.style.cursor = 'pointer';
-        item.title = window.i18n ? window.i18n.t('download_frame_tip') : '点击下载此帧';
+        item.title = window.i18n.t('download_frame_tip');
+        item.setAttribute('data-i18n-title', 'download_frame_tip');
+
         item.addEventListener('click', () => {
             downloadSingleFrame(frame, displayIndex);
         });
@@ -301,7 +305,9 @@ downloadAllBtn.addEventListener('click', async () => {
     if (splitFrames.length === 0) return;
     
     downloadAllBtn.disabled = true;
-    downloadAllBtn.textContent = window.i18n ? window.i18n.t('zipping_text') : '⏳ 打包中...';
+    downloadAllBtn.textContent = window.i18n.t('zipping_text');
+    downloadAllBtn.setAttribute('data-i18n', 'zipping_text');
+
     
     try {
         const zip = new JSZip();
@@ -334,12 +340,14 @@ downloadAllBtn.addEventListener('click', async () => {
         link.click();
         URL.revokeObjectURL(link.href);
     } catch (error) {
-        console.error('打包失败:', error);
+        console.error(window.i18n.t('zip_failed_log'), error);
         alert(window.i18n ? window.i18n.t('zip_failed_text') : '打包失败，请重试');
     } finally {
         downloadAllBtn.disabled = false;
-        downloadAllBtn.textContent = window.i18n ? window.i18n.t('download_all_btn') : '📦 打包下载 (ZIP)';
+        downloadAllBtn.textContent = window.i18n.t('download_all_btn');
+        downloadAllBtn.setAttribute('data-i18n', 'download_all_btn');
     }
+
 });
 
 // 输入变化时更新预览

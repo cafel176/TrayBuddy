@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const t = (key, params) => (window.i18n && typeof window.i18n.t === 'function')
+        ? window.i18n.t(key, params)
+        : key;
+
+    const setI18nCount = (el, key, n) => {
+        if (!el) return;
+        el.setAttribute('data-i18n', key);
+        el.setAttribute('data-i18n-n', String(n));
+        el.textContent = t(key, { n });
+    };
+
+
     // DOM Elements
     const videoInput = document.getElementById('video-input');
     const uploadSection = document.getElementById('upload-section');
@@ -299,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const chunkOffset = view.getUint32(stco.dataStart + 8);
 
         if (sampleCount > 12000) {
-            throw new Error(`帧数过多（${sampleCount}），请降低 FPS 或缩短视频时长再试。`);
+            throw new Error(t('error_frames_too_many', { count: sampleCount }));
         }
 
         const samples = [];
@@ -328,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (parsed.codecFourCC === 'raw ') {
             const expected = parsed.width * parsed.height * 4;
             if (sampleBytes.byteLength < expected) {
-                throw new Error(`RAW 帧数据长度不正确：${sampleBytes.byteLength} < ${expected}`);
+                throw new Error(t('error_raw_frame_invalid', { actual: sampleBytes.byteLength, expected }));
             }
             const src = new Uint8ClampedArray(sampleBytes.buffer, sampleBytes.byteOffset, expected);
             const copy = new Uint8ClampedArray(src);
@@ -348,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return ctx.getImageData(0, 0, canvas.width, canvas.height);
         }
 
-        throw new Error(`暂不支持的 MOV codec: ${parsed.codecFourCC}`);
+        throw new Error(t('error_mov_codec_unsupported', { codec: parsed.codecFourCC }));
     }
 
     async function extractFramesFromMovFallback(parsed, startIdx, endIdx, onProgress) {
@@ -457,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check if it's a video file (also accept MOV files which may have empty or different MIME types)
         const isVideo = file.type.startsWith('video/') || isMovFile(file);
         if (!isVideo) {
-            alert(window.i18n?.t('alert_upload_video') || '请上传视频文件');
+            alert(t('alert_upload_video'));
             return;
         }
         videoFile = file;
@@ -544,10 +556,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                     
-                    alert(window.i18n?.t('alert_decode_failed') || '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264），或用 ffmpeg/专业软件先转码。');
+                    alert(t('alert_decode_failed'));
                 } catch (e) {
                     console.error('MOV fallback failed:', e);
-                    alert(window.i18n?.t('alert_decode_failed') || '浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264），或用 ffmpeg/专业软件先转码。');
+                    alert(t('alert_decode_failed'));
                 }
             })();
         };
@@ -804,8 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const supportsAudio = format === 'webm-vp9' || format === 'webm-vp8';
         keepAudioCheckbox.disabled = !supportsAudio;
         keepAudioHint.textContent = supportsAudio 
-            ? (window.i18n?.t('keep_audio_hint') || '仅 WebM 格式支持')
-            : (window.i18n?.t('keep_audio_not_supported') || '当前格式不支持音频');
+            ? t('keep_audio_hint')
+            : t('keep_audio_not_supported');
         if (!supportsAudio) {
             keepAudioCheckbox.checked = false;
         }
@@ -813,12 +825,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize audio hint
     updateAudioHint();
+    applyI18nAttrs();
+    updatePreviewTitle();
 
     // --- Mode Selection ---
     modeChromaBtn.addEventListener('click', () => switchMode('chroma'));
     modeWandBtn.addEventListener('click', () => switchMode('wand'));
     modePerframeBtn.addEventListener('click', () => switchMode('perframe'));
     modeHybridBtn.addEventListener('click', () => switchMode('hybrid'));
+
+    function updatePreviewTitle() {
+        if (currentMode === 'chroma') {
+            previewLeftTitle.setAttribute('data-i18n', 'preview_first_frame');
+            previewLeftTitle.textContent = t('preview_first_frame');
+        } else if (currentMode === 'wand') {
+            previewLeftTitle.setAttribute('data-i18n', 'preview_wand_frame');
+            previewLeftTitle.textContent = t('preview_wand_frame');
+        } else if (currentMode === 'perframe') {
+            previewLeftTitle.setAttribute('data-i18n', 'preview_perframe');
+            previewLeftTitle.textContent = t('preview_perframe');
+        } else if (currentMode === 'hybrid') {
+            if (hybridEditMode === 'chroma') {
+                previewLeftTitle.setAttribute('data-i18n', 'preview_hybrid_chroma');
+                previewLeftTitle.textContent = t('preview_hybrid_chroma');
+            } else if (hybridEditMode === 'wand') {
+                previewLeftTitle.setAttribute('data-i18n', 'preview_hybrid_wand');
+                previewLeftTitle.textContent = t('preview_hybrid_wand');
+            } else {
+                previewLeftTitle.setAttribute('data-i18n', 'preview_hybrid');
+                previewLeftTitle.textContent = t('preview_hybrid');
+            }
+        }
+    }
+
+    function applyI18nAttrs() {
+        document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+            const key = el.getAttribute('data-i18n-title');
+            if (!key) return;
+            el.setAttribute('title', t(key));
+        });
+    }
 
     function switchMode(mode) {
         currentMode = mode;
@@ -841,19 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hybridSettings.classList.toggle('hidden', mode !== 'hybrid');
         
         // Update preview title
-        if (mode === 'chroma') {
-            previewLeftTitle.setAttribute('data-i18n', 'preview_first_frame');
-            previewLeftTitle.textContent = window.i18n?.t('preview_first_frame') || '首帧预览 (点击拾取颜色)';
-        } else if (mode === 'wand') {
-            previewLeftTitle.setAttribute('data-i18n', 'preview_wand_frame');
-            previewLeftTitle.textContent = window.i18n?.t('preview_wand_frame') || '首帧预览 (点击选择区域)';
-        } else if (mode === 'perframe') {
-            previewLeftTitle.setAttribute('data-i18n', 'preview_perframe');
-            previewLeftTitle.textContent = window.i18n?.t('preview_perframe') || '当前帧预览 (点击选择区域)';
-        } else if (mode === 'hybrid') {
-            previewLeftTitle.setAttribute('data-i18n', 'preview_hybrid');
-            previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
-        }
+        updatePreviewTitle();
         
         // Re-render icons
         if (window.lucide) lucide.createIcons();
@@ -1136,11 +1170,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderChromaColorList() {
-        const countText = window.i18n?.t('chroma_color_count') || '{n} 个颜色';
-        chromaColorCount.textContent = countText.replace('{n}', chromaColors.length);
+        chromaColorCount.textContent = t('chroma_color_count', { n: chromaColors.length });
         
         if (chromaColors.length === 0) {
-            chromaColorList.innerHTML = `<div class="chroma-color-empty" data-i18n="chroma_color_empty">点击左侧图片拾取颜色，或手动输入</div>`;
+            chromaColorList.innerHTML = `<div class="chroma-color-empty" data-i18n="chroma_color_empty">${t('chroma_color_empty')}</div>`;
             return;
         }
         
@@ -1149,13 +1182,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="chroma-color-swatch" style="background: ${color.hex};"></div>
                 <div class="chroma-color-info">
                     <span class="chroma-color-hex">${color.hex.toUpperCase()}</span>
-                    <span class="chroma-color-params">容差:${color.tolerance} 羽化:${color.feather} 溢色:${color.spill}</span>
+                    <span class="chroma-color-params">${t('chroma_color_params', {
+                        tolerance: color.tolerance,
+                        feather: color.feather,
+                        spill: color.spill,
+                    })}</span>
                 </div>
                 <div class="chroma-color-actions">
-                    <button class="edit-btn" title="编辑" data-action="edit" data-index="${index}">
+                    <button class="edit-btn" title="${t('action_edit')}" data-action="edit" data-index="${index}">
                         <i data-lucide="pencil"></i>
                     </button>
-                    <button class="delete-btn" title="删除" data-action="delete" data-index="${index}">
+                    <button class="delete-btn" title="${t('action_delete')}" data-action="delete" data-index="${index}">
                         <i data-lucide="x"></i>
                     </button>
                 </div>
@@ -1187,13 +1224,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
             addChromaColor(hex);
         } else {
-            alert(window.i18n?.t('alert_invalid_color') || '请输入有效的颜色值 (例如: #00ff00)');
+            alert(t('alert_invalid_color'));
         }
     });
     
     chromaClearAllBtn.addEventListener('click', () => {
         if (chromaColors.length === 0) return;
-        if (confirm(window.i18n?.t('confirm_clear_all_colors') || '确定要清除所有颜色吗？')) {
+        if (confirm(t('confirm_clear_all_colors'))) {
             clearAllChromaColors();
         }
     });
@@ -1347,15 +1384,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function updateHybridWandSelectionCount() {
         const count = hybridTempWandPoints.length;
-        const template = window.i18n?.t('wand_selection_count') || '已选择 {n} 个区域';
-        hybridWandSelectionCount.textContent = template.replace('{n}', count);
+        setI18nCount(hybridWandSelectionCount, 'wand_selection_count', count);
+
     }
     
     // Add hybrid operation
     function addHybridChromaOperation() {
         const hex = hybridColorHex.value;
         if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-            alert(window.i18n?.t('alert_invalid_color') || '请输入有效的颜色值');
+            alert(t('alert_invalid_color'));
             return;
         }
         
@@ -1379,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function addHybridWandOperation() {
         if (hybridTempWandPoints.length === 0) {
-            alert(window.i18n?.t('alert_no_wand_selection') || '请先点击图片选择要删除的区域');
+            alert(t('alert_no_wand_selection'));
             return;
         }
         
@@ -1429,11 +1466,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderHybridOperationList() {
-        const countText = window.i18n?.t('hybrid_operation_count') || '{n} 个操作';
-        hybridOperationCount.textContent = countText.replace('{n}', hybridOperations.length);
+        setI18nCount(hybridOperationCount, 'hybrid_operation_count', hybridOperations.length);
+
         
         if (hybridOperations.length === 0) {
-            hybridOperationList.innerHTML = `<div class="hybrid-operation-empty" data-i18n="hybrid_operation_empty">暂无操作，点击下方按钮添加</div>`;
+            hybridOperationList.innerHTML = `<div class="hybrid-operation-empty" data-i18n="hybrid_operation_empty">${t('hybrid_operation_empty')}</div>`;
             return;
         }
         
@@ -1441,15 +1478,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const isChroma = op.type === 'chroma';
             const iconClass = isChroma ? 'chroma' : 'wand';
             const iconName = isChroma ? 'palette' : 'wand-2';
-            const typeText = isChroma 
-                ? (window.i18n?.t('mode_chroma') || '色度键')
-                : (window.i18n?.t('mode_wand') || '魔棒');
+            const typeText = isChroma ? t('mode_chroma') : t('mode_wand');
             
             let detail;
             if (isChroma) {
-                detail = `${op.params.hex.toUpperCase()} | 容差:${op.params.tolerance} 羽化:${op.params.feather}`;
+                detail = t('hybrid_detail_chroma', {
+                    hex: op.params.hex.toUpperCase(),
+                    tolerance: op.params.tolerance,
+                    feather: op.params.feather,
+                });
             } else {
-                detail = `${op.params.points.length}个选区 | 容差:${op.params.tolerance} 羽化:${op.params.feather}`;
+                detail = t('hybrid_detail_wand', {
+                    count: op.params.points.length,
+                    tolerance: op.params.tolerance,
+                    feather: op.params.feather,
+                });
             }
             
             return `
@@ -1464,9 +1507,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="hybrid-operation-detail">${detail}</span>
                     </div>
                     <div class="hybrid-operation-actions">
-                        ${index > 0 ? `<button class="move-btn" title="上移" data-action="up" data-index="${index}"><i data-lucide="chevron-up"></i></button>` : ''}
-                        ${index < hybridOperations.length - 1 ? `<button class="move-btn" title="下移" data-action="down" data-index="${index}"><i data-lucide="chevron-down"></i></button>` : ''}
-                        <button class="delete-btn" title="删除" data-action="delete" data-index="${index}">
+                        ${index > 0 ? `<button class="move-btn" title="${t('action_move_up')}" data-action="up" data-index="${index}"><i data-lucide="chevron-up"></i></button>` : ''}
+                        ${index < hybridOperations.length - 1 ? `<button class="move-btn" title="${t('action_move_down')}" data-action="down" data-index="${index}"><i data-lucide="chevron-down"></i></button>` : ''}
+                        <button class="delete-btn" title="${t('action_delete')}" data-action="delete" data-index="${index}">
                             <i data-lucide="x"></i>
                         </button>
                     </div>
@@ -1650,7 +1693,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hybridWandPanel.classList.add('hidden');
         
         // Update preview title
-        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_chroma') || '首帧预览 (点击拾取颜色)';
+        updatePreviewTitle();
         
         if (window.lucide) lucide.createIcons();
     });
@@ -1662,7 +1705,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearHybridWandSelection();
         
         // Update preview title
-        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_wand') || '首帧预览 (点击选择区域)';
+        updatePreviewTitle();
         
         if (window.lucide) lucide.createIcons();
     });
@@ -1670,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hybridChromaCancelBtn.addEventListener('click', () => {
         hybridEditMode = null;
         hybridChromaPanel.classList.add('hidden');
-        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
+        updatePreviewTitle();
         updatePreview();
     });
     
@@ -1678,7 +1721,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hybridEditMode = null;
         hybridWandPanel.classList.add('hidden');
         clearHybridWandSelection();
-        previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
+        updatePreviewTitle();
         updatePreview();
     });
     
@@ -1692,7 +1735,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     hybridClearAllBtn.addEventListener('click', () => {
         if (hybridOperations.length === 0) return;
-        if (confirm(window.i18n?.t('confirm_clear_all_hybrid') || '确定要清除所有操作吗？')) {
+        if (confirm(t('confirm_clear_all_hybrid'))) {
             clearAllHybridOperations();
         }
     });
@@ -1964,8 +2007,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSelectionCount() {
         const count = wandSelectionPoints.length;
-        const template = window.i18n?.t('wand_selection_count') || '已选择 {n} 个区域';
-        wandSelectionCount.textContent = template.replace('{n}', count);
+        setI18nCount(wandSelectionCount, 'wand_selection_count', count);
+
     }
 
     // --- Per-Frame Mode Functions ---
@@ -2165,8 +2208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updatePerframeSelectionCount() {
         const selections = perframeData.selectionsByFrame[perframeData.currentFrameIndex] || [];
         const count = selections.length;
-        const template = window.i18n?.t('perframe_selection_count') || '当前帧: {n} 个选区';
-        perframeSelectionCount.textContent = template.replace('{n}', count);
+        perframeSelectionCount.textContent = t('perframe_selection_count', { n: count });
     }
     
     // Per-frame navigation event listeners
@@ -2206,7 +2248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     perframeCopyToAllBtn.addEventListener('click', () => {
         const currentSelections = perframeData.selectionsByFrame[perframeData.currentFrameIndex] || [];
         if (currentSelections.length === 0) {
-            alert(window.i18n?.t('alert_no_perframe_selection') || '当前帧没有选区');
+            alert(t('alert_no_perframe_selection'));
             return;
         }
         
@@ -2216,13 +2258,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         updateTimelineHighlight();
-        alert(window.i18n?.t('perframe_copied_to_all') || `已复制到所有 ${perframeData.frameCount} 帧`);
+        alert(t('perframe_copied_to_all', { n: perframeData.frameCount }));
     });
     
     perframeCopyToRangeBtn.addEventListener('click', () => {
         const currentSelections = perframeData.selectionsByFrame[perframeData.currentFrameIndex] || [];
         if (currentSelections.length === 0) {
-            alert(window.i18n?.t('alert_no_perframe_selection') || '当前帧没有选区');
+            alert(t('alert_no_perframe_selection'));
             return;
         }
         
@@ -2237,7 +2279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const end = parseInt(copyRangeEnd.value) - 1;
         
         if (start > end || start < 0 || end >= perframeData.frameCount) {
-            alert(window.i18n?.t('alert_invalid_range') || '无效的帧范围');
+            alert(t('alert_invalid_range'));
             return;
         }
         
@@ -2251,7 +2293,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimelineHighlight();
         
         const count = end - start + 1;
-        alert(window.i18n?.t('perframe_copied_to_range') || `已复制到 ${count} 帧`);
+        alert(t('perframe_copied_to_range', { n: count }));
     });
     
     copyRangeCancelBtn.addEventListener('click', () => {
@@ -2259,7 +2301,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     perframeClearAllBtn.addEventListener('click', () => {
-        if (!confirm(window.i18n?.t('confirm_clear_all') || '确定要清除所有帧的选区吗？')) {
+        if (!confirm(t('confirm_clear_all'))) {
             return;
         }
         
@@ -2535,24 +2577,24 @@ document.addEventListener('DOMContentLoaded', () => {
     processBtn.addEventListener('click', async () => {
         if (currentMode === 'chroma') {
             if (chromaColors.length === 0) {
-                alert(window.i18n?.t('alert_no_color') || '请先选择要去除的背景颜色');
+                alert(t('alert_no_color'));
                 return;
             }
         } else if (currentMode === 'wand') {
             if (wandSelectionPoints.length === 0) {
-                alert(window.i18n?.t('alert_no_wand_selection') || '请先点击图片选择要删除的区域');
+                alert(t('alert_no_wand_selection'));
                 return;
             }
         } else if (currentMode === 'perframe') {
             // Check if any frame has selections
             const hasAnySelection = Object.values(perframeData.selectionsByFrame).some(arr => arr && arr.length > 0);
             if (!hasAnySelection) {
-                alert(window.i18n?.t('alert_no_perframe_selection') || '请先在帧上添加选区');
+                alert(t('alert_no_perframe_selection'));
                 return;
             }
         } else if (currentMode === 'hybrid') {
             if (hybridOperations.length === 0) {
-                alert(window.i18n?.t('alert_no_hybrid_operation') || '请先添加至少一个操作');
+                alert(t('alert_no_hybrid_operation'));
                 return;
             }
         }
@@ -2569,11 +2611,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Extract audio first if needed
         let audioData = null;
         if (keepAudio) {
-            loadingText.textContent = window.i18n?.t('extracting_audio') || '正在提取音频...';
+            loadingText.textContent = t('extracting_audio');
             audioData = await extractAudio();
         }
         
-        loadingText.textContent = window.i18n?.t('extracting_frames') || '正在提取帧...';
+        loadingText.textContent = t('extracting_frames');
 
         try {
             let frames;
@@ -2591,7 +2633,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            loadingText.textContent = window.i18n?.t('processing_bg') || '正在去除背景...';
+            loadingText.textContent = t('processing_bg');
 
             // Step 2: Process frames based on mode
             let processedFrames;
@@ -2622,7 +2664,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            loadingText.textContent = window.i18n?.t('encoding_video') || '正在编码视频...';
+            loadingText.textContent = t('encoding_video');
 
             // Step 3: Encode based on format
             if (format === 'png-sequence') {
@@ -2651,7 +2693,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingOverlay.classList.add('hidden');
         } catch (e) {
             console.error(e);
-            alert((window.i18n?.t('error_processing') || '处理出错：') + e.message);
+            alert(t('error_processing') + e.message);
             loadingOverlay.classList.add('hidden');
         }
     });
@@ -3163,7 +3205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (!support.supported) {
-            throw new Error('No supported video codec found');
+            throw new Error(t('error_no_supported_codec'));
         }
         
         videoEncoder.configure(codecConfig);
@@ -3494,7 +3536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 URL.revokeObjectURL(url);
             }, 'image/png');
             
-            alert(window.i18n?.t('png_zip_hint') || '请添加 JSZip 库以支持批量导出 PNG 序列。当前仅导出了第一帧。');
+            alert(t('png_zip_hint'));
             onProgress(1);
         }
     }
@@ -3537,7 +3579,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gif.render();
         } else {
             // Fallback: Export as WebM with note about GIF
-            alert(window.i18n?.t('gif_lib_hint') || 'GIF 库未加载，将导出为 WebM 格式。如需 GIF，请添加 gif.js 库。');
+            alert(t('gif_lib_hint'));
             await encodeVideo(frames, fps, 'webm-vp8', 0.8, null, onProgress);
         }
     }
@@ -3883,22 +3925,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('languageChanged', () => {
         updateSelectionCount();
         updatePerframeSelectionCount();
+        renderChromaColorList();
         renderHybridOperationList();
-        // Update mode-specific titles
-        if (currentMode === 'chroma') {
-            previewLeftTitle.textContent = window.i18n?.t('preview_first_frame') || '首帧预览 (点击拾取颜色)';
-        } else if (currentMode === 'wand') {
-            previewLeftTitle.textContent = window.i18n?.t('preview_wand_frame') || '首帧预览 (点击选择区域)';
-        } else if (currentMode === 'perframe') {
-            previewLeftTitle.textContent = window.i18n?.t('preview_perframe') || '当前帧预览 (点击选择区域)';
-        } else if (currentMode === 'hybrid') {
-            if (hybridEditMode === 'chroma') {
-                previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_chroma') || '首帧预览 (点击拾取颜色)';
-            } else if (hybridEditMode === 'wand') {
-                previewLeftTitle.textContent = window.i18n?.t('preview_hybrid_wand') || '首帧预览 (点击选择区域)';
-            } else {
-                previewLeftTitle.textContent = window.i18n?.t('preview_hybrid') || '首帧预览 (根据操作点击)';
-            }
-        }
+        updateAudioHint();
+        applyI18nAttrs();
+        updatePreviewTitle();
     });
 });

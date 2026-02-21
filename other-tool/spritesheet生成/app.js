@@ -104,7 +104,15 @@ function updateBaseDimensions() {
             height: frames[0].height
         };
         sizeInfo.classList.add('show');
-        baseSize.textContent = `${baseDimensions.width} × ${baseDimensions.height} px`;
+        if (window.i18n) {
+            baseSize.textContent = window.i18n.t('base_size_value', {
+                w: baseDimensions.width,
+                h: baseDimensions.height
+            });
+        } else {
+            baseSize.textContent = `${baseDimensions.width} × ${baseDimensions.height} px`;
+        }
+
     } else {
         baseDimensions = null;
         sizeInfo.classList.remove('show');
@@ -214,7 +222,9 @@ function updateDownloadBtnText() {
         downloadBtn.setAttribute('data-i18n', compressWebpCheckbox.checked ? 'download_webp_btn' : 'download_png_btn');
         window.i18n.updateDOM();
     } else {
-        downloadBtn.textContent = compressWebpCheckbox.checked ? '💾 下载 WebP' : '💾 下载 PNG';
+        downloadBtn.textContent = compressWebpCheckbox.checked
+            ? window.i18n.t('download_webp_btn')
+            : window.i18n.t('download_png_btn');
     }
 }
 
@@ -357,5 +367,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('languageChanged', () => {
-    // 处理动态内容更新
+    updateBaseDimensions();
+    updateFrameList();
+    updateDownloadBtnText();
 });
+

@@ -11,6 +11,9 @@
   "reset_view": "Reset View",
   "waiting_upload": "Upload images to start aligning",
   "preview_zoom": "Preview Zoom:",
+  "offset_x_label": "X:",
+  "offset_y_label": "Y:",
+
   "zoom_fit": "Fit",
   "tips_title": "Tips:",
   "tips_content": "Drag & drop to upload | Drag Image 2 to move | Arrow keys for fine-tuning (Shift to speed up) | Ctrl+Wheel to zoom preview | Wheel to scale Image 2"

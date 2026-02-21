@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>pngRemix 预览（Web）</title>
+  <title data-i18n="title">pngRemix 预览（Web）</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="../i18n-helper.js"></script>
 
   <script>
     (function(){
@@ -15,7 +16,14 @@
         document.addEventListener('DOMContentLoaded', function(){
           var el = document.getElementById('status');
           if (el) {
-            el.textContent = '当前浏览器不支持 ES Module，建议使用新版 Edge / Chrome。';
+            var msg = (window.i18n && typeof window.i18n.t === 'function')
+              ? window.i18n.t('pngRemixPreview.error.noModule')
+              : 'pngRemixPreview.error.noModule';
+            el.textContent = msg;
+            el.setAttribute('data-i18n', 'pngRemixPreview.error.noModule');
+            if (window.i18n && typeof window.i18n.updateDOM === 'function') {
+              window.i18n.updateDOM();
+            }
             el.classList.remove('ok');
             el.classList.add('err');
           }
@@ -29,27 +37,27 @@
     <header class="appbar">
       <div class="appbar-left">
         <div class="app-title">
-          <span class="app-title-main">pngRemix 预览</span>
-          <span class="app-title-sub">Web / Canvas2D</span>
+          <span class="app-title-main" data-i18n="pngRemixPreview.appTitle">pngRemix 预览</span>
+          <span class="app-title-sub" data-i18n="pngRemixPreview.appSubTitle">Web / Canvas2D</span>
         </div>
-        <div class="app-desc">拖拽或选择 <code>.pngRemix</code>（或 <code>.save</code>），在浏览器中解码并预览叠放、状态切换、父子层级与动效。</div>
+        <div class="app-desc" data-i18n="pngRemixPreview.appDesc">拖拽或选择 <code>.pngRemix</code>（或 <code>.save</code>），在浏览器中解码并预览叠放、状态切换、父子层级与动效。</div>
       </div>
 
       <div class="appbar-right">
         <div class="file-badges" id="fileInfo" style="display:none;">
-          <span class="badge"><strong>文件</strong> <span id="fileName">-</span></span>
-          <span class="badge"><strong>version</strong> <span id="version">-</span></span>
-          <span class="badge"><strong>states</strong> <span id="stateCount">-</span></span>
-          <span class="badge"><strong>sprites</strong> <span id="spriteCount">-</span></span>
+          <span class="badge"><strong data-i18n="pngRemixPreview.badge.file">文件</strong> <span id="fileName">-</span></span>
+          <span class="badge"><strong data-i18n="pngRemixPreview.badge.version">version</strong> <span id="version">-</span></span>
+          <span class="badge"><strong data-i18n="pngRemixPreview.badge.states">states</strong> <span id="stateCount">-</span></span>
+          <span class="badge"><strong data-i18n="pngRemixPreview.badge.sprites">sprites</strong> <span id="spriteCount">-</span></span>
         </div>
 
         <div class="appbar-actions">
           <label class="toggle">
             <input type="checkbox" id="togglePlay" disabled />
-            <span>动态预览</span>
+            <span data-i18n="pngRemixPreview.actions.play">动态预览</span>
           </label>
-          <button class="btn btn-secondary" id="fitBtn" disabled>居中</button>
-          <button class="btn btn-secondary" id="resetViewBtn" disabled>重置视角</button>
+          <button class="btn btn-secondary" id="fitBtn" disabled data-i18n="pngRemixPreview.actions.fit">居中</button>
+          <button class="btn btn-secondary" id="resetViewBtn" disabled data-i18n="pngRemixPreview.actions.resetView">重置视角</button>
         </div>
       </div>
     </header>
@@ -60,23 +68,23 @@
         <div class="panel-scroll">
           <section class="card">
             <div class="card-hd">
-              <h2>导入</h2>
+              <h2 data-i18n="pngRemixPreview.section.import">导入</h2>
             </div>
 
-            <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="拖拽或点击导入文件">
+            <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="">
               <div class="drop-zone-icon">📦</div>
               <div class="drop-zone-text">
-                <div class="drop-zone-title">拖拽 <code>.pngRemix</code> 到这里，或点击选择文件</div>
-                <div class="hint" style="margin-top:4px;">支持：任意 <code>.pngRemix</code>（或 <code>.save</code>）文件。</div>
+                <div class="drop-zone-title" data-i18n="pngRemixPreview.dropZone.title">拖拽 <code>.pngRemix</code> 到这里，或点击选择文件</div>
+                <div class="hint" style="margin-top:4px;" data-i18n="pngRemixPreview.dropZone.hint">支持：任意 <code>.pngRemix</code>（或 <code>.save</code>）文件。</div>
               </div>
             </div>
             <input id="fileInput" type="file" accept=".pngRemix,.save" hidden />
 
             <div class="row gap" style="margin-top:10px;">
               <select id="sampleSelect" class="select" disabled>
-                <option value="">（可选）从仓库加载样例…</option>
+                <option value="" data-i18n="pngRemixPreview.sample.selectDefault">（可选）从仓库加载样例…</option>
               </select>
-              <button class="btn btn-secondary" id="loadSampleBtn" disabled>加载样例</button>
+              <button class="btn btn-secondary" id="loadSampleBtn" disabled data-i18n="pngRemixPreview.sample.loadBtn">加载样例</button>
             </div>
 
             <div class="status" id="status" aria-live="polite"></div>
@@ -84,112 +92,112 @@
 
           <section class="card">
             <div class="card-hd">
-              <h2>控制</h2>
+              <h2 data-i18n="pngRemixPreview.section.controls">控制</h2>
             </div>
 
             <details class="section" open>
-              <summary>状态</summary>
+              <summary data-i18n="pngRemixPreview.section.state">状态</summary>
               <div class="section-body">
                 <div class="field">
-                  <label for="stateSelect">State</label>
+                  <label for="stateSelect" data-i18n="pngRemixPreview.state.label">State</label>
                   <select id="stateSelect" disabled></select>
                 </div>
               </div>
             </details>
 
             <details class="section" open>
-              <summary>显示</summary>
+              <summary data-i18n="pngRemixPreview.section.display">显示</summary>
               <div class="section-body">
                 <label class="checkbox">
                   <input type="checkbox" id="toggleBg" checked disabled />
-                  <span>绘制背景色</span>
+                  <span data-i18n="pngRemixPreview.toggle.bg">绘制背景色</span>
                 </label>
                 <label class="checkbox">
                   <input type="checkbox" id="toggleClip" checked disabled />
-                  <span>启用 clip（裁剪子节点）</span>
+                  <span data-i18n="pngRemixPreview.toggle.clip">启用 clip（裁剪子节点）</span>
                 </label>
                 <label class="checkbox">
                   <input type="checkbox" id="toggleShowAllAssets" disabled />
-                  <span>显示所有 Asset（忽略工程里保存的开关）</span>
+                  <span data-i18n="pngRemixPreview.toggle.showAllAssets">显示所有 Asset（忽略工程里保存的开关）</span>
                 </label>
               </div>
             </details>
 
             <details class="section" open>
-              <summary>表情 / 眼睛</summary>
+              <summary data-i18n="pngRemixPreview.section.expressionEyes">表情 / 眼睛</summary>
               <div class="section-body">
                 <label class="checkbox">
                   <input type="checkbox" id="toggleSpeaking" disabled />
-                  <span>正在说话（驱动 should_talk/open_mouth）</span>
+                  <span data-i18n="pngRemixPreview.toggle.speaking">正在说话（驱动 should_talk/open_mouth）</span>
                 </label>
                 <label class="checkbox">
                   <input type="checkbox" id="toggleScreaming" disabled />
-                  <span>尖叫（使用 scream_ 参数组）</span>
+                  <span data-i18n="pngRemixPreview.toggle.screaming">尖叫（使用 scream_ 参数组）</span>
                 </label>
                 <div class="row gap" style="margin-top:6px; flex-wrap: wrap;">
-                  <button class="btn btn-secondary" id="blinkOnceBtn" disabled>眨眼一次</button>
+                  <button class="btn btn-secondary" id="blinkOnceBtn" disabled data-i18n="pngRemixPreview.btn.blinkOnce">眨眼一次</button>
                   <label class="checkbox" style="margin:0;">
                     <input type="checkbox" id="toggleAutoBlink" disabled />
-                    <span>自动眨眼</span>
+                    <span data-i18n="pngRemixPreview.toggle.autoBlink">自动眨眼</span>
                   </label>
                 </div>
-                <div class="hint">说明：按 Remix 规则让“睁眼/闭眼层”、“张嘴/闭嘴层”互斥显示。</div>
+                <div class="hint" data-i18n="pngRemixPreview.hint.blinkRules">说明：按 Remix 规则让“睁眼/闭眼层”、“张嘴/闭嘴层”互斥显示。</div>
               </div>
             </details>
 
             <details class="section" open>
-              <summary>交互</summary>
+              <summary data-i18n="pngRemixPreview.section.interaction">交互</summary>
               <div class="section-body">
                 <label class="checkbox">
                   <input type="checkbox" id="toggleMouseFollow" disabled checked />
-                  <span>开启鼠标跟随（follow_type=0 / animate_to_mouse）</span>
+                  <span data-i18n="pngRemixPreview.toggle.mouseFollow">开启鼠标跟随（follow_type=0 / animate_to_mouse）</span>
                 </label>
                 <label class="checkbox">
                   <input type="checkbox" id="toggleClickBounce" disabled checked />
-                  <span>开启点击人物跳动</span>
+                  <span data-i18n="pngRemixPreview.toggle.clickBounce">开启点击人物跳动</span>
                 </label>
 
                 <div class="grid2" style="margin-top:8px;">
                   <div class="field" style="margin:0;">
-                    <label for="clickBounceAmp" class="label-muted">跳动幅度</label>
+                    <label for="clickBounceAmp" class="label-muted" data-i18n="pngRemixPreview.field.clickBounceAmp">跳动幅度</label>
                     <input id="clickBounceAmp" class="input" type="number" min="0" max="300" step="1" disabled />
                   </div>
                   <div class="field" style="margin:0;">
-                    <label for="clickBounceDuration" class="label-muted">跳动时长（秒）</label>
+                    <label for="clickBounceDuration" class="label-muted" data-i18n="pngRemixPreview.field.clickBounceDuration">跳动时长（秒）</label>
                     <input id="clickBounceDuration" class="input" type="number" min="0.05" max="3" step="0.05" disabled />
                   </div>
                 </div>
 
-                <div class="hint">提示：画布上“点击一下（不拖拽）”触发跳动；拖拽用于平移视角；滚轮缩放。</div>
+                <div class="hint" data-i18n="pngRemixPreview.hint.clickBounce">提示：画布上“点击一下（不拖拽）”触发跳动；拖拽用于平移视角；滚轮缩放。</div>
               </div>
             </details>
 
             <details class="section">
-              <summary>动效参数（覆盖，仅影响当前预览）</summary>
+              <summary data-i18n="pngRemixPreview.section.motionTuning">动效参数（覆盖，仅影响当前预览）</summary>
               <div class="section-body">
                 <div class="field" style="margin:0;">
-                  <label for="blinkSpeedOverride" class="label-muted">自动眨眼间隔（秒；对应 blink_speed）</label>
+                  <label for="blinkSpeedOverride" class="label-muted" data-i18n="pngRemixPreview.field.blinkSpeedOverride">自动眨眼间隔（秒；对应 blink_speed）</label>
                   <input id="blinkSpeedOverride" class="input" type="number" min="0.05" max="20" step="0.05" disabled />
                 </div>
                 <div class="field" style="margin-top:10px;">
-                  <label for="blinkChanceOverride" class="label-muted">眨眼概率分母（对应 blink_chance）</label>
+                  <label for="blinkChanceOverride" class="label-muted" data-i18n="pngRemixPreview.field.blinkChanceOverride">眨眼概率分母（对应 blink_chance）</label>
                   <input id="blinkChanceOverride" class="input" type="number" min="1" max="999" step="1" disabled />
                 </div>
                 <div class="field" style="margin-top:10px;">
-                  <label for="blinkHoldOverride" class="label-muted">闭眼持续（秒；默认 0.2*blink_speed）</label>
+                  <label for="blinkHoldOverride" class="label-muted" data-i18n="pngRemixPreview.field.blinkHoldOverride">闭眼持续（秒；默认 0.2*blink_speed）</label>
                   <input id="blinkHoldOverride" class="input" type="number" min="0.02" max="5" step="0.02" disabled />
                 </div>
 
                 <div class="row" style="justify-content:flex-end; margin-top:10px;">
-                  <button class="btn btn-secondary" id="resetMotionTuningBtn" disabled>重置为文件设置</button>
+                  <button class="btn btn-secondary" id="resetMotionTuningBtn" disabled data-i18n="pngRemixPreview.btn.resetMotionTuning">重置为文件设置</button>
                 </div>
 
-                <div class="hint">留空表示不覆盖，使用文件里的 settings；改动后若已开启自动眨眼，会自动重新计时。</div>
+                <div class="hint" data-i18n="pngRemixPreview.hint.motionTuning">留空表示不覆盖，使用文件里的 settings；改动后若已开启自动眨眼，会自动重新计时。</div>
               </div>
             </details>
 
             <details class="section">
-              <summary>调试信息</summary>
+              <summary data-i18n="pngRemixPreview.section.debug">调试信息</summary>
               <div class="section-body">
                 <pre class="pre" id="debug"></pre>
               </div>
@@ -201,61 +209,62 @@
       <!-- Center: Viewer -->
       <section class="panel panel-center">
         <div class="viewer-hd">
-          <div class="viewer-title">预览</div>
-          <div class="viewer-hint">拖拽平移，滚轮缩放；开启“动态预览”可播放帧动画、wiggle 与 GIF/APNG。</div>
+          <div class="viewer-title" data-i18n="pngRemixPreview.section.preview">预览</div>
+          <div class="viewer-hint" data-i18n="pngRemixPreview.viewer.hint">拖拽平移，滚轮缩放；开启“动态预览”可播放帧动画、wiggle 与 GIF/APNG。</div>
         </div>
 
         <div class="viewer-wrap">
           <canvas id="canvas"></canvas>
         </div>
 
-        <div class="viewer-ft hint">说明：口型/眨眼互斥可通过左侧开关验证；如部件太多，建议使用右侧“部件”里的搜索。</div>
+        <div class="viewer-ft hint" data-i18n="pngRemixPreview.viewer.footerHint">说明：口型/眨眼互斥可通过左侧开关验证；如部件太多，建议使用右侧“部件”里的搜索。</div>
       </section>
 
       <!-- Right: Parts / Hotkeys -->
       <aside class="panel panel-right">
         <div class="tabs">
           <input class="tab-radio" type="radio" name="rightTab" id="tabParts" checked />
-          <label class="tab" for="tabParts">部件</label>
+          <label class="tab" for="tabParts" data-i18n="pngRemixPreview.section.parts">部件</label>
 
           <input class="tab-radio" type="radio" name="rightTab" id="tabHotkeys" />
-          <label class="tab" for="tabHotkeys">快捷键</label>
+          <label class="tab" for="tabHotkeys" data-i18n="pngRemixPreview.section.hotkeys">快捷键</label>
 
           <input class="tab-radio" type="radio" name="rightTab" id="tabDebug" />
-          <label class="tab" for="tabDebug">说明</label>
+          <label class="tab" for="tabDebug" data-i18n="pngRemixPreview.section.help">说明</label>
 
           <div class="tab-panels">
             <section class="tab-panel" data-tab="parts">
               <div class="panel-scroll">
                 <div class="card flat">
-                  <div class="card-hd">
-                    <h2>部件管理</h2>
-                  </div>
+                <div class="card-hd">
+                  <h2 data-i18n="pngRemixPreview.section.partsManage">部件管理</h2>
+                </div>
 
-                  <div class="parts-toolbar">
-                    <input id="partsSearch" class="input" type="text" placeholder="搜索：部件名 / 路径 / sprite_id…" disabled />
-                    <select id="partsFilter" class="select" disabled>
-                      <option value="all">全部</option>
-                      <option value="hidden_now">当前被隐藏</option>
-                      <option value="default_hidden">默认隐藏（按工程保存）</option>
-                      <option value="assets">Asset</option>
-                      <option value="talk">口型层（should_talk）</option>
-                      <option value="blink">眨眼层（should_blink）</option>
-                      <option value="overridden">仅显示已覆写</option>
-                    </select>
-                  </div>
+                <div class="parts-toolbar">
+                  <input id="partsSearch" class="input" type="text" data-i18n-placeholder="pngRemixPreview.parts.searchPlaceholder" placeholder="" disabled />
 
-                  <div class="row gap" style="margin-top:10px; flex-wrap: wrap;">
-                    <button class="btn btn-secondary" id="partsShowDefaultHiddenBtn" disabled>显示全部“默认隐藏”</button>
-                    <button class="btn btn-secondary" id="partsHideAllBtn" disabled>全部隐藏（覆写）</button>
-                    <button class="btn btn-secondary" id="partsClearOverridesBtn" disabled>清空覆写</button>
-                  </div>
+                  <select id="partsFilter" class="select" disabled>
+                    <option value="all" data-i18n="pngRemixPreview.parts.filter.all">全部</option>
+                    <option value="hidden_now" data-i18n="pngRemixPreview.parts.filter.hiddenNow">当前被隐藏</option>
+                    <option value="default_hidden" data-i18n="pngRemixPreview.parts.filter.defaultHidden">默认隐藏（按工程保存）</option>
+                    <option value="assets" data-i18n="pngRemixPreview.parts.filter.assets">Asset</option>
+                    <option value="talk" data-i18n="pngRemixPreview.parts.filter.talk">口型层（should_talk）</option>
+                    <option value="blink" data-i18n="pngRemixPreview.parts.filter.blink">眨眼层（should_blink）</option>
+                    <option value="overridden" data-i18n="pngRemixPreview.parts.filter.overridden">仅显示已覆写</option>
+                  </select>
+                </div>
 
-                  <div class="hint" id="partsSummary" style="margin-top:10px;"></div>
+                <div class="row gap" style="margin-top:10px; flex-wrap: wrap;">
+                  <button class="btn btn-secondary" id="partsShowDefaultHiddenBtn" disabled data-i18n="pngRemixPreview.parts.actions.showDefaultHidden">显示全部“默认隐藏”</button>
+                  <button class="btn btn-secondary" id="partsHideAllBtn" disabled data-i18n="pngRemixPreview.parts.actions.hideAll">全部隐藏（覆写）</button>
+                  <button class="btn btn-secondary" id="partsClearOverridesBtn" disabled data-i18n="pngRemixPreview.parts.actions.clearOverrides">清空覆写</button>
+                </div>
 
-                  <div class="parts-list" id="partsList"></div>
+                <div class="hint" id="partsSummary" style="margin-top:10px;"></div>
 
-                  <div class="hint">说明：默认隐藏来自 Remix 的 <code>is_asset</code> + <code>was_active_before</code> 初始开关；这里的覆写仅影响本地预览。</div>
+                <div class="parts-list" id="partsList"></div>
+
+                <div class="hint" data-i18n="pngRemixPreview.parts.hint.defaultHidden">说明：默认隐藏来自 Remix 的 <code>is_asset</code> + <code>was_active_before</code> 初始开关；这里的覆写仅影响本地预览。</div>
                 </div>
               </div>
             </section>
@@ -263,29 +272,29 @@
             <section class="tab-panel" data-tab="hotkeys">
               <div class="panel-scroll">
                 <div class="card flat">
-                  <div class="card-hd">
-                    <h2>快捷键</h2>
-                  </div>
+                <div class="card-hd">
+                  <h2 data-i18n="pngRemixPreview.section.hotkeysTitle">快捷键</h2>
+                </div>
 
-                  <div class="hotkeys">
-                    <div class="row gap" style="flex-wrap: wrap; align-items:flex-start;">
-                      <div class="hint" style="margin:0;">来自 <code>saved_keys</code> / <code>saved_disappear</code>：</div>
-                      <div class="hotkey-bar" id="hotkeyBar">
-                        <button class="btn btn-secondary hotkey-btn" data-key="F1" disabled>F1</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F2" disabled>F2</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F3" disabled>F3</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F4" disabled>F4</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F5" disabled>F5</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F6" disabled>F6</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F7" disabled>F7</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F8" disabled>F8</button>
-                        <button class="btn btn-secondary hotkey-btn" data-key="F9" disabled>F9</button>
-                      </div>
-                      <button class="btn btn-secondary" id="hotkeyClearBtn" disabled>清空覆写</button>
+                <div class="hotkeys">
+                  <div class="row gap" style="flex-wrap: wrap; align-items:flex-start;">
+                    <div class="hint" style="margin:0;" data-i18n="pngRemixPreview.hotkeys.hint.source">来自 <code>saved_keys</code> / <code>saved_disappear</code>：</div>
+                    <div class="hotkey-bar" id="hotkeyBar">
+                      <button class="btn btn-secondary hotkey-btn" data-key="F1" disabled>F1</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F2" disabled>F2</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F3" disabled>F3</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F4" disabled>F4</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F5" disabled>F5</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F6" disabled>F6</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F7" disabled>F7</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F8" disabled>F8</button>
+                      <button class="btn btn-secondary hotkey-btn" data-key="F9" disabled>F9</button>
                     </div>
-                    <div class="hint" id="hotkeySummary" style="margin-top:10px;"></div>
-                    <div class="hotkey-groups" id="hotkeyGroups"></div>
+                    <button class="btn btn-secondary" id="hotkeyClearBtn" disabled data-i18n="pngRemixPreview.hotkeys.actions.clearOverrides">清空覆写</button>
                   </div>
+                  <div class="hint" id="hotkeySummary" style="margin-top:10px;"></div>
+                  <div class="hotkey-groups" id="hotkeyGroups"></div>
+                </div>
                 </div>
               </div>
             </section>
@@ -293,15 +302,15 @@
             <section class="tab-panel" data-tab="debug">
               <div class="panel-scroll">
                 <div class="card flat">
-                  <div class="card-hd">
-                    <h2>使用说明</h2>
-                  </div>
-                  <div class="hint" style="margin-top:0;">
-                    <div style="margin-bottom:8px;"><strong>视角</strong>：拖拽画布平移；滚轮缩放；可用顶部按钮居中/重置。</div>
-                    <div style="margin-bottom:8px;"><strong>动态预览</strong>：勾选后会按 <code>max_fps</code> 节流推进 tick，支持帧动画、wiggle 与 GIF/APNG。</div>
-                    <div style="margin-bottom:8px;"><strong>部件管理</strong>：用搜索/过滤快速定位层；可批量显示默认隐藏或清空覆写。</div>
-                    <div><strong>快捷键</strong>：支持读取 <code>saved_keys</code> 与旧版本 <code>saved_disappear</code>（会尽量映射成 F 键）。</div>
-                  </div>
+                <div class="card-hd">
+                  <h2 data-i18n="pngRemixPreview.section.helpTitle">使用说明</h2>
+                </div>
+                <div class="hint" style="margin-top:0;">
+                  <div style="margin-bottom:8px;" data-i18n="pngRemixPreview.help.view"><strong>视角</strong>：拖拽画布平移；滚轮缩放；可用顶部按钮居中/重置。</div>
+                  <div style="margin-bottom:8px;" data-i18n="pngRemixPreview.help.play"><strong>动态预览</strong>：勾选后会按 <code>max_fps</code> 节流推进 tick，支持帧动画、wiggle 与 GIF/APNG。</div>
+                  <div style="margin-bottom:8px;" data-i18n="pngRemixPreview.help.parts"><strong>部件管理</strong>：用搜索/过滤快速定位层；可批量显示默认隐藏或清空覆写。</div>
+                  <div data-i18n="pngRemixPreview.help.hotkeys"><strong>快捷键</strong>：支持读取 <code>saved_keys</code> 与旧版本 <code>saved_disappear</code>（会尽量映射成 F 键）。</div>
+                </div>
                 </div>
               </div>
             </section>
@@ -313,7 +322,7 @@
 
   <div id="loading" class="loading hidden">
     <div class="spinner"></div>
-    <div id="loadingText">正在加载…</div>
+    <div id="loadingText" data-i18n="pngRemixPreview.loading.default">正在加载…</div>
   </div>
 
   <!-- UMD globals -->

@@ -8,6 +8,10 @@
 
   "canvas_height": "Height:",
   "preset_mobile": "Mobile Portrait",
+  "preset_1080p": "1080p",
+  "preset_720p": "720p",
+  "preset_4_3": "4:3",
+
   
   "section_bg_color": "🎨 Background Color",
   "bg_primary": "Primary Color:",
@@ -79,6 +83,8 @@
   "theme_apply": "Apply",
   
   "enable_corner_frame": "Diamond Frame",
+  "export_filename": "AnimeBackground_{timestamp}.{ext}",
+
 
 
   "corner_frame_size": "Frame Size:",

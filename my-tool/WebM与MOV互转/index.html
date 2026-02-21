@@ -14,7 +14,8 @@
     <header>
         <div class="logo" data-i18n="logo">WebM ↔ MOV 互转</div>
         <div class="header-actions">
-            <div class="mode-toggle" role="group" aria-label="mode">
+            <div class="mode-toggle" role="group" aria-label="" data-i18n-aria-label="mode_toggle_aria">
+
                 <button id="mode-webm2mov" class="secondary mode-btn active" type="button" data-i18n="mode_webm2mov">WebM → MOV</button>
                 <button id="mode-mov2webm" class="secondary mode-btn" type="button" data-i18n="mode_mov2webm">MOV → WebM</button>
             </div>
@@ -74,10 +75,11 @@
                         <label data-i18n="fps_label">输出帧率 (FPS)</label>
                         <select id="output-fps">
                             <option value="auto" data-i18n="fps_auto">自动检测</option>
-                            <option value="24">24 FPS</option>
-                            <option value="25">25 FPS</option>
-                            <option value="30">30 FPS</option>
-                            <option value="60">60 FPS</option>
+                            <option value="24" data-i18n="fps_24">24 FPS</option>
+                            <option value="25" data-i18n="fps_25">25 FPS</option>
+                            <option value="30" data-i18n="fps_30">30 FPS</option>
+                            <option value="60" data-i18n="fps_60">60 FPS</option>
+
                         </select>
                     </div>
 

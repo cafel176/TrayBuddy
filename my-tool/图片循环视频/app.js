@@ -35,6 +35,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
 
+    const t = (key, params, fallback) => {
+        if (window.i18n?.t) {
+            const text = window.i18n.t(key, params);
+            if (text && text !== key) return text;
+        }
+        return fallback ?? key;
+    };
+
+    function applyI18nAttrs() {
+        document.querySelectorAll('[data-i18n-title]').forEach(el => {
+            const key = el.getAttribute('data-i18n-title');
+            const text = window.i18n?.translations?.[key];
+            if (text) {
+                el.setAttribute('title', text);
+            }
+        });
+    }
+
+
     // State
     let sourceImage = null;
     let imageWidth = 0;
@@ -66,9 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleFile(file) {
         if (!file.type.startsWith('image/')) {
-            alert(window.i18n?.t('alert_upload_image') || '请上传图片文件');
+            alert(t('alert_upload_image'));
             return;
         }
+
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -236,9 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Export ---
     exportBtn.addEventListener('click', async () => {
         if (!sourceImage) {
-            alert(window.i18n?.t('alert_no_image') || '请先上传图片');
+            alert(t('alert_no_image'));
             return;
         }
+
 
         const speed = parseInt(speedInput.value);
         const duration = parseFloat(durationInput.value);
@@ -249,7 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingOverlay.classList.remove('hidden');
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
-        loadingText.textContent = window.i18n?.t('generating_frames') || '正在生成帧...';
+        loadingText.textContent = t('generating_frames');
+
 
         try {
             // Generate all frames
@@ -258,7 +280,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 progressText.textContent = `${Math.round(progress * 50)}%`;
             });
 
-            loadingText.textContent = window.i18n?.t('encoding_video') || '正在编码视频...';
+            loadingText.textContent = t('encoding_video');
+
 
             // Encode video
             if (format === 'gif') {
@@ -276,7 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingOverlay.classList.add('hidden');
         } catch (e) {
             console.error(e);
-            alert((window.i18n?.t('error_processing') || '处理出错：') + e.message);
+            alert(t('error_processing') + e.message);
+
             loadingOverlay.classList.add('hidden');
         }
     });
@@ -383,7 +407,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 muxer.addVideoChunk(chunk, metadata);
             },
             error: (e) => {
-                throw new Error('VideoEncoder error: ' + e.message);
+                throw new Error(t('error_video_encoder', { message: e.message }));
+
             }
         });
 
@@ -406,8 +431,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (!support.supported) {
-            throw new Error('No supported video codec found');
+            throw new Error(t('error_no_supported_codec'));
         }
+
         
         encoder.configure(codecConfig);
 
@@ -566,7 +592,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else {
             // Fallback: export as WebM with note
-            alert(window.i18n?.t('gif_lib_hint') || 'GIF 库未加载，将导出为 WebM 格式。');
+            alert(t('gif_lib_hint'));
+
             await encodeWithMediaRecorder(frames, fps, 'webm-vp8', 0.8, canvas, ctx, onProgress);
         }
     }
@@ -587,6 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Language Change Handler ---
     window.addEventListener('languageChanged', () => {
+        applyI18nAttrs();
         updateInfoDisplay();
     });
 });

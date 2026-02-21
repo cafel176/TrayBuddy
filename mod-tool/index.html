@@ -18,9 +18,10 @@
       </div>
       <div class="toolbar-right">
         <div class="lang-switcher">
-          <button class="lang-btn" data-lang="zh" onclick="setLanguage('zh')">ZH</button>
-          <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
-          <button class="lang-btn" data-lang="ja" onclick="setLanguage('ja')">JA</button>
+          <button class="lang-btn" data-lang="zh" onclick="setLanguage('zh')" data-i18n="lang_zh">ZH</button>
+          <button class="lang-btn" data-lang="en" onclick="setLanguage('en')" data-i18n="lang_en">EN</button>
+          <button class="lang-btn" data-lang="ja" onclick="setLanguage('ja')" data-i18n="lang_ja">JA</button>
+
         </div>
         <a href="tutorial.html" class="btn btn-ghost" style="text-decoration: none;" target="_blank" rel="noopener">📖 <span data-i18n="tutorial">使用教程</span></a>
 
@@ -92,17 +93,18 @@
               <div class="form-grid">
                 <div class="form-group">
                   <label for="mod-id"><span data-i18n="mod_id_label">Mod ID</span> <span class="required">*</span></label>
-                  <input type="text" id="mod-id" data-i18n-placeholder="placeholder_mod_id" placeholder="例如: ema" required>
+                  <input type="text" id="mod-id" data-i18n-placeholder="placeholder_mod_id" placeholder="" required>
                   <small data-i18n="mod_id_hint">唯一标识符，只允许英文和数字</small>
                 </div>
                 <div class="form-group">
                   <label for="mod-version" data-i18n="mod_version_label">版本号</label>
-                  <input type="text" id="mod-version" data-i18n-placeholder="placeholder_mod_version" placeholder="例如: 1.0.0" value="1.0.0">
+                  <input type="text" id="mod-version" data-i18n-placeholder="placeholder_mod_version" placeholder="" value="1.0.0">
                 </div>
                 <div class="form-group">
                   <label for="mod-author" data-i18n="mod_author_label">作者</label>
-                  <input type="text" id="mod-author" data-i18n-placeholder="placeholder_mod_author" placeholder="你的名字">
+                  <input type="text" id="mod-author" data-i18n-placeholder="placeholder_mod_author" placeholder="">
                 </div>
+
                 <div class="form-group">
                   <label data-i18n="mod_type_display_label">Mod 类型</label>
                   <input type="text" id="mod-type-display" readonly disabled>
@@ -116,12 +118,13 @@
               <div class="form-grid">
                 <div class="form-group">
                   <label for="default-audio-lang" data-i18n="default_audio_lang_label">默认音频语言</label>
-                  <input type="text" id="default-audio-lang" data-i18n-placeholder="placeholder_audio_lang" placeholder="例如: jp">
+                  <input type="text" id="default-audio-lang" data-i18n-placeholder="placeholder_audio_lang" placeholder="">
                 </div>
                 <div class="form-group">
                   <label for="default-text-lang" data-i18n="default_text_lang_label">默认文本语言</label>
-                  <input type="text" id="default-text-lang" data-i18n-placeholder="placeholder_text_lang" placeholder="例如: zh">
+                  <input type="text" id="default-text-lang" data-i18n-placeholder="placeholder_text_lang" placeholder="">
                 </div>
+
               </div>
             </section>
 
@@ -274,20 +277,21 @@
               <div class="list-filters">
                 <div class="form-group">
                   <label data-i18n="filter_by_name">按名称筛选</label>
-                  <input type="text" id="states-important-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderStates()">
+                  <input type="text" id="states-important-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderStates()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_anima">按关联动画筛选</label>
-                  <input type="text" id="states-important-filter-anima" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                  <input type="text" id="states-important-filter-anima" data-i18n-placeholder="placeholder_filter_contains" placeholder="" oninput="renderStates()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_audio">按关联音频筛选</label>
-                  <input type="text" id="states-important-filter-audio" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                  <input type="text" id="states-important-filter-audio" data-i18n-placeholder="placeholder_filter_contains" placeholder="" oninput="renderStates()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_text">按关联文本筛选</label>
-                  <input type="text" id="states-important-filter-text" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                  <input type="text" id="states-important-filter-text" data-i18n-placeholder="placeholder_filter_contains" placeholder="" oninput="renderStates()">
                 </div>
+
               </div>
 
               <div class="important-states-list" id="important-states-list">
@@ -308,20 +312,21 @@
               <div class="list-filters">
                 <div class="form-group">
                   <label data-i18n="filter_by_name">按名称筛选</label>
-                  <input type="text" id="states-normal-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderStates()">
+                  <input type="text" id="states-normal-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderStates()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_anima">按关联动画筛选</label>
-                  <input type="text" id="states-normal-filter-anima" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                  <input type="text" id="states-normal-filter-anima" data-i18n-placeholder="placeholder_filter_contains" placeholder="" oninput="renderStates()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_audio">按关联音频筛选</label>
-                  <input type="text" id="states-normal-filter-audio" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                  <input type="text" id="states-normal-filter-audio" data-i18n-placeholder="placeholder_filter_contains" placeholder="" oninput="renderStates()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_text">按关联文本筛选</label>
-                  <input type="text" id="states-normal-filter-text" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderStates()">
+                  <input type="text" id="states-normal-filter-text" data-i18n-placeholder="placeholder_filter_contains" placeholder="" oninput="renderStates()">
                 </div>
+
               </div>
 
               <div class="state-list" id="state-list">
@@ -342,8 +347,9 @@
               <div class="list-filters">
                 <div class="form-group">
                   <label data-i18n="filter_by_name">按名称筛选</label>
-                  <input type="text" id="triggers-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderTriggers()">
+                  <input type="text" id="triggers-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderTriggers()">
                 </div>
+
               </div>
 
               <div class="trigger-list" id="trigger-list">
@@ -408,12 +414,13 @@
               <div class="list-filters">
                 <div class="form-group">
                   <label data-i18n="filter_by_name">按名称筛选</label>
-                  <input type="text" id="assets-sequence-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderAssets()">
+                  <input type="text" id="assets-sequence-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderAssets()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_path">路径包含</label>
-                  <input type="text" id="assets-sequence-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="输入路径关键字..." oninput="renderAssets()">
+                  <input type="text" id="assets-sequence-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="" oninput="renderAssets()">
                 </div>
+
               </div>
 
               <div class="asset-list" id="sequence-list">
@@ -436,12 +443,13 @@
               <div class="list-filters">
                 <div class="form-group">
                   <label data-i18n="filter_by_name">按名称筛选</label>
-                  <input type="text" id="assets-img-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderAssets()">
+                  <input type="text" id="assets-img-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderAssets()">
                 </div>
                 <div class="form-group">
                   <label data-i18n="filter_by_path">路径包含</label>
-                  <input type="text" id="assets-img-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="输入路径关键字..." oninput="renderAssets()">
+                  <input type="text" id="assets-img-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="" oninput="renderAssets()">
                 </div>
+
               </div>
 
               <div class="asset-list" id="img-list">
@@ -468,17 +476,18 @@
                 <div class="form-grid">
                   <div class="form-group">
                     <label data-i18n="live2d_model_name_label">模型名称</label>
-                    <input type="text" id="live2d-model-name" data-i18n-placeholder="placeholder_live2d_model_name" placeholder="例如: my_model">
+                    <input type="text" id="live2d-model-name" data-i18n-placeholder="placeholder_live2d_model_name" placeholder="">
                   </div>
                   <div class="form-group">
                     <label data-i18n="live2d_base_dir_label">模型基础目录</label>
-                    <input type="text" id="live2d-base-dir" data-i18n-placeholder="placeholder_live2d_base_dir" placeholder="例如: asset/live2d/my_model">
+                    <input type="text" id="live2d-base-dir" data-i18n-placeholder="placeholder_live2d_base_dir" placeholder="">
                     <small data-i18n="live2d_base_dir_hint">Live2D 模型文件所在目录（相对于 Mod 根目录）</small>
                   </div>
                   <div class="form-group">
                     <label data-i18n="live2d_model_json_label">模型定义文件</label>
-                    <input type="text" id="live2d-model-json" data-i18n-placeholder="placeholder_live2d_model_json" placeholder="例如: model.model3.json">
+                    <input type="text" id="live2d-model-json" data-i18n-placeholder="placeholder_live2d_model_json" placeholder="">
                   </div>
+
                   <div class="form-group">
                     <label data-i18n="live2d_model_scale_label">模型缩放 (scale)</label>
                     <input type="number" id="live2d-model-scale" value="1" min="0.01" step="0.05">
@@ -532,12 +541,13 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="live2d-motions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-motions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderLive2dAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_file">按文件筛选</label>
-                    <input type="text" id="live2d-motions-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="输入文件关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-motions-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="" oninput="renderLive2dAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="live2d-motions-list">
                   <!-- 由 JS 动态填充 -->
@@ -555,12 +565,13 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="live2d-expressions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-expressions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderLive2dAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_file">按文件筛选</label>
-                    <input type="text" id="live2d-expressions-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="输入文件关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-expressions-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="" oninput="renderLive2dAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="live2d-expressions-list">
                   <!-- 由 JS 动态填充 -->
@@ -579,12 +590,13 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="live2d-resources-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-resources-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderLive2dAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_dir">按目录筛选</label>
-                    <input type="text" id="live2d-resources-filter-dir" data-i18n-placeholder="placeholder_filter_dir" placeholder="输入目录关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-resources-filter-dir" data-i18n-placeholder="placeholder_filter_dir" placeholder="" oninput="renderLive2dAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="live2d-resources-list">
                   <!-- 由 JS 动态填充 -->
@@ -603,8 +615,9 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="live2d-bg-layers-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-bg-layers-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderLive2dAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="live2d-bg-layers-list">
                   <!-- 由 JS 动态填充 -->
@@ -623,16 +636,17 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="live2d-states-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-states-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderLive2dAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_motion">按动作筛选</label>
-                    <input type="text" id="live2d-states-filter-motion" data-i18n-placeholder="placeholder_filter_motion" placeholder="输入动作关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-states-filter-motion" data-i18n-placeholder="placeholder_filter_motion" placeholder="" oninput="renderLive2dAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_expression">按表情筛选</label>
-                    <input type="text" id="live2d-states-filter-expression" data-i18n-placeholder="placeholder_filter_expression" placeholder="输入表情关键字..." oninput="renderLive2dAssets()">
+                    <input type="text" id="live2d-states-filter-expression" data-i18n-placeholder="placeholder_filter_expression" placeholder="" oninput="renderLive2dAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="live2d-states-list">
                   <!-- 由 JS 动态填充 -->
@@ -672,7 +686,7 @@
                 <div class="form-grid">
                   <div class="form-group">
                     <label data-i18n="threed_model_name_label">模型名称</label>
-                    <input type="text" id="threed-model-name" data-i18n-placeholder="placeholder_threed_model_name" placeholder="例如: HatsuneMiku">
+                    <input type="text" id="threed-model-name" data-i18n-placeholder="placeholder_threed_model_name" placeholder="">
                   </div>
                   <div class="form-group">
                     <label data-i18n="threed_model_type_label">模型类型</label>
@@ -684,9 +698,10 @@
                   </div>
                   <div class="form-group">
                     <label data-i18n="threed_model_file_label">模型文件</label>
-                    <input type="text" id="threed-model-file" data-i18n-placeholder="placeholder_threed_model_file" placeholder="例如: asset/3d/model.vrm">
+                    <input type="text" id="threed-model-file" data-i18n-placeholder="placeholder_threed_model_file" placeholder="">
                     <small data-i18n="threed_model_file_hint">模型文件路径（相对于 Mod 根目录）</small>
                   </div>
+
                   <div class="form-group">
                     <label data-i18n="threed_model_scale_label">模型缩放 (scale)</label>
                     <input type="number" id="threed-model-scale" value="1" min="0.01" step="0.05">
@@ -724,12 +739,13 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="threed-animations-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderThreeDAssets()">
+                    <input type="text" id="threed-animations-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderThreeDAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_file">按文件筛选</label>
-                    <input type="text" id="threed-animations-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="输入文件关键字..." oninput="renderThreeDAssets()">
+                    <input type="text" id="threed-animations-filter-file" data-i18n-placeholder="placeholder_filter_file" placeholder="" oninput="renderThreeDAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="threed-animations-list">
                   <!-- 由 JS 动态填充 -->
@@ -755,13 +771,14 @@
                 <div class="form-grid">
                   <div class="form-group">
                     <label data-i18n="pngremix_model_name_label">模型名称</label>
-                    <input type="text" id="pngremix-model-name" data-i18n-placeholder="placeholder_pngremix_model_name" placeholder="例如: 橘雪莉">
+                    <input type="text" id="pngremix-model-name" data-i18n-placeholder="placeholder_pngremix_model_name" placeholder="">
                   </div>
                   <div class="form-group">
                     <label data-i18n="pngremix_file_label">.pngRemix 文件路径</label>
-                    <input type="text" id="pngremix-model-file" data-i18n-placeholder="placeholder_pngremix_file" placeholder="例如: asset/model.pngRemix">
+                    <input type="text" id="pngremix-model-file" data-i18n-placeholder="placeholder_pngremix_file" placeholder="">
                     <small data-i18n="pngremix_file_hint">.pngRemix 文件相对于 Mod 根目录的路径</small>
                   </div>
+
                   <div class="form-group">
                     <label data-i18n="pngremix_default_state_label">默认 State 索引</label>
                     <input type="number" id="pngremix-default-state-index" value="0" min="0">
@@ -841,8 +858,9 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="pngremix-expressions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderPngRemixAssets()">
+                    <input type="text" id="pngremix-expressions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderPngRemixAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="pngremix-expressions-list">
                 </div>
@@ -860,8 +878,9 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="pngremix-motions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderPngRemixAssets()">
+                    <input type="text" id="pngremix-motions-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderPngRemixAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="pngremix-motions-list">
                 </div>
@@ -879,16 +898,17 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="pngremix-states-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderPngRemixAssets()">
+                    <input type="text" id="pngremix-states-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderPngRemixAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_motion">按动作筛选</label>
-                    <input type="text" id="pngremix-states-filter-motion" data-i18n-placeholder="placeholder_filter_motion" placeholder="输入动作关键字..." oninput="renderPngRemixAssets()">
+                    <input type="text" id="pngremix-states-filter-motion" data-i18n-placeholder="placeholder_filter_motion" placeholder="" oninput="renderPngRemixAssets()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_expression">按表情筛选</label>
-                    <input type="text" id="pngremix-states-filter-expression" data-i18n-placeholder="placeholder_filter_expression" placeholder="输入表情关键字..." oninput="renderPngRemixAssets()">
+                    <input type="text" id="pngremix-states-filter-expression" data-i18n-placeholder="placeholder_filter_expression" placeholder="" oninput="renderPngRemixAssets()">
                   </div>
+
                 </div>
                 <div class="asset-list" id="pngremix-states-list">
                 </div>
@@ -952,43 +972,43 @@
                   <div class="form-grid">
                     <div class="form-group full-width">
                       <label data-i18n="bubble_bg_label">背景 (background)</label>
-                      <input type="text" id="bubble-bg" placeholder="例如: #ffffff 或 linear-gradient(...)">
+                      <input type="text" id="bubble-bg" data-i18n-placeholder="placeholder_bubble_bg" placeholder="">
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="bubble_border_label">边框 (border)</label>
-                      <input type="text" id="bubble-border" placeholder="例如: 1px solid #ccc">
+                      <input type="text" id="bubble-border" data-i18n-placeholder="placeholder_bubble_border" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="border_radius_label">圆角 (border_radius)</label>
-                      <input type="text" id="bubble-radius" placeholder="8px">
+                      <input type="text" id="bubble-radius" data-i18n-placeholder="placeholder_border_radius" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="padding_label">内边距 (padding)</label>
-                      <input type="text" id="bubble-padding" placeholder="12px 16px">
+                      <input type="text" id="bubble-padding" data-i18n-placeholder="placeholder_padding" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="min_width_label">最小宽度 (min_width)</label>
-                      <input type="text" id="bubble-min-width" placeholder="120px">
+                      <input type="text" id="bubble-min-width" data-i18n-placeholder="placeholder_min_width" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="max_width_label">最大宽度 (max_width)</label>
-                      <input type="text" id="bubble-max-width" placeholder="380px">
+                      <input type="text" id="bubble-max-width" data-i18n-placeholder="placeholder_max_width" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="text_color_label">文字颜色 (color)</label>
-                      <input type="text" id="bubble-color" placeholder="#4a4a4a">
+                      <input type="text" id="bubble-color" data-i18n-placeholder="placeholder_text_color" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="font_size_label">字体大小 (font_size)</label>
-                      <input type="text" id="bubble-font-size" placeholder="14px">
+                      <input type="text" id="bubble-font-size" data-i18n-placeholder="placeholder_font_size" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="line_height_label">行高 (line_height)</label>
-                      <input type="text" id="bubble-line-height" placeholder="1.5">
+                      <input type="text" id="bubble-line-height" data-i18n-placeholder="placeholder_line_height" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="font_family_label">字体 (font_family)</label>
-                      <input type="text" id="bubble-font-family" placeholder="sans-serif">
+                      <input type="text" id="bubble-font-family" data-i18n-placeholder="placeholder_font_family" placeholder="">
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="box_shadow_label">阴影 (box_shadow)</label>
@@ -996,15 +1016,15 @@
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="backdrop_filter_label">背景滤镜 (backdrop_filter)</label>
-                      <input type="text" id="bubble-backdrop-filter" placeholder="例如: blur(8px)">
+                      <input type="text" id="bubble-backdrop-filter" data-i18n-placeholder="placeholder_backdrop_filter" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="decoration_top_label">顶部装饰 (decoration_top.content)</label>
-                      <input type="text" id="bubble-decoration-top" placeholder="气泡上方的装饰文字">
+                      <input type="text" id="bubble-decoration-top" data-i18n-placeholder="placeholder_decoration_top" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="decoration_bottom_label">底部装饰 (decoration_bottom.content)</label>
-                      <input type="text" id="bubble-decoration-bottom" placeholder="气泡下方的装饰文字">
+                      <input type="text" id="bubble-decoration-bottom" data-i18n-placeholder="placeholder_decoration_bottom" placeholder="">
                     </div>
                   </div>
                 </section>
@@ -1014,15 +1034,15 @@
                   <div class="form-grid">
                     <div class="form-group">
                       <label data-i18n="size_label">大小 (size)</label>
-                      <input type="text" id="bubble-tail-size" placeholder="10px">
+                      <input type="text" id="bubble-tail-size" data-i18n-placeholder="placeholder_tail_size" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="color_label">颜色 (color)</label>
-                      <input type="text" id="bubble-tail-color" placeholder="#ffffff">
+                      <input type="text" id="bubble-tail-color" data-i18n-placeholder="placeholder_color" placeholder="">
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="shadow_label">阴影 (shadow)</label>
-                      <input type="text" id="bubble-tail-shadow" placeholder="0 2px 2px rgba(0,0,0,0.1)">
+                      <input type="text" id="bubble-tail-shadow" data-i18n-placeholder="placeholder_shadow" placeholder="">
                     </div>
                   </div>
                 </section>
@@ -1038,7 +1058,7 @@
                     </div>
                     <div class="form-group">
                       <label data-i18n="margin_top_label">顶部间距 (margin_top)</label>
-                      <input type="text" id="branch-container-margin-top" placeholder="8px">
+                      <input type="text" id="branch-container-margin-top" data-i18n-placeholder="placeholder_margin_top" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="padding_top_label">顶部内边距 (padding_top)</label>
@@ -1046,7 +1066,7 @@
                     </div>
                     <div class="form-group">
                       <label data-i18n="border_top_label">顶部边框 (border_top)</label>
-                      <input type="text" id="branch-container-border-top" placeholder="1px dashed #ccc">
+                      <input type="text" id="branch-container-border-top" data-i18n-placeholder="placeholder_border_top" placeholder="">
                     </div>
                   </div>
                 </section>
@@ -1056,39 +1076,39 @@
                   <div class="form-grid">
                     <div class="form-group full-width">
                       <label data-i18n="btn_bg_label">背景 (background)</label>
-                      <input type="text" id="branch-btn-bg" placeholder="例如: #f0f0f0">
+                      <input type="text" id="branch-btn-bg" data-i18n-placeholder="placeholder_btn_bg" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="text_color_label">文字颜色 (color)</label>
-                      <input type="text" id="branch-btn-color" placeholder="#000000">
+                      <input type="text" id="branch-btn-color" data-i18n-placeholder="placeholder_text_color" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="btn_border_label">边框 (border)</label>
-                      <input type="text" id="branch-btn-border" placeholder="1px solid #ccc">
+                      <input type="text" id="branch-btn-border" data-i18n-placeholder="placeholder_btn_border" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="border_radius_label">圆角 (border_radius)</label>
-                      <input type="text" id="branch-btn-border-radius" placeholder="6px">
+                      <input type="text" id="branch-btn-border-radius" data-i18n-placeholder="placeholder_border_radius" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="padding_label">内边距 (padding)</label>
-                      <input type="text" id="branch-btn-padding" placeholder="6px 12px">
+                      <input type="text" id="branch-btn-padding" data-i18n-placeholder="placeholder_padding" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="min_width_label">最小宽度 (min_width)</label>
-                      <input type="text" id="branch-btn-min-width" placeholder="100px">
+                      <input type="text" id="branch-btn-min-width" data-i18n-placeholder="placeholder_min_width" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="font_size_label">字体大小 (font_size)</label>
-                      <input type="text" id="branch-btn-font-size" placeholder="13px">
+                      <input type="text" id="branch-btn-font-size" data-i18n-placeholder="placeholder_font_size" placeholder="">
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="box_shadow_label">阴影 (box_shadow)</label>
-                      <input type="text" id="branch-btn-box-shadow" placeholder="0 1px 3px rgba(0,0,0,0.1)">
+                      <input type="text" id="branch-btn-box-shadow" data-i18n-placeholder="placeholder_shadow" placeholder="">
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="backdrop_filter_label">背景滤镜 (backdrop_filter)</label>
-                      <input type="text" id="branch-btn-backdrop-filter" placeholder="blur(8px)">
+                      <input type="text" id="branch-btn-backdrop-filter" data-i18n-placeholder="placeholder_backdrop_filter" placeholder="">
                     </div>
                   </div>
                 </section>
@@ -1098,23 +1118,23 @@
                   <div class="form-grid">
                     <div class="form-group full-width">
                       <label data-i18n="hover_bg_label">背景 (background)</label>
-                      <input type="text" id="branch-btn-hover-bg" placeholder="例如: #e0e0e0">
+                      <input type="text" id="branch-btn-hover-bg" data-i18n-placeholder="placeholder_hover_bg" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="hover_color_label">文字颜色 (color)</label>
-                      <input type="text" id="branch-btn-hover-color" placeholder="#d85a8a">
+                      <input type="text" id="branch-btn-hover-color" data-i18n-placeholder="placeholder_text_color" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="hover_border_color_label">边框颜色 (border_color)</label>
-                      <input type="text" id="branch-btn-hover-border-color" placeholder="#ccc">
+                      <input type="text" id="branch-btn-hover-border-color" data-i18n-placeholder="placeholder_border_color" placeholder="">
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="hover_box_shadow_label">阴影 (box_shadow)</label>
-                      <input type="text" id="branch-btn-hover-box-shadow" placeholder="0 4px 14px rgba(0,0,0,0.1)">
+                      <input type="text" id="branch-btn-hover-box-shadow" data-i18n-placeholder="placeholder_shadow" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="hover_transform_label">变换 (transform)</label>
-                      <input type="text" id="branch-btn-hover-transform" placeholder="translateY(-2px)">
+                      <input type="text" id="branch-btn-hover-transform" data-i18n-placeholder="placeholder_hover_transform" placeholder="">
                     </div>
                   </div>
                 </section>
@@ -1124,15 +1144,15 @@
                   <div class="form-grid">
                     <div class="form-group full-width">
                       <label data-i18n="active_bg_label">背景 (background)</label>
-                      <input type="text" id="branch-btn-active-bg" placeholder="例如: #d0d0d0">
+                      <input type="text" id="branch-btn-active-bg" data-i18n-placeholder="placeholder_active_bg" placeholder="">
                     </div>
                     <div class="form-group full-width">
                       <label data-i18n="active_box_shadow_label">阴影 (box_shadow)</label>
-                      <input type="text" id="branch-btn-active-box-shadow" placeholder="0 2px 6px rgba(0,0,0,0.1)">
+                      <input type="text" id="branch-btn-active-box-shadow" data-i18n-placeholder="placeholder_shadow" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="active_transform_label">变换 (transform)</label>
-                      <input type="text" id="branch-btn-active-transform" placeholder="translateY(0)">
+                      <input type="text" id="branch-btn-active-transform" data-i18n-placeholder="placeholder_active_transform" placeholder="">
                     </div>
                   </div>
                 </section>
@@ -1142,11 +1162,11 @@
                   <div class="form-grid">
                     <div class="form-group">
                       <label data-i18n="decoration_left_label">左侧装饰 (decoration_left.content)</label>
-                      <input type="text" id="branch-decoration-left" placeholder="按钮左侧文字">
+                      <input type="text" id="branch-decoration-left" data-i18n-placeholder="placeholder_decoration_left" placeholder="">
                     </div>
                     <div class="form-group">
                       <label data-i18n="decoration_right_label">右侧装饰 (decoration_right.content)</label>
-                      <input type="text" id="branch-decoration-right" placeholder="按钮右侧文字">
+                      <input type="text" id="branch-decoration-right" data-i18n-placeholder="placeholder_decoration_right" placeholder="">
                     </div>
                   </div>
                 </section>
@@ -1185,20 +1205,21 @@
               <div class="form-grid" id="text-info-form">
                 <div class="form-group">
                   <label data-i18n="lang_id_label">语言ID</label>
-                  <input type="text" id="text-lang-id" data-i18n-placeholder="placeholder_lang_id" placeholder="例如: zh">
+                  <input type="text" id="text-lang-id" data-i18n-placeholder="placeholder_lang_id" placeholder="">
                 </div>
                 <div class="form-group">
                   <label data-i18n="lang_name_label">语言名称</label>
-                  <input type="text" id="text-lang-name" data-i18n-placeholder="placeholder_lang_name" placeholder="例如: 简体中文">
+                  <input type="text" id="text-lang-name" data-i18n-placeholder="placeholder_lang_name" placeholder="">
                 </div>
                 <div class="form-group">
                   <label data-i18n="char_name_label">角色名称</label>
-                  <input type="text" id="text-char-name" data-i18n-placeholder="placeholder_char_name" placeholder="角色显示名">
+                  <input type="text" id="text-char-name" data-i18n-placeholder="placeholder_char_name" placeholder="">
                 </div>
                 <div class="form-group full-width">
                   <label data-i18n="char_desc_label">角色描述</label>
-                  <textarea id="text-char-desc" rows="3" data-i18n-placeholder="placeholder_char_desc" placeholder="角色描述..."></textarea>
+                  <textarea id="text-char-desc" rows="3" data-i18n-placeholder="placeholder_char_desc" placeholder=""></textarea>
                 </div>
+
               </div>
             </section>
 
@@ -1225,12 +1246,13 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="speech-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderSpeechTexts()">
+                    <input type="text" id="speech-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderSpeechTexts()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_content">内容包含</label>
-                    <input type="text" id="speech-filter-contains" data-i18n-placeholder="placeholder_filter_contains" placeholder="输入包含关键字..." oninput="renderSpeechTexts()">
+                    <input type="text" id="speech-filter-contains" data-i18n-placeholder="placeholder_filter_contains" placeholder="" oninput="renderSpeechTexts()">
                   </div>
+
                 </div>
 
                 <div class="speech-list" id="speech-text-list">
@@ -1289,13 +1311,14 @@
                 <div class="list-filters">
                   <div class="form-group">
                     <label data-i18n="filter_by_name">按名称筛选</label>
-                    <input type="text" id="audio-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="输入名称关键字..." oninput="renderAudioList()">
+                    <input type="text" id="audio-filter-name" data-i18n-placeholder="placeholder_filter_name" placeholder="" oninput="renderAudioList()">
                   </div>
                   <div class="form-group">
                     <label data-i18n="filter_by_path">路径包含</label>
-                    <input type="text" id="audio-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="输入路径关键字..." oninput="renderAudioList()">
+                    <input type="text" id="audio-filter-path" data-i18n-placeholder="placeholder_filter_path" placeholder="" oninput="renderAudioList()">
                   </div>
                 </div>
+
 
                 <div class="audio-list" id="audio-list">
                   <!-- 由 JS 动态填充 -->
@@ -1329,8 +1352,9 @@
         <div class="form-grid">
           <div class="form-group">
             <label><span data-i18n="state_name_label">状态名称</span> <span class="required">*</span></label>
-            <input type="text" id="state-name" data-i18n-placeholder="placeholder_state_name" placeholder="例如: morning">
+            <input type="text" id="state-name" data-i18n-placeholder="placeholder_state_name" placeholder="">
           </div>
+
           <div class="form-group">
             <label data-i18n="persistent_label">是否持久</label>
             <label class="switch">
@@ -1645,11 +1669,11 @@
         <div class="form-grid">
           <div class="form-group">
             <label><span data-i18n="name_label">名称</span> <span class="required">*</span></label>
-            <input type="text" id="asset-name" data-i18n-placeholder="placeholder_asset_name" placeholder="例如: wink">
+            <input type="text" id="asset-name" data-i18n-placeholder="placeholder_asset_name" placeholder="">
           </div>
           <div class="form-group">
             <label data-i18n="img_path_label">图片路径</label>
-            <input type="text" id="asset-img" data-i18n-placeholder="placeholder_asset_img" placeholder="例如: sequence/wink.png">
+            <input type="text" id="asset-img" data-i18n-placeholder="placeholder_asset_img" placeholder="">
           </div>
           <div class="form-group">
             <label data-i18n="is_sequence_label">是否序列帧</label>
@@ -1730,16 +1754,16 @@
       <div class="modal-body">
         <div class="form-group">
           <label><span data-i18n="mod_id_label">Mod ID</span> <span class="required">*</span></label>
-          <input type="text" id="new-mod-id" data-i18n-placeholder="placeholder_new_mod_id" placeholder="例如: my_character">
+          <input type="text" id="new-mod-id" data-i18n-placeholder="placeholder_new_mod_id" placeholder="">
           <small data-i18n="mod_id_hint">唯一标识符，只允许英文、数字和下划线</small>
         </div>
         <div class="form-group">
           <label data-i18n="new_mod_name_label">Mod 名称</label>
-          <input type="text" id="new-mod-name" data-i18n-placeholder="placeholder_new_mod_name" placeholder="角色名称">
+          <input type="text" id="new-mod-name" data-i18n-placeholder="placeholder_new_mod_name" placeholder="">
         </div>
         <div class="form-group">
           <label data-i18n="mod_author_label">作者</label>
-          <input type="text" id="new-mod-author" data-i18n-placeholder="placeholder_mod_author" placeholder="你的名字">
+          <input type="text" id="new-mod-author" data-i18n-placeholder="placeholder_mod_author" placeholder="">
         </div>
         <div class="form-group">
           <label data-i18n="mod_type_label">Mod 类型</label>
@@ -1795,7 +1819,7 @@
         <div class="form-grid">
           <div class="form-group full-width">
             <label><span data-i18n="event_name_label">事件名称</span> <span class="required">*</span></label>
-            <input type="text" id="trigger-event" data-i18n-placeholder="placeholder_trigger_event" placeholder="例如: click, right_click, global_click, login, work, music_start">
+            <input type="text" id="trigger-event" data-i18n-placeholder="placeholder_trigger_event" placeholder="">
             <small data-i18n="event_name_hint">常用事件: click, right_click, global_click, global_right_click, login, work, birthday, firstday, music_start, music_end, login_silence, keydown:Space</small>
 
           </div>

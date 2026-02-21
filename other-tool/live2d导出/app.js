@@ -4,26 +4,31 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    const t = (key, params, fallback) => (window.i18n && typeof window.i18n.t === 'function')
+        ? window.i18n.t(key, params, fallback)
+        : (fallback ?? key);
+
     // === Library Checks ===
     console.log('DOM loaded, checking libraries...');
+
     
     if (typeof PIXI === 'undefined') {
         console.error('PIXI.js not loaded');
-        showToast('PIXI.js 加载失败', 'error');
+        showToast(t('error_pixi_missing'), 'error');
         return;
     }
     console.log('PIXI.js loaded:', PIXI.VERSION);
     
     if (typeof Live2DCubismCore === 'undefined') {
         console.error('Live2DCubismCore not loaded');
-        showToast('Live2D Cubism Core SDK 加载失败', 'error');
+        showToast(t('error_cubism_core_missing'), 'error');
         return;
     }
     console.log('Live2DCubismCore loaded');
     
     if (!PIXI.live2d || !PIXI.live2d.Live2DModel) {
         console.error('pixi-live2d-display not loaded properly');
-        showToast('pixi-live2d-display 加载失败', 'error');
+        showToast(t('error_pixi_live2d_missing'), 'error');
         return;
     }
     console.log('Live2DModel class available');
@@ -337,7 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
         scaleSlider.value = 1;
         scaleValue.textContent = '1.0x';
         centerModel(true);
-        showToast('视图已重置', 'info');
+        showToast(t('view_reset'), 'info');
+
     });
 
     // === File Drop & Select ===
@@ -435,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (!modelJsonFile) {
                 hideLoading();
-                showToast('未找到 .model3.json 文件', 'error');
+                showToast(t('error_no_model'), 'error');
                 return;
             }
 
@@ -533,12 +539,13 @@ document.addEventListener('DOMContentLoaded', () => {
             updateParameters();
 
             hideLoading();
-            showToast('模型加载成功', 'success');
+            showToast(t('model_loaded'), 'success');
+
 
         } catch (error) {
             console.error('Error loading model:', error);
             hideLoading();
-            showToast('加载失败: ' + error.message, 'error');
+            showToast(t('error_loading') + error.message, 'error');
         }
     }
 
@@ -565,8 +572,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateModelInfo(modelJson, fileName) {
         modelInfo.classList.add('show');
         modelName.textContent = fileName.replace('.model3.json', '');
-        modelVersion.textContent = 'Cubism ' + (modelJson.Version || '3');
-        modelFileCount.textContent = Object.keys(modelFiles).length + ' 个文件';
+        modelVersion.textContent = t('model_version_format', { version: modelJson.Version || '3' });
+        modelFileCount.textContent = t('model_file_count', { count: Object.keys(modelFiles).length });
+
     }
 
     function updateExpressions() {
@@ -594,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset button
         const resetBtn = document.createElement('button');
         resetBtn.className = 'expression-btn';
-        resetBtn.textContent = '🔄 重置';
+        resetBtn.textContent = `🔄 ${t('reset_expression')}`;
         resetBtn.addEventListener('click', () => {
             expressionManager?.resetExpression();
             setActiveBtn(expressionList, resetBtn);
@@ -604,8 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
         definitions.forEach((exp, index) => {
             const btn = document.createElement('button');
             btn.className = 'expression-btn';
-            btn.textContent = exp.Name || exp.name || `表情 ${index + 1}`;
+            btn.textContent = exp.Name || exp.name || t('expression_label', { n: index + 1 });
             btn.addEventListener('click', () => {
+
                 model.expression(index);
                 setActiveBtn(expressionList, btn);
             });
@@ -656,11 +665,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (!btnText) {
                     // Use group name if available, otherwise use generic name
-                    const groupName = group || 'Motion';
+                    const groupName = group || t('motion_group_default');
                     btnText = `${groupName} ${index + 1}`;
                 }
                 btn.textContent = btnText;
-                btn.title = `${group || '(默认)'} #${index + 1}${motion.File ? ': ' + motion.File : ''}`;
+                const groupLabel = group || t('motion_group_default');
+                const fileText = motion.File ? `: ${motion.File}` : '';
+                btn.title = t('motion_title', { group: groupLabel, index: index + 1, file: fileText });
+
                 
                 btn.addEventListener('click', () => {
                     model.motion(group, index);
@@ -688,15 +700,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isDefined) {
                 const btn = document.createElement('button');
                 btn.className = 'motion-btn';
-                btn.textContent = '📁 ' + file.replace('.motion3.json', '').split('/').pop();
+                const fileName = file.replace('.motion3.json', '').split('/').pop();
+                btn.textContent = t('motion_file_prefix', { name: fileName });
                 btn.title = file;
                 btn.addEventListener('click', async () => {
+
                     highlightBtn(btn);
                     try {
                         // Load and play motion directly using the motion file data
                         const motionData = cachedFileData[file];
                         if (!motionData) {
-                            showToast('动作文件未找到', 'error');
+                            showToast(t('motion_file_missing'), 'error');
                             return;
                         }
                         
@@ -769,7 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                     } catch (e) {
                         console.error('Motion error:', e);
-                        showToast('动作播放失败: ' + e.message, 'error');
+                        showToast(t('motion_play_failed') + e.message, 'error');
                     }
                 });
                 motionList.appendChild(btn);
@@ -832,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (paramCount > maxParams) {
             const note = document.createElement('div');
             note.style.cssText = 'text-align:center;color:#666;font-size:0.75rem;margin-top:8px;';
-            note.textContent = `还有 ${paramCount - maxParams} 个参数...`;
+            note.textContent = t('param_overflow_note', { count: paramCount - maxParams });
             parameterList.appendChild(note);
         }
     }
@@ -880,7 +894,8 @@ document.addEventListener('DOMContentLoaded', () => {
         scaleSlider.value = 1;
         scaleValue.textContent = '1.0x';
         if (model) centerModel(true);
-        showToast('视图已重置', 'info');
+        showToast(t('view_reset'), 'info');
+
     });
 
     // === Preview Controls ===
@@ -1079,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.href = app.view.toDataURL('image/png');
         link.click();
         
-        showToast('截图已保存', 'success');
+        showToast(t('screenshot_saved'), 'success');
     });
 
     fullscreenBtn.addEventListener('click', () => {
@@ -1213,7 +1228,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add "no expression" option
         const noneBtn = document.createElement('button');
         noneBtn.className = 'export-select-btn selected';
-        noneBtn.textContent = window.i18n?.t('export_no_expression') || '无表情';
+        noneBtn.textContent = t('export_no_expression');
+
         noneBtn.addEventListener('click', () => {
             selectedExportExpression = null;
             exportExpressionList.querySelectorAll('.export-select-btn').forEach(b => b.classList.remove('selected'));
@@ -1233,8 +1249,9 @@ document.addEventListener('DOMContentLoaded', () => {
         definitions.forEach((exp, index) => {
             const btn = document.createElement('button');
             btn.className = 'export-select-btn';
-            btn.textContent = exp.Name || exp.name || `表情 ${index + 1}`;
+            btn.textContent = exp.Name || exp.name || t('expression_label', { n: index + 1 });
             btn.addEventListener('click', () => {
+
                 selectedExportExpression = index;
                 exportExpressionList.querySelectorAll('.export-select-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
@@ -1250,7 +1267,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add "idle" option
         const noneBtn = document.createElement('button');
         noneBtn.className = 'export-select-btn selected';
-        noneBtn.textContent = window.i18n?.t('export_no_motion') || '静止';
+        noneBtn.textContent = t('export_no_motion');
+
         noneBtn.addEventListener('click', () => {
             selectedExportMotionGroup = null;
             selectedExportMotionIndex = null;
@@ -1285,7 +1303,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnText = motion.File.replace('.motion3.json', '').split('/').pop();
                 }
                 if (!btnText) {
-                    btnText = `${group} ${index + 1}`;
+                    const groupLabel = group || t('motion_group_default');
+                    btnText = t('motion_group_item', { group: groupLabel, index: index + 1 });
                 }
                 btn.textContent = btnText;
                 
@@ -1324,7 +1343,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isDefined) {
                 const btn = document.createElement('button');
                 btn.className = 'export-select-btn';
-                btn.textContent = '📁 ' + file.replace('.motion3.json', '').split('/').pop();
+                const fileName = file.replace('.motion3.json', '').split('/').pop();
+                btn.textContent = t('motion_file_prefix', { name: fileName });
                 btn.addEventListener('click', () => {
                     selectedExportMotionGroup = 'Standalone';
                     selectedExportMotionIndex = null;
@@ -1395,9 +1415,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Open export modal
     exportFramesBtn.addEventListener('click', () => {
         if (!model) {
-            showToast(window.i18n?.t('export_load_model_first') || '请先加载模型', 'error');
+            showToast(t('export_load_model_first'), 'error');
             return;
         }
+
         
         // Reset selections
         selectedExportExpression = null;
@@ -1479,7 +1500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         destroyPreview();
         
         if (!model || !app) {
-            throw new Error('No model loaded');
+            throw new Error(t('error_no_model_loaded'));
         }
         
         const width = parseInt(exportWidth.value) || 512;
@@ -1548,7 +1569,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const fps = parseInt(exportFps.value) || 30;
         const duration = parseFloat(exportDuration.value) || 3;
         const totalFrames = Math.ceil(fps * duration);
-        previewInfoText.textContent = `${width}×${height} | ${fps} FPS | ${duration}s | ${totalFrames} ${window.i18n?.t('export_frames_unit') || '帧'}`;
+        previewInfoText.textContent = t('export_preview_info', {
+            width,
+            height,
+            fps,
+            duration,
+            total: totalFrames,
+            unit: t('export_frames_unit')
+        });
         
         // Copy frame to preview canvas for display
         const copyToPreviewCanvas = () => {
@@ -1672,9 +1700,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Preview button click
     exportPreviewBtn.addEventListener('click', async () => {
         if (!model) {
-            showToast(window.i18n?.t('export_load_model_first') || '请先加载模型', 'error');
+            showToast(t('export_load_model_first'), 'error');
             return;
         }
+
         
         exportModal.classList.remove('show');
         
@@ -1683,7 +1712,8 @@ document.addEventListener('DOMContentLoaded', () => {
             previewModal.classList.add('show');
         } catch (error) {
             console.error('Preview error:', error);
-            showToast((window.i18n?.t('export_error') || '预览失败:') + ' ' + error.message, 'error');
+            showToast(t('export_error') + ' ' + error.message, 'error');
+
         }
     });
     
@@ -1711,7 +1741,8 @@ document.addEventListener('DOMContentLoaded', () => {
             await exportFrameSequence();
         } catch (error) {
             console.error('Export error:', error);
-            showToast((window.i18n?.t('export_error') || '导出失败:') + ' ' + error.message, 'error');
+            showToast(t('export_error') + ' ' + error.message, 'error');
+
         }
         
         exportProgressModal.classList.remove('show');
@@ -1729,7 +1760,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalFrames = Math.ceil(fps * duration);
         
         if (!model || !app) {
-            showToast('No model loaded', 'error');
+            showToast(t('error_no_model_loaded'), 'error');
             return;
         }
         
@@ -1786,7 +1817,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await registerStandaloneMotion(model);
             }
             
-            updateProgress(0, window.i18n?.t('export_preparing') || '准备中，重置动作...');
+            updateProgress(0, window.i18n.t('export_preparing_reset'));
             
             const motionManager = model.internalModel?.motionManager;
             console.log('MotionManager:', motionManager);
@@ -1918,7 +1949,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await sleep(50);
         }
         
-        updateProgress(0, window.i18n?.t('export_preparing') || '准备中...');
+        updateProgress(0, window.i18n.t('export_preparing'));
         
         const frames = [];
         const canvas = app.view;
@@ -1935,7 +1966,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const captureFrame = () => {
                 if (exportCancelled) {
-                    showToast(window.i18n?.t('export_cancelled') || '已取消导出', 'info');
+                    showToast(window.i18n.t('export_cancelled'), 'info');
                     resolve();
                     return;
                 }
@@ -1953,7 +1984,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     framesCaptured++;
                     
                     const progress = Math.round((framesCaptured / totalFrames) * 100);
-                    updateProgress(progress, (window.i18n?.t('export_capturing') || '正在捕获帧...') + ` (${framesCaptured}/${totalFrames})`);
+                    updateProgress(progress, window.i18n.t('export_capturing') + ` (${framesCaptured}/${totalFrames})`);
                 }
                 
                 // Continue or finish
@@ -1968,7 +1999,7 @@ document.addEventListener('DOMContentLoaded', () => {
             app.renderer.render(app.stage);
             frames.push(canvas.toDataURL('image/png'));
             framesCaptured = 1;
-            updateProgress(1, (window.i18n?.t('export_capturing') || '正在捕获帧...') + ` (1/${totalFrames})`);
+            updateProgress(1, window.i18n.t('export_capturing') + ` (1/${totalFrames})`);
             
             if (totalFrames > 1) {
                 requestAnimationFrame(captureFrame);
@@ -1997,7 +2028,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Package into ZIP
-        updateProgress(100, window.i18n?.t('export_packing') || '正在打包下载...');
+        updateProgress(100, window.i18n.t('export_packing'));
         await sleep(100);
         
         const zip = new JSZip();
@@ -2016,6 +2047,6 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         URL.revokeObjectURL(link.href);
         
-        showToast((window.i18n?.t('export_success') || '成功导出') + ` ${frames.length} ${window.i18n?.t('export_frames_unit') || '帧'}`, 'success');
+        showToast(window.i18n.t('export_success') + ` ${frames.length} ${window.i18n.t('export_frames_unit')}`, 'success');
     }
 });

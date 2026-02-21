@@ -3,8 +3,10 @@
   "logo": "WebM ↔ MOV Converter",
   "mode_webm2mov": "WebM → MOV",
   "mode_mov2webm": "MOV → WebM",
+  "mode_toggle_aria": "Conversion mode toggle",
 
   "reset_btn": "Restart",
+
 
   "upload_title_webm2mov": "Click or drag a WebM video file here",
   "upload_hint_webm2mov": "Supports WebM (VP8/VP9) video with alpha channel",
@@ -21,6 +23,13 @@
   "settings_title": "Conversion Settings",
   "fps_label": "Output FPS",
   "fps_auto": "Auto Detect",
+  "fps_24": "24 FPS",
+  "fps_25": "25 FPS",
+  "fps_30": "30 FPS",
+  "fps_60": "60 FPS",
+  "video_info": "{size} | {fps} FPS | {duration}",
+
+
 
   "mov_codec_label": "MOV Codec",
   "codec_png": "PNG (Lossless, Alpha Support)",
@@ -60,5 +69,19 @@
   "alert_decode_failed": "Your browser can't decode this video. Try a more widely supported encoding (e.g. H.264 MOV), or re-encode it with ffmpeg/editor.",
   "mov_preview_unavailable": "This MOV can't be previewed in the browser, but it can still be converted",
 
+  "debug_panel_title": "Debug Logs (debug=1)",
+  "debug_expand": "Expand",
+  "debug_collapse": "Collapse",
+  "debug_copy": "Copy",
+  "debug_clear": "Clear",
+  "debug_hide": "Hide",
+
+  "error_frames_too_many": "Too many frames ({count}). Please lower FPS or shorten the video duration.",
+  "error_raw_frame_invalid": "RAW frame data length is invalid: {actual} < {expected}",
+  "error_mov_codec_unsupported": "Unsupported MOV codec: {codec}",
+  "error_webcodecs_alpha_unsupported": "WebCodecs alpha encoding is not supported; falling back to MediaRecorder",
+  "error_no_supported_codec": "No supported video codec found",
+  "error_video_encoder": "VideoEncoder error: {message}",
   "error_processing": "Processing error: "
+
 }

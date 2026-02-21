@@ -12,7 +12,9 @@
   "calc_value_template": "{w} × {h} px per frame, {total} frames total",
   "export_settings_title": "💾 Export Settings",
   "file_prefix_label": "File Prefix",
+  "file_prefix_placeholder": "frame_",
   "reverse_order_label": "Reverse order output (descending number)",
+
   "split_btn": "Split Image",
   "download_all_btn": "📦 Download All (ZIP)",
   "preview_title": "👁️ Preview",
@@ -22,5 +24,7 @@
   "layout_label": "Layout (Cols x Rows)",
   "download_frame_tip": "Click to download this frame",
   "zipping_text": "⏳ Zipping...",
-  "zip_failed_text": "Zip failed, please try again"
+  "zip_failed_text": "Zip failed, please try again",
+  "zip_failed_log": "Zip failed:"
+
 }

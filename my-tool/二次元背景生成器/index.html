@@ -36,11 +36,12 @@
                     <input type="number" id="canvasHeight" value="1080" min="100" max="4096">
                 </div>
                 <div class="preset-buttons">
-                    <button onclick="setPreset(1920, 1080)">1080p</button>
-                    <button onclick="setPreset(1280, 720)">720p</button>
-                    <button onclick="setPreset(800, 600)">4:3</button>
+                    <button onclick="setPreset(1920, 1080)" data-i18n="preset_1080p">1080p</button>
+                    <button onclick="setPreset(1280, 720)" data-i18n="preset_720p">720p</button>
+                    <button onclick="setPreset(800, 600)" data-i18n="preset_4_3">4:3</button>
                     <button onclick="setPreset(1080, 1920)" data-i18n="preset_mobile">手机竖屏</button>
                 </div>
+
             </div>
 
             <!-- 背景颜色 -->
@@ -130,12 +131,12 @@
                 <div class="control-row">
                     <label data-i18n="border_style">边框样式:</label>
                     <select id="borderStyle">
-                        <optgroup label="基础样式" data-i18n-label="optgroup_border_basic">
+                        <optgroup label="" data-i18n-label="optgroup_border_basic">
                             <option value="classic" data-i18n="border_style_classic">经典方框</option>
                             <option value="round" data-i18n="border_style_round">圆角边框</option>
                             <option value="diamond-cut" data-i18n="border_style_diamond_cut">钻石切割</option>
                         </optgroup>
-                        <optgroup label="内凹样式" data-i18n-label="optgroup_border_inward">
+                        <optgroup label="" data-i18n-label="optgroup_border_inward">
                             <option value="elegant" data-i18n="border_style_elegant" selected>优雅内凹</option>
                             <option value="inward-curve" data-i18n="border_style_inward_curve">四向内凹</option>
                             <option value="inward-double" data-i18n="border_style_inward_double">双重内凹</option>
@@ -143,18 +144,19 @@
                             <option value="inward-arch" data-i18n="border_style_inward_arch">拱形内凹</option>
                             <option value="inward-lens" data-i18n="border_style_inward_lens">透镜内凹</option>
                         </optgroup>
-                        <optgroup label="波浪样式" data-i18n-label="optgroup_border_wave">
+                        <optgroup label="" data-i18n-label="optgroup_border_wave">
                             <option value="wave" data-i18n="border_style_wave">波浪边框</option>
                             <option value="scallop" data-i18n="border_style_scallop">扇贝边框</option>
                             <option value="zigzag" data-i18n="border_style_zigzag">锯齿边框</option>
                             <option value="cloud" data-i18n="border_style_cloud">云朵边框</option>
                         </optgroup>
-                        <optgroup label="华丽样式" data-i18n-label="optgroup_border_fancy">
+                        <optgroup label="" data-i18n-label="optgroup_border_fancy">
                             <option value="baroque" data-i18n="border_style_baroque">巴洛克</option>
                             <option value="gothic" data-i18n="border_style_gothic">哥特式</option>
                             <option value="art-deco" data-i18n="border_style_art_deco">装饰艺术</option>
                         </optgroup>
                     </select>
+
                 </div>
                 <div class="control-row">
                     <label data-i18n="border_curve">内凹程度:</label>
@@ -204,23 +206,23 @@
                     <div class="control-row">
                         <label data-i18n="corner_style">装饰样式:</label>
                         <select id="cornerStyle" class="corner-style-select">
-                            <optgroup data-i18n-label="optgroup_poker" label="扑克牌">
+                            <optgroup data-i18n-label="optgroup_poker" label="">
                                 <option value="club" data-i18n="style_club">♣ 梅花</option>
                                 <option value="spade" data-i18n="style_spade">♠ 黑桃</option>
                                 <option value="heart" data-i18n="style_heart">♥ 红心</option>
                                 <option value="diamond" data-i18n="style_diamond">♦ 方块</option>
                             </optgroup>
-                            <optgroup data-i18n-label="optgroup_fancy" label="华丽扑克">
+                            <optgroup data-i18n-label="optgroup_fancy" label="">
                                 <option value="club-fancy" data-i18n="style_club_fancy">♣ 华丽梅花</option>
                                 <option value="spade-fancy" data-i18n="style_spade_fancy">♠ 华丽黑桃</option>
                                 <option value="heart-fancy" data-i18n="style_heart_fancy">♥ 华丽红心</option>
                                 <option value="diamond-fancy" data-i18n="style_diamond_fancy">♦ 华丽方块</option>
                             </optgroup>
-                            <optgroup data-i18n-label="optgroup_ornate" label="纹章">
+                            <optgroup data-i18n-label="optgroup_ornate" label="">
                                 <option value="ornate" data-i18n="style_ornate">✤ 华丽装饰</option>
                                 <option value="fleur" data-i18n="style_fleur">⚜ 鸢尾花</option>
                             </optgroup>
-                            <optgroup data-i18n-label="optgroup_music" label="音符">
+                            <optgroup data-i18n-label="optgroup_music" label="">
                                 <option value="note1" data-i18n="style_note1">♪ 八分音符</option>
                                 <option value="note2" data-i18n="style_note2">♫ 双八分音符</option>
                                 <option value="note3" data-i18n="style_note3">𝄞 高音谱号</option>
@@ -231,7 +233,7 @@
                                 <option value="note8" data-i18n="style_note8">𝄽 八分休止</option>
                                 <option value="note9" data-i18n="style_note9">♬ 三连音</option>
                             </optgroup>
-                            <optgroup data-i18n-label="optgroup_nature" label="自然">
+                            <optgroup data-i18n-label="optgroup_nature" label="">
                                 <option value="star" data-i18n="style_star">★ 星星</option>
                                 <option value="star6" data-i18n="style_star6">✡ 六角星</option>
                                 <option value="flower" data-i18n="style_flower">❀ 花朵</option>
@@ -239,13 +241,14 @@
                                 <option value="leaf" data-i18n="style_leaf">🍃 叶子</option>
                                 <option value="moon" data-i18n="style_moon">☽ 月亮</option>
                             </optgroup>
-                            <optgroup data-i18n-label="optgroup_geometric" label="几何">
+                            <optgroup data-i18n-label="optgroup_geometric" label="">
                                 <option value="crown" data-i18n="style_crown">👑 皇冠</option>
                                 <option value="ribbon" data-i18n="style_ribbon">🎀 蝴蝶结</option>
                                 <option value="crystal" data-i18n="style_crystal">💎 水晶</option>
                                 <option value="swirl" data-i18n="style_swirl">🌀 漩涡</option>
                             </optgroup>
                         </select>
+
                     </div>
                 </div>
                 
@@ -255,23 +258,23 @@
                         <div class="corner-style-item">
                             <span data-i18n="corner_tl">↖ 左上:</span>
                             <select id="cornerStyleTL" class="corner-style-select">
-                                <optgroup data-i18n-label="optgroup_poker" label="扑克牌">
+                                <optgroup data-i18n-label="optgroup_poker" label="">
                                     <option value="club" data-i18n="style_club">♣ 梅花</option>
                                     <option value="spade" data-i18n="style_spade">♠ 黑桃</option>
                                     <option value="heart" data-i18n="style_heart">♥ 红心</option>
                                     <option value="diamond" data-i18n="style_diamond">♦ 方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_fancy" label="华丽扑克">
+                                <optgroup data-i18n-label="optgroup_fancy" label="">
                                     <option value="club-fancy" data-i18n="style_club_fancy">♣ 华丽梅花</option>
                                     <option value="spade-fancy" data-i18n="style_spade_fancy">♠ 华丽黑桃</option>
                                     <option value="heart-fancy" data-i18n="style_heart_fancy">♥ 华丽红心</option>
                                     <option value="diamond-fancy" data-i18n="style_diamond_fancy">♦ 华丽方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_ornate" label="纹章">
+                                <optgroup data-i18n-label="optgroup_ornate" label="">
                                     <option value="ornate" data-i18n="style_ornate">✤ 华丽装饰</option>
                                     <option value="fleur" data-i18n="style_fleur">⚜ 鸢尾花</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_music" label="音符">
+                                <optgroup data-i18n-label="optgroup_music" label="">
                                     <option value="note1" data-i18n="style_note1">♪ 八分音符</option>
                                     <option value="note2" data-i18n="style_note2">♫ 双八分音符</option>
                                     <option value="note3" data-i18n="style_note3">𝄞 高音谱号</option>
@@ -282,7 +285,7 @@
                                     <option value="note8" data-i18n="style_note8">𝄽 八分休止</option>
                                     <option value="note9" data-i18n="style_note9">♬ 三连音</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_nature" label="自然">
+                                <optgroup data-i18n-label="optgroup_nature" label="">
                                     <option value="star" data-i18n="style_star">★ 星星</option>
                                     <option value="star6" data-i18n="style_star6">✡ 六角星</option>
                                     <option value="flower" data-i18n="style_flower">❀ 花朵</option>
@@ -290,34 +293,35 @@
                                     <option value="leaf" data-i18n="style_leaf">🍃 叶子</option>
                                     <option value="moon" data-i18n="style_moon">☽ 月亮</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_geometric" label="几何">
+                                <optgroup data-i18n-label="optgroup_geometric" label="">
                                     <option value="crown" data-i18n="style_crown">👑 皇冠</option>
                                     <option value="ribbon" data-i18n="style_ribbon">🎀 蝴蝶结</option>
                                     <option value="crystal" data-i18n="style_crystal">💎 水晶</option>
                                     <option value="swirl" data-i18n="style_swirl">🌀 漩涡</option>
                                 </optgroup>
                             </select>
+
                         </div>
                         <div class="corner-style-item">
                             <span data-i18n="corner_tr">↗ 右上:</span>
                             <select id="cornerStyleTR" class="corner-style-select">
-                                <optgroup data-i18n-label="optgroup_poker" label="扑克牌">
+                                <optgroup data-i18n-label="optgroup_poker" label="">
                                     <option value="club" data-i18n="style_club">♣ 梅花</option>
                                     <option value="spade" selected data-i18n="style_spade">♠ 黑桃</option>
                                     <option value="heart" data-i18n="style_heart">♥ 红心</option>
                                     <option value="diamond" data-i18n="style_diamond">♦ 方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_fancy" label="华丽扑克">
+                                <optgroup data-i18n-label="optgroup_fancy" label="">
                                     <option value="club-fancy" data-i18n="style_club_fancy">♣ 华丽梅花</option>
                                     <option value="spade-fancy" data-i18n="style_spade_fancy">♠ 华丽黑桃</option>
                                     <option value="heart-fancy" data-i18n="style_heart_fancy">♥ 华丽红心</option>
                                     <option value="diamond-fancy" data-i18n="style_diamond_fancy">♦ 华丽方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_ornate" label="纹章">
+                                <optgroup data-i18n-label="optgroup_ornate" label="">
                                     <option value="ornate" data-i18n="style_ornate">✤ 华丽装饰</option>
                                     <option value="fleur" data-i18n="style_fleur">⚜ 鸢尾花</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_music" label="音符">
+                                <optgroup data-i18n-label="optgroup_music" label="">
                                     <option value="note1" data-i18n="style_note1">♪ 八分音符</option>
                                     <option value="note2" data-i18n="style_note2">♫ 双八分音符</option>
                                     <option value="note3" data-i18n="style_note3">𝄞 高音谱号</option>
@@ -328,7 +332,7 @@
                                     <option value="note8" data-i18n="style_note8">𝄽 八分休止</option>
                                     <option value="note9" data-i18n="style_note9">♬ 三连音</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_nature" label="自然">
+                                <optgroup data-i18n-label="optgroup_nature" label="">
                                     <option value="star" data-i18n="style_star">★ 星星</option>
                                     <option value="star6" data-i18n="style_star6">✡ 六角星</option>
                                     <option value="flower" data-i18n="style_flower">❀ 花朵</option>
@@ -336,34 +340,35 @@
                                     <option value="leaf" data-i18n="style_leaf">🍃 叶子</option>
                                     <option value="moon" data-i18n="style_moon">☽ 月亮</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_geometric" label="几何">
+                                <optgroup data-i18n-label="optgroup_geometric" label="">
                                     <option value="crown" data-i18n="style_crown">👑 皇冠</option>
                                     <option value="ribbon" data-i18n="style_ribbon">🎀 蝴蝶结</option>
                                     <option value="crystal" data-i18n="style_crystal">💎 水晶</option>
                                     <option value="swirl" data-i18n="style_swirl">🌀 漩涡</option>
                                 </optgroup>
                             </select>
+
                         </div>
                         <div class="corner-style-item">
                             <span data-i18n="corner_bl">↙ 左下:</span>
                             <select id="cornerStyleBL" class="corner-style-select">
-                                <optgroup data-i18n-label="optgroup_poker" label="扑克牌">
+                                <optgroup data-i18n-label="optgroup_poker" label="">
                                     <option value="club" data-i18n="style_club">♣ 梅花</option>
                                     <option value="spade" data-i18n="style_spade">♠ 黑桃</option>
                                     <option value="heart" selected data-i18n="style_heart">♥ 红心</option>
                                     <option value="diamond" data-i18n="style_diamond">♦ 方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_fancy" label="华丽扑克">
+                                <optgroup data-i18n-label="optgroup_fancy" label="">
                                     <option value="club-fancy" data-i18n="style_club_fancy">♣ 华丽梅花</option>
                                     <option value="spade-fancy" data-i18n="style_spade_fancy">♠ 华丽黑桃</option>
                                     <option value="heart-fancy" data-i18n="style_heart_fancy">♥ 华丽红心</option>
                                     <option value="diamond-fancy" data-i18n="style_diamond_fancy">♦ 华丽方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_ornate" label="纹章">
+                                <optgroup data-i18n-label="optgroup_ornate" label="">
                                     <option value="ornate" data-i18n="style_ornate">✤ 华丽装饰</option>
                                     <option value="fleur" data-i18n="style_fleur">⚜ 鸢尾花</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_music" label="音符">
+                                <optgroup data-i18n-label="optgroup_music" label="">
                                     <option value="note1" data-i18n="style_note1">♪ 八分音符</option>
                                     <option value="note2" data-i18n="style_note2">♫ 双八分音符</option>
                                     <option value="note3" data-i18n="style_note3">𝄞 高音谱号</option>
@@ -374,7 +379,7 @@
                                     <option value="note8" data-i18n="style_note8">𝄽 八分休止</option>
                                     <option value="note9" data-i18n="style_note9">♬ 三连音</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_nature" label="自然">
+                                <optgroup data-i18n-label="optgroup_nature" label="">
                                     <option value="star" data-i18n="style_star">★ 星星</option>
                                     <option value="star6" data-i18n="style_star6">✡ 六角星</option>
                                     <option value="flower" data-i18n="style_flower">❀ 花朵</option>
@@ -382,34 +387,35 @@
                                     <option value="leaf" data-i18n="style_leaf">🍃 叶子</option>
                                     <option value="moon" data-i18n="style_moon">☽ 月亮</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_geometric" label="几何">
+                                <optgroup data-i18n-label="optgroup_geometric" label="">
                                     <option value="crown" data-i18n="style_crown">👑 皇冠</option>
                                     <option value="ribbon" data-i18n="style_ribbon">🎀 蝴蝶结</option>
                                     <option value="crystal" data-i18n="style_crystal">💎 水晶</option>
                                     <option value="swirl" data-i18n="style_swirl">🌀 漩涡</option>
                                 </optgroup>
                             </select>
+
                         </div>
                         <div class="corner-style-item">
                             <span data-i18n="corner_br">↘ 右下:</span>
                             <select id="cornerStyleBR" class="corner-style-select">
-                                <optgroup data-i18n-label="optgroup_poker" label="扑克牌">
+                                <optgroup data-i18n-label="optgroup_poker" label="">
                                     <option value="club" data-i18n="style_club">♣ 梅花</option>
                                     <option value="spade" data-i18n="style_spade">♠ 黑桃</option>
                                     <option value="heart" data-i18n="style_heart">♥ 红心</option>
                                     <option value="diamond" selected data-i18n="style_diamond">♦ 方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_fancy" label="华丽扑克">
+                                <optgroup data-i18n-label="optgroup_fancy" label="">
                                     <option value="club-fancy" data-i18n="style_club_fancy">♣ 华丽梅花</option>
                                     <option value="spade-fancy" data-i18n="style_spade_fancy">♠ 华丽黑桃</option>
                                     <option value="heart-fancy" data-i18n="style_heart_fancy">♥ 华丽红心</option>
                                     <option value="diamond-fancy" data-i18n="style_diamond_fancy">♦ 华丽方块</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_ornate" label="纹章">
+                                <optgroup data-i18n-label="optgroup_ornate" label="">
                                     <option value="ornate" data-i18n="style_ornate">✤ 华丽装饰</option>
                                     <option value="fleur" data-i18n="style_fleur">⚜ 鸢尾花</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_music" label="音符">
+                                <optgroup data-i18n-label="optgroup_music" label="">
                                     <option value="note1" data-i18n="style_note1">♪ 八分音符</option>
                                     <option value="note2" data-i18n="style_note2">♫ 双八分音符</option>
                                     <option value="note3" data-i18n="style_note3">𝄞 高音谱号</option>
@@ -420,7 +426,7 @@
                                     <option value="note8" data-i18n="style_note8">𝄽 八分休止</option>
                                     <option value="note9" data-i18n="style_note9">♬ 三连音</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_nature" label="自然">
+                                <optgroup data-i18n-label="optgroup_nature" label="">
                                     <option value="star" data-i18n="style_star">★ 星星</option>
                                     <option value="star6" data-i18n="style_star6">✡ 六角星</option>
                                     <option value="flower" data-i18n="style_flower">❀ 花朵</option>
@@ -428,13 +434,14 @@
                                     <option value="leaf" data-i18n="style_leaf">🍃 叶子</option>
                                     <option value="moon" data-i18n="style_moon">☽ 月亮</option>
                                 </optgroup>
-                                <optgroup data-i18n-label="optgroup_geometric" label="几何">
+                                <optgroup data-i18n-label="optgroup_geometric" label="">
                                     <option value="crown" data-i18n="style_crown">👑 皇冠</option>
                                     <option value="ribbon" data-i18n="style_ribbon">🎀 蝴蝶结</option>
                                     <option value="crystal" data-i18n="style_crystal">💎 水晶</option>
                                     <option value="swirl" data-i18n="style_swirl">🌀 漩涡</option>
                                 </optgroup>
                             </select>
+
                         </div>
                     </div>
                 </div>

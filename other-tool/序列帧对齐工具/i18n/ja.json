@@ -11,6 +11,9 @@
   "reset_view": "ビューリセット",
   "waiting_upload": "画像をアップロードして開始",
   "preview_zoom": "表示倍率:",
+  "offset_x_label": "X:",
+  "offset_y_label": "Y:",
+
   "zoom_fit": "フィット",
   "tips_title": "操作ヒント：",
   "tips_content": "ドラッグでアップロード | 画像2をドラッグして移動 | 矢印キーで微調整(Shiftで加速) | Ctrl+ホイールでプレビュー拡大縮小 | ホイールで画像2をスケール"

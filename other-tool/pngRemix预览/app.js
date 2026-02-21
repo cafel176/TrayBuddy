@@ -6,6 +6,9 @@
 */
 
 const $ = (sel) => document.querySelector(sel);
+const t = (key, params) => (window.i18n && typeof window.i18n.t === 'function')
+  ? window.i18n.t(key, params)
+  : key;
 
 const el = {
   dropZone: $('#dropZone'),
@@ -64,6 +67,10 @@ const el = {
 
   canvas: $('#canvas'),
 };
+
+function applyI18nAttrs() {
+  if (el.dropZone) el.dropZone.setAttribute('aria-label', t('pngRemixPreview.dropZone.aria'));
+}
 
 // Default tuning
 const DEFAULT_CLICK_BOUNCE_AMP = 50;
@@ -126,8 +133,9 @@ function setStatus(msg, type = '') {
   if (type) el.status.classList.add(type);
 }
 
-function setLoading(loading, text = '正在加载…') {
-  el.loadingText.textContent = text;
+function setLoading(loading, text) {
+  const msg = text || t('pngRemixPreview.loading.default');
+  el.loadingText.textContent = msg;
   el.loading.classList.toggle('hidden', !loading);
 }
 
@@ -1930,7 +1938,7 @@ async function buildRuntimeScene(normalizedModel) {
   initNodeStateMachine(scene);
 
   // Load images (static PNG + animated GIF/APNG)
-  setLoading(true, '正在解码贴图…');
+  setLoading(true, t('pngRemixPreview.loading.decodeTextures'));
 
   scene.hasAnimatedTextures = false;
 
@@ -2275,14 +2283,14 @@ function renderScene(scene) {
 
 function computeNodeSelfVisibility(scene, node) {
   const st = node.getState(scene.stateId);
-  if (!st) return { visible: false, reasons: ['缺少 state 数据'] };
+  if (!st) return { visible: false, reasons: [t('pngRemixPreview.parts.reason.missingState')] };
 
   const overrideRaw = scene?.visibilityOverrides ? scene.visibilityOverrides[node.key] : undefined;
   const override = (overrideRaw && typeof overrideRaw === 'object') ? overrideRaw : null;
   const overrideValue = override ? override.visible : overrideRaw;
   const overrideSource = override ? String(override.source || 'manual') : 'manual';
 
-  if (overrideValue === false) return { visible: false, reasons: ['强制隐藏'] };
+  if (overrideValue === false) return { visible: false, reasons: [t('pngRemixPreview.parts.reason.forceHidden')] };
 
   let visible = st.visible !== false;
   const modulate = mulColor(st?.colored, st?.tint);
@@ -2315,14 +2323,22 @@ function computeNodeSelfVisibility(scene, node) {
   if (alpha <= 0.001) visible = false;
 
   const reasons = [];
-  if (overrideValue === true) reasons.push(overrideSource === 'hotkey' ? '快捷键显示' : '强制显示');
-  if (overrideValue === false) reasons.push(overrideSource === 'hotkey' ? '快捷键隐藏' : '强制隐藏');
-  if (st.visible === false) reasons.push('state.visible=false');
-  if (alpha <= 0.001) reasons.push('alpha≈0');
-  if (!isWhiteRgb(modulate)) reasons.push('tint/colored');
-  if (!scene.showAllAssets && node.raw && node.raw.is_asset && !node.raw.was_active_before) reasons.push('Asset 默认隐藏');
-  if (st.should_talk) reasons.push(`口型(${st.open_mouth ? '张嘴' : '闭嘴'})`);
-  if (st.should_blink) reasons.push(`眨眼(${st.open_eyes ? '睁眼' : '闭眼'})`);
+  if (overrideValue === true) reasons.push(overrideSource === 'hotkey'
+    ? t('pngRemixPreview.parts.reason.hotkeyShow')
+    : t('pngRemixPreview.parts.reason.forceShow'));
+  if (overrideValue === false) reasons.push(overrideSource === 'hotkey'
+    ? t('pngRemixPreview.parts.reason.hotkeyHide')
+    : t('pngRemixPreview.parts.reason.forceHidden'));
+  if (st.visible === false) reasons.push(t('pngRemixPreview.parts.reason.stateVisibleFalse'));
+  if (alpha <= 0.001) reasons.push(t('pngRemixPreview.parts.reason.alphaZero'));
+  if (!isWhiteRgb(modulate)) reasons.push(t('pngRemixPreview.parts.reason.tintColored'));
+  if (!scene.showAllAssets && node.raw && node.raw.is_asset && !node.raw.was_active_before) reasons.push(t('pngRemixPreview.parts.reason.assetDefaultHidden'));
+  if (st.should_talk) reasons.push(t('pngRemixPreview.parts.reason.mouth', {
+    state: st.open_mouth ? t('pngRemixPreview.parts.reason.mouthOpen') : t('pngRemixPreview.parts.reason.mouthClosed')
+  }));
+  if (st.should_blink) reasons.push(t('pngRemixPreview.parts.reason.blink', {
+    state: st.open_eyes ? t('pngRemixPreview.parts.reason.eyesOpen') : t('pngRemixPreview.parts.reason.eyesClosed')
+  }));
 
   return { visible, reasons };
 }
@@ -2334,14 +2350,20 @@ function computeNodeFinalVisibility(scene, node) {
   while (cur) {
     const res = computeNodeSelfVisibility(scene, cur);
     if (!res.visible) {
-      const who = cur === node ? '自身' : `父级：${cur.name}`;
-      return { visible: false, reasons: [`${who}：${res.reasons.join('、') || '不可见'}`] };
+      const who = cur === node
+        ? t('pngRemixPreview.parts.reason.self')
+        : t('pngRemixPreview.parts.reason.parent', { name: cur.name });
+      const reasonText = res.reasons.join(t('pngRemixPreview.common.listSeparator')) || t('pngRemixPreview.parts.reason.invisible');
+      return { visible: false, reasons: [t('pngRemixPreview.parts.reason.hiddenReason', { who, reason: reasonText })] };
     }
     const pid = cur.parentId;
     cur = scene.nodeBySpriteId.get(pid);
   }
   return { visible: true, reasons: [] };
 }
+
+const PARTS_GROUP_ORDER = ['assetHidden', 'assetShown', 'talk', 'blink', 'other'];
+const getGroupLabel = (key) => t(`pngRemixPreview.parts.group.${key}`);
 
 function buildPartsEntries(scene) {
   const out = [];
@@ -2368,11 +2390,11 @@ function buildPartsEntries(scene) {
     const override = scene?.visibilityOverrides ? scene.visibilityOverrides[n.key] : undefined;
     const vis = computeNodeFinalVisibility(scene, n);
 
-    let group = '其它图层';
-    if (defaultHidden) group = 'Asset（默认隐藏）';
-    else if (isAsset) group = 'Asset（默认显示）';
-    else if (shouldTalk) group = '口型层（should_talk）';
-    else if (shouldBlink) group = '眨眼层（should_blink）';
+    let group = 'other';
+    if (defaultHidden) group = 'assetHidden';
+    else if (isAsset) group = 'assetShown';
+    else if (shouldTalk) group = 'talk';
+    else if (shouldBlink) group = 'blink';
 
     out.push({
       key: n.key,
@@ -2392,7 +2414,12 @@ function buildPartsEntries(scene) {
   }
 
   out.sort((a, b) => {
-    if (a.group !== b.group) return a.group.localeCompare(b.group, 'zh-CN');
+    if (a.group !== b.group) {
+      const ia = PARTS_GROUP_ORDER.indexOf(a.group);
+      const ib = PARTS_GROUP_ORDER.indexOf(b.group);
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      return getGroupLabel(a.group).localeCompare(getGroupLabel(b.group), 'zh-CN');
+    }
     return a.subtitle.localeCompare(b.subtitle, 'zh-CN');
   });
 
@@ -2406,7 +2433,13 @@ function updatePartsSummary(entries, filtered) {
   const overridden = entries.filter(e => e.override === true || e.override === false).length;
   const defaultHidden = entries.filter(e => e.defaultHidden).length;
 
-  el.partsSummary.textContent = `共 ${total} 个部件（默认隐藏 ${defaultHidden}，已覆写 ${overridden}）。当前列表显示 ${shown} 个，其中 ${hiddenNow} 个处于隐藏状态。`;
+  el.partsSummary.textContent = t('pngRemixPreview.parts.summary', {
+    total,
+    defaultHidden,
+    overridden,
+    shown,
+    hiddenNow,
+  });
 }
 
 function renderPartsPanel(scene) {
@@ -2458,13 +2491,7 @@ function renderPartsPanel(scene) {
     groups.get(e.group).push(e);
   }
 
-  const groupOrder = [
-    'Asset（默认隐藏）',
-    'Asset（默认显示）',
-    '口型层（should_talk）',
-    '眨眼层（should_blink）',
-    '其它图层',
-  ];
+  const groupOrder = PARTS_GROUP_ORDER;
 
   el.partsList.innerHTML = '';
   const frag = document.createDocumentFragment();
@@ -2473,7 +2500,7 @@ function renderPartsPanel(scene) {
     const ia = groupOrder.indexOf(a);
     const ib = groupOrder.indexOf(b);
     if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-    return a.localeCompare(b, 'zh-CN');
+    return getGroupLabel(a).localeCompare(getGroupLabel(b), 'zh-CN');
   });
 
   for (const g of groupNames) {
@@ -2481,10 +2508,10 @@ function renderPartsPanel(scene) {
 
     const details = document.createElement('details');
     details.className = 'parts-group';
-    details.open = (g === 'Asset（默认隐藏）' || g === '口型层（should_talk）' || g === '眨眼层（should_blink）');
+    details.open = (g === 'assetHidden' || g === 'talk' || g === 'blink');
 
     const summary = document.createElement('summary');
-    summary.textContent = `${g}（${list.length}）`;
+    summary.textContent = t('pngRemixPreview.parts.groupSummary', { name: getGroupLabel(g), count: list.length });
     details.appendChild(summary);
 
     for (const e of list) {
@@ -2512,16 +2539,20 @@ function renderPartsPanel(scene) {
         tags.appendChild(p);
       }
 
-      if (e.defaultHidden) addPill('默认隐藏', 'bad');
-      else if (e.isAsset) addPill('Asset', 'info');
+      if (e.defaultHidden) addPill(t('pngRemixPreview.parts.pill.defaultHidden'), 'bad');
+      else if (e.isAsset) addPill(t('pngRemixPreview.parts.pill.asset'), 'info');
 
-      if (e.override === true) addPill('强制显示', 'info');
-      else if (e.override === false) addPill('强制隐藏', 'info');
+      if (e.override === true) addPill(t('pngRemixPreview.parts.pill.forceShow'), 'info');
+      else if (e.override === false) addPill(t('pngRemixPreview.parts.pill.forceHide'), 'info');
 
-      addPill(e.visibleNow ? '当前可见' : '当前隐藏', e.visibleNow ? 'good' : 'bad');
+      addPill(e.visibleNow ? t('pngRemixPreview.parts.pill.visible') : t('pngRemixPreview.parts.pill.hidden'), e.visibleNow ? 'good' : 'bad');
 
-      if (e.flags.shouldTalk) addPill(`口型:${e.flags.openMouth ? '张嘴' : '闭嘴'}`, 'info');
-      if (e.flags.shouldBlink) addPill(`眨眼:${e.flags.openEyes ? '睁眼' : '闭眼'}`, 'info');
+      if (e.flags.shouldTalk) addPill(t('pngRemixPreview.parts.pill.mouth', {
+        state: e.flags.openMouth ? t('pngRemixPreview.parts.pill.mouthOpen') : t('pngRemixPreview.parts.pill.mouthClosed')
+      }), 'info');
+      if (e.flags.shouldBlink) addPill(t('pngRemixPreview.parts.pill.blink', {
+        state: e.flags.openEyes ? t('pngRemixPreview.parts.pill.eyesOpen') : t('pngRemixPreview.parts.pill.eyesClosed')
+      }), 'info');
 
       if (!e.visibleNow && e.hiddenReasons && e.hiddenReasons.length) {
         addPill(e.hiddenReasons[0], 'bad');
@@ -2537,13 +2568,13 @@ function renderPartsPanel(scene) {
 
       const optDefault = document.createElement('option');
       optDefault.value = 'default';
-      optDefault.textContent = '默认';
+      optDefault.textContent = t('pngRemixPreview.parts.override.default');
       const optShow = document.createElement('option');
       optShow.value = 'show';
-      optShow.textContent = '显示';
+      optShow.textContent = t('pngRemixPreview.parts.override.show');
       const optHide = document.createElement('option');
       optHide.value = 'hide';
-      optHide.textContent = '隐藏';
+      optHide.textContent = t('pngRemixPreview.parts.override.hide');
 
       sel.appendChild(optDefault);
       sel.appendChild(optShow);
@@ -2567,7 +2598,7 @@ function renderPartsPanel(scene) {
     const empty = document.createElement('div');
     empty.className = 'hint';
     empty.style.padding = '10px';
-    empty.textContent = '没有匹配到部件（试试清空筛选/搜索）。';
+    empty.textContent = t('pngRemixPreview.parts.empty');
     frag.appendChild(empty);
   }
 
@@ -2610,8 +2641,9 @@ function normalizeSavedDisappearEvent(ev) {
   let label = '';
   if (hotkey) label = hotkey;
   else if (typeof keyText === 'string' && keyText.trim()) label = String(keyText).trim();
-  else if (Number.isFinite(keycode)) label = `KEYCODE:${keycode}`;
-  else label = '(unknown)';
+  else if (Number.isFinite(keycode)) label = t('pngRemixPreview.hotkeys.label.keycode', { code: keycode });
+  else label = t('pngRemixPreview.hotkeys.label.unknown');
+
 
   return { hotkey, label };
 }
@@ -2680,7 +2712,7 @@ function buildHotkeyGroups(scene) {
 function renderHotkeyPanel(scene) {
   if (!scene) return;
   if (!Array.isArray(scene.hotkeyGroups) || !scene.hotkeyGroups.length) {
-    if (el.hotkeySummary) el.hotkeySummary.textContent = '未在该文件中检测到快捷键组（缺少 sprite.saved_keys / sprite.saved_disappear）。';
+    if (el.hotkeySummary) el.hotkeySummary.textContent = t('pngRemixPreview.hotkeys.noGroups');
     if (el.hotkeyGroups) el.hotkeyGroups.innerHTML = '';
     setHotkeyUiEnabled(true);
     return;
@@ -2694,8 +2726,17 @@ function renderHotkeyPanel(scene) {
   });
 
   const di = scene.savedDisappearInfo || null;
-  const extra = di && (di.total > 0) ? `；另检测到 saved_disappear ${di.total} 条（可映射 ${di.mapped} / 不可映射 ${di.unmapped}）` : '';
-  if (el.hotkeySummary) el.hotkeySummary.textContent = `检测到 ${scene.hotkeyGroups.length} 个快捷键组，可用按键：${keys.join(' / ') || '（无）'}${extra}`;
+  const extra = di && (di.total > 0)
+    ? t('pngRemixPreview.hotkeys.extra', { total: di.total, mapped: di.mapped, unmapped: di.unmapped })
+    : '';
+  if (el.hotkeySummary) {
+    const keysText = keys.join(t('pngRemixPreview.common.keySeparator')) || t('pngRemixPreview.hotkeys.none');
+    el.hotkeySummary.textContent = t('pngRemixPreview.hotkeys.summary', {
+      count: scene.hotkeyGroups.length,
+      keys: keysText,
+      extra,
+    });
+  }
 
 
   if (el.hotkeyGroups) {
@@ -2708,7 +2749,7 @@ function renderHotkeyPanel(scene) {
 
       const title = document.createElement('div');
       title.className = 'hotkey-group-title';
-      title.textContent = `${g.title}（${g.nodes.length}）`;
+      title.textContent = t('pngRemixPreview.hotkeys.groupTitle', { title: g.title, count: g.nodes.length });
       box.appendChild(title);
 
       const items = document.createElement('div');
@@ -2721,7 +2762,10 @@ function renderHotkeyPanel(scene) {
 
         const pill = document.createElement('span');
         pill.className = 'hotkey-k';
-        pill.textContent = `${k} → ${shown.join('、')}`;
+        pill.textContent = t('pngRemixPreview.hotkeys.item', {
+          key: k,
+          names: shown.join(t('pngRemixPreview.common.listSeparator')),
+        });
         items.appendChild(pill);
       }
 
@@ -2733,7 +2777,13 @@ function renderHotkeyPanel(scene) {
         const extraLine = document.createElement('div');
         extraLine.className = 'hint';
         extraLine.style.marginTop = '6px';
-        extraLine.textContent = `saved_disappear 其他按键：${extras.join(' / ')}${(g.extraKeys && g.extraKeys.size > extras.length) ? ' …' : ''}`;
+        const extraSuffix = (g.extraKeys && g.extraKeys.size > extras.length)
+          ? t('pngRemixPreview.hotkeys.more')
+          : '';
+        extraLine.textContent = t('pngRemixPreview.hotkeys.extraKeys', {
+          keys: extras.join(t('pngRemixPreview.common.keySeparator')),
+          suffix: extraSuffix,
+        });
         box.appendChild(extraLine);
       }
 
@@ -2859,7 +2909,7 @@ function populateStateSelect(stateCount) {
   for (let i = 0; i < count; i++) {
     const opt = document.createElement('option');
     opt.value = String(i);
-    opt.textContent = `State ${i}`;
+    opt.textContent = t('pngRemixPreview.state.option', { index: i });
     el.stateSelect.appendChild(opt);
   }
 }
@@ -2874,10 +2924,10 @@ function populateSampleSelect() {
     try {
       const url = new URL(String(u));
       const last = url.pathname.split('/').filter(Boolean).pop() || '';
-      return decodeURIComponent(last || '样例.pngRemix');
+      return decodeURIComponent(last || t('pngRemixPreview.sample.defaultName'));
     } catch (_) {
       const s = String(u || '');
-      return s.split('/').pop() || '样例.pngRemix';
+      return s.split('/').pop() || t('pngRemixPreview.sample.defaultName');
     }
   }
 
@@ -2917,13 +2967,13 @@ function populateSampleSelect() {
   } catch (_) {}
 
   if (!samples.length) {
-    el.sampleSelect.innerHTML = '<option value="">（可选）无预置样例（可用 ?sample= / ?samples= 或 window.PNG_REMIX_PREVIEW_SAMPLES 配置）</option>';
+    el.sampleSelect.innerHTML = `<option value="">${t('pngRemixPreview.sample.none')}</option>`;
     el.sampleSelect.disabled = true;
     el.loadSampleBtn.disabled = true;
     return;
   }
 
-  el.sampleSelect.innerHTML = '<option value="">（可选）从 URL 加载样例…</option>';
+  el.sampleSelect.innerHTML = `<option value="">${t('pngRemixPreview.sample.fromUrl')}</option>`;
   for (const s of samples) {
     const opt = document.createElement('option');
     opt.value = s.url;
@@ -2937,13 +2987,13 @@ function populateSampleSelect() {
 
 let currentScene = null;
 
-async function loadFromArrayBuffer(arrayBuffer, displayName = '未命名.pngRemix') {
+async function loadFromArrayBuffer(arrayBuffer, displayName = t('pngRemixPreview.sample.unnamed')) {
   if (!window.PngRemixDecoder || !window.ModelNormalizer) {
-    setStatus('缺少解码器：请确认已加载 pngremix-decoder.js / model-normalizer.js', 'err');
+    setStatus(t('pngRemixPreview.error.missingDecoder'), 'err');
     return;
   }
 
-  setLoading(true, '正在解码 .pngRemix…');
+  setLoading(true, t('pngRemixPreview.loading.decodeFile'));
 
   try {
     // Stop previous scene playback/timers
@@ -3068,7 +3118,7 @@ async function loadFromArrayBuffer(arrayBuffer, displayName = '未命名.pngRemi
     // initial fit (rough)
     fitViewToContent(scene);
 
-    setStatus('加载成功：已完成静态渲染（Milestone 1）。', 'ok');
+    setStatus(t('pngRemixPreview.status.loadSuccess'), 'ok');
 
     updateDebug(scene);
     renderHotkeyPanel(scene);
@@ -3194,13 +3244,12 @@ function updateDebug(scene) {
       maxFps: getMaxFps(scene),
     },
     notes: [
-      'Milestone 2：已支持帧动画（hframes/vframes + animation_speed）与 wiggle（近似）。',
-      'Milestone 2：已支持 animate_to_mouse（frame_coords）与 follow_type（鼠标跟随：位移/旋转/缩放，近似）。',
-      'Milestone 2：已支持 wobble/drag/stretch/rotational_drag（近似）。',
-
-      'Milestone 3：已支持 tint/colored 的颜色乘法（近似 Canvas multiply）。',
-      'Asset 显示：已对齐 Remix 的 `is_asset` + `was_active_before` 初始可见性。',
-      '表情/眼睛：已对齐 Remix 的 `should_talk/open_mouth` 与 `should_blink/open_eyes` 互斥显示。',
+      t('pngRemixPreview.debug.notes.milestone2Frames'),
+      t('pngRemixPreview.debug.notes.milestone2Follow'),
+      t('pngRemixPreview.debug.notes.milestone2Wobble'),
+      t('pngRemixPreview.debug.notes.milestone3Tint'),
+      t('pngRemixPreview.debug.notes.assetVisibility'),
+      t('pngRemixPreview.debug.notes.expressionEyes'),
     ],
   };
   el.debug.textContent = JSON.stringify(info, null, 2);
@@ -3482,15 +3531,15 @@ function setupControls() {
   el.loadSampleBtn.addEventListener('click', async () => {
     const url = el.sampleSelect.value;
     if (!url) {
-      setStatus('请先从下拉框选择一个样例。');
+      setStatus(t('pngRemixPreview.error.selectSample'));
       return;
     }
-    setLoading(true, '正在加载样例…');
+    setLoading(true, t('pngRemixPreview.loading.loadingSample'));
     try {
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`加载失败：HTTP ${res.status}`);
+      if (!res.ok) throw new Error(t('pngRemixPreview.error.loadSampleHttp', { status: res.status }));
       const ab = await res.arrayBuffer();
-      const name = el.sampleSelect.options[el.sampleSelect.selectedIndex]?.textContent || '样例.pngRemix';
+      const name = el.sampleSelect.options[el.sampleSelect.selectedIndex]?.textContent || t('pngRemixPreview.sample.defaultName');
       await loadFromArrayBuffer(ab, name);
     } catch (e) {
       console.error(e);
@@ -3699,11 +3748,11 @@ function setupCanvasInteraction() {
 
 function sanityCheckGlobals() {
   if (!window.PngRemixDecoder) {
-    setStatus('未找到 PngRemixDecoder（pngremix-decoder.js 可能未加载）。', 'err');
+    setStatus(t('pngRemixPreview.error.noDecoder'), 'err');
     return false;
   }
   if (!window.ModelNormalizer) {
-    setStatus('未找到 ModelNormalizer（model-normalizer.js 可能未加载）。', 'err');
+    setStatus(t('pngRemixPreview.error.noNormalizer'), 'err');
     return false;
   }
   return true;
@@ -3717,10 +3766,25 @@ function main() {
 
   setPartsUiEnabled(false);
 
+  applyI18nAttrs();
   populateSampleSelect();
 
+  window.addEventListener('languageChanged', () => {
+    applyI18nAttrs();
+    populateSampleSelect();
+
+    if (currentScene) {
+      const selectedState = String(el.stateSelect.value || '');
+      populateStateSelect(currentScene.model.stateCount || 1);
+      if (selectedState) el.stateSelect.value = selectedState;
+      renderPartsPanel(currentScene);
+      renderHotkeyPanel(currentScene);
+      updateDebug(currentScene);
+    }
+  });
+
   if (sanityCheckGlobals()) {
-    setStatus('就绪：请拖拽/选择 .pngRemix，或从样例下拉框加载。');
+    setStatus(t('pngRemixPreview.status.ready'));
   }
 }
 

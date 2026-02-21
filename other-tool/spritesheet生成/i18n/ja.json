@@ -4,6 +4,8 @@
   "import_title": "📁 フレーム画像をインポート",
   "drop_zone_text": "PNG画像をここにドラッグ<br>またはクリックしてファイルを選択",
   "base_size_title": "📐 基準サイズ (最初の画像を基準)",
+  "base_size_value": "{w} × {h} px",
+
   "size_warning": "⚠️ 一部の画像サイズが一致しません。赤く表示された画像は生成時に無視されます",
   "clear_btn": "すべてのフレームをクリア",
   "settings_title": "⚙️ 設定",

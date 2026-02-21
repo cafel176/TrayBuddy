@@ -5,26 +5,90 @@
     const defaultOptions = {
         injectTopBar: false,
         storageKey: 'tool-lang',
-        fileHintHtml: ''
+        fileHintHtml: '',
+        fileHintI18n: null,
+        fileHintParams: null
     };
 
     const options = Object.assign({}, defaultOptions, window.__TB_I18N_OPTIONS__ || {});
     const storageKey = options.storageKey || 'tool-lang';
 
+    function normalizeLang(lang) {
+        if (!lang) return 'en';
+        const lower = String(lang).toLowerCase();
+        if (lower.startsWith('zh')) return 'zh';
+        if (lower.startsWith('ja')) return 'ja';
+        if (lower.startsWith('en')) return 'en';
+        const primary = lower.split('-')[0];
+        return primary || 'en';
+    }
+
+    const defaultFileHintI18n = {
+        zh: {
+            title: 'i18n 资源加载失败',
+            line1: '你正在以 <code style="color:#fcd34d;">file://</code> 方式打开页面，浏览器会拦截对本地 <code style="color:#fcd34d;">i18n/*.json</code> 的 <code style="color:#fcd34d;">fetch</code>。',
+            line2: '请使用本地 HTTP 服务打开（例如 VSCode Live Server / http-server）。'
+        },
+        en: {
+            title: 'Failed to load i18n resources',
+            line1: 'You opened the page via <code style="color:#fcd34d;">file://</code>, so the browser blocks fetching local <code style="color:#fcd34d;">i18n/*.json</code> with <code style="color:#fcd34d;">fetch</code>.',
+            line2: 'Please open via a local HTTP server (e.g., VSCode Live Server / http-server).'
+        },
+        ja: {
+            title: 'i18n リソースの読み込みに失敗しました',
+            line1: 'ページを <code style="color:#fcd34d;">file://</code> で開いているため、ブラウザがローカルの <code style="color:#fcd34d;">i18n/*.json</code> への <code style="color:#fcd34d;">fetch</code> をブロックしています。',
+            line2: 'ローカル HTTP サーバーで開いてください（例: VSCode Live Server / http-server）。'
+        }
+    };
+
+    const defaultWarnI18n = {
+        zh: '当前以 file:// 打开页面，浏览器通常会拦截对本地 JSON 的 fetch。建议用本地 HTTP server 打开。',
+        en: 'The page is opened via file://, so the browser usually blocks fetching local JSON. Please open via a local HTTP server.',
+        ja: 'file:// で開いているため、ブラウザがローカル JSON の fetch をブロックすることがあります。ローカル HTTP サーバーで開いてください。'
+    };
+
+    function getPreferredLang() {
+        let storedLang = '';
+        try {
+            storedLang = localStorage.getItem(storageKey) || '';
+        } catch (e) {
+            storedLang = '';
+        }
+        const browserLang = navigator.language || navigator.userLanguage || 'en';
+        return normalizeLang(storedLang || browserLang);
+    }
+
     function getFileHintHtml() {
         if (options.fileHintHtml) return options.fileHintHtml;
 
-        return `
+        const i18nSource = options.fileHintI18n || defaultFileHintI18n;
+        if (i18nSource) {
+            const lang = getPreferredLang();
+            const dict = i18nSource[lang] || i18nSource.en || i18nSource.zh || {};
+            const params = options.fileHintParams || {};
+            const format = (value) => String(value || '').replace(/\{(\w+)\}/g, (match, key) => {
+                return Object.prototype.hasOwnProperty.call(params, key) ? params[key] : match;
+            });
+
+            if (dict && (dict.title || dict.line1 || dict.line2)) {
+                return `
             <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
                 <div>
-                    <div style="font-weight:700;margin-bottom:4px;">i18n 资源加载失败</div>
-                    <div>你正在以 <code style="color:#fcd34d;">file://</code> 方式打开页面，浏览器会拦截对本地 <code style="color:#fcd34d;">i18n/*.json</code> 的 <code style="color:#fcd34d;">fetch</code>。</div>
-                    <div>请使用本地 HTTP 服务打开（例如 VSCode Live Server / http-server）。</div>
+                    <div style="font-weight:700;margin-bottom:4px;">${format(dict.title)}</div>
+                    <div>${format(dict.line1)}</div>
+                    <div>${format(dict.line2)}</div>
                 </div>
-                <button type="button" aria-label="close" style="cursor:pointer;background:transparent;border:0;color:#fbbf24;font-weight:700;font-size:14px;line-height:1;">×</button>
+                <button type="button" aria-label="" data-i18n-aria-label="close" style="cursor:pointer;background:transparent;border:0;color:#fbbf24;font-weight:700;font-size:14px;line-height:1;">×</button>
+
             </div>
         `;
+            }
+        }
+
+        return '';
     }
+
+
 
     window.i18n = {
         translations: {},
@@ -71,9 +135,20 @@
                 el.placeholder = translations[key] || key;
             });
 
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (key) el.setAttribute('title', translations[key] || key);
+            });
+
+            document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+                const key = el.getAttribute('data-i18n-aria-label');
+                if (key) el.setAttribute('aria-label', translations[key] || key);
+            });
+
             document.querySelectorAll('.lang-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.getAttribute('data-lang') === this.currentLang);
             });
+
         },
         _safeGetLocalStorage: function (key) {
             try {
@@ -201,7 +276,9 @@
                 const isFile = window.location && window.location.protocol === 'file:';
                 console.error('Failed to load i18n', { lang, candidates, isFile });
                 if (isFile) {
-                    console.warn('[i18n] 当前以 file:// 打开页面，浏览器通常会拦截对本地 JSON 的 fetch。建议用本地 HTTP server 打开。');
+                    const lang = getPreferredLang();
+                    const warnMsg = defaultWarnI18n[lang] || defaultWarnI18n.en || '';
+                    console.warn(`[i18n] ${warnMsg}`);
                     this._showFileProtocolHintOnce();
                 }
                 return;
@@ -226,7 +303,7 @@
         const topBar = document.createElement('div');
         topBar.className = 'tool-i18n-top-bar';
         topBar.innerHTML = `
-            <div class="tool-i18n-title" data-i18n="title">Tool</div>
+            <div class="tool-i18n-title" data-i18n="title"></div>
             <div class="tool-i18n-langs">
                 <button class="lang-btn" data-lang="zh" type="button">ZH</button>
                 <button class="lang-btn" data-lang="en" type="button">EN</button>

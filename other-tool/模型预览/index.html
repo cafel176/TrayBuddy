@@ -16,10 +16,14 @@
         document.addEventListener('DOMContentLoaded', function(){
           var el = document.getElementById('status');
           if (el) {
-            el.textContent = '当前浏览器不支持 ES Module，模型预览需要新版 Edge/Chrome。';
+            var msg = (window.i18n && typeof window.i18n.t === 'function')
+              ? window.i18n.t('error_no_module')
+              : 'error_no_module';
+            el.textContent = msg;
             el.classList.remove('ok');
             el.classList.add('err');
           }
+
         });
       }
     })();

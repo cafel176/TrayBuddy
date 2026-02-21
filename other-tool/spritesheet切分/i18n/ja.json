@@ -12,7 +12,9 @@
   "calc_value_template": "各フレーム {w} × {h} px、計 {total} フレーム",
   "export_settings_title": "💾 エクスポート設定",
   "file_prefix_label": "ファイル名の接頭辞",
+  "file_prefix_placeholder": "frame_",
   "reverse_order_label": "逆順で出力（降順番号）",
+
   "split_btn": "画像を分割",
   "download_all_btn": "📦 一括ダウンロード (ZIP)",
   "preview_title": "👁️ プレビュー",
@@ -22,5 +24,7 @@
   "layout_label": "レイアウト (列x行)",
   "download_frame_tip": "このフレームをダウンロード",
   "zipping_text": "⏳ 圧縮中...",
-  "zip_failed_text": "圧縮に失敗しました。再試行してください"
+  "zip_failed_text": "圧縮に失敗しました。再試行してください",
+  "zip_failed_log": "圧縮に失敗しました："
+
 }

@@ -4,6 +4,8 @@
   "import_title": "📁 导入帧图片",
   "drop_zone_text": "拖拽PNG图片到这里<br>或点击选择文件",
   "base_size_title": "📐 基准尺寸 (以第一张图为准)",
+  "base_size_value": "{w} × {h} px",
+
   "size_warning": "⚠️ 部分图片尺寸不一致，已标红并将在生成时被忽略",
   "clear_btn": "清空所有帧",
   "settings_title": "⚙️ 设置",

@@ -2565,12 +2565,16 @@
     function exportImage(format) {
         const link = document.createElement('a');
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+        const ext = format === 'png' ? 'png' : 'jpg';
+        const t = (key, params) => (window.i18n && typeof window.i18n.t === 'function')
+            ? window.i18n.t(key, params)
+            : key;
+        link.download = t('export_filename', { timestamp, ext });
+
         
         if (format === 'png') {
-            link.download = `二次元背景_${timestamp}.png`;
             link.href = canvas.toDataURL('image/png');
         } else {
-            link.download = `二次元背景_${timestamp}.jpg`;
             // JPG需要先填充白色背景
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
@@ -2584,6 +2588,7 @@
         
         link.click();
     }
+
 
     // 启动
     init();

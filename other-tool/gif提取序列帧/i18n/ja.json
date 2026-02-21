@@ -22,5 +22,11 @@
   "msg_only_gif": "GIF ファイルのみ対応しています。",
   "msg_ready": "準備完了。",
   "msg_done": "完了。ZIP を生成しました。",
-  "msg_failed": "失敗："
+  "msg_failed": "失敗：",
+  "error_jszip_missing": "JSZip が読み込まれていません。vendor/jszip.min.js を確認してください。",
+  "error_imagedecoder_unsupported": "このブラウザは ImageDecoder（GIF のフレーム解碼）に対応していません。最新版 Edge/Chrome を使用してください。",
+  "error_frame_count_unreadable": "GIF のフレーム数を読み取れません。ファイルが壊れているか未対応の可能性があります。",
+  "error_canvas_unavailable": "canvas が利用できません",
+  "error_size_unavailable": "GIF サイズを取得できません"
+
 }

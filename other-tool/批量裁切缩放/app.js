@@ -240,7 +240,7 @@ const ui = {
 
   renderTable(rows) {
     if (!rows.length) {
-      els.tableBody.innerHTML = `<tr><td colspan="6" class="empty" data-i18n="waiting_upload">${window.i18n?.t('waiting_upload') || '等待上传图片...'}</td></tr>`;
+      els.tableBody.innerHTML = `<tr><td colspan="6" class="empty" data-i18n="waiting_upload">${window.i18n.t('waiting_upload')}</td></tr>`;
       return;
     }
     els.tableBody.innerHTML = rows.map(r => `
@@ -262,7 +262,7 @@ const ui = {
 
   updateCropEditor() {
     if (!state.baseImageInfo || !state.previewImageObj) {
-      const label = window.i18n?.t('crop_size_label') || '裁切后：';
+      const label = window.i18n.t('crop_size_label');
       els.cropSizeLabel.innerHTML = `<span data-i18n="crop_size_label">${label}</span>- × -`;
       els.editor.preview.style.display = 'none';
       els.editor.placeholder.style.display = 'block';
@@ -273,9 +273,9 @@ const ui = {
     const { w, h } = state.baseImageInfo;
     const { w: cw, h: ch, crop } = calculator.getCroppedSize(w, h);
     
-    const label = window.i18n?.t('crop_size_label') || '裁切后：';
+    const label = window.i18n.t('crop_size_label');
     if (crop.left + crop.right >= w || crop.top + crop.bottom >= h) {
-      els.cropSizeLabel.textContent = window.i18n?.t('crop_invalid') || '裁切区域超出图片范围！';
+      els.cropSizeLabel.textContent = window.i18n.t('crop_invalid');
       els.cropSizeLabel.style.color = 'var(--danger)';
     } else {
       els.cropSizeLabel.innerHTML = `<span data-i18n="crop_size_label">${label}</span>${cw} × ${ch}`;
@@ -338,7 +338,7 @@ const ui = {
     const { w: cw, h: ch, crop } = calculator.getCroppedSize(w, h);
     
     if (cw <= 0 || ch <= 0) {
-      els.scaleSizePreview.textContent = window.i18n?.t('crop_invalid') || '裁切区域无效';
+      els.scaleSizePreview.textContent = window.i18n.t('crop_invalid');
       return;
     }
 
@@ -346,8 +346,9 @@ const ui = {
     const { w: fw, h: fh, exp } = calculator.getFinalSize(sw, sh);
     const { sw: scaleW, sh: scaleH } = calculator.getScaleValues();
 
-    const labelW = window.i18n?.t('table_width') || '宽';
-    const labelH = window.i18n?.t('table_height') || '高';
+    const labelW = window.i18n.t('table_width');
+    const labelH = window.i18n.t('table_height');
+
 
     els.scaleSizePreview.textContent = els.lockAspect.checked
       ? `${cw}×${ch} → ${sw}×${sh} (${Math.round(scaleW * 100)}%)`
@@ -412,7 +413,7 @@ const processor = {
       return;
     }
 
-    ui.setStatus(window.i18n?.t('status_parsing') || '解析图片中...');
+    ui.setStatus(window.i18n.t('status_parsing'));
     
     const infos = [];
     for (const file of state.selectedFiles) {
@@ -426,7 +427,7 @@ const processor = {
     }
 
     if (!infos.length) {
-      ui.setStatus(window.i18n?.t('status_error_read') || '无法读取所选图片');
+      ui.setStatus(window.i18n.t('status_error_read'));
       return;
     }
 
@@ -473,22 +474,22 @@ const processor = {
   },
 
   refreshUIStatus(count, bw, bh) {
-    els.imageCount.textContent = `${count} ${window.i18n?.t('unit_pcs') || '张'}`;
-    els.imageSizeInfo.textContent = `${window.i18n?.t('base_size') || '基准尺寸'}：${bw}×${bh}`;
+    els.imageCount.textContent = `${count} ${window.i18n.t('unit_pcs')}`;
+    els.imageSizeInfo.textContent = `${window.i18n.t('base_size')}：${bw}×${bh}`;
     
     const rows = state.selectedFiles.map(f => {
       const info = state.fileInfoMap.get(f);
-      if (!info) return { name: f.name, statusText: window.i18n?.t('status_error_unknown') || '未知错误', statusType: 'bad' };
-      if (!info.valid) return { name: f.name, origW: info.w, origH: info.h, statusText: window.i18n?.t('status_skipped') || '已跳过', statusType: 'bad' };
+      if (!info) return { name: f.name, statusText: window.i18n.t('status_error_unknown'), statusType: 'bad' };
+      if (!info.valid) return { name: f.name, origW: info.w, origH: info.h, statusText: window.i18n.t('status_skipped'), statusType: 'bad' };
       
       return {
         name: f.name, origW: info.w, origH: info.h,
-        statusText: info.mismatch ? (window.i18n?.t('status_auto_crop') || '将自动裁切后处理') : (window.i18n?.t('status_pending') || '待处理'),
+        statusText: info.mismatch ? window.i18n.t('status_auto_crop') : window.i18n.t('status_pending'),
         statusType: info.mismatch ? 'info' : ''
       };
     });
     ui.renderTable(rows);
-    ui.setStatus(window.i18n?.t('status_ready') || '准备就绪');
+    ui.setStatus(window.i18n.t('status_ready'));
   },
 
   zoomFit() {
@@ -507,10 +508,10 @@ const processor = {
 
   async processAll() {
     const validFiles = state.selectedFiles.filter(f => state.fileInfoMap.get(f)?.valid);
-    if (!validFiles.length) return alert(window.i18n?.t('alert_no_images') || '没有可处理的图片');
+    if (!validFiles.length) return alert(window.i18n.t('alert_no_images'));
 
     els.processBtn.disabled = true;
-    ui.setStatus(window.i18n?.t('status_processing') || '处理中...');
+    ui.setStatus(window.i18n.t('status_processing'));
 
     const zip = window.JSZip ? new JSZip() : null;
     const format = els.outFormat.value;
@@ -523,7 +524,7 @@ const processor = {
             name: file.name, 
             origW: info.w, 
             origH: info.h, 
-            statusText: info.valid ? (window.i18n?.t('status_queuing') || '排队中') : (window.i18n?.t('status_skipped') || '已跳过'),
+            statusText: info.valid ? window.i18n.t('status_queuing') : window.i18n.t('status_skipped'),
             statusType: info.valid ? '' : 'bad'
         };
     });
@@ -533,31 +534,31 @@ const processor = {
       const file = state.selectedFiles[i];
       if (!state.fileInfoMap.get(file)?.valid) continue;
 
-      rows[i].statusText = window.i18n?.t('status_ongoing') || '进行中...';
+      rows[i].statusText = window.i18n.t('status_ongoing');
       ui.renderTable(rows);
 
       try {
         const result = await this.processOne(file);
-        Object.assign(rows[i], result, { statusText: window.i18n?.t('status_done') || '完成', statusType: 'ok' });
+        Object.assign(rows[i], result, { statusText: window.i18n.t('status_done'), statusType: 'ok' });
         success++;
 
         const outName = `${utils.baseName(file.name)}_result.${ext}`;
         if (zip) zip.file(outName, result.blob);
         else this.downloadBlob(result.blob, outName);
       } catch (e) {
-        rows[i].statusText = `${window.i18n?.t('status_failed') || '失败'}: ${e.message}`;
+        rows[i].statusText = `${window.i18n.t('status_failed')}: ${e.message}`;
         rows[i].statusType = 'bad';
       }
       ui.renderTable(rows);
     }
 
     if (zip && success > 0) {
-      ui.setStatus(window.i18n?.t('status_zipping') || '正在生成压缩包...');
+      ui.setStatus(window.i18n.t('status_zipping'));
       const content = await zip.generateAsync({ type: 'blob' });
       this.downloadBlob(content, `batch_process_${Date.now()}.zip`);
     }
 
-    const endMsg = (window.i18n?.t('status_finished') || '处理结束：成功 {n} 张').replace('{n}', success);
+    const endMsg = window.i18n.t('status_finished').replace('{n}', success);
     ui.setStatus(endMsg);
     els.processBtn.disabled = false;
   },
@@ -580,7 +581,7 @@ const processor = {
     }
 
     const cw = ow - cl - cr, ch = oh - ct - cb;
-    if (cw <= 0 || ch <= 0) throw new Error(window.i18n?.t('crop_invalid') || '裁切区域无效');
+    if (cw <= 0 || ch <= 0) throw new Error(window.i18n.t('crop_invalid'));
 
 
     // 1. 裁切

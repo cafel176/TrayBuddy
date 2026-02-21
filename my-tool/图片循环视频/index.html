@@ -52,10 +52,10 @@
                     <div class="input-group">
                         <label data-i18n="direction_label">移动方向</label>
                         <div class="direction-selector">
-                            <button id="dir-left" class="dir-btn active" data-dir="left" title="向左">
+                            <button id="dir-left" class="dir-btn active" data-dir="left" data-i18n-title="direction_left_title">
                                 <i data-lucide="arrow-left"></i>
                             </button>
-                            <button id="dir-right" class="dir-btn" data-dir="right" title="向右">
+                            <button id="dir-right" class="dir-btn" data-dir="right" data-i18n-title="direction_right_title">
                                 <i data-lucide="arrow-right"></i>
                             </button>
                         </div>
@@ -85,10 +85,11 @@
                     <div class="input-group">
                         <label data-i18n="fps_label">帧率 (FPS)</label>
                         <select id="fps-select">
-                            <option value="24">24 FPS</option>
-                            <option value="30" selected>30 FPS</option>
-                            <option value="60">60 FPS</option>
+                            <option value="24" data-i18n="fps_24">24 FPS</option>
+                            <option value="30" selected data-i18n="fps_30">30 FPS</option>
+                            <option value="60" data-i18n="fps_60">60 FPS</option>
                         </select>
+
                     </div>
                 </div>
 

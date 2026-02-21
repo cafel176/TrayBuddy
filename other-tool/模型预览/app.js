@@ -5,15 +5,20 @@ import { GLTFLoader } from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { MMDLoader } from './vendor/three/examples/jsm/loaders/MMDLoader.js';
 import { VRMLoaderPlugin, VRMUtils, VRMHumanBoneName, VRMHumanBoneParentMap } from './vendor/three-vrm/three-vrm.module.js';
 
+function t(key, params, fallback) {
+  const value = window.i18n && typeof window.i18n.t === 'function' ? window.i18n.t(key, params) : null;
+  if (!value || value === key) return fallback ?? key;
+  return value;
+}
 
 // Surface module load failures in UI
 window.addEventListener('error', (e) => {
   try {
-    const msg = e?.message || 'Unknown error';
+    const msg = e?.message || t('error_unknown');
     const src = e?.filename ? `${e.filename}:${e.lineno || 0}` : '';
     const el = document.getElementById('status');
     if (el) {
-      el.textContent = `脚本错误：${msg}${src ? ' @ ' + src : ''}`;
+      el.textContent = t('error_script', { message: msg, source: src ? ` @ ${src}` : '' });
       el.classList.remove('ok');
       el.classList.add('err');
     }
@@ -21,15 +26,17 @@ window.addEventListener('error', (e) => {
 });
 window.addEventListener('unhandledrejection', (e) => {
   try {
-    const msg = e?.reason?.message || String(e?.reason || 'Unknown rejection');
+    const msg = e?.reason?.message || String(e?.reason || t('error_unknown_rejection'));
     const el = document.getElementById('status');
     if (el) {
-      el.textContent = `脚本异常：${msg}`;
+      el.textContent = t('error_unhandled', { message: msg });
       el.classList.remove('ok');
       el.classList.add('err');
     }
   } catch {}
 });
+
+
 
 console.log('[模型预览] app.js loaded');
 
@@ -57,9 +64,7 @@ const loadingText = document.getElementById('loadingText');
 
 const canvas = document.getElementById('canvas');
 
-function t(key) {
-  return window.i18n?.t ? window.i18n.t(key) : key;
-}
+
 
 function setStatus(text, type = '') {
   statusEl.textContent = text || '';
@@ -255,7 +260,9 @@ function populateAnimations() {
   clips.forEach((c, idx) => {
     const opt = document.createElement('option');
     opt.value = String(idx);
-    opt.textContent = c.name || `Animation ${idx + 1}`;
+    opt.textContent = c.name || t('animation_label', { n: idx + 1 });
+
+
     animSelect.appendChild(opt);
   });
   animSelect.disabled = clips.length === 0;
@@ -383,18 +390,22 @@ async function retargetVrmaToVrmClipBaked(vrmaFile, vrmaGltf, vrm, { fps = 30 } 
     || null;
 
   if (!ext) {
-    throw new Error('该 .vrma 缺少 glTF 扩展 VRMC_vrm_animation');
+    throw new Error(t('error_vrma_missing_extension'));
+
   }
 
   const humanBones = ext?.humanoid?.humanBones;
   if (!humanBones || typeof humanBones !== 'object') {
-    throw new Error('该 .vrma 缺少 humanoid.humanBones 映射');
+    throw new Error(t('error_vrma_missing_humanbones'));
+
   }
 
   const srcClip = (Array.isArray(vrmaGltf?.animations) && vrmaGltf.animations[0]) ? vrmaGltf.animations[0] : null;
   if (!srcClip) {
-    throw new Error('该 .vrma 不包含 glTF animations');
+    throw new Error(t('error_vrma_missing_animations'));
+
   }
+
 
   // Collect source/target nodes
   /** @type {Map<string, THREE.Object3D>} */
@@ -421,8 +432,10 @@ async function retargetVrmaToVrmClipBaked(vrmaFile, vrmaGltf, vrm, { fps = 30 } 
   );
 
   if (!bones.length) {
-    throw new Error('该 .vrma 的 humanoid 骨骼映射与当前 VRM 不匹配（找不到可重定向的骨骼）。');
+    throw new Error(t('error_vrma_bones_mismatch'));
+
   }
+
 
   // Cache rest world transforms
   vrmaGltf.scene.updateWorldMatrix(true, true);
@@ -618,11 +631,13 @@ async function applyVrmaToCurrentModel(vrmaFile) {
   if (!vrmaFile) return;
 
   if (!model || !currentVrm) {
-    setStatus('需要先加载 VRM 模型（.vrm），才能应用 .vrma 动画。', 'err');
+    setStatus(t('msg_need_vrm_for_vrma'), 'err');
     return;
   }
 
-  setLoading(true, '正在加载 VRMA...');
+  setLoading(true, t('loading_vrma'));
+
+
 
   try {
     // Reset normalized pose to avoid accumulating offsets
@@ -646,11 +661,13 @@ async function applyVrmaToCurrentModel(vrmaFile) {
     playSelectedAnimation(true);
 
     const ui = clip?.userData || {};
-    setStatus(`VRMA 已加载（bones:${ui.bones || '-'} frames:${ui.frames || '-'} fps:${ui.fps || '-'})`, 'ok');
+    setStatus(t('msg_vrma_loaded', { bones: ui.bones || '-', frames: ui.frames || '-', fps: ui.fps || '-' }), 'ok');
   } catch (e) {
     console.error(e);
-    setStatus('VRMA 加载/重定向失败：' + String(e?.message || e), 'err');
+    setStatus(t('msg_vrma_failed') + String(e?.message || e), 'err');
   } finally {
+
+
     setLoading(false);
   }
 }
@@ -682,11 +699,12 @@ async function loadVmdAnimationForMesh(loader, mesh, vmdFiles) {
         (ev) => {
           if (ev?.total) {
             const p = Math.round((ev.loaded / ev.total) * 100);
-            loadingText.textContent = (t('loading_progress') || '正在加载... {p}%').replace('{p}', String(p));
+            loadingText.textContent = t('loading_progress', { p: String(p) });
           }
         },
         (err) => reject(err)
       );
+
     });
 
     return clip;
@@ -902,12 +920,14 @@ function updateMmdAnimation(dt) {
 
 async function applyVmdToCurrentPmx(vmdFiles) {
   if (!model || !model.isSkinnedMesh) {
-    setStatus('请先加载 PMX/PMD 模型，再导入 .vmd 动画。', 'err');
+    setStatus(t('msg_need_pmx_for_vmd'), 'err');
     return;
   }
 
-  setLoading(true, '正在加载 VMD...');
+  setLoading(true, t('loading_vmd'));
   setStatus('');
+
+
 
   try {
     const manager = new THREE.LoadingManager();
@@ -917,9 +937,11 @@ async function applyVmdToCurrentPmx(vmdFiles) {
     const clip = await loadVmdAnimationForMesh(loader, model, vmdFiles);
 
     if (!clip) {
-      setStatus('未找到可用的 .vmd 动画文件。', 'err');
+      setStatus(t('msg_no_vmd'), 'err');
       return;
     }
+
+
 
     currentMmd = ensureMmdRuntime(model);
 
@@ -935,11 +957,13 @@ async function applyVmdToCurrentPmx(vmdFiles) {
     // Initialize backup after first evaluation
     mmdSaveBones(currentMmd);
 
-    setStatus('VMD 已加载并开始播放。', 'ok');
+    setStatus(t('msg_vmd_loaded'), 'ok');
   } catch (e) {
     console.error(e);
-    setStatus('VMD 加载失败：' + String(e?.message || e), 'err');
+    setStatus(t('msg_vmd_failed') + String(e?.message || e), 'err');
   } finally {
+
+
     setLoading(false);
   }
 }
@@ -950,11 +974,12 @@ async function loadFbxFromFiles(files) {
   const list = Array.from(files || []);
   const fbx = list.find(f => (f.name || '').toLowerCase().endsWith('.fbx'));
   if (!fbx) {
-    setStatus(t('msg_need_model') || '请提供 .fbx / .vrm / .pmx 文件', 'err');
+    setStatus(t('msg_need_model'), 'err');
     return;
   }
 
-  setLoading(true, t('loading') || '正在加载...');
+  setLoading(true, t('loading'));
+
   setStatus('');
   setUiEnabled(false);
 
@@ -975,11 +1000,12 @@ async function loadFbxFromFiles(files) {
         (ev) => {
           if (ev?.total) {
             const p = Math.round((ev.loaded / ev.total) * 100);
-            loadingText.textContent = (t('loading_progress') || '正在加载... {p}%').replace('{p}', String(p));
+            loadingText.textContent = t('loading_progress', { p: String(p) });
           }
         },
         (err) => reject(err)
       );
+
     });
 
     URL.revokeObjectURL(fbxUrl);
@@ -1005,18 +1031,20 @@ async function loadFbxFromFiles(files) {
       setSpeedValue(1);
       setUiEnabled(true);
       playSelectedAnimation(true);
-      setStatus((t('msg_loaded') || '已加载') + ` (${clips.length} anim)`, 'ok');
+      setStatus(t('msg_loaded_with_anims', { n: clips.length }), 'ok');
     } else {
+
       setUiEnabled(true);
       animSelect.disabled = true;
       playBtn.disabled = true;
       pauseBtn.disabled = true;
       timeline.disabled = true;
-      setStatus(t('msg_no_anim') || '模型已加载，但未发现动画', 'ok');
+      setStatus(t('msg_no_anim'), 'ok');
     }
   } catch (e) {
     console.error(e);
-    setStatus((t('msg_failed') || '加载失败：') + ' ' + String(e?.message || e), 'err');
+    setStatus(t('msg_failed') + ' ' + String(e?.message || e), 'err');
+
   } finally {
     setLoading(false);
   }
@@ -1026,12 +1054,13 @@ async function loadVrmFromFiles(files) {
   const list = Array.from(files || []);
   const vrmFile = list.find(f => (f.name || '').toLowerCase().endsWith('.vrm'));
   if (!vrmFile) {
-    setStatus(t('msg_need_model') || '请提供 .fbx / .vrm / .pmx 文件', 'err');
+    setStatus(t('msg_need_model'), 'err');
     return;
   }
 
-  setLoading(true, t('loading') || '正在加载...');
+  setLoading(true, t('loading'));
   setStatus('');
+
   setUiEnabled(false);
 
   try {
@@ -1052,11 +1081,12 @@ async function loadVrmFromFiles(files) {
         (ev) => {
           if (ev?.total) {
             const p = Math.round((ev.loaded / ev.total) * 100);
-            loadingText.textContent = (t('loading_progress') || '正在加载... {p}%').replace('{p}', String(p));
+            loadingText.textContent = t('loading_progress', { p: String(p) });
           }
         },
         (err) => reject(err)
       );
+
     });
 
     URL.revokeObjectURL(url);
@@ -1094,18 +1124,20 @@ async function loadVrmFromFiles(files) {
       setSpeedValue(1);
       setUiEnabled(true);
       playSelectedAnimation(true);
-      setStatus((t('msg_loaded') || '已加载') + ` (${clips.length} anim)`, 'ok');
+      setStatus(t('msg_loaded_with_anims', { n: clips.length }), 'ok');
     } else {
+
       setUiEnabled(true);
       animSelect.disabled = true;
       playBtn.disabled = true;
       pauseBtn.disabled = true;
       timeline.disabled = true;
-      setStatus(t('msg_no_anim') || '模型已加载，但未发现动画', 'ok');
+      setStatus(t('msg_no_anim'), 'ok');
     }
   } catch (e) {
     console.error(e);
-    setStatus((t('msg_failed') || '加载失败：') + ' ' + String(e?.message || e), 'err');
+    setStatus(t('msg_failed') + ' ' + String(e?.message || e), 'err');
+
   } finally {
     setLoading(false);
   }
@@ -1117,12 +1149,13 @@ async function loadPmxFromFiles(files, vmdFiles = []) {
     || list.find(f => (f.name || '').toLowerCase().endsWith('.pmd'));
 
   if (!pmxFile) {
-    setStatus(t('msg_need_model') || '请提供 .fbx / .vrm / .pmx 文件', 'err');
+    setStatus(t('msg_need_model'), 'err');
     return;
   }
 
-  setLoading(true, t('loading') || '正在加载...');
+  setLoading(true, t('loading'));
   setStatus('');
+
   setUiEnabled(false);
 
   try {
@@ -1147,12 +1180,13 @@ async function loadPmxFromFiles(files, vmdFiles = []) {
         (ev) => {
           if (ev?.total) {
             const p = Math.round((ev.loaded / ev.total) * 100);
-            loadingText.textContent = (t('loading_progress') || '正在加载... {p}%').replace('{p}', String(p));
+            loadingText.textContent = t('loading_progress', { p: String(p) });
           }
         },
         (err) => reject(err)
       );
     });
+
 
     URL.revokeObjectURL(baseUrl);
 
@@ -1175,8 +1209,10 @@ async function loadPmxFromFiles(files, vmdFiles = []) {
 
     // Optional: load VMD and play
     if (Array.isArray(vmdFiles) && vmdFiles.length > 0) {
-      loadingText.textContent = '正在加载 VMD...';
+      loadingText.textContent = t('loading_vmd');
+
       const clip = await loadVmdAnimationForMesh(loader, model, vmdFiles);
+
       if (clip) {
         currentMmd = ensureMmdRuntime(model);
         clips = [clip];
@@ -1187,7 +1223,8 @@ async function loadPmxFromFiles(files, vmdFiles = []) {
         populateAnimations();
         playSelectedAnimation(true);
         mmdSaveBones(currentMmd);
-        setStatus((t('msg_loaded') || '已加载') + ` (${clips.length} anim; VMD)`, 'ok');
+        setStatus(t('msg_loaded_with_vmd', { n: clips.length }), 'ok');
+
       } else {
         currentMmd = null;
         animCountEl.textContent = String(clips.length);
@@ -1197,7 +1234,9 @@ async function loadPmxFromFiles(files, vmdFiles = []) {
         playBtn.disabled = true;
         pauseBtn.disabled = true;
         timeline.disabled = true;
-        setStatus((t('msg_loaded') || '已加载') + '（VMD 加载失败；请检查 .vmd 文件）', 'err');
+        setStatus(t('msg_vmd_failed_after_load'), 'err');
+
+
       }
     } else {
       currentMmd = null;
@@ -1209,8 +1248,9 @@ async function loadPmxFromFiles(files, vmdFiles = []) {
         setSpeedValue(1);
         setUiEnabled(true);
         playSelectedAnimation(true);
-        setStatus((t('msg_loaded') || '已加载') + ` (${clips.length} anim)`, 'ok');
+        setStatus(t('msg_loaded_with_anims', { n: clips.length }), 'ok');
       } else {
+
         mixer = null;
         action = null;
         setUiEnabled(true);
@@ -1218,13 +1258,16 @@ async function loadPmxFromFiles(files, vmdFiles = []) {
         playBtn.disabled = true;
         pauseBtn.disabled = true;
         timeline.disabled = true;
-        setStatus((t('msg_loaded') || '已加载') + '（未发现动画；PMX 动画通常需要另导入 .vmd）', 'ok');
+        setStatus(t('msg_pmx_no_anim'), 'ok');
+
+
       }
     }
 
   } catch (e) {
     console.error(e);
-    setStatus((t('msg_failed') || '加载失败：') + ' ' + String(e?.message || e), 'err');
+    setStatus(t('msg_failed') + ' ' + String(e?.message || e), 'err');
+
   } finally {
     setLoading(false);
   }
@@ -1249,24 +1292,30 @@ async function loadAnyModelFromFiles(files) {
 
   if (hasVrm) {
     if (vmdFiles.length) {
-      setStatus('已检测到 .vmd，但 VMD 目前仅支持 PMX/PMD。', 'err');
+      setStatus(t('msg_vmd_only_pmx'), 'err');
     }
 
+
     await loadVrmFromFiles(list);
+
     if (vrmaFile) await applyVrmaToCurrentModel(vrmaFile);
     return;
   }
 
   if (hasFbx) {
-    if (vrmaFile) setStatus('已检测到 .vrma，但 VRMA 目前仅支持 VRM 模型（.vrm）。', 'err');
-    if (vmdFiles.length) setStatus('已检测到 .vmd，但 VMD 目前仅支持 PMX/PMD。', 'err');
+    if (vrmaFile) setStatus(t('msg_vrma_only_vrm'), 'err');
+    if (vmdFiles.length) setStatus(t('msg_vmd_only_pmx'), 'err');
+
     await loadFbxFromFiles(list);
+
     return;
   }
 
   if (hasPmx) {
-    if (vrmaFile) setStatus('已检测到 .vrma，但 VRMA 目前仅支持 VRM 模型（.vrm）。', 'err');
+    if (vrmaFile) setStatus(t('msg_vrma_only_vrm'), 'err');
+
     await loadPmxFromFiles(list, vmdFiles);
+
     return;
   }
 
@@ -1281,7 +1330,8 @@ async function loadAnyModelFromFiles(files) {
     return;
   }
 
-  setStatus(t('msg_need_model') || '请提供 .fbx / .vrm / .pmx 文件', 'err');
+  setStatus(t('msg_need_model'), 'err');
+
 }
 
 
@@ -1403,6 +1453,4 @@ function animate() {
 }
 animate();
 
-// default UI state
-setUiEnabled(false);
-setSpeedValue(1);
+// 

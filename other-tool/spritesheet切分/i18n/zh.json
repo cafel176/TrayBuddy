@@ -12,7 +12,9 @@
   "calc_value_template": "每帧 {w} × {h} px，共 {total} 帧",
   "export_settings_title": "💾 导出设置",
   "file_prefix_label": "文件名前缀",
+  "file_prefix_placeholder": "frame_",
   "reverse_order_label": "反向排序输出（倒序编号）",
+
   "split_btn": "切分图片",
   "download_all_btn": "📦 打包下载 (ZIP)",
   "preview_title": "👁️ 预览",
@@ -22,5 +24,7 @@
   "layout_label": "布局 (列x行)",
   "download_frame_tip": "点击下载此帧",
   "zipping_text": "⏳ 打包中...",
-  "zip_failed_text": "打包失败，请重试"
+  "zip_failed_text": "打包失败，请重试",
+  "zip_failed_log": "打包失败："
+
 }

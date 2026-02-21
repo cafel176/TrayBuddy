@@ -22,5 +22,11 @@
   "msg_only_gif": "只支持 GIF 文件。",
   "msg_ready": "已就绪。",
   "msg_done": "完成，已生成 ZIP。",
-  "msg_failed": "失败："
+  "msg_failed": "失败：",
+  "error_jszip_missing": "JSZip 未加载：请确认已加载本地脚本 vendor/jszip.min.js",
+  "error_imagedecoder_unsupported": "当前浏览器不支持 ImageDecoder（GIF 分帧解码）。请使用最新版 Edge/Chrome。",
+  "error_frame_count_unreadable": "无法读取 GIF 帧数：该文件可能已损坏或不受支持",
+  "error_canvas_unavailable": "canvas 不可用",
+  "error_size_unavailable": "无法获取 GIF 尺寸"
+
 }

@@ -10,6 +10,8 @@
   "format_png": "PNG (無損、大きい)",
   "format_jpeg": "JPEG (有損、透過非対応)",
   "quality_label": "品質: {n}%",
+  "quality_not_applicable": "該当なし",
+
   "scale_label": "スケール: {n}%",
   "preserve_alpha_label": "アルファチャンネルを保持",
   "files_title": "ファイルリスト",
@@ -37,5 +39,11 @@
   "preview_info_gpu_saved": " ({size} 節約)",
   "preview_info_gpu_no_change": " (変化なし)",
   "not_compressed_yet": "まだ圧縮されていません",
-  "please_compress_first": "先に「すべて圧縮」をクリックしてください"
+  "please_compress_first": "先に「すべて圧縮」をクリックしてください",
+  "preview_btn_title": "プレビュー",
+  "download_btn_title": "ダウンロード",
+  "remove_btn_title": "削除",
+  "error_load_image": "画像の読み込みに失敗しました",
+  "error_compressing_log": "圧縮に失敗しました：{name}"
+
 }

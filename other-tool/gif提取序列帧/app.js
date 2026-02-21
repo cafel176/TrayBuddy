@@ -20,9 +20,12 @@ let gifFile = null;
 /** @type {Blob|null} */
 let zipBlob = null;
 
-function t(key) {
-  return window.i18n?.t ? window.i18n.t(key) : key;
+function t(key, params, fallback) {
+  const v = window.i18n?.t ? window.i18n.t(key, params) : null;
+  if (!v || v === key) return fallback ?? key;
+  return v;
 }
+
 
 function setStatus(text, type = '') {
   statusEl.textContent = text || '';
@@ -116,12 +119,13 @@ async function extractFrames() {
 
   try {
     if (typeof window.JSZip !== 'function') {
-      throw new Error('JSZip 未加载：请确认已加载本地脚本 vendor/jszip.min.js');
+      throw new Error(t('error_jszip_missing'));
     }
 
     if (typeof window.ImageDecoder !== 'function') {
-      throw new Error('当前浏览器不支持 ImageDecoder（GIF 分帧解码）。请使用最新版 Edge/Chrome。');
+      throw new Error(t('error_imagedecoder_unsupported'));
     }
+
 
     const buffer = await gifFile.arrayBuffer();
 
@@ -135,8 +139,10 @@ async function extractFrames() {
 
     const frameCount = track?.frameCount || 0;
     if (!frameCount) {
-      throw new Error('无法读取 GIF 帧数：该文件可能已损坏或不受支持');
+      throw new Error(t('error_frame_count_unreadable'));
     }
+
+
 
     const step = Math.max(1, parseInt(stepInput.value, 10) || 1);
 
@@ -146,7 +152,8 @@ async function extractFrames() {
       const { image } = await decoder.decode({ frameIndex: i });
       totalDurationMs += msFromVideoFrameDuration(image?.duration);
       image?.close?.();
-      if (i % 10 === 0) loadingText.textContent = (t('processing_frame') || '正在处理第 {n} 帧...').replace('{n}', String(i + 1));
+      if (i % 10 === 0) loadingText.textContent = t('processing_frame', { n: i + 1 });
+
     }
 
     // Reset decoder by recreating (some browsers keep internal state)
@@ -165,7 +172,9 @@ async function extractFrames() {
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('canvas 不可用');
+    if (!ctx) throw new Error(t('error_canvas_unavailable'));
+
+
 
     const previewCtx = previewCanvas.getContext('2d');
 
@@ -179,7 +188,9 @@ async function extractFrames() {
         height = image.displayHeight || image.codedHeight || 0;
         if (!width || !height) {
           image.close();
-          throw new Error('无法获取 GIF 尺寸');
+          throw new Error(t('error_size_unavailable'));
+
+
         }
         canvas.width = width;
         canvas.height = height;
@@ -205,15 +216,18 @@ async function extractFrames() {
           if (exportedCount === 1 && previewCtx) {
             previewCtx.clearRect(0, 0, width, height);
             previewCtx.drawImage(canvas, 0, 0);
-            previewInfo.textContent = (t('preview_info') || '预览第 {n} 帧').replace('{n}', String(i + 1));
+            previewInfo.textContent = t('preview_info', { n: i + 1 });
             previewCard.style.display = '';
+
           }
         }
       }
 
       image.close();
 
-      loadingText.textContent = (t('processing_frame') || '正在处理第 {n} 帧...').replace('{n}', String(i + 1));
+      loadingText.textContent = t('processing_frame', { n: i + 1 });
+
+
     }
 
     decoder2.close();
@@ -247,5 +261,4 @@ downloadBtn.addEventListener('click', () => {
 });
 
 window.addEventListener('languageChanged', () => {
-  if (gifFile) setStatus(t('msg_ready'));
-});
+  if (gifFi

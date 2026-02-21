@@ -10,6 +10,8 @@
   "format_png": "PNG (Lossless, Larger)",
   "format_jpeg": "JPEG (Lossy, No Alpha)",
   "quality_label": "Quality: {n}%",
+  "quality_not_applicable": "N/A",
+
   "scale_label": "Scale: {n}%",
   "preserve_alpha_label": "Preserve Alpha Channel",
   "files_title": "File List",
@@ -37,5 +39,11 @@
   "preview_info_gpu_saved": " (Saved {size})",
   "preview_info_gpu_no_change": " (No change)",
   "not_compressed_yet": "Not compressed yet",
-  "please_compress_first": "Please click \"Compress All\" first"
+  "please_compress_first": "Please click \"Compress All\" first",
+  "preview_btn_title": "Preview",
+  "download_btn_title": "Download",
+  "remove_btn_title": "Remove",
+  "error_load_image": "Failed to load image",
+  "error_compressing_log": "Error compressing {name}"
+
 }

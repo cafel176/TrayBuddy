@@ -88,13 +88,14 @@
 
                 <!-- Tips -->
                 <div class="tips-section">
-                    <h4>💡 操作提示</h4>
+                    <h4 data-i18n="tips_title">💡 操作提示</h4>
                     <ul>
-                        <li>🖱️ 左键拖动：移动模型位置</li>
-                        <li>🔄 滚轮：缩放模型大小</li>
-                        <li>👆 双击：重置视图</li>
+                        <li data-i18n="tips_drag">🖱️ 左键拖动：移动模型位置</li>
+                        <li data-i18n="tips_zoom">🔄 滚轮：缩放模型大小</li>
+                        <li data-i18n="tips_reset">👆 双击：重置视图</li>
                     </ul>
                 </div>
+
             </div>
 
             <!-- Right Panel - Preview -->
@@ -104,17 +105,19 @@
                     <div class="preview-placeholder" id="placeholder">
                         <div class="icon">🎭</div>
                         <p data-i18n="preview_placeholder">加载 Live2D 模型后预览</p>
-                        <span class="hint">支持 Cubism 3/4 格式 (.model3.json)</span>
+                        <span class="hint" data-i18n="preview_format_hint">支持 Cubism 3/4 格式 (.model3.json)</span>
+
                     </div>
                     <canvas id="live2dCanvas"></canvas>
                 </div>
                 <div class="preview-controls">
-                    <button class="btn-icon" id="playPauseBtn" title="播放/暂停动画">
+                    <button class="btn-icon" id="playPauseBtn" data-i18n-title="btn_play_pause_title">
                         <span id="playIcon">⏸️</span>
                     </button>
-                    <button class="btn-icon" id="screenshotBtn" title="保存截图">📸</button>
-                    <button class="btn-icon" id="fullscreenBtn" title="全屏预览">🔲</button>
+                    <button class="btn-icon" id="screenshotBtn" data-i18n-title="btn_screenshot_title">📸</button>
+                    <button class="btn-icon" id="fullscreenBtn" data-i18n-title="btn_fullscreen_title">🔲</button>
                 </div>
+
             </div>
         </div>
     </div>

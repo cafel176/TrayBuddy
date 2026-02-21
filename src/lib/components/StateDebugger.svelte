@@ -76,12 +76,9 @@
 
   /** 检查状态消息是否包含错误信息 */
   function isError(msg: string): boolean {
-    return (
-      msg.includes(_("common.failed")) ||
-      msg.includes("failed") ||
-      msg.includes("失败")
-    );
+    return msg.includes(_("common.failed"));
   }
+
 
   const I32_MIN = -2147483648;
   const I32_MAX = 2147483647;

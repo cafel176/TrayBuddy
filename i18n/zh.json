@@ -2,7 +2,9 @@
   "lang": "中文",
   "common": {
     "appName": "TrayBuddy",
+    "defaultUserName": "用户",
     "loading": "正在加载...",
+
     "loadFailed": "加载失败:",
     "saveFailed": "保存失败:",
     "refresh": "刷新",
@@ -88,7 +90,9 @@
   },
   "memo": {
     "title": "备忘录",
+    "defaultCategory": "默认",
     "loading": "正在加载备忘录...",
+
     "loaded": "备忘录已加载",
     "saved": "已保存",
     "add": "添加",

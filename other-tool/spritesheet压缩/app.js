@@ -12,6 +12,13 @@ class SpritesheetCompressor {
     this.initEventListeners();
     this.initI18n();
   }
+
+  t(key, params, fallback) {
+    const value = window.i18n && typeof window.i18n.t === 'function' ? window.i18n.t(key, params) : null;
+    if (!value || value === key) return fallback ?? key;
+    return value;
+  }
+
   
   initElements() {
     // Upload
@@ -74,11 +81,14 @@ class SpritesheetCompressor {
     this.outputFormat.addEventListener('change', () => {
       const isPng = this.outputFormat.value === 'png';
       this.quality.disabled = isPng;
-      const label = this.quality.parentElement.querySelector('[data-i18n="quality_label"]');
+      const label = this.quality.parentElement.querySelector('[data-i18n], [data-i18n="quality_label"]');
       if (label) {
         if (isPng) {
-          label.textContent = 'N/A';
-          label.removeAttribute('data-i18n');
+          label.textContent = this.t('quality_not_applicable', null);
+
+          label.setAttribute('data-i18n', 'quality_not_applicable');
+          label.removeAttribute('data-i18n-n');
+          if (window.i18n) window.i18n.updateDOM();
         } else {
           label.setAttribute('data-i18n', 'quality_label');
           label.setAttribute('data-i18n-n', this.quality.value);
@@ -86,6 +96,7 @@ class SpritesheetCompressor {
         }
       }
     });
+
     
     // Action buttons
     this.compressAllBtn.addEventListener('click', () => this.compressAll());
@@ -169,7 +180,9 @@ class SpritesheetCompressor {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onerror = () => reject(new Error(this.t('error_load_image', null)));
+
+
       
       if (source instanceof Blob || source instanceof File) {
         img.src = URL.createObjectURL(source);
@@ -242,19 +255,23 @@ class SpritesheetCompressor {
       
       const previewBtn = document.createElement('button');
       previewBtn.innerHTML = '👁️';
-      previewBtn.title = 'Preview';
+      previewBtn.title = this.t('preview_btn_title', null);
+
       previewBtn.onclick = () => this.showPreview(id);
       
       const downloadBtn = document.createElement('button');
       downloadBtn.innerHTML = '⬇️';
-      downloadBtn.title = 'Download';
+      downloadBtn.title = this.t('download_btn_title', null);
+
       downloadBtn.disabled = fileData.status !== 'done';
       downloadBtn.onclick = () => this.downloadFile(id);
       
       const removeBtn = document.createElement('button');
       removeBtn.innerHTML = '❌';
-      removeBtn.title = 'Remove';
+      removeBtn.title = this.t('remove_btn_title', null);
+
       removeBtn.onclick = () => this.removeFile(id);
+
       
       actions.appendChild(previewBtn);
       actions.appendChild(downloadBtn);
@@ -273,14 +290,16 @@ class SpritesheetCompressor {
   }
   
   getStatusText(status) {
-    const texts = {
-      pending: '待处理',
-      processing: '处理中...',
-      done: '完成',
-      error: '错误'
+    const keyMap = {
+      pending: 'status_pending',
+      processing: 'status_processing',
+      done: 'status_done',
+      error: 'status_error'
     };
-    return texts[status] || status;
+    const key = keyMap[status] || status;
+    return window.i18n?.t ? window.i18n.t(key) : key;
   }
+
   
   formatSize(bytes) {
     if (bytes >= 1024 * 1024) {
@@ -306,7 +325,9 @@ class SpritesheetCompressor {
       } catch (err) {
         fileData.status = 'error';
         fileData.error = err.message;
-        console.error(`Error compressing ${fileData.name}:`, err);
+        console.error(this.t('error_compressing_log', { name: fileData.name }), err);
+
+
       }
       
       this.renderFileList();
@@ -387,21 +408,13 @@ class SpritesheetCompressor {
     origImg.src = URL.createObjectURL(fileData.file);
     this.originalPreview.appendChild(origImg);
     
-    if (window.i18n) {
-        this.originalInfo.innerHTML = `
+    this.originalInfo.innerHTML = `
           <p data-i18n="preview_info_file" data-i18n-name="${fileData.name}"></p>
           <p data-i18n="preview_info_size" data-i18n-size="${this.formatSize(fileData.originalSize)}"></p>
           <p data-i18n="preview_info_dims" data-i18n-w="${fileData.width}" data-i18n-h="${fileData.height}"></p>
           <p data-i18n="preview_info_gpu" data-i18n-size="${this.formatSize(fileData.width * fileData.height * 4)}"></p>
         `;
-    } else {
-        this.originalInfo.innerHTML = `
-          <p>文件: ${fileData.name}</p>
-          <p>大小: ${this.formatSize(fileData.originalSize)}</p>
-          <p>尺寸: ${fileData.width} × ${fileData.height}</p>
-          <p>GPU 内存: ~${this.formatSize(fileData.width * fileData.height * 4)}</p>
-        `;
-    }
+
     
     // Compressed preview
     this.compressedPreview.innerHTML = '';
@@ -414,34 +427,24 @@ class SpritesheetCompressor {
       const gpuMem = fileData.newWidth * fileData.newHeight * 4;
       const gpuSaved = (fileData.width * fileData.height * 4) - gpuMem;
       
-      if (window.i18n) {
-          const gpuSavedText = gpuSaved > 0 ? 
-              window.i18n.t('preview_info_gpu_saved').replace('{size}', this.formatSize(gpuSaved)) : 
-              window.i18n.t('preview_info_gpu_no_change');
+      const gpuSavedText = gpuSaved > 0 
+            ? window.i18n.t('preview_info_gpu_saved', { size: this.formatSize(gpuSaved) })
+            : window.i18n.t('preview_info_gpu_no_change');
 
-          this.compressedInfo.innerHTML = `
+      const gpuMemText = window.i18n.t('preview_info_gpu', { size: this.formatSize(gpuMem) });
+
+      this.compressedInfo.innerHTML = `
             <p data-i18n="preview_info_file" data-i18n-name="${fileData.compressedName}"></p>
             <p data-i18n="preview_info_size" data-i18n-size="${this.formatSize(fileData.compressedSize)} (-${ratio}%)"></p>
             <p data-i18n="preview_info_dims" data-i18n-w="${fileData.newWidth}" data-i18n-h="${fileData.newHeight}"></p>
-            <p>${window.i18n.t('preview_info_gpu').replace('{size}', this.formatSize(gpuMem))}${gpuSavedText}</p>
+            <p>${gpuMemText}${gpuSavedText}</p>
           `;
-      } else {
-          this.compressedInfo.innerHTML = `
-            <p>文件: ${fileData.compressedName}</p>
-            <p>大小: ${this.formatSize(fileData.compressedSize)} (-${ratio}%)</p>
-            <p>尺寸: ${fileData.newWidth} × ${fileData.newHeight}</p>
-            <p>GPU 内存: ~${this.formatSize(gpuMem)} (${gpuSaved > 0 ? '节省 ' + this.formatSize(gpuSaved) : '无变化'})</p>
-          `;
-      }
+
     } else {
-      if (window.i18n) {
-          this.compressedPreview.innerHTML = `<p style="color: var(--text-muted);" data-i18n="not_compressed_yet"></p>`;
-          this.compressedInfo.innerHTML = `<p data-i18n="please_compress_first"></p>`;
-      } else {
-          this.compressedPreview.innerHTML = '<p style="color: var(--text-muted);">尚未压缩</p>';
-          this.compressedInfo.innerHTML = '<p>请先点击"压缩全部"</p>';
-      }
+      this.compressedPreview.innerHTML = `<p style="color: var(--text-muted);" data-i18n="not_compressed_yet"></p>`;
+      this.compressedInfo.innerHTML = `<p data-i18n="please_compress_first"></p>`;
     }
+
     
     if (window.i18n) window.i18n.updateDOM();
 

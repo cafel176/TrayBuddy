@@ -3,8 +3,10 @@
   "logo": "WebM ↔ MOV 互转",
   "mode_webm2mov": "WebM → MOV",
   "mode_mov2webm": "MOV → WebM",
+  "mode_toggle_aria": "转换模式切换",
 
   "reset_btn": "重新开始",
+
 
   "upload_title_webm2mov": "点击或拖拽 WebM 视频文件到这里",
   "upload_hint_webm2mov": "支持带透明通道的 WebM (VP8/VP9) 视频",
@@ -21,6 +23,13 @@
   "settings_title": "转换设置",
   "fps_label": "输出帧率 (FPS)",
   "fps_auto": "自动检测",
+  "fps_24": "24 FPS",
+  "fps_25": "25 FPS",
+  "fps_30": "30 FPS",
+  "fps_60": "60 FPS",
+  "video_info": "{size} | {fps} FPS | {duration}",
+
+
 
   "mov_codec_label": "MOV 编码格式",
   "codec_png": "PNG (无损，支持透明)",
@@ -60,5 +69,19 @@
   "alert_decode_failed": "浏览器无法解码该视频文件，建议换一个编码更通用的文件（如 H.264 MOV），或用 ffmpeg/专业软件先转码。",
   "mov_preview_unavailable": "该 MOV 浏览器无法预览，但仍可转换",
 
+  "debug_panel_title": "调试日志 (debug=1)",
+  "debug_expand": "展开",
+  "debug_collapse": "收起",
+  "debug_copy": "复制",
+  "debug_clear": "清空",
+  "debug_hide": "隐藏",
+
+  "error_frames_too_many": "帧数过多（{count}），请降低 FPS 或缩短视频时长再试。",
+  "error_raw_frame_invalid": "RAW 帧数据长度不正确：{actual} < {expected}",
+  "error_mov_codec_unsupported": "暂不支持的 MOV codec: {codec}",
+  "error_webcodecs_alpha_unsupported": "WebCodecs alpha 编码不支持，改用 MediaRecorder",
+  "error_no_supported_codec": "没有可用的视频编码器",
+  "error_video_encoder": "VideoEncoder 错误：{message}",
   "error_processing": "处理出错："
+
 }

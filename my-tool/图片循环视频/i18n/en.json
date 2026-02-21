@@ -8,10 +8,17 @@
   "reset_btn": "Choose Another Image",
   "settings_title": "Video Settings",
   "direction_label": "Move Direction",
+  "direction_left_title": "Left",
+  "direction_right_title": "Right",
+
   "speed_label": "Move Speed (pixels/sec)",
   "duration_label": "Video Duration (seconds)",
   "fps_label": "Frame Rate (FPS)",
+  "fps_24": "24 FPS",
+  "fps_30": "30 FPS",
+  "fps_60": "60 FPS",
   "info_image_size": "Image Size",
+
   "info_total_frames": "Total Frames",
   "info_loop_time": "Loop Duration",
   "output_title": "Output Settings",
@@ -30,5 +37,8 @@
   "alert_upload_image": "Please upload an image file",
   "alert_no_image": "Please upload an image first",
   "gif_lib_hint": "GIF library not loaded. Exporting as WebM instead.",
-  "error_processing": "Processing error: "
+  "error_processing": "Processing error: ",
+  "error_no_supported_codec": "No supported video codec found",
+  "error_video_encoder": "VideoEncoder error: {message}"
+
 }

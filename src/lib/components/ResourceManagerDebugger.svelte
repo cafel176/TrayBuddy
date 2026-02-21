@@ -122,12 +122,9 @@
 
   /** 濠碘槅鍋€閸嬫捇鏌＄仦璇插姢濠殿喗鎮傞獮鈧ù锝呮贡鍟搁梺璇″弾閸ㄥ崬危閹间礁瑙﹂柨鏇楀亾閻庡灚锕㈠畷銉╊敃閿旇姤娅撻柣鐘叉祩閸垱绌辨繝鍥х畳?*/
   function isError(msg: string): boolean {
-    return (
-      msg.includes(_("common.failed")) ||
-      msg.includes("failed") ||
-      msg.includes("失败")
-    );
+    return msg.includes(_("common.failed"));
   }
+
 
 
   const I32_MIN = -2147483648;

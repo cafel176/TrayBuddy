@@ -1,6 +1,9 @@
 {
-  "title": "ビデオからシーケンスフレーム抽出",
+  "title": "Video2Timesheet - ビデオからシーケンスフレーム抽出",
+
+  "logo": "Video2Timesheet",
   "reset_btn": "最初から",
+
   "upload_title": "ビデオファイルをクリックまたはドラッグ＆ドロップ",
   "upload_hint": "MP4, WebM, MOVなどに対応",
   "fps_label": "フレームレート (FPS)",
@@ -14,7 +17,9 @@
   "select_all": "全選択",
   "deselect_all": "反転",
   "bg_remove_label": "背景削除色 (プレビューから取得)",
+  "color_hex_placeholder": "#000000",
   "open_picker": "スポイトを開く",
+
   "tolerance_label": "許容値 (0-100)",
   "feather_label": "境界のぼかし (フェザー)",
   "spill_label": "色被り補正 (抑制)",
@@ -41,5 +46,8 @@
   "alert_no_frames": "書き出すフレームが選択されていません",
   "picker_title": "画像をクリックして背景色を取得",
   "picker_confirm": "確定",
-  "picker_cancel": "キャンセル"
+  "picker_cancel": "キャンセル",
+  "close": "閉じる",
+  "processing_bg_done_log": "背景削除が完了しました"
+
 }

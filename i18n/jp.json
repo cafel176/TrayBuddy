@@ -2,7 +2,9 @@
   "lang": "日本語",
   "common": {
     "appName": "TrayBuddy",
+    "defaultUserName": "ユーザー",
     "loading": "読み込み中...",
+
     "loadFailed": "読み込み失敗:",
     "saveFailed": "保存失敗:",
     "refresh": "更新",
@@ -88,7 +90,9 @@
   },
   "memo": {
     "title": "メモ",
+    "defaultCategory": "デフォルト",
     "loading": "メモを読み込み中...",
+
     "loaded": "メモを読み込みました",
     "saved": "保存しました",
     "add": "追加",

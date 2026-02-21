@@ -11,6 +11,9 @@
   "reset_view": "重置视图",
   "waiting_upload": "请上传图片开始对齐",
   "preview_zoom": "预览缩放:",
+  "offset_x_label": "X:",
+  "offset_y_label": "Y:",
+
   "zoom_fit": "适应",
   "tips_title": "操作提示：",
   "tips_content": "拖拽图片到对应区域上传 | 拖拽图片2调整位置 | 方向键微调(Shift加速) | Ctrl+滚轮缩放预览 | 滚轮缩放图片2"

@@ -15,7 +15,7 @@
 </head>
 <body>
     <header>
-        <div class="logo">Video Background Remover</div>
+        <div class="logo" data-i18n="app_title">Video Background Remover</div>
         <div class="header-actions">
             <button id="reset-btn" class="secondary hidden" data-i18n="reset_btn">重新开始</button>
         </div>
@@ -104,7 +104,8 @@
                     <div class="chroma-color-list-container">
                         <div class="chroma-color-list-header">
                             <label data-i18n="chroma_color_list_label">要去除的颜色列表</label>
-                            <span id="chroma-color-count" class="selection-count">0 个颜色</span>
+                            <span id="chroma-color-count" class="selection-count" data-i18n="chroma_color_count" data-i18n-n="0">0 个颜色</span>
+
                         </div>
                         <div id="chroma-color-list" class="chroma-color-list">
                             <!-- Color items will be added here dynamically -->
@@ -141,10 +142,11 @@
                     
                     <!-- Chroma Actions -->
                     <div class="chroma-actions" style="margin-top: 1rem;">
-                        <button id="chroma-clear-all-btn" class="secondary danger" data-i18n="chroma_clear_all">
+                        <button id="chroma-clear-all-btn" class="secondary danger">
                             <i data-lucide="trash-2"></i>
-                            清除所有颜色
+                            <span data-i18n="chroma_clear_all">清除所有颜色</span>
                         </button>
+
                     </div>
                 </div>
 
@@ -172,7 +174,8 @@
                     </div>
                     <div class="input-group" style="justify-content: flex-end; flex-direction: row; align-items: flex-end; gap: 0.5rem;">
                         <button id="wand-clear-btn" class="secondary" data-i18n="wand_clear">清除选区</button>
-                        <span id="wand-selection-count" class="selection-count" data-i18n="wand_selection_count">已选择 0 个区域</span>
+                        <span id="wand-selection-count" class="selection-count" data-i18n="wand_selection_count" data-i18n-n="0">已选择 0 个区域</span>
+
                     </div>
                 </div>
 
@@ -181,10 +184,12 @@
                     <!-- Frame Navigator -->
                     <div class="frame-navigator">
                         <div class="frame-nav-controls">
-                            <button id="perframe-first-btn" class="nav-btn" title="第一帧">
+                            <button id="perframe-first-btn" class="nav-btn" title="" data-i18n-title="perframe_title_first">
+
                                 <i data-lucide="chevrons-left"></i>
                             </button>
-                            <button id="perframe-prev-btn" class="nav-btn" title="上一帧">
+                            <button id="perframe-prev-btn" class="nav-btn" title="" data-i18n-title="perframe_title_prev">
+
                                 <i data-lucide="chevron-left"></i>
                             </button>
                             <div class="frame-counter">
@@ -192,10 +197,12 @@
                                 <span>/</span>
                                 <span id="perframe-total">--</span>
                             </div>
-                            <button id="perframe-next-btn" class="nav-btn" title="下一帧">
+                            <button id="perframe-next-btn" class="nav-btn" title="" data-i18n-title="perframe_title_next">
+
                                 <i data-lucide="chevron-right"></i>
                             </button>
-                            <button id="perframe-last-btn" class="nav-btn" title="最后一帧">
+                            <button id="perframe-last-btn" class="nav-btn" title="" data-i18n-title="perframe_title_last">
+
                                 <i data-lucide="chevrons-right"></i>
                             </button>
                         </div>
@@ -236,7 +243,8 @@
                                 <i data-lucide="eraser"></i>
                                 <span data-i18n="perframe_clear">清除当前帧选区</span>
                             </button>
-                            <span id="perframe-selection-count" class="selection-count" data-i18n="perframe_selection_count">当前帧: 0 个选区</span>
+                            <span id="perframe-selection-count" class="selection-count" data-i18n="perframe_selection_count" data-i18n-n="0">当前帧: 0 个选区</span>
+
                         </div>
                         <div class="action-group">
                             <button id="perframe-copy-to-all-btn" class="secondary">
@@ -261,9 +269,10 @@
                         <div class="copy-range-content">
                             <label data-i18n="perframe_copy_range_label">复制当前帧选区到帧范围:</label>
                             <div class="range-inputs">
-                                <input type="number" id="copy-range-start" min="1" value="1" placeholder="起始帧">
+                                <input type="number" id="copy-range-start" min="1" value="1" placeholder="" data-i18n-placeholder="perframe_range_start_placeholder">
                                 <span>-</span>
-                                <input type="number" id="copy-range-end" min="1" value="1" placeholder="结束帧">
+                                <input type="number" id="copy-range-end" min="1" value="1" placeholder="" data-i18n-placeholder="perframe_range_end_placeholder">
+
                             </div>
                             <div class="range-actions">
                                 <button id="copy-range-confirm-btn" data-i18n="perframe_confirm">确定</button>
@@ -294,7 +303,8 @@
                     <div class="hybrid-operation-list-container">
                         <div class="hybrid-operation-list-header">
                             <label data-i18n="hybrid_operation_list_label">操作列表</label>
-                            <span id="hybrid-operation-count" class="selection-count">0 个操作</span>
+                            <span id="hybrid-operation-count" class="selection-count" data-i18n="hybrid_operation_count" data-i18n-n="0">0 个操作</span>
+
                         </div>
                         <div id="hybrid-operation-list" class="hybrid-operation-list">
                             <div class="hybrid-operation-empty" data-i18n="hybrid_operation_empty">暂无操作，点击下方按钮添加</div>
@@ -386,7 +396,8 @@
                             </div>
                         </div>
                         <div class="hybrid-wand-selection-info">
-                            <span id="hybrid-wand-selection-count" class="selection-count" data-i18n="wand_selection_count">已选择 0 个区域</span>
+                            <span id="hybrid-wand-selection-count" class="selection-count" data-i18n="wand_selection_count" data-i18n-n="0">已选择 0 个区域</span>
+
                             <button id="hybrid-wand-clear-btn" class="secondary small" data-i18n="wand_clear">清除选区</button>
                         </div>
                         <div class="hybrid-panel-actions">

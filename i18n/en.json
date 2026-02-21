@@ -2,7 +2,9 @@
   "lang": "English",
   "common": {
     "appName": "TrayBuddy",
+    "defaultUserName": "User",
     "loading": "Loading...",
+
     "loadFailed": "Load failed:",
     "saveFailed": "Save failed:",
     "refresh": "Refresh",
@@ -88,7 +90,9 @@
   },
   "memo": {
     "title": "Memo",
+    "defaultCategory": "Default",
     "loading": "Loading memos...",
+
     "loaded": "Memos loaded",
     "saved": "Saved",
     "add": "Add",

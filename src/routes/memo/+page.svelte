@@ -41,19 +41,22 @@
   let newMemoContent = $state("");
   let newMemoCategory = $state("");
 
-  const DEFAULT_CATEGORY = "默认";
+  function getDefaultCategory(): string {
+    return _("memo.defaultCategory");
+  }
 
   function normalizeCategory(cat: string): string {
     const c = (cat ?? "").trim();
-    return c.length ? c : DEFAULT_CATEGORY;
+    return c.length ? c : getDefaultCategory();
   }
 
   function getCategories(): string[] {
     const set = new Set<string>();
     for (const m of memos) set.add(normalizeCategory(m.category));
-    if (set.size === 0) set.add(DEFAULT_CATEGORY);
+    if (set.size === 0) set.add(getDefaultCategory());
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }
+
 
   function getMemosByCategory(cat: string): MemoItem[] {
     const c = normalizeCategory(cat);

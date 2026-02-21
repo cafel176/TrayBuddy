@@ -8,6 +8,10 @@
 
   "canvas_height": "高さ:",
   "preset_mobile": "スマホ縦画面",
+  "preset_1080p": "1080p",
+  "preset_720p": "720p",
+  "preset_4_3": "4:3",
+
   
   "section_bg_color": "🎨 背景色",
   "bg_primary": "メインカラー:",
@@ -79,6 +83,8 @@
   "theme_apply": "一括適用",
   
   "enable_corner_frame": "ダイヤモンドフレーム",
+  "export_filename": "アニメ背景_{timestamp}.{ext}",
+
 
 
   "corner_frame_size": "フレームサイズ:",
