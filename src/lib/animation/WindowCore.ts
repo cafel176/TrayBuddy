@@ -85,6 +85,7 @@ export type WindowCoreCallbacks = {
     pngremixParams?: PngRemixParameterSetting[],
   ) => Promise<boolean>;
   onAnimationScaleChanged?: () => void;
+  onTransitionDurationChanged?: (duration: number) => void;
   onBorderConfigLoaded?: (config: BorderConfig | null) => Promise<void> | void;
   getBorderPlayerReady?: () => boolean;
   onCharacterConfigLoaded?: (config: CharacterConfig | null) => void;
@@ -967,6 +968,9 @@ export function createWindowCore(options: {
           if ("animation_scale" in payload) {
             bindings.setAnimationScale(payload.animation_scale);
             setTimeout(() => callbacks.onAnimationScaleChanged?.(), 0);
+          }
+          if ("threed_cross_fade_duration" in payload) {
+            callbacks.onTransitionDurationChanged?.(payload.threed_cross_fade_duration);
           }
           if ("nickname" in payload) {
             bindings.setUserNickname(payload.nickname || "User");

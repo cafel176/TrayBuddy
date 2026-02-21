@@ -155,6 +155,8 @@
     "live2d": "Live2D",
     "live2dMouseFollow": "Mouse follow",
     "live2dAutoInteract": "Auto interact",
+    "threed": "3D",
+    "threedCrossFade": "Animation transition",
     "saveBtn": "Save Settings",
 
 

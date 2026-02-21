@@ -303,6 +303,14 @@ export class ThreeDPlayer {
   private playTimer: ReturnType<typeof setTimeout> | null = null;
   private animationScale = 1;
 
+  /** 动画切换过渡时长（秒），由用户设置控制 */
+  private transitionDuration = 0.3;
+
+  /** 过渡状态：剩余时间 > 0 表示正在过渡中 */
+  private fadeRemaining = 0;
+  /** 过渡中需要在结束时 stop 的旧 action */
+  private fadingOutAction: THREE.AnimationAction | null = null;
+
   /** 当前生效的模型缩放（model.scale * state.scale） */
   private currentModelScale = 1;
   /** 当前生效的偏移（model offset + state offset） */
@@ -559,18 +567,14 @@ export class ThreeDPlayer {
 
     if (this.playToken !== token) return false;
 
-    // Stop current animation
-    if (this.currentAction) {
-      this.currentAction.stop();
-    }
-
-    // Play new animation
+    // Play new animation with fadeIn/fadeOut transition
     const action = this.mixer.clipAction(clip);
-    action.clampWhenFinished = true;
 
     if (options.playOnce) {
+      action.clampWhenFinished = true;
       action.setLoop(THREE.LoopOnce, 1);
     } else {
+      action.clampWhenFinished = false;
       action.setLoop(THREE.LoopRepeat, Infinity);
     }
 
@@ -578,12 +582,27 @@ export class ThreeDPlayer {
     const speed = animConfig.speed || 1;
     action.timeScale = speed;
 
-    action.reset().play();
-    this.currentAction = action;
+    const prevAction = this.currentAction;
+    const fadeDuration = this.transitionDuration;
 
-    // 切换动画后对齐 hips：评估第一帧，测量 hips 水平偏移，
-    // 调整模型根节点 X 补偿，使角色始终居中
-    this.alignModelToBaseHips();
+    if (prevAction && prevAction !== action && fadeDuration > 0) {
+      // 标准 fadeOut/fadeIn 过渡
+      prevAction.fadeOut(fadeDuration);
+      action.reset().fadeIn(fadeDuration).play();
+
+      // 启动过渡状态追踪
+      this.fadeRemaining = fadeDuration;
+      this.fadingOutAction = prevAction;
+    } else {
+      // 无过渡 / 首次播放 / 同一个 clip：一次性对齐
+      if (prevAction) prevAction.stop();
+      action.reset().play();
+      this.fadeRemaining = 0;
+      this.fadingOutAction = null;
+      this.alignHipsXOnce();
+    }
+
+    this.currentAction = action;
 
     // Handle completion for playOnce
     if (options.playOnce) {
@@ -619,6 +638,10 @@ export class ThreeDPlayer {
     // NOTE: animationScale 通过 Rust 端缩放窗口/canvas 物理尺寸实现，
     // 不需要在 3D 渲染层面调整相机。ResizeObserver 会在 canvas 大小变化时
     // 自动触发 handleResize + fitCameraToModel。
+  }
+
+  setTransitionDuration(duration: number): void {
+    this.transitionDuration = duration;
   }
 
   setVisible(visible: boolean): void {
@@ -746,6 +769,23 @@ export class ThreeDPlayer {
         this.mixer.update(dt);
       }
 
+      // 动画过渡期间：每帧对齐 hips X 防止瞬移
+      if (this.fadeRemaining > 0) {
+        this.fadeRemaining -= dt;
+        if (this.fadeRemaining <= 0) {
+          // 过渡结束：stop 旧 action，做一次最终对齐
+          this.fadeRemaining = 0;
+          if (this.fadingOutAction) {
+            this.fadingOutAction.stop();
+            this.fadingOutAction = null;
+          }
+          this.alignHipsXOnce();
+        } else {
+          // 过渡中：每帧持续对齐
+          this.alignHipsXContinuous();
+        }
+      }
+
       // Render
       if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera);
@@ -806,29 +846,41 @@ export class ThreeDPlayer {
   }
 
   /**
-   * 切换动画后对齐模型：让 mixer 评估当前帧（t=0），
-   * 测量 hips 的实际世界 X 与 T-pose 基准的差值，
-   * 调整模型根节点 position.x 补偿，使角色水平居中。
-   * 动画内部的自然摆动不受影响（只补偿初始偏移量）。
+   * 过渡期间每帧调用：持续对齐 hips X，防止两个动画混合时模型瞬移。
    */
-  private alignModelToBaseHips(): void {
+  private alignHipsXContinuous(): void {
+    if (!this.model || !this.vrm) return;
+
+    const hipsNode = getVrmBoneNode(this.vrm, VRMHumanBoneName.Hips);
+    if (!hipsNode) return;
+
+    // 暂时将模型 X 归零，让 hips 的世界位置反映纯动画混合值
+    this.model.position.x = 0;
+    this.model.updateWorldMatrix(true, true);
+
+    const tmpV = new THREE.Vector3();
+    const currentHipsX = hipsNode.getWorldPosition(tmpV).x;
+
+    this.model.position.x = this.baseHipsWorldX - currentHipsX;
+  }
+
+  /**
+   * 非过渡时一次性对齐：评估当前帧 hips X，设定补偿值后不再更新。
+   * 用于无过渡的直接切换，以及过渡结束的最后一帧。
+   */
+  private alignHipsXOnce(): void {
     if (!this.model || !this.vrm || !this.mixer) return;
 
     const hipsNode = getVrmBoneNode(this.vrm, VRMHumanBoneName.Hips);
     if (!hipsNode) return;
 
-    // 先重置模型 X 到 0，让 mixer 评估得到纯动画值
     this.model.position.x = 0;
-
-    // 让 mixer 评估当前帧（刚 reset+play 所以是 t=0）
-    this.mixer.setTime(0);
+    this.mixer.update(0);
     this.model.updateWorldMatrix(true, true);
 
-    // 获取动画第一帧 hips 的世界 X
     const tmpV = new THREE.Vector3();
     const currentHipsX = hipsNode.getWorldPosition(tmpV).x;
 
-    // 补偿差值：将模型反向平移，使 hips 回到 T-pose 的基准 X
     this.model.position.x = this.baseHipsWorldX - currentHipsX;
   }
 

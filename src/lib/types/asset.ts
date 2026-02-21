@@ -519,6 +519,9 @@ export interface UserSettings {
   /** Live2D 自动交互 */
   live2d_auto_interact: boolean;
 
+  /** 3D 动画切换过渡时长（秒） */
+  threed_cross_fade_duration: number;
+
 }
 
 /**

@@ -70,6 +70,9 @@
     live2d_mouse_follow: boolean;
     /** Live2D 自动交互 */
     live2d_auto_interact: boolean;
+
+    /** 3D 动画切换过渡时长（秒） */
+    threed_cross_fade_duration: number;
   }
 
   interface ModManifest {
@@ -267,6 +270,18 @@
     } catch (err) {
       console.error("Failed to set volume:", err);
     }
+  }
+
+  /**
+   * 处理 3D 动画过渡时长滑块变化
+   */
+  async function onTransitionDurationChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const duration = parseFloat(target.value);
+    if (settings) {
+      settings.threed_cross_fade_duration = duration;
+    }
+    await saveSettings();
   }
 
   /**
@@ -608,6 +623,29 @@
           />
           {_("settings.live2dAutoInteract")}
         </label>
+      </div>
+    {/if}
+
+    <!-- ================================================================= -->
+    <!-- 3D 设置 -->
+    <!-- ================================================================= -->
+
+    {#if currentModType === "3d"}
+      <div class="divider">{_("settings.threed")}</div>
+
+      <div class="form-group">
+        <label for="threed_cross_fade_duration"
+          >{_("settings.threedCrossFade")} ({settings.threed_cross_fade_duration.toFixed(1)}s)</label
+        >
+        <input
+          id="threed_cross_fade_duration"
+          type="range"
+          min="0"
+          max="5.0"
+          step="0.1"
+          value={settings.threed_cross_fade_duration}
+          oninput={onTransitionDurationChange}
+        />
       </div>
     {/if}
 

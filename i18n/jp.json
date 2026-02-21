@@ -155,6 +155,8 @@
     "live2d": "Live2D",
     "live2dMouseFollow": "マウス追従",
     "live2dAutoInteract": "自動インタラクト",
+    "threed": "3D",
+    "threedCrossFade": "アニメーション遷移時間",
     "saveBtn": "設定を保存",
 
 

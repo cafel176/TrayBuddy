@@ -53,6 +53,9 @@ pub struct UserSettings {
     pub live2d_mouse_follow: bool, // 鼠标跟随
     pub live2d_auto_interact: bool, // 自动交互
 
+    /// 3D 动画切换过渡时长（秒）
+    pub threed_cross_fade_duration: f32,
+
 }
 
 impl Default for UserSettings {
@@ -78,6 +81,8 @@ impl Default for UserSettings {
 
             live2d_mouse_follow: true,
             live2d_auto_interact: true,
+
+            threed_cross_fade_duration: 0.3,
 
         }
     }

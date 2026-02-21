@@ -155,6 +155,8 @@
     "live2d": "Live2D",
     "live2dMouseFollow": "鼠标跟随",
     "live2dAutoInteract": "自动交互",
+    "threed": "3D",
+    "threedCrossFade": "动画过渡时长",
     "saveBtn": "保存设置",
 
 

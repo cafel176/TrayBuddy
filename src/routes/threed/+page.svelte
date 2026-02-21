@@ -116,6 +116,14 @@
       await player.init();
       await player.load(modPath, threedConfig);
       player.setAnimationScale(animationScale);
+
+      // 从用户设置中读取 3D 动画过渡时长
+      try {
+        const settings = await invoke<{ threed_cross_fade_duration?: number }>("get_settings");
+        if (settings?.threed_cross_fade_duration != null) {
+          player.setTransitionDuration(settings.threed_cross_fade_duration);
+        }
+      } catch { /* ignore */ }
     } catch (error) {
       console.error("Failed to init 3D player:", error);
     }
@@ -206,6 +214,9 @@
       playAnimation,
       onAnimationScaleChanged: () => {
         if (player) player.setAnimationScale(animationScale);
+      },
+      onTransitionDurationChanged: (duration: number) => {
+        if (player) player.setTransitionDuration(duration);
       },
       isPixelOpaqueAtWindowPos: (windowX: number, windowY: number) => {
         if (!player) return false;
