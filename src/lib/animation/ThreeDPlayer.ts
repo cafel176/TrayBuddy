@@ -17,6 +17,9 @@ type PlayOptions = {
 };
 
 const DEBUG = false;
+
+/** 循环动画 bake 时，尾部渐进插值回首帧的过渡时长（秒） */
+const LOOP_BLEND_DURATION = 0.3;
 function dbg(tag: string, ...args: unknown[]) {
   if (DEBUG) console.log(`[ThreeDPlayer][${tag}]`, ...args);
 }
@@ -57,7 +60,7 @@ async function retargetVrmaToVrmClipBaked(
   vrmaGltf: GLTF,
   vrm: VRM,
   model: THREE.Object3D,
-  opts: { fps?: number } = {},
+  opts: { fps?: number; loop?: boolean; loopBlendDuration?: number } = {},
 ): Promise<THREE.AnimationClip> {
   const parser = vrmaGltf.parser;
   const json = (parser as any).json;
@@ -259,6 +262,48 @@ async function retargetVrmaToVrmClipBaked(
 
   srcAction.stop();
 
+  // 循环动画：最后 blendFrames 帧渐进插值回第一帧，消除 LoopRepeat 取模跳变
+  if (opts.loop && frameCount >= 3) {
+    const blendSec = opts.loopBlendDuration ?? LOOP_BLEND_DURATION;
+    const blendFrames = Math.max(2, Math.min(Math.round(blendSec * safeFps), Math.floor(frameCount / 2)));
+    const startIdx = frameCount - blendFrames; // 开始混合的帧索引
+
+    const qA = new THREE.Quaternion();
+    const qB = new THREE.Quaternion();
+
+    for (let i = 0; i < blendFrames; i++) {
+      const fi = startIdx + i;
+      // t: 0 → 1, 使用 smoothstep 使过渡更平滑
+      const raw = (i + 1) / blendFrames;
+      const t = raw * raw * (3 - 2 * raw); // smoothstep
+
+      for (const b of bones) {
+        const arr = rotValuesByBone.get(b);
+        if (!arr) continue;
+        const o = fi * 4;
+        // 当前帧的旋转
+        qA.set(arr[o], arr[o + 1], arr[o + 2], arr[o + 3]);
+        // 第一帧的旋转
+        qB.set(arr[0], arr[1], arr[2], arr[3]);
+        // slerp 插值
+        qA.slerp(qB, t);
+        arr[o]     = qA.x;
+        arr[o + 1] = qA.y;
+        arr[o + 2] = qA.z;
+        arr[o + 3] = qA.w;
+      }
+
+      if (hipsPosValues) {
+        const o = fi * 3;
+        hipsPosValues[o]     += (hipsPosValues[0]     - hipsPosValues[o])     * t;
+        hipsPosValues[o + 1] += (hipsPosValues[1] - hipsPosValues[o + 1]) * t;
+        hipsPosValues[o + 2] += (hipsPosValues[2] - hipsPosValues[o + 2]) * t;
+      }
+    }
+
+    dbg("bake", `loop blend: last ${blendFrames} frames (${blendSec}s) smoothstep-blended to first frame`);
+  }
+
   const tracks: THREE.KeyframeTrack[] = [];
   for (const b of bones) {
     const d = dstNodeByBone.get(b);
@@ -277,7 +322,7 @@ async function retargetVrmaToVrmClipBaked(
 
   const name = `[VRMA] ${vrmaName}`;
   const clip = new THREE.AnimationClip(name, duration || -1, tracks);
-  clip.userData = { baked: true, fps: safeFps, bones: bones.length, frames: frameCount };
+  clip.userData = { baked: true, fps: safeFps, bones: bones.length, frames: frameCount, loop: !!opts.loop };
   return clip;
 }
 
@@ -551,13 +596,15 @@ export class ThreeDPlayer {
       return false;
     }
 
-    // Load clip (cached)
-    let clip = this.clipCache.get(animConfig.name);
+    // Load clip (cached); loop clips have loop-snapped last frame
+    const isLoop = !options.playOnce;
+    const cacheKey = `${animConfig.name}:${isLoop ? "loop" : "once"}`;
+    let clip = this.clipCache.get(cacheKey);
     if (!clip) {
       try {
-        clip = await this.loadAnimationClip(animConfig);
+        clip = await this.loadAnimationClip(animConfig, isLoop);
         if (this.playToken !== token) return false;
-        this.clipCache.set(animConfig.name, clip);
+        this.clipCache.set(cacheKey, clip);
       } catch (err) {
         console.error("[ThreeDPlayer] Failed to load animation:", animConfig.name, err);
         if (options.playOnce) options.onComplete();
@@ -566,6 +613,17 @@ export class ThreeDPlayer {
     }
 
     if (this.playToken !== token) return false;
+
+    // 如果请求的是同一个动画且非 playOnce，当前 action 已在 LoopRepeat 中，跳过重复播放
+    if (
+      !options.playOnce &&
+      this.currentAction &&
+      this.currentAction.getClip() === clip &&
+      this.currentAction.isRunning()
+    ) {
+      dbg("playFromAnima", "same clip already looping, skip:", animConfig.name);
+      return true;
+    }
 
     // Play new animation with fadeIn/fadeOut transition
     const action = this.mixer.clipAction(clip);
@@ -704,19 +762,19 @@ export class ThreeDPlayer {
   // Private: animation loading
   // =========================================================================
 
-  private async loadAnimationClip(animConfig: ThreeDAnimation): Promise<THREE.AnimationClip> {
+  private async loadAnimationClip(animConfig: ThreeDAnimation, loop: boolean): Promise<THREE.AnimationClip> {
     const url = buildModAssetUrlFor3D(this.modPath, animConfig.file);
-    dbg("loadAnimationClip", "type:", animConfig.type, "url:", url);
+    dbg("loadAnimationClip", "type:", animConfig.type, "loop:", loop, "url:", url);
 
     if (animConfig.type === "vrma") {
-      return this.loadVrmaClip(animConfig, url);
+      return this.loadVrmaClip(animConfig, url, loop);
     }
 
     // Future: VMD support would go here
     throw new Error(`Unsupported animation type: ${animConfig.type}`);
   }
 
-  private async loadVrmaClip(animConfig: ThreeDAnimation, url: string): Promise<THREE.AnimationClip> {
+  private async loadVrmaClip(animConfig: ThreeDAnimation, url: string, loop: boolean): Promise<THREE.AnimationClip> {
     if (!this.vrm || !this.model) {
       throw new Error("VRM model not loaded");
     }
@@ -738,10 +796,10 @@ export class ThreeDPlayer {
       vrmaGltf,
       this.vrm,
       this.model,
-      { fps },
+      { fps, loop },
     );
 
-    dbg("loadVrmaClip", "baked clip:", clip.name, "duration:", clip.duration, "tracks:", clip.tracks.length);
+    dbg("loadVrmaClip", "baked clip:", clip.name, "duration:", clip.duration, "tracks:", clip.tracks.length, "loop:", loop);
     return clip;
   }
 
