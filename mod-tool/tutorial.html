@@ -212,7 +212,7 @@
         <tr><td data-i18n="field_trigger_temp_end">气温触发终点</td><td data-i18n="field_trigger_temp_end_desc">仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发</td></tr>
         <tr><td data-i18n="field_trigger_uptime">启动时长触发</td><td data-i18n="field_trigger_uptime_desc">仅当当前距离程序启动已过分钟数 >= trigger_uptime 时，该状态才允许触发（分钟；0 表示不限制）</td></tr>
         <tr><td data-i18n="field_trigger_weather">触发天气</td><td data-i18n="field_trigger_weather_desc">仅当当前 environment.condition（或 condition_code）与 trigger_weather 任意一项精确匹配时，该状态才允许触发（数组）</td></tr>
-
+        <tr><td data-i18n="field_live2d_params">Live2D 参数覆写</td><td data-i18n="field_live2d_params_desc">进入状态时覆写 Live2D 参数，元素结构为 {id,value,target}，target 可选：Parameter/PartOpacity</td></tr>
 
         <tr><td data-i18n="field_can_trigger">可触发子状态</td><td data-i18n="field_can_trigger_desc">在编辑器内以“状态 + 权重”列表配置（权重越大越容易被选中）</td></tr>
 

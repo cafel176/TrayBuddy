@@ -247,8 +247,12 @@
   "data_counter_hint": "Operation to perform on Mod data when entering this state (e.g., affection +1)",
   "section_live2d_params": "Live2D Parameter Override",
   "btn_add_live2d_param": "Add Parameter",
-  "live2d_params_hint": "Set Live2D model parameters when entering this state (e.g., ParamAngleX, ParamEyeLOpen)",
+  "live2d_params_hint": "Set Live2D model parameters when entering this state (e.g., ParamAngleX, ParamEyeLOpen; choose target Parameter/PartOpacity)",
+  "live2d_param_target_label": "Target",
+  "live2d_param_target_parameter": "Parameter",
+  "live2d_param_target_partopacity": "Part Opacity",
   "section_branches": "Dialogue Branches",
+
   "btn_add_branch": "Add Branch",
   "btn_cancel": "Cancel",
   "btn_save": "Save",

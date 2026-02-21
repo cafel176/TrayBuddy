@@ -72,15 +72,18 @@
       "live2d_params": [
         {
           "id": "ParamMouseLeftDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         },
         {
           "id": "ParamMouseRightDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         },
         {
           "id": "CatParamLeftHandDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         }
       ]
     },
@@ -236,15 +239,18 @@
       "live2d_params": [
         {
           "id": "ParamMouseLeftDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         },
         {
           "id": "ParamMouseRightDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         },
         {
           "id": "CatParamLeftHandDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         }
       ]
     },
@@ -376,7 +382,8 @@
       "live2d_params": [
         {
           "id": "ParamMouseLeftDown",
-          "value": 1
+          "value": 1,
+          "target": "Parameter"
         }
       ],
       "pngremix_params": null,
@@ -408,7 +415,8 @@
       "live2d_params": [
         {
           "id": "ParamMouseRightDown",
-          "value": 1
+          "value": 1,
+          "target": "Parameter"
         }
       ],
       "pngremix_params": null,
@@ -440,7 +448,8 @@
       "live2d_params": [
         {
           "id": "CatParamLeftHandDown",
-          "value": 1
+          "value": 1,
+          "target": "Parameter"
         }
       ],
       "pngremix_params": null,
@@ -472,7 +481,8 @@
       "live2d_params": [
         {
           "id": "CatParamLeftHandDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         }
       ],
       "pngremix_params": null,
@@ -504,7 +514,8 @@
       "live2d_params": [
         {
           "id": "ParamMouseLeftDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         }
       ],
       "pngremix_params": null,
@@ -536,7 +547,8 @@
       "live2d_params": [
         {
           "id": "ParamMouseRightDown",
-          "value": 0
+          "value": 0,
+          "target": "Parameter"
         }
       ],
       "pngremix_params": null,

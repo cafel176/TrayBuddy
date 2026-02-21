@@ -1,25 +1,25 @@
 <!--
 ========================================================================= 
-资源管理调试组件 (ResourceManagerDebugger.svelte)
+闁荤姍鍐仾缂侇煈鍠氱划濠氭晬閸曨剙鈧偤鎮圭€ｎ亜鏆㈤柣锔诲灣缁辨帡宕熼鍜佸仺 (ResourceManagerDebugger.svelte)
 =========================================================================
 
-功能概述:
-- 展示和管理 Mod 资源系统
-- 列出可用的 Mod 并支持加载/卸载
-- 详细展示当前加载 Mod 的所有资源:
-  - Manifest 配置信息
-  - 角色信息 (多语言)
-  - 静态图片资源（带缩略图预览和放大功能）
-  - 序列动画资源（带缩略图预览）
-  - 语音资源（带播放功能）
-  - 对话文本资源
+闂佸憡姊婚崰鏇㈠礂濡警娼￠柛灞剧箓閻?
+- 闁诲繒鍋炲ú婊堝Φ濮樿泛妞界€光偓閳ь剟顢橀幖浣瑰仩?Mod 闁荤姍鍐仾缂侇煈鍠氶崠鏍嚒閵堝洤鐓?
+- 闂佸憡甯楅〃鍛村吹椤撱垹鐭楁い鏍ㄧ矋閺嗗繘鏌?Mod 濡ょ姷鍋犻崺鏍极椤曗偓楠炴劖鎷呯粙娆炬奖闁?闂佸憡顨嗛悺鏇灻?
+- 闁荤姴娴勬俊鍥╁垝韫囨洑娌柡鍥╁О娴犳稓鎲搁悧鍫熷碍濠⒀呭█瀹曟繈鎮╅悜妯笺偘 Mod 闂佹眹鍔岀€氼厽鏅跺澶婂珘濠㈣泛娴烽妶顐ｇ節?
+  - Manifest 闂備焦婢樼粔鍫曟偪閸℃ḿ鈹嶉柍鈺佸暕缁?
+  - 闁荤喐鐟︾敮鐔哥珶婵犲啰鈹嶉柍鈺佸暕缁?(婵犮垼鍩栨穱娲敋閵忋垺鍤婇柍?
+  - 闂傚倸鐗婇悷锕傚焵椤戣法顦︽繛瀛橈耿閹囧炊椤忓棎鍋掑┑鐘欏嫬濮х紒杈ㄧ懅閺侇噣鏁傞崜褏绀嗛梺浼欑祷閸庡崬霉濡紮绱ｉ柛鏇ㄥ櫘濞兼棃鏌涘⿰鍐╂拱闁哄倷鐒﹀鍕槻濠殿喗鐩幊妤呭棘閵堝洨顦?
+  - 闁瑰吋娼欑换鎰板垂椤忓牆绀夐柕濞у嫭姣庨柣鐘欏啫顏紒顭戝櫍閺佸秹宕煎┑鍫熸殧缂傚倸鍊甸弲婵嬪汲閹版澘鐐婂Δ锝呭枤閺嗘洟鎮峰▎蹇曞⒊缂?
+  - 闁荤姴娴傞崣鍐偂閸撲焦灏庨柛鏇ㄥ墰閻栭亶鏌ㄥ☉妯煎闁汇埄鍋婇獮姗€顢橀悢鍛婃緬闂佸憡姊婚崰鏇㈠礂濮椻偓閺?
+  - 闁诲海鏁搁、濠囨儊娴犲妫橀柛銉ｅ妽閹烽亶鎮硅鐎氼厾鑺?
 
-数据流:
-- get_mod_search_paths: 获取 Mod 搜索路径
-- get_available_mods: 获取可用 Mod 列表
-- get_current_mod: 获取当前已加载的 Mod
-- load_mod: 加载指定 Mod
-- unload_mod: 卸载当前 Mod
+闂佽桨鑳舵晶妤€鐣垫担璇?
+- get_mod_search_paths: 闂佸吋鍎抽崲鑼躲亹?Mod 闂佺懓鍚嬬划搴ㄥ磼閵娧勫磯妞ゆ牗姘ㄧ粣?
+- get_available_mods: 闂佸吋鍎抽崲鑼躲亹閸ヮ剙鐭楁い鏍ㄧ矋閺?Mod 闂佸憡甯楅〃澶愬Υ?
+- get_current_mod: 闂佸吋鍎抽崲鑼躲亹閸ヮ亗浜归柟鎯у暱椤ゅ懐鈧懓鎲¤ぐ鍐╂叏閻愬瓨濮滈柣锝呮湰閻?Mod
+- load_mod: 闂佸憡姊绘慨鎯归崶顒€绠伴柛銉戝懏姣?Mod
+- unload_mod: 闂佸憡顨嗛悺鏇灻归崶顏備汗闁规儳鍟块·?Mod
 =========================================================================
 -->
 
@@ -45,7 +45,7 @@
 
 
   // ======================================================================= //
-  // 类型定义
+  // 缂備緡鍋夐褔鎮楁搴樺亾鐟欏嫮鐓紒?
   // ======================================================================= //
 
   interface ModManifest {
@@ -100,7 +100,7 @@
 
 
   // ======================================================================= //
-  // 响应式状态
+  // 闂佸憡绻傜粔瀵歌姳閹绘帩鍤曢煫鍥ㄦ礀绗戦梺?
   // ======================================================================= //
 
   let searchPaths: string[] = $state([]);
@@ -110,17 +110,17 @@
   let currentModInfo = $state<ModInfo | null>(null);
   let loading = $state(false);
 
-  // i18n 响应式版本号
+  // i18n 闂佸憡绻傜粔瀵歌姳閹绘帩鍤曢煫鍥ㄦ礀椤ｅジ鏌￠崼顐㈠鐟?
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
 
-  // 响应式翻译函数
+  // 闂佸憡绻傜粔瀵歌姳閹绘帩鍤曢煫鍥ㄦ礈閸婃娊鎮归崶銊ョ仴闁搞倝浜跺?
   function _(key: string, params?: Record<string, string | number>): string {
     void _langVersion;
     return t(key, params);
   }
 
-  /** 检查状态消息是否包含错误信息 */
+  /** 濠碘槅鍋€閸嬫捇鏌＄仦璇插姢濠殿喗鎮傞獮鈧ù锝呮贡鍟搁梺璇″弾閸ㄥ崬危閹间礁瑙﹂柨鏇楀亾閻庡灚锕㈠畷銉╊敃閿旇姤娅撻柣鐘叉祩閸垱绌辨繝鍥х畳?*/
   function isError(msg: string): boolean {
     return (
       msg.includes(_("common.failed")) ||
@@ -128,6 +128,7 @@
       msg.includes("失败")
     );
   }
+
 
   const I32_MIN = -2147483648;
   const I32_MAX = 2147483647;
@@ -147,6 +148,7 @@
     return `[${sText}, ${eText}]`;
   }
 
+
   function formatMouthState(ms?: 0 | 1 | 2): string {
     switch (ms) {
       case 0: return _("resource.pngremixMouthStateClosed");
@@ -157,17 +159,17 @@
   }
 
 
-  // 图片查看器状态
+  // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺闈╃祷閸斿孩鎱ㄩ幖浣哥畱?
   let viewerVisible = $state(false);
   let viewerImageSrc = $state("");
   let viewerImageTitle = $state("");
 
-  // 音频播放状态
+  // 闂傚倸锕ユ繛濠囥€傞崼鏇炵妞ゆ挾鍠愰弶褰掓煟濡灝鐓愰柍?
   let currentAudio: HTMLAudioElement | null = null;
   let playingAudioName = $state<string | null>(null);
 
   // ======================================================================= //
-  // 数据操作函数
+  // 闂佽桨鑳舵晶妤€鐣垫笟鈧獮娆忣吋閸曨厾鈻曢梺鍛婂灱婵倝寮?
   // ======================================================================= //
 
   async function refreshMods() {
@@ -178,7 +180,7 @@
       const info = (await invoke("get_current_mod")) as ModInfo | null;
       if (info) {
         currentModInfo = info;
-        // 统一使用 manifest.id 作为唯一标识
+        // 缂傚倷鑳堕崰宥囩博鐎涙ɑ濯撮悹鎭掑妽閺?manifest.id 婵炶揪绲剧划鍫㈡嫻閻旂厧鑸规い鏍ㄧ懅椤忛亶鏌″鍛┛闁?
         selectedMod = info.manifest.id;
         statusMsg = _("resource.statusCurrentLoaded") + " " + info.manifest.id;
       } else {
@@ -208,7 +210,7 @@
         id: info.manifest.id,
         version: info.manifest.version,
       });
-      // 重新加载气泡样式
+      // 闂備焦褰冪粔鐢稿蓟婵犲洤绀夐柣妯煎劋缁佺増鎱ㄥΟ缁樷拹闁革附妞藉钘夌暋閹殿喚顢?
       await loadBubbleStyle();
     } catch (e) {
       statusMsg = _("resource.statusLoadFailed") + " " + e;
@@ -246,7 +248,7 @@
   }
 
   // ======================================================================= //
-  // 图片查看器
+  // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺?
   // ======================================================================= //
 
   function getAssetSrc(relativePath: string): string {
@@ -265,17 +267,17 @@
   }
 
   // ======================================================================= //
-  // 音频播放
+  // 闂傚倸锕ユ繛濠囥€傞崼鏇炵妞ゆ挾鍠愰弶?
   // ======================================================================= //
 
   function playAudio(audioPath: string, audioName: string) {
-    // 停止当前播放
+    // 闂佺ǹ顑嗙划宥夘敆濞戞嚎浜归柟鎯у暱椤ゅ懘鏌熺紒銏犲箺闁?
     if (currentAudio) {
       currentAudio.pause();
       currentAudio = null;
     }
 
-    // 如果点击的是当前正在播放的，停止播放
+    // 婵犵鈧啿鈧綊鎮樻径鎰€烽柣鐔告緲濮ｅ﹪鏌ｉ妸銉ヮ仾婵″弶鐡曢妵鎰板箻閸愬樊鏋€濠殿喗绻愮徊钘夛耿椤忓牆绠绘い鎾跺枑閺夊綊鏌ｉ妸銉ヮ伒缂佽鲸绻堝畷鎴濃堪閸曢潧澹橀梺鍦檸閸樹粙寮?
     if (playingAudioName === audioName) {
       playingAudioName = null;
       return;
@@ -311,7 +313,7 @@
   }
 
   // ======================================================================= //
-  // Mod 类型
+  // Mod 缂備緡鍋夐褔鎮?
   // ======================================================================= //
 
   function getModType(): ModType {
@@ -348,7 +350,7 @@
   }
 
   // ======================================================================= //
-  // 统计
+  // 缂傚倷鑳堕崰鏇㈩敇?
   // ======================================================================= //
 
 
@@ -370,7 +372,7 @@
     return Object.values(currentModInfo.texts).flat().length;
   }
 
-  // 分类状态为持久和非持久
+  // 闂佸憡甯掑Λ娑氭偖椤愶附鍋愰柤鍝ヮ暯閸嬫挻鎷呴悿顖滎槹闂佸綊鏅插鎺旂不濞嗘挸妞界€光偓閸曨剙顫￠梺褰掓櫜濡炴帞绮?
   function getImportantStatesByPersistence(): {
     persistent: [string, StateInfo][];
     nonPersistent: [string, StateInfo][];
@@ -397,7 +399,7 @@
   }
 
   // ======================================================================= //
-  // 生命周期
+  // 闂佹眹鍨婚崰搴ㄥ箠閿熺姴宸濋柕濠忛檮閸?
   // ======================================================================= //
 
   onMount(() => {
@@ -414,13 +416,13 @@
 </script>
 
 <!-- ======================================================================= -->
-<!-- 组件模板 -->
+<!-- 缂傚倷绀佺€氼亜鈻庨姀鐘栫喖鍩勯崘鈺冨嚒 -->
 <!-- ======================================================================= -->
 
 <div class="debug-panel">
   <h3>{_("resource.title")}</h3>
 
-  <!-- 搜索路径信息 -->
+  <!-- 闂佺懓鍚嬬划搴ㄥ磼閵娧勫磯妞ゆ牗姘ㄧ粣鐐睬庨崶锝呭⒉濞?-->
   <div class="path-info">
     <strong>{_("resource.searchPaths")}</strong>
     {#each searchPaths as path}
@@ -428,7 +430,7 @@
     {/each}
   </div>
 
-  <!-- Mod 详情面板 -->
+  <!-- Mod 闁荤姴娴勯梽鍕磿韫囨稒顥堥柕蹇婂墲缁?-->
   {#if currentModInfo}
     <div class="info-panel">
       <div class="info-header">
@@ -438,7 +440,7 @@
         </div>
       </div>
 
-      <!-- 统计概览 -->
+      <!-- 缂傚倷鑳堕崰鏇㈩敇缁嬫娼￠柛灞剧箥濞?-->
       <div class="stats-bar">
         <div class="stat-item">
           <span class="stat-value">{getTotalStates()}</span>
@@ -446,8 +448,7 @@
         </div>
         <div class="stat-item">
           <span class="stat-value"
-            >{currentModInfo.manifest.triggers.length}</span
-          >
+            >{currentModInfo.manifest.triggers.length}</span>
           <span class="stat-label">{_("resource.statTriggers")}</span>
         </div>
         {#if isLive2dMod()}
@@ -503,7 +504,7 @@
       </div>
 
       <div class="tabs">
-        <!-- 基本信息 (Manifest) -->
+        <!-- 闂佺硶鏅濋崕銈咃耿閻楀牏鈹嶉柍鈺佸暕缁?(Manifest) -->
         <details open>
           <summary>{_("resource.basicInfo")}</summary>
           <div class="tab-content">
@@ -514,8 +515,7 @@
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.version")}</span>
-                <span class="info-value">{currentModInfo.manifest.version}</span
-                >
+                <span class="info-value">{currentModInfo.manifest.version}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.author")}</span>
@@ -529,57 +529,48 @@
               <div class="info-row">
                 <span class="info-label">{_("resource.bubbleStyle")}</span>
                 <span class="info-value"
-                  >{currentModInfo.bubble_style || _("resource.notSet")}</span
-                >
+                  >{currentModInfo.bubble_style || _("resource.notSet")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.iconPath")}</span>
                 <span class="info-value"
-                  >{currentModInfo.icon_path || _("resource.notSet")}</span
-                >
+                  >{currentModInfo.icon_path || _("resource.notSet")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.previewPath")}</span>
                 <span class="info-value"
-                  >{currentModInfo.preview_path || _("resource.notSet")}</span
-                >
+                  >{currentModInfo.preview_path || _("resource.notSet")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.defaultAudio")}</span>
 
                 <span class="info-value"
-                  >{currentModInfo.manifest.default_audio_lang_id}</span
-                >
+                  >{currentModInfo.manifest.default_audio_lang_id}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.defaultText")}</span>
                 <span class="info-value"
-                  >{currentModInfo.manifest.default_text_lang_id}</span
-                >
+                  >{currentModInfo.manifest.default_text_lang_id}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.showModDataPanel")}</span>
                 <span class="info-value"
-                  >{currentModInfo.manifest.show_mod_data_panel ? _("common.yes") : _("common.no")}</span
-                >
+                  >{currentModInfo.manifest.show_mod_data_panel ? _("common.yes") : _("common.no")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.modDataDefaultInt")}</span>
                 <span class="info-value"
-                  >{currentModInfo.manifest.mod_data_default_int}</span
-                >
+                  >{currentModInfo.manifest.mod_data_default_int}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.globalKeyboard")}</span>
                 <span class="info-value"
-                  >{currentModInfo.manifest.global_keyboard ? _("common.yes") : _("common.no")}</span
-                >
+                  >{currentModInfo.manifest.global_keyboard ? _("common.yes") : _("common.no")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.globalMouse")}</span>
                 <span class="info-value"
-                  >{currentModInfo.manifest.global_mouse ? _("common.yes") : _("common.no")}</span
-                >
+                  >{currentModInfo.manifest.global_mouse ? _("common.yes") : _("common.no")}</span>
               </div>
             </div>
 
@@ -590,16 +581,14 @@
               <div class="info-row">
                 <span class="info-label">{_("resource.zOffset")}</span>
                 <span class="info-value"
-                  >{currentModInfo.manifest.character.z_offset}</span
-                >
+                  >{currentModInfo.manifest.character.z_offset}</span>
               </div>
 
               <div class="info-row">
                 <span class="info-label">{_("resource.canvasFitPreference")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.character.canvas_fit_preference ??
-                    _("resource.notSet")}</span
-                >
+                    _("resource.notSet")}</span>
               </div>
 
 
@@ -612,21 +601,18 @@
                 <span class="info-value"
                   >{currentModInfo.manifest.border.enable
                     ? _("common.yes")
-                    : _("common.no")}</span
-                >
+                    : _("common.no")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.animation")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.border.anima ||
-                    _("resource.notSet")}</span
-                >
+                    _("resource.notSet")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.zOffset")}</span>
                 <span class="info-value"
-                  >{currentModInfo.manifest.border.z_offset}</span
-                >
+                  >{currentModInfo.manifest.border.z_offset}</span>
               </div>
 
             </div>
@@ -634,7 +620,7 @@
           </div>
         </details>
 
-        <!-- 角色信息 (多语言) -->
+        <!-- 闁荤喐鐟︾敮鐔哥珶婵犲啰鈹嶉柍鈺佸暕缁?(婵犮垼鍩栨穱娲敋閵忋垺鍤婇柍? -->
         <details>
           <summary
             >{_("resource.characterInfo", {
@@ -663,7 +649,7 @@
           </div>
         </details>
 
-        <!-- 核心状态 -->
+        <!-- 闂佸搫绉舵灙缂佹椽绠栭幃鈺呮嚋绾版ê浜?-->
         <details>
           <summary
             >{_("resource.coreStates")} ({Object.keys(
@@ -683,60 +669,51 @@
                       <div class="state-header">
                         <span class="state-name">{name}</span>
                         <span class="badge persistent"
-                          >{_("resource.persistent")}</span
-                        >
+                          >{_("resource.persistent")}</span>
                         {#if state.priority > 0}
                           <span class="badge priority"
-                            >{_("resource.priority")} {state.priority}</span
-                          >
+                            >{_("resource.priority")} {state.priority}</span>
                         {/if}
                       </div>
                       <div class="state-detail">
                         {#if state.anima}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.animationLabel")}</span
-                            >
+                              >{_("resource.animationLabel")}</span>
                             {state.anima}
                           </div>{/if}
                         {#if state.audio}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.audioLabel")}</span
-                            >
+                              >{_("resource.audioLabel")}</span>
                             {state.audio}
                           </div>{/if}
                         {#if state.text}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.textLabel")}</span
-                            >
+                              >{_("resource.textLabel")}</span>
                             {state.text}
                           </div>{/if}
                         {#if state.next_state}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.nextLabel")}</span
-                            >
+                              >{_("resource.nextLabel")}</span>
                             {state.next_state}
                           </div>{/if}
                         {#if state.date_start || state.date_end}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.dateLabel")}</span
-                            >
+                              >{_("resource.dateLabel")}</span>
                             {state.date_start || "*"} ~ {state.date_end || "*"}
                           </div>
                         {/if}
                         {#if state.time_start || state.time_end}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.timeLabel")}</span
-                            >
+                              >{_("resource.timeLabel")}</span>
                             {state.time_start || "*"} ~ {state.time_end || "*"}
                           </div>
                         {/if}
                         {#if (state.trigger_time ?? 0) > 0}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.timerLabel")}</span
-                            >
+                              >{_("resource.timerLabel")}</span>
                             {_("resource.timerDesc", {
                               interval: state.trigger_time ?? 0,
                               chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
@@ -807,8 +784,7 @@
 
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.triggerable")}</span
-                            >
+                              >{_("resource.triggerable")}</span>
                             <div class="tag-list">
                               {#each state.can_trigger_states as s}
                                 <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
@@ -820,15 +796,13 @@
                         {#if state.branch && state.branch.length > 0}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.branchLabel")}</span
-                            >
+                              >{_("resource.branchLabel")}</span>
                             <div class="branch-list">
                               {#each state.branch as b}
                                 <div class="branch-item">
                                   <span class="branch-text">{b.text}</span>
                                   <span class="branch-arrow">→</span>
-                                  <span class="branch-next">{b.next_state}</span
-                                  >
+                                  <span class="branch-next">{b.next_state}</span>
                                 </div>
                               {/each}
                             </div>
@@ -841,6 +815,7 @@
               </details>
             {/if}
             {#if getImportantStatesByPersistence().nonPersistent.length > 0}
+
               <details class="state-category" open>
                 <summary class="category-summary non-persistent-cat">
                   {_("resource.nonPersistentStates")} ({getImportantStatesByPersistence()
@@ -853,56 +828,48 @@
                         <span class="state-name">{name}</span>
                         {#if state.priority > 0}
                           <span class="badge priority"
-                            >{_("resource.priority")} {state.priority}</span
-                          >
+                            >{_("resource.priority")} {state.priority}</span>
                         {/if}
                       </div>
                       <div class="state-detail">
                         {#if state.anima}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.animationLabel")}</span
-                            >
+                              >{_("resource.animationLabel")}</span>
                             {state.anima}
                           </div>{/if}
                         {#if state.audio}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.audioLabel")}</span
-                            >
+                              >{_("resource.audioLabel")}</span>
                             {state.audio}
                           </div>{/if}
                         {#if state.text}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.textLabel")}</span
-                            >
+                              >{_("resource.textLabel")}</span>
                             {state.text}
                           </div>{/if}
                         {#if state.next_state}<div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.nextLabel")}</span
-                            >
+                              >{_("resource.nextLabel")}</span>
                             {state.next_state}
                           </div>{/if}
                         {#if state.date_start || state.date_end}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.dateLabel")}</span
-                            >
+                              >{_("resource.dateLabel")}</span>
                             {state.date_start || "*"} ~ {state.date_end || "*"}
                           </div>
                         {/if}
                         {#if state.time_start || state.time_end}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.timeLabel")}</span
-                            >
+                              >{_("resource.timeLabel")}</span>
                             {state.time_start || "*"} ~ {state.time_end || "*"}
                           </div>
                         {/if}
                         {#if (state.trigger_time ?? 0) > 0}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.timerLabel")}</span
-                            >
+                              >{_("resource.timerLabel")}</span>
                             {_("resource.timerDesc", {
                               interval: state.trigger_time ?? 0,
                               chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
@@ -973,8 +940,7 @@
 
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.triggerable")}</span
-                            >
+                              >{_("resource.triggerable")}</span>
                             <div class="tag-list">
                               {#each state.can_trigger_states as s}
                                 <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
@@ -985,15 +951,13 @@
                         {#if state.branch && state.branch.length > 0}
                           <div class="detail-item">
                             <span class="detail-label"
-                              >{_("resource.branchLabel")}</span
-                            >
+                              >{_("resource.branchLabel")}</span>
                             <div class="branch-list">
                               {#each state.branch as b}
                                 <div class="branch-item">
                                   <span class="branch-text">{b.text}</span>
                                   <span class="branch-arrow">→</span>
-                                  <span class="branch-next">{b.next_state}</span
-                                  >
+                                  <span class="branch-next">{b.next_state}</span>
                                 </div>
                               {/each}
                             </div>
@@ -1008,7 +972,8 @@
           </div>
         </details>
 
-        <!-- 其他状态 -->
+        <!-- 闂佺ǹ绻戝﹢鍦垝椤掑嫭鍋愰柤鍝ヮ暯閸?-->
+
         {#if currentModInfo.manifest.states.length > 0}
           <details>
             <summary
@@ -1028,44 +993,37 @@
                         <div class="state-header">
                           <span class="state-name">{state.name}</span>
                           <span class="badge persistent"
-                            >{_("resource.persistent")}</span
-                          >
+                            >{_("resource.persistent")}</span>
                           {#if state.priority > 0}
                             <span class="badge priority"
-                              >{_("resource.priority")} {state.priority}</span
-                            >
+                              >{_("resource.priority")} {state.priority}</span>
                           {/if}
                         </div>
                         <div class="state-detail">
                           {#if state.anima}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.animationLabel")}</span
-                              >
+                                >{_("resource.animationLabel")}</span>
                               {state.anima}
                             </div>{/if}
                           {#if state.audio}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.audioLabel")}</span
-                              >
+                                >{_("resource.audioLabel")}</span>
                               {state.audio}
                             </div>{/if}
                           {#if state.text}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.textLabel")}</span
-                              >
+                                >{_("resource.textLabel")}</span>
                               {state.text}
                             </div>{/if}
                           {#if state.next_state}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.nextLabel")}</span
-                              >
+                                >{_("resource.nextLabel")}</span>
                               {state.next_state}
                             </div>{/if}
                           {#if state.date_start || state.date_end}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.dateLabel")}</span
-                              >
+                                >{_("resource.dateLabel")}</span>
                               {state.date_start || "*"} ~ {state.date_end ||
                                 "*"}
                             </div>
@@ -1073,8 +1031,7 @@
                           {#if state.time_start || state.time_end}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.timeLabel")}</span
-                              >
+                                >{_("resource.timeLabel")}</span>
                               {state.time_start || "*"} ~ {state.time_end ||
                                 "*"}
                             </div>
@@ -1082,8 +1039,7 @@
                           {#if (state.trigger_time ?? 0) > 0}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.timerLabel")}</span
-                              >
+                                >{_("resource.timerLabel")}</span>
                               {_("resource.timerDesc", {
                                 interval: state.trigger_time ?? 0,
                                 chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
@@ -1154,8 +1110,7 @@
 
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.triggerable")}</span
-                              >
+                                >{_("resource.triggerable")}</span>
                               <div class="tag-list">
                                 {#each state.can_trigger_states as s}
                                   <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
@@ -1167,16 +1122,14 @@
                           {#if state.branch && state.branch.length > 0}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.branchLabel")}</span
-                              >
+                                >{_("resource.branchLabel")}</span>
                               <div class="branch-list">
                                 {#each state.branch as b}
                                   <div class="branch-item">
                                     <span class="branch-text">{b.text}</span>
                                     <span class="branch-arrow">→</span>
                                     <span class="branch-next"
-                                      >{b.next_state}</span
-                                    >
+                                      >{b.next_state}</span>
                                   </div>
                                 {/each}
                               </div>
@@ -1201,40 +1154,34 @@
                           <span class="state-name">{state.name}</span>
                           {#if state.priority > 0}
                             <span class="badge priority"
-                              >{_("resource.priority")} {state.priority}</span
-                            >
+                              >{_("resource.priority")} {state.priority}</span>
                           {/if}
                         </div>
                         <div class="state-detail">
                           {#if state.anima}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.animationLabel")}</span
-                              >
+                                >{_("resource.animationLabel")}</span>
                               {state.anima}
                             </div>{/if}
                           {#if state.audio}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.audioLabel")}</span
-                              >
+                                >{_("resource.audioLabel")}</span>
                               {state.audio}
                             </div>{/if}
                           {#if state.text}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.textLabel")}</span
-                              >
+                                >{_("resource.textLabel")}</span>
                               {state.text}
                             </div>{/if}
                           {#if state.next_state}<div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.nextLabel")}</span
-                              >
+                                >{_("resource.nextLabel")}</span>
                               {state.next_state}
                             </div>{/if}
                           {#if state.date_start || state.date_end}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.dateLabel")}</span
-                              >
+                                >{_("resource.dateLabel")}</span>
                               {state.date_start || "*"} ~ {state.date_end ||
                                 "*"}
                             </div>
@@ -1242,8 +1189,7 @@
                           {#if state.time_start || state.time_end}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.timeLabel")}</span
-                              >
+                                >{_("resource.timeLabel")}</span>
                               {state.time_start || "*"} ~ {state.time_end ||
                                 "*"}
                             </div>
@@ -1251,8 +1197,7 @@
                           {#if (state.trigger_time ?? 0) > 0}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.timerLabel")}</span
-                              >
+                                >{_("resource.timerLabel")}</span>
                               {_("resource.timerDesc", {
                                 interval: state.trigger_time ?? 0,
                                 chance: ((state.trigger_rate ?? 0) * 100).toFixed(0),
@@ -1323,8 +1268,7 @@
 
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.triggerable")}</span
-                              >
+                                >{_("resource.triggerable")}</span>
                               <div class="tag-list">
                                 {#each state.can_trigger_states as s}
                                   <span class="tag state-tag">{s.state}{(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}</span>
@@ -1335,16 +1279,14 @@
                           {#if state.branch && state.branch.length > 0}
                             <div class="detail-item">
                               <span class="detail-label"
-                                >{_("resource.branchLabel")}</span
-                              >
+                                >{_("resource.branchLabel")}</span>
                               <div class="branch-list">
                                 {#each state.branch as b}
                                   <div class="branch-item">
                                     <span class="branch-text">{b.text}</span>
                                     <span class="branch-arrow">→</span>
                                     <span class="branch-next"
-                                      >{b.next_state}</span
-                                    >
+                                      >{b.next_state}</span>
                                   </div>
                                 {/each}
                               </div>
@@ -1360,7 +1302,7 @@
           </details>
         {/if}
 
-        <!-- 触发器 -->
+        <!-- 闁荤喐鐟辩粻鎴ｃ亹閸岀偛闂?-->
         {#if currentModInfo.manifest.triggers.length > 0}
           <details>
             <summary
@@ -1378,17 +1320,14 @@
                           <div class="trigger-group">
                             <div class="group-header">
                               <span class="group-label"
-                                >{_("resource.group", { num: idx + 1 })}</span
-                              >
+                                >{_("resource.group", { num: idx + 1 })}</span>
                               {#if group.persistent_state}
                                 <span class="persistent-badge"
                                   >{_("resource.persistentLabel")}
-                                  {group.persistent_state}</span
-                                >
+                                  {group.persistent_state}</span>
                               {:else}
                                 <span class="persistent-badge any"
-                                  >{_("resource.anyPersistent")}</span
-                                >
+                                  >{_("resource.anyPersistent")}</span>
                               {/if}
                               {#if group.allow_repeat === false}
                                 <span class="tag state-tag">{_("resource.noRepeat")}</span>
@@ -1403,15 +1342,13 @@
                               </div>
                             {:else}
                               <span class="no-states"
-                                >{_("resource.noTriggerableStates")}</span
-                              >
+                                >{_("resource.noTriggerableStates")}</span>
                             {/if}
                           </div>
                         {/each}
                       </div>
                     {:else}
-                      <span class="no-states">{_("resource.noStateGroup")}</span
-                      >
+                      <span class="no-states">{_("resource.noStateGroup")}</span>
                     {/if}
                   </div>
                 {/each}
@@ -1421,7 +1358,7 @@
         {/if}
 
         {#if isSequenceMod()}
-          <!-- 静态图片资源 -->
+          <!-- 闂傚倸鐗婇悷锕傚焵椤戣法顦︽繛瀛橈耿閹囧炊椤忓棎鍋掑┑?-->
           <details>
             <summary
               >{_("resource.staticImages")} ({currentModInfo.imgs
@@ -1455,7 +1392,7 @@
                       onclick={() => openAssetFile(`asset/${img.img}`)}
                       title={_("resource.openFile")}
                     >
-                      📂
+                      濡絽鍟幆?
                     </button>
                   </div>
                   <div class="asset-info">
@@ -1463,44 +1400,37 @@
                     <div class="asset-file">{img.img}</div>
                     <div class="asset-meta">
                       <span title={_("resource.frameSize")}
-                        >{img.frame_size_x}×{img.frame_size_y}px</span
-                      >
+                        >{img.frame_size_x}闁煎顢檌mg.frame_size_y}px</span>
                       {#if totalFrames > 1}
                         <span title={_("resource.frameLayout")}
-                          >{img.frame_num_x}×{img.frame_num_y} = {totalFrames}{_(
+                          >{img.frame_num_x}闁煎顢檌mg.frame_num_y} = {totalFrames}{_(
                             "resource.frames",
-                          )}</span
-                        >
+                          )}</span>
                       {/if}
                     </div>
                     {#if isAnimated}
                       <div class="asset-meta">
                         <span title={_("resource.frameInterval")}
-                          >{img.frame_time}s{_("resource.perFrame")}</span
-                        >
+                          >{img.frame_time}s{_("resource.perFrame")}</span>
                       </div>
                     {/if}
                     <div class="asset-flags">
                       {#if img.sequence}
                         <span class="badge sequence-flag"
-                          >{_("resource.sequence")}</span
-                        >
+                          >{_("resource.sequence")}</span>
                       {/if}
                       {#if img.origin_reverse}
                         <span class="badge reverse"
-                          >{_("resource.reversePlay")}</span
-                        >
+                          >{_("resource.reversePlay")}</span>
                       {/if}
                       {#if img.need_reverse}
                         <span class="badge pingpong"
-                          >{_("resource.pingPongMode")}</span
-                        >
+                          >{_("resource.pingPongMode")}</span>
                       {/if}
                       {#if img.offset_x !== 0 || img.offset_y !== 0}
                         <span class="badge offset"
                           >{_("resource.offset")}
-                          {img.offset_x},{img.offset_y}</span
-                        >
+                          {img.offset_x},{img.offset_y}</span>
                       {/if}
                     </div>
                   </div>
@@ -1510,7 +1440,7 @@
           </div>
         </details>
 
-        <!-- 序列动画资源 -->
+        <!-- 闁瑰吋娼欑换鎰板垂椤忓牆绀夐柕濞у嫭姣庨柣鐘欏啫顏紒?-->
         <details>
           <summary
             >{_("resource.sequenceAnimations")} ({currentModInfo.sequences
@@ -1545,7 +1475,7 @@
                       onclick={() => openAssetFile(`asset/${seq.img}`)}
                       title={_("resource.openFile")}
                     >
-                      📂
+                      濡絽鍟幆?
                     </button>
                   </div>
                   <div class="asset-info">
@@ -1553,38 +1483,31 @@
                     <div class="asset-file">{seq.img}</div>
                     <div class="asset-meta">
                       <span title={_("resource.frameLayout")}
-                        >{seq.frame_num_x}×{seq.frame_num_y} = {totalFrames}{_(
+                        >{seq.frame_num_x}闁煎顢檚eq.frame_num_y} = {totalFrames}{_(
                           "resource.frames",
-                        )}</span
-                      >
+                        )}</span>
                       <span title={_("resource.frameSize")}
-                        >{seq.frame_size_x}×{seq.frame_size_y}px</span
-                      >
+                        >{seq.frame_size_x}闁煎顢檚eq.frame_size_y}px</span>
                     </div>
                     <div class="asset-meta">
                       <span title={_("resource.frameInterval")}
-                        >{seq.frame_time}s{_("resource.perFrame")}</span
-                      >
+                        >{seq.frame_time}s{_("resource.perFrame")}</span>
                       <span title={_("resource.totalDuration")}
-                        >≈{totalDuration}s</span
-                      >
+                        >闂佹剚鍠栧鏉talDuration}s</span>
                     </div>
                     <div class="asset-flags">
                       {#if seq.origin_reverse}
                         <span class="badge reverse"
-                          >{_("resource.reversePlay")}</span
-                        >
+                          >{_("resource.reversePlay")}</span>
                       {/if}
                       {#if seq.need_reverse}
                         <span class="badge pingpong"
-                          >{_("resource.pingPongMode")}</span
-                        >
+                          >{_("resource.pingPongMode")}</span>
                       {/if}
                       {#if seq.offset_x !== 0 || seq.offset_y !== 0}
                         <span class="badge offset"
                           >{_("resource.offset")}
-                          {seq.offset_x},{seq.offset_y}</span
-                        >
+                          {seq.offset_x},{seq.offset_y}</span>
                       {/if}
                     </div>
                   </div>
@@ -1595,7 +1518,7 @@
         </details>
         {/if}
 
-        <!-- Live2D 资源 -->
+        <!-- Live2D 闁荤姍鍐仾缂?-->
         {#if isLive2dMod()}
           <details>
             <summary>{_("resource.live2dAssets")}</summary>
@@ -1760,7 +1683,7 @@
           </details>
         {/if}
 
-        <!-- PngRemix 资源 -->
+        <!-- PngRemix 闁荤姍鍐仾缂?-->
         {#if isPngremixMod()}
           <details>
             <summary>{_("resource.pngremixAssets")}</summary>
@@ -1917,7 +1840,7 @@
           </details>
         {/if}
 
-        <!-- 3D 资源 -->
+        <!-- 3D 闁荤姍鍐仾缂?-->
         {#if isThreeDMod()}
           <details>
             <summary>{_("resource.threeDAssets")}</summary>
@@ -2001,7 +1924,7 @@
           </details>
         {/if}
 
-        <!-- 语音资源 -->
+        <!-- 闁荤姴娴傞崣鍐偂閸撲焦灏庨柛鏇ㄥ墰閻?-->
 
         <details>
           <summary>{_("resource.audioResources")} ({getTotalAudios()})</summary>
@@ -2025,10 +1948,12 @@
                           : _("common.play")}
                       >
                         {#if playingAudioName === `${lang}/${audio.name}`}
-                          <span class="icon">⏹</span>
+                          <span class="icon">?</span>
                         {:else}
-                          <span class="icon">▶</span>
+                          <span class="icon">?</span>
                         {/if}
+
+
                       </button>
                       <div class="audio-info">
                         <div class="audio-name">{audio.name}</div>
@@ -2039,7 +1964,7 @@
                         onclick={() => openAssetFile(`audio/${audio.audio}`)}
                         title={_("resource.openFile")}
                       >
-                        📂
+                        濡絽鍟幆?
                       </button>
                     </div>
                   {/each}
@@ -2049,7 +1974,7 @@
           </div>
         </details>
 
-        <!-- 对话文本 -->
+        <!-- 闁诲海鏁搁、濠囨儊娴犲妫橀柛銉ｅ妽閹?-->
         <details>
           <summary>{_("resource.dialogTexts")} ({getTotalTexts()})</summary>
           <div class="tab-content">
@@ -2076,7 +2001,7 @@
   {/if}
 </div>
 
-<!-- 图片查看器弹窗 -->
+<!-- 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺闈╃祷閸斿矂鎳樻繝鍕幓?-->
 {#if viewerVisible}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -2084,7 +2009,9 @@
     <div class="image-viewer-content" onclick={(e) => e.stopPropagation()}>
       <div class="viewer-header">
         <span class="viewer-title">{viewerImageTitle}</span>
-        <button class="viewer-close" onclick={closeImageViewer}>✕</button>
+        <button class="viewer-close" onclick={closeImageViewer}>×</button>
+
+
       </div>
       <div class="viewer-body">
         <img src={viewerImageSrc} alt={viewerImageTitle} class="viewer-image" />
@@ -2169,7 +2096,7 @@
     white-space: nowrap;
   }
 
-  /* 统计概览 */
+  /* 缂傚倷鑳堕崰鏇㈩敇缁嬫娼￠柛灞剧箥濞?*/
   .stats-bar {
     display: flex;
     gap: 8px;
@@ -2199,7 +2126,7 @@
     color: #7f8c8d;
   }
 
-  /* 详情折叠 */
+  /* 闁荤姴娴勯梽鍕磿韫囨稑绠俊顖氭惈缂?*/
   details {
     margin-bottom: 8px;
     border: 1px solid #eee;
@@ -2225,7 +2152,7 @@
     padding: 12px;
   }
 
-  /* 信息网格 */
+  /* 婵烇絽娲犻崜婵囧閸涱垳纾鹃柟瀵稿仧婢?*/
   .info-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -2254,7 +2181,7 @@
     font-weight: 500;
   }
 
-  /* 语言卡片 */
+  /* 闁荤姴娴傞崣鈧柍璇茬墦瀹曪繝鏁嶉崟顐毈 */
   .lang-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -2303,7 +2230,7 @@
     font-style: italic;
   }
 
-  /* 状态列表 */
+  /* 闂佺粯枪閸╂牠鍩€椤戣法顦﹂柛顭戜簽閹?*/
   .state-list,
   .trigger-list {
     display: flex;
@@ -2413,7 +2340,7 @@
   }
 
 
-  /* 状态分类折叠 */
+  /* 闂佺粯枪閸╂牠鍩€椤戣法顦﹂柛銊ユ捣閻氬墽绱掑Ο渚綑闂?*/
   .state-category {
     margin-bottom: 10px;
     border: none;
@@ -2442,7 +2369,7 @@
     margin-bottom: 8px;
   }
 
-  /* 语言折叠 */
+  /* 闁荤姴娴傞崣鈧柍璇茬墦楠炲骸螣閸濆嫮绉?*/
   .lang-details {
     margin-bottom: 10px;
     border: none;
@@ -2464,7 +2391,7 @@
     margin-bottom: 8px;
   }
 
-  /* 分支列表 */
+  /* 闂佸憡甯掑Λ娆撳极椤曗偓瀹曟艾螖閸曗斁鍋?*/
   .branch-list {
     display: flex;
     flex-direction: column;
@@ -2496,7 +2423,7 @@
     font-weight: 600;
   }
 
-  /* 触发器 */
+  /* 闁荤喐鐟辩粻鎴ｃ亹閸岀偛闂?*/
   .trigger-card {
     background: #f9f9f9;
     border: 1px solid #eee;
@@ -2563,7 +2490,7 @@
     font-style: italic;
   }
 
-  /* 资源网格 */
+  /* 闁荤姍鍐仾缂侇煈鍠氱槐鏃堝箣閻愰潧顥?*/
   .asset-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -2675,7 +2602,7 @@
     gap: 4px;
   }
 
-  /* 音频网格 */
+  /* 闂傚倸锕ユ繛濠囥€傞崜浣虹＞闁瑰鍋熸竟?*/
   .audio-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -2758,7 +2685,7 @@
     background: #eee;
   }
 
-  /* 文本列表 */
+  /* 闂佸搫鍊稿ú锕€锕㈡导鏉戠婵°倕瀚ㄩ埀?*/
   .text-list {
     display: flex;
     flex-direction: column;
@@ -2798,7 +2725,7 @@
     white-space: pre-wrap;
   }
 
-  /* 图片查看器 */
+  /* 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺?*/
   .image-viewer-overlay {
     position: fixed;
     top: 0;
@@ -2868,7 +2795,7 @@
     object-fit: contain;
   }
 
-  /* 暗色主题 */
+  /* 闂佸搫妫欓〃澶嬬珶婵犲啰鈻斿┑鐘冲嚬閺?*/
   @media (prefers-color-scheme: dark) {
     .debug-panel {
       background: #2c3e50;
@@ -3032,3 +2959,7 @@
     }
   }
 </style>
+
+
+
+

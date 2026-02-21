@@ -136,9 +136,11 @@ const tutorialTranslations = {
     field_trigger_uptime_desc: "仅当当前距离程序启动已过分钟数 >= trigger_uptime 时，该状态才允许触发（分钟；0 表示不限制）",
     field_trigger_weather: "触发天气",
     field_trigger_weather_desc: "仅当当前 environment.condition（或 condition_code）与 trigger_weather 任意一项精确匹配时，该状态才允许触发（数组）",
-
+    field_live2d_params: "Live2D 参数覆写",
+    field_live2d_params_desc: "进入状态时覆写 Live2D 参数，元素结构为 {id,value,target}，target 可选：Parameter/PartOpacity",
 
     field_can_trigger: "可触发子状态",
+
 
 
     field_can_trigger_desc: "在编辑器内以“状态 + 权重”列表配置（权重越大越容易被选中）",
@@ -490,9 +492,11 @@ const tutorialTranslations = {
     field_trigger_uptime_desc: "This state can trigger only when session uptime (minutes) >= trigger_uptime (0 = no limit)",
     field_trigger_weather: "Weather Trigger",
     field_trigger_weather_desc: "This state can trigger only when environment.condition (or condition_code) exactly matches any item in trigger_weather (array)",
-
+    field_live2d_params: "Live2D Parameter Override",
+    field_live2d_params_desc: "Override Live2D params on state entry. Each item is {id,value,target}, target is optional: Parameter/PartOpacity",
 
     field_can_trigger: "Triggerable States",
+
 
 
     field_can_trigger_desc: "Configure as a list of (state + weight). Higher weight = more likely",
@@ -842,9 +846,11 @@ const tutorialTranslations = {
     field_trigger_uptime_desc: "本起動の経過分数 >= trigger_uptime のときのみトリガー可能（0＝制限なし）",
     field_trigger_weather: "天気トリガー",
     field_trigger_weather_desc: "environment.condition（または condition_code）が trigger_weather のいずれかと完全一致するときのみ、この状態をトリガー可能（配列）",
-
+    field_live2d_params: "Live2D パラメーター上書き",
+    field_live2d_params_desc: "状態遷移時に Live2D パラメーターを上書き。要素は {id,value,target}、target は任意で Parameter/PartOpacity",
 
     field_can_trigger: "トリガー可能状態",
+
 
 
     field_can_trigger_desc: "（状態 + 重み）のリストで設定。重みが大きいほど選ばれやすい",

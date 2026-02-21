@@ -880,25 +880,33 @@ export class Live2DPlayer {
 
     for (const p of params) {
       if (!p.id) continue;
-      const target = p.target || "Parameter";
+
+      const paramIdx = coreModel.getParameterIndex?.(p.id);
+      const partIdx = coreModel.getPartIndex?.(p.id);
+      const partIds: string[] = coreModel._partIds || [];
+      const isParamId = typeof paramIdx === "number" && paramIdx >= 0;
+      const isPartId = typeof partIdx === "number" && partIdx >= 0 && partIds.includes(p.id);
+
+      const target =
+        p.target === "PartOpacity" || p.target === "Parameter"
+          ? p.target
+          : isPartId && !isParamId
+            ? "PartOpacity"
+            : "Parameter";
 
       if (target === "PartOpacity") {
-        const idx = coreModel.getPartIndex?.(p.id);
-        const partIds: string[] = coreModel._partIds || [];
-        if (typeof idx === "number" && partIds.includes(p.id)) {
-          partEntries.push({ idx, value: p.value, id: p.id });
+        if (isPartId) {
+          partEntries.push({ idx: partIdx, value: p.value, id: p.id });
         } else {
           dbg("applyLive2DParameters", "part not found:", p.id);
         }
+      } else if (isParamId) {
+        paramEntries.push({ idx: paramIdx, value: p.value, id: p.id });
       } else {
-        const idx = coreModel.getParameterIndex?.(p.id);
-        if (typeof idx === "number" && idx >= 0) {
-          paramEntries.push({ idx, value: p.value, id: p.id });
-        } else {
-          dbg("applyLive2DParameters", "parameter not found:", p.id);
-        }
+        dbg("applyLive2DParameters", "parameter not found:", p.id);
       }
     }
+
 
     if (paramEntries.length === 0 && partEntries.length === 0) return;
 

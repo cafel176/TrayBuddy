@@ -105,9 +105,10 @@
   function formatLive2dParams(params?: Live2DParameterSetting[]): string {
     if (!params || params.length === 0) return "";
     return params
-      .map((p) =>
-        `${p.id}=${p.value}${p.target === "PartOpacity" ? " (PartOpacity)" : ""}`,
-      )
+      .map((p) => {
+        const target = p.target || "Parameter";
+        return `${p.id}=${p.value} (${target})`;
+      })
       .join(", ");
   }
 

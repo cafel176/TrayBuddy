@@ -80,6 +80,11 @@ fn default_trigger_uptime() -> i32 {
     0
 }
 
+#[inline]
+fn default_live2d_param_target() -> Box<str> {
+    "Parameter".into()
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum TriggerWeatherDe {
@@ -881,6 +886,7 @@ pub struct Live2DParameterSetting {
     /// 目标值
     pub value: f64,
     /// 目标类型："Parameter"（默认）设置参数值，"PartOpacity" 设置部件透明度
+    #[serde(default = "default_live2d_param_target")]
     pub target: Box<str>,
 }
 

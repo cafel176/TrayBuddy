@@ -1367,12 +1367,15 @@ function normalizeStateForEditor(state) {
 
   if (typeof state.branch_show_bubble !== 'boolean') state.branch_show_bubble = true;
 
-  // live2d_params 应该是 [{id, value}] 数组或 null
+  // live2d_params 应该是 [{id, value, target}] 数组或 null
   if (state.live2d_params) {
     if (Array.isArray(state.live2d_params)) {
       state.live2d_params = state.live2d_params
         .filter((p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id.trim())
-        .map((p) => ({ id: p.id.trim(), value: Number(p.value) || 0 }));
+        .map((p) => {
+          const target = p.target === 'PartOpacity' ? 'PartOpacity' : 'Parameter';
+          return { id: p.id.trim(), value: Number(p.value) || 0, target };
+        });
       if (state.live2d_params.length === 0) state.live2d_params = null;
     } else {
       state.live2d_params = null;
@@ -3501,12 +3504,23 @@ function renderLive2DParams(params) {
 
   if (!Array.isArray(params)) return;
 
+  const t = window.i18n?.t ? window.i18n.t.bind(window.i18n) : null;
+  const targetLabel = t ? t('live2d_param_target_label') : 'Target';
+  const targetParameter = t ? t('live2d_param_target_parameter') : 'Parameter';
+  const targetPart = t ? t('live2d_param_target_partopacity') : 'PartOpacity';
+
+
   params.forEach((param, index) => {
     const item = document.createElement('div');
+    const target = param.target === 'PartOpacity' ? 'PartOpacity' : 'Parameter';
     item.className = 'branch-item';
     item.innerHTML = `
       <input type="text" data-live2d-param-id="${index}" value="${param.id || ''}" placeholder="ParamAngleX" style="flex:1;">
       <input type="number" data-live2d-param-value="${index}" value="${param.value ?? 0}" step="0.1" style="width:100px;">
+      <select data-live2d-param-target="${index}" title="${targetLabel}" style="width:140px;">
+        <option value="Parameter" ${target === 'Parameter' ? 'selected' : ''}>${targetParameter}</option>
+        <option value="PartOpacity" ${target === 'PartOpacity' ? 'selected' : ''}>${targetPart}</option>
+      </select>
       <button class="btn btn-sm btn-ghost" onclick="removeLive2DParam(${index})">🗑️</button>
     `;
     list.appendChild(item);
@@ -3519,12 +3533,21 @@ function renderLive2DParams(params) {
 function addLive2DParam() {
   const list = document.getElementById('live2d-param-list');
   const index = list.children.length;
+  const t = window.i18n?.t ? window.i18n.t.bind(window.i18n) : null;
+  const targetLabel = t ? t('live2d_param_target_label') : 'Target';
+  const targetParameter = t ? t('live2d_param_target_parameter') : 'Parameter';
+  const targetPart = t ? t('live2d_param_target_partopacity') : 'PartOpacity';
+
 
   const item = document.createElement('div');
   item.className = 'branch-item';
   item.innerHTML = `
     <input type="text" data-live2d-param-id="${index}" value="" placeholder="ParamAngleX" style="flex:1;">
     <input type="number" data-live2d-param-value="${index}" value="0" step="0.1" style="width:100px;">
+    <select data-live2d-param-target="${index}" title="${targetLabel}" style="width:140px;">
+      <option value="Parameter" selected>${targetParameter}</option>
+      <option value="PartOpacity">${targetPart}</option>
+    </select>
     <button class="btn btn-sm btn-ghost" onclick="removeLive2DParam(${index})">🗑️</button>
   `;
   list.appendChild(item);
@@ -3551,9 +3574,11 @@ function collectLive2DParams() {
     const id = el.value.trim();
     const idx = el.getAttribute('data-live2d-param-id');
     const valEl = list.querySelector(`[data-live2d-param-value="${idx}"]`);
+    const targetEl = list.querySelector(`[data-live2d-param-target="${idx}"]`);
     const value = parseFloat(valEl?.value) || 0;
+    const target = targetEl?.value === 'PartOpacity' ? 'PartOpacity' : 'Parameter';
     if (id) {
-      params.push({ id, value });
+      params.push({ id, value, target });
     }
   });
 

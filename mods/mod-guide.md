@@ -176,7 +176,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `trigger_uptime` | Number | 启动时长触发门槛（分钟）。当“本次程序启动已运行分钟数” >= trigger_uptime 时，该状态才允许触发。默认 0（不限制） |
 ||| `trigger_weather` | Array | 天气触发条件（数组任意匹配）。空数组表示不限制；若数组项为纯数字则匹配 environment.condition_code（weatherCode），否则匹配 environment.condition（天气描述，精确匹配）。默认 [] |
 ||| `mod_data_counter` | Object / null | 进入该状态时对 Mod 数据执行的操作 (可选) |
-||| `live2d_params` | Array | （Live2D Mod）进入该状态时覆写 Live2D 参数（数组；可为空） |
+||| `live2d_params` | Array | （Live2D Mod）进入该状态时覆写 Live2D 参数（数组；可为空）。元素结构：`{id, value, target}`，其中 `target` 可选，取值 `Parameter`（参数值）或 `PartOpacity`（部件透明度），省略时默认 `Parameter` |
 ||| `pngremix_params` | Array | （PngRemix Mod）进入该状态时触发表情/动作（数组；可为空；元素为 `{type,name}`） |
 
 ||| `branch_show_bubble` | Boolean | “显示气泡”：控制对话分支选项是否以气泡形式展示（默认 true） |

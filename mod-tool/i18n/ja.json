@@ -247,8 +247,12 @@
   "data_counter_hint": "この状態に入る時に Mod データに対して実行する操作（例：好感度 +1）",
   "section_live2d_params": "Live2D パラメーター上書き (Live2D Parameters)",
   "btn_add_live2d_param": "パラメーターを追加",
-  "live2d_params_hint": "この状態に入る時に Live2D モデルのパラメーターを設定（例：ParamAngleX, ParamEyeLOpen など）",
+  "live2d_params_hint": "この状態に入る時に Live2D モデルのパラメーターを設定（例：ParamAngleX, ParamEyeLOpen。target=Parameter/PartOpacity を選択）",
+  "live2d_param_target_label": "ターゲット",
+  "live2d_param_target_parameter": "パラメーター (Parameter)",
+  "live2d_param_target_partopacity": "部品の透明度 (PartOpacity)",
   "section_branches": "対話分岐",
+
   "btn_add_branch": "分岐を追加",
   "btn_cancel": "キャンセル",
   "btn_save": "保存",
