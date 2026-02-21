@@ -1085,7 +1085,9 @@ impl StateManager {
                     mod_id,
                     value: next,
                 });
+            drop(storage);
             let _ = emit(&app_handle, events::MOD_DATA_CHANGED, data);
+
         });
     }
 }

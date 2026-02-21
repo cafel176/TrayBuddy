@@ -816,24 +816,24 @@ async fn load_mod_from_path(
         .unwrap_or(false);
     if is_archive_file {
         // 从 archive store 中查找对应的 mod_id
-        let mod_id = {
+        let archive_store = {
             let rm = state.resource_manager.lock().unwrap();
-            if let Some(store) = rm.get_archive_store() {
-                let s = store.lock().unwrap();
-                // 用文件名推断 mod_id: "{mod_id}.tbuddy" 或 "{mod_id}.sbuddy"
-                let file_stem = target_path
-                    .file_stem()
-                    .map(|s| s.to_string_lossy().into_owned())
-                    .unwrap_or_default();
-                if s.contains(&file_stem) {
-                    Some(file_stem)
-                } else {
-                    None
-                }
+            rm.get_archive_store().cloned()
+        };
+        let mod_id = archive_store.and_then(|store| {
+            let s = store.lock().unwrap();
+            // 用文件名推断 mod_id: "{mod_id}.tbuddy" 或 "{mod_id}.sbuddy"
+            let file_stem = target_path
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            if s.contains(&file_stem) {
+                Some(file_stem)
             } else {
                 None
             }
-        };
+        });
+
 
         if let Some(id) = mod_id {
             let legacy_key = id.clone();
@@ -2353,8 +2353,11 @@ async fn import_mod_from_path(
 
     // 将新复制的包文件加载到内存 archive store
     {
-        let rm = state.resource_manager.lock().unwrap();
-        if let Some(store) = rm.get_archive_store() {
+        let archive_store = {
+            let rm = state.resource_manager.lock().unwrap();
+            rm.get_archive_store().cloned()
+        };
+        if let Some(store) = archive_store {
             let mut s = store.lock().unwrap();
             if imported.ext == "sbuddy" {
                 let _ = s.load_sbuddy(&imported.archive_path);
@@ -2368,6 +2371,7 @@ async fn import_mod_from_path(
 
     Ok(imported.id)
 }
+
 
 /// 从指定路径导入 Mod (.tbuddy / .sbuddy 文件)，并返回包文件路径
 #[tauri::command]
@@ -2383,8 +2387,11 @@ async fn import_mod_from_path_detailed(
 
     // 将新复制的包文件加载到内存 archive store
     {
-        let rm = state.resource_manager.lock().unwrap();
-        if let Some(store) = rm.get_archive_store() {
+        let archive_store = {
+            let rm = state.resource_manager.lock().unwrap();
+            rm.get_archive_store().cloned()
+        };
+        if let Some(store) = archive_store {
             let mut s = store.lock().unwrap();
             if imported.ext == "sbuddy" {
                 let _ = s.load_sbuddy(&imported.archive_path);
@@ -2401,6 +2408,7 @@ async fn import_mod_from_path_detailed(
         extracted_path: imported.archive_path.to_string_lossy().into_owned(),
     })
 }
+
 
 
 
