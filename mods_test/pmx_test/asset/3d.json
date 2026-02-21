@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "Sagiri's T-Shirt",
+    "type": "pmx",
+    "file": "asset/3d/Sagiri's T-Shirt.pmx",
+    "scale": 0.9,
+    "offset_x": 0,
+    "offset_y": 0,
+    "texture_base_dir": "asset/3d/textures",
+    "animation_base_dir": "asset/3d/animations"
+  },
+  "animations": [
+    {
+      "name": "1",
+      "type": "vmd",
+      "file": "1.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "12",
+      "type": "vmd",
+      "file": "12.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "10",
+      "type": "vmd",
+      "file": "10.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "11",
+      "type": "vmd",
+      "file": "11.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "13",
+      "type": "vmd",
+      "file": "13.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "14",
+      "type": "vmd",
+      "file": "14.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "15",
+      "type": "vmd",
+      "file": "15.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "16",
+      "type": "vmd",
+      "file": "16.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "17",
+      "type": "vmd",
+      "file": "17.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "19",
+      "type": "vmd",
+      "file": "19.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "18",
+      "type": "vmd",
+      "file": "18.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "21",
+      "type": "vmd",
+      "file": "21.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "20",
+      "type": "vmd",
+      "file": "20.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "23",
+      "type": "vmd",
+      "file": "23.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "2",
+      "type": "vmd",
+      "file": "2.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "22",
+      "type": "vmd",
+      "file": "22.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "24",
+      "type": "vmd",
+      "file": "24.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "3",
+      "type": "vmd",
+      "file": "3.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "5",
+      "type": "vmd",
+      "file": "5.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "4",
+      "type": "vmd",
+      "file": "4.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "6",
+      "type": "vmd",
+      "file": "6.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "7",
+      "type": "vmd",
+      "file": "7.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "8",
+      "type": "vmd",
+      "file": "8.vmd",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "9",
+      "type": "vmd",
+      "file": "9.vmd",
+      "speed": 1,
+      "fps": 60
+    }
+  ]
+}

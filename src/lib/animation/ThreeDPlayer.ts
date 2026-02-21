@@ -10,6 +10,8 @@ import type { VRM } from "@pixiv/three-vrm";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { buildModAssetUrlFor3D } from "../utils/modAssetUrl";
 import type { ThreeDConfig, ThreeDAnimation, ThreeDState } from "$lib/types/asset";
+// @ts-ignore — vendored JS module without TS declarations
+import { MMDLoader } from "./mmd/MMDLoader.js";
 
 type PlayOptions = {
   playOnce: boolean;
@@ -326,6 +328,229 @@ async function retargetVrmaToVrmClipBaked(
   return clip;
 }
 
+// =========================================================================
+// MMD Runtime: IK Solver, Grant Solver, bone backup/restore
+// Ported from other-tool/模型预览/app.js
+// =========================================================================
+
+interface MmdIkLink {
+  index: number;
+  enabled?: boolean;
+  limitation?: THREE.Vector3;
+  rotationMin?: THREE.Vector3;
+  rotationMax?: THREE.Vector3;
+}
+
+interface MmdIkParam {
+  target: number;
+  effector: number;
+  iteration: number;
+  maxAngle?: number;
+  minAngle?: number;
+  links: MmdIkLink[];
+}
+
+interface MmdGrantParam {
+  index: number;
+  parentIndex: number;
+  ratio: number;
+  isLocal?: boolean;
+  affectRotation?: boolean;
+  affectPosition?: boolean;
+  transformationClass?: number;
+}
+
+interface MmdIkSolver {
+  mesh: THREE.SkinnedMesh;
+  iks: MmdIkParam[];
+  update(): void;
+}
+
+interface MmdGrantSolver {
+  mesh: THREE.SkinnedMesh;
+  grants: MmdGrantParam[];
+  update(): void;
+}
+
+interface MmdRuntime {
+  mesh: THREE.SkinnedMesh;
+  ikSolver: MmdIkSolver | null;
+  grantSolver: MmdGrantSolver | null;
+  backupBones: Float32Array | null;
+}
+
+function createMmdIkSolver(mesh: THREE.SkinnedMesh, iks: MmdIkParam[] = []): MmdIkSolver {
+  const _q = new THREE.Quaternion();
+  const _targetPos = new THREE.Vector3();
+  const _targetVec = new THREE.Vector3();
+  const _effectorPos = new THREE.Vector3();
+  const _effectorVec = new THREE.Vector3();
+  const _linkPos = new THREE.Vector3();
+  const _invLinkQ = new THREE.Quaternion();
+  const _linkScale = new THREE.Vector3();
+  const _axis = new THREE.Vector3();
+  const _vector = new THREE.Vector3();
+
+  const solver: MmdIkSolver = {
+    mesh,
+    iks,
+    update() {
+      for (let i = 0; i < (this.iks?.length || 0); i++) {
+        updateOne(this.iks[i]);
+      }
+    },
+  };
+
+  function updateOne(ik: MmdIkParam) {
+    const bones = solver.mesh?.skeleton?.bones;
+    if (!bones || !ik) return;
+
+    const effector = bones[ik.effector];
+    const target = bones[ik.target];
+    if (!effector || !target) return;
+
+    _targetPos.setFromMatrixPosition(target.matrixWorld);
+
+    const links = ik.links || [];
+    const iteration = ik.iteration !== undefined ? ik.iteration : 1;
+
+    for (let i = 0; i < iteration; i++) {
+      let rotated = false;
+
+      for (let j = 0; j < links.length; j++) {
+        const linkBone = bones[links[j].index];
+        if (!linkBone) continue;
+
+        if (links[j].enabled === false) break;
+
+        const limitation = links[j].limitation;
+        const rotationMin = links[j].rotationMin;
+        const rotationMax = links[j].rotationMax;
+
+        linkBone.matrixWorld.decompose(_linkPos, _invLinkQ, _linkScale);
+        _invLinkQ.invert();
+        _effectorPos.setFromMatrixPosition(effector.matrixWorld);
+
+        _effectorVec.subVectors(_effectorPos, _linkPos);
+        _effectorVec.applyQuaternion(_invLinkQ);
+        _effectorVec.normalize();
+
+        _targetVec.subVectors(_targetPos, _linkPos);
+        _targetVec.applyQuaternion(_invLinkQ);
+        _targetVec.normalize();
+
+        let angle = _targetVec.dot(_effectorVec);
+        angle = Math.min(1, Math.max(-1, angle));
+        angle = Math.acos(angle);
+
+        if (angle < 1e-5) continue;
+
+        if (ik.minAngle !== undefined && angle < ik.minAngle) angle = ik.minAngle;
+        if (ik.maxAngle !== undefined && angle > ik.maxAngle) angle = ik.maxAngle;
+
+        _axis.crossVectors(_effectorVec, _targetVec);
+        _axis.normalize();
+
+        _q.setFromAxisAngle(_axis, angle);
+        linkBone.quaternion.multiply(_q);
+
+        if (limitation !== undefined) {
+          let c = linkBone.quaternion.w;
+          c = Math.min(1, Math.max(-1, c));
+          const c2 = Math.sqrt(Math.max(0, 1 - c * c));
+          linkBone.quaternion.set(limitation.x * c2, limitation.y * c2, limitation.z * c2, c);
+        }
+
+        if (rotationMin !== undefined) {
+          linkBone.rotation.setFromVector3(_vector.setFromEuler(linkBone.rotation).max(rotationMin));
+        }
+
+        if (rotationMax !== undefined) {
+          linkBone.rotation.setFromVector3(_vector.setFromEuler(linkBone.rotation).min(rotationMax));
+        }
+
+        linkBone.updateMatrixWorld(true);
+        rotated = true;
+      }
+
+      if (!rotated) break;
+    }
+  }
+
+  return solver;
+}
+
+function createMmdGrantSolver(mesh: THREE.SkinnedMesh, grants: MmdGrantParam[] = []): MmdGrantSolver {
+  const _q = new THREE.Quaternion();
+
+  const solver: MmdGrantSolver = {
+    mesh,
+    grants,
+    update() {
+      for (let i = 0; i < (this.grants?.length || 0); i++) {
+        updateOne(this.grants[i]);
+      }
+    },
+  };
+
+  function updateOne(grant: MmdGrantParam) {
+    const bones = solver.mesh?.skeleton?.bones;
+    if (!bones || !grant) return;
+
+    const bone = bones[grant.index];
+    const parentBone = bones[grant.parentIndex];
+    if (!bone || !parentBone) return;
+
+    if (grant.affectRotation) {
+      _q.set(0, 0, 0, 1);
+      _q.slerp(parentBone.quaternion, grant.ratio ?? 1);
+      bone.quaternion.multiply(_q);
+    }
+
+    if (grant.affectPosition) {
+      bone.position.addScaledVector(parentBone.position, grant.ratio ?? 1);
+    }
+  }
+
+  return solver;
+}
+
+function ensureMmdRuntime(mesh: THREE.SkinnedMesh): MmdRuntime | null {
+  const mmd = (mesh?.geometry as any)?.userData?.MMD;
+  if (!mesh?.skeleton || !mmd) return null;
+
+  const ikSolver = (Array.isArray(mmd.iks) && mmd.iks.length) ? createMmdIkSolver(mesh, mmd.iks) : null;
+  const grantSolver = (Array.isArray(mmd.grants) && mmd.grants.length) ? createMmdGrantSolver(mesh, mmd.grants) : null;
+
+  return { mesh, ikSolver, grantSolver, backupBones: null };
+}
+
+function mmdRestoreBones(mmdState: MmdRuntime) {
+  const bones = mmdState?.mesh?.skeleton?.bones;
+  const backup = mmdState?.backupBones;
+  if (!bones || !backup) return;
+
+  for (let i = 0; i < bones.length; i++) {
+    bones[i].position.fromArray(backup as any, i * 7);
+    bones[i].quaternion.fromArray(backup as any, i * 7 + 3);
+  }
+}
+
+function mmdSaveBones(mmdState: MmdRuntime) {
+  const bones = mmdState?.mesh?.skeleton?.bones;
+  if (!bones) return;
+
+  if (!mmdState.backupBones || mmdState.backupBones.length !== bones.length * 7) {
+    mmdState.backupBones = new Float32Array(bones.length * 7);
+  }
+
+  const backup = mmdState.backupBones;
+  for (let i = 0; i < bones.length; i++) {
+    bones[i].position.toArray(backup, i * 7);
+    bones[i].quaternion.toArray(backup, i * 7 + 3);
+  }
+}
+
 export class ThreeDPlayer {
   private canvas: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer | null = null;
@@ -375,6 +600,13 @@ export class ThreeDPlayer {
   private hipsXCompensation = 0;
 
   private isRendering = false;
+
+  /** PMX/MMD 专用运行时（IK、Grant、骨骼备份/恢复） */
+  private mmdRuntime: MmdRuntime | null = null;
+  /** PMX 模型的 SkinnedMesh 引用（用于 MMDLoader.loadAnimation） */
+  private pmxMesh: THREE.SkinnedMesh | null = null;
+  /** 缓存的 MMDLoader 实例（避免重复创建解析器） */
+  private mmdLoader: any = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -465,12 +697,15 @@ export class ThreeDPlayer {
     this.hipsXCompensation = 0;
     this.fadeDurationTotal = 0;
     this.fadeStartModelX = 0;
+    this.mmdRuntime = null;
+    this.pmxMesh = null;
+    this.mmdLoader = null;
 
     dbg("destroy", "done");
   }
 
   async load(modPath: string, config: ThreeDConfig): Promise<void> {
-    dbg("load", "modPath:", modPath, "model:", config.model.file);
+    dbg("load", "modPath:", modPath, "model:", config.model.file, "type:", config.model.type);
     this.config = config;
     this.modPath = modPath;
     this.clipCache.clear();
@@ -494,11 +729,36 @@ export class ThreeDPlayer {
       this.mixer = null;
     }
     this.currentAction = null;
+    this.mmdRuntime = null;
+    this.pmxMesh = null;
 
-    // Load VRM model
     const modelUrl = buildModAssetUrlFor3D(modPath, config.model.file);
     dbg("load", "modelUrl:", modelUrl);
 
+    if (config.model.type === "pmx") {
+      await this.loadPmxModel(modelUrl, config);
+    } else {
+      await this.loadVrmModel(modelUrl, config);
+    }
+
+    // Apply model-level scale & offset
+    this.currentModelScale = config.model.scale || 1;
+    this.currentOffsetX = config.model.offset_x || 0;
+    this.currentOffsetY = config.model.offset_y || 0;
+
+    // Create mixer
+    // PMX: mixer 必须基于 SkinnedMesh 创建，因为 VMD track 使用 .bones[xxx] 路径
+    // 需要 PropertyBinding 能在 root 上找到 skeleton.bones
+    // VRM: mixer 基于 model (vrm.scene) 创建，baked clip 使用 uuid 路径
+    this.mixer = new THREE.AnimationMixer(this.pmxMesh ?? this.model!);
+
+    // Fit camera to model
+    this.fitCameraToModel();
+
+    dbg("load", "model loaded, animations:", config.animations.length);
+  }
+
+  private async loadVrmModel(modelUrl: string, config: ThreeDConfig): Promise<void> {
     const gltf = await new Promise<GLTF>((resolve, reject) => {
       this.gltfLoader!.load(
         modelUrl,
@@ -525,7 +785,7 @@ export class ThreeDPlayer {
       if ((o as any).isSkinnedMesh) (o as any).frustumCulled = false;
     });
 
-    this.scene.add(this.model);
+    this.scene!.add(this.model);
 
     // 记录 T-pose 基准几何信息
     const initBox = new THREE.Box3().setFromObject(this.model);
@@ -542,19 +802,63 @@ export class ThreeDPlayer {
       const tmpV = new THREE.Vector3();
       this.baseHipsWorldX = hipsNode.getWorldPosition(tmpV).x;
     }
+  }
 
-    // Apply model-level scale & offset
-    this.currentModelScale = config.model.scale || 1;
-    this.currentOffsetX = config.model.offset_x || 0;
-    this.currentOffsetY = config.model.offset_y || 0;
+  private async loadPmxModel(modelUrl: string, config: ThreeDConfig): Promise<void> {
+    // 构建 texture base URL（MMDLoader 的 resourcePath）
+    const textureBaseDir = config.model.texture_base_dir || "";
+    const resourcePath = textureBaseDir
+      ? buildModAssetUrlFor3D(this.modPath, textureBaseDir.replace(/\/?$/, "/"))
+      : buildModAssetUrlFor3D(this.modPath, "");
 
-    // Create mixer
-    this.mixer = new THREE.AnimationMixer(this.model);
+    dbg("loadPmxModel", "resourcePath:", resourcePath);
 
-    // Fit camera to model
-    this.fitCameraToModel();
+    // 创建或复用 MMDLoader
+    if (!this.mmdLoader) {
+      this.mmdLoader = new MMDLoader();
+    }
+    this.mmdLoader.setResourcePath(resourcePath);
 
-    dbg("load", "model loaded, animations:", config.animations.length);
+    const mesh = await new Promise<THREE.SkinnedMesh>((resolve, reject) => {
+      this.mmdLoader.load(
+        modelUrl,
+        (m: THREE.SkinnedMesh) => resolve(m),
+        undefined,
+        (err: any) => reject(err),
+      );
+    });
+
+    this.pmxMesh = mesh;
+
+    // 创建一个容器 Group 作为 model（与 VRM 路径保持一致）
+    const container = new THREE.Group();
+    container.add(mesh);
+    this.model = container;
+
+    // Avoid frustum culling issues
+    this.model.traverse((o) => {
+      if ((o as any).isSkinnedMesh) (o as any).frustumCulled = false;
+    });
+
+    this.scene!.add(this.model);
+
+    // 初始化 MMD 运行时（IK、Grant）
+    this.mmdRuntime = ensureMmdRuntime(mesh);
+    if (this.mmdRuntime) {
+      // 初始保存骨骼状态
+      mmdSaveBones(this.mmdRuntime);
+    }
+
+    // 记录基准几何信息
+    const initBox = new THREE.Box3().setFromObject(this.model);
+    this.baseFootY = initBox.min.y;
+    this.baseModelHeight = Math.max(initBox.max.y - initBox.min.y, 0.01);
+
+    // 将模型下移使脚底对齐到 Y=0
+    this.model.position.y = -this.baseFootY;
+
+    // PMX 模型没有 humanoid hips 概念，baseHipsWorldX 保持 0
+    this.baseHipsWorldX = 0;
   }
 
   /**
@@ -569,8 +873,13 @@ export class ThreeDPlayer {
     options: PlayOptions,
   ): Promise<boolean> {
     dbg("playFromAnima", "assetName:", assetName, "playOnce:", options.playOnce);
-    if (!this.config || !this.model || !this.vrm || !this.mixer) {
+    if (!this.config || !this.model || !this.mixer) {
       dbg("playFromAnima", "not ready");
+      return false;
+    }
+    // VRM 需要 this.vrm，PMX 需要 this.pmxMesh
+    if (!this.vrm && !this.pmxMesh) {
+      dbg("playFromAnima", "no model backend (vrm/pmx) ready");
       return false;
     }
 
@@ -692,6 +1001,17 @@ export class ThreeDPlayer {
       this.fadingOutAction = null;
       // 立即让 mixer 评估一帧，然后计算静态补偿
       this.mixer.update(0);
+      // 对于 PMX：初次播放后保存骨骼状态
+      if (this.mmdRuntime) {
+        mmdSaveBones(this.mmdRuntime);
+        if (this.mmdRuntime.ikSolver) {
+          this.mmdRuntime.mesh.updateMatrixWorld(true);
+          this.mmdRuntime.ikSolver.update();
+        }
+        if (this.mmdRuntime.grantSolver) {
+          this.mmdRuntime.grantSolver.update();
+        }
+      }
       this.computeHipsXCompensation();
     }
 
@@ -798,14 +1118,22 @@ export class ThreeDPlayer {
   // =========================================================================
 
   private async loadAnimationClip(animConfig: ThreeDAnimation, loop: boolean): Promise<THREE.AnimationClip> {
-    const url = buildModAssetUrlFor3D(this.modPath, animConfig.file);
+    // animation_base_dir 非空时，file 为相对于该目录的路径；否则 file 为相对 mod 根目录的完整路径
+    const animBaseDir = this.config?.model?.animation_base_dir;
+    const resolvedFile = animBaseDir
+      ? animBaseDir.replace(/\/?$/, "/") + animConfig.file
+      : animConfig.file;
+    const url = buildModAssetUrlFor3D(this.modPath, resolvedFile);
     dbg("loadAnimationClip", "type:", animConfig.type, "loop:", loop, "url:", url);
 
     if (animConfig.type === "vrma") {
       return this.loadVrmaClip(animConfig, url, loop);
     }
 
-    // Future: VMD support would go here
+    if (animConfig.type === "vmd") {
+      return this.loadVmdClip(animConfig, url, loop);
+    }
+
     throw new Error(`Unsupported animation type: ${animConfig.type}`);
   }
 
@@ -825,7 +1153,7 @@ export class ThreeDPlayer {
       (this.vrm.humanoid as any)?.resetNormalizedPose?.();
     } catch { /* ignore */ }
 
-    const fps = animConfig.vrma_fps || 30;
+    const fps = animConfig.fps || 60;
     const clip = await retargetVrmaToVrmClipBaked(
       animConfig.name,
       vrmaGltf,
@@ -835,6 +1163,30 @@ export class ThreeDPlayer {
     );
 
     dbg("loadVrmaClip", "baked clip:", clip.name, "duration:", clip.duration, "tracks:", clip.tracks.length, "loop:", loop);
+    return clip;
+  }
+
+  private async loadVmdClip(animConfig: ThreeDAnimation, url: string, _loop: boolean): Promise<THREE.AnimationClip> {
+    if (!this.pmxMesh) {
+      throw new Error("PMX model not loaded — VMD animations require a PMX mesh");
+    }
+
+    if (!this.mmdLoader) {
+      this.mmdLoader = new MMDLoader();
+    }
+
+    const clip = await new Promise<THREE.AnimationClip>((resolve, reject) => {
+      this.mmdLoader.loadAnimation(
+        url,
+        this.pmxMesh,
+        (anim: THREE.AnimationClip) => resolve(anim),
+        undefined,
+        (err: any) => reject(err),
+      );
+    });
+
+    clip.name = `[VMD] ${animConfig.name}`;
+    dbg("loadVmdClip", "clip:", clip.name, "duration:", clip.duration, "tracks:", clip.tracks.length);
     return clip;
   }
 
@@ -853,14 +1205,27 @@ export class ThreeDPlayer {
       this.timer?.update();
       const dt = this.timer?.getDelta() ?? 0;
 
-      // Update VRM (spring bones, lookAt, etc.)
-      if (this.vrm?.update) {
-        this.vrm.update(dt);
-      }
-
-      // Update animation mixer
-      if (this.mixer) {
+      // Update model and animation
+      if (this.mmdRuntime && this.mixer) {
+        // PMX path: restore → mixer.update → save → IK → Grant
+        mmdRestoreBones(this.mmdRuntime);
         this.mixer.update(dt);
+        mmdSaveBones(this.mmdRuntime);
+        if (this.mmdRuntime.ikSolver) {
+          this.mmdRuntime.mesh.updateMatrixWorld(true);
+          this.mmdRuntime.ikSolver.update();
+        }
+        if (this.mmdRuntime.grantSolver) {
+          this.mmdRuntime.grantSolver.update();
+        }
+      } else {
+        // VRM path
+        if (this.vrm?.update) {
+          this.vrm.update(dt);
+        }
+        if (this.mixer) {
+          this.mixer.update(dt);
+        }
       }
 
       // 过渡期间：用 lerp 从起始 model.x 平滑过渡到 align 目标值

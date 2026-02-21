@@ -635,12 +635,12 @@
   "placeholder_pngremix_file": "例: my_character.pngRemix",
 
   "mod_type_threed": "3D モデル",
-  "assets_desc_threed": "3D (VRM) モデル設定、アニメーション、状態マッピングを管理",
+  "assets_desc_threed": "3D (VRM/PMX) モデル設定、アニメーション、状態マッピングを管理",
 
   "section_threed_model": "モデル設定 (3d.json - model)",
   "threed_model_name_label": "モデル名",
   "threed_model_type_label": "モデルタイプ",
-  "threed_model_type_hint": "現在は VRM 形式のみ対応",
+  "threed_model_type_hint": "VRM と PMX 形式に対応",
   "threed_model_file_label": "モデルファイル",
   "threed_model_file_hint": "モデルファイルパス（Mod ルートからの相対パス）",
   "threed_model_scale_label": "モデルスケール",
@@ -649,6 +649,8 @@
   "threed_model_offset_y_label": "Y オフセット (offset_y)",
   "threed_texture_base_dir_label": "テクスチャベースディレクトリ",
   "threed_texture_base_dir_hint": "任意、テクスチャファイルのディレクトリ",
+  "threed_animation_base_dir_label": "アニメーションベースディレクトリ",
+  "threed_animation_base_dir_hint": "任意、アニメーションファイルのディレクトリ（例: asset/3d/animations）",
 
   "section_threed_animations": "アニメーションリスト (animations)",
   "btn_add_threed_animation": "アニメーションを追加",
@@ -678,13 +680,13 @@
 
   "btn_sync_threed_config": "ファイルから設定を同期",
   "btn_sync_threed_assets": "ファイルからアセットを同期",
-  "msg_sync_threed_config_confirm": "asset/3d/ ディレクトリから .vrm モデルファイルを自動検出し、モデル設定（name、type、file）に反映します。現在のモデル設定は上書きされます。続行しますか？",
-  "msg_sync_threed_assets_confirm": "asset/3d/ ディレクトリ内の全 .vrma アニメーションファイルをスキャンし、アニメーションリストを再生成します。現在のアニメーションリストは上書きされます。続行しますか？",
+  "msg_sync_threed_config_confirm": "asset/3d/ ディレクトリから .vrm/.pmx モデルファイルを自動検出し、モデル設定（name、type、file）に反映します。現在のモデル設定は上書きされます。続行しますか？",
+  "msg_sync_threed_assets_confirm": "asset/3d/ ディレクトリ内の全 .vrma/.vmd アニメーションファイルをスキャンし、アニメーションリストを再生成します。現在のアニメーションリストは上書きされます。続行しますか？",
   "msg_sync_threed_config_success": "3D モデル設定の同期が完了しました",
   "msg_sync_threed_assets_success": "3D アセット同期完了：アニメーション {count} 件",
-  "msg_sync_threed_no_vrm_found": "asset/3d/ ディレクトリに .vrm モデルファイルが見つかりません",
-  "msg_sync_threed_no_vrma_found": "asset/3d/ ディレクトリに .vrma アニメーションファイルが見つかりません",
-  "msg_sync_threed_choose_vrm": "複数の .vrm ファイルが見つかりました。使用するファイル名を入力してください：\n{files}",
+  "msg_sync_threed_no_vrm_found": "asset/3d/ ディレクトリに .vrm/.pmx モデルファイルが見つかりません",
+  "msg_sync_threed_no_vrma_found": "asset/3d/ ディレクトリに .vrma/.vmd アニメーションファイルが見つかりません",
+  "msg_sync_threed_choose_vrm": "複数のモデルファイルが見つかりました。使用するファイル名を入力してください：\n{files}",
   "msg_sync_threed_dir_not_found": "asset/3d/ ディレクトリが見つかりません。Mod のディレクトリ構造を確認してください"
 }
 

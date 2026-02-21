@@ -192,18 +192,21 @@ export interface ThreeDModelConfig {
   offset_x: number;
   offset_y: number;
   texture_base_dir: string;
+  animation_base_dir: string;
 }
 
 export interface ThreeDAnimation {
   name: string;
   type: ThreeDAnimationType;
+
+  /** 动画文件路径（animation_base_dir 非空时为相对路径，否则为相对 mod 根目录的完整路径） */
   file: string;
 
   /** 播放倍速 */
   speed: number;
 
-  /** VRMA bake 采样 FPS（仅 vrma 使用） */
-  vrma_fps: number;
+  /** 动画采样 FPS（默认 60） */
+  fps: number;
 }
 
 export interface ThreeDState {

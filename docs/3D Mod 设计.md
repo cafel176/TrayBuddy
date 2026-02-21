@@ -122,7 +122,7 @@ My3DMod/
       "file": "asset/3d/PET_IDLE 1.vrma",
       "loop": true,
       "speed": 1.0,
-      "vrma_fps": 30
+      "fps": 60
     }
   ],
   "states": [
@@ -149,15 +149,17 @@ My3DMod/
     "scale": 1.0,
     "offset_x": 0,
     "offset_y": 0,
-    "texture_base_dir": "asset/3d/pmx/"
+    "texture_base_dir": "asset/3d/pmx/",
+    "animation_base_dir": "asset/3d/pmx/"
   },
   "animations": [
     {
       "name": "motion_1",
       "type": "vmd",
-      "file": "asset/3d/pmx/1.vmd",
+      "file": "1.vmd",
       "loop": true,
-      "speed": 1.0
+      "speed": 1.0,
+      "fps": 60
     }
   ],
   "states": [
@@ -177,12 +179,13 @@ My3DMod/
 - `model.type`：`"vrm" | "pmx"`
 - `model.file`：相对 mod 根目录的路径
 - `model.texture_base_dir`：PMX 可选，用于贴图加载（若贴图路径相对模型文件，可省略）
+- `model.animation_base_dir`：可选，动画文件所在目录（非空时 `animations[].file` 为相对于该目录的路径；为空则 `file` 为相对 mod 根目录的完整路径）
 - `animations[].name`：动画的逻辑名称（供状态映射与 UI 选择）
 - `animations[].type`：`"vrma" | "vmd"`
-- `animations[].file`：动画文件路径
+- `animations[].file`：动画文件路径（当 `animation_base_dir` 非空时为相对路径如 `"1.vmd"`，否则为完整路径如 `"asset/3d/idle.vrma"`）
 - `animations[].loop`：是否循环
 - `animations[].speed`：播放倍速（最终映射到 `AnimationMixer.timeScale` 或 MMD helper 速度）
-- `animations[].vrma_fps`：仅 VRMA 使用，bake 采样 FPS（默认 30；提高会更平滑但更耗时）
+- `animations[].fps`：动画采样 FPS（默认 60；提高会更平滑但更耗时）
 
 ---
 

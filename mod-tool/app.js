@@ -6992,7 +6992,8 @@ function ensureThreeDData() {
         scale: 1,
         offset_x: 0,
         offset_y: 0,
-        texture_base_dir: ''
+        texture_base_dir: '',
+        animation_base_dir: ''
       },
       animations: []
     };
@@ -7014,6 +7015,7 @@ function collectThreeDModelData() {
   t.model.offset_x = parseFloat(document.getElementById('threed-model-offset-x')?.value) || 0;
   t.model.offset_y = parseFloat(document.getElementById('threed-model-offset-y')?.value) || 0;
   t.model.texture_base_dir = document.getElementById('threed-texture-base-dir')?.value?.trim() || '';
+  t.model.animation_base_dir = document.getElementById('threed-animation-base-dir')?.value?.trim() || '';
 }
 
 /**
@@ -7031,11 +7033,12 @@ function populateThreeDModelForm() {
   if (el('threed-model-offset-x')) el('threed-model-offset-x').value = t.model.offset_x ?? 0;
   if (el('threed-model-offset-y')) el('threed-model-offset-y').value = t.model.offset_y ?? 0;
   if (el('threed-texture-base-dir')) el('threed-texture-base-dir').value = t.model.texture_base_dir || '';
+  if (el('threed-animation-base-dir')) el('threed-animation-base-dir').value = t.model.animation_base_dir || '';
 }
 
 /**
  * 从文件同步 3D 模型配置
- * 自动扫描 asset/3d/ 目录下的 .vrm 文件，推断并填充模型配置字段
+ * 自动扫描 asset/3d/ 目录，推断并填充模型配置、纹理目录、动画目录
  */
 async function syncThreeDConfigFromFiles() {
   if (!currentMod) {
@@ -7058,38 +7061,97 @@ async function syncThreeDConfigFromFiles() {
       dirHandle = await dirHandle.getDirectoryHandle(part);
     }
 
-    // 扫描 .vrm 文件
-    const vrmFiles = [];
+    // 扫描 .vrm 和 .pmx 文件
+    const modelFiles = [];
     for await (const entry of dirHandle.values()) {
-      if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.vrm')) {
-        vrmFiles.push(entry.name);
+      if (entry.kind === 'file' && (entry.name.toLowerCase().endsWith('.vrm') || entry.name.toLowerCase().endsWith('.pmx'))) {
+        modelFiles.push(entry.name);
       }
     }
 
-    if (vrmFiles.length === 0) {
+    if (modelFiles.length === 0) {
       showToast(window.i18n.t('msg_sync_threed_no_vrm_found'), 'warning');
       return;
     }
 
-    let chosenVrm;
-    if (vrmFiles.length === 1) {
-      chosenVrm = vrmFiles[0];
+    let chosenModel;
+    if (modelFiles.length === 1) {
+      chosenModel = modelFiles[0];
     } else {
       const choice = prompt(
-        window.i18n.t('msg_sync_threed_choose_vrm').replace('{files}', vrmFiles.join('\n')),
-        vrmFiles[0]
+        window.i18n.t('msg_sync_threed_choose_vrm').replace('{files}', modelFiles.join('\n')),
+        modelFiles[0]
       );
       if (!choice) return;
-      chosenVrm = choice.trim();
+      chosenModel = choice.trim();
     }
 
     // 填充模型配置
-    const nameFromFile = chosenVrm.replace(/\.vrm$/i, '');
+    const isPmx = chosenModel.toLowerCase().endsWith('.pmx');
+    const nameFromFile = chosenModel.replace(/\.(vrm|pmx)$/i, '');
     if (!threed.model.name) {
       threed.model.name = nameFromFile;
     }
-    threed.model.type = 'vrm';
-    threed.model.file = 'asset/3d/' + chosenVrm;
+    threed.model.type = isPmx ? 'pmx' : 'vrm';
+    threed.model.file = 'asset/3d/' + chosenModel;
+
+    // 收集根目录和子目录的文件类型信息
+    const texExts = ['.png', '.bmp', '.tga', '.jpg', '.jpeg', '.webp'];
+    const animExts = ['.vrma', '.vmd'];
+    let rootHasTextures = false;
+    let rootHasAnims = false;
+    const subDirs = [];
+
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file') {
+        const lower = entry.name.toLowerCase();
+        if (!rootHasTextures && texExts.some(ext => lower.endsWith(ext))) rootHasTextures = true;
+        if (!rootHasAnims && animExts.some(ext => lower.endsWith(ext))) rootHasAnims = true;
+      } else if (entry.kind === 'directory') {
+        subDirs.push(entry.name);
+      }
+    }
+
+    // 自动搜索纹理基础目录
+    let texDir = '';
+    if (rootHasTextures) {
+      texDir = 'asset/3d';
+    } else {
+      for (const subName of subDirs) {
+        try {
+          const subDir = await dirHandle.getDirectoryHandle(subName);
+          for await (const subEntry of subDir.values()) {
+            if (subEntry.kind === 'file' && texExts.some(ext => subEntry.name.toLowerCase().endsWith(ext))) {
+              texDir = 'asset/3d/' + subName;
+              break;
+            }
+          }
+          if (texDir) break;
+        } catch { /* ignore */ }
+      }
+    }
+    threed.model.texture_base_dir = texDir;
+
+    // 自动搜索动画基础目录
+    let animDir = '';
+    if (rootHasAnims) {
+      // 动画文件在 asset/3d/ 根目录
+      animDir = 'asset/3d';
+    } else {
+      for (const subName of subDirs) {
+        try {
+          const subDir = await dirHandle.getDirectoryHandle(subName);
+          for await (const subEntry of subDir.values()) {
+            if (subEntry.kind === 'file' && animExts.some(ext => subEntry.name.toLowerCase().endsWith(ext))) {
+              animDir = 'asset/3d/' + subName;
+              break;
+            }
+          }
+          if (animDir) break;
+        } catch { /* ignore */ }
+      }
+    }
+    threed.model.animation_base_dir = animDir;
 
     // 回写模型配置到表单
     populateThreeDModelForm();
@@ -7109,7 +7171,8 @@ async function syncThreeDConfigFromFiles() {
 
 /**
  * 从文件同步 3D 资产（动画）
- * 扫描 asset/3d/ 目录下的 .vrma 文件，自动生成动画列表
+ * 基于文件扫描：优先从 animation_base_dir 目录搜索，否则从 asset/3d/ 搜索
+ * animation_base_dir 非空时 file 存储相对于该目录的文件名，否则存储相对 mod 根目录的完整路径
  */
 async function syncThreeDAssetsFromFiles() {
   if (!currentMod) {
@@ -7126,40 +7189,44 @@ async function syncThreeDAssetsFromFiles() {
     collectThreeDModelData();
     const threed = ensureThreeDData();
 
-    // 导航到 asset/3d/ 目录
+    // 确定搜索目录：优先使用 animation_base_dir，否则使用 asset/3d/
+    const animBaseDir = threed.model.animation_base_dir || '';
+    const searchParts = animBaseDir ? animBaseDir.split('/').filter(Boolean) : ['asset', '3d'];
     let dirHandle = modFolderHandle;
-    for (const part of ['asset', '3d']) {
+    for (const part of searchParts) {
       dirHandle = await dirHandle.getDirectoryHandle(part);
     }
 
-    // 扫描 .vrma 文件
-    const vrmaFiles = [];
+    // 扫描 .vrma 和 .vmd 文件
+    const animFiles = [];
     for await (const entry of dirHandle.values()) {
-      if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.vrma')) {
-        vrmaFiles.push(entry.name);
+      if (entry.kind === 'file' && (entry.name.toLowerCase().endsWith('.vrma') || entry.name.toLowerCase().endsWith('.vmd'))) {
+        animFiles.push(entry.name);
       }
     }
 
-    if (vrmaFiles.length === 0) {
+    if (animFiles.length === 0) {
       showToast(window.i18n.t('msg_sync_threed_no_vrma_found'), 'warning');
       return;
     }
 
     // 生成动画列表
+    // animation_base_dir 非空时 file = 纯文件名；否则 file = 搜索目录前缀 + 文件名
     const newAnimations = [];
     const namesSeen = new Set();
-    for (const fileName of vrmaFiles) {
-      const baseName = fileName.replace(/\.vrma$/i, '');
-      // 将文件名中的空格替换为下划线，转小写作为动画名
+    const filePrefix = animBaseDir ? '' : 'asset/3d/';
+    for (const fileName of animFiles) {
+      const isVmd = fileName.toLowerCase().endsWith('.vmd');
+      const baseName = fileName.replace(/\.(vrma|vmd)$/i, '');
       const animName = baseName.replace(/\s+/g, '_').toLowerCase();
       if (namesSeen.has(animName)) continue;
       namesSeen.add(animName);
       newAnimations.push({
         name: animName,
-        type: 'vrma',
-        file: 'asset/3d/' + fileName,
+        type: isVmd ? 'vmd' : 'vrma',
+        file: filePrefix + fileName,
         speed: 1.0,
-        vrma_fps: 60
+        fps: 60
       });
     }
 
@@ -7260,7 +7327,7 @@ function renderThreeDAnimations(animations) {
         <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_type_label')}:</span> ${escapeHtml(anim.type || 'vrma')}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_file_label')}:</span> ${highlightNeedleHtml(aFile, fileRaw)}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_speed_label')}:</span> ${anim.speed ?? 1.0}</div>
-        <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_fps_label')}:</span> ${anim.vrma_fps ?? 60}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('threed_anim_fps_label')}:</span> ${anim.fps ?? 60}</div>
       </div>
     `;
     list.appendChild(card);
@@ -7301,7 +7368,7 @@ function addThreeDAnimation() {
     type: 'vrma',
     file: '',
     speed: 1.0,
-    vrma_fps: 60
+    fps: 60
   }, -1);
 }
 
@@ -7340,6 +7407,7 @@ function openThreeDAnimationModal(title, anim, index) {
         <label>${window.i18n.t('threed_anim_type_label')}</label>
         <select id="threed-edit-anim-type">
           <option value="vrma" ${anim.type === 'vrma' ? 'selected' : ''}>VRMA</option>
+          <option value="vmd" ${anim.type === 'vmd' ? 'selected' : ''}>VMD</option>
         </select>
       </div>
       <div class="form-group">
@@ -7352,7 +7420,7 @@ function openThreeDAnimationModal(title, anim, index) {
       </div>
       <div class="form-group">
         <label>${window.i18n.t('threed_anim_fps_label')}</label>
-        <input type="number" id="threed-edit-anim-fps" value="${anim.vrma_fps ?? 60}" min="1" max="120">
+        <input type="number" id="threed-edit-anim-fps" value="${anim.fps ?? 60}" min="1" max="120">
       </div>
     </div>
   `;
@@ -7373,7 +7441,7 @@ function saveThreeDAnimation(index) {
     type: document.getElementById('threed-edit-anim-type').value || 'vrma',
     file: document.getElementById('threed-edit-anim-file').value.trim(),
     speed: parseFloat(document.getElementById('threed-edit-anim-speed').value) || 1.0,
-    vrma_fps: parseInt(document.getElementById('threed-edit-anim-fps').value) || 60
+    fps: parseInt(document.getElementById('threed-edit-anim-fps').value) || 60
   };
 
   const threed = ensureThreeDData();

@@ -678,8 +678,9 @@
                     <label data-i18n="threed_model_type_label">模型类型</label>
                     <select id="threed-model-type">
                       <option value="vrm">VRM</option>
+                      <option value="pmx">PMX</option>
                     </select>
-                    <small data-i18n="threed_model_type_hint">目前仅支持 VRM 格式</small>
+                    <small data-i18n="threed_model_type_hint">支持 VRM 和 PMX 格式</small>
                   </div>
                   <div class="form-group">
                     <label data-i18n="threed_model_file_label">模型文件</label>
@@ -703,6 +704,11 @@
                     <label data-i18n="threed_texture_base_dir_label">纹理基础目录</label>
                     <input type="text" id="threed-texture-base-dir" placeholder="">
                     <small data-i18n="threed_texture_base_dir_hint">可选，纹理文件所在目录</small>
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="threed_animation_base_dir_label">动画基础目录</label>
+                    <input type="text" id="threed-animation-base-dir" placeholder="">
+                    <small data-i18n="threed_animation_base_dir_hint">可选，动画文件所在目录（如 asset/3d/animations）</small>
                   </div>
                 </div>
               </details>

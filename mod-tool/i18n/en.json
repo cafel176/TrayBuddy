@@ -635,12 +635,12 @@
   "placeholder_pngremix_file": "e.g., my_character.pngRemix",
 
   "mod_type_threed": "3D Model",
-  "assets_desc_threed": "Manage 3D (VRM) model config, animations, and state mappings",
+  "assets_desc_threed": "Manage 3D (VRM/PMX) model config, animations, and state mappings",
 
   "section_threed_model": "Model Config (3d.json - model)",
   "threed_model_name_label": "Model Name",
   "threed_model_type_label": "Model Type",
-  "threed_model_type_hint": "Currently only VRM format is supported",
+  "threed_model_type_hint": "Supports VRM and PMX formats",
   "threed_model_file_label": "Model File",
   "threed_model_file_hint": "Model file path (relative to Mod root)",
   "threed_model_scale_label": "Model Scale",
@@ -649,6 +649,8 @@
   "threed_model_offset_y_label": "Y Offset (offset_y)",
   "threed_texture_base_dir_label": "Texture Base Directory",
   "threed_texture_base_dir_hint": "Optional, directory containing texture files",
+  "threed_animation_base_dir_label": "Animation Base Directory",
+  "threed_animation_base_dir_hint": "Optional, directory containing animation files (e.g. asset/3d/animations)",
 
   "section_threed_animations": "Animations (animations)",
   "btn_add_threed_animation": "Add Animation",
@@ -678,13 +680,13 @@
 
   "btn_sync_threed_config": "Sync Config from Files",
   "btn_sync_threed_assets": "Sync Assets from Files",
-  "msg_sync_threed_config_confirm": "This will auto-detect .vrm model files in the asset/3d/ directory and fill model configuration (name, type, file). Current model config will be overwritten. Continue?",
-  "msg_sync_threed_assets_confirm": "This will scan all .vrma animation files in the asset/3d/ directory and regenerate the animation list. Current animation list will be overwritten. Continue?",
+  "msg_sync_threed_config_confirm": "This will auto-detect .vrm/.pmx model files in the asset/3d/ directory and fill model configuration (name, type, file). Current model config will be overwritten. Continue?",
+  "msg_sync_threed_assets_confirm": "This will scan all .vrma/.vmd animation files in the asset/3d/ directory and regenerate the animation list. Current animation list will be overwritten. Continue?",
   "msg_sync_threed_config_success": "3D model configuration synced successfully",
   "msg_sync_threed_assets_success": "3D assets synced: {count} animations",
-  "msg_sync_threed_no_vrm_found": "No .vrm model file found in the asset/3d/ directory",
-  "msg_sync_threed_no_vrma_found": "No .vrma animation file found in the asset/3d/ directory",
-  "msg_sync_threed_choose_vrm": "Multiple .vrm files found. Please enter the filename to use:\n{files}",
+  "msg_sync_threed_no_vrm_found": "No .vrm/.pmx model file found in the asset/3d/ directory",
+  "msg_sync_threed_no_vrma_found": "No .vrma/.vmd animation file found in the asset/3d/ directory",
+  "msg_sync_threed_choose_vrm": "Multiple model files found. Please enter the filename to use:\n{files}",
   "msg_sync_threed_dir_not_found": "asset/3d/ directory not found. Please check the Mod directory structure"
 }
 

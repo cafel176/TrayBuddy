@@ -7,7 +7,8 @@
     "scale": 1,
     "offset_x": 0,
     "offset_y": 0,
-    "texture_base_dir": ""
+    "texture_base_dir": "",
+    "animation_base_dir": ""
   },
   "animations": []
 }

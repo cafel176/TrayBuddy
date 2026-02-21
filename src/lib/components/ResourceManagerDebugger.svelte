@@ -1761,6 +1761,12 @@
                       <span class="info-value">{currentModInfo.threed.model.texture_base_dir}</span>
                     </div>
                   {/if}
+                  {#if currentModInfo.threed.model.animation_base_dir}
+                    <div class="info-row">
+                      <span class="info-label">Animation Base Dir</span>
+                      <span class="info-value">{currentModInfo.threed.model.animation_base_dir}</span>
+                    </div>
+                  {/if}
                 </div>
 
                 <details open class="live2d-section">
@@ -1787,12 +1793,10 @@
                             <span class="detail-label">Speed</span>
                             {anim.speed}
                           </div>
-                          {#if anim.type === "vrma"}
                             <div class="detail-item">
-                              <span class="detail-label">VRMA FPS</span>
-                              {anim.vrma_fps}
+                              <span class="detail-label">FPS</span>
+                              {anim.fps}
                             </div>
-                          {/if}
                         </div>
                       </div>
                     {/each}

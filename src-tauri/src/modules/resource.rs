@@ -634,6 +634,9 @@ pub struct ThreeDModelConfig {
 
     /// 贴图根目录（PMX 常用；相对 Mod 根目录）。为空表示不指定。
     pub texture_base_dir: Box<str>,
+
+    /// 动画文件根目录（相对 Mod 根目录）。为空表示不指定，直接使用 animation.file。
+    pub animation_base_dir: Box<str>,
 }
 
 impl Default for ThreeDModelConfig {
@@ -646,6 +649,7 @@ impl Default for ThreeDModelConfig {
             offset_x: 0,
             offset_y: 0,
             texture_base_dir: "".into(),
+            animation_base_dir: "".into(),
         }
     }
 }
@@ -674,14 +678,14 @@ pub struct ThreeDAnimation {
     #[serde(rename = "type")]
     pub animation_type: ThreeDAnimationType,
 
-    /// 动画文件路径（相对于 Mod 根目录）
+    /// 动画文件路径（animation_base_dir 非空时为相对于该目录的路径，否则为相对 Mod 根目录的完整路径）
     pub file: Box<str>,
 
     /// 播放倍速
     pub speed: f64,
 
-    /// VRMA bake 采样 FPS（仅 vrma 使用；默认 30）
-    pub vrma_fps: u32,
+    /// 动画采样 FPS（默认 60）
+    pub fps: u32,
 }
 
 impl Default for ThreeDAnimation {
@@ -691,7 +695,7 @@ impl Default for ThreeDAnimation {
             animation_type: ThreeDAnimationType::Vrma,
             file: "".into(),
             speed: 1.0,
-            vrma_fps: 60,
+            fps: 60,
         }
     }
 }
