@@ -236,6 +236,7 @@ export class Live2DPlayer {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
 
+    this.motionDurationCache.clear();
     this.removeBackgroundLayers();
 
     if (this.model && this.app) {
@@ -248,6 +249,7 @@ export class Live2DPlayer {
     this.app = null;
     this.config = null;
   }
+
 
   setFeatureFlags(flags: Live2DFeatureFlags): void {
     this.featureFlags = { ...flags };
@@ -384,6 +386,8 @@ export class Live2DPlayer {
     this.modelScale = Number((config.model as any)?.scale) || 1;
     this.motionMap.clear();
     this.expressionMap.clear();
+    this.motionDurationCache.clear();
+
 
     if (!this.app) {
       this.initPixiApp();
@@ -1149,8 +1153,9 @@ export class Live2DPlayer {
   private removeBackgroundLayers(): void {
     for (const sprite of [...this.bgSpriteBehind, ...this.bgSpriteFront]) {
       this.app?.stage.removeChild(sprite);
-      sprite.destroy?.();
+      sprite.destroy?.({ children: true, texture: true, baseTexture: true });
     }
+
     this.bgSpriteBehind = [];
     this.bgSpriteFront = [];
     this.bgSpriteMap.clear();

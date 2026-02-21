@@ -237,7 +237,12 @@ const TINT_CACHE_MAX_PER_DRAWABLE = 16;
 type TintCacheEntry = { map: Map<string, HTMLCanvasElement>; order: string[] };
 
 // drawable -> ("r,g,b" -> tintedCanvas)
-const _tintCache = new WeakMap<any, TintCacheEntry>();
+let _tintCache = new WeakMap<any, TintCacheEntry>();
+
+function clearTintCache(): void {
+  _tintCache = new WeakMap<any, TintCacheEntry>();
+}
+
 
 function getTintedDrawable(drawable: any, color: RGBA) {
   if (!drawable || drawable._isAnimated || isWhiteRgb(color)) return drawable;
@@ -451,12 +456,13 @@ function materializeSceneState(scene: RuntimeScene, targetStateId: number) {
 function initNodeStateMachine(scene: RuntimeScene) {
   const count = Math.max(1, Math.floor(Number(scene.model?.stateCount) || 1));
   for (const n of scene.nodes) {
-    n.savedStatePatches = Array.isArray(n.raw?.states) ? n.raw.states : new Array(count).fill(null);
-    n.materializedStates = new Array(count).fill(null);
+    n.savedStatePatches = Array.isArray(n.raw?.states) ? n.raw.states : new Array(count);
+    n.materializedStates = new Array(count);
     n.runtimeState = cloneStateDefaults();
   }
   materializeSceneState(scene, 0);
 }
+
 
 // ============================================================================
 // Node paths / hierarchy
@@ -1196,6 +1202,12 @@ async function buildRuntimeScene(normalizedModel: any): Promise<RuntimeScene> {
     n._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
     if (!drawable._isAnimated) drawable = applySpriteTextureTransforms(drawable, n.raw);
     scene.spriteDrawableByIndex.set(n.index, drawable);
+
+    const spriteInfo = normalizedModel.sprites[n.index];
+    if (spriteInfo && spriteInfo.imgBytes instanceof Uint8Array) {
+      spriteInfo.imgBytes = null;
+    }
+
   });
   await Promise.all(loadJobs);
   return scene;
@@ -1360,11 +1372,13 @@ export class PngRemixPlayer {
       }
       this.scene.spriteDrawableByIndex.clear();
     }
+    clearTintCache();
     this.scene = null;
     this.config = null;
     this.hitTestCanvas = null;
     this.hitTestCtx = null;
   }
+
 
   /**
    * Called by WindowCore when backend enters a new StateInfo.

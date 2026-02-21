@@ -22,6 +22,10 @@ const DEBUG = false;
 
 /** 循环动画 bake 时，尾部渐进插值回首帧的过渡时长（秒） */
 const LOOP_BLEND_DURATION = 0.3;
+
+/** 动画剪辑缓存最大容量（避免长期驻留过多动画数据） */
+const CLIP_CACHE_MAX_SIZE = 8;
+
 function dbg(tag: string, ...args: unknown[]) {
   if (DEBUG) console.log(`[ThreeDPlayer][${tag}]`, ...args);
 }
@@ -565,6 +569,72 @@ export class ThreeDPlayer {
   private modPath = "";
 
   private clipCache = new Map<string, THREE.AnimationClip>();
+
+  private getClipFromCache(key: string): THREE.AnimationClip | null {
+    const cached = this.clipCache.get(key);
+    if (!cached) return null;
+    // 刷新 LRU 顺序：移到末尾
+    this.clipCache.delete(key);
+    this.clipCache.set(key, cached);
+    return cached;
+  }
+
+  private putClipToCache(key: string, clip: THREE.AnimationClip): void {
+    if (this.clipCache.has(key)) {
+      this.clipCache.delete(key);
+    }
+
+    if (this.clipCache.size >= CLIP_CACHE_MAX_SIZE) {
+      const oldestKey = this.clipCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.clipCache.delete(oldestKey);
+      }
+    }
+
+    this.clipCache.set(key, clip);
+  }
+
+  private disposeObject3DResources(target: THREE.Object3D | null): void {
+    if (!target) return;
+    const disposedTextures = new Set<THREE.Texture>();
+
+    const disposeTexture = (tex?: THREE.Texture) => {
+      if (!tex || disposedTextures.has(tex)) return;
+      disposedTextures.add(tex);
+      tex.dispose?.();
+    };
+
+    const disposeMaterial = (mat: any) => {
+      if (!mat) return;
+      disposeTexture(mat.map);
+      disposeTexture(mat.alphaMap);
+      disposeTexture(mat.aoMap);
+      disposeTexture(mat.emissiveMap);
+      disposeTexture(mat.bumpMap);
+      disposeTexture(mat.normalMap);
+      disposeTexture(mat.displacementMap);
+      disposeTexture(mat.roughnessMap);
+      disposeTexture(mat.metalnessMap);
+      disposeTexture(mat.specularMap);
+      disposeTexture(mat.lightMap);
+      disposeTexture(mat.envMap);
+      mat.dispose?.();
+    };
+
+    target.traverse((child: any) => {
+      if (child.geometry?.dispose) {
+        child.geometry.dispose();
+      }
+      const mat = child.material;
+      if (Array.isArray(mat)) {
+        mat.forEach(disposeMaterial);
+      } else {
+        disposeMaterial(mat);
+      }
+    });
+  }
+
+
   private gltfLoader: GLTFLoader | null = null;
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -674,10 +744,18 @@ export class ThreeDPlayer {
       this.vrm = null;
     }
 
+    if (this.pmxMesh) {
+      this.disposeObject3DResources(this.pmxMesh);
+      this.pmxMesh = null;
+    } else if (this.model && !this.vrm) {
+      this.disposeObject3DResources(this.model);
+    }
+
     if (this.model && this.scene) {
       this.scene.remove(this.model);
     }
     this.model = null;
+
 
     this.renderer?.dispose();
     this.renderer = null;
@@ -719,10 +797,16 @@ export class ThreeDPlayer {
       this.scene.remove(this.model);
       if (this.vrm) {
         try { VRMUtils.deepDispose(this.vrm.scene); } catch { /* ignore */ }
+      } else if (this.pmxMesh) {
+        this.disposeObject3DResources(this.pmxMesh);
+      } else {
+        this.disposeObject3DResources(this.model);
       }
       this.model = null;
       this.vrm = null;
+      this.pmxMesh = null;
     }
+
 
     if (this.mixer) {
       this.mixer.stopAllAction();
@@ -920,18 +1004,19 @@ export class ThreeDPlayer {
     // Load clip (cached); loop clips have loop-snapped last frame
     const isLoop = !options.playOnce;
     const cacheKey = `${animConfig.name}:${isLoop ? "loop" : "once"}`;
-    let clip = this.clipCache.get(cacheKey);
+    let clip = this.getClipFromCache(cacheKey);
     if (!clip) {
       try {
         clip = await this.loadAnimationClip(animConfig, isLoop);
         if (this.playToken !== token) return false;
-        this.clipCache.set(cacheKey, clip);
+        this.putClipToCache(cacheKey, clip);
       } catch (err) {
         console.error("[ThreeDPlayer] Failed to load animation:", animConfig.name, err);
         if (options.playOnce) options.onComplete();
         return false;
       }
     }
+
 
     if (this.playToken !== token) return false;
 

@@ -54,8 +54,11 @@ export type CanvasFitOptions = {
 
 /** 图片 LRU 缓存最大容量 */
 const IMAGE_CACHE_MAX_SIZE = 4;
+/** 边框图片缓存最大容量（避免长期驻留过多资源） */
+const ALWAYS_IMAGE_CACHE_MAX_SIZE = 4;
 
 const MEMORY_DEBUG_MODE = false;
+
 
 // ============================================================================
 // 内存诊断日志（用于追踪内存问题）
@@ -198,12 +201,21 @@ export function getCacheStats(): {
 const imageCache = new LRUCache<string, HTMLImageElement>(IMAGE_CACHE_MAX_SIZE);
 
 /**
- * 边框图片独立缓存（永不淘汰）
+ * 边框图片独立缓存（带容量上限）
  * 边框动画始终显示，需要持久缓存以避免重复加载
- * 
- * 注意：边框缓存不会参与 LRU 淘汰，除非 Mod 切换时统一清除。
  */
-const alwaysImageCache = new Map<string, HTMLImageElement>();
+const alwaysImageCache = new LRUCache<string, HTMLImageElement>(ALWAYS_IMAGE_CACHE_MAX_SIZE);
+
+function releaseImageResource(img: HTMLImageElement) {
+  // 彻底释放图片资源：
+  // 1. 清空事件处理器，避免内存泄漏
+  img.onload = null;
+  img.onerror = null;
+  // 2. 设置 src 为最小透明图片，提示浏览器释放旧纹理资源
+  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+  // 3. 移除 src 属性并尝试手动触发垃圾回收提示
+  img.removeAttribute('src');
+}
 
 // 设置淘汰回调，主动释放被淘汰图片的引用
 imageCache.setOnEvict((url, img) => {
@@ -213,16 +225,17 @@ imageCache.setOnEvict((url, img) => {
     const shortUrl = url.split('/').slice(-2).join('/');
     logMemoryEvent('EVICT', `淘汰图片: ${shortUrl}`, { imageSrc: shortUrl });
   }
-  
-  // 彻底释放图片资源：
-  // 1. 清空事件处理器，避免内存泄漏
-  img.onload = null;
-  img.onerror = null;
-  // 2. 设置 src 为最小透明图片，提示浏览器释放旧纹理资源
-  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-  // 3. 移除 src 属性并尝试手动触发垃圾回收提示
-  img.removeAttribute('src');
+  releaseImageResource(img);
 });
+
+alwaysImageCache.setOnEvict((url, img) => {
+  if (isMemoryDebugEnabled()) {
+    const shortUrl = url.split('/').slice(-2).join('/');
+    logMemoryEvent('EVICT_ALWAYS', `淘汰边框图片: ${shortUrl}`, { imageSrc: shortUrl });
+  }
+  releaseImageResource(img);
+});
+
 
 
 /**

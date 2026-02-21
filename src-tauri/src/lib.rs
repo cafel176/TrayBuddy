@@ -65,7 +65,10 @@ use modules::storage::{
 use modules::system_observer::{SystemDebugInfo, SystemObserver};
 use modules::trigger::TriggerManager;
 use modules::utils::i18n::get_i18n_text as get_i18n_text_cached;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
@@ -103,6 +106,26 @@ static BACKGROUND_SERVICES_STARTED: std::sync::atomic::AtomicBool = std::sync::a
 /// 待展示的提醒弹窗队列（提醒调度线程写入，提示窗口读取）
 static PENDING_REMINDER_ALERTS: std::sync::Mutex<Vec<ReminderAlertPayload>> =
     std::sync::Mutex::new(Vec::new());
+static REMINDER_SCHEDULER_NOTIFY: OnceLock<tokio::sync::Notify> = OnceLock::new();
+
+#[cfg(target_os = "windows")]
+static GLOBAL_INPUT_HOOK_STARTED: AtomicBool = AtomicBool::new(false);
+#[cfg(target_os = "windows")]
+static GLOBAL_INPUT_CONTEXT: OnceLock<GlobalInputContext> = OnceLock::new();
+#[cfg(target_os = "windows")]
+static GLOBAL_KEY_STATES: OnceLock<Mutex<[bool; 256]>> = OnceLock::new();
+#[cfg(target_os = "windows")]
+static GLOBAL_MOUSE_STATES: OnceLock<Mutex<[bool; 2]>> = OnceLock::new();
+#[cfg(target_os = "windows")]
+static GLOBAL_KEYBOARD_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
+#[cfg(target_os = "windows")]
+static GLOBAL_MOUSE_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
+
+fn get_reminder_scheduler_notify() -> &'static tokio::sync::Notify {
+    REMINDER_SCHEDULER_NOTIFY.get_or_init(tokio::sync::Notify::new)
+}
+
+
 
 /// 进程触发 work 事件的节流时间（Unix 秒）
 static LAST_WORK_EVENT_AT: std::sync::Mutex<Option<i64>> = std::sync::Mutex::new(None);
@@ -527,7 +550,12 @@ fn set_reminders(reminders: Vec<ReminderItem>, state: State<'_, AppState>) -> Re
 
     let mut storage = state.storage.lock().unwrap();
     storage.data.info.reminders = normalized;
-    storage.save()
+    let result = storage.save();
+    if result.is_ok() {
+        get_reminder_scheduler_notify().notify_waiters();
+    }
+    result
+
 }
 
 /// 读取并清空待展示的提醒弹窗队列
@@ -536,13 +564,10 @@ fn take_pending_reminder_alerts() -> Vec<ReminderAlertPayload> {
     PENDING_REMINDER_ALERTS
         .lock()
         .ok()
-        .map(|mut g| {
-            let out = g.clone();
-            g.clear();
-            out
-        })
+        .map(|mut g| std::mem::take(&mut *g))
         .unwrap_or_default()
 }
+
 
 
 /// 获取当前 Mod 的数据
@@ -3271,257 +3296,366 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
 }
 
 
-/// 启动全局键盘监听器（独立线程）
-///
-/// 当 Mod 的 `global_keyboard` 为 true 时，通过 `GetAsyncKeyState` 轮询按键状态，
-/// 将检测到的按键以 `keydown:{KeyCode}` 事件发送到触发器系统。
-/// 这使得即使动画窗口没有焦点，也能触发键盘事件。
-fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
-    #[cfg(target_os = "windows")]
-    {
-        use std::sync::atomic::Ordering;
-        use std::time::Duration;
-        use tauri::Manager;
+#[cfg(target_os = "windows")]
+struct GlobalInputContext {
+    app_handle: tauri::AppHandle,
+    keyboard_enabled: Arc<AtomicBool>,
+    mouse_enabled: Arc<AtomicBool>,
+}
 
-        let enabled = {
-            let app_state = app_handle.state::<AppState>();
-            app_state.global_keyboard_enabled.clone()
-        };
+#[cfg(target_os = "windows")]
+fn get_global_input_context() -> Option<&'static GlobalInputContext> {
+    GLOBAL_INPUT_CONTEXT.get()
+}
 
-        tauri::async_runtime::spawn(async move {
-            use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+#[cfg(target_os = "windows")]
+fn get_global_key_states() -> &'static Mutex<[bool; 256]> {
+    GLOBAL_KEY_STATES.get_or_init(|| Mutex::new([false; 256]))
+}
 
-            /// 虚拟键码到 KeyboardEvent.code 的映射
-            const KEY_MAP: &[(i32, &str)] = &[
-                // 字母键 A-Z
-                (0x41, "KeyA"), (0x42, "KeyB"), (0x43, "KeyC"), (0x44, "KeyD"),
-                (0x45, "KeyE"), (0x46, "KeyF"), (0x47, "KeyG"), (0x48, "KeyH"),
-                (0x49, "KeyI"), (0x4A, "KeyJ"), (0x4B, "KeyK"), (0x4C, "KeyL"),
-                (0x4D, "KeyM"), (0x4E, "KeyN"), (0x4F, "KeyO"), (0x50, "KeyP"),
-                (0x51, "KeyQ"), (0x52, "KeyR"), (0x53, "KeyS"), (0x54, "KeyT"),
-                (0x55, "KeyU"), (0x56, "KeyV"), (0x57, "KeyW"), (0x58, "KeyX"),
-                (0x59, "KeyY"), (0x5A, "KeyZ"),
-                // 数字键 0-9
-                (0x30, "Digit0"), (0x31, "Digit1"), (0x32, "Digit2"), (0x33, "Digit3"),
-                (0x34, "Digit4"), (0x35, "Digit5"), (0x36, "Digit6"), (0x37, "Digit7"),
-                (0x38, "Digit8"), (0x39, "Digit9"),
-                // 功能键
-                (0x0D, "Enter"), (0x20, "Space"), (0x1B, "Escape"), (0x08, "Backspace"),
-                (0x09, "Tab"),
-                // 修饰键
-                (0x10, "Shift"), (0x11, "Control"), (0x12, "Alt"),
-                // 方向键
-                (0x25, "ArrowLeft"), (0x26, "ArrowUp"), (0x27, "ArrowRight"), (0x28, "ArrowDown"),
-                // F 键
-                (0x70, "F1"), (0x71, "F2"), (0x72, "F3"), (0x73, "F4"),
-                (0x74, "F5"), (0x75, "F6"), (0x76, "F7"), (0x77, "F8"),
-                (0x78, "F9"), (0x79, "F10"), (0x7A, "F11"), (0x7B, "F12"),
-            ];
+#[cfg(target_os = "windows")]
+fn get_global_mouse_states() -> &'static Mutex<[bool; 2]> {
+    GLOBAL_MOUSE_STATES.get_or_init(|| Mutex::new([false; 2]))
+}
 
-            // 记录上一轮每个键的按下状态，只在"从未按下→按下"的瞬间触发一次
-            let mut prev_states = vec![false; KEY_MAP.len()];
-            let mut logged_enabled = false;
-            let mut logged_disabled = false;
-            let mut ticker = tokio::time::interval(Duration::from_millis(50));
-
-            loop {
-                ticker.tick().await;
-
-
-                if !enabled.load(Ordering::Relaxed) {
-                    if !logged_disabled {
-                        println!("[GlobalKeyboard] Listener is DISABLED (global_keyboard=false)");
-                        logged_disabled = true;
-                        logged_enabled = false;
-                    }
-                    // 禁用时重置所有状态，防止重新启用时误触发
-                    for s in prev_states.iter_mut() {
-                        *s = false;
-                    }
-                    continue;
-                }
-
-                if !logged_enabled {
-                    println!("[GlobalKeyboard] Listener is ENABLED (global_keyboard=true)");
-                    logged_enabled = true;
-                    logged_disabled = false;
-                }
-
-                for (i, &(vk, code)) in KEY_MAP.iter().enumerate() {
-                    let pressed = unsafe { GetAsyncKeyState(vk) < 0 };
-
-                    if pressed && !prev_states[i] {
-                        // 按键刚按下，触发事件
-                        let event_name = format!("keydown:{}", code);
-                        println!("[GlobalKeyboard] Key pressed: {} (vk=0x{:02X})", code, vk);
-                        let Some(app_state) = app_handle.try_state::<AppState>() else {
-                            prev_states[i] = pressed;
-                            continue;
-                        };
-                        let rm = app_state.resource_manager.lock().unwrap();
-                        let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_event(&event_name, false, &rm, &mut sm);
-                        // 同时触发 global_keydown（任意键按下通用事件）
-                        let _ = TriggerManager::trigger_event("global_keydown", false, &rm, &mut sm);
-
-                        // 对分支选择相关按键，额外通知前端 UI
-                        match code {
-                            "Space" | "Enter" | "ArrowUp" | "ArrowDown"
-                            | "ArrowLeft" | "ArrowRight" => {
-                                println!("[GlobalKeyboard] Emitting global-keydown: {}", code);
-                                let _ = app_handle.emit("global-keydown", code);
-                            }
-                            _ => {}
-                        }
-
-                        // 通知前端叠加层：按键按下
-                        let _ = app_handle.emit("global-key-state", serde_json::json!({
-                            "code": code,
-                            "pressed": true
-                        }));
-                    } else if !pressed && prev_states[i] {
-                        // 按键刚松开：
-                        // 1) 触发 keyup:<KeyCode> 与 global_keyup（松开边沿）
-                        let up_event_name = format!("keyup:{}", code);
-                        println!("[GlobalKeyboard] Key released: {} (vk=0x{:02X})", code, vk);
-                        let Some(app_state) = app_handle.try_state::<AppState>() else {
-                            prev_states[i] = pressed;
-                            continue;
-                        };
-                        let rm = app_state.resource_manager.lock().unwrap();
-                        let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_event(&up_event_name, false, &rm, &mut sm);
-                        let _ = TriggerManager::trigger_event("global_keyup", false, &rm, &mut sm);
-
-                        // 2) 对分支选择相关按键，额外通知前端 UI
-                        match code {
-                            "Space" | "Enter" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" => {
-                                println!("[GlobalKeyboard] Emitting global-keyup: {}", code);
-                                let _ = app_handle.emit("global-keyup", code);
-                            }
-                            _ => {}
-                        }
-
-                        // 3) 通知前端叠加层：按键松开
-                        let _ = app_handle.emit("global-key-state", serde_json::json!({
-                            "code": code,
-                            "pressed": false
-                        }));
-                    }
-
-                    prev_states[i] = pressed;
-                }
-            }
-        });
+#[cfg(target_os = "windows")]
+fn reset_global_key_states() {
+    if let Ok(mut guard) = get_global_key_states().lock() {
+        for v in guard.iter_mut() {
+            *v = false;
+        }
     }
 }
 
-/// 启动全局鼠标监听器（独立线程）
-///
-/// 当 Mod 的 `global_mouse` 为 true 时，通过 `GetAsyncKeyState` 轮询鼠标按钮状态，
-/// 将检测到的按下以 `global_click` / `global_right_click` 事件发送到触发器系统。
-/// 这使得即使鼠标未点击在角色身上，也能触发对应事件。
-fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
+#[cfg(target_os = "windows")]
+fn reset_global_mouse_states() {
+    if let Ok(mut guard) = get_global_mouse_states().lock() {
+        for v in guard.iter_mut() {
+            *v = false;
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn map_vk_code(vk: u32) -> Option<&'static str> {
+    match vk {
+        // 字母键 A-Z
+        0x41 => Some("KeyA"), 0x42 => Some("KeyB"), 0x43 => Some("KeyC"), 0x44 => Some("KeyD"),
+        0x45 => Some("KeyE"), 0x46 => Some("KeyF"), 0x47 => Some("KeyG"), 0x48 => Some("KeyH"),
+        0x49 => Some("KeyI"), 0x4A => Some("KeyJ"), 0x4B => Some("KeyK"), 0x4C => Some("KeyL"),
+        0x4D => Some("KeyM"), 0x4E => Some("KeyN"), 0x4F => Some("KeyO"), 0x50 => Some("KeyP"),
+        0x51 => Some("KeyQ"), 0x52 => Some("KeyR"), 0x53 => Some("KeyS"), 0x54 => Some("KeyT"),
+        0x55 => Some("KeyU"), 0x56 => Some("KeyV"), 0x57 => Some("KeyW"), 0x58 => Some("KeyX"),
+        0x59 => Some("KeyY"), 0x5A => Some("KeyZ"),
+        // 数字键 0-9
+        0x30 => Some("Digit0"), 0x31 => Some("Digit1"), 0x32 => Some("Digit2"), 0x33 => Some("Digit3"),
+        0x34 => Some("Digit4"), 0x35 => Some("Digit5"), 0x36 => Some("Digit6"), 0x37 => Some("Digit7"),
+        0x38 => Some("Digit8"), 0x39 => Some("Digit9"),
+        // 功能键
+        0x0D => Some("Enter"), 0x20 => Some("Space"), 0x1B => Some("Escape"), 0x08 => Some("Backspace"),
+        0x09 => Some("Tab"),
+        // 修饰键
+        0x10 => Some("Shift"), 0x11 => Some("Control"), 0x12 => Some("Alt"),
+        // 方向键
+        0x25 => Some("ArrowLeft"), 0x26 => Some("ArrowUp"), 0x27 => Some("ArrowRight"), 0x28 => Some("ArrowDown"),
+        // F 键
+        0x70 => Some("F1"), 0x71 => Some("F2"), 0x72 => Some("F3"), 0x73 => Some("F4"),
+        0x74 => Some("F5"), 0x75 => Some("F6"), 0x76 => Some("F7"), 0x77 => Some("F8"),
+        0x78 => Some("F9"), 0x79 => Some("F10"), 0x7A => Some("F11"), 0x7B => Some("F12"),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn should_emit_key_to_frontend(code: &str) -> bool {
+    matches!(
+        code,
+        "Space" | "Enter" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight"
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn trigger_event_with_state_manager(event_name: &str) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let Some(app_state) = ctx.app_handle.try_state::<AppState>() else {
+        return;
+    };
+    let rm = app_state.resource_manager.lock().unwrap();
+    let mut sm = app_state.state_manager.lock().unwrap();
+    let _ = TriggerManager::trigger_event(event_name, false, &rm, &mut sm);
+}
+
+#[cfg(target_os = "windows")]
+fn emit_global_keyboard_event(code: &str, pressed: bool) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let event_name = if pressed {
+        format!("keydown:{}", code)
+    } else {
+        format!("keyup:{}", code)
+    };
+    trigger_event_with_state_manager(&event_name);
+    trigger_event_with_state_manager(if pressed { "global_keydown" } else { "global_keyup" });
+
+    if should_emit_key_to_frontend(code) {
+        let _ = ctx
+            .app_handle
+            .emit(if pressed { "global-keydown" } else { "global-keyup" }, code);
+    }
+
+    let _ = ctx.app_handle.emit(
+        "global-key-state",
+        serde_json::json!({
+            "code": code,
+            "pressed": pressed
+        }),
+    );
+}
+
+#[cfg(target_os = "windows")]
+fn emit_global_mouse_state(button: &str, pressed: bool) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let _ = ctx.app_handle.emit(
+        "global-mouse-state",
+        serde_json::json!({
+            "button": button,
+            "pressed": pressed
+        }),
+    );
+}
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn global_keyboard_hook_proc(
+    code: i32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CallNextHookEx, HHOOK, KBDLLHOOKSTRUCT, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    };
+
+    let null_hook = HHOOK(std::ptr::null_mut());
+
+    if code < 0 {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let Some(ctx) = get_global_input_context() else {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    };
+
+    if !ctx.keyboard_enabled.load(Ordering::Relaxed) {
+        if GLOBAL_KEYBOARD_LAST_ENABLED.swap(false, Ordering::Relaxed) {
+            reset_global_key_states();
+        }
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    if !GLOBAL_KEYBOARD_LAST_ENABLED.swap(true, Ordering::Relaxed) {
+        reset_global_key_states();
+    }
+
+    let msg = wparam.0 as u32;
+    let is_down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
+    let is_up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
+
+    if !is_down && !is_up {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
+    let vk = kbd.vkCode as usize;
+    if vk >= 256 {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let Some(key_code) = map_vk_code(kbd.vkCode) else {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    };
+
+    let mut states = get_global_key_states().lock().unwrap();
+    let was_pressed = states[vk];
+
+    if is_down && !was_pressed {
+        states[vk] = true;
+        drop(states);
+        emit_global_keyboard_event(key_code, true);
+    } else if is_up && was_pressed {
+        states[vk] = false;
+        drop(states);
+        emit_global_keyboard_event(key_code, false);
+    }
+
+    CallNextHookEx(null_hook, code, wparam, lparam)
+}
+
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn global_mouse_hook_proc(
+    code: i32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CallNextHookEx, HHOOK, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    };
+
+    let null_hook = HHOOK(std::ptr::null_mut());
+
+    if code < 0 {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let Some(ctx) = get_global_input_context() else {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    };
+
+    if !ctx.mouse_enabled.load(Ordering::Relaxed) {
+        if GLOBAL_MOUSE_LAST_ENABLED.swap(false, Ordering::Relaxed) {
+            reset_global_mouse_states();
+        }
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    if !GLOBAL_MOUSE_LAST_ENABLED.swap(true, Ordering::Relaxed) {
+        reset_global_mouse_states();
+    }
+
+    let msg = wparam.0 as u32;
+    let (idx, event_name, pressed) = match msg {
+        WM_LBUTTONDOWN => (0usize, "global_click", true),
+        WM_LBUTTONUP => (0usize, "global_click", false),
+        WM_RBUTTONDOWN => (1usize, "global_right_click", true),
+        WM_RBUTTONUP => (1usize, "global_right_click", false),
+        _ => return CallNextHookEx(null_hook, code, wparam, lparam),
+    };
+
+    let mut states = get_global_mouse_states().lock().unwrap();
+    let was_pressed = states[idx];
+
+    if pressed && !was_pressed {
+        states[idx] = true;
+        drop(states);
+        trigger_event_with_state_manager(event_name);
+        emit_global_mouse_state(event_name, true);
+    } else if !pressed && was_pressed {
+        states[idx] = false;
+        drop(states);
+        emit_global_mouse_state(event_name, false);
+        let up_event_name = match event_name {
+            "global_click" => "global_click_up",
+            "global_right_click" => "global_right_click_up",
+            _ => "",
+        };
+        if !up_event_name.is_empty() {
+            trigger_event_with_state_manager(up_event_name);
+        }
+    }
+
+    CallNextHookEx(null_hook, code, wparam, lparam)
+}
+
+
+/// 启动全局输入监听器（系统 Hook 事件驱动）
+fn start_global_input_hook(app_handle: tauri::AppHandle) {
     #[cfg(target_os = "windows")]
     {
-        use std::sync::atomic::Ordering;
-        use std::time::Duration;
-        use tauri::Manager;
+        use windows::Win32::Foundation::HINSTANCE;
+        use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            DispatchMessageW, GetMessageW, SetWindowsHookExW, TranslateMessage,
+            UnhookWindowsHookEx, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL,
+        };
 
-        let enabled = {
+
+        if GLOBAL_INPUT_HOOK_STARTED.swap(true, Ordering::SeqCst) {
+            return;
+        }
+
+        let keyboard_enabled = {
+            let app_state = app_handle.state::<AppState>();
+            app_state.global_keyboard_enabled.clone()
+        };
+        let mouse_enabled = {
             let app_state = app_handle.state::<AppState>();
             app_state.global_mouse_enabled.clone()
         };
 
-        tauri::async_runtime::spawn(async move {
-            use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+        let _ = GLOBAL_INPUT_CONTEXT.set(GlobalInputContext {
+            app_handle,
+            keyboard_enabled,
+            mouse_enabled,
+        });
 
-            /// 鼠标按钮映射：(虚拟键码, 事件名称)
-            const MOUSE_MAP: &[(i32, &str)] = &[
-                (0x01, "global_click"),        // VK_LBUTTON
-                (0x02, "global_right_click"),   // VK_RBUTTON
-            ];
-
-            let mut prev_states = [false; 2];
-            let mut logged_enabled = false;
-            let mut logged_disabled = false;
-            let mut ticker = tokio::time::interval(Duration::from_millis(50));
-
-            loop {
-                ticker.tick().await;
+        std::thread::spawn(|| unsafe {
+            let module = GetModuleHandleW(None).unwrap_or_default();
+            let hinstance = HINSTANCE(module.0);
 
 
-                if !enabled.load(Ordering::Relaxed) {
-                    if !logged_disabled {
-                        println!("[GlobalMouse] Listener is DISABLED (global_mouse=false)");
-                        logged_disabled = true;
-                        logged_enabled = false;
-                    }
-                    // 禁用时重置状态，防止重新启用时误触发
-                    for s in prev_states.iter_mut() {
-                        *s = false;
-                    }
-                    continue;
-                }
 
-                if !logged_enabled {
-                    println!("[GlobalMouse] Listener is ENABLED (global_mouse=true)");
-                    logged_enabled = true;
-                    logged_disabled = false;
-                }
+            let hook_keyboard = SetWindowsHookExW(
+                WH_KEYBOARD_LL,
+                Some(global_keyboard_hook_proc),
+                hinstance,
+                0,
+            )
+            .ok();
+            let hook_mouse = SetWindowsHookExW(
+                WH_MOUSE_LL,
+                Some(global_mouse_hook_proc),
+                hinstance,
+                0,
+            )
+            .ok();
 
-                for (i, &(vk, event_name)) in MOUSE_MAP.iter().enumerate() {
-                    let pressed = unsafe { GetAsyncKeyState(vk) < 0 };
+            if hook_keyboard.is_none() {
+                println!("[GlobalInput] Failed to install keyboard hook");
+            }
+            if hook_mouse.is_none() {
+                println!("[GlobalInput] Failed to install mouse hook");
+            }
 
-                    if pressed && !prev_states[i] {
-                        // 鼠标按钮刚按下（边沿检测），触发事件
-                        println!("[GlobalMouse] Button pressed: {} (vk=0x{:02X})", event_name, vk);
-                        let Some(app_state) = app_handle.try_state::<AppState>() else {
-                            prev_states[i] = pressed;
-                            continue;
-                        };
-                        let rm = app_state.resource_manager.lock().unwrap();
-                        let mut sm = app_state.state_manager.lock().unwrap();
-                        let _ = TriggerManager::trigger_event(event_name, false, &rm, &mut sm);
+            let mut msg = MSG::default();
+            while GetMessageW(&mut msg, None, 0, 0).into() {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
 
-                        // 通知前端叠加层：鼠标按下
-                        let _ = app_handle.emit("global-mouse-state", serde_json::json!({
-                            "button": event_name,
-                            "pressed": true
-                        }));
-                    } else if !pressed && prev_states[i] {
-                        // 鼠标按钮刚松开：
-                        // 1) 通知前端叠加层
-                        let _ = app_handle.emit("global-mouse-state", serde_json::json!({
-                            "button": event_name,
-                            "pressed": false
-                        }));
-
-                        // 2) 触发 "*_up" 事件（可用于在松开瞬间切换状态）
-                        let up_event_name = match event_name {
-                            "global_click" => "global_click_up",
-                            "global_right_click" => "global_right_click_up",
-                            _ => "",
-                        };
-
-                        if !up_event_name.is_empty() {
-                            println!("[GlobalMouse] Button released: {} (vk=0x{:02X})", up_event_name, vk);
-                            let Some(app_state) = app_handle.try_state::<AppState>() else {
-                                prev_states[i] = pressed;
-                                continue;
-                            };
-                            let rm = app_state.resource_manager.lock().unwrap();
-                            let mut sm = app_state.state_manager.lock().unwrap();
-                            let _ = TriggerManager::trigger_event(up_event_name, false, &rm, &mut sm);
-                        }
-                    }
-
-                    prev_states[i] = pressed;
-                }
+            if let Some(hook) = hook_keyboard {
+                let _ = UnhookWindowsHookEx(hook);
+            }
+            if let Some(hook) = hook_mouse {
+                let _ = UnhookWindowsHookEx(hook);
             }
         });
     }
+
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app_handle;
+    }
 }
+
+/// 启动全局键盘监听器（独立线程）
+///
+/// 当 Mod 的 `global_keyboard` 为 true 时，使用系统级 Hook 事件驱动触发按键事件。
+fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
+    start_global_input_hook(app_handle);
+}
+
+/// 启动全局鼠标监听器（独立线程）
+///
+/// 当 Mod 的 `global_mouse` 为 true 时，使用系统级 Hook 事件驱动触发鼠标事件。
+fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
+    start_global_input_hook(app_handle);
+}
+
 
 /// 启动提醒调度器（独立线程）
 fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
@@ -3529,17 +3663,15 @@ fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
         use chrono::Local;
         use std::time::Duration;
 
-        let mut ticker = tokio::time::interval(Duration::from_secs(1));
+        let notify = get_reminder_scheduler_notify();
 
         loop {
-            ticker.tick().await;
-
             let app_handle_for_storage = app_handle.clone();
-            let (due, _changed) = tokio::task::spawn_blocking(move || {
-
+            let (due, next_wait_secs) = tokio::task::spawn_blocking(move || {
                 let now_ts = Local::now().timestamp();
                 let mut due: Vec<ReminderAlertPayload> = Vec::new();
                 let mut changed = false;
+                let mut next_ts: Option<i64> = None;
 
                 {
                     let app_state: State<AppState> = app_handle_for_storage.state();
@@ -3588,6 +3720,10 @@ fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
 
                             changed = true;
                         }
+
+                        if r.enabled && r.next_trigger_at > 0 {
+                            next_ts = Some(next_ts.map_or(r.next_trigger_at, |min| min.min(r.next_trigger_at)));
+                        }
                     }
 
                     if changed {
@@ -3595,43 +3731,54 @@ fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
                     }
                 }
 
-                (due, changed)
+                let next_wait_secs = next_ts.map(|ts| {
+                    let delta = ts - now_ts;
+                    if delta <= 0 { 1 } else { delta as u64 }
+                });
+
+                (due, next_wait_secs)
             })
             .await
             .unwrap_or_default();
 
-            if due.is_empty() {
-                continue;
-            }
+            if !due.is_empty() {
+                // 推送更新事件（窗口已存在时可实时追加）
+                let _ = emit(&app_handle, "reminder-alert-update", &due);
 
-            // 写入待展示队列（提示窗口启动时可读取）
-            if let Ok(mut guard) = PENDING_REMINDER_ALERTS.lock() {
-                guard.extend(due.clone());
-                // 防止无界增长
-                if guard.len() > 50 {
-                    let extra = guard.len() - 50;
-                    guard.drain(0..extra);
+                // 写入待展示队列（提示窗口启动时可读取）
+                if let Ok(mut guard) = PENDING_REMINDER_ALERTS.lock() {
+                    guard.extend(due);
+                    // 防止无界增长
+                    if guard.len() > 50 {
+                        let extra = guard.len() - 50;
+                        guard.drain(0..extra);
+                    }
                 }
+
+                // 弹出提示窗口（单窗口复用）
+                let config = WindowConfig {
+                    label: WINDOW_LABEL_REMINDER_ALERT,
+                    url: "reminder_alert",
+                    title_key: "common.reminderAlertTitle",
+                    width: 480.0,
+                    height: 360.0,
+                    resizable: true,
+                    center: true,
+                    destroy_on_close: true,
+                };
+                show_or_create_window(&app_handle, config);
             }
 
-            // 弹出提示窗口（单窗口复用）
-            let config = WindowConfig {
-                label: WINDOW_LABEL_REMINDER_ALERT,
-                url: "reminder_alert",
-                title_key: "common.reminderAlertTitle",
-                width: 480.0,
-                height: 360.0,
-                resizable: true,
-                center: true,
-                destroy_on_close: true,
-            };
-            show_or_create_window(&app_handle, config);
 
-            // 推送更新事件（窗口已存在时可实时追加）
-            let _ = emit(&app_handle, "reminder-alert-update", &due);
+            let wait_secs = next_wait_secs.unwrap_or(60);
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(wait_secs)) => {},
+                _ = notify.notified() => {},
+            }
         }
     });
 }
+
 
 
 

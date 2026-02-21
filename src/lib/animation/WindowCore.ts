@@ -135,6 +135,7 @@ export function createWindowCore(options: {
   let unlistenPlaybackReq: (() => void) | null = null;
   let unlistenModData: (() => void) | null = null;
   let unlistenGlobalKeydown: (() => void) | null = null;
+  let unlistenGlobalMouseState: (() => void) | null = null;
   let unsubLang: (() => void) | null = null;
 
   let animationComplete = false;
@@ -145,10 +146,14 @@ export function createWindowCore(options: {
   let bubbleSessionToken = 0;
 
   let globalKeyboardEnabled = false;
+  let globalMouseEnabled = false;
+
 
   let isBubbleVisible = false;
   let isClickThrough = true;
   let cursorPollTimer: ReturnType<typeof setInterval> | null = null;
+  let hasVisibilityListener = false;
+
 
   let isDragging = false;
   let isMouseDown = false;
@@ -390,6 +395,10 @@ export function createWindowCore(options: {
   }
 
   function startDragEndPoll(session: number) {
+    if (globalMouseEnabled) {
+      return;
+    }
+
     stopDragEndPoll();
     dragEndPollTimer = setInterval(async () => {
       if (!isDragging || activeDragSession !== session) {
@@ -413,12 +422,25 @@ export function createWindowCore(options: {
     }, DRAG_END_POLL_INTERVAL_MS);
   }
 
+
   function addGlobalMouseListeners() {
     if (hasGlobalMouseListeners) return;
     hasGlobalMouseListeners = true;
     window.addEventListener("mousemove", handleMouseMove, true);
     window.addEventListener("mouseup", handleMouseUp, true);
   }
+
+  function handleVisibilityChange() {
+    if (document.hidden) {
+      stopCursorPolling();
+      return;
+    }
+
+    if (!isDragging) {
+      startCursorPolling();
+    }
+  }
+
 
   function removeGlobalMouseListeners() {
     if (!hasGlobalMouseListeners) return;
@@ -870,6 +892,12 @@ export function createWindowCore(options: {
       window.addEventListener("keydown", handleGlobalKeydown);
       window.addEventListener("keyup", handleGlobalKeyup);
 
+      if (!hasVisibilityListener) {
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        hasVisibilityListener = true;
+      }
+
+
 
       // 监听后端全局键盘轮询事件（不需要窗口 focus 即可触发分支选择）
       unlistenGlobalKeydown = await listen<string>("global-keydown", (event) => {
@@ -879,6 +907,20 @@ export function createWindowCore(options: {
         });
         handleBackendKeydown(event.payload);
       });
+
+      unlistenGlobalMouseState = await listen<{ button?: string; pressed?: boolean }>(
+        "global-mouse-state",
+        (event) => {
+          if (!globalMouseEnabled) return;
+          if (!event.payload) return;
+          if (event.payload.button === "global_click" && event.payload.pressed === false) {
+            if (isDragging) {
+              finishDrag();
+            }
+          }
+        },
+      );
+
 
       unsubLang = onLangChange(() => {
         bumpLangVersion();
@@ -1011,7 +1053,20 @@ export function createWindowCore(options: {
         Boolean(currentMod?.manifest?.show_mod_data_panel),
       );
       globalKeyboardEnabled = Boolean(currentMod?.manifest?.global_keyboard);
-      console.log("[WindowCore] globalKeyboardEnabled =", globalKeyboardEnabled, "manifest.global_keyboard =", currentMod?.manifest?.global_keyboard);
+      globalMouseEnabled = Boolean(currentMod?.manifest?.global_mouse);
+      console.log(
+        "[WindowCore] globalKeyboardEnabled =",
+        globalKeyboardEnabled,
+        "manifest.global_keyboard =",
+        currentMod?.manifest?.global_keyboard,
+      );
+      console.log(
+        "[WindowCore] globalMouseEnabled =",
+        globalMouseEnabled,
+        "manifest.global_mouse =",
+        currentMod?.manifest?.global_mouse,
+      );
+
       if (bindings.getShowModDataPanel()) {
         try {
           const data = await invoke<ModData | null>("get_current_mod_data");
@@ -1096,6 +1151,11 @@ export function createWindowCore(options: {
     window.removeEventListener("keydown", handleGlobalKeydown);
     window.removeEventListener("keyup", handleGlobalKeyup);
 
+    if (hasVisibilityListener) {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      hasVisibilityListener = false;
+    }
+
     removeGlobalMouseListeners();
     stopDragEndPoll();
     stopCursorPolling();
@@ -1107,9 +1167,12 @@ export function createWindowCore(options: {
     unlistenPlaybackReq?.();
     unlistenModData?.();
     unlistenGlobalKeydown?.();
+    unlistenGlobalMouseState?.();
     unsubLang?.();
     destroyI18n();
   }
+
+
 
   return {
     init,
