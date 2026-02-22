@@ -328,7 +328,9 @@ impl StateManager {
         // 强制切换时解除锁定
         if force {
             self.locked = false;
+            crate::get_state_unlock_notify().notify_waiters();
         }
+
 
         // 切换当前状态并通知前端
         self.current_state = Some(state.clone());
@@ -480,8 +482,10 @@ impl StateManager {
     /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
     pub fn on_state_complete(&mut self, rm: &ResourceManager) {
         self.locked = false;
+        crate::get_state_unlock_notify().notify_waiters();
 
         // 优先切换到 next_state（使用 take 避免额外 clone）
+
         if let Some(next) = self.next_state.take() {
             let _ = self.change_state(next, rm);
             return;

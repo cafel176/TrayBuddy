@@ -107,9 +107,11 @@ static BACKGROUND_SERVICES_STARTED: std::sync::atomic::AtomicBool = std::sync::a
 static PENDING_REMINDER_ALERTS: std::sync::Mutex<Vec<ReminderAlertPayload>> =
     std::sync::Mutex::new(Vec::new());
 static REMINDER_SCHEDULER_NOTIFY: OnceLock<tokio::sync::Notify> = OnceLock::new();
+static STATE_UNLOCK_NOTIFY: OnceLock<tokio::sync::Notify> = OnceLock::new();
 
 #[cfg(target_os = "windows")]
 static GLOBAL_INPUT_HOOK_STARTED: AtomicBool = AtomicBool::new(false);
+
 #[cfg(target_os = "windows")]
 static GLOBAL_INPUT_CONTEXT: OnceLock<GlobalInputContext> = OnceLock::new();
 #[cfg(target_os = "windows")]
@@ -124,6 +126,12 @@ static GLOBAL_MOUSE_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
 fn get_reminder_scheduler_notify() -> &'static tokio::sync::Notify {
     REMINDER_SCHEDULER_NOTIFY.get_or_init(tokio::sync::Notify::new)
 }
+
+pub(crate) fn get_state_unlock_notify() -> &'static tokio::sync::Notify {
+    STATE_UNLOCK_NOTIFY.get_or_init(tokio::sync::Notify::new)
+}
+
+
 
 
 
@@ -2589,7 +2597,8 @@ fn zip_mod_directory(
     state: &State<'_, AppState>,
     mod_id: &str,
 ) -> Result<Vec<u8>, String> {
-    use std::io::{Write, Cursor};
+    use std::io::{Write, Cursor, BufReader};
+
     use zip::write::{SimpleFileOptions, ZipWriter};
 
     // 解析 mod 的实际目录路径
@@ -2632,11 +2641,13 @@ fn zip_mod_directory(
             } else {
                 zip.start_file(&name, options)
                     .map_err(|e| format!("Failed to start file in zip: {}", e))?;
-                let data = std::fs::read(&path)
+                let file = std::fs::File::open(&path)
                     .map_err(|e| format!("Failed to read file {}: {}", path.display(), e))?;
-                zip.write_all(&data)
+                let mut reader = BufReader::new(file);
+                std::io::copy(&mut reader, zip)
                     .map_err(|e| format!("Failed to write file to zip: {}", e))?;
             }
+
         }
         Ok(())
     }
@@ -3196,6 +3207,7 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
             use crate::modules::constants::{
                 STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS,
             };
+            let notify = get_state_unlock_notify();
             for _ in 0..STATE_LOCK_MAX_RETRIES {
                 let is_locked = {
                     let sm = app_state.state_manager.lock().unwrap();
@@ -3204,11 +3216,14 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
                 if !is_locked {
                     break;
                 }
-                tokio::time::sleep(tokio::time::Duration::from_millis(
-                    STATE_LOCK_WAIT_INTERVAL_MS,
-                ))
-                .await;
+                tokio::select! {
+                    _ = notify.notified() => {},
+                    _ = tokio::time::sleep(tokio::time::Duration::from_millis(
+                        STATE_LOCK_WAIT_INTERVAL_MS,
+                    )) => {}
+                }
             }
+
 
             match event.status {
                 MediaPlaybackStatus::Playing => {
@@ -3253,6 +3268,7 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
 
             // 等待状态解锁（避免与 play_once 状态冲突）
             use crate::modules::constants::{STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS};
+            let notify = get_state_unlock_notify();
             for _ in 0..STATE_LOCK_MAX_RETRIES {
                 let is_locked = {
                     let sm = app_state.state_manager.lock().unwrap();
@@ -3261,11 +3277,14 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
                 if !is_locked {
                     break;
                 }
-                tokio::time::sleep(tokio::time::Duration::from_millis(
-                    STATE_LOCK_WAIT_INTERVAL_MS,
-                ))
-                .await;
+                tokio::select! {
+                    _ = notify.notified() => {},
+                    _ = tokio::time::sleep(tokio::time::Duration::from_millis(
+                        STATE_LOCK_WAIT_INTERVAL_MS,
+                    )) => {}
+                }
             }
+
 
             // work 事件节流：间隔不足则跳过
             let now_ts = chrono::Local::now().timestamp();
