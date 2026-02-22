@@ -1,5 +1,12 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { buildModAssetUrlForLive2D } from "../utils/modAssetUrl";
+import {
+  buildModAssetUrlForLive2D,
+  decodeFileSrcUrl,
+  joinPath,
+  normalizePath,
+  parseArchiveVirtualPath,
+} from "../utils/modAssetUrl";
+
 import type {
   Live2DConfig,
   Live2DExpression,
@@ -40,27 +47,7 @@ declare global {
 
 let live2dLibPromise: Promise<void> | null = null;
 
-function normalizePath(path: string): string {
-  const s = String(path || "").replace(/\\/g, "/");
-  // 保护协议前缀 "xxx://" 不被多斜杠合并破坏
-  const protoMatch = s.match(/^([a-zA-Z][a-zA-Z0-9+\-.]*:\/\/)/);
-  if (protoMatch) {
-    const prefix = protoMatch[1];
-    const rest = s.slice(prefix.length)
-      .replace(/\/+/g, "/")
-      .replace(/^\/+/, "")
-      .replace(/^\.\//, "");
-    return prefix + rest;
-  }
-  return s
-    .replace(/\/+/g, "/")
-    .replace(/^\/+/, "")
-    .replace(/^\.\//, "");
-}
 
-function joinPath(...parts: string[]): string {
-  return normalizePath(parts.filter(Boolean).join("/"));
-}
 
 /**
  * 将文件路径转换为可在 WebView 中使用的 URL，保留路径层级结构。
@@ -69,23 +56,14 @@ function joinPath(...parts: string[]): string {
  * - 文件夹 mod: convertFileSrc + 还原 %2F/%3A
  */
 function toAssetUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, "/");
-  // archive mod 的路径以 tbuddy-archive:// 开头
-  if (normalized.startsWith("tbuddy-archive://")) {
-    // 从 tbuddy-archive://mod_id/relative/path 中提取 modPath 和 relativePath
-    const withoutPrefix = normalized.slice("tbuddy-archive://".length);
-    const slashIdx = withoutPrefix.indexOf("/");
-    if (slashIdx > 0) {
-      const modPath = "tbuddy-archive://" + withoutPrefix.slice(0, slashIdx);
-      const relativePath = withoutPrefix.slice(slashIdx + 1);
-      return buildModAssetUrlForLive2D(modPath, relativePath);
-    }
-    // fallback: 没有 relativePath 部分
-    return buildModAssetUrlForLive2D(normalized, "");
+  const normalized = normalizePath(filePath);
+  const parsed = parseArchiveVirtualPath(normalized);
+  if (parsed) {
+    return buildModAssetUrlForLive2D(parsed.modPath, parsed.relativePath);
   }
-  const raw = convertFileSrc(normalized);
-  return raw.replace(/%2F/gi, "/").replace(/%3A/gi, ":");
+  return decodeFileSrcUrl(convertFileSrc(normalized));
 }
+
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {

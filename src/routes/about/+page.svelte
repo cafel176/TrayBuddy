@@ -4,13 +4,13 @@
   import { getVersion } from "@tauri-apps/api/app";
   import { convertFileSrc } from "@tauri-apps/api/core";
   import { resolveResource } from "@tauri-apps/api/path";
-  import { t, tArray, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+  import { t, tArray, setupI18nWithUpdate } from "$lib/i18n";
 
   // ======================================================================= //
   // i18n
   // ======================================================================= //
   let _langVersion = $state(0);
-  let unsubLang: (() => void) | null = null;
+  let cleanupI18n: (() => void) | null = null;
   let appVersion = $state("...");
   let appIconSrc = $state("");
   const window = getCurrentWindow();
@@ -30,13 +30,10 @@
   // ======================================================================= //
   onMount(() => {
     const init = async () => {
-      unsubLang = onLangChange(() => {
+      cleanupI18n = await setupI18nWithUpdate(() => {
         _langVersion++;
         window.setTitle(_("about.title"));
       });
-      await initI18n();
-      _langVersion++;
-      window.setTitle(_("about.title"));
 
       // 获取真实版本号
       try {
@@ -60,9 +57,9 @@
   });
 
   onDestroy(() => {
-    unsubLang?.();
-    destroyI18n();
+    cleanupI18n?.();
   });
+
 </script>
 
 <div class="about-container">

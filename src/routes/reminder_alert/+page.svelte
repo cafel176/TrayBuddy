@@ -13,7 +13,8 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+  import { t, setupI18nWithUpdate } from "$lib/i18n";
+
 
   type ReminderAlertPayload = {
     id: string;
@@ -23,11 +24,12 @@
   };
 
   let _langVersion = $state(0);
-  let unsubLang: (() => void) | null = null;
+  let cleanupI18n: (() => void) | null = null;
   function _(key: string, params?: Record<string, string | number>): string {
     void _langVersion;
     return t(key, params);
   }
+
 
   let alerts = $state<ReminderAlertPayload[]>([]);
 
@@ -53,14 +55,10 @@
     let unlisten: (() => void) | undefined;
 
     const init = async () => {
-      unsubLang = onLangChange(() => {
+      cleanupI18n = await setupI18nWithUpdate(() => {
         _langVersion++;
         getCurrentWindow().setTitle(_("common.reminderAlertTitle"));
       });
-
-      await initI18n();
-      _langVersion++;
-      getCurrentWindow().setTitle(_("common.reminderAlertTitle"));
 
       await loadInitial();
 
@@ -80,10 +78,10 @@
 
     return () => {
       unlisten?.();
-      unsubLang?.();
-      destroyI18n();
+      cleanupI18n?.();
     };
   });
+
 
   onDestroy(() => {
     // cleanup done in onMount return

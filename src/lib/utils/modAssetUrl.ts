@@ -18,7 +18,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 
 /** archive mod path 的前缀标记（与 Rust 端 `read_mod_from_archive` 一致） */
-const ARCHIVE_PREFIX = "tbuddy-archive://";
+export const ARCHIVE_PREFIX = "tbuddy-archive://";
 
 /**
  * 检测当前平台的自定义协议 URL 前缀格式。
@@ -53,6 +53,49 @@ function getArchiveUrlPrefix(): string {
 }
 
 /**
+ * 统一路径规范化（反斜杠 → 斜杠，并清理重复/前导分隔符）
+ * 保留协议前缀 `xxx://` 的结构。
+ */
+export function normalizePath(path: string): string {
+  const s = String(path || "").replace(/\\/g, "/");
+  const protoMatch = s.match(/^([a-zA-Z][a-zA-Z0-9+\-.]*:\/\/)/);
+  if (protoMatch) {
+    const prefix = protoMatch[1];
+    const rest = s
+      .slice(prefix.length)
+      .replace(/\/+?/g, "/")
+      .replace(/^\/+/, "")
+      .replace(/^\.\//, "");
+
+    return prefix + rest;
+  }
+  return s.replace(/\/+?/g, "/").replace(/^\/+/, "").replace(/^\.\//, "");
+}
+
+
+
+
+
+
+
+
+
+/**
+ * 安全拼接路径（使用 `/` 并去除重复分隔符）
+ */
+export function joinPath(...parts: string[]): string {
+  return normalizePath(parts.filter(Boolean).join("/"));
+}
+
+/**
+ * 还原 convertFileSrc 生成的 URL 路径层级
+ */
+export function decodeFileSrcUrl(raw: string): string {
+  return raw.replace(/%2F/gi, "/").replace(/%3A/gi, ":");
+}
+
+
+/**
  * 判断 modPath 是否来自 .tbuddy archive
  */
 export function isArchiveMod(modPath: string): boolean {
@@ -70,11 +113,29 @@ export function getArchiveModId(modPath: string): string {
 }
 
 /**
+ * 将 `tbuddy-archive://mod_id/relative/path` 解析为 modPath + 相对路径
+ */
+export function parseArchiveVirtualPath(virtualPath: string): { modPath: string; relativePath: string } | null {
+  if (!virtualPath.startsWith(ARCHIVE_PREFIX)) return null;
+  const withoutPrefix = virtualPath.slice(ARCHIVE_PREFIX.length);
+  if (!withoutPrefix) return null;
+  const slashIdx = withoutPrefix.indexOf("/");
+  if (slashIdx < 0) {
+    return { modPath: `${ARCHIVE_PREFIX}${withoutPrefix}`, relativePath: "" };
+  }
+  if (slashIdx === 0) return null;
+  const modId = withoutPrefix.slice(0, slashIdx);
+  const relativePath = withoutPrefix.slice(slashIdx + 1);
+  return { modPath: `${ARCHIVE_PREFIX}${modId}`, relativePath };
+}
+
+/**
  * 判断一个 URL 是否为 archive mod 的资源 URL（平台无关判断）
  */
 export function isArchiveAssetUrl(url: string): boolean {
   return url.includes("tbuddy-asset");
 }
+
 
 /**
  * 将 archive mod 资源 URL 反解为 `tbuddy-archive://mod_id/path` 虚拟路径
@@ -99,13 +160,21 @@ export function archiveAssetUrlToVirtualPath(url: string): string | null {
 export function buildModAssetUrl(modPath: string, relativePath: string): string {
   if (isArchiveMod(modPath)) {
     const modId = getArchiveModId(modPath);
-    const cleanPath = relativePath.replace(/\\/g, "/").replace(/^\//, "");
+    const cleanPath = normalizePath(relativePath);
     return `${getArchiveUrlPrefix()}${modId}/${cleanPath}`;
   }
 
   // 文件夹 mod：使用 Tauri 内建的 asset 协议
-  const fullPath = `${modPath}/${relativePath}`.replace(/\\/g, "/");
+  const fullPath = joinPath(modPath, relativePath);
   return convertFileSrc(fullPath);
+}
+
+function buildModAssetUrlWithDecodedFileSrc(modPath: string, relativePath: string): string {
+  if (isArchiveMod(modPath)) {
+    return buildModAssetUrl(modPath, relativePath);
+  }
+  const fullPath = joinPath(modPath, relativePath);
+  return decodeFileSrcUrl(convertFileSrc(fullPath));
 }
 
 /**
@@ -119,15 +188,8 @@ export function buildModAssetUrl(modPath: string, relativePath: string): string 
  * @returns 可在 WebView 中使用的 URL（保留路径层级）
  */
 export function buildModAssetUrlForLive2D(modPath: string, relativePath: string): string {
-  if (isArchiveMod(modPath)) {
-    // archive mod 的 URL 天然是正确的层级结构
-    return buildModAssetUrl(modPath, relativePath);
-  }
-
-  // 文件夹 mod：convertFileSrc + 还原编码
-  const fullPath = `${modPath}/${relativePath}`.replace(/\\/g, "/");
-  const raw = convertFileSrc(fullPath);
-  return raw.replace(/%2F/gi, "/").replace(/%3A/gi, ":");
+  // archive mod 的 URL 天然是正确的层级结构
+  return buildModAssetUrlWithDecodedFileSrc(modPath, relativePath);
 }
 
 /**
@@ -141,12 +203,6 @@ export function buildModAssetUrlForLive2D(modPath: string, relativePath: string)
  * @returns 可在 WebView 中使用的 URL（保留路径层级）
  */
 export function buildModAssetUrlFor3D(modPath: string, relativePath: string): string {
-  if (isArchiveMod(modPath)) {
-    return buildModAssetUrl(modPath, relativePath);
-  }
-
-  // 文件夹 mod：convertFileSrc + 还原编码
-  const fullPath = `${modPath}/${relativePath}`.replace(/\\/g, "/");
-  const raw = convertFileSrc(fullPath);
-  return raw.replace(/%2F/gi, "/").replace(/%3A/gi, ":");
+  return buildModAssetUrlWithDecodedFileSrc(modPath, relativePath);
 }
+

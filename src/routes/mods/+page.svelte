@@ -3,25 +3,30 @@
     import { onMount, onDestroy } from "svelte";
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { listen } from "@tauri-apps/api/event";
-    import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
+    import {
+        buildModAssetUrl,
+        getArchiveModId,
+        isArchiveMod,
+    } from "$lib/utils/modAssetUrl";
+
     import {
         t,
-        initI18n,
-        destroyI18n,
-        onLangChange,
+        setupI18nWithUpdate,
         currentLang,
     } from "$lib/i18n";
+
     import { message } from "@tauri-apps/plugin-dialog";
 
     // ======================================================================= //
     // i18n
     // ======================================================================= //
     let _langVersion = $state(0);
-    let unsubLang: (() => void) | null = null;
+    let cleanupI18n: (() => void) | null = null;
     function _(key: string, params?: Record<string, string | number>): string {
         void _langVersion;
         return t(key, params);
     }
+
 
     // ======================================================================= //
     // Data Types
@@ -215,8 +220,8 @@
         }
         try {
             // tbuddy 包形式的 mod：打开 .tbuddy 文件所在目录并选中该文件
-            if (selectedModInfo.path.startsWith("tbuddy-archive://")) {
-                const modId = selectedModInfo.manifest?.id ?? selectedModInfo.path.replace("tbuddy-archive://", "");
+            if (isArchiveMod(selectedModInfo.path)) {
+                const modId = selectedModInfo.manifest?.id ?? getArchiveModId(selectedModInfo.path);
                 const sourcePath: string | null = await invoke("get_tbuddy_source_path", { modId });
                 if (sourcePath) {
                     await invoke("open_path", { path: sourcePath });
@@ -224,6 +229,7 @@
                     return;
                 }
             }
+
             await invoke("open_dir", { path: selectedModInfo.path });
             statusMsg = _("modWindow.modDirOpened");
         } catch (e) {
@@ -450,13 +456,10 @@
     // ======================================================================= //
     onMount(() => {
         const init = async () => {
-            unsubLang = onLangChange(() => {
+            cleanupI18n = await setupI18nWithUpdate(() => {
                 _langVersion++;
                 getCurrentWindow().setTitle(_("common.modsTitle"));
             });
-            await initI18n();
-            _langVersion++;
-            getCurrentWindow().setTitle(_("common.modsTitle"));
 
             // 先获取当前加载的 mod，再加载 mod 列表
             await loadCurrentMod();
@@ -471,10 +474,10 @@
     });
 
     onDestroy(() => {
-        unsubLang?.();
+        cleanupI18n?.();
         unsubRefresh?.();
-        destroyI18n();
     });
+
 </script>
 
 <div class="mod-window">

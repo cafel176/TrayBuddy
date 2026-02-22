@@ -37,7 +37,8 @@
 
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
   import LayoutDebugger from "$lib/components/LayoutDebugger.svelte";
-  import { t, initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+  import { t, setupI18nWithUpdate } from "$lib/i18n";
+
 
   // ======================================================================= //
   // 响应式状态
@@ -48,7 +49,7 @@
 
   /** i18n 响应式翻译函数 - 使用版本号触发更新 */
   let _langVersion = $state(0);
-  let unsubLang: (() => void) | null = null;
+  let cleanupI18n: (() => void) | null = null;
 
   /** 响应式翻译函数 */
   function _(key: string, params?: Record<string, string | number>): string {
@@ -57,28 +58,26 @@
     return t(key, params);
   }
 
+
   // ======================================================================= //
   // 生命周期
   // ======================================================================= //
 
   onMount(() => {
     const init = async () => {
-      unsubLang = onLangChange(() => {
+      cleanupI18n = await setupI18nWithUpdate(() => {
         _langVersion++;
         getCurrentWindow().setTitle(_("common.appTitle"));
       });
-      await initI18n();
-      _langVersion++;
-      getCurrentWindow().setTitle(_("common.appTitle"));
     };
 
     init();
 
     return () => {
-      unsubLang?.();
-      destroyI18n();
+      cleanupI18n?.();
     };
   });
+
 
   onDestroy(() => {
     // 基础清理 logic 在 onMount return 中

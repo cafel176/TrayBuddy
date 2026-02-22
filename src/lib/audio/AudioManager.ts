@@ -26,7 +26,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LRUCache } from "../utils/LRUCache";
 import { getModPath, clearModPathCache } from "../utils/modPath";
-import { buildModAssetUrl, isArchiveAssetUrl, archiveAssetUrlToVirtualPath } from "../utils/modAssetUrl";
+import {
+  archiveAssetUrlToVirtualPath,
+  buildModAssetUrl,
+  isArchiveAssetUrl,
+  joinPath,
+} from "../utils/modAssetUrl";
+
 import type { AudioInfo, UserSettings } from "../types/asset";
 
 // ============================================================================
@@ -264,7 +270,8 @@ export class AudioManager {
           return true;
         }
 
-        const audioPath = `${modPath}/audio/${audioInfo.audio}`.replace(/\\/g, "/");
+        const audioPath = joinPath(modPath, "audio", audioInfo.audio);
+
         logAudio(`Constructed audio path: ${audioPath}`);
 
         // 关键：播放前先检查文件是否存在

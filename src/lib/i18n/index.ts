@@ -173,30 +173,36 @@ export function onLangChange(callback: () => void): () => void {
  * t("settings.title")  // "用户设置"
  * t("resource.statusRefreshed", { count: 5 })  // "已刷新 Mod 列表，共 5 个"
  */
-export function t(key: string, params?: Record<string, string | number>): string {
+function getNestedValue(dict: Record<string, unknown>, key: string): unknown {
+  if (!key) return undefined;
   const keys = key.split(".");
-  let value: unknown = _dict;
-  
+  let value: unknown = dict;
+
   for (const k of keys) {
     if (value && typeof value === "object" && k in value) {
       value = (value as Record<string, unknown>)[k];
     } else {
-      // 键不存在，返回原键名
-      return key;
+      return undefined;
     }
   }
-  
+
+  return value;
+}
+
+export function t(key: string, params?: Record<string, string | number>): string {
+  const value = getNestedValue(_dict, key);
+
   if (typeof value !== "string") {
     return key;
   }
-  
+
   // 替换模板参数
   if (params) {
     return value.replace(/\{(\w+)\}/g, (_, paramKey) => {
       return String(params[paramKey] ?? `{${paramKey}}`);
     });
   }
-  
+
   return value;
 }
 
@@ -210,23 +216,15 @@ export function t(key: string, params?: Record<string, string | number>): string
  * tArray("environment.weekdays")  // ["周日", "周一", ...]
  */
 export function tArray(key: string): string[] {
-  const keys = key.split(".");
-  let value: unknown = _dict;
-  
-  for (const k of keys) {
-    if (value && typeof value === "object" && k in value) {
-      value = (value as Record<string, unknown>)[k];
-    } else {
-      return [];
-    }
-  }
-  
+  const value = getNestedValue(_dict, key);
+
   if (Array.isArray(value)) {
     return value as string[];
   }
-  
+
   return [];
 }
+
 
 /**
  * 创建响应式翻译函数（用于 Svelte 5 $derived）

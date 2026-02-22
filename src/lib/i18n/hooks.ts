@@ -131,3 +131,28 @@ export async function setupI18n(
   state._langVersion.value++;
   onLangUpdate?.();
 }
+
+/**
+ * 为页面提供更简洁的 i18n 初始化与清理封装
+ *
+ * 适用于 Svelte 页面中已有 `_langVersion`（Svelte $state）场景。
+ *
+ * @param onLangUpdate - 语言变更/初始化后的回调（通常包含 _langVersion++ 等）
+ * @returns 清理函数（在 onDestroy 中调用）
+ */
+export async function setupI18nWithUpdate(
+  onLangUpdate: () => void
+): Promise<() => void> {
+  const unsub = onLangChange(() => {
+    onLangUpdate();
+  });
+
+  await initI18n();
+  onLangUpdate();
+
+  return () => {
+    unsub?.();
+    destroyI18n();
+  };
+}
+
