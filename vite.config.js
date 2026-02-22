@@ -8,7 +8,87 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [sveltekit()],
 
+  resolve: {
+    conditions: ["browser"],
+  },
+
+  environments: {
+
+    client: {},
+    ssr: {
+      resolve: {
+        conditions: ["browser"],
+      },
+    },
+    test: {
+      resolve: {
+        conditions: ["browser"],
+      },
+    },
+  },
+
+
+
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.{test,spec}.{js,ts}", "src/**/*.{test,spec}.svelte"],
+    coverage: {
+      provider: "v8",
+      reportsDirectory: "src/test/coverage",
+
+      reporter: ["text-summary", "json-summary", "html"],
+
+      include: [
+        "src/routes/**",
+        "src/lib/utils/**",
+        "src/lib/bubble/**",
+        "src/lib/i18n/**",
+        "src/lib/trigger/**",
+      ],
+      exclude: [
+        "**/node_modules/**",
+        "**/src-tauri/**",
+        "**/.svelte-kit/**",
+        "**/other-tool/**",
+        "**/tools-common/**",
+        "**/mod-tool/**",
+        "**/my-tool/**",
+        "**/build/**",
+        "**/mods/**",
+        "**/mods_test/**",
+        "**/tbuddy/**",
+        "**/static/**",
+        "**/提示词/**",
+        "**/test_logs/**",
+        "**/*.d.ts",
+        "src/routes/animation/**",
+        "src/routes/live2d/**",
+        "src/routes/threed/**",
+        "src/routes/pngremix/**",
+      ],
+    },
+    server: {
+      deps: {
+        inline: [
+          /svelte/,
+          /@testing-library\/svelte/,
+          /@testing-library\/svelte-core/,
+        ],
+      },
+    },
+  },
+
+
+  ssr: {
+    resolve: {
+      conditions: ["browser"],
+    },
+  },
+
   // =========================================================================
+
   // 构建优化配置
   // =========================================================================
   build: {

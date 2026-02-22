@@ -1,0 +1,12 @@
+ExportVrma/Library
+ExportVrma/Logs
+ExportVrma/ProjectSettings
+ExportVrma/UserSettings
+ExportVrma/Temp
+ExportVrma/Packages
+ExportVrma/Assets/Models/*.meta
+ExportVrma/Assets/Animations/*.meta
+ExportVrma/Assets/*.meta
+ExportVrma/Assets/Editor/*.meta
+ExportVrma/Assets/AnimBaked
+ExportVrma/Assets/AnimExports

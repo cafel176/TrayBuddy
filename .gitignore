@@ -2,7 +2,10 @@
 node_modules
 /build
 /.svelte-kit
+/.vscode
 /package
+
+
 .env
 .env.*
 !.env.example
@@ -11,9 +14,6 @@ vite.config.ts.timestamp-*
 .vs
 .vs.*
 
-# Check tool logs
-check-tool/memory_profile/Logs/
-check-tool/bundle_analyzer/Logs/
 *.log
 
 text_list/data
@@ -21,20 +21,3 @@ text_list/data
 # sbuddy-crypto（加密工具，不开源）
 sbuddy-crypto/
 sbuddy-crypto.exe
-mod-tool/sbuddy-crypto.exe
-mod-tool/to-sbuddy.bat
-src-tauri/sbuddy-crypto.exe
-src-tauri/test_logs
-
-my-tool/ExportVrma/Library
-my-tool/ExportVrma/Logs
-my-tool/ExportVrma/ProjectSettings
-my-tool/ExportVrma/UserSettings
-my-tool/ExportVrma/Temp
-my-tool/ExportVrma/Packages
-my-tool/ExportVrma/Assets/Models/*.meta
-my-tool/ExportVrma/Assets/Animations/*.meta
-my-tool/ExportVrma/Assets/*.meta
-my-tool/ExportVrma/Assets/Editor/*.meta
-my-tool/ExportVrma/Assets/AnimBaked
-my-tool/ExportVrma/Assets/AnimExports
