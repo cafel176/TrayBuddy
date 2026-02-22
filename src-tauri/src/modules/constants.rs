@@ -50,9 +50,6 @@ pub const WINDOW_LABEL_REMINDER: &str = "reminder";
 /// 定时提醒提示窗口标签
 pub const WINDOW_LABEL_REMINDER_ALERT: &str = "reminder_alert";
 
-
-
-
 // ========================================================================= //
 // 托盘标识符常量
 // ========================================================================= //
@@ -196,14 +193,11 @@ pub const EVENT_WORK: &str = "work";
 /// **用途**: 进程监测触发 work 时的节流，避免短时间内重复触发。
 pub const WORK_EVENT_COOLDOWN_SECS: i64 = 5 * 60;
 
-
 /// Animation 窗口开始拖动事件
 pub const EVENT_ANIMATION_DRAG_START: &str = "drag_start";
 
-
 /// Animation 窗口结束拖动事件
 pub const EVENT_ANIMATION_DRAG_END: &str = "drag_end";
-
 
 // ========================================================================= //
 // 媒体监听常量
@@ -256,7 +250,7 @@ pub const LOCATION_API_TIMEOUT_SECS: u64 = 30;
 
 /// 触发器最小触发间隔时间（秒）
 ///
-/// **用途**: 防止状态过于频繁切换，至少间隔 5 分钟才会触发下一次随机事件。
+/// **用途**: 防止状态过于频繁切换。
 pub const MIN_TRIGGER_TIME_SECS: f32 = 1.0;
 
 /// 定时触发器检查间隔（秒）
