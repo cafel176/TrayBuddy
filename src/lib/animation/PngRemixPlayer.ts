@@ -1173,8 +1173,11 @@ function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: numbe
 // buildRuntimeScene
 // ============================================================================
 
+const SPRITE_DECODE_CONCURRENCY = 4;
+
 async function buildRuntimeScene(normalizedModel: any): Promise<RuntimeScene> {
   const scene = new RuntimeScene(normalizedModel);
+
   scene.nodes = normalizedModel.sprites.map((s: any) => new RuntimeNode(s, s.index));
   for (const n of scene.nodes) if (n.spriteId !== null && n.spriteId !== undefined) scene.nodeBySpriteId.set(n.spriteId, n);
 
@@ -1190,28 +1193,37 @@ async function buildRuntimeScene(normalizedModel: any): Promise<RuntimeScene> {
   buildHotkeyGroups(scene);
 
 
-  scene.hasAnimatedTextures = false;
-  const loadJobs = scene.nodes.map(async (n) => {
-    const bytes = normalizedModel.sprites[n.index]?.imgBytes;
-    if (!(bytes instanceof Uint8Array) || bytes.length < 6) return;
-    let drawable = await decodePngBytesToDrawable(bytes, n.name);
-    if (!drawable) return;
-    if (drawable._isAnimated) scene.hasAnimatedTextures = true;
-    const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
-    let rot = ((Math.floor(Number(n.raw?.rotated) || 0) % 4) + 4) % 4;
-    n._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
-    if (!drawable._isAnimated) drawable = applySpriteTextureTransforms(drawable, n.raw);
-    scene.spriteDrawableByIndex.set(n.index, drawable);
+  let hasAnimatedTextures = false;
+  let cursor = 0;
+  const workers = new Array(Math.min(SPRITE_DECODE_CONCURRENCY, scene.nodes.length)).fill(0).map(async () => {
+    while (cursor < scene.nodes.length) {
+      const n = scene.nodes[cursor++];
+      const bytes = normalizedModel.sprites[n.index]?.imgBytes;
+      if (!(bytes instanceof Uint8Array) || bytes.length < 6) continue;
+      let drawable = await decodePngBytesToDrawable(bytes, n.name);
+      if (!drawable) continue;
+      if (drawable._isAnimated) hasAnimatedTextures = true;
+      const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
+      let rot = ((Math.floor(Number(n.raw?.rotated) || 0) % 4) + 4) % 4;
+      n._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
+      if (!drawable._isAnimated) drawable = applySpriteTextureTransforms(drawable, n.raw);
+      scene.spriteDrawableByIndex.set(n.index, drawable);
 
-    const spriteInfo = normalizedModel.sprites[n.index];
-    if (spriteInfo && spriteInfo.imgBytes instanceof Uint8Array) {
-      spriteInfo.imgBytes = null;
+      const spriteInfo = normalizedModel.sprites[n.index];
+      if (spriteInfo && spriteInfo.imgBytes instanceof Uint8Array) {
+        spriteInfo.imgBytes = null;
+      }
     }
-
   });
-  await Promise.all(loadJobs);
+
+  if (workers.length > 0) {
+    await Promise.all(workers);
+  }
+
+  scene.hasAnimatedTextures = hasAnimatedTextures;
   return scene;
 }
+
 
 // ============================================================================
 // fitViewToContent
@@ -1320,13 +1332,17 @@ export class PngRemixPlayer {
     const url = buildModAssetUrl(modPath, config.model.pngremix_file);
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`Failed to fetch pngRemix: ${resp.status}`);
-    const ab = await resp.arrayBuffer();
+    let ab = await resp.arrayBuffer();
 
     const W = (globalThis as any);
-    const decoded = W.PngRemixDecoder.decode(ab);
-    const normalized = W.ModelNormalizer.normalizePngRemixModel(decoded);
+    let decoded = W.PngRemixDecoder.decode(ab);
+    let normalized = W.ModelNormalizer.normalizePngRemixModel(decoded);
+    ab = null as any;
 
     this.scene = await buildRuntimeScene(normalized);
+    decoded = null as any;
+    normalized = null as any;
+
 
     // Apply config features
     this.applyConfigFeatures(config);

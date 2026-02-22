@@ -24,7 +24,8 @@ const DEBUG = false;
 const LOOP_BLEND_DURATION = 0.3;
 
 /** 动画剪辑缓存最大容量（避免长期驻留过多动画数据） */
-const CLIP_CACHE_MAX_SIZE = 8;
+const CLIP_CACHE_MAX_SIZE = 4;
+
 
 function dbg(tag: string, ...args: unknown[]) {
   if (DEBUG) console.log(`[ThreeDPlayer][${tag}]`, ...args);

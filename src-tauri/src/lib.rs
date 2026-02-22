@@ -854,7 +854,8 @@ async fn load_mod_from_path(
             rm.get_archive_store().cloned()
         };
         let mod_id = archive_store.and_then(|store| {
-            let s = store.lock().unwrap();
+            let mut s = store.lock().unwrap();
+
             // 用文件名推断 mod_id: "{mod_id}.tbuddy" 或 "{mod_id}.sbuddy"
             let file_stem = target_path
                 .file_stem()
@@ -972,8 +973,9 @@ fn path_exists(path: String, state: State<'_, AppState>) -> bool {
             // 兼容：path 可能是 "tbuddy-archive://mod_id/asset/xxx" 格式
             path.clone()
         };
-        let store = state.archive_store.lock().unwrap();
+        let mut store = state.archive_store.lock().unwrap();
         return store.file_exists(mod_id, &relative);
+
     }
 
     // 文件夹 mod：原有逻辑
@@ -1599,8 +1601,9 @@ pub fn run() {
                     .unwrap();
             }
 
-            let store = protocol_store.lock().unwrap();
+            let mut store = protocol_store.lock().unwrap();
             match store.read_file(&mod_id, &file_path) {
+
                 Ok(data) => {
                     let mime = guess_mime_type(&file_path);
                     Response::builder()

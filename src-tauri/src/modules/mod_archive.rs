@@ -19,7 +19,8 @@
 //! ```
 
 use serde::de::DeserializeOwned;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -568,15 +569,23 @@ pub struct ModArchiveStore {
     archives: HashMap<String, Arc<Box<dyn ModArchiveReader>>>,
     /// mod_id -> 来源信息
     sources: HashMap<String, ArchiveSource>,
+    /// LRU 顺序（最近使用的放在队尾）
+    access_order: VecDeque<String>,
 }
 
+
 impl ModArchiveStore {
+    /// 内存中最多保留的 archive 数量（避免长期驻留过多 ZIP 数据）
+    const ARCHIVE_CACHE_MAX: usize = 4;
+
     pub fn new() -> Self {
         Self {
             archives: HashMap::new(),
             sources: HashMap::new(),
+            access_order: VecDeque::new(),
         }
     }
+
 
     /// 加载 .tbuddy 文件到内存并注册
     ///
@@ -594,12 +603,12 @@ impl ModArchiveStore {
             mod_id: mod_id.clone(),
         };
 
-        self.archives
-            .insert(mod_id.clone(), Arc::new(Box::new(reader)));
+        self.insert_archive(mod_id.clone(), Box::new(reader));
         self.sources.insert(mod_id.clone(), source);
 
         Ok((mod_id, manifest))
     }
+
 
     /// 加载 .sbuddy 文件到内存并注册（通过外部工具解密后按 ZIP 处理）
     ///
@@ -617,22 +626,27 @@ impl ModArchiveStore {
             mod_id: mod_id.clone(),
         };
 
-        self.archives
-            .insert(mod_id.clone(), Arc::new(Box::new(reader)));
+        self.insert_archive(mod_id.clone(), Box::new(reader));
         self.sources.insert(mod_id.clone(), source);
 
         Ok((mod_id, manifest))
     }
 
+
     /// 获取指定 mod 的 archive reader
-    pub fn get(&self, mod_id: &str) -> Option<Arc<Box<dyn ModArchiveReader>>> {
+    pub fn get(&mut self, mod_id: &str) -> Option<Arc<Box<dyn ModArchiveReader>>> {
+        if self.ensure_loaded(mod_id).is_err() {
+            return None;
+        }
         self.archives.get(mod_id).cloned()
     }
 
+
     /// 判断指定 mod 是否已加载
-    pub fn contains(&self, mod_id: &str) -> bool {
-        self.archives.contains_key(mod_id)
+    pub fn contains(&mut self, mod_id: &str) -> bool {
+        self.ensure_loaded(mod_id).is_ok()
     }
+
 
     /// 移除指定 mod 的 archive
     pub fn remove(&mut self, mod_id: &str) {
@@ -644,7 +658,9 @@ impl ModArchiveStore {
     pub fn clear(&mut self) {
         self.archives.clear();
         self.sources.clear();
+        self.access_order.clear();
     }
+
 
     /// 获取指定 mod 的来源信息（包含 .tbuddy 文件的实际磁盘路径）
     pub fn get_source(&self, mod_id: &str) -> Option<&ArchiveSource> {
@@ -657,7 +673,8 @@ impl ModArchiveStore {
     }
 
     /// 从 archive 读取指定 mod 的指定文件（用于自定义协议）
-    pub fn read_file(&self, mod_id: &str, relative_path: &str) -> Result<Vec<u8>, String> {
+    pub fn read_file(&mut self, mod_id: &str, relative_path: &str) -> Result<Vec<u8>, String> {
+        self.ensure_loaded(mod_id)?;
         let reader = self
             .archives
             .get(mod_id)
@@ -665,11 +682,67 @@ impl ModArchiveStore {
         reader.read_file(relative_path)
     }
 
+
     /// 检查指定 mod 的文件是否存在
-    pub fn file_exists(&self, mod_id: &str, relative_path: &str) -> bool {
+    pub fn file_exists(&mut self, mod_id: &str, relative_path: &str) -> bool {
+        if self.ensure_loaded(mod_id).is_err() {
+            return false;
+        }
         self.archives
             .get(mod_id)
             .map(|r| r.file_exists(relative_path))
             .unwrap_or(false)
     }
+
+    fn insert_archive(&mut self, mod_id: String, reader: Box<dyn ModArchiveReader>) {
+        self.archives.insert(mod_id.clone(), Arc::new(reader));
+        self.touch(&mod_id);
+        self.enforce_limit();
+    }
+
+    fn touch(&mut self, mod_id: &str) {
+        if let Some(pos) = self.access_order.iter().position(|id| id == mod_id) {
+            self.access_order.remove(pos);
+        }
+        self.access_order.push_back(mod_id.to_string());
+    }
+
+    fn enforce_limit(&mut self) {
+        while self.archives.len() > Self::ARCHIVE_CACHE_MAX {
+            if let Some(oldest) = self.access_order.pop_front() {
+                self.archives.remove(&oldest);
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn load_reader_from_path(path: &Path) -> Result<Box<dyn ModArchiveReader>, String> {
+        let ext = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_lowercase())
+            .unwrap_or_default();
+        match ext.as_str() {
+            "tbuddy" => Ok(Box::new(ZipArchiveReader::from_file(path)?)),
+            "sbuddy" => Ok(Box::new(SbuddyArchiveReader::from_file(path)?)),
+            _ => Err(format!("Unsupported archive type: {}", path.display())),
+        }
+    }
+
+    fn ensure_loaded(&mut self, mod_id: &str) -> Result<(), String> {
+        if self.archives.contains_key(mod_id) {
+            self.touch(mod_id);
+            return Ok(());
+        }
+
+        let Some(source) = self.sources.get(mod_id) else {
+            return Err(format!("Archive source not found: '{}'", mod_id));
+        };
+
+        let reader = Self::load_reader_from_path(&source.file_path)?;
+        self.insert_archive(mod_id.to_string(), reader);
+        Ok(())
+    }
 }
+
