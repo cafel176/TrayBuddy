@@ -1213,8 +1213,29 @@ fn is_left_mouse_down() -> Result<bool, String> {
     }
 }
 
+/// 拖拽结束检测：启用/关闭全局鼠标状态追踪
+#[tauri::command]
+fn set_drag_end_tracking(enabled: bool) -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(ctx) = get_global_input_context() {
+            ctx.drag_tracking_enabled.store(enabled, std::sync::atomic::Ordering::Relaxed);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = enabled;
+        Ok(false)
+    }
+}
+
 /// 获取当前鼠标位置（屏幕坐标）
 #[tauri::command]
+
 fn get_cursor_position() -> Result<(i32, i32), String> {
     #[cfg(target_os = "windows")]
     {
@@ -1976,7 +1997,9 @@ pub fn run() {
             set_animation_scale,
             set_ignore_cursor_events,
             is_left_mouse_down,
+            set_drag_end_tracking,
             get_cursor_position,
+
             is_cursor_in_interact_area,
             open_path,
             inspect_mod_tbuddy,
@@ -3320,7 +3343,9 @@ struct GlobalInputContext {
     app_handle: tauri::AppHandle,
     keyboard_enabled: Arc<AtomicBool>,
     mouse_enabled: Arc<AtomicBool>,
+    drag_tracking_enabled: Arc<AtomicBool>,
 }
+
 
 #[cfg(target_os = "windows")]
 fn get_global_input_context() -> Option<&'static GlobalInputContext> {
@@ -3449,7 +3474,21 @@ fn emit_global_mouse_state(button: &str, pressed: bool) {
 }
 
 #[cfg(target_os = "windows")]
+fn emit_drag_mouse_state(pressed: bool) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let _ = ctx.app_handle.emit(
+        "drag-mouse-state",
+        serde_json::json!({
+            "pressed": pressed
+        }),
+    );
+}
+
+#[cfg(target_os = "windows")]
 unsafe extern "system" fn global_keyboard_hook_proc(
+
     code: i32,
     wparam: windows::Win32::Foundation::WPARAM,
     lparam: windows::Win32::Foundation::LPARAM,
@@ -3534,7 +3573,10 @@ unsafe extern "system" fn global_mouse_hook_proc(
         return CallNextHookEx(null_hook, code, wparam, lparam);
     };
 
-    if !ctx.mouse_enabled.load(Ordering::Relaxed) {
+    let mouse_enabled = ctx.mouse_enabled.load(Ordering::Relaxed);
+    let drag_tracking_enabled = ctx.drag_tracking_enabled.load(Ordering::Relaxed);
+
+    if !mouse_enabled && !drag_tracking_enabled {
         if GLOBAL_MOUSE_LAST_ENABLED.swap(false, Ordering::Relaxed) {
             reset_global_mouse_states();
         }
@@ -3560,21 +3602,30 @@ unsafe extern "system" fn global_mouse_hook_proc(
     if pressed && !was_pressed {
         states[idx] = true;
         drop(states);
-        trigger_event_with_state_manager(event_name);
-        emit_global_mouse_state(event_name, true);
+        if mouse_enabled {
+            trigger_event_with_state_manager(event_name);
+            emit_global_mouse_state(event_name, true);
+        } else if drag_tracking_enabled && event_name == "global_click" {
+            emit_drag_mouse_state(true);
+        }
     } else if !pressed && was_pressed {
         states[idx] = false;
         drop(states);
-        emit_global_mouse_state(event_name, false);
-        let up_event_name = match event_name {
-            "global_click" => "global_click_up",
-            "global_right_click" => "global_right_click_up",
-            _ => "",
-        };
-        if !up_event_name.is_empty() {
-            trigger_event_with_state_manager(up_event_name);
+        if mouse_enabled {
+            emit_global_mouse_state(event_name, false);
+            let up_event_name = match event_name {
+                "global_click" => "global_click_up",
+                "global_right_click" => "global_right_click_up",
+                _ => "",
+            };
+            if !up_event_name.is_empty() {
+                trigger_event_with_state_manager(up_event_name);
+            }
+        } else if drag_tracking_enabled && event_name == "global_click" {
+            emit_drag_mouse_state(false);
         }
     }
+
 
     CallNextHookEx(null_hook, code, wparam, lparam)
 }
@@ -3605,11 +3656,15 @@ fn start_global_input_hook(app_handle: tauri::AppHandle) {
             app_state.global_mouse_enabled.clone()
         };
 
+        let drag_tracking_enabled = Arc::new(AtomicBool::new(false));
+
         let _ = GLOBAL_INPUT_CONTEXT.set(GlobalInputContext {
             app_handle,
             keyboard_enabled,
             mouse_enabled,
+            drag_tracking_enabled,
         });
+
 
         std::thread::spawn(|| unsafe {
             let module = GetModuleHandleW(None).unwrap_or_default();

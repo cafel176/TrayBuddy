@@ -136,7 +136,9 @@ export function createWindowCore(options: {
   let unlistenModData: (() => void) | null = null;
   let unlistenGlobalKeydown: (() => void) | null = null;
   let unlistenGlobalMouseState: (() => void) | null = null;
+  let unlistenDragMouseState: (() => void) | null = null;
   let unsubLang: (() => void) | null = null;
+
 
   let animationComplete = false;
   let audioComplete = false;
@@ -147,6 +149,8 @@ export function createWindowCore(options: {
 
   let globalKeyboardEnabled = false;
   let globalMouseEnabled = false;
+  let dragTrackingEnabled = false;
+
 
 
   let isBubbleVisible = false;
@@ -394,13 +398,36 @@ export function createWindowCore(options: {
     dragEndPollSawDown = false;
   }
 
-  function startDragEndPoll(session: number) {
+  async function setDragEndTracking(enabled: boolean): Promise<boolean> {
+    try {
+      const supported = await invoke<boolean>("set_drag_end_tracking", { enabled });
+      dragTrackingEnabled = enabled && supported;
+      return supported;
+    } catch {
+      dragTrackingEnabled = false;
+      return false;
+    }
+  }
+
+  async function startDragEndTracking(session: number) {
     if (globalMouseEnabled) {
       return;
     }
 
     stopDragEndPoll();
+    const supported = await setDragEndTracking(true);
+
+    if (supported) {
+      if (!isDragging || activeDragSession !== session) {
+        void setDragEndTracking(false);
+        dragTrackingEnabled = false;
+      }
+      return;
+    }
+
+    stopDragEndPoll();
     dragEndPollTimer = setInterval(async () => {
+
       if (!isDragging || activeDragSession !== session) {
         stopDragEndPoll();
         return;
@@ -421,6 +448,7 @@ export function createWindowCore(options: {
       }
     }, DRAG_END_POLL_INTERVAL_MS);
   }
+
 
 
   function addGlobalMouseListeners() {
@@ -456,12 +484,17 @@ export function createWindowCore(options: {
   function finishDrag() {
     if (!isDragging) return;
     stopDragEndPoll();
+    if (dragTrackingEnabled) {
+      void setDragEndTracking(false);
+      dragTrackingEnabled = false;
+    }
     triggerManager?.trigger("drag_end", true);
     isDragging = false;
     isMouseDown = false;
     removeGlobalMouseListeners();
     resumeCursorHandling();
   }
+
 
   function handleMouseDown(e: MouseEvent) {
     if (e.button !== 0) return;
@@ -489,7 +522,8 @@ export function createWindowCore(options: {
 
     triggerManager?.trigger("drag_start", true);
 
-    startDragEndPoll(session);
+    void startDragEndTracking(session);
+
 
     void getCurrentWindow()
       .startDragging()
@@ -921,8 +955,19 @@ export function createWindowCore(options: {
         },
       );
 
+      unlistenDragMouseState = await listen<{ pressed?: boolean }>(
+        "drag-mouse-state",
+        (event) => {
+          if (!dragTrackingEnabled) return;
+          if (!event.payload) return;
+          if (event.payload.pressed === false && isDragging) {
+            finishDrag();
+          }
+        },
+      );
 
       unsubLang = onLangChange(() => {
+
         bumpLangVersion();
       });
       await initI18n();
@@ -1158,7 +1203,12 @@ export function createWindowCore(options: {
 
     removeGlobalMouseListeners();
     stopDragEndPoll();
+    if (dragTrackingEnabled) {
+      void setDragEndTracking(false);
+      dragTrackingEnabled = false;
+    }
     stopCursorPolling();
+
 
     audioManager?.destroy();
     triggerManager?.destroy();
@@ -1168,7 +1218,9 @@ export function createWindowCore(options: {
     unlistenModData?.();
     unlistenGlobalKeydown?.();
     unlistenGlobalMouseState?.();
+    unlistenDragMouseState?.();
     unsubLang?.();
+
     destroyI18n();
   }
 

@@ -1765,7 +1765,8 @@ export class PngRemixPlayer {
   }
 
   private syncMouseFollowBindings(): void {
-    // Use local pointer events when possible; WindowCore polling is only ~10Hz by default (see CURSOR_POLL_INTERVAL_MS).
+    // Use local pointer events when possible; WindowCore polling is only ~7Hz by default (see CURSOR_POLL_INTERVAL_MS).
+
     if (!this.enableMouseFollow || !this.scene) {
       this.unbindLocalMouseFollow();
       return;
