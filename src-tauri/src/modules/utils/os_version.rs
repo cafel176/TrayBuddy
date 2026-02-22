@@ -112,6 +112,9 @@ pub fn get_windows_version() -> WindowsVersion {
     WindowsVersion::WIN10
 }
 
+
+
+
 /// 检测 Windows 版本
 #[cfg(windows)]
 fn detect_windows_version() -> Option<WindowsVersion> {
@@ -224,4 +227,36 @@ mod tests {
         assert!(WindowsVersion::WIN10.is_win10_or_later());
         assert!(WindowsVersion::WIN11.is_win11());
     }
+
+    #[test]
+    fn helper_checks_cover_versions() {
+        let win7 = WindowsVersion::WIN7;
+        let win8 = WindowsVersion::WIN8;
+        let win8_1 = WindowsVersion::WIN8_1;
+        let win10 = WindowsVersion::WIN10;
+        let win11 = WindowsVersion::WIN11;
+
+        assert!(win7.is_win7());
+        assert!(!win7.is_win10_or_later());
+        assert!(win8.is_win8());
+        assert!(!win8.is_win8_1());
+        assert!(win8_1.is_win8_1());
+        assert!(win10.is_win10_or_later());
+        assert!(win11.is_win11());
+        assert!(win11.is_at_least(&win10));
+        assert!(!win10.is_at_least(&win11));
+    }
+
+    #[test]
+    fn runtime_helpers_match_version_checks() {
+        let current = get_windows_version();
+        assert!(current.major >= 6);
+
+        let expected_gsmtc = current.is_at_least(&WindowsVersion::WIN10_1809);
+        assert_eq!(is_gsmtc_available(), expected_gsmtc);
+
+        let expected_legacy = current.is_win7() || current.is_win8() || current.is_win8_1();
+        assert_eq!(is_legacy_windows(), expected_legacy);
+    }
 }
+

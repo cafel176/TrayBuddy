@@ -395,7 +395,8 @@ impl Storage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{Instant, SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
 
     fn temp_path(label: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
@@ -448,6 +449,18 @@ mod tests {
     }
 
     #[test]
+    fn load_directory_returns_default() {
+        let path = temp_path("dir");
+        fs::create_dir_all(&path).unwrap();
+
+        let loaded = Storage::load(&path);
+        assert_eq!(loaded.settings.lang.as_ref(), "zh");
+        assert_eq!(loaded.info.current_mod.as_ref(), "ema");
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
     fn save_writes_json_file() {
         let path = temp_path("save");
         let mut data = AppStorageData::default();
@@ -469,5 +482,100 @@ mod tests {
 
         let _ = fs::remove_file(&path);
     }
+
+    #[test]
+    fn update_settings_updates_and_persists() {
+        let path = temp_path("update_settings");
+        let mut storage = Storage::new_with_path(path.clone());
+        let mut settings = storage.data.settings.clone();
+        settings.lang = "jp".into();
+        settings.no_audio_mode = true;
+
+        storage.update_settings(settings).unwrap();
+        let saved = Storage::load(&path);
+        assert_eq!(saved.settings.lang.as_ref(), "jp");
+        assert!(saved.settings.no_audio_mode);
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn update_user_info_updates_and_persists() {
+        let path = temp_path("update_info");
+        let mut storage = Storage::new_with_path(path.clone());
+        let mut info = storage.data.info.clone();
+        info.current_mod = "new_mod".into();
+        info.launch_count = 42;
+
+        storage.update_user_info(info).unwrap();
+        let saved = Storage::load(&path);
+        assert_eq!(saved.info.current_mod.as_ref(), "new_mod");
+        assert_eq!(saved.info.launch_count, 42);
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn usage_and_uptime_include_elapsed() {
+        let path = temp_path("usage");
+        let data = AppStorageData::default();
+        let mut storage = Storage {
+            data,
+            storage_path: path,
+            app_start_time: Instant::now() - Duration::from_secs(3),
+            usage_checkpoint_time: Instant::now() - Duration::from_secs(2),
+        };
+        storage.data.info.total_usage_seconds = 10;
+
+        let total = storage.get_total_usage_seconds_now();
+        let uptime = storage.get_session_uptime_seconds_now();
+
+        assert!(total >= 12);
+        assert!(uptime >= 3);
+    }
+
+    #[test]
+    fn defaults_cover_structs() {
+        let settings = UserSettings::default();
+        assert_eq!(settings.lang.as_ref(), "zh");
+
+        let memo = MemoItem::default();
+        assert_eq!(memo.order, 0);
+
+        let reminder = ReminderItem::default();
+        assert!(reminder.enabled);
+        match reminder.schedule {
+            ReminderSchedule::After { seconds, created_at } => {
+                assert_eq!(seconds, 60);
+                assert!(created_at.is_none());
+            }
+            _ => panic!("unexpected schedule default"),
+        }
+
+        let mod_data = ModData::default();
+        assert_eq!(mod_data.value, 0);
+
+        let info = UserInfo::default();
+        assert_eq!(info.current_mod.as_ref(), "ema");
+    }
+
+    #[test]
+    fn save_returns_error_when_path_is_directory() {
+        let path = temp_path("save_dir");
+        fs::create_dir_all(&path).unwrap();
+
+        let mut storage = Storage {
+            data: AppStorageData::default(),
+            storage_path: path.clone(),
+            app_start_time: Instant::now(),
+            usage_checkpoint_time: Instant::now(),
+        };
+
+        let err = storage.save().unwrap_err();
+        assert!(err.contains("写入存储文件失败"));
+
+        let _ = fs::remove_dir_all(&path);
+    }
 }
+
 

@@ -1778,14 +1778,13 @@ fn parse_birthday_date(birthday: &str) -> Option<(u32, u32)> {
 /// 优先级：生日 > 首登录纪念日 > 普通登录
 ///
 /// 内存优化：返回 &'static str 而不是 String，避免堆分配
-fn determine_event_type(
+fn determine_event_type_with_datetime(
     birthday: Option<&Box<str>>,
     first_login_timestamp: Option<i64>,
     is_silence_mode: bool,
+    dt: DateTimeInfo,
 ) -> &'static str {
     use chrono::Datelike;
-
-    let dt = get_current_datetime();
 
     // 1. 生日判断（最高优先级）
     if let Some(ref bday) = birthday {
@@ -1827,6 +1826,16 @@ fn determine_event_type(
         "login"
     }
 }
+
+fn determine_event_type(
+    birthday: Option<&Box<str>>,
+    first_login_timestamp: Option<i64>,
+    is_silence_mode: bool,
+) -> &'static str {
+    let dt = get_current_datetime();
+    determine_event_type_with_datetime(birthday, first_login_timestamp, is_silence_mode, dt)
+}
+
 
 
 /// 检测当前会话是否未锁定（用户在桌面上）
@@ -2364,9 +2373,26 @@ pub(crate) fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Datelike, TimeZone, Utc};
+
+
+    fn make_datetime(year: i32, month: u32, day: u32) -> DateTimeInfo {
+        let dt = Utc.with_ymd_and_hms(year, month, day, 8, 0, 0).single().unwrap();
+        DateTimeInfo {
+            year: year as u32,
+            month,
+            day,
+            hour: 8,
+            minute: 0,
+            second: 0,
+            weekday: dt.weekday().num_days_from_sunday(),
+            timestamp: dt.timestamp() as u64,
+        }
+    }
 
     #[test]
     fn parse_birthday_date_rejects_invalid_and_accepts_valid() {
+
         assert_eq!(parse_birthday_date("02-29"), Some((2, 29)));
         assert_eq!(parse_birthday_date("12-31"), Some((12, 31)));
         assert_eq!(parse_birthday_date("13-01"), None);
@@ -2397,5 +2423,25 @@ mod tests {
         assert!(should_emit_key_to_frontend("ArrowRight"));
         assert!(!should_emit_key_to_frontend("KeyA"));
     }
+
+    #[test]
+    fn determine_event_type_prefers_birthday() {
+        let birthday: Box<str> = "02-23".into();
+        let dt = make_datetime(2026, 2, 23);
+        let result = determine_event_type_with_datetime(Some(&birthday), None, false, dt);
+        assert_eq!(result, "birthday");
+    }
+
+    #[test]
+    fn determine_event_type_handles_firstday_and_silence() {
+        let first_login = Utc.with_ymd_and_hms(2025, 2, 23, 0, 0, 0).single().unwrap();
+        let dt = make_datetime(2026, 2, 23);
+        let result = determine_event_type_with_datetime(None, Some(first_login.timestamp()), false, dt);
+        assert_eq!(result, "firstday");
+
+        let normal = determine_event_type_with_datetime(None, None, true, make_datetime(2026, 3, 1));
+        assert_eq!(normal, "login_silence");
+    }
 }
+
 

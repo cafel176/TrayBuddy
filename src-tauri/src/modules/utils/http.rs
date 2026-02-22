@@ -11,7 +11,40 @@ use std::process::Command;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
+#[cfg(windows)]
+fn should_try_curl(win_ver: &super::os_version::WindowsVersion) -> bool {
+    win_ver.is_at_least(&super::os_version::WindowsVersion {
+        major: 10,
+        minor: 0,
+        build: 17134, // Windows 10 1803
+    })
+}
+
+#[cfg(windows)]
+fn build_powershell_command(use_tls: bool) -> String {
+    if use_tls {
+        "try { \
+            [Net.ServicePointManager]::SecurityProtocol = \
+                [Net.SecurityProtocolType]::Tls12 -bor \
+                [Net.SecurityProtocolType]::Tls11 -bor \
+                [Net.SecurityProtocolType]::Tls \
+        } catch { }; \
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+        $u = $env:TRAYBUDDY_URL; \
+        $t = [int]$env:TRAYBUDDY_TIMEOUT; \
+        (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec $t).Content"
+            .to_string()
+    } else {
+        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+         $u = $env:TRAYBUDDY_URL; \
+         $t = [int]$env:TRAYBUDDY_TIMEOUT; \
+         (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec $t).Content"
+            .to_string()
+    }
+}
+
 /// 执行 HTTP GET 请求并返回响应体
+
 ///
 /// 优先使用 curl（Windows 10+ 自带，更可靠），失败时回退到 PowerShell
 ///
@@ -29,24 +62,23 @@ pub fn http_get(
 ) -> Result<String, String> {
     #[cfg(windows)]
     {
-        use super::os_version::{get_windows_version, WindowsVersion};
+        use super::os_version::get_windows_version;
 
         const CREATE_NO_WINDOW: u32 = 0x08000000;
 
         // Windows 10 1803+ 自带 curl，优先尝试
         // Windows 7/8 没有 curl，直接使用 PowerShell
         let win_ver = get_windows_version();
-        let try_curl = win_ver.is_at_least(&WindowsVersion {
-            major: 10,
-            minor: 0,
-            build: 17134, // Windows 10 1803
-        });
+        let try_curl = should_try_curl(&win_ver);
+
 
         if try_curl {
-            let curl_result = Command::new("curl")
+            let curl_cmd = std::env::var("TRAYBUDDY_CURL_PATH").unwrap_or_else(|_| "curl".to_string());
+            let curl_result = Command::new(&curl_cmd)
                 .args(["-s", "--max-time", &timeout_secs.to_string(), url])
                 .creation_flags(CREATE_NO_WINDOW)
                 .output();
+
 
             if let Ok(output) = curl_result {
                 if output.status.success() {
@@ -69,25 +101,8 @@ pub fn http_get(
         let use_tls = url.starts_with("https");
         // PowerShell 通过环境变量传参，避免 url 中包含引号/特殊符号导致解析失败
         // 也避免把外部输入拼进 -Command 字符串引发注入风险。
-        let ps_command = if use_tls {
-            "try { \
-                [Net.ServicePointManager]::SecurityProtocol = \
-                    [Net.SecurityProtocolType]::Tls12 -bor \
-                    [Net.SecurityProtocolType]::Tls11 -bor \
-                    [Net.SecurityProtocolType]::Tls \
-            } catch { }; \
-            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-            $u = $env:TRAYBUDDY_URL; \
-            $t = [int]$env:TRAYBUDDY_TIMEOUT; \
-            (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec $t).Content"
-                .to_string()
-        } else {
-            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-             $u = $env:TRAYBUDDY_URL; \
-             $t = [int]$env:TRAYBUDDY_TIMEOUT; \
-             (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec $t).Content"
-                .to_string()
-        };
+        let ps_command = build_powershell_command(use_tls);
+
 
         let output = Command::new("powershell")
             .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
@@ -149,6 +164,122 @@ pub async fn http_get_async(
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
+    use crate::modules::utils::os_version::WindowsVersion;
+
+    #[cfg(windows)]
+    static HTTP_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[cfg(windows)]
+    fn with_fake_curl(output: &str, f: impl FnOnce()) {
+        let _guard = HTTP_ENV_LOCK.lock().unwrap();
+        let temp_dir = std::env::temp_dir().join(format!(
+            "traybuddy_fake_curl_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let script = format!("@echo off\r\necho {}\r\nexit /b 0\r\n", output);
+        let script_path = temp_dir.join("curl.bat");
+        std::fs::write(&script_path, script).unwrap();
+
+        let old_var = std::env::var("TRAYBUDDY_CURL_PATH").ok();
+        std::env::set_var("TRAYBUDDY_CURL_PATH", &script_path);
+
+        f();
+
+        match old_var {
+            Some(val) => std::env::set_var("TRAYBUDDY_CURL_PATH", val),
+            None => std::env::remove_var("TRAYBUDDY_CURL_PATH"),
+        }
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+
+
+    #[test]
+    #[cfg(windows)]
+    fn should_try_curl_checks_build_threshold() {
+
+        let win8_1 = WindowsVersion {
+            major: 6,
+            minor: 3,
+            build: 0,
+        };
+        let win10_1803 = WindowsVersion {
+            major: 10,
+            minor: 0,
+            build: 17134,
+        };
+        let win10_1709 = WindowsVersion {
+            major: 10,
+            minor: 0,
+            build: 16299,
+        };
+
+        assert!(!should_try_curl(&win8_1));
+        assert!(should_try_curl(&win10_1803));
+        assert!(!should_try_curl(&win10_1709));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn build_powershell_command_includes_tls_when_https() {
+        let https = build_powershell_command(true);
+        let http = build_powershell_command(false);
+
+        assert!(https.contains("SecurityProtocol"));
+        assert!(https.contains("Tls12"));
+        assert!(!http.contains("SecurityProtocol"));
+        assert!(http.contains("Invoke-WebRequest"));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn http_get_uses_curl_when_available() {
+        with_fake_curl("hello", || {
+            let result = http_get("http://example.com", 2, Some("hello"));
+            assert_eq!(result.unwrap().trim(), "hello");
+        });
+    }
+
+    #[tokio::test]
+    #[cfg(windows)]
+    async fn http_get_async_uses_curl_when_available() {
+        let _guard = HTTP_ENV_LOCK.lock().unwrap();
+        let temp_dir = std::env::temp_dir().join(format!(
+
+            "traybuddy_fake_curl_async_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let script = "@echo off\r\necho async-hello\r\nexit /b 0\r\n";
+        let script_path = temp_dir.join("curl.bat");
+        std::fs::write(&script_path, script).unwrap();
+
+        let old_var = std::env::var("TRAYBUDDY_CURL_PATH").ok();
+        std::env::set_var("TRAYBUDDY_CURL_PATH", &script_path);
+
+        let result = http_get_async("http://example.com".to_string(), 2, Some("async-hello".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(result.trim(), "async-hello");
+
+        match old_var {
+            Some(val) => std::env::set_var("TRAYBUDDY_CURL_PATH", val),
+            None => std::env::remove_var("TRAYBUDDY_CURL_PATH"),
+        }
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+
     #[test]
     #[ignore]
     fn http_get_returns_error_for_invalid_url() {
@@ -156,4 +287,6 @@ mod tests {
         assert!(result.is_err());
     }
 }
+
+
 

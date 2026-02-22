@@ -507,7 +507,60 @@ lazy_static::lazy_static! {
     static ref GLOBAL_TX: Mutex<Option<mpsc::UnboundedSender<()>>> = Mutex::new(None);
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cached_debug_info_roundtrip() {
+        let info = SystemDebugInfo {
+            observer_running: true,
+            last_check_time: "12:34:56".into(),
+            is_fullscreen_busy: false,
+            auto_dnd_enabled: true,
+            is_auto_dnd_active: false,
+            current_silence_mode: false,
+            session_locked: true,
+        };
+
+        update_cached_debug_info(info.clone());
+        let cached = get_cached_debug_info().expect("expected cached info");
+        assert_eq!(cached.last_check_time, "12:34:56");
+        assert_eq!(cached.observer_running, info.observer_running);
+        assert_eq!(cached.session_locked, info.session_locked);
+    }
+
+    #[test]
+    fn cached_debug_info_overwrites_previous() {
+        update_cached_debug_info(SystemDebugInfo {
+            observer_running: false,
+            last_check_time: "00:00:00".into(),
+            is_fullscreen_busy: false,
+            auto_dnd_enabled: false,
+            is_auto_dnd_active: false,
+            current_silence_mode: false,
+            session_locked: false,
+        });
+
+        update_cached_debug_info(SystemDebugInfo {
+            observer_running: true,
+            last_check_time: "23:59:59".into(),
+            is_fullscreen_busy: true,
+            auto_dnd_enabled: true,
+            is_auto_dnd_active: true,
+            current_silence_mode: true,
+            session_locked: true,
+        });
+
+        let cached = get_cached_debug_info().expect("expected cached info");
+        assert_eq!(cached.last_check_time, "23:59:59");
+        assert!(cached.is_fullscreen_busy);
+        assert!(cached.is_auto_dnd_active);
+    }
+}
+
 // Stub for non-Windows
+
 #[cfg(not(target_os = "windows"))]
 pub struct SystemObserver;
 

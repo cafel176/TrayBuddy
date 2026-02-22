@@ -56,11 +56,7 @@ pub use window_system_commands::*;
 /// 3. 计算容纳气泡和角色的最小窗口尺寸。
 /// 
 /// 返回一个包含所有尺寸数值的 HashMap，方便前端动态布局。
-#[tauri::command]
-pub fn get_const_float(state: State<'_, AppState>) -> HashMap<String, f64> {
-    let storage = state.storage.lock().unwrap();
-    let scale = storage.data.settings.animation_scale as f64;
-
+fn compute_const_float(scale: f64) -> HashMap<String, f64> {
     // 预分配容量以优化内存性能
     let mut map = HashMap::with_capacity(7);
     
@@ -85,6 +81,14 @@ pub fn get_const_float(state: State<'_, AppState>) -> HashMap<String, f64> {
     map.insert("animation_scale".into(), scale);
     map
 }
+
+#[tauri::command]
+pub fn get_const_float(state: State<'_, AppState>) -> HashMap<String, f64> {
+    let storage = state.storage.lock().unwrap();
+    let scale = storage.data.settings.animation_scale as f64;
+    compute_const_float(scale)
+}
+
 
 /// 获取字符串型常量
 #[tauri::command]
@@ -947,6 +951,37 @@ mod tests {
         let normalized = normalize_reminder(reminder, now.timestamp());
         assert!(normalized.next_trigger_at > now.timestamp());
     }
+
+    #[test]
+    fn compute_const_float_scales_window() {
+        let map = compute_const_float(1.0);
+        let expected_animation_height = ANIMATION_AREA_HEIGHT;
+        let expected_animation_width = ANIMATION_AREA_WIDTH;
+        let expected_window_width = BUBBLE_AREA_WIDTH.max(expected_animation_width);
+        let expected_window_height = BUBBLE_AREA_HEIGHT + expected_animation_height;
+
+        assert_eq!(map.get("animation_scale"), Some(&1.0));
+        assert_eq!(map.get("animation_area_height"), Some(&expected_animation_height));
+        assert_eq!(map.get("animation_area_width"), Some(&expected_animation_width));
+        assert_eq!(map.get("animation_window_width"), Some(&expected_window_width));
+        assert_eq!(map.get("animation_window_height"), Some(&expected_window_height));
+    }
+
+    #[test]
+    fn get_const_text_contains_border() {
+        let map = get_const_text();
+        assert_eq!(map.get(ANIMATION_BORDER), Some(&ANIMATION_BORDER.to_string()));
+    }
+
+    #[test]
+    fn get_const_int_contains_expected_keys() {
+        let map = get_const_int();
+        assert_eq!(map.get("short_text_threshold"), Some(&SHORT_TEXT_THRESHOLD));
+        assert_eq!(map.get("max_buttons_per_row"), Some(&MAX_BUTTONS_PER_ROW));
+        assert_eq!(map.get("max_chars_per_line"), Some(&MAX_CHARS_PER_LINE));
+        assert_eq!(map.get("max_chars_per_button"), Some(&MAX_CHARS_PER_BUTTON));
+    }
 }
+
 
 

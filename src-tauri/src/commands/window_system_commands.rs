@@ -240,6 +240,14 @@ pub(crate) fn set_mute(
     Ok(())
 }
 
+fn compute_window_size_for_scale(scale: f64) -> (f64, f64) {
+    let animation_width = ANIMATION_AREA_WIDTH * scale;
+    let animation_height = ANIMATION_AREA_HEIGHT * scale;
+    let new_width = BUBBLE_AREA_WIDTH.max(animation_width);
+    let new_height = BUBBLE_AREA_HEIGHT + animation_height;
+    (new_width, new_height)
+}
+
 /// 设置动画缩放比例并调整窗口大小
 #[tauri::command]
 pub(crate) fn set_animation_scale(
@@ -249,6 +257,7 @@ pub(crate) fn set_animation_scale(
 ) -> Result<(), String> {
     let scale = scale.clamp(0.1, 2.0);
 
+
     // 更新设置
     {
         let mut storage = state.storage.lock().unwrap();
@@ -257,11 +266,8 @@ pub(crate) fn set_animation_scale(
     }
 
     // 调整窗口大小 - 气泡区域固定尺寸，只有动画区域缩放
-    let animation_width = ANIMATION_AREA_WIDTH * scale;
-    let animation_height = ANIMATION_AREA_HEIGHT * scale;
-    // 窗口宽度取气泡宽度和动画宽度的最大值
-    let new_width = BUBBLE_AREA_WIDTH.max(animation_width);
-    let new_height = BUBBLE_AREA_HEIGHT + animation_height;
+    let (new_width, new_height) = compute_window_size_for_scale(scale);
+
 
     for label in [
         WINDOW_LABEL_ANIMATION,
@@ -390,4 +396,32 @@ pub(crate) async fn recreate_pngremix_window(app: AppHandle) -> Result<(), Strin
     // 2. 创建新窗口
     crate::inner_create_pngremix_window(&app)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compute_window_size_for_scale_uses_bubble_area_width() {
+        let (width, height) = compute_window_size_for_scale(1.0);
+        let expected_width = BUBBLE_AREA_WIDTH.max(ANIMATION_AREA_WIDTH);
+        let expected_height = BUBBLE_AREA_HEIGHT + ANIMATION_AREA_HEIGHT;
+
+        assert_eq!(width, expected_width);
+        assert_eq!(height, expected_height);
+    }
+
+    #[test]
+    fn compute_window_size_for_scale_scales_animation_area() {
+        let (width, height) = compute_window_size_for_scale(0.5);
+        let expected_animation_width = ANIMATION_AREA_WIDTH * 0.5;
+        let expected_animation_height = ANIMATION_AREA_HEIGHT * 0.5;
+        let expected_width = BUBBLE_AREA_WIDTH.max(expected_animation_width);
+        let expected_height = BUBBLE_AREA_HEIGHT + expected_animation_height;
+
+        assert_eq!(width, expected_width);
+        assert_eq!(height, expected_height);
+    }
+}
+
 

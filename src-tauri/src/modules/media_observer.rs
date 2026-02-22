@@ -1453,5 +1453,97 @@ mod tests {
         let defaults = default_music_keywords();
         assert!(defaults.iter().any(|k| k.as_ref() == "music"));
     }
+
+    #[test]
+    fn update_cached_media_state_clears_on_none_app_id() {
+        if let Ok(mut guard) = CACHED_MEDIA_STATE.lock() {
+            *guard = Some(MediaStateEvent {
+                status: MediaPlaybackStatus::Playing,
+                title: Some("Song".into()),
+                artist: None,
+                app_id: Some("musicapp".into()),
+            });
+        }
+
+        let event = MediaStateEvent {
+            status: MediaPlaybackStatus::Stopped,
+            title: None,
+            artist: None,
+            app_id: None,
+        };
+        update_cached_media_state(&event);
+        assert!(get_cached_media_state().is_none());
+    }
+
+    #[test]
+    fn update_cached_media_state_ignores_non_music_apps() {
+        if let Ok(mut guard) = MUSIC_KEYWORDS.write() {
+            *guard = vec!["music".into()];
+        }
+        if let Ok(mut guard) = CACHED_MEDIA_STATE.lock() {
+            *guard = None;
+        }
+
+        let event = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: Some("Song".into()),
+            artist: None,
+            app_id: Some("notepad".into()),
+        };
+        update_cached_media_state(&event);
+        assert!(get_cached_media_state().is_none());
+    }
+
+    #[test]
+    fn update_cached_media_state_saves_music_apps() {
+        if let Ok(mut guard) = MUSIC_KEYWORDS.write() {
+            *guard = vec!["music".into()];
+        }
+        if let Ok(mut guard) = CACHED_MEDIA_STATE.lock() {
+            *guard = None;
+        }
+
+        let event = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: Some("Song".into()),
+            artist: Some("Artist".into()),
+            app_id: Some("cool music player".into()),
+        };
+        update_cached_media_state(&event);
+
+        let cached = get_cached_media_state().expect("expected cached media state");
+        assert_eq!(cached.status, MediaPlaybackStatus::Playing);
+        assert_eq!(cached.title.as_deref(), Some("Song"));
+        assert_eq!(cached.artist.as_deref(), Some("Artist"));
+    }
+
+    #[test]
+    fn media_observer_state_detects_changes_and_updates() {
+        let mut state = MediaObserverState::new();
+        let event = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: Some("Song".into()),
+            artist: None,
+            app_id: Some("music".into()),
+        };
+
+        assert!(state.has_changed(&event));
+        state.update(&event);
+        assert!(!state.has_changed(&event));
+        assert!(state.has_played);
+
+        let changed_title = MediaStateEvent {
+            title: Some("Song 2".into()),
+            ..event.clone()
+        };
+        assert!(state.has_changed(&changed_title));
+
+        let changed_status = MediaStateEvent {
+            status: MediaPlaybackStatus::Paused,
+            ..event
+        };
+        assert!(state.has_changed(&changed_status));
+    }
 }
+
 
