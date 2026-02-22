@@ -124,6 +124,9 @@ fn load_i18n_file(app: &tauri::AppHandle, lang: &str) -> Option<Value> {
 }
 
 /// 从嵌套 JSON 中获取值
+///
+/// 注意：该逻辑应与前端 `src/lib/i18n/index.ts` 的点号路径解析保持一致，
+/// 避免前后端翻译键行为不一致。
 fn get_nested_value(json: &Value, key: &str) -> Option<String> {
     let keys: Vec<&str> = key.split('.').collect();
     let mut current = json;
@@ -134,3 +137,4 @@ fn get_nested_value(json: &Value, key: &str) -> Option<String> {
 
     current.as_str().map(|s| s.to_string())
 }
+

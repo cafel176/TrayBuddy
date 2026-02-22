@@ -12,15 +12,18 @@ import { invoke } from '@tauri-apps/api/core';
 // 类型定义
 // ========================================================================= //
 
+/** 装饰图层样式（文字/图标等） */
 export interface DecorationStyle {
   content: string;
   [key: string]: any;
 }
 
+/** 气泡尾巴样式 */
 export interface TailStyle {
   [key: string]: any;
 }
 
+/** 气泡主体样式 */
 export interface BubbleStyle {
   decoration_top?: DecorationStyle;
   decoration_bottom?: DecorationStyle;
@@ -28,21 +31,26 @@ export interface BubbleStyle {
   [key: string]: any;
 }
 
+/** 分支容器样式 */
 export interface BranchContainerStyle {
   [key: string]: any;
 }
 
+/** 分支按钮样式 */
 export interface BranchButtonStyle {
   [key: string]: any;
 }
 
+/** 分支按钮 hover 样式 */
 export interface BranchButtonHoverStyle {
   [key: string]: any;
 }
 
+/** 分支按钮 active 样式 */
 export interface BranchButtonActiveStyle {
   [key: string]: any;
 }
+
 
 /** 分支样式 */
 export interface BranchStyle {

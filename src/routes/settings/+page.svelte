@@ -1,4 +1,16 @@
+<!--
+==========================================================================
+设置页面 (+page.svelte)
+==========================================================================
+
+功能概述:
+- 展示并编辑用户设置（音量、语言、动画等）
+- 与后端设置存储联动
+==========================================================================
+-->
+
 <script lang="ts">
+
     import { onMount, onDestroy } from "svelte";
     import Settings from "$lib/components/Settings.svelte";
     import { getCurrentWindow } from "@tauri-apps/api/window";

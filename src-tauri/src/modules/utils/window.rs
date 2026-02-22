@@ -23,7 +23,9 @@ pub fn get_visual_window_rect(hwnd: HWND) -> RECT {
     let mut rect = RECT::default();
     
     // 尝试使用 DWM API（更精确）
+    // SAFETY: `rect` 是有效的可写缓冲区，大小与传入的 cb 匹配。
     let dwm_result = unsafe {
+
         DwmGetWindowAttribute(
             hwnd,
             DWMWA_EXTENDED_FRAME_BOUNDS,
@@ -35,10 +37,12 @@ pub fn get_visual_window_rect(hwnd: HWND) -> RECT {
     // DWM API 失败时回退到 GetWindowRect
     // 这可能发生在 Windows 7 禁用 Aero 主题时
     if dwm_result.is_err() {
+        // SAFETY: `hwnd` 为调用方提供的窗口句柄；`rect` 为有效可写缓冲区。
         unsafe {
             let _ = GetWindowRect(hwnd, &mut rect);
         }
     }
+
 
     rect
 }
@@ -57,11 +61,13 @@ pub fn is_dwm_composition_enabled() -> bool {
     }
 
     // Windows 7/Vista 需要检查
+    // SAFETY: DwmIsCompositionEnabled 不要求额外指针参数，仅依赖系统状态。
     unsafe {
         if let Ok(enabled) = DwmIsCompositionEnabled() {
             return enabled.as_bool();
         }
     }
+
     false
 }
 
@@ -72,8 +78,10 @@ pub fn get_work_area() -> RECT {
         SystemParametersInfoW, SPI_GETWORKAREA, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
     };
     let mut rect = RECT::default();
+    // SAFETY: 传入的 rect 指针有效且可写，SPI_GETWORKAREA 会写入完整 RECT。
     unsafe {
         let _ = SystemParametersInfoW(
+
             SPI_GETWORKAREA,
             0,
             Some(&mut rect as *mut _ as *mut _),

@@ -42,12 +42,15 @@ export interface AssetInfo {
   offset_y: number;
 }
 
+/** Mod 类型（sequence/live2d/pngremix/3d）。 */
 export type ModType = "sequence" | "live2d" | "pngremix" | "3d";
+
 
 // ============================================================================
 // PngRemix 相关接口
 // ============================================================================
 
+/** PngRemix 模型配置。 */
 export interface PngRemixModelConfig {
   name: string;
   pngremix_file: string;
@@ -57,6 +60,7 @@ export interface PngRemixModelConfig {
   max_fps: number;
 }
 
+/** PngRemix 动画特性配置。 */
 export interface PngRemixFeatures {
   mouse_follow: boolean;
   auto_blink: boolean;
@@ -68,21 +72,25 @@ export interface PngRemixFeatures {
   blink_hold_ratio: number;
 }
 
+/** PngRemix 表情条目。 */
 export interface PngRemixExpression {
   name: string;
   state_index: number;
 }
 
+/** PngRemix 动作条目。 */
 export interface PngRemixMotion {
   name: string;
   hotkey: string;
   description: string;
 }
 
+/** PngRemix 状态映射条目。 */
 export interface PngRemixState {
   state: string;
   expression: string;
   motion: string;
+
 
   /**
    * 口型状态（对齐 PNGTuber Remix 的 Mouth enum）：
@@ -102,7 +110,9 @@ export interface PngRemixState {
 
 
 
+/** PngRemix 配置汇总。 */
 export interface PngRemixConfig {
+
   schema_version: number;
   model: PngRemixModelConfig;
   features: PngRemixFeatures;
@@ -111,14 +121,18 @@ export interface PngRemixConfig {
   states: PngRemixState[];
 }
 
+/** PngRemix 参数覆写（由状态触发）。 */
 export interface PngRemixParameterSetting {
+
   /** 参数类型："expression" 切换表情，"motion" 触发动作 */
   type: "expression" | "motion";
   /** 表情名或动作名 */
   name: string;
 }
 
+/** Live2D 模型配置。 */
 export interface Live2DModelConfig {
+
   name: string;
   base_dir: string;
   model_json: string;
@@ -134,7 +148,9 @@ export interface Live2DModelConfig {
   lip_sync: boolean;
 }
 
+/** Live2D 动作配置。 */
 export interface Live2DMotion {
+
   name: string;
   file: string;
   group: string;
@@ -144,12 +160,16 @@ export interface Live2DMotion {
   loop: boolean;
 }
 
+/** Live2D 表情配置。 */
 export interface Live2DExpression {
+
   name: string;
   file: string;
 }
 
+/** Live2D 状态映射配置。 */
 export interface Live2DState {
+
   state: string;
   motion: string;
   expression: string;
@@ -158,7 +178,9 @@ export interface Live2DState {
   offset_y: number;
 }
 
+/** Live2D 背景/叠加层配置。 */
 export interface Live2DBackgroundLayer {
+
   name: string;
   file: string;
   layer: string;
@@ -168,7 +190,9 @@ export interface Live2DBackgroundLayer {
   events: string[];
 }
 
+/** Live2D 配置汇总。 */
 export interface Live2DConfig {
+
   schema_version: number;
   model: Live2DModelConfig;
   motions: Live2DMotion[];
@@ -181,8 +205,11 @@ export interface Live2DConfig {
 // 3D 相关接口
 // ============================================================================
 
+/** 3D 模型类型（VRM/PMX）。 */
 export type ThreeDModelType = "vrm" | "pmx";
+/** 3D 动画类型（VRMA/VMD）。 */
 export type ThreeDAnimationType = "vrma" | "vmd";
+
 
 export interface ThreeDModelConfig {
   name: string;
@@ -195,7 +222,9 @@ export interface ThreeDModelConfig {
   animation_base_dir: string;
 }
 
+/** 3D 动画条目。 */
 export interface ThreeDAnimation {
+
   name: string;
   type: ThreeDAnimationType;
 
@@ -209,7 +238,9 @@ export interface ThreeDAnimation {
   fps: number;
 }
 
+/** 3D 状态映射条目。 */
 export interface ThreeDState {
+
   state: string;
   animation: string;
   scale: number;
@@ -217,7 +248,9 @@ export interface ThreeDState {
   offset_y: number;
 }
 
+/** 3D 配置汇总。 */
 export interface ThreeDConfig {
+
   schema_version: number;
   model: ThreeDModelConfig;
   animations: ThreeDAnimation[];

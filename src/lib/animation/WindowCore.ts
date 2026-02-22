@@ -25,8 +25,10 @@ import {
   TRAY_ADAPTIVE_OFFSET_Y,
 } from "$lib/constants";
 
+/** ModData 变化提示（用于 +1/-1 浮层）。 */
 export type ModDataToast = { id: number; delta: number };
 
+/** 调试边框颜色配置。 */
 export type DebugColors = {
   bubble: string;
   animation: string;
@@ -34,7 +36,13 @@ export type DebugColors = {
   border: string;
 };
 
+
+/**
+ * WindowCore 与外部 UI 状态绑定的读写接口。
+ * 这些方法由 Svelte 层提供，用于同步设置/数据面板/调试状态。
+ */
 export type WindowCoreBindings = {
+
   setLangVersion: (value: number) => void;
 
   getShowCharacter: () => boolean;
@@ -70,13 +78,21 @@ export type WindowCoreBindings = {
   setDebugColors: (value: DebugColors) => void;
 };
 
+/**
+ * WindowCore 需要访问的 DOM/组件引用。
+ */
 export type WindowCoreRefs = {
+
   getCharacterCanvas: () => HTMLCanvasElement | null;
   getBorderCanvas: () => HTMLCanvasElement | null;
   getBubbleManager: () => BubbleManager | null;
 };
 
+/**
+ * WindowCore 向动画/气泡/边框层发出的回调与能力注入。
+ */
 export type WindowCoreCallbacks = {
+
   playAnimation: (
     assetName: string,
     playOnce: boolean,
@@ -97,7 +113,11 @@ export type WindowCoreCallbacks = {
   skipBackendCursorIcon?: boolean;
 };
 
+/**
+ * WindowCore 暴露给 UI 的公开方法集合。
+ */
 export type WindowCore = {
+
   init: () => Promise<void>;
   destroy: () => void;
   handleBranchSelect: (e: CustomEvent<BranchInfo>) => void;
@@ -109,8 +129,19 @@ export type WindowCore = {
   handleContextMenu: (e: MouseEvent) => void;
 };
 
+/** 当前窗口渲染类型（用于区分不同播放器）。 */
 export type WindowType = "sequence" | "live2d" | "pngremix" | "3d";
 
+
+/**
+ * WindowCore - 通用窗口控制核心。
+ *
+ * 统一处理以下逻辑：
+ * - 状态事件订阅与播放流程（动画/音频/气泡的同步）
+ * - 鼠标点击/拖拽/穿透控制与全局输入监听
+ * - i18n 语言切换触发的 UI 刷新
+ * - 运行期数据统计与提示（ModData / 使用时长）
+ */
 export function createWindowCore(options: {
   bindings: WindowCoreBindings;
   refs: WindowCoreRefs;
@@ -118,6 +149,7 @@ export function createWindowCore(options: {
   /** 当前渲染窗口类型，用于布局调试器区分不同窗口 */
   windowType?: WindowType;
 }): WindowCore {
+
   const { bindings, refs, callbacks } = options;
   const windowType: WindowType = options.windowType ?? "sequence";
 
@@ -177,7 +209,11 @@ export function createWindowCore(options: {
     bindings.setLangVersion(langVersion);
   }
 
+  /**
+   * 处理气泡文本中的占位符，如 {nickname}/{days_used}/{uptime}。
+   */
   function applySpeechPlaceholders(raw: string): string {
+
     let text = raw;
     const nickname = bindings.getUserNickname();
     text = text.replace(/\{nickname\}/g, nickname);
@@ -259,7 +295,11 @@ export function createWindowCore(options: {
     }, 1400);
   }
 
+  /**
+   * 同步 ModData 面板并计算变化提示。
+   */
   function applyModDataUpdate(data: ModData | null) {
+
     const next = data?.value;
     if (typeof next !== "number") {
       bindings.setCurrentModData(data);
@@ -276,7 +316,11 @@ export function createWindowCore(options: {
     bindings.setLastModDataValue(next);
   }
 
+  /**
+   * 切换窗口穿透状态（调用后端 Tauri 命令）。
+   */
   async function setClickThrough(ignore: boolean) {
+
     if (isClickThrough === ignore) return;
     try {
       await invoke("set_ignore_cursor_events", { ignore });
@@ -306,9 +350,16 @@ export function createWindowCore(options: {
     };
   }
 
+  /**
+   * 周期性检测鼠标位置并切换窗口穿透状态。
+   *
+   * - Live2D 窗口：前端像素级检测 + 可选后端设置光标图标
+   * - Sequence 窗口：后端矩形区域检测
+   */
   function startCursorPolling() {
     stopCursorPolling();
     cursorPollTimer = setInterval(async () => {
+
       try {
         if (bindings.getSilenceMode()) {
           await setClickThrough(true);
@@ -398,6 +449,11 @@ export function createWindowCore(options: {
     dragEndPollSawDown = false;
   }
 
+  /**
+   * 启用/禁用后端全局鼠标钩子，用于更精确地捕获拖拽结束。
+   *
+   * 若系统或权限不支持，返回 false 并回退到轮询方式。
+   */
   async function setDragEndTracking(enabled: boolean): Promise<boolean> {
     try {
       const supported = await invoke<boolean>("set_drag_end_tracking", { enabled });
@@ -409,6 +465,12 @@ export function createWindowCore(options: {
     }
   }
 
+
+  /**
+   * 尝试使用后端钩子监听拖拽结束；若不可用则启动轮询回退。
+   *
+   * `session` 用于避免旧轮询在新拖拽会话中误触发。
+   */
   async function startDragEndTracking(session: number) {
     if (globalMouseEnabled) {
       return;
@@ -416,6 +478,7 @@ export function createWindowCore(options: {
 
     stopDragEndPoll();
     const supported = await setDragEndTracking(true);
+
 
     if (supported) {
       if (!isDragging || activeDragSession !== session) {
@@ -495,8 +558,15 @@ export function createWindowCore(options: {
     resumeCursorHandling();
   }
 
-
+  /**
+   * 鼠标按下 → 移动 → 抬起的拖拽生命周期。
+   *
+   * - 按下时关闭穿透并启动全局监听
+   * - 达到位移阈值后进入拖拽态并尝试启用后端钩子
+   * - 抬起时根据是否拖拽决定触发 click 或 drag_end
+   */
   function handleMouseDown(e: MouseEvent) {
+
     if (e.button !== 0) return;
 
     isDragging = false;
@@ -642,7 +712,11 @@ export function createWindowCore(options: {
     }
   }
 
+  /**
+   * 根据显示模式同步窗口位置（托盘吸附/恢复保存位置）。
+   */
   async function syncDisplayMode(show: boolean) {
+
     const currentWindow = getCurrentWindow();
     if (!show) {
       try {
@@ -793,7 +867,11 @@ export function createWindowCore(options: {
     }
   }
 
+  /**
+   * 气泡分支选择：更新后端 next_state 并清理待选状态。
+   */
   async function handleBranchSelect(e: CustomEvent<BranchInfo>) {
+
     const branch = e.detail;
 
     console.log("[handleBranchSelect] Selected branch", {
@@ -834,14 +912,25 @@ export function createWindowCore(options: {
     }
   }
 
+  /**
+   * 气泡关闭回调：标记完成并参与 playOnce 完成判定。
+   */
   function handleBubbleClose() {
+
     isBubbleVisible = false;
     if (bubbleSessionToken !== playSessionToken) return;
     bubbleComplete = true;
     checkComplete();
   }
 
+  /**
+   * 播放一个状态：统一调度动画、音频与气泡。
+   *
+   * 使用 playSessionToken 避免并发状态切换导致旧回调误触发，
+   * 并在三者完成时触发后端 on_animation_complete。
+   */
   async function playState(state: StateInfo, playOnce: boolean) {
+
     pendingBranchSelection = null;
 
     // 每次 playState 分配一个唯一 token，使并发调用中旧 session 的回调和后续代码失效。
@@ -918,10 +1007,17 @@ export function createWindowCore(options: {
     }
   }
 
+  /**
+   * 初始化窗口运行时：绑定前端事件、注册后端监听并同步初始配置。
+   *
+   * 说明：这里的执行顺序很关键——先启用穿透与输入监听，
+   * 再加载 i18n/设置，最后注册状态与调试类事件。
+   */
   async function init() {
     try {
       await setClickThrough(true);
       startCursorPolling();
+
 
       window.addEventListener("keydown", handleGlobalKeydown);
       window.addEventListener("keyup", handleGlobalKeyup);

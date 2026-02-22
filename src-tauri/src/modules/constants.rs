@@ -116,9 +116,13 @@ pub const ANIMATION_BORDER: &str = "border";
 /// Idle 状态名称
 pub const STATE_IDLE: &str = "idle";
 
+/// 静音模式状态（持续）
 pub const STATE_SILENCE: &str = "silence";
+/// 静音模式开始（通常 play_once）
 pub const STATE_SILENCE_START: &str = "silence_start";
+/// 静音模式结束（通常 play_once）
 pub const STATE_SILENCE_END: &str = "silence_end";
+
 
 /// 拖动中状态名称（持续状态）
 ///
@@ -128,12 +132,18 @@ pub const STATE_DRAG_START: &str = "drag_start";
 /// 结束拖动状态名称（通常 play_once）
 pub const STATE_DRAG_END: &str = "drag_end";
 
+/// 音乐播放状态（持续）
 pub const STATE_MUSIC: &str = "music";
+/// 音乐开始（通常 play_once）
 pub const STATE_MUSIC_START: &str = "music_start";
+/// 音乐结束（通常 play_once）
 pub const STATE_MUSIC_END: &str = "music_end";
 
+/// 生日当天状态
 pub const STATE_BIRTHDAY: &str = "birthday";
+/// 第一次运行/初次启动状态
 pub const STATE_FIRSTDAY: &str = "firstday";
+
 
 // ========================================================================= //
 // 事件名称常量

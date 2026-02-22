@@ -136,8 +136,14 @@ fn detect_windows_version() -> Option<WindowsVersion> {
 
     type RtlGetVersionFn = unsafe extern "system" fn(*mut OSVERSIONINFOEXW) -> i32;
 
+    // SAFETY: 
+    // - `GetModuleHandleW` 返回的 ntdll 句柄在进程生命周期内有效。
+    // - `GetProcAddress` 获取的符号指针对应 RtlGetVersion，签名与 RtlGetVersionFn 匹配。
+    // - `info` 通过 `MaybeUninit::zeroed()` 分配，且在调用前设置 size 字段，
+    //   FFI 会完整写入结构体，随后可安全 `assume_init()`。
     unsafe {
         let ntdll = windows::Win32::System::LibraryLoader::GetModuleHandleW(
+
             windows::core::w!("ntdll.dll"),
         )
         .ok()?;

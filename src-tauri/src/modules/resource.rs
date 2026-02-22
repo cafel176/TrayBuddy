@@ -88,11 +88,17 @@ fn default_live2d_param_target() -> Box<str> {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum TriggerWeatherDe {
+    /// 旧版：单个字符串（例如 "Sunny" 或 "100"）
     Str(Box<str>),
+    /// 新版：字符串数组（例如 ["Sunny", "Cloudy"]）
     Arr(Vec<Box<str>>),
 }
 
-
+/// 将 trigger_weather 字段统一解析为 Vec，并自动清理空白/空项。
+///
+/// 支持两种写法：
+/// - 单字符串（兼容旧格式）
+/// - 字符串数组（推荐）
 #[inline]
 fn deserialize_trigger_weather<'de, D>(deserializer: D) -> Result<Vec<Box<str>>, D::Error>
 where
@@ -123,6 +129,7 @@ where
 
     Ok(out)
 }
+
 
 
 
@@ -190,9 +197,11 @@ impl Default for AssetInfo {
 // Live2D 资产定义
 // ========================================================================= //
 
+/// Live2D 模型基础配置（对应 Mod 中的 live2d.model）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Live2DModelConfig {
+
     pub name: Box<str>,
     pub base_dir: Box<str>,
     pub model_json: Box<str>,
@@ -227,9 +236,11 @@ impl Default for Live2DModelConfig {
     }
 }
 
+/// Live2D 动作配置（对应 motions 列表）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Live2DMotion {
+
     pub name: Box<str>,
     pub file: Box<str>,
     pub group: Box<str>,
@@ -253,9 +264,11 @@ impl Default for Live2DMotion {
     }
 }
 
+/// Live2D 表情配置（对应 expressions 列表）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Live2DExpression {
+
     pub name: Box<str>,
     pub file: Box<str>,
 }
@@ -269,9 +282,11 @@ impl Default for Live2DExpression {
     }
 }
 
+/// Live2D 状态映射（state → motion/expression/偏移）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Live2DState {
+
     pub state: Box<str>,
     pub motion: Box<str>,
     pub expression: Box<str>,
@@ -380,9 +395,11 @@ impl Default for Live2DBackgroundLayer {
     }
 }
 
+/// Live2D 配置汇总（模型/动作/表情/状态/图层）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Live2DConfig {
+
     pub schema_version: u32,
     pub model: Live2DModelConfig,
     pub motions: Vec<Live2DMotion>,
@@ -603,9 +620,11 @@ impl Default for PngRemixParameterSetting {
 // 3D 配置定义
 // ========================================================================= //
 
+/// 3D 模型类型（VRM/PMX）。
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ThreeDModelType {
+
     Vrm,
     Pmx,
 }
@@ -659,9 +678,11 @@ impl Default for ThreeDModelConfig {
     }
 }
 
+/// 3D 动画类型（VRMA/VMD）。
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ThreeDAnimationType {
+
     Vrma,
     Vmd,
 }
@@ -1322,9 +1343,11 @@ impl Default for BorderConfig {
 // Mod 清单定义
 // ========================================================================= //
 
+/// Mod 类型（sequence/live2d/pngremix/3d）。
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ModType {
+
     Sequence,
     Live2d,
     Pngremix,
@@ -1716,7 +1739,11 @@ impl ResourceManager {
     // ========================================================================= //
 
     /// 发现所有可能的 Mod 搜索路径
+    ///
+    /// 搜索优先级：配置目录 → 资源目录 → 程序目录 → 工作目录。
+    /// Debug 模式下会额外加入 `mods_test` 目录用于开发测试。
     fn discover_mod_paths(app_handle: &tauri::AppHandle) -> Vec<PathBuf> {
+
         let mut paths = Vec::with_capacity(4);
 
         // 1. 应用配置目录下的 mods（用户自定义 Mod）
@@ -1916,7 +1943,9 @@ impl ResourceManager {
         self.folder_to_id.clear();
         self.archive_mod_ids.clear();
 
+        // 遵循 search_paths 顺序，越靠前优先级越高。
         for base in &self.search_paths {
+
             let Ok(entries) = fs::read_dir(base) else {
                 continue;
             };
@@ -2114,7 +2143,9 @@ impl ResourceManager {
         }
     }
 
+    /// 从文件夹读取 Mod：解析 manifest/asset/audio/text 并构建索引。
     fn read_mod_from_path(&self, mod_path: PathBuf) -> Result<ModInfo, String> {
+
         // 使用信号量限制并发加载，防止内存抖动
         // 注意：由于 read_mod_from_path 是同步函数，我们使用 try_acquire
         // 如果无法获取许可（并发已满），我们依然继续加载，但记录警告
@@ -2238,15 +2269,20 @@ impl ResourceManager {
     }
 
     /// 从 archive 读取 Mod 信息
+    ///
+    /// - 使用 ModArchiveReader 读取虚拟目录结构
+    /// - 构造 `tbuddy-archive://{mod_id}` 虚拟路径供前端识别
     fn read_mod_from_archive(&self, mod_id: &str) -> Result<ModInfo, String> {
+
         let store_arc = self
             .archive_store
             .as_ref()
             .ok_or_else(|| "Archive store not initialized".to_string())?;
-        let store = store_arc.lock().unwrap();
+        let mut store = store_arc.lock().unwrap();
         let reader = store
             .get(mod_id)
             .ok_or_else(|| format!("Archive for mod '{}' not loaded", mod_id))?;
+
 
         // 解析 manifest.json
         let manifest: ModManifest = reader
@@ -2383,9 +2419,13 @@ impl ResourceManager {
         Ok(result)
     }
 
+    /// 加载文本资源与角色信息。
+    ///
+    /// 目录结构：text/{lang}/info.json 与 text/{lang}/speech.json
     fn load_text_resources(
         text_path: &Path,
     ) -> (
+
         HashMap<Box<str>, CharacterInfo>,
         HashMap<Box<str>, Vec<TextInfo>>,
     ) {
@@ -2489,8 +2529,11 @@ impl ResourceManager {
         self.current_mod.as_ref()?.get_info_by_lang(lang)
     }
 
-    /// 加载多语言资源（遍历语言子目录）
+    /// 加载多语言资源（遍历语言子目录）。
+    ///
+    /// 目录结构：{base_path}/{lang}/{filename}
     fn load_multilang_resources<T: serde::de::DeserializeOwned>(
+
         base_path: &Path,
         filename: &str,
     ) -> HashMap<Box<str>, Vec<T>> {

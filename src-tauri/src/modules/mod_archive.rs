@@ -153,6 +153,8 @@ impl ZipArchiveReader {
             let Some(Component::Normal(first)) = enclosed.components().next() else {
                 continue;
             };
+            // 只关心第一层目录名：必须保持一致，才能认为 archive 结构合法。
+;
 
             let first = first.to_string_lossy().into_owned();
             match root.as_ref() {
@@ -259,7 +261,9 @@ impl ModArchiveReader for ZipArchiveReader {
     }
 
     fn list_dir(&self, dir_path: &str) -> Vec<ArchiveEntry> {
+        // list_dir 仅返回 dir_path 的直接子项（不递归），并做大小写去重。
         let prefix = if dir_path.is_empty() {
+
             format!("{}/", self.root_folder)
         } else {
             format!("{}/{}/", self.root_folder, dir_path.trim_end_matches('/'))
@@ -447,9 +451,13 @@ fn sbuddy_command(exe: &Path, arg: &str) -> std::process::Command {
 
 /// 执行 sbuddy-crypto 子进程，用完后立刻删除 exe
 ///
+/// - exe 可能来自嵌入式释放的临时文件
+/// - 每次运行后都会清理，避免长期驻留磁盘
+///
 /// `arg`: "decrypt" 或 "encrypt"
 /// `input`: 通过 stdin 传入的数据
 fn run_sbuddy_crypto(arg: &str, input: &[u8]) -> Result<Vec<u8>, String> {
+
     use std::io::Write;
 
     let exe_path = find_sbuddy_crypto()
@@ -578,7 +586,9 @@ impl ModArchiveStore {
     /// 内存中最多保留的 archive 数量（避免长期驻留过多 ZIP 数据）
     const ARCHIVE_CACHE_MAX: usize = 4;
 
+    /// 创建新的 archive 存储并初始化缓存结构。
     pub fn new() -> Self {
+
         Self {
             archives: HashMap::new(),
             sources: HashMap::new(),
@@ -694,12 +704,15 @@ impl ModArchiveStore {
             .unwrap_or(false)
     }
 
+    /// 插入新 archive 并刷新 LRU 顺序。
     fn insert_archive(&mut self, mod_id: String, reader: Box<dyn ModArchiveReader>) {
+
         self.archives.insert(mod_id.clone(), Arc::new(reader));
         self.touch(&mod_id);
         self.enforce_limit();
     }
 
+    /// 标记某个 mod 为“最近使用”，用于 LRU 淘汰策略
     fn touch(&mut self, mod_id: &str) {
         if let Some(pos) = self.access_order.iter().position(|id| id == mod_id) {
             self.access_order.remove(pos);
@@ -707,6 +720,7 @@ impl ModArchiveStore {
         self.access_order.push_back(mod_id.to_string());
     }
 
+    /// 按 LRU 策略移除最久未使用的 archive
     fn enforce_limit(&mut self) {
         while self.archives.len() > Self::ARCHIVE_CACHE_MAX {
             if let Some(oldest) = self.access_order.pop_front() {
@@ -717,7 +731,9 @@ impl ModArchiveStore {
         }
     }
 
+    /// 根据文件扩展名创建对应 reader（tbuddy / sbuddy）
     fn load_reader_from_path(path: &Path) -> Result<Box<dyn ModArchiveReader>, String> {
+
         let ext = path
             .extension()
             .and_then(|s| s.to_str())
@@ -730,6 +746,10 @@ impl ModArchiveStore {
         }
     }
 
+    /// 确保指定 mod 已加载到内存。
+    ///
+    /// - 已加载则刷新 LRU 顺序
+    /// - 未加载则从来源路径重新读取（便于按需恢复被淘汰的缓存）
     fn ensure_loaded(&mut self, mod_id: &str) -> Result<(), String> {
         if self.archives.contains_key(mod_id) {
             self.touch(mod_id);
@@ -744,5 +764,6 @@ impl ModArchiveStore {
         self.insert_archive(mod_id.to_string(), reader);
         Ok(())
     }
+
 }
 

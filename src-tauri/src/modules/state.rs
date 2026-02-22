@@ -892,8 +892,10 @@ impl StateManager {
     }
 
 
+    /// 根据气温范围限制判断状态是否允许触发。
     #[inline]
     fn is_state_allowed_by_temp_range(state: &StateInfo, current_temp: Option<f64>) -> bool {
+
         // 默认不限制
         if state.trigger_temp_start == i32::MIN && state.trigger_temp_end == i32::MAX {
             return true;
@@ -914,8 +916,10 @@ impl StateManager {
         temp >= start && temp <= end
     }
 
+    /// 根据本次启动运行分钟数判断状态是否允许触发。
     #[inline]
     fn is_state_allowed_by_uptime_min(state: &StateInfo, session_uptime_minutes: i32) -> bool {
+
         // 0 或负数：不限制
         if state.trigger_uptime <= 0 {
             return true;
@@ -923,8 +927,10 @@ impl StateManager {
         session_uptime_minutes >= state.trigger_uptime
     }
 
+    /// 根据天气条件列表判断状态是否允许触发（支持天气码/条件文本）。
     #[inline]
     fn is_state_allowed_by_weather_any(state: &StateInfo, current_weather: Option<&WeatherInfo>) -> bool {
+
 
         let mut has_rule = false;
 
@@ -966,8 +972,10 @@ impl StateManager {
     }
 
 
+    /// 静态限制聚合判断：计数器范围 + 启动时长 + 气温 + 天气。
     #[inline]
     fn is_state_allowed_by_limits_static(
+
         state: &StateInfo,
         mod_data_value: i32,
         session_uptime_minutes: i32,

@@ -1,27 +1,22 @@
 <!--
-========================================================================= 
-闁荤姍鍐仾缂侇煈鍠氱划濠氭晬閸曨剙鈧偤鎮圭€ｎ亜鏆㈤柣锔诲灣缁辨帡宕熼鍜佸仺 (ResourceManagerDebugger.svelte)
-=========================================================================
+==========================================================================
+资源管理调试组件 (ResourceManagerDebugger.svelte)
+==========================================================================
 
-闂佸憡姊婚崰鏇㈠礂濡警娼￠柛灞剧箓閻?
-- 闁诲繒鍋炲ú婊堝Φ濮樿泛妞界€光偓閳ь剟顢橀幖浣瑰仩?Mod 闁荤姍鍐仾缂侇煈鍠氶崠鏍嚒閵堝洤鐓?
-- 闂佸憡甯楅〃鍛村吹椤撱垹鐭楁い鏍ㄧ矋閺嗗繘鏌?Mod 濡ょ姷鍋犻崺鏍极椤曗偓楠炴劖鎷呯粙娆炬奖闁?闂佸憡顨嗛悺鏇灻?
-- 闁荤姴娴勬俊鍥╁垝韫囨洑娌柡鍥╁О娴犳稓鎲搁悧鍫熷碍濠⒀呭█瀹曟繈鎮╅悜妯笺偘 Mod 闂佹眹鍔岀€氼厽鏅跺澶婂珘濠㈣泛娴烽妶顐ｇ節?
-  - Manifest 闂備焦婢樼粔鍫曟偪閸℃ḿ鈹嶉柍鈺佸暕缁?
-  - 闁荤喐鐟︾敮鐔哥珶婵犲啰鈹嶉柍鈺佸暕缁?(婵犮垼鍩栨穱娲敋閵忋垺鍤婇柍?
-  - 闂傚倸鐗婇悷锕傚焵椤戣法顦︽繛瀛橈耿閹囧炊椤忓棎鍋掑┑鐘欏嫬濮х紒杈ㄧ懅閺侇噣鏁傞崜褏绀嗛梺浼欑祷閸庡崬霉濡紮绱ｉ柛鏇ㄥ櫘濞兼棃鏌涘⿰鍐╂拱闁哄倷鐒﹀鍕槻濠殿喗鐩幊妤呭棘閵堝洨顦?
-  - 闁瑰吋娼欑换鎰板垂椤忓牆绀夐柕濞у嫭姣庨柣鐘欏啫顏紒顭戝櫍閺佸秹宕煎┑鍫熸殧缂傚倸鍊甸弲婵嬪汲閹版澘鐐婂Δ锝呭枤閺嗘洟鎮峰▎蹇曞⒊缂?
-  - 闁荤姴娴傞崣鍐偂閸撲焦灏庨柛鏇ㄥ墰閻栭亶鏌ㄥ☉妯煎闁汇埄鍋婇獮姗€顢橀悢鍛婃緬闂佸憡姊婚崰鏇㈠礂濮椻偓閺?
-  - 闁诲海鏁搁、濠囨儊娴犲妫橀柛銉ｅ妽閹烽亶鎮硅鐎氼厾鑺?
+功能概述:
+- 展示并调试 Mod 资源加载流程
+- 查看 Mod 清单、资源类型与解析结果
+- 调试资源预览（图片/音频/动画配置）
 
-闂佽桨鑳舵晶妤€鐣垫担璇?
-- get_mod_search_paths: 闂佸吋鍎抽崲鑼躲亹?Mod 闂佺懓鍚嬬划搴ㄥ磼閵娧勫磯妞ゆ牗姘ㄧ粣?
-- get_available_mods: 闂佸吋鍎抽崲鑼躲亹閸ヮ剙鐭楁い鏍ㄧ矋閺?Mod 闂佸憡甯楅〃澶愬Υ?
-- get_current_mod: 闂佸吋鍎抽崲鑼躲亹閸ヮ亗浜归柟鎯у暱椤ゅ懐鈧懓鎲¤ぐ鍐╂叏閻愬瓨濮滈柣锝呮湰閻?Mod
-- load_mod: 闂佸憡姊绘慨鎯归崶顒€绠伴柛銉戝懏姣?Mod
-- unload_mod: 闂佸憡顨嗛悺鏇灻归崶顏備汗闁规儳鍟块·?Mod
-=========================================================================
+常用后端接口:
+- get_mod_search_paths: 获取 Mod 搜索路径
+- get_available_mods: 获取可用 Mod 列表
+- get_current_mod: 获取当前加载的 Mod
+- load_mod / unload_mod: 加载与卸载 Mod
+==========================================================================
 -->
+
+
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
@@ -45,8 +40,10 @@
 
 
   // ======================================================================= //
-  // 缂備緡鍋夐褔鎮楁搴樺亾鐟欏嫮鐓紒?
+  // 缂傚倸鍊搁崐椋庢閿熺姴纾诲鑸靛姦閺佸鎲搁弮鍫濈畺婵°倓绶″Σ褰掑箹鐎涙◤顏呯妤ｅ啯鍋℃繛鍡楃箰椤忣偊鏌ｉ幙鍐ㄧ仯缂?
   // ======================================================================= //
+
+
 
   interface ModManifest {
     id: string;
@@ -100,8 +97,9 @@
 
 
   // ======================================================================= //
-  // 闂佸憡绻傜粔瀵歌姳閹绘帩鍤曢煫鍥ㄦ礀绗戦梺?
+  // 闂傚倸鍊风粈渚€骞夐敍鍕床闁稿本绮庨惌鎾绘倵閸偆鎽冨┑顔藉▕閺岀喓绱掑Ο杞板垔闂佹悶鍊栧ú鐔兼偂椤愶箑鐐婇柕濠忓椤︺儳绱掑Δ浣哥伌婵?
   // ======================================================================= //
+
 
   let searchPaths: string[] = $state([]);
   let mods: string[] = $state([]);
@@ -109,19 +107,17 @@
   let statusMsg = $state(t("resource.statusWaiting"));
   let currentModInfo = $state<ModInfo | null>(null);
   let loading = $state(false);
-
-  // i18n 闂佸憡绻傜粔瀵歌姳閹绘帩鍤曢煫鍥ㄦ礀椤ｅジ鏌￠崼顐㈠鐟?
+  // i18n 鍝嶅簲寮忔敮鎸?
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
 
-  // 闂佸憡绻傜粔瀵歌姳閹绘帩鍤曢煫鍥ㄦ礈閸婃娊鎮归崶銊ョ仴闁搞倝浜跺?
   function _(key: string, params?: Record<string, string | number>): string {
+
     void _langVersion;
     return t(key, params);
   }
-
-  /** 濠碘槅鍋€閸嬫捇鏌＄仦璇插姢濠殿喗鎮傞獮鈧ù锝呮贡鍟搁梺璇″弾閸ㄥ崬危閹间礁瑙﹂柨鏇楀亾閻庡灚锕㈠畷銉╊敃閿旇姤娅撻柣鐘叉祩閸垱绌辨繝鍥х畳?*/
   function isError(msg: string): boolean {
+
     return msg.includes(_("common.failed"));
   }
 
@@ -142,8 +138,10 @@
   function formatTempRange(start?: number, end?: number): string {
     const sText = start != null ? `${start}°C` : "*";
     const eText = end != null ? `${end}°C` : "*";
+
     return `[${sText}, ${eText}]`;
   }
+
 
 
   function formatMouthState(ms?: 0 | 1 | 2): string {
@@ -154,22 +152,25 @@
       default: return _("resource.pngremixMouthStateInherit");
     }
   }
-
-
-  // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺闈╃祷閸斿孩鎱ㄩ幖浣哥畱?
   let viewerVisible = $state(false);
+
   let viewerImageSrc = $state("");
   let viewerImageTitle = $state("");
-
-  // 闂傚倸锕ユ繛濠囥€傞崼鏇炵妞ゆ挾鍠愰弶褰掓煟濡灝鐓愰柍?
   let currentAudio: HTMLAudioElement | null = null;
+
   let playingAudioName = $state<string | null>(null);
 
   // ======================================================================= //
-  // 闂佽桨鑳舵晶妤€鐣垫笟鈧獮娆忣吋閸曨厾鈻曢梺鍛婂灱婵倝寮?
+  // 数据加载与 Mod 管理
   // ======================================================================= //
 
+  /**
+   * 刷新 Mod 列表与当前已加载 Mod 信息。
+   * 同时更新搜索路径与状态提示。
+   */
   async function refreshMods() {
+
+
     try {
       searchPaths = await invoke("get_mod_search_paths");
       mods = await invoke("get_available_mods");
@@ -177,7 +178,6 @@
       const info = (await invoke("get_current_mod")) as ModInfo | null;
       if (info) {
         currentModInfo = info;
-        // 缂傚倷鑳堕崰宥囩博鐎涙ɑ濯撮悹鎭掑妽閺?manifest.id 婵炶揪绲剧划鍫㈡嫻閻旂厧鑸规い鏍ㄧ懅椤忛亶鏌″鍛┛闁?
         selectedMod = info.manifest.id;
         statusMsg = _("resource.statusCurrentLoaded") + " " + info.manifest.id;
       } else {
@@ -191,7 +191,11 @@
     }
   }
 
+  /**
+   * 加载当前选中的 Mod，并同步状态提示与气泡样式。
+   */
   async function loadSelectedMod() {
+
     if (!selectedMod) {
       statusMsg = _("resource.statusSelectMod");
       return;
@@ -207,8 +211,8 @@
         id: info.manifest.id,
         version: info.manifest.version,
       });
-      // 闂備焦褰冪粔鐢稿蓟婵犲洤绀夐柣妯煎劋缁佺増鎱ㄥΟ缁樷拹闁革附妞藉钘夌暋閹殿喚顢?
       await loadBubbleStyle();
+
     } catch (e) {
       statusMsg = _("resource.statusLoadFailed") + " " + e;
       currentModInfo = null;
@@ -217,7 +221,11 @@
     }
   }
 
+  /**
+   * 卸载当前 Mod，并恢复到未加载状态。
+   */
   async function unloadMod() {
+
     try {
       const success = await invoke("unload_mod");
       if (success) {
@@ -245,36 +253,47 @@
   }
 
   // ======================================================================= //
-  // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺?
+  // 资源预览与文件打开
   // ======================================================================= //
 
+  /**
+   * 构建可预览的资源 URL（适配文件夹/Archive Mod）。
+   */
   function getAssetSrc(relativePath: string): string {
+
+
     if (!currentModInfo) return "";
     return buildModAssetUrl(currentModInfo.path, relativePath);
   }
 
+  /**
+   * 打开图片预览弹窗。
+   */
   function openImageViewer(src: string, title: string) {
+
     viewerImageSrc = src;
     viewerImageTitle = title;
     viewerVisible = true;
   }
 
+  /**
+   * 关闭图片预览弹窗。
+   */
   function closeImageViewer() {
+
     viewerVisible = false;
   }
 
   // ======================================================================= //
-  // 闂傚倸锕ユ繛濠囥€傞崼鏇炵妞ゆ挾鍠愰弶?
+  // 音频预览与播放
   // ======================================================================= //
 
   function playAudio(audioPath: string, audioName: string) {
-    // 闂佺ǹ顑嗙划宥夘敆濞戞嚎浜归柟鎯у暱椤ゅ懘鏌熺紒銏犲箺闁?
+
     if (currentAudio) {
       currentAudio.pause();
       currentAudio = null;
     }
-
-    // 婵犵鈧啿鈧綊鎮樻径鎰€烽柣鐔告緲濮ｅ﹪鏌ｉ妸銉ヮ仾婵″弶鐡曢妵鎰板箻閸愬樊鏋€濠殿喗绻愮徊钘夛耿椤忓牆绠绘い鎾跺枑閺夊綊鏌ｉ妸銉ヮ伒缂佽鲸绻堝畷鎴濃堪閸曢潧澹橀梺鍦檸閸樹粙寮?
     if (playingAudioName === audioName) {
       playingAudioName = null;
       return;
@@ -301,7 +320,11 @@
     currentAudio.play();
   }
 
+  /**
+   * 停止当前预览音频。
+   */
   function stopAudio() {
+
     if (currentAudio) {
       currentAudio.pause();
       currentAudio = null;
@@ -310,14 +333,19 @@
   }
 
   // ======================================================================= //
-  // Mod 缂備緡鍋夐褔鎮?
+  // Mod 类型判断
   // ======================================================================= //
 
   function getModType(): ModType {
+
     return (currentModInfo?.manifest.mod_type ?? "sequence") as ModType;
   }
 
+  /**
+   * 获取 Mod 类型的展示文本。
+   */
   function getModTypeLabel(): string {
+
     switch (getModType()) {
       case "live2d":
         return _("resource.modTypeLive2D");
@@ -347,11 +375,11 @@
   }
 
   // ======================================================================= //
-  // 缂傚倷鑳堕崰鏇㈩敇?
+  // 资源统计与分类
   // ======================================================================= //
 
-
   function getTotalStates(): number {
+
     if (!currentModInfo) return 0;
     return (
       Object.keys(currentModInfo.manifest.important_states).length +
@@ -359,7 +387,11 @@
     );
   }
 
+  /**
+   * 统计音频资源数量。
+   */
   function getTotalAudios(): number {
+
     if (!currentModInfo) return 0;
     return Object.values(currentModInfo.audios).flat().length;
   }
@@ -368,9 +400,11 @@
     if (!currentModInfo) return 0;
     return Object.values(currentModInfo.texts).flat().length;
   }
-
-  // 闂佸憡甯掑Λ娑氭偖椤愶附鍋愰柤鍝ヮ暯閸嬫挻鎷呴悿顖滎槹闂佸綊鏅插鎺旂不濞嗘挸妞界€光偓閸曨剙顫￠梺褰掓櫜濡炴帞绮?
+  /**
+   * 按持久化标记划分“重要状态”。
+   */
   function getImportantStatesByPersistence(): {
+
     persistent: [string, StateInfo][];
     nonPersistent: [string, StateInfo][];
   } {
@@ -382,7 +416,11 @@
     };
   }
 
+  /**
+   * 按持久化标记划分“普通状态”。
+   */
   function getOtherStatesByPersistence(): {
+
     persistent: StateInfo[];
     nonPersistent: StateInfo[];
   } {
@@ -396,7 +434,6 @@
   }
 
   // ======================================================================= //
-  // 闂佹眹鍨婚崰搴ㄥ箠閿熺姴宸濋柕濠忛檮閸?
   // ======================================================================= //
 
   onMount(() => {
@@ -413,21 +450,18 @@
 </script>
 
 <!-- ======================================================================= -->
-<!-- 缂傚倷绀佺€氼亜鈻庨姀鐘栫喖鍩勯崘鈺冨嚒 -->
+<!-- 页面内容 -->
 <!-- ======================================================================= -->
 
 <div class="debug-panel">
-  <h3>{_("resource.title")}</h3>
 
-  <!-- 闂佺懓鍚嬬划搴ㄥ磼閵娧勫磯妞ゆ牗姘ㄧ粣鐐睬庨崶锝呭⒉濞?-->
+  <h3>{_("resource.title")}</h3>
   <div class="path-info">
     <strong>{_("resource.searchPaths")}</strong>
     {#each searchPaths as path}
       <div class="path-item">{path}</div>
     {/each}
   </div>
-
-  <!-- Mod 闁荤姴娴勯梽鍕磿韫囨稒顥堥柕蹇婂墲缁?-->
   {#if currentModInfo}
     <div class="info-panel">
       <div class="info-header">
@@ -436,8 +470,6 @@
           {currentModInfo.path.split(/[\\/]/).pop()}
         </div>
       </div>
-
-      <!-- 缂傚倷鑳堕崰鏇㈩敇缁嬫娼￠柛灞剧箥濞?-->
       <div class="stats-bar">
         <div class="stat-item">
           <span class="stat-value">{getTotalStates()}</span>
@@ -501,7 +533,6 @@
       </div>
 
       <div class="tabs">
-        <!-- 闂佺硶鏅濋崕銈咃耿閻楀牏鈹嶉柍鈺佸暕缁?(Manifest) -->
         <details open>
           <summary>{_("resource.basicInfo")}</summary>
           <div class="tab-content">
@@ -616,8 +647,6 @@
             {/if}
           </div>
         </details>
-
-        <!-- 闁荤喐鐟︾敮鐔哥珶婵犲啰鈹嶉柍鈺佸暕缁?(婵犮垼鍩栨穱娲敋閵忋垺鍤婇柍? -->
         <details>
           <summary
             >{_("resource.characterInfo", {
@@ -645,8 +674,6 @@
             </div>
           </div>
         </details>
-
-        <!-- 闂佸搫绉舵灙缂佹椽绠栭幃鈺呮嚋绾版ê浜?-->
         <details>
           <summary
             >{_("resource.coreStates")} ({Object.keys(
@@ -798,7 +825,7 @@
                               {#each state.branch as b}
                                 <div class="branch-item">
                                   <span class="branch-text">{b.text}</span>
-                                  <span class="branch-arrow">→</span>
+                                  <span class=branch-arrow>→</span>
                                   <span class="branch-next">{b.next_state}</span>
                                 </div>
                               {/each}
@@ -953,7 +980,7 @@
                               {#each state.branch as b}
                                 <div class="branch-item">
                                   <span class="branch-text">{b.text}</span>
-                                  <span class="branch-arrow">→</span>
+                                  <span class=branch-arrow>→</span>
                                   <span class="branch-next">{b.next_state}</span>
                                 </div>
                               {/each}
@@ -968,9 +995,6 @@
             {/if}
           </div>
         </details>
-
-        <!-- 闂佺ǹ绻戝﹢鍦垝椤掑嫭鍋愰柤鍝ヮ暯閸?-->
-
         {#if currentModInfo.manifest.states.length > 0}
           <details>
             <summary
@@ -1124,7 +1148,7 @@
                                 {#each state.branch as b}
                                   <div class="branch-item">
                                     <span class="branch-text">{b.text}</span>
-                                    <span class="branch-arrow">→</span>
+                                  <span class=branch-arrow>→</span>
                                     <span class="branch-next"
                                       >{b.next_state}</span>
                                   </div>
@@ -1281,7 +1305,7 @@
                                 {#each state.branch as b}
                                   <div class="branch-item">
                                     <span class="branch-text">{b.text}</span>
-                                    <span class="branch-arrow">→</span>
+                                  <span class=branch-arrow>→</span>
                                     <span class="branch-next"
                                       >{b.next_state}</span>
                                   </div>
@@ -1298,8 +1322,6 @@
             </div>
           </details>
         {/if}
-
-        <!-- 闁荤喐鐟辩粻鎴ｃ亹閸岀偛闂?-->
         {#if currentModInfo.manifest.triggers.length > 0}
           <details>
             <summary
@@ -1355,7 +1377,6 @@
         {/if}
 
         {#if isSequenceMod()}
-          <!-- 闂傚倸鐗婇悷锕傚焵椤戣法顦︽繛瀛橈耿閹囧炊椤忓棎鍋掑┑?-->
           <details>
             <summary
               >{_("resource.staticImages")} ({currentModInfo.imgs
@@ -1389,18 +1410,21 @@
                       onclick={() => openAssetFile(`asset/${img.img}`)}
                       title={_("resource.openFile")}
                     >
-                      濡絽鍟幆?
+                      鎵撳紑
                     </button>
+
                   </div>
                   <div class="asset-info">
                     <div class="asset-name">{img.name}</div>
                     <div class="asset-file">{img.img}</div>
                     <div class="asset-meta">
                       <span title={_("resource.frameSize")}
-                        >{img.frame_size_x}闁煎顢檌mg.frame_size_y}px</span>
+                        >{img.frame_size_x} x {img.frame_size_y}px</span>
+
                       {#if totalFrames > 1}
                         <span title={_("resource.frameLayout")}
-                          >{img.frame_num_x}闁煎顢檌mg.frame_num_y} = {totalFrames}{_(
+                          >{img.frame_num_x} x {img.frame_num_y} = {totalFrames}{_(
+
                             "resource.frames",
                           )}</span>
                       {/if}
@@ -1436,8 +1460,6 @@
             </div>
           </div>
         </details>
-
-        <!-- 闁瑰吋娼欑换鎰板垂椤忓牆绀夐柕濞у嫭姣庨柣鐘欏啫顏紒?-->
         <details>
           <summary
             >{_("resource.sequenceAnimations")} ({currentModInfo.sequences
@@ -1472,25 +1494,28 @@
                       onclick={() => openAssetFile(`asset/${seq.img}`)}
                       title={_("resource.openFile")}
                     >
-                      濡絽鍟幆?
+                      鎵撳紑
                     </button>
+
                   </div>
                   <div class="asset-info">
                     <div class="asset-name">{seq.name}</div>
                     <div class="asset-file">{seq.img}</div>
                     <div class="asset-meta">
                       <span title={_("resource.frameLayout")}
-                        >{seq.frame_num_x}闁煎顢檚eq.frame_num_y} = {totalFrames}{_(
+                        >{seq.frame_num_x} x {seq.frame_num_y} = {totalFrames}{_(
+
                           "resource.frames",
                         )}</span>
                       <span title={_("resource.frameSize")}
-                        >{seq.frame_size_x}闁煎顢檚eq.frame_size_y}px</span>
+                        >{seq.frame_size_x} x {seq.frame_size_y}px</span>
+
                     </div>
                     <div class="asset-meta">
                       <span title={_("resource.frameInterval")}
                         >{seq.frame_time}s{_("resource.perFrame")}</span>
                       <span title={_("resource.totalDuration")}
-                        >闂佹剚鍠栧鏉talDuration}s</span>
+                        >{totalDuration}s</span>
                     </div>
                     <div class="asset-flags">
                       {#if seq.origin_reverse}
@@ -1514,8 +1539,6 @@
           </div>
         </details>
         {/if}
-
-        <!-- Live2D 闁荤姍鍐仾缂?-->
         {#if isLive2dMod()}
           <details>
             <summary>{_("resource.live2dAssets")}</summary>
@@ -1679,8 +1702,6 @@
             </div>
           </details>
         {/if}
-
-        <!-- PngRemix 闁荤姍鍐仾缂?-->
         {#if isPngremixMod()}
           <details>
             <summary>{_("resource.pngremixAssets")}</summary>
@@ -1836,8 +1857,6 @@
             </div>
           </details>
         {/if}
-
-        <!-- 3D 闁荤姍鍐仾缂?-->
         {#if isThreeDMod()}
           <details>
             <summary>{_("resource.threeDAssets")}</summary>
@@ -1920,9 +1939,6 @@
             </div>
           </details>
         {/if}
-
-        <!-- 闁荤姴娴傞崣鍐偂閸撲焦灏庨柛鏇ㄥ墰閻?-->
-
         <details>
           <summary>{_("resource.audioResources")} ({getTotalAudios()})</summary>
           <div class="tab-content">
@@ -1961,8 +1977,11 @@
                         onclick={() => openAssetFile(`audio/${audio.audio}`)}
                         title={_("resource.openFile")}
                       >
-                        濡絽鍟幆?
+                        鎵撳紑
                       </button>
+
+
+
                     </div>
                   {/each}
                 </div>
@@ -1970,8 +1989,6 @@
             {/each}
           </div>
         </details>
-
-        <!-- 闁诲海鏁搁、濠囨儊娴犲妫橀柛銉ｅ妽閹?-->
         <details>
           <summary>{_("resource.dialogTexts")} ({getTotalTexts()})</summary>
           <div class="tab-content">
@@ -1997,8 +2014,6 @@
     </div>
   {/if}
 </div>
-
-<!-- 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺闈╃祷閸斿矂鎳樻繝鍕幓?-->
 {#if viewerVisible}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -2006,7 +2021,10 @@
     <div class="image-viewer-content" onclick={(e) => e.stopPropagation()}>
       <div class="viewer-header">
         <span class="viewer-title">{viewerImageTitle}</span>
-        <button class="viewer-close" onclick={closeImageViewer}>×</button>
+        <button class=viewer-close onclick={closeImageViewer}>×</button>
+
+
+
 
 
       </div>
@@ -2092,8 +2110,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
-  /* 缂傚倷鑳堕崰鏇㈩敇缁嬫娼￠柛灞剧箥濞?*/
   .stats-bar {
     display: flex;
     gap: 8px;
@@ -2122,8 +2138,6 @@
     font-size: 0.75em;
     color: #7f8c8d;
   }
-
-  /* 闁荤姴娴勯梽鍕磿韫囨稑绠俊顖氭惈缂?*/
   details {
     margin-bottom: 8px;
     border: 1px solid #eee;
@@ -2148,8 +2162,6 @@
   .tab-content {
     padding: 12px;
   }
-
-  /* 婵烇絽娲犻崜婵囧閸涱垳纾鹃柟瀵稿仧婢?*/
   .info-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -2177,8 +2189,6 @@
   .info-value {
     font-weight: 500;
   }
-
-  /* 闁荤姴娴傞崣鈧柍璇茬墦瀹曪繝鏁嶉崟顐毈 */
   .lang-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -2226,8 +2236,6 @@
     margin-top: 4px;
     font-style: italic;
   }
-
-  /* 闂佺粯枪閸╂牠鍩€椤戣法顦﹂柛顭戜簽閹?*/
   .state-list,
   .trigger-list {
     display: flex;
@@ -2335,9 +2343,6 @@
     border-color: #e67e22;
     color: #d35400;
   }
-
-
-  /* 闂佺粯枪閸╂牠鍩€椤戣法顦﹂柛銊ユ捣閻氬墽绱掑Ο渚綑闂?*/
   .state-category {
     margin-bottom: 10px;
     border: none;
@@ -2365,8 +2370,6 @@
     border-radius: 6px 6px 0 0;
     margin-bottom: 8px;
   }
-
-  /* 闁荤姴娴傞崣鈧柍璇茬墦楠炲骸螣閸濆嫮绉?*/
   .lang-details {
     margin-bottom: 10px;
     border: none;
@@ -2387,8 +2390,6 @@
   .lang-details[open] .lang-summary {
     margin-bottom: 8px;
   }
-
-  /* 闂佸憡甯掑Λ娆撳极椤曗偓瀹曟艾螖閸曗斁鍋?*/
   .branch-list {
     display: flex;
     flex-direction: column;
@@ -2415,12 +2416,13 @@
     color: #95a5a6;
   }
 
+
+
+
   .branch-next {
     color: #16a085;
     font-weight: 600;
   }
-
-  /* 闁荤喐鐟辩粻鎴ｃ亹閸岀偛闂?*/
   .trigger-card {
     background: #f9f9f9;
     border: 1px solid #eee;
@@ -2486,8 +2488,6 @@
     color: #95a5a6;
     font-style: italic;
   }
-
-  /* 闁荤姍鍐仾缂侇煈鍠氱槐鏃堝箣閻愰潧顥?*/
   .asset-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -2598,8 +2598,6 @@
     flex-wrap: wrap;
     gap: 4px;
   }
-
-  /* 闂傚倸锕ユ繛濠囥€傞崜浣虹＞闁瑰鍋熸竟?*/
   .audio-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -2681,8 +2679,6 @@
   .open-btn:hover {
     background: #eee;
   }
-
-  /* 闂佸搫鍊稿ú锕€锕㈡导鏉戠婵°倕瀚ㄩ埀?*/
   .text-list {
     display: flex;
     flex-direction: column;
@@ -2721,8 +2717,6 @@
     line-height: 1.5;
     white-space: pre-wrap;
   }
-
-  /* 闂佹悶鍎辨晶鑺ユ櫠閺嶎厼钃熼柕澹嫮鐣介梺?*/
   .image-viewer-overlay {
     position: fixed;
     top: 0;
@@ -2791,8 +2785,6 @@
     max-height: 75vh;
     object-fit: contain;
   }
-
-  /* 闂佸搫妫欓〃澶嬬珶婵犲啰鈻斿┑鐘冲嚬閺?*/
   @media (prefers-color-scheme: dark) {
     .debug-panel {
       background: #2c3e50;
@@ -2914,7 +2906,14 @@
     }
     .branch-text {
       color: #f1c40f;
+      font-weight: 500;
     }
+    .branch-arrow {
+      color: #95a5a6;
+    }
+
+
+
     .branch-next {
       color: #2ecc71;
     }
@@ -2956,6 +2955,9 @@
     }
   }
 </style>
+
+
+
 
 
 

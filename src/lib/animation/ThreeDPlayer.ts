@@ -60,9 +60,14 @@ function sortedHumanoidBones(boneNames: string[]): string[] {
 
 /**
  * VRMA 动画重定向烘焙。
- * 将 VRMA 的 humanoid 动画通过 world-delta 方法烘焙到目标 VRM 模型。
+ *
+ * 将 VRMA 的 humanoid 动画通过 world-delta 方法烘焙到目标 VRM 模型：
+ * - 采样源动画帧并计算 world-space delta
+ * - 将 delta 映射到目标骨骼并生成新的 AnimationClip
+ * - 可选 loop/loopBlend 以平滑首尾过渡
  */
 async function retargetVrmaToVrmClipBaked(
+
   vrmaName: string,
   vrmaGltf: GLTF,
   vrm: VRM,
@@ -556,7 +561,16 @@ function mmdSaveBones(mmdState: MmdRuntime) {
   }
 }
 
+/**
+ * ThreeDPlayer
+ *
+ * 负责 3D 模型（VRM/VRMA/MMD）的加载、动画播放与资源释放：
+ * - 动画剪辑缓存与 LRU 淘汰
+ * - VRMA → VRM 动画重定向烘焙
+ * - three.js 场景/材质/纹理的生命周期管理
+ */
 export class ThreeDPlayer {
+
   private canvas: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer | null = null;
   private scene: THREE.Scene | null = null;
@@ -571,7 +585,11 @@ export class ThreeDPlayer {
 
   private clipCache = new Map<string, THREE.AnimationClip>();
 
+  /**
+   * 从剪辑缓存中取出动画并刷新 LRU 顺序。
+   */
   private getClipFromCache(key: string): THREE.AnimationClip | null {
+
     const cached = this.clipCache.get(key);
     if (!cached) return null;
     // 刷新 LRU 顺序：移到末尾
@@ -580,7 +598,11 @@ export class ThreeDPlayer {
     return cached;
   }
 
+  /**
+   * 写入剪辑缓存并在超出上限时淘汰最久未使用项。
+   */
   private putClipToCache(key: string, clip: THREE.AnimationClip): void {
+
     if (this.clipCache.has(key)) {
       this.clipCache.delete(key);
     }
@@ -595,7 +617,11 @@ export class ThreeDPlayer {
     this.clipCache.set(key, clip);
   }
 
+  /**
+   * 深度释放 Object3D 上绑定的几何体/纹理/材质资源，避免显存泄漏。
+   */
   private disposeObject3DResources(target: THREE.Object3D | null): void {
+
     if (!target) return;
     const disposedTextures = new Set<THREE.Texture>();
 
@@ -683,7 +709,11 @@ export class ThreeDPlayer {
     this.canvas = canvas;
   }
 
+  /**
+   * 初始化 3D 渲染器、场景与相机。
+   */
   async init(): Promise<void> {
+
     dbg("init", "start");
 
     this.renderer = new THREE.WebGLRenderer({
@@ -724,7 +754,11 @@ export class ThreeDPlayer {
     dbg("init", "done");
   }
 
+  /**
+   * 清理渲染资源与模型缓存。
+   */
   destroy(): void {
+
     dbg("destroy", "start");
     this.stopRenderLoop();
     this.clearPlayTimer();
@@ -783,7 +817,11 @@ export class ThreeDPlayer {
     dbg("destroy", "done");
   }
 
+  /**
+   * 加载 3D 模型与动画配置（VRM/PMX）。
+   */
   async load(modPath: string, config: ThreeDConfig): Promise<void> {
+
     dbg("load", "modPath:", modPath, "model:", config.model.file, "type:", config.model.type);
     this.config = config;
     this.modPath = modPath;
@@ -952,8 +990,11 @@ export class ThreeDPlayer {
    * 1. Look up ThreeDConfig.states for a matching state → get animation name
    * 2. Fall back: use assetName directly as animation name
    * 3. Find ThreeDAnimation by name and load/play it
+   *
+   * 说明：playToken 用于并发切换保护，过渡期还会计算 hips 对齐补偿。
    */
   async playFromAnima(
+
     assetName: string,
     options: PlayOptions,
   ): Promise<boolean> {
@@ -1280,7 +1321,13 @@ export class ThreeDPlayer {
   // Private: rendering
   // =========================================================================
 
+  /**
+   * 启动渲染循环：更新动画、MMD 解算与 hips 对齐过渡，再进行渲染。
+   *
+   * PMX 路径：restore → mixer.update → save → IK → Grant。
+   */
   private startRenderLoop(): void {
+
     if (this.isRendering) return;
     this.isRendering = true;
 

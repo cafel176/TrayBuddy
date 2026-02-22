@@ -125,9 +125,11 @@ impl Default for MemoItem {
 /// 每周的星期几（1=周一 ... 7=周日）
 pub type WeekdayNumber = u8;
 
+/// 定时提醒调度规则（支持绝对时间/相对延迟/每周循环）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ReminderSchedule {
+
     /// 指定一个绝对时间（本地时间戳，秒）
     Absolute { timestamp: i64 },
 
@@ -151,9 +153,11 @@ impl Default for ReminderSchedule {
     }
 }
 
+/// 定时提醒条目（用于持久化到 UserInfo）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct ReminderItem {
+
     /// 唯一 ID（前端生成 UUID）
     pub id: String,
     /// 文本内容

@@ -2,29 +2,32 @@
  * i18n Hooks - 多语言 Svelte 辅助函数
  *
  * 提供响应式的 i18n 初始化和翻译函数，简化组件中的多语言支持代码。
+ * 建议优先使用 `setupI18nWithUpdate` 来统一页面初始化/销毁行为。
  *
  * ## 使用方式
  * ```svelte
  * <script lang="ts">
- *   import { createI18nState, useI18n } from "$lib/i18n/hooks";
+ *   import { createI18nState, setupI18n } from "$lib/i18n/hooks";
  *   import { onMount, onDestroy } from "svelte";
  *
  *   // 创建 i18n 状态
- *   const { _, _langVersion, cleanup } = createI18nState();
+ *   const state = createI18nState();
  *
  *   // 在 onMount 中初始化
  *   onMount(() => {
- *     useI18n(_langVersion, () => {
+ *     setupI18n(state, () => {
  *       // 可选：语言变更时的额外操作
- *       getCurrentWindow().setTitle(_("common.title"));
+ *       getCurrentWindow().setTitle(state._("common.title"));
  *     });
  *   });
  *
  *   // 在 onDestroy 中清理
- *   onDestroy(cleanup);
+ *   onDestroy(state.cleanup);
+
  * </script>
  * ```
  */
+
 
 import { t, initI18n, destroyI18n, onLangChange } from "./index";
 

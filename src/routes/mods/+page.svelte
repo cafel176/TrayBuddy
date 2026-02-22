@@ -1,4 +1,21 @@
+<!--
+==========================================================================
+模组管理页面 (+page.svelte)
+==========================================================================
+
+功能概述:
+- 浏览与切换已安装的 Mod
+- 支持导入 tbuddy 包/打开源文件路径
+- 展示 Mod 元信息与预览图
+
+说明:
+- i18n 文本通过 setupI18nWithUpdate 统一初始化
+- 资源路径使用 modAssetUrl 工具统一解析
+==========================================================================
+-->
+
 <script lang="ts">
+
     import { invoke } from "@tauri-apps/api/core";
     import { onMount, onDestroy } from "svelte";
     import { getCurrentWindow } from "@tauri-apps/api/window";

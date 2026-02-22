@@ -45,7 +45,15 @@ function detectArchiveUrlPrefix(): string {
 
 /** 缓存探测结果，避免重复调用 */
 let _archiveUrlPrefix: string | null = null;
+
+/**
+ * 获取 archive 资源 URL 前缀（带缓存）。
+ *
+ * 首次调用会触发平台格式探测，后续复用结果，避免重复调用 `convertFileSrc`。
+ * 该前缀会被 `buildModAssetUrl`/`archiveAssetUrlToVirtualPath` 等函数复用。
+ */
 function getArchiveUrlPrefix(): string {
+
   if (_archiveUrlPrefix === null) {
     _archiveUrlPrefix = detectArchiveUrlPrefix();
   }
@@ -113,7 +121,10 @@ export function getArchiveModId(modPath: string): string {
 }
 
 /**
- * 将 `tbuddy-archive://mod_id/relative/path` 解析为 modPath + 相对路径
+ * 将 `tbuddy-archive://mod_id/relative/path` 解析为 modPath + 相对路径。
+ *
+ * - 若无相对路径，则 `relativePath` 为空字符串
+ * - 若路径格式异常，返回 null
  */
 export function parseArchiveVirtualPath(virtualPath: string): { modPath: string; relativePath: string } | null {
   if (!virtualPath.startsWith(ARCHIVE_PREFIX)) return null;
@@ -128,6 +139,7 @@ export function parseArchiveVirtualPath(virtualPath: string): { modPath: string;
   const relativePath = withoutPrefix.slice(slashIdx + 1);
   return { modPath: `${ARCHIVE_PREFIX}${modId}`, relativePath };
 }
+
 
 /**
  * 判断一个 URL 是否为 archive mod 的资源 URL（平台无关判断）
@@ -169,6 +181,12 @@ export function buildModAssetUrl(modPath: string, relativePath: string): string 
   return convertFileSrc(fullPath);
 }
 
+/**
+ * 构建可访问 URL，并在文件夹 mod 场景下还原 convertFileSrc 的编码层级。
+ *
+ * Live2D/3D 的加载器依赖正确的路径层级（相对路径解析），
+ * 因此需要 `%2F` → `/`、`%3A` → `:` 的反解处理。
+ */
 function buildModAssetUrlWithDecodedFileSrc(modPath: string, relativePath: string): string {
   if (isArchiveMod(modPath)) {
     return buildModAssetUrl(modPath, relativePath);
@@ -176,6 +194,7 @@ function buildModAssetUrlWithDecodedFileSrc(modPath: string, relativePath: strin
   const fullPath = joinPath(modPath, relativePath);
   return decodeFileSrcUrl(convertFileSrc(fullPath));
 }
+
 
 /**
  * 构建 Mod 资源的可访问 URL（Live2D 专用）

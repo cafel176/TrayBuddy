@@ -16,14 +16,17 @@ import type {
   Live2DBackgroundLayer,
 } from "$lib/types/asset";
 
+/** Live2D 功能开关（鼠标跟随/自动交互）。 */
 export type Live2DFeatureFlags = {
   mouseFollow: boolean;
   autoInteract: boolean;
 };
 
+/** Live2D 播放器初始化参数。 */
 export type Live2DPlayerOptions = {
   featureFlags?: Live2DFeatureFlags;
 };
+
 
 type MotionEntry = {
   group: string;
@@ -65,7 +68,14 @@ function toAssetUrl(filePath: string): string {
 }
 
 
+/**
+ * 动态加载脚本并去重。
+ *
+ * 通过 data-live2d-src 标记避免重复插入，
+ * 并在已存在脚本完成加载后复用 Promise。
+ */
 function loadScript(src: string): Promise<void> {
+
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[data-live2d-src="${src}"]`);
     if (existing) {
@@ -104,7 +114,14 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
+/**
+ * 确保 Live2D 渲染依赖已加载并可用。
+ *
+ * 首次调用时会加载 pixi / live2dcubismcore / pixi-live2d-display，
+ * 后续调用会复用同一个初始化 Promise。
+ */
 async function ensureLive2DLibs(): Promise<void> {
+
   if (window.PIXI && window.PIXI.live2d?.Live2DModel && window.Live2DCubismCore) {
     return;
   }
@@ -127,7 +144,12 @@ async function ensureLive2DLibs(): Promise<void> {
   }
 }
 
+/**
+ * 将 motion priority 映射为数值级别，便于排序与比较。
+ * 约定：idle < normal < high < force
+ */
 function getMotionPriority(priority?: string): number {
+
   const map: Record<string, number> = {
     idle: 1,
     normal: 2,
@@ -138,7 +160,11 @@ function getMotionPriority(priority?: string): number {
   return map[key] ?? 2;
 }
 
+/**
+ * 将名称归一化为可用于 Map 键的形式。
+ */
 function buildNameKey(name: string): string {
+
   return String(name || "").trim().toLowerCase();
 }
 
@@ -147,7 +173,16 @@ function dbg(tag: string, ...args: any[]) {
   if (DEBUG) console.log(`[Live2DPlayer][${tag}]`, ...args);
 }
 
+/**
+ * Live2DPlayer
+ *
+ * 负责 Live2D 模型的加载、播放与交互：
+ * - 动作/表情管理与优先级控制
+ * - 鼠标跟随与参数覆写
+ * - 背景与前景图层渲染
+ */
 export class Live2DPlayer {
+
   private canvas: HTMLCanvasElement;
   private app: any | null = null;
   private model: any | null = null;
@@ -196,7 +231,11 @@ export class Live2DPlayer {
     };
   }
 
+  /**
+   * 初始化 Live2D 渲染环境与事件绑定。
+   */
   async init(): Promise<void> {
+
     dbg("init", "start, canvas:", this.canvas.clientWidth, "x", this.canvas.clientHeight);
     await ensureLive2DLibs();
     dbg("init", "libs loaded, PIXI:", !!window.PIXI, "CubismCore:", !!window.Live2DCubismCore);
@@ -206,7 +245,11 @@ export class Live2DPlayer {
     dbg("init", "done");
   }
 
+  /**
+   * 销毁渲染资源与事件监听。
+   */
   destroy(): void {
+
     this.clearPlayTimer();
     this.unbindMouseFollow();
     this.cleanupParamOverride();
@@ -229,19 +272,31 @@ export class Live2DPlayer {
   }
 
 
+  /**
+   * 更新功能开关并同步鼠标跟随。
+   */
   setFeatureFlags(flags: Live2DFeatureFlags): void {
+
     this.featureFlags = { ...flags };
     this.applyFeatureFlags();
     this.bindMouseFollow();
   }
 
+  /**
+   * 设置模型可见性。
+   */
   setVisible(visible: boolean): void {
+
     if (this.model) {
       this.model.visible = visible;
     }
   }
 
+  /**
+   * 设置全局动画缩放（由 WindowCore 控制）。
+   */
   setAnimationScale(scale: number): void {
+
     this.animationScale = scale;
     this.applyCurrentTransform();
   }
@@ -305,7 +360,11 @@ export class Live2DPlayer {
   // Debug 视角控制
   // =========================================================================
 
+  /**
+   * 进入/退出调试视角模式（缩放/偏移可调）。
+   */
   setDebugMode(enabled: boolean): void {
+
     this.debugMode = enabled;
     if (!enabled) {
       this.debugScale = 1;
@@ -357,7 +416,11 @@ export class Live2DPlayer {
     };
   }
 
+  /**
+   * 加载 Live2D 模型与资源映射，并应用基础缩放/叠加层。
+   */
   async load(modPath: string, config: Live2DConfig): Promise<void> {
+
     dbg("load", "modPath:", modPath, "model:", config.model.model_json);
     this.config = config;
     this.modPath = modPath;
@@ -421,7 +484,14 @@ export class Live2DPlayer {
       "renderer:", this.app?.renderer?.width, "x", this.app?.renderer?.height);
   }
 
+  /**
+   * 根据 anima 状态播放 Live2D 动作/表情，并处理 playOnce 完成回调。
+   *
+   * - 即使未命中状态映射，也会应用 live2d_params 以保证参数覆写生效
+   * - 表情必须在 startMotion 后应用，避免被 stopAllMotions 清空
+   */
   async playFromAnima(assetName: string, options: PlayOptions): Promise<boolean> {
+
     dbg("playFromAnima", "assetName:", assetName, "playOnce:", options.playOnce, "scale:", options.animationScale);
     if (!this.model || !this.config) {
       dbg("playFromAnima", "SKIP: model=", !!this.model, "config=", !!this.config);

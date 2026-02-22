@@ -173,6 +173,10 @@ export function onLangChange(callback: () => void): () => void {
  * t("settings.title")  // "用户设置"
  * t("resource.statusRefreshed", { count: 5 })  // "已刷新 Mod 列表，共 5 个"
  */
+/**
+ * 从字典中按点号路径读取嵌套值。
+ * 注意：该逻辑需要与后端 `modules/utils/i18n.rs` 保持一致，避免前后端翻译行为不一致。
+ */
 function getNestedValue(dict: Record<string, unknown>, key: string): unknown {
   if (!key) return undefined;
   const keys = key.split(".");
@@ -189,7 +193,21 @@ function getNestedValue(dict: Record<string, unknown>, key: string): unknown {
   return value;
 }
 
+
+
+
+/**
+ * 根据翻译键获取文本，并进行模板变量替换。
+ *
+ * - 当 key 不存在或不是字符串时，返回原始 key
+ * - 模板变量格式为 {param}
+ *
+ * @param key - 翻译键路径（支持点号分隔）
+ * @param params - 模板替换参数，如 { count: 3 }
+ * @returns 翻译后的文本（或原始 key）
+ */
 export function t(key: string, params?: Record<string, string | number>): string {
+
   const value = getNestedValue(_dict, key);
 
   if (typeof value !== "string") {

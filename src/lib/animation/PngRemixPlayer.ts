@@ -305,7 +305,15 @@ function drawImageFrame(ctx: CanvasRenderingContext2D, drawable: any, hframes: n
 // RuntimeNode / RuntimeScene
 // ============================================================================
 
+/**
+ * 运行时节点：对应一个 sprite 的渲染/动画状态。
+ *
+ * - runtime* 字段保存当前帧的动画结果
+ * - _follow/_move 为鼠标跟随/移动的中间态缓存
+ * - key/path/pathIds 用于可见性覆盖与调试定位
+ */
 class RuntimeNode {
+
   index: number;
   spriteId: any;
   parentId: any;
@@ -367,7 +375,15 @@ class RuntimeNode {
   }
 }
 
+/**
+ * 运行时场景：承载全局播放状态与节点索引。
+ *
+ * - nodes/roots 为渲染树结构
+ * - visibilityOverrides/hotkeyGroups 用于快捷键与可见性切换
+ * - tick/bounce/mouthState 等为动画全局参数
+ */
 class RuntimeScene {
+
   model: any;
   stateId = 0;
   enableClip = true;
@@ -653,7 +669,14 @@ function computeSceneBaseWorldPositions(scene: RuntimeScene) {
 // stepNodeRuntime — 单节点每帧更新
 // ============================================================================
 
+/**
+ * 单节点的每帧更新：推进帧动画、鼠标跟随、彩虹/摆动/移动等组合效果。
+ *
+ * 注意：该函数会同时更新 runtimeFrame 与跟随/移动的缓冲状态，
+ * 是 PngRemix 动画效果的核心路径。
+ */
 function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, enableMouseFollow: boolean, mouseWorld: Vec2, hasMouse: boolean) {
+
   const st = node.getState(scene.stateId); if (!st) return;
 
   const shouldDelta = scene.model?.settings?.should_delta !== false;
@@ -1010,7 +1033,13 @@ interface DrawItem {
   hf: number; vf: number; frame: number;
 }
 
+/**
+ * 构建可绘制列表：按树遍历计算可见性、颜色、变换与裁剪栈。
+ *
+ * 输出的 DrawItem 会在后续排序并逐项渲染。
+ */
 function buildDrawList(scene: RuntimeScene, rootSpriteMat: Mat2D): DrawItem[] {
+
   const items: DrawItem[] = [];
   for (const n of scene.nodes) n._visibleNow = false;
   const orderCounter = { v: 0 };
@@ -1251,11 +1280,17 @@ function fitViewToContent(scene: RuntimeScene, canvasW: number, canvasH: number)
 // PngRemixPlayer
 // ============================================================================
 
+/** PngRemix 功能开关（鼠标跟随等）。 */
 export type PngRemixFeatureFlags = {
   mouseFollow: boolean;
 };
 
+
+/**
+ * PngRemix 播放器：负责加载 .pngRemix 模型并驱动表达/动作/鼠标跟随。
+ */
 export class PngRemixPlayer {
+
   private canvas: HTMLCanvasElement;
   private config: PngRemixConfig | null = null;
   private modPath = "";
@@ -1322,7 +1357,11 @@ export class PngRemixPlayer {
 
   // ==== PUBLIC API ====
 
+  /**
+   * 初始化播放器并加载 PngRemix 模型资源。
+   */
   async init(modPath: string, config: PngRemixConfig): Promise<void> {
+
     this.modPath = modPath;
     this.config = config;
 
@@ -1370,7 +1409,11 @@ export class PngRemixPlayer {
 
   }
 
+  /**
+   * 释放渲染资源与监听器。
+   */
   destroy(): void {
+
     this.destroyed = true;
     this.stopPlayback();
     this.stopAutoBlink();
@@ -1400,12 +1443,16 @@ export class PngRemixPlayer {
    * Called by WindowCore when backend enters a new StateInfo.
    * assetName == StateInfo.anima. For pngremix, we map it via pngremixConfig.states.
    */
+  /**
+   * 由 WindowCore 触发的状态播放入口（StateInfo.anima）。
+   */
   playFromAnima(
     animaName: string,
     playOnce: boolean,
     onComplete: () => void,
     pngremixParams?: PngRemixParameterSetting[],
   ): boolean {
+
     if (!this.scene || !this.config) return false;
 
     // 1) Apply state mapping: StateInfo.anima -> PngRemixState (expression/motion/scale/offset)
@@ -1516,7 +1563,11 @@ export class PngRemixPlayer {
     this.scene._clickBounce.amp = features.click_bounce_amp || 50;
   }
 
+  /**
+   * 直接切换到指定表情状态。
+   */
   playExpression(name: string): void {
+
     if (!this.scene || !this.config) return;
     const expr = this.config.expressions.find((e) => e.name === name);
     if (!expr) { console.warn("[PngRemixPlayer] Expression not found:", name); return; }
@@ -1524,7 +1575,11 @@ export class PngRemixPlayer {
     materializeSceneState(this.scene, expr.state_index);
   }
 
+  /**
+   * 触发指定动作（可附带快捷键驱动）。
+   */
   playMotion(name: string): void {
+
     if (!this.scene || !this.config) return;
     const motion = this.config.motions.find((m) => m.name === name);
     if (!motion) { console.warn("[PngRemixPlayer] Motion not found:", name); return; }

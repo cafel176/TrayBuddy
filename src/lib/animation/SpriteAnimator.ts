@@ -41,12 +41,14 @@ import type { AssetInfo, AnimationConfig } from "../types/asset";
  */
 export type CanvasFitPreference = "long" | "short" | "legacy";
 
+/** Canvas 适配参数（容器与缩放比例）。 */
 export type CanvasFitOptions = {
   /** 默认取 canvas.parentElement */
   container?: HTMLElement | null;
   /** 适配容器的比例（默认 0.8，用于匹配旧的 character-canvas: height 80% 逻辑） */
   scale?: number;
 };
+
 
 // ============================================================================
 // 常量定义

@@ -172,10 +172,14 @@ pub struct DateTimeInfo {
 /// 完整的环境信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvironmentInfo {
+    /// 地理位置（可能不可用）
     pub location: Option<GeoLocation>,
+    /// 本地日期/时间信息
     pub datetime: DateTimeInfo,
+    /// 天气信息（可能不可用）
     pub weather: Option<WeatherInfo>,
 }
+
 
 // ========================================================================= //
 
@@ -203,7 +207,9 @@ pub struct EnvironmentManager {
 }
 
 impl EnvironmentManager {
+    /// 创建环境管理器（初始化天气缓存策略）。
     pub fn new() -> Self {
+
         Self {
             weather_cache_duration: WEATHER_CACHE_DURATION_SECS,
         }
@@ -627,9 +633,12 @@ pub fn get_current_season() -> Season {
 /// 环境信息更新事件数据
 #[derive(Debug, Clone, Serialize)]
 pub struct EnvironmentUpdateEvent {
+    /// 最新位置（可能为空）
     pub location: Option<GeoLocation>,
+    /// 最新天气（可能为空）
     pub weather: Option<WeatherInfo>,
 }
+
 
 /// 程序启动时初始化环境信息（在后台线程调用，避免阻塞启动）
 ///

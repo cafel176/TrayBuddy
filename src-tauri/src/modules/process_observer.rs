@@ -99,7 +99,14 @@ pub fn init_process_keywords_from_config() {
     );
 }
 
+/**
+ * 判断进程名是否命中关键字表。
+ *
+ * - 同时匹配原始名称 / 去空格 / 去 .exe 后缀
+ * - 返回命中的关键字（用于调试与事件上报）
+ */
 fn should_trigger_for_process_name(process_name: &str) -> Option<Box<str>> {
+
     let name_lower = process_name.to_lowercase();
     let name_no_space = name_lower.replace(' ', "");
 
@@ -134,10 +141,14 @@ fn should_trigger_for_process_name(process_name: &str) -> Option<Box<str>> {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessStartEvent {
+    /// 进程 ID
     pub pid: u32,
+    /// 进程名（可执行文件名）
     pub process_name: Box<str>,
+    /// 命中的关键字
     pub matched_keyword: Box<str>,
 }
+
 
 // ========================================================================= //
 // 调试信息（仿照 media_observer）
@@ -148,12 +159,18 @@ const TIME_FORMAT_SHORT: &str = "%H:%M:%S";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessNewProcessInfo {
+    /// 进程 ID
     pub pid: u32,
+    /// 父进程 ID
     pub parent_pid: u32,
+    /// 是否为子进程
     pub is_child: bool,
+    /// 进程名（可执行文件名）
     pub process_name: Box<str>,
+    /// 命中的关键字（若有）
     pub matched_keyword: Option<Box<str>>,
 }
+
 
 
 #[derive(Debug, Clone)]
@@ -208,7 +225,9 @@ fn update_cached_debug_info(info: ProcessDebugInfo) {
 // 观察器实现
 // ========================================================================= //
 
+/// 进程观察器：周期性轮询进程并根据关键字触发事件。
 pub struct ProcessObserver {
+
     event_tx: Option<mpsc::UnboundedSender<ProcessStartEvent>>,
     running: Arc<std::sync::atomic::AtomicBool>,
 }
@@ -220,17 +239,23 @@ impl Default for ProcessObserver {
 }
 
 impl ProcessObserver {
+    /// 创建新的进程观察器实例。
     pub fn new() -> Self {
+
         Self {
             event_tx: None,
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
+    /// 启动进程观察器，并返回事件接收端。
+    ///
+    /// 观察器会在后台轮询系统进程列表，仅当新进程命中关键字表时发出事件。
     pub fn start(
         &mut self,
         app_handle: tauri::AppHandle,
     ) -> mpsc::UnboundedReceiver<ProcessStartEvent> {
+
         let (tx, rx) = mpsc::unbounded_channel();
         self.event_tx = Some(tx.clone());
         self.running
@@ -256,11 +281,13 @@ impl ProcessObserver {
         rx
     }
 
+    /// 停止进程观察器并清理事件通道。
     pub fn stop(&mut self) {
         self.running
             .store(false, std::sync::atomic::Ordering::SeqCst);
         self.event_tx = None;
     }
+
 
     // ---------------------------------------------------------------------
 
@@ -377,7 +404,9 @@ impl ProcessObserver {
                 .unwrap_or(true);
 
             // 只触发“每个进程名”一次：优先非子进程；若只有子进程，则允许触发一次
+            // candidates: name_key → (pid, exe_name, matched_keyword, is_child)
             let mut candidates: HashMap<String, (u32, String, Box<str>, bool)> = HashMap::new();
+
 
 
             // 逐个处理新增进程
@@ -502,8 +531,11 @@ impl ProcessObserver {
         let mut out: Vec<ProcessInfo> = Vec::new();
 
 
+        // SAFETY: CreateToolhelp32Snapshot 返回的句柄在 CloseHandle 前有效；
+        // PROCESSENTRY32W 在进入枚举前设置 dwSize，符合 API 要求。
         unsafe {
             let snapshot: HANDLE = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+
                 Ok(h) => h,
                 Err(_) => return out,
             };

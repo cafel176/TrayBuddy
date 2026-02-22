@@ -73,13 +73,17 @@ fn update_cached_debug_info(info: SystemDebugInfo) {
 // ========================================================================= //
 
 #[cfg(target_os = "windows")]
+/// 系统观察器：监听前景窗口与窗口尺寸变化以判断全屏/繁忙状态。
 pub struct SystemObserver {
+
     running: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg(target_os = "windows")]
 impl SystemObserver {
+    /// 创建系统观察器实例。
     pub fn new() -> Self {
+
         Self {
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
@@ -98,10 +102,12 @@ impl SystemObserver {
         });
     }
 
+    /// 停止观察器（终止后台线程的运行标记）。
     pub fn stop(&self) {
         self.running
             .store(false, std::sync::atomic::Ordering::SeqCst);
     }
+
 
     // ========================================================================= //
 
@@ -179,8 +185,11 @@ impl SystemObserver {
         // 这里在主线程初始化阶段，使用 unwrap() 是安全的
         *GLOBAL_TX.lock().unwrap() = Some(tx);
 
+        // SAFETY: WinEvent Hook 需要有效的 C 回调指针；回调不跨线程访问 app_handle，
+        // 仅通过通道发送信号；hook 句柄在 UnhookWinEvent 前保持有效。
         unsafe {
             // 监听前景窗口切换
+
             let hook_foreground = SetWinEventHook(
                 EVENT_SYSTEM_FOREGROUND,
                 EVENT_SYSTEM_FOREGROUND,
@@ -361,7 +370,11 @@ impl SystemObserver {
     }
 
     /// 使用 SHQueryUserNotificationState 和 DWM 边界检测全屏/繁忙状态
+    ///
+    /// SAFETY: 该函数内部调用的 Win32 API 仅使用局部变量与系统句柄，
+    /// 不持久化指针或跨线程共享。
     unsafe fn is_fullscreen_busy() -> bool {
+
         use windows::Win32::Foundation::RECT;
         use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
         use windows::Win32::Graphics::Gdi::{

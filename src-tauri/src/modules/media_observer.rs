@@ -103,7 +103,9 @@ struct MediaObserverKeywordsConfig {
     music_keywords: Vec<String>,
 }
 
+/// 内置音乐应用关键字列表（配置未加载时使用）
 fn default_music_keywords() -> Vec<Box<str>> {
+
     vec![
         "music".into(),
         "音乐".into(),
@@ -119,7 +121,9 @@ lazy_static::lazy_static! {
     static ref MUSIC_KEYWORDS: RwLock<Vec<Box<str>>> = RwLock::new(default_music_keywords());
 }
 
+/// 从配置文件加载音乐应用关键字
 fn load_music_keywords_from_file(path: &Path) -> Option<Vec<Box<str>>> {
+
     if !path.exists() {
         return None;
     }
@@ -311,12 +315,16 @@ pub enum MediaPlaybackStatus {
 /// 媒体状态变更事件
 #[derive(Debug, Clone, Serialize)]
 pub struct MediaStateEvent {
+    /// 播放状态（播放/暂停/停止）
     pub status: MediaPlaybackStatus,
+    /// 当前曲目标题
     pub title: Option<Box<str>>,
+    /// 艺术家/作者
     pub artist: Option<Box<str>>,
     /// 播放应用的进程名/App ID
     pub app_id: Option<Box<str>>,
 }
+
 
 /// GSMTC 会话信息（调试用）
 #[derive(Debug, Clone, Serialize)]
@@ -936,8 +944,11 @@ impl MediaObserver {
 
         let mut sessions = Vec::new();
 
+        // SAFETY: COM 接口调用在当前线程完成；返回对象仅在本作用域内使用，
+        // 不跨线程共享，失败即返回空集合。
         unsafe {
             // 创建设备枚举器
+
             let enumerator: Result<IMMDeviceEnumerator, _> =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL);
             let enumerator = match enumerator {
@@ -1034,8 +1045,10 @@ impl MediaObserver {
         };
         use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 
+        // SAFETY: 仅在当前线程调用 COM 接口；返回的对象不跨线程共享。
         unsafe {
             // 创建设备枚举器
+
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
 
@@ -1112,8 +1125,10 @@ impl MediaObserver {
         use windows::Win32::Foundation::CloseHandle;
         use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
 
+        // SAFETY: `OpenProcess` 返回的句柄在 CloseHandle 前有效；缓冲区 `buffer` 可写且大小固定。
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+
 
             // 获取进程路径
             let mut buffer = [0u16; 260];
@@ -1340,7 +1355,9 @@ struct MediaObserverState {
 }
 
 impl MediaObserverState {
+    /// 初始化观察器内部状态。
     fn new() -> Self {
+
         Self {
             last_status: MediaPlaybackStatus::Unknown,
             last_app_id: None,
@@ -1349,13 +1366,17 @@ impl MediaObserverState {
         }
     }
 
+    /// 判断本次事件是否与上一次不同（用于去重）。
     fn has_changed(&self, event: &MediaStateEvent) -> bool {
+
         self.last_status != event.status
             || self.last_app_id != event.app_id
             || self.last_title != event.title
     }
 
+    /// 用最新事件刷新缓存状态，并标记是否曾经播放过。
     fn update(&mut self, event: &MediaStateEvent) {
+
         self.last_status = event.status.clone();
         self.last_app_id = event.app_id.clone();
         self.last_title = event.title.clone();
