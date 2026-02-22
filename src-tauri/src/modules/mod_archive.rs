@@ -1,18 +1,20 @@
 //! Mod 包抽象层
 //!
 //! 将 .tbuddy / .sbuddy 文件的读取操作抽象为 trait，
-//! .tbuddy 为普通 ZIP 格式，.sbuddy 为 AES-256-GCM 加密后的 ZIP。
+//! .tbuddy 为普通 ZIP 格式，.sbuddy 为外部工具处理的归档格式。
 //!
-//! .sbuddy 的加密/解密逻辑由外部独立二进制 `sbuddy-crypto` 提供。
-//! 编译时如果 `src-tauri/sbuddy-crypto.exe` 存在，会通过 `include_bytes!` 嵌入；
+//! .sbuddy 的处理逻辑由外部独立工具提供；
+//! 编译时如检测到外部工具，会通过 `include_bytes!` 嵌入；
 //! 运行时自动释放到临时目录使用。若未嵌入，则回退到外部文件查找。
 //!
 //! # 架构
+
 //!
 //! ```text
 //! ModArchiveReader (trait)        ← 抽象接口
 //!   ├── ZipArchiveReader          ← .tbuddy 实现（纯 ZIP）
-//!   └── SbuddyArchiveReader       ← .sbuddy 实现（外部工具解密后的 ZIP）
+//!   └── SbuddyArchiveReader       ← .sbuddy 实现（外部工具处理后的 ZIP）
+
 //!
 //! ModArchiveStore                 ← 管理内存中已加载的 archive
 //!   └── HashMap<mod_id, Box<dyn ModArchiveReader>>
@@ -47,7 +49,8 @@ pub struct ArchiveEntry {
 /// Mod 包读取器抽象接口
 ///
 /// 所有 .tbuddy 文件的读取操作都通过此 trait 进行。
-/// 未来更换压缩/加密格式时，只需实现新的 Reader 即可。
+/// 未来更换归档格式时，只需实现新的 Reader 即可。
+
 pub trait ModArchiveReader: Send + Sync {
     /// 读取指定路径的文件内容（路径相对于 mod 根目录）
     ///
@@ -325,15 +328,18 @@ impl ModArchiveReader for ZipArchiveReader {
 }
 
 // ========================================================================= //
-// 外部 sbuddy-crypto 二进制调用
+// 外部工具调用
+
 // ========================================================================= //
 
-/// 编译时嵌入的 sbuddy-crypto 可执行文件字节
-/// 仅当 build.rs 检测到 src-tauri/sbuddy-crypto.exe 时才编译此常量
+/// 编译时嵌入的外部工具可执行文件字节
+/// 仅当 build.rs 检测到外部工具时才编译此常量
+
 #[cfg(has_embedded_sbuddy_crypto)]
 static EMBEDDED_SBUDDY_CRYPTO: &[u8] = include_bytes!(env!("SBUDDY_CRYPTO_PATH"));
 
-/// 将嵌入的 sbuddy-crypto 释放到临时目录
+/// 将嵌入的外部工具释放到临时目录
+
 #[cfg(has_embedded_sbuddy_crypto)]
 fn extract_embedded_exe() -> Option<PathBuf> {
     let exe_name = if cfg!(windows) {
@@ -371,7 +377,8 @@ fn extract_embedded_exe() -> Option<PathBuf> {
     Some(target)
 }
 
-/// 查找 sbuddy-crypto 可执行文件路径
+/// 查找外部工具可执行文件路径
+
 ///
 /// 搜索顺序：
 /// 1. 嵌入式释放（编译时嵌入）
@@ -420,7 +427,8 @@ fn find_sbuddy_crypto() -> Option<PathBuf> {
     None
 }
 
-/// 检查 sbuddy-crypto 是否可用
+/// 检查外部工具是否可用
+
 pub fn is_sbuddy_supported() -> bool {
     let found = find_sbuddy_crypto();
     // 检查完毕后删除找到的 exe（不保留在磁盘上）
@@ -449,38 +457,45 @@ fn sbuddy_command(exe: &Path, arg: &str) -> std::process::Command {
     cmd
 }
 
-/// 执行 sbuddy-crypto 子进程，用完后立刻删除 exe
+/// 执行外部工具子进程，用完后立刻删除 exe
+
 ///
 /// - exe 可能来自嵌入式释放的临时文件
 /// - 每次运行后都会清理，避免长期驻留磁盘
 ///
-/// `arg`: "decrypt" 或 "encrypt"
+/// `arg`: 子命令
 /// `input`: 通过 stdin 传入的数据
+
 fn run_sbuddy_crypto(arg: &str, input: &[u8]) -> Result<Vec<u8>, String> {
 
     use std::io::Write;
 
     let exe_path = find_sbuddy_crypto()
-        .ok_or_else(|| "sbuddy-crypto not found (sbuddy not supported)".to_string())?;
+        .ok_or_else(|| "sbuddy tool not found (sbuddy not supported)".to_string())?;
+
 
     let result = (|| {
         let mut child = sbuddy_command(&exe_path, arg)
             .spawn()
-            .map_err(|e| format!("Failed to start sbuddy-crypto: {}", e))?;
+            .map_err(|e| format!("Failed to start sbuddy tool: {}", e))?;
+
 
         if let Some(mut stdin) = child.stdin.take() {
             stdin
                 .write_all(input)
-                .map_err(|e| format!("Failed to write to sbuddy-crypto stdin: {}", e))?;
+                .map_err(|e| format!("Failed to write to sbuddy tool stdin: {}", e))?;
+
         }
 
         let output = child
             .wait_with_output()
-            .map_err(|e| format!("Failed to wait for sbuddy-crypto: {}", e))?;
+            .map_err(|e| format!("Failed to wait for sbuddy tool: {}", e))?;
+
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("sbuddy-crypto {} failed: {}", arg, stderr.trim()));
+            return Err(format!("sbuddy tool {} failed: {}", arg, stderr.trim()));
+
         }
 
         Ok(output.stdout)
@@ -492,9 +507,10 @@ fn run_sbuddy_crypto(arg: &str, input: &[u8]) -> Result<Vec<u8>, String> {
     result
 }
 
-/// 使用外部 sbuddy-crypto 二进制解密 .sbuddy 文件内容
+/// 使用外部工具处理 .sbuddy 文件内容
 ///
-/// 通过 stdin 传入加密数据，从 stdout 读取解密后的 ZIP 数据
+/// 通过 stdin 传入数据，从 stdout 读取处理后的 ZIP 数据
+
 pub fn decrypt_sbuddy(data: &[u8]) -> Result<Vec<u8>, String> {
     // 快速验证魔数
     if data.len() < 8 || &data[..8] != SBUDDY_MAGIC {
@@ -504,32 +520,37 @@ pub fn decrypt_sbuddy(data: &[u8]) -> Result<Vec<u8>, String> {
     run_sbuddy_crypto("decrypt", data)
 }
 
-/// 使用外部 sbuddy-crypto 二进制加密 ZIP 数据为 .sbuddy 格式
+/// 使用外部工具将 ZIP 数据处理为 .sbuddy 格式
+
 pub fn encrypt_sbuddy(zip_data: &[u8]) -> Result<Vec<u8>, String> {
     run_sbuddy_crypto("encrypt", zip_data)
 }
 
 // ========================================================================= //
-// .sbuddy Reader（外部工具解密后复用 ZipArchiveReader）
+// .sbuddy Reader（外部工具处理后复用 ZipArchiveReader）
+
 // ========================================================================= //
 
-/// 基于外部 sbuddy-crypto 工具解密的 ModArchiveReader 实现
+/// 基于外部工具处理的 ModArchiveReader 实现
 ///
-/// .sbuddy 文件 = 加密的 ZIP 数据
-/// 通过外部二进制解密后委托给 ZipArchiveReader 处理。
+/// .sbuddy 文件 = 受工具处理的 ZIP 数据
+/// 通过外部工具处理后委托给 ZipArchiveReader 处理。
+
 pub struct SbuddyArchiveReader {
     inner: ZipArchiveReader,
 }
 
 impl SbuddyArchiveReader {
-    /// 从 .sbuddy 文件路径加载（解密 + 解析 ZIP）
+    /// 从 .sbuddy 文件路径加载（处理 + 解析 ZIP）
+
     pub fn from_file(path: &Path) -> Result<Self, String> {
         let data = std::fs::read(path)
             .map_err(|e| format!("Failed to read '{}': {}", path.display(), e))?;
         Self::from_bytes(data)
     }
 
-    /// 从内存字节加载（解密 + 解析 ZIP）
+    /// 从内存字节加载（处理 + 解析 ZIP）
+
     pub fn from_bytes(encrypted_data: Vec<u8>) -> Result<Self, String> {
         let zip_data = decrypt_sbuddy(&encrypted_data)?;
         let inner = ZipArchiveReader::from_bytes(zip_data)?;
@@ -620,7 +641,8 @@ impl ModArchiveStore {
     }
 
 
-    /// 加载 .sbuddy 文件到内存并注册（通过外部工具解密后按 ZIP 处理）
+    /// 加载 .sbuddy 文件到内存并注册（通过外部工具处理后按 ZIP 处理）
+
     ///
     /// 返回 (mod_id, manifest) 用于后续索引
     pub fn load_sbuddy(

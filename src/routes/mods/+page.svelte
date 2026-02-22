@@ -265,7 +265,8 @@
         } catch (e) {
             const errMsg = toErrorMessage(e);
             if (errMsg === "Canceled" || String(e).includes("Canceled")) return;
-            if (errMsg.includes("sbuddy-crypto not found") || errMsg.includes("sbuddy not supported")) {
+            if (errMsg.includes("sbuddy tool not found") || errMsg.includes("sbuddy not supported")) {
+
                 await message(
                     _("modWindow.sbuddyNotSupported"),
                     { title: _("common.appName"), kind: "error" }
@@ -340,7 +341,8 @@
 
     async function showImportError(e: unknown) {
         let errorMsg = toErrorMessage(e);
-        if (errorMsg.includes("sbuddy-crypto not found") || errorMsg.includes("sbuddy not supported")) {
+        if (errorMsg.includes("sbuddy tool not found") || errorMsg.includes("sbuddy not supported")) {
+
             errorMsg = _("modWindow.sbuddyNotSupported");
         } else if (errorMsg.includes("Invalid .tbuddy file")) {
             errorMsg = _("modWindow.unrecognizedFile");
@@ -423,7 +425,8 @@
                 return;
             }
 
-            // 如果选择了 .sbuddy 文件，先检查解密工具是否可用
+            // 如果选择了 .sbuddy 文件，先检查外部工具是否可用
+
             if (picked.filePath.toLowerCase().endsWith(".sbuddy")) {
                 const supported = await invoke("is_sbuddy_supported") as boolean;
                 if (!supported) {
@@ -453,8 +456,9 @@
             if (errMsg === "Canceled" || errStr.includes("Canceled")) {
                 return;
             }
-            if (errMsg.includes("sbuddy-crypto not found") || errMsg.includes("sbuddy not supported")
-                || errStr.includes("sbuddy-crypto not found") || errStr.includes("sbuddy not supported")) {
+            if (errMsg.includes("sbuddy tool not found") || errMsg.includes("sbuddy not supported")
+                || errStr.includes("sbuddy tool not found") || errStr.includes("sbuddy not supported")) {
+
                 await message(
                     _("modWindow.sbuddyNotSupported"),
                     { title: _("common.appName"), kind: "error" }

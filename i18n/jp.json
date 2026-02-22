@@ -728,7 +728,8 @@
     "importAndLoadSuccess": "インポートして再読み込みしました",
     "importFailed": "インポート失敗",
     "unrecognizedFile": "認識できないファイル (.tbuddy 形式ではありません)",
-    "sbuddyNotSupported": ".sbuddy ファイルを読み込めません：復号ツール (sbuddy-crypto) が見つかりません。プログラムディレクトリに sbuddy-crypto を配置してください",
+    "sbuddyNotSupported": ".sbuddy ファイルを読み込めません：必要なツールが見つかりません。プログラムディレクトリに配置してください",
+
     "loadListFailed": "Modリストの読み込みに失敗しました:",
     "loadDetailsFailed": "詳細の読み込みに失敗しました:",
 

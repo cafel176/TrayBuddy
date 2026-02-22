@@ -244,10 +244,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * 检测 sbuddy-crypto.exe 是否存在于同目录下。
+ * 检测外部工具是否存在于同目录下。
  * 如果可用，则显示导出 .sbuddy 按钮。
  */
 async function detectSbuddyCryptoAvailability() {
+
   try {
     const resp = await fetch('./sbuddy-crypto.exe', { method: 'HEAD' });
     if (resp.ok) {
@@ -255,8 +256,9 @@ async function detectSbuddyCryptoAvailability() {
       if (btn) btn.style.display = '';
     }
   } catch (_) {
-    // sbuddy-crypto.exe 不可用，保持按钮隐藏
+    // 外部工具不可用，保持按钮隐藏
   }
+
 }
 
 /**
@@ -2058,14 +2060,15 @@ async function exportMod() {
 }
 
 /**
- * 导出 Mod 为 .sbuddy（加密包）
+ * 导出 Mod 为 .sbuddy 包
  *
- * 由于加密逻辑已移至独立的 sbuddy-crypto 外部工具，
+ * 由于处理逻辑已移至独立的外部工具，
  * mod-tool（浏览器环境）无法直接调用二进制程序。
  *
  * 流程：先导出为 .tbuddy，然后用同目录下的 to-sbuddy 脚本将其转换为 .sbuddy。
  */
 async function exportModSbuddy() {
+
   if (!currentMod) return;
 
   collectManifestData();
@@ -2165,13 +2168,15 @@ async function exportModSbuddy() {
     await writable.write(zipBlob);
     await writable.close();
 
-    // 提示用户使用 sbuddy-crypto 工具转换
+    // 提示用户使用外部工具转换
+
     showToast(
       window.i18n.t('msg_export_sbuddy_tbuddy_saved') ||
-      '已保存为 .tbuddy，请使用 to-sbuddy 脚本或 sbuddy-crypto encrypt 命令将其转换为 .sbuddy',
+      '已保存为 .tbuddy，请使用外部工具将其转换为 .sbuddy',
       'info',
       8000
     );
+
 
   } catch (e) {
     if (e.name !== 'AbortError') {

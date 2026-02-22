@@ -49,41 +49,8 @@ pub const DEFAULT_END_OF_YEAR: u32 = 1231;
 // 辅助函数
 // ========================================================================= //
 
-/// 默认名称（用于反序列化失败时）
-#[inline]
-fn default_name() -> Box<str> {
-    "ERROR".into()
-}
 
-#[inline]
-fn default_trigger_counter_start() -> i32 {
-    i32::MIN
-}
 
-#[inline]
-fn default_trigger_counter_end() -> i32 {
-    i32::MAX
-}
-
-#[inline]
-fn default_trigger_temp_start() -> i32 {
-    i32::MIN
-}
-
-#[inline]
-fn default_trigger_temp_end() -> i32 {
-    i32::MAX
-}
-
-#[inline]
-fn default_trigger_uptime() -> i32 {
-    0
-}
-
-#[inline]
-fn default_live2d_param_target() -> Box<str> {
-    "Parameter".into()
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -174,10 +141,12 @@ pub struct AssetInfo {
     pub offset_y: i32,
 }
 
+
+
 impl Default for AssetInfo {
     fn default() -> Self {
         Self {
-            name: default_name(),
+            name: "ERROR".into(),
             img: "".into(),
             sequence: false,
             origin_reverse: false,
@@ -192,6 +161,7 @@ impl Default for AssetInfo {
         }
     }
 }
+
 
 // ========================================================================= //
 // Live2D 资产定义
@@ -217,10 +187,12 @@ pub struct Live2DModelConfig {
     pub lip_sync: bool,
 }
 
+
+
 impl Default for Live2DModelConfig {
     fn default() -> Self {
         Self {
-            name: default_name(),
+            name: "ERROR".into(),
             base_dir: "".into(),
             model_json: "".into(),
             textures_dir: "".into(),
@@ -236,6 +208,7 @@ impl Default for Live2DModelConfig {
     }
 }
 
+
 /// Live2D 动作配置（对应 motions 列表）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -250,10 +223,12 @@ pub struct Live2DMotion {
     pub r#loop: bool,
 }
 
+
+
 impl Default for Live2DMotion {
     fn default() -> Self {
         Self {
-            name: default_name(),
+            name: "ERROR".into(),
             file: "".into(),
             group: "".into(),
             priority: "".into(),
@@ -264,6 +239,7 @@ impl Default for Live2DMotion {
     }
 }
 
+
 /// Live2D 表情配置（对应 expressions 列表）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -273,14 +249,17 @@ pub struct Live2DExpression {
     pub file: Box<str>,
 }
 
+
+
 impl Default for Live2DExpression {
     fn default() -> Self {
         Self {
-            name: default_name(),
+            name: "ERROR".into(),
             file: "".into(),
         }
     }
 }
+
 
 /// Live2D 状态映射（state → motion/expression/偏移）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -295,10 +274,12 @@ pub struct Live2DState {
     pub offset_y: i32,
 }
 
+
+
 impl Default for Live2DState {
     fn default() -> Self {
         Self {
-            state: default_name(),
+            state: "ERROR".into(),
             motion: "".into(),
             expression: "".into(),
             scale: 1.0,
@@ -307,6 +288,7 @@ impl Default for Live2DState {
         }
     }
 }
+
 
 /// 将 JSON 中的单个字符串或字符串数组统一反序列化为 `Vec<String>`。
 ///
@@ -798,11 +780,12 @@ pub struct AudioInfo {
 impl Default for AudioInfo {
     fn default() -> Self {
         Self {
-            name: default_name(),
+            name: "ERROR".into(),
             audio: "".into(),
         }
     }
 }
+
 
 // ========================================================================= //
 // 文本定义
@@ -823,12 +806,13 @@ pub struct TextInfo {
 impl Default for TextInfo {
     fn default() -> Self {
         Self {
-            name: default_name(),
+            name: "ERROR".into(),
             text: "".into(),
             duration: 3.0,
         }
     }
 }
+
 
 /// 角色多语言基础信息
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -847,13 +831,14 @@ pub struct CharacterInfo {
 impl Default for CharacterInfo {
     fn default() -> Self {
         Self {
-            id: default_name(),
-            lang: default_name(),
+            id: "ERROR".into(),
+            lang: "ERROR".into(),
             name: "Default".into(),
             description: "".into(),
         }
     }
 }
+
 
 // ========================================================================= //
 // 状态定义
@@ -1088,7 +1073,7 @@ pub struct StateInfo {
 impl Default for StateInfo {
     fn default() -> Self {
         Self {
-            name: default_name(),
+            name: "ERROR".into(),
             persistent: false,
             anima: "".into(),
             audio: "".into(),
@@ -1116,6 +1101,7 @@ impl Default for StateInfo {
         }
     }
 }
+
 
 impl StateInfo {
     /// 检查当前时间是否在允许的时间范围内
@@ -2001,13 +1987,14 @@ impl ResourceManager {
                         continue;
                     }
 
-                    // .sbuddy 需要外部加密工具支持
+                    // .sbuddy 需要外部工具支持
                     if is_sbuddy && !super::mod_archive::is_sbuddy_supported() {
                         #[cfg(debug_assertions)]
                         println!(
-                            "[ResourceManager] Skipping .sbuddy '{}' (sbuddy-crypto not found)",
+                            "[ResourceManager] Skipping .sbuddy '{}' (sbuddy tool not found)",
                             entry_path.display()
                         );
+
                         continue;
                     }
 

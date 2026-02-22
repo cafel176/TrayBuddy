@@ -2161,16 +2161,18 @@ fn copy_archive_to_mods_dir(app: &tauri::AppHandle, src_path: &std::path::Path) 
 
     // 2) 读取 manifest.id（纯内存操作）
     let manifest_id = if ext == "sbuddy" {
-        // 先检查解密工具是否可用
+        // 先检查外部工具是否可用
         if !modules::mod_archive::is_sbuddy_supported() {
-            return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+            return Err("sbuddy tool not found (sbuddy not supported)".into());
         }
-        // .sbuddy: 先解密再按 ZIP 读取 manifest
+        // .sbuddy: 先处理再读取 manifest
+
         let data = fs::read(src_path).map_err(|e| e.to_string())?;
         let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
         let cursor = std::io::Cursor::new(&zip_data);
         let mut archive = zip::ZipArchive::new(cursor)
-            .map_err(|_| "Invalid .sbuddy file (decrypted data is not valid zip)".to_string())?;
+            .map_err(|_| "Invalid .sbuddy file (processed data is not valid zip)".to_string())?;
+
         let root_folder = get_zip_root_folder(&mut archive)?;
         let manifest = read_zip_manifest(&mut archive, &root_folder)?;
         manifest.id.to_string()
@@ -2205,7 +2207,8 @@ fn copy_archive_to_mods_dir(app: &tauri::AppHandle, src_path: &std::path::Path) 
             .map_err(|e| format!("Failed to remove existing file '{}': {}", target_name, e))?;
     }
 
-    // 6) 复制文件（不解压/不解密）
+    // 6) 复制文件（不解压/不处理）
+
     fs::copy(src_path, &target_path)
         .map_err(|e| format!("Failed to copy .{} file: {}", ext, e))?;
 
@@ -2219,7 +2222,8 @@ fn copy_archive_to_mods_dir(app: &tauri::AppHandle, src_path: &std::path::Path) 
     })
 }
 
-/// 从 ZipArchive (Cursor<&Vec<u8>>) 中获取根目录名（用于解密后的 .sbuddy）
+/// 从 ZipArchive (Cursor<&Vec<u8>>) 中获取根目录名（用于处理后的 .sbuddy）
+
 fn get_zip_root_folder<R: std::io::Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>) -> Result<String, String> {
     use std::path::Component;
 
@@ -2251,7 +2255,8 @@ fn get_zip_root_folder<R: std::io::Read + std::io::Seek>(archive: &mut zip::ZipA
     root.ok_or_else(|| "Invalid archive (missing root folder)".into())
 }
 
-/// 从 ZipArchive (Cursor<&Vec<u8>>) 中读取 manifest.json（用于解密后的 .sbuddy）
+/// 从 ZipArchive (Cursor<&Vec<u8>>) 中读取 manifest.json（用于处理后的 .sbuddy）
+
 fn read_zip_manifest<R: std::io::Read + std::io::Seek>(
     archive: &mut zip::ZipArchive<R>,
     root_folder: &str,
@@ -2298,9 +2303,10 @@ fn inspect_mod_tbuddy(file_path: String) -> Result<ModTbuddyPreflight, String> {
 
     if ext == "sbuddy" {
         if !modules::mod_archive::is_sbuddy_supported() {
-            return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+            return Err("sbuddy tool not found (sbuddy not supported)".into());
         }
         let data = fs::read(&p).map_err(|e| e.to_string())?;
+
         let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
         let cursor = std::io::Cursor::new(&zip_data);
         let mut archive = zip::ZipArchive::new(cursor)
@@ -2369,11 +2375,12 @@ async fn pick_mod_tbuddy(app: tauri::AppHandle) -> Result<ModTbuddyPick, String>
             .unwrap_or_default();
 
         if ext == "sbuddy" {
-            // 先检查解密工具是否可用
+            // 先检查外部工具是否可用
             let supported = modules::mod_archive::is_sbuddy_supported();
             if !supported {
-                return Err("sbuddy-crypto not found (sbuddy not supported)".into());
+                return Err("sbuddy tool not found (sbuddy not supported)".into());
             }
+
             let data = std::fs::read(&selected_path_clone).map_err(|e| e.to_string())?;
             let zip_data = modules::mod_archive::decrypt_sbuddy(&data)?;
             let cursor = std::io::Cursor::new(&zip_data);
@@ -2518,20 +2525,22 @@ async fn import_mod(app: tauri::AppHandle, state: State<'_, AppState>) -> Result
 
 
 
-/// 检查 sbuddy-crypto 外部工具是否可用
+/// 检查外部工具是否可用
+
 #[tauri::command]
 fn is_sbuddy_supported() -> bool {
     modules::mod_archive::is_sbuddy_supported()
 }
 
-/// 将 Mod 导出为 .sbuddy（加密）
+/// 将 Mod 导出为 .sbuddy 包
 ///
 /// 支持 .tbuddy 包、.sbuddy 包和文件夹 mod。
-/// - .tbuddy：读取 ZIP 数据 → 加密 → 导出
+/// - .tbuddy：读取 ZIP 数据 → 处理 → 导出
 /// - .sbuddy：直接复制源文件 → 导出
-/// - 文件夹 mod：打包为 ZIP → 加密 → 导出
+/// - 文件夹 mod：打包为 ZIP → 处理 → 导出
 ///
 /// 弹出保存文件对话框，用户选择保存路径后写入。
+
 #[tauri::command]
 async fn export_mod_as_sbuddy(
     app: tauri::AppHandle,
@@ -2539,7 +2548,8 @@ async fn export_mod_as_sbuddy(
 ) -> Result<(), String> {
     use tauri_plugin_dialog::DialogExt;
 
-    // 1) 后台生成加密数据（避免阻塞命令线程）
+    // 1) 后台生成处理数据（避免阻塞命令线程）
+
     let app_for_build = app.clone();
     let mod_id_for_build = mod_id.clone();
     let sbuddy_data = tokio::task::spawn_blocking(move || {
@@ -2563,7 +2573,7 @@ async fn export_mod_as_sbuddy(
                 std::fs::read(src_path)
                     .map_err(|e| format!("Failed to read .sbuddy file: {}", e))?
             } else if ext == "tbuddy" {
-                // .tbuddy 源：读取 ZIP → 加密
+                // .tbuddy 源：读取 ZIP → 处理
                 let zip_data = std::fs::read(src_path)
                     .map_err(|e| format!("Failed to read .tbuddy file: {}", e))?;
                 modules::mod_archive::encrypt_sbuddy(&zip_data)?
@@ -2573,10 +2583,11 @@ async fn export_mod_as_sbuddy(
                 modules::mod_archive::encrypt_sbuddy(&zip_data)?
             }
         } else {
-            // 文件夹 mod：打包为 ZIP → 加密
+            // 文件夹 mod：打包为 ZIP → 处理
             let zip_data = zip_mod_directory(&state, &mod_id_for_build)?;
             modules::mod_archive::encrypt_sbuddy(&zip_data)?
         };
+
 
         Ok::<Vec<u8>, String>(sbuddy_data)
     })

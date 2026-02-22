@@ -726,7 +726,8 @@
     "importAndLoadSuccess": "导入并重新加载成功",
     "importFailed": "导入失败",
     "unrecognizedFile": "无法识别的文件 (不是有效的 .tbuddy 压缩包)",
-    "sbuddyNotSupported": "无法加载 .sbuddy 文件：未找到解密工具 (sbuddy-crypto)，请将 sbuddy-crypto 放置在程序目录下",
+    "sbuddyNotSupported": "无法加载 .sbuddy 文件：外部工具不可用，请将所需工具放置在程序目录下",
+
     "loadListFailed": "加载 Mod 列表失败:",
     "loadDetailsFailed": "加载详情失败:",
 

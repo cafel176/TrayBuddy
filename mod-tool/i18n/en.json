@@ -331,10 +331,13 @@
   "msg_save_failed": "Save failed: {error}",
   "msg_load_failed": "Load failed: {error}",
   "msg_exporting": "Preparing export...",
-  "msg_exporting_sbuddy": "Exporting (for encryption)...",
+  "msg_exporting_sbuddy": "Exporting (.sbuddy)...",
+
   "msg_export_success": "Export successful!",
-  "msg_export_sbuddy_success": "Encrypted export successful!",
-  "msg_export_sbuddy_tbuddy_saved": "Saved as .tbuddy. Please use the to-sbuddy script or sbuddy-crypto encrypt command to convert it to .sbuddy",
+  "msg_export_sbuddy_success": "Export successful (.sbuddy)!",
+
+  "msg_export_sbuddy_tbuddy_saved": "Saved as .tbuddy. Please use an external tool to convert it to .sbuddy",
+
   "msg_export_failed": "Export failed: {error}",
   "msg_confirm_delete_state": "Are you sure you want to delete this state?",
   "msg_state_saved": "State saved",

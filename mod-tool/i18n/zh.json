@@ -14,7 +14,8 @@
   "export": "导出",
   "to_folder": "到文件夹",
   "to_tbuddy": "到 .tbuddy",
-  "to_sbuddy": "到 .sbuddy (加密)",
+  "to_sbuddy": "到 .sbuddy",
+
   "tab_manifest": "基础信息",
   "tab_states_triggers": "状态和触发",
   "tab_texts": "多语言文本",
@@ -331,10 +332,13 @@
   "msg_save_failed": "保存失败: {error}",
   "msg_load_failed": "加载失败: {error}",
   "msg_exporting": "正在准备导出...",
-  "msg_exporting_sbuddy": "正在导出（用于加密）...",
+  "msg_exporting_sbuddy": "正在导出（.sbuddy）...",
+
   "msg_export_success": "导出成功！",
-  "msg_export_sbuddy_success": "加密导出成功！",
-  "msg_export_sbuddy_tbuddy_saved": "已保存为 .tbuddy，请使用 to-sbuddy 脚本或 sbuddy-crypto encrypt 命令将其转换为 .sbuddy",
+  "msg_export_sbuddy_success": "导出成功（.sbuddy）！",
+
+  "msg_export_sbuddy_tbuddy_saved": "已保存为 .tbuddy，请使用外部工具将其转换为 .sbuddy",
+
   "msg_export_failed": "导出失败: {error}",
   "msg_confirm_delete_state": "确定要删除这个状态吗？",
   "msg_state_saved": "状态已保存",

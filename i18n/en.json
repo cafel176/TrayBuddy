@@ -728,7 +728,8 @@
     "importAndLoadSuccess": "Import and reload success",
     "importFailed": "Import failed",
     "unrecognizedFile": "Unrecognized file (not a valid .tbuddy archive)",
-    "sbuddyNotSupported": "Cannot load .sbuddy file: decryption tool (sbuddy-crypto) not found. Please place sbuddy-crypto in the program directory",
+    "sbuddyNotSupported": "Cannot load .sbuddy file: required tool not found. Please place the tool in the program directory",
+
     "loadListFailed": "Failed to load mod list:",
     "loadDetailsFailed": "Failed to load details:",
 

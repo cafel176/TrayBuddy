@@ -1,6 +1,7 @@
 fn main() {
-    // 检查 sbuddy-crypto 可执行文件是否存在于 src-tauri 目录
+    // 检查外部工具可执行文件是否存在于 src-tauri 目录
     // 存在则通过 include_bytes! 嵌入到最终二进制中
+
     let exe_name = if cfg!(windows) {
         "sbuddy-crypto.exe"
     } else {
