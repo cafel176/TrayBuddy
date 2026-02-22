@@ -49,10 +49,14 @@ pub const DEFAULT_END_OF_YEAR: u32 = 1231;
 // 辅助函数
 // ========================================================================= //
 
-
-
+/// 默认名称（用于反序列化失败时）
+#[inline]
+fn default_error_name() -> Box<str> {
+    "ERROR".into()
+}
 
 #[derive(Debug, Deserialize)]
+
 #[serde(untagged)]
 enum TriggerWeatherDe {
     /// 旧版：单个字符串（例如 "Sunny" 或 "100"）
@@ -97,12 +101,6 @@ where
     Ok(out)
 }
 
-
-
-
-
-
-
 // ========================================================================= //
 // 资产定义
 // ========================================================================= //
@@ -141,13 +139,12 @@ pub struct AssetInfo {
     pub offset_y: i32,
 }
 
-
-
 impl Default for AssetInfo {
     fn default() -> Self {
         Self {
-            name: "ERROR".into(),
+            name: default_error_name(),
             img: "".into(),
+
             sequence: false,
             origin_reverse: false,
             need_reverse: false,
@@ -187,13 +184,12 @@ pub struct Live2DModelConfig {
     pub lip_sync: bool,
 }
 
-
-
 impl Default for Live2DModelConfig {
     fn default() -> Self {
         Self {
-            name: "ERROR".into(),
+            name: default_error_name(),
             base_dir: "".into(),
+
             model_json: "".into(),
             textures_dir: "".into(),
             motions_dir: "".into(),
@@ -207,7 +203,6 @@ impl Default for Live2DModelConfig {
         }
     }
 }
-
 
 /// Live2D 动作配置（对应 motions 列表）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -223,13 +218,12 @@ pub struct Live2DMotion {
     pub r#loop: bool,
 }
 
-
-
 impl Default for Live2DMotion {
     fn default() -> Self {
         Self {
-            name: "ERROR".into(),
+            name: default_error_name(),
             file: "".into(),
+
             group: "".into(),
             priority: "".into(),
             fade_in_ms: 0,
@@ -238,7 +232,6 @@ impl Default for Live2DMotion {
         }
     }
 }
-
 
 /// Live2D 表情配置（对应 expressions 列表）。
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -254,8 +247,9 @@ pub struct Live2DExpression {
 impl Default for Live2DExpression {
     fn default() -> Self {
         Self {
-            name: "ERROR".into(),
+            name: default_error_name(),
             file: "".into(),
+
         }
     }
 }
@@ -279,8 +273,9 @@ pub struct Live2DState {
 impl Default for Live2DState {
     fn default() -> Self {
         Self {
-            state: "ERROR".into(),
+            state: default_error_name(),
             motion: "".into(),
+
             expression: "".into(),
             scale: 1.0,
             offset_x: 0,
@@ -780,8 +775,9 @@ pub struct AudioInfo {
 impl Default for AudioInfo {
     fn default() -> Self {
         Self {
-            name: "ERROR".into(),
+            name: default_error_name(),
             audio: "".into(),
+
         }
     }
 }
@@ -806,8 +802,9 @@ pub struct TextInfo {
 impl Default for TextInfo {
     fn default() -> Self {
         Self {
-            name: "ERROR".into(),
+            name: default_error_name(),
             text: "".into(),
+
             duration: 3.0,
         }
     }
@@ -831,9 +828,10 @@ pub struct CharacterInfo {
 impl Default for CharacterInfo {
     fn default() -> Self {
         Self {
-            id: "ERROR".into(),
-            lang: "ERROR".into(),
+            id: default_error_name(),
+            lang: default_error_name(),
             name: "Default".into(),
+
             description: "".into(),
         }
     }
@@ -892,8 +890,8 @@ pub struct Live2DParameterSetting {
     /// 目标值
     pub value: f64,
     /// 目标类型："Parameter"（默认）设置参数值，"PartOpacity" 设置部件透明度
-    #[serde(default = "default_live2d_param_target")]
     pub target: Box<str>,
+
 }
 
 impl Default for Live2DParameterSetting {
@@ -911,20 +909,25 @@ impl Default for Live2DParameterSetting {
 /// - `state`: 子状态名
 /// - `weight`: 正整数权重，用于加权随机（概率 = weight / sum(weight)）
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct CanTriggerState {
     /// 子状态名（兼容旧字段名 `name`）
     #[serde(alias = "name")]
     pub state: Box<str>,
 
     /// 正整数权重（缺省为 1）
-    #[serde(default = "default_can_trigger_weight")]
     pub weight: u32,
 }
 
-#[inline]
-fn default_can_trigger_weight() -> u32 {
-    1
+impl Default for CanTriggerState {
+    fn default() -> Self {
+        Self {
+            state: "".into(),
+            weight: 1,
+        }
+    }
 }
+
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -1006,8 +1009,9 @@ pub struct StateInfo {
     
     /// 概率分支：播放完成后可随机触发的子状态列表。
     /// 系统会根据 `CanTriggerState` 中定义的权重执行加权随机选择。
-    #[serde(default, deserialize_with = "deserialize_can_trigger_states")]
+    #[serde(deserialize_with = "deserialize_can_trigger_states")]
     pub can_trigger_states: Vec<CanTriggerState>,
+
     
     /// 自动触发间隔（秒）：
     /// 当角色处于此状态时，每隔多少秒执行一次随机分支触发。
@@ -1017,29 +1021,25 @@ pub struct StateInfo {
 
     /// 触发计数范围起点（包含）
     /// 当当前 ModData.value 落在 [start, end] 范围内时，该状态才允许触发
-    #[serde(default = "default_trigger_counter_start")]
     pub trigger_counter_start: i32,
 
     /// 触发计数范围终点（包含）
     /// 当当前 ModData.value 落在 [start, end] 范围内时，该状态才允许触发
-    #[serde(default = "default_trigger_counter_end")]
     pub trigger_counter_end: i32,
 
     /// 气温触发范围起点（包含，单位：摄氏度）
     /// 当当前 environment.temperature 落在 [start, end] 范围内时，该状态才允许触发
-    #[serde(default = "default_trigger_temp_start")]
     pub trigger_temp_start: i32,
 
     /// 气温触发范围终点（包含，单位：摄氏度）
     /// 当当前 environment.temperature 落在 [start, end] 范围内时，该状态才允许触发
-    #[serde(default = "default_trigger_temp_end")]
     pub trigger_temp_end: i32,
 
     /// 启动时长触发门槛（分钟）
     /// 当“本次程序启动已运行分钟数” >= trigger_uptime 时，该状态才允许触发。
     /// - 0 表示不限制
-    #[serde(default = "default_trigger_uptime")]
     pub trigger_uptime: i32,
+
 
     /// 天气触发条件（精确匹配，数组任意匹配）
     /// - 空数组表示不限制
@@ -1047,8 +1047,9 @@ pub struct StateInfo {
     /// - 否则：与 environment.condition（中文/英文描述）比较
     ///
     /// 兼容旧格式：允许将 trigger_weather 写成字符串
-    #[serde(default, deserialize_with = "deserialize_trigger_weather")]
+    #[serde(deserialize_with = "deserialize_trigger_weather")]
     pub trigger_weather: Vec<Box<str>>,
+
 
 
 
@@ -1073,8 +1074,9 @@ pub struct StateInfo {
 impl Default for StateInfo {
     fn default() -> Self {
         Self {
-            name: "ERROR".into(),
+            name: default_error_name(),
             persistent: false,
+
             anima: "".into(),
             audio: "".into(),
             text: "".into(),
@@ -1215,8 +1217,9 @@ pub struct TriggerStateGroup {
     /// 持久状态名称，为空字符串时表示任意持久状态都可触发
     pub persistent_state: Box<str>,
     /// 可触发的状态列表（加权随机）
-    #[serde(default, deserialize_with = "deserialize_can_trigger_states")]
+    #[serde(deserialize_with = "deserialize_can_trigger_states")]
     pub states: Vec<CanTriggerState>,
+
     /// 是否允许连续多次触发相同或相近的状态（默认 true）
     /// 
     /// - `true`：允许重复触发同一状态
@@ -1395,8 +1398,9 @@ pub struct ModManifest {
 impl Default for ModManifest {
     fn default() -> Self {
         Self {
-            id: default_name(),
+            id: default_error_name(),
             version: "".into(),
+
             author: "".into(),
             mod_type: ModType::Sequence,
             default_audio_lang_id: "".into(),
@@ -1413,6 +1417,7 @@ impl Default for ModManifest {
         }
     }
 }
+
 
 impl ModManifest {
     /// 根据名称查找状态

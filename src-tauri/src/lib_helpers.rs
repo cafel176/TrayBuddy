@@ -1,0 +1,2362 @@
+//! lib.rs 中拆出的非命令辅助函数
+
+#![allow(unused)]
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+use crate::modules::constants::{
+    ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
+    BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
+    MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
+    STATE_MUSIC_START,     STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
+    WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_MAIN,
+    WINDOW_LABEL_MEMO, WINDOW_LABEL_MODS, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_REMINDER, WINDOW_LABEL_REMINDER_ALERT,
+    WINDOW_LABEL_SETTINGS, WINDOW_LABEL_THREED, EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START, EVENT_WORK,
+    WORK_EVENT_COOLDOWN_SECS
+};
+
+
+use crate::modules::event_manager::{emit, emit_from_tauri_window, emit_from_window, emit_settings, events};
+use crate::modules::environment::{
+    get_cached_location, get_cached_weather, get_current_datetime, get_current_season,
+    get_time_period, init_environment, DateTimeInfo, EnvironmentManager, GeoLocation, WeatherInfo,
+};
+use crate::modules::media_observer::{
+    get_cached_debug_info, MediaDebugInfo, MediaObserver, MediaPlaybackStatus,
+};
+use crate::modules::process_observer::{
+    get_cached_process_debug_info, ProcessDebugInfo, ProcessObserver, ProcessStartEvent,
+};
+use crate::modules::resource::{
+    self, AssetInfo, AudioInfo, CharacterInfo, ModInfo, ModType, ResourceManager, StateInfo,
+    TextInfo, TriggerInfo,
+};
+
+use crate::modules::state::StateManager;
+use crate::modules::storage::{
+    MemoItem, ModData, ReminderItem, ReminderSchedule, Storage, UserInfo, UserSettings,
+};
+use crate::modules::system_observer::{SystemDebugInfo, SystemObserver};
+use crate::modules::trigger::TriggerManager;
+use crate::modules::utils::i18n::get_i18n_text as get_i18n_text_cached;
+use crate::app_state::*;
+use crate::commands::*;
+use std::sync::{Arc, Mutex, OnceLock};
+
+
+
+
+use std::sync::atomic::{AtomicBool, Ordering};
+
+
+use tauri::{
+    image::Image,
+    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+    Emitter, Listener, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder,
+};
+use tauri_plugin_autostart::ManagerExt;
+
+// ========================================================================= //
+// 全局输入状态（Windows）
+// ========================================================================= //
+
+#[cfg(target_os = "windows")]
+static GLOBAL_INPUT_HOOK_STARTED: AtomicBool = AtomicBool::new(false);
+
+#[cfg(target_os = "windows")]
+static GLOBAL_INPUT_CONTEXT: OnceLock<GlobalInputContext> = OnceLock::new();
+#[cfg(target_os = "windows")]
+static GLOBAL_KEY_STATES: OnceLock<Mutex<[bool; 256]>> = OnceLock::new();
+#[cfg(target_os = "windows")]
+static GLOBAL_MOUSE_STATES: OnceLock<Mutex<[bool; 2]>> = OnceLock::new();
+#[cfg(target_os = "windows")]
+static GLOBAL_KEYBOARD_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
+#[cfg(target_os = "windows")]
+static GLOBAL_MOUSE_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
+
+
+
+
+/// 内部函数：创建动画窗口
+pub(crate) fn inner_create_animation_window(app: &tauri::AppHandle) -> Result<(), String> {
+
+
+    let state: State<'_, AppState> = app.state();
+
+    // 1. 获取缩放和位置设置
+    let (scale, saved_position, is_silence, streamer_mode) = {
+        let storage = state.storage.lock().unwrap();
+        (
+            storage.data.settings.animation_scale as f64,
+            (
+                storage.data.info.animation_window_x,
+                storage.data.info.animation_window_y,
+            ),
+            storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
+        )
+    };
+
+
+    // 2. 计算窗口尺寸
+    let bubble_area_height = BUBBLE_AREA_HEIGHT;
+    let bubble_area_width = BUBBLE_AREA_WIDTH;
+    let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+    let window_width = bubble_area_width.max(animation_area_width);
+    let window_height = bubble_area_height + animation_area_height;
+
+    // 3. 构建并创建窗口
+    // 检查是否已存在同名窗口，如果存在则直接返回（防抖或异常处理）
+    if let Some(existing) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
+        return Ok(());
+    }
+
+    let animation_window =
+        WebviewWindowBuilder::new(app, WINDOW_LABEL_ANIMATION, WebviewUrl::App(WINDOW_LABEL_ANIMATION.into()))
+
+            .title(get_i18n_text(app, "common.animationTitle"))
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(!streamer_mode)
+            .build()
+
+            .map_err(|e| e.to_string())?;
+
+    // 为动画窗口应用当前 Mod 的图标（用于 Alt-Tab / 任务管理器等显示）
+    apply_window_icon(app, &animation_window);
+
+
+    // 性能优化：动画窗口拦截关闭事件，改为隐藏，以保持后台渲染进程常驻
+    // 其他工具窗口则遵循“关闭即销毁”策略以节省内存
+    let w_clone = animation_window.clone();
+    animation_window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w_clone.hide();
+        }
+    });
+
+    // 4. 初始鼠标穿透
+
+    if is_silence {
+        let _ = animation_window.set_ignore_cursor_events(true);
+    }
+
+    // 5. 设置窗口位置
+    if let (Some(x), Some(y)) = saved_position {
+        let window_y = y - bubble_area_height;
+        let _ = animation_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+    } else if let Some(monitor) = animation_window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        let _ = animation_window.set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+    }
+
+    Ok(())
+}
+
+/// 内部函数：创建 Live2D 窗口
+pub(crate) fn inner_create_live2d_window(app: &tauri::AppHandle) -> Result<(), String> {
+
+    let state: State<'_, AppState> = app.state();
+
+    // 1. 获取缩放和位置设置
+    let (scale, saved_position, is_silence, streamer_mode) = {
+        let storage = state.storage.lock().unwrap();
+        (
+            storage.data.settings.animation_scale as f64,
+            (
+                storage.data.info.animation_window_x,
+                storage.data.info.animation_window_y,
+            ),
+            storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
+        )
+    };
+
+    // 2. 计算窗口尺寸（暂与动画窗口保持一致）
+    let bubble_area_height = BUBBLE_AREA_HEIGHT;
+    let bubble_area_width = BUBBLE_AREA_WIDTH;
+    let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+    let window_width = bubble_area_width.max(animation_area_width);
+    let window_height = bubble_area_height + animation_area_height;
+
+    // 3. 构建并创建窗口
+    if let Some(_existing) = app.get_webview_window(WINDOW_LABEL_LIVE2D) {
+        return Ok(());
+    }
+
+    let live2d_window =
+        WebviewWindowBuilder::new(app, WINDOW_LABEL_LIVE2D, WebviewUrl::App(WINDOW_LABEL_LIVE2D.into()))
+            .title(get_i18n_text(app, "common.live2dTitle"))
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(!streamer_mode)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+    // 应用当前 Mod 图标
+    apply_window_icon(app, &live2d_window);
+
+    // 关闭时隐藏窗口
+    let w_clone = live2d_window.clone();
+    live2d_window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w_clone.hide();
+        }
+    });
+
+    // 4. 初始鼠标穿透
+    if is_silence {
+        let _ = live2d_window.set_ignore_cursor_events(true);
+    }
+
+    // 5. 设置窗口位置
+    if let (Some(x), Some(y)) = saved_position {
+        let window_y = y - bubble_area_height;
+        let _ = live2d_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+    } else if let Some(monitor) = live2d_window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        let _ = live2d_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+    }
+
+    Ok(())
+}
+
+/// 内部函数：创建 PngRemix 窗口
+pub(crate) fn inner_create_pngremix_window(app: &tauri::AppHandle) -> Result<(), String> {
+
+    let state: State<'_, AppState> = app.state();
+
+    // 1. 获取缩放和位置设置
+    let (scale, saved_position, is_silence, streamer_mode) = {
+        let storage = state.storage.lock().unwrap();
+        (
+            storage.data.settings.animation_scale as f64,
+            (
+                storage.data.info.animation_window_x,
+                storage.data.info.animation_window_y,
+            ),
+            storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
+        )
+    };
+
+    // 2. 计算窗口尺寸（与动画窗口保持一致）
+    let bubble_area_height = BUBBLE_AREA_HEIGHT;
+    let bubble_area_width = BUBBLE_AREA_WIDTH;
+    let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+    let window_width = bubble_area_width.max(animation_area_width);
+    let window_height = bubble_area_height + animation_area_height;
+
+    // 3. 构建并创建窗口
+    if let Some(_existing) = app.get_webview_window(WINDOW_LABEL_PNGREMIX) {
+        return Ok(());
+    }
+
+    let pngremix_window =
+        WebviewWindowBuilder::new(app, WINDOW_LABEL_PNGREMIX, WebviewUrl::App(WINDOW_LABEL_PNGREMIX.into()))
+            .title(get_i18n_text(app, "common.pngremixTitle"))
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(!streamer_mode)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+    // 应用当前 Mod 图标
+    apply_window_icon(app, &pngremix_window);
+
+    // 关闭时隐藏窗口
+    let w_clone = pngremix_window.clone();
+    pngremix_window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w_clone.hide();
+        }
+    });
+
+    // 4. 初始鼠标穿透
+    if is_silence {
+        let _ = pngremix_window.set_ignore_cursor_events(true);
+    }
+
+    // 5. 设置窗口位置
+    if let (Some(x), Some(y)) = saved_position {
+        let window_y = y - bubble_area_height;
+        let _ = pngremix_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+    } else if let Some(monitor) = pngremix_window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        let _ = pngremix_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+    }
+
+    Ok(())
+}
+
+/// 内部函数：创建 3D 窗口
+pub(crate) fn inner_create_threed_window(app: &tauri::AppHandle) -> Result<(), String> {
+
+    let state: State<'_, AppState> = app.state();
+
+    // 1. 获取缩放和位置设置
+    let (scale, saved_position, is_silence, streamer_mode) = {
+        let storage = state.storage.lock().unwrap();
+        (
+            storage.data.settings.animation_scale as f64,
+            (
+                storage.data.info.animation_window_x,
+                storage.data.info.animation_window_y,
+            ),
+            storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
+        )
+    };
+
+    // 2. 计算窗口尺寸（与其他渲染窗口保持一致）
+    let bubble_area_height = BUBBLE_AREA_HEIGHT;
+    let bubble_area_width = BUBBLE_AREA_WIDTH;
+    let animation_area_height = ANIMATION_AREA_HEIGHT * scale;
+    let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+    let window_width = bubble_area_width.max(animation_area_width);
+    let window_height = bubble_area_height + animation_area_height;
+
+    // 3. 构建并创建窗口
+    if let Some(_existing) = app.get_webview_window(WINDOW_LABEL_THREED) {
+        return Ok(());
+    }
+
+    let threed_window =
+        WebviewWindowBuilder::new(app, WINDOW_LABEL_THREED, WebviewUrl::App(WINDOW_LABEL_THREED.into()))
+            .title(get_i18n_text(app, "common.threeDTitle"))
+            .inner_size(window_width, window_height)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .shadow(false)
+            .skip_taskbar(!streamer_mode)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+    // 应用当前 Mod 图标
+    apply_window_icon(app, &threed_window);
+
+    // 关闭时隐藏窗口
+    let w_clone = threed_window.clone();
+    threed_window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w_clone.hide();
+        }
+    });
+
+    // 4. 初始鼠标穿透
+    if is_silence {
+        let _ = threed_window.set_ignore_cursor_events(true);
+    }
+
+    // 5. 设置窗口位置
+    if let (Some(x), Some(y)) = saved_position {
+        let window_y = y - bubble_area_height;
+        let _ = threed_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, window_y)));
+    } else if let Some(monitor) = threed_window.primary_monitor().ok().flatten() {
+        let scale_factor = monitor.scale_factor();
+        let screen_size = monitor.size();
+        let screen_pos = monitor.position();
+        const TASKBAR_HEIGHT: f64 = 48.0;
+
+        let screen_w = screen_size.width as f64 / scale_factor;
+        let screen_h = screen_size.height as f64 / scale_factor;
+
+        let x = screen_pos.x as f64 + screen_w - window_width;
+        let y = screen_pos.y as f64 + screen_h - window_height - TASKBAR_HEIGHT;
+
+        let _ = threed_window
+            .set_position(tauri::Position::Logical(LogicalPosition::new(x, y)));
+    }
+
+    Ok(())
+}
+
+
+
+// ========================================================================= //
+// 辅助函数
+// ========================================================================= //
+
+/// 启动媒体监听器（独立线程）
+fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
+    tauri::async_runtime::spawn(async move {
+        let mut observer = MediaObserver::new();
+        let rx = observer.start(app_handle.clone(), skip_delay);
+
+        let mut rx = rx;
+        while let Some(event) = rx.recv().await {
+            let app_state: State<AppState> = app_handle.state();
+
+            // 检查是否处于免打扰模式
+            let is_silence = {
+                let storage = app_state.storage.lock().unwrap();
+                storage.data.settings.silence_mode
+            };
+
+            if is_silence {
+                // 免打扰模式下忽略媒体状态变化
+                continue;
+            }
+
+            // 等待状态解锁
+            use crate::modules::constants::{
+                STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS,
+            };
+            let notify = get_state_unlock_notify();
+            for _ in 0..STATE_LOCK_MAX_RETRIES {
+                let is_locked = {
+                    let sm = app_state.state_manager.lock().unwrap();
+                    sm.is_locked()
+                };
+                if !is_locked {
+                    break;
+                }
+                tokio::select! {
+                    _ = notify.notified() => {},
+                    _ = tokio::time::sleep(tokio::time::Duration::from_millis(
+                        STATE_LOCK_WAIT_INTERVAL_MS,
+                    )) => {}
+                }
+            }
+
+
+            match event.status {
+                MediaPlaybackStatus::Playing => {
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    let mut sm = app_state.state_manager.lock().unwrap();
+                    let _ = TriggerManager::trigger_event(EVENT_MUSIC_START, false, &rm, &mut sm);
+                }
+                MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped | MediaPlaybackStatus::Unknown => {
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    let mut sm = app_state.state_manager.lock().unwrap();
+                    let _ = TriggerManager::trigger_event(EVENT_MUSIC_END, false, &rm, &mut sm);
+                }
+                _ => {}
+            }
+        }
+    });
+}
+
+
+/// 启动进程监测器（独立线程）
+///
+/// - 监听“新进程启动”
+/// - 若进程名包含 `config/process_observer_keywords.json` 中的任意关键字，则触发一次 `work` 事件
+fn start_process_observer(app_handle: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut observer = ProcessObserver::new();
+        let rx = observer.start(app_handle.clone());
+
+        let mut rx = rx;
+
+        while let Some(ProcessStartEvent { pid, process_name, matched_keyword }) = rx.recv().await {
+            let app_state: State<AppState> = app_handle.state();
+
+            // 免打扰模式下不触发 work
+            let is_silence = {
+                let storage = app_state.storage.lock().unwrap();
+                storage.data.settings.silence_mode
+            };
+            if is_silence {
+                continue;
+            }
+
+            // 等待状态解锁（避免与 play_once 状态冲突）
+            use crate::modules::constants::{STATE_LOCK_MAX_RETRIES, STATE_LOCK_WAIT_INTERVAL_MS};
+            let notify = get_state_unlock_notify();
+            for _ in 0..STATE_LOCK_MAX_RETRIES {
+                let is_locked = {
+                    let sm = app_state.state_manager.lock().unwrap();
+                    sm.is_locked()
+                };
+                if !is_locked {
+                    break;
+                }
+                tokio::select! {
+                    _ = notify.notified() => {},
+                    _ = tokio::time::sleep(tokio::time::Duration::from_millis(
+                        STATE_LOCK_WAIT_INTERVAL_MS,
+                    )) => {}
+                }
+            }
+
+
+            // work 事件节流：间隔不足则跳过
+            let now_ts = chrono::Local::now().timestamp();
+            let should_fire = {
+                let mut guard = LAST_WORK_EVENT_AT.lock().unwrap();
+                let ok = guard.map_or(true, |last| now_ts - last >= WORK_EVENT_COOLDOWN_SECS);
+                if ok {
+                    *guard = Some(now_ts);
+                }
+                ok
+            };
+
+            if !should_fire {
+                continue;
+            }
+
+            #[cfg(debug_assertions)]
+            println!(
+                "[ProcessObserver] New process matched: pid={}, name={}, keyword={}",
+                pid, process_name, matched_keyword
+            );
+
+            let rm = app_state.resource_manager.lock().unwrap();
+            let mut sm = app_state.state_manager.lock().unwrap();
+            let _ = TriggerManager::trigger_event(EVENT_WORK, false, &rm, &mut sm);
+        }
+    });
+}
+
+
+#[cfg(target_os = "windows")]
+struct GlobalInputContext {
+    app_handle: tauri::AppHandle,
+    keyboard_enabled: Arc<AtomicBool>,
+    mouse_enabled: Arc<AtomicBool>,
+    drag_tracking_enabled: Arc<AtomicBool>,
+}
+
+
+#[cfg(target_os = "windows")]
+fn get_global_input_context() -> Option<&'static GlobalInputContext> {
+    GLOBAL_INPUT_CONTEXT.get()
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn set_drag_tracking_enabled(enabled: bool) -> bool {
+
+    if let Some(ctx) = get_global_input_context() {
+        ctx.drag_tracking_enabled
+            .store(enabled, std::sync::atomic::Ordering::Relaxed);
+        true
+    } else {
+        false
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_global_key_states() -> &'static Mutex<[bool; 256]> {
+
+    GLOBAL_KEY_STATES.get_or_init(|| Mutex::new([false; 256]))
+}
+
+#[cfg(target_os = "windows")]
+fn get_global_mouse_states() -> &'static Mutex<[bool; 2]> {
+    GLOBAL_MOUSE_STATES.get_or_init(|| Mutex::new([false; 2]))
+}
+
+#[cfg(target_os = "windows")]
+fn reset_global_key_states() {
+    if let Ok(mut guard) = get_global_key_states().lock() {
+        for v in guard.iter_mut() {
+            *v = false;
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn reset_global_mouse_states() {
+    if let Ok(mut guard) = get_global_mouse_states().lock() {
+        for v in guard.iter_mut() {
+            *v = false;
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn map_vk_code(vk: u32) -> Option<&'static str> {
+    match vk {
+        // 字母键 A-Z
+        0x41 => Some("KeyA"), 0x42 => Some("KeyB"), 0x43 => Some("KeyC"), 0x44 => Some("KeyD"),
+        0x45 => Some("KeyE"), 0x46 => Some("KeyF"), 0x47 => Some("KeyG"), 0x48 => Some("KeyH"),
+        0x49 => Some("KeyI"), 0x4A => Some("KeyJ"), 0x4B => Some("KeyK"), 0x4C => Some("KeyL"),
+        0x4D => Some("KeyM"), 0x4E => Some("KeyN"), 0x4F => Some("KeyO"), 0x50 => Some("KeyP"),
+        0x51 => Some("KeyQ"), 0x52 => Some("KeyR"), 0x53 => Some("KeyS"), 0x54 => Some("KeyT"),
+        0x55 => Some("KeyU"), 0x56 => Some("KeyV"), 0x57 => Some("KeyW"), 0x58 => Some("KeyX"),
+        0x59 => Some("KeyY"), 0x5A => Some("KeyZ"),
+        // 数字键 0-9
+        0x30 => Some("Digit0"), 0x31 => Some("Digit1"), 0x32 => Some("Digit2"), 0x33 => Some("Digit3"),
+        0x34 => Some("Digit4"), 0x35 => Some("Digit5"), 0x36 => Some("Digit6"), 0x37 => Some("Digit7"),
+        0x38 => Some("Digit8"), 0x39 => Some("Digit9"),
+        // 功能键
+        0x0D => Some("Enter"), 0x20 => Some("Space"), 0x1B => Some("Escape"), 0x08 => Some("Backspace"),
+        0x09 => Some("Tab"),
+        // 修饰键
+        0x10 => Some("Shift"), 0x11 => Some("Control"), 0x12 => Some("Alt"),
+        // 方向键
+        0x25 => Some("ArrowLeft"), 0x26 => Some("ArrowUp"), 0x27 => Some("ArrowRight"), 0x28 => Some("ArrowDown"),
+        // F 键
+        0x70 => Some("F1"), 0x71 => Some("F2"), 0x72 => Some("F3"), 0x73 => Some("F4"),
+        0x74 => Some("F5"), 0x75 => Some("F6"), 0x76 => Some("F7"), 0x77 => Some("F8"),
+        0x78 => Some("F9"), 0x79 => Some("F10"), 0x7A => Some("F11"), 0x7B => Some("F12"),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn should_emit_key_to_frontend(code: &str) -> bool {
+    matches!(
+        code,
+        "Space" | "Enter" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight"
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn trigger_event_with_state_manager(event_name: &str) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let Some(app_state) = ctx.app_handle.try_state::<AppState>() else {
+        return;
+    };
+    let rm = app_state.resource_manager.lock().unwrap();
+    let mut sm = app_state.state_manager.lock().unwrap();
+    let _ = TriggerManager::trigger_event(event_name, false, &rm, &mut sm);
+}
+
+#[cfg(target_os = "windows")]
+fn emit_global_keyboard_event(code: &str, pressed: bool) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let event_name = if pressed {
+        format!("keydown:{}", code)
+    } else {
+        format!("keyup:{}", code)
+    };
+    trigger_event_with_state_manager(&event_name);
+    trigger_event_with_state_manager(if pressed { "global_keydown" } else { "global_keyup" });
+
+    if should_emit_key_to_frontend(code) {
+        let _ = ctx
+            .app_handle
+            .emit(if pressed { "global-keydown" } else { "global-keyup" }, code);
+    }
+
+    let _ = ctx.app_handle.emit(
+        "global-key-state",
+        serde_json::json!({
+            "code": code,
+            "pressed": pressed
+        }),
+    );
+}
+
+#[cfg(target_os = "windows")]
+fn emit_global_mouse_state(button: &str, pressed: bool) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let _ = ctx.app_handle.emit(
+        "global-mouse-state",
+        serde_json::json!({
+            "button": button,
+            "pressed": pressed
+        }),
+    );
+}
+
+#[cfg(target_os = "windows")]
+fn emit_drag_mouse_state(pressed: bool) {
+    let Some(ctx) = get_global_input_context() else {
+        return;
+    };
+    let _ = ctx.app_handle.emit(
+        "drag-mouse-state",
+        serde_json::json!({
+            "pressed": pressed
+        }),
+    );
+}
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn global_keyboard_hook_proc(
+
+    code: i32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CallNextHookEx, HHOOK, KBDLLHOOKSTRUCT, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    };
+
+    let null_hook = HHOOK(std::ptr::null_mut());
+
+    if code < 0 {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let Some(ctx) = get_global_input_context() else {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    };
+
+    if !ctx.keyboard_enabled.load(Ordering::Relaxed) {
+        if GLOBAL_KEYBOARD_LAST_ENABLED.swap(false, Ordering::Relaxed) {
+            reset_global_key_states();
+        }
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    if !GLOBAL_KEYBOARD_LAST_ENABLED.swap(true, Ordering::Relaxed) {
+        reset_global_key_states();
+    }
+
+    let msg = wparam.0 as u32;
+    let is_down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
+    let is_up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
+
+    if !is_down && !is_up {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
+    let vk = kbd.vkCode as usize;
+    if vk >= 256 {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let Some(key_code) = map_vk_code(kbd.vkCode) else {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    };
+
+    let mut states = get_global_key_states().lock().unwrap();
+    let was_pressed = states[vk];
+
+    if is_down && !was_pressed {
+        states[vk] = true;
+        drop(states);
+        emit_global_keyboard_event(key_code, true);
+    } else if is_up && was_pressed {
+        states[vk] = false;
+        drop(states);
+        emit_global_keyboard_event(key_code, false);
+    }
+
+    CallNextHookEx(null_hook, code, wparam, lparam)
+}
+
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn global_mouse_hook_proc(
+    code: i32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CallNextHookEx, HHOOK, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    };
+
+    let null_hook = HHOOK(std::ptr::null_mut());
+
+    if code < 0 {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    let Some(ctx) = get_global_input_context() else {
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    };
+
+    let mouse_enabled = ctx.mouse_enabled.load(Ordering::Relaxed);
+    let drag_tracking_enabled = ctx.drag_tracking_enabled.load(Ordering::Relaxed);
+
+    if !mouse_enabled && !drag_tracking_enabled {
+        if GLOBAL_MOUSE_LAST_ENABLED.swap(false, Ordering::Relaxed) {
+            reset_global_mouse_states();
+        }
+        return CallNextHookEx(null_hook, code, wparam, lparam);
+    }
+
+    if !GLOBAL_MOUSE_LAST_ENABLED.swap(true, Ordering::Relaxed) {
+        reset_global_mouse_states();
+    }
+
+    let msg = wparam.0 as u32;
+    let (idx, event_name, pressed) = match msg {
+        WM_LBUTTONDOWN => (0usize, "global_click", true),
+        WM_LBUTTONUP => (0usize, "global_click", false),
+        WM_RBUTTONDOWN => (1usize, "global_right_click", true),
+        WM_RBUTTONUP => (1usize, "global_right_click", false),
+        _ => return CallNextHookEx(null_hook, code, wparam, lparam),
+    };
+
+    let mut states = get_global_mouse_states().lock().unwrap();
+    let was_pressed = states[idx];
+
+    if pressed && !was_pressed {
+        states[idx] = true;
+        drop(states);
+        if mouse_enabled {
+            trigger_event_with_state_manager(event_name);
+            emit_global_mouse_state(event_name, true);
+        } else if drag_tracking_enabled && event_name == "global_click" {
+            emit_drag_mouse_state(true);
+        }
+    } else if !pressed && was_pressed {
+        states[idx] = false;
+        drop(states);
+        if mouse_enabled {
+            emit_global_mouse_state(event_name, false);
+            let up_event_name = match event_name {
+                "global_click" => "global_click_up",
+                "global_right_click" => "global_right_click_up",
+                _ => "",
+            };
+            if !up_event_name.is_empty() {
+                trigger_event_with_state_manager(up_event_name);
+            }
+        } else if drag_tracking_enabled && event_name == "global_click" {
+            emit_drag_mouse_state(false);
+        }
+    }
+
+
+    CallNextHookEx(null_hook, code, wparam, lparam)
+}
+
+
+/// 启动全局输入监听器（系统 Hook 事件驱动）
+fn start_global_input_hook(app_handle: tauri::AppHandle) {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::HINSTANCE;
+        use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            DispatchMessageW, GetMessageW, SetWindowsHookExW, TranslateMessage,
+            UnhookWindowsHookEx, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL,
+        };
+
+
+        if GLOBAL_INPUT_HOOK_STARTED.swap(true, Ordering::SeqCst) {
+            return;
+        }
+
+        let keyboard_enabled = {
+            let app_state = app_handle.state::<AppState>();
+            app_state.global_keyboard_enabled.clone()
+        };
+        let mouse_enabled = {
+            let app_state = app_handle.state::<AppState>();
+            app_state.global_mouse_enabled.clone()
+        };
+
+        let drag_tracking_enabled = Arc::new(AtomicBool::new(false));
+
+        let _ = GLOBAL_INPUT_CONTEXT.set(GlobalInputContext {
+            app_handle,
+            keyboard_enabled,
+            mouse_enabled,
+            drag_tracking_enabled,
+        });
+
+
+        std::thread::spawn(|| unsafe {
+            let module = GetModuleHandleW(None).unwrap_or_default();
+            let hinstance = HINSTANCE(module.0);
+
+
+
+            let hook_keyboard = SetWindowsHookExW(
+                WH_KEYBOARD_LL,
+                Some(global_keyboard_hook_proc),
+                hinstance,
+                0,
+            )
+            .ok();
+            let hook_mouse = SetWindowsHookExW(
+                WH_MOUSE_LL,
+                Some(global_mouse_hook_proc),
+                hinstance,
+                0,
+            )
+            .ok();
+
+            if hook_keyboard.is_none() {
+                println!("[GlobalInput] Failed to install keyboard hook");
+            }
+            if hook_mouse.is_none() {
+                println!("[GlobalInput] Failed to install mouse hook");
+            }
+
+            let mut msg = MSG::default();
+            while GetMessageW(&mut msg, None, 0, 0).into() {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+
+            if let Some(hook) = hook_keyboard {
+                let _ = UnhookWindowsHookEx(hook);
+            }
+            if let Some(hook) = hook_mouse {
+                let _ = UnhookWindowsHookEx(hook);
+            }
+        });
+    }
+
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app_handle;
+    }
+}
+
+/// 启动全局键盘监听器（独立线程）
+///
+/// 当 Mod 的 `global_keyboard` 为 true 时，使用系统级 Hook 事件驱动触发按键事件。
+fn start_global_keyboard_listener(app_handle: tauri::AppHandle) {
+    start_global_input_hook(app_handle);
+}
+
+/// 启动全局鼠标监听器（独立线程）
+///
+/// 当 Mod 的 `global_mouse` 为 true 时，使用系统级 Hook 事件驱动触发鼠标事件。
+fn start_global_mouse_listener(app_handle: tauri::AppHandle) {
+    start_global_input_hook(app_handle);
+}
+
+
+/// 启动提醒调度器（独立线程）
+fn start_reminder_scheduler(app_handle: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use chrono::Local;
+        use std::time::Duration;
+
+        let notify = get_reminder_scheduler_notify();
+
+        loop {
+            let app_handle_for_storage = app_handle.clone();
+            let (due, next_wait_secs) = tokio::task::spawn_blocking(move || {
+                let now_ts = Local::now().timestamp();
+                let mut due: Vec<ReminderAlertPayload> = Vec::new();
+                let mut changed = false;
+                let mut next_ts: Option<i64> = None;
+
+                {
+                    let app_state: State<AppState> = app_handle_for_storage.state();
+                    let mut storage = app_state.storage.lock().unwrap();
+
+                    for r in storage.data.info.reminders.iter_mut() {
+                        if !r.enabled {
+                            continue;
+                        }
+
+                        if r.next_trigger_at == 0 {
+                            // 兜底：如果前端/历史数据没填 next_trigger_at，后端自动归一化
+                            let normalized = crate::commands::normalize_reminder(r.clone(), now_ts);
+
+                            *r = normalized;
+                            changed = true;
+                        }
+
+                        if r.next_trigger_at > 0 && r.next_trigger_at <= now_ts {
+                            // 去重：避免同一秒多次触发
+                            if r.last_trigger_at
+                                .map(|t| now_ts.saturating_sub(t) < 2)
+                                .unwrap_or(false)
+                            {
+                                continue;
+                            }
+
+                            due.push(ReminderAlertPayload {
+                                id: r.id.clone(),
+                                text: r.text.to_string(),
+                                scheduled_at: r.next_trigger_at,
+                                fired_at: now_ts,
+                            });
+
+                            r.last_trigger_at = Some(now_ts);
+
+                            match &r.schedule {
+                                ReminderSchedule::Weekly { days, hour, minute } => {
+                                    r.next_trigger_at =
+                                        crate::commands::compute_next_weekly_trigger_at(now_ts, days, *hour, *minute);
+
+                                }
+                                ReminderSchedule::Absolute { .. } | ReminderSchedule::After { .. } => {
+                                    // 一次性提醒触发后自动关闭
+                                    r.enabled = false;
+                                }
+                            }
+
+                            changed = true;
+                        }
+
+                        if r.enabled && r.next_trigger_at > 0 {
+                            next_ts = Some(next_ts.map_or(r.next_trigger_at, |min| min.min(r.next_trigger_at)));
+                        }
+                    }
+
+                    if changed {
+                        let _ = storage.save();
+                    }
+                }
+
+                let next_wait_secs = next_ts.map(|ts| {
+                    let delta = ts - now_ts;
+                    if delta <= 0 { 1 } else { delta as u64 }
+                });
+
+                (due, next_wait_secs)
+            })
+            .await
+            .unwrap_or_default();
+
+            if !due.is_empty() {
+                // 推送更新事件（窗口已存在时可实时追加）
+                let _ = emit(&app_handle, "reminder-alert-update", &due);
+
+                // 写入待展示队列（提示窗口启动时可读取）
+                if let Ok(mut guard) = PENDING_REMINDER_ALERTS.lock() {
+                    guard.extend(due);
+                    // 防止无界增长
+                    if guard.len() > 50 {
+                        let extra = guard.len() - 50;
+                        guard.drain(0..extra);
+                    }
+                }
+
+                // 弹出提示窗口（单窗口复用）
+                let config = WindowConfig {
+                    label: WINDOW_LABEL_REMINDER_ALERT,
+                    url: "reminder_alert",
+                    title_key: "common.reminderAlertTitle",
+                    width: 480.0,
+                    height: 360.0,
+                    resizable: true,
+                    center: true,
+                    destroy_on_close: true,
+                };
+                show_or_create_window(&app_handle, config);
+            }
+
+
+            let wait_secs = next_wait_secs.unwrap_or(60);
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(wait_secs)) => {},
+                _ = notify.notified() => {},
+            }
+        }
+    });
+}
+
+
+
+
+/// 保存动画窗口位置
+///
+/// 注意：保存的 y 是动画区域顶部的位置（窗口 y + 气泡区域高度），
+/// 这样当气泡区域高度变化时，动画区域位置保持不变
+pub(crate) fn save_animation_window_position(window: &tauri::Window) {
+
+    let app = window.app_handle();
+
+    // 获取 app_state 以便访问 storage
+    let app_state: State<AppState> = window.state();
+
+    // 检查 show_character 设置，如果关闭了则不保存位置
+    let should_save = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.show_character
+    };
+
+    if !should_save {
+        return;
+    }
+
+    // 获取渲染窗口（animation、live2d、pngremix 或 threed）
+    let render_window = app.get_webview_window(WINDOW_LABEL_ANIMATION)
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_PNGREMIX))
+        .or_else(|| app.get_webview_window(WINDOW_LABEL_THREED));
+
+    if let Some(win) = render_window {
+        if let Ok(position) = win.outer_position() {
+            let mut storage = app_state.storage.lock().unwrap();
+
+            let scale_factor = win.scale_factor().unwrap_or(1.0);
+            // 气泡区域固定高度，不随缩放变化
+            let bubble_area_height = BUBBLE_AREA_HEIGHT;
+
+            let window_x = position.x as f64 / scale_factor;
+            let window_y = position.y as f64 / scale_factor;
+
+            // 保存动画区域顶部的 Y 位置（窗口 Y + 气泡区域高度）
+            storage.data.info.animation_window_x = Some(window_x);
+            storage.data.info.animation_window_y = Some(window_y + bubble_area_height);
+
+            if let Err(e) = storage.save() {
+                eprintln!("[TrayBuddy] 保存窗口位置失败: {}", e);
+            }
+        }
+    }
+}
+
+/// 获取国际化文本 (用于后端窗口标题同步)
+///
+/// 使用缓存版本，避免每次调用都重新读取和解析 JSON 文件
+pub(crate) fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
+
+    let app_state: State<AppState> = app.state();
+    let lang = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.lang.clone()
+    };
+    get_i18n_text_cached(app, &lang, key)
+}
+
+/// 内部函数：获取当前 Mod 的图标或默认图标
+///
+/// 优化：减少锁的获取次数，避免重复的图标路径解析逻辑
+fn get_app_icon(app: &tauri::AppHandle) -> Option<Image<'_>> {
+    if let Some(state) = app.try_state::<AppState>() {
+        let rm = state.resource_manager.lock().unwrap();
+
+        if let Some(current_mod) = &rm.current_mod {
+            if let Some(icon_path) = &current_mod.icon_path {
+                let full_icon_path = current_mod.path.join(icon_path.as_ref());
+                if full_icon_path.exists() {
+                    if let Ok(mod_icon) = Image::from_path(&full_icon_path) {
+                        return Some(mod_icon);
+                    }
+                }
+            }
+        }
+    }
+
+    // 使用默认图标
+    app.default_window_icon().cloned()
+}
+
+/// 内部函数：根据当前加载的Mod更新托盘图标（异步版本）
+///
+/// 优化：使用事件驱动，将阻塞操作放到后台线程，避免卡死主线程
+pub(crate) async fn update_tray_icon_async(app: tauri::AppHandle) {
+
+    let app_handle = app.clone();
+    tokio::task::spawn_blocking(move || {
+        let icon_to_use = get_app_icon(&app_handle);
+
+        if let Some(tray) = app_handle.tray_by_id(TRAY_ID_MAIN) {
+            if let Some(icon) = icon_to_use {
+                let _ = tray.set_icon(Some(icon));
+            } else {
+                let _ = tray.set_icon(app_handle.default_window_icon().cloned());
+            }
+        }
+    });
+}
+
+/// 内部函数：根据当前加载的Mod更新所有窗口的任务栏图标（异步版本）
+///
+/// 优化：使用事件驱动，将阻塞操作放到后台线程，避免卡死主线程
+/// 内存优化：减少锁持有时间，将图标获取和窗口更新分离
+pub(crate) async fn update_window_icons_async(app: tauri::AppHandle) {
+
+    let app_handle = app.clone();
+    tokio::task::spawn_blocking(move || {
+        // 在持有锁时仅获取图标
+        let icon_to_use = get_app_icon(&app_handle);
+
+        if icon_to_use.is_none() {
+            // 无法获取 mod 图标，直接返回
+            return;
+        }
+
+        let icon = icon_to_use.unwrap();
+
+        // 锁已释放，现在执行 UI 操作
+        // 更新所有窗口的图标
+        let windows = app_handle.webview_windows();
+        for (_label, window) in windows {
+            // clone 图标用于每个窗口设置
+            let _ = window.set_icon(icon.clone());
+        }
+
+    });
+}
+
+/// 内部函数：恢复所有窗口的默认图标（异步版本）
+///
+/// 优化：使用事件驱动，将阻塞操作放到后台线程，避免卡死主线程
+/// 内存优化：减少锁持有时间，将图标获取和窗口更新分离
+async fn restore_window_icons_async(app: tauri::AppHandle) {
+    let app_handle = app.clone();
+    tokio::task::spawn_blocking(move || {
+        // 在不持有锁时获取默认图标
+        let default_icon = app_handle.default_window_icon().cloned();
+
+        if default_icon.is_none() {
+            return;
+        }
+
+        let icon = default_icon.unwrap();
+
+        // 锁已释放，现在执行 UI 操作
+        // 恢复所有窗口的默认图标
+        let windows = app_handle.webview_windows();
+        for (_label, window) in windows {
+            // clone 图标用于每个窗口设置
+            let _ = window.set_icon(icon.clone());
+        }
+
+    });
+}
+
+/// 内部函数：为窗口设置正确的图标（Mod 图标或默认图标）
+///
+/// 优化：使用共享的 get_app_icon 函数，避免重复的锁获取和路径解析逻辑
+fn apply_window_icon(app: &tauri::AppHandle, window: &WebviewWindow) {
+    if let Some(icon) = get_app_icon(app) {
+        let _ = window.set_icon(icon);
+    }
+}
+
+// ========================================================================= //
+// 窗口管理工具函数
+// ========================================================================= //
+
+/// 窗口配置结构体
+///
+/// 用于统一窗口创建参数，减少重复代码
+struct WindowConfig<'a> {
+    /// 窗口标签（唯一标识）
+    label: &'a str,
+    /// 窗口 URL 路径
+    url: &'a str,
+    /// i18n 标题键
+    title_key: &'a str,
+    /// 窗口宽度
+    width: f64,
+    /// 窗口高度
+    height: f64,
+    /// 是否可调整大小
+    resizable: bool,
+    /// 是否居中显示
+    center: bool,
+    /// 是否在关闭时销毁（而不是隐藏）
+    destroy_on_close: bool,
+}
+
+
+
+/// 显示或创建窗口的通用函数
+///
+/// 代码复用优化：将重复的窗口显示/创建逻辑统一为一个函数
+///
+/// # 参数
+/// - `app`: Tauri 应用句柄
+/// - `config`: 窗口配置
+///
+/// # 行为
+/// - 如果窗口已存在，显示并聚焦
+/// - 如果窗口不存在，创建新窗口并应用图标
+fn show_or_create_window(app: &tauri::AppHandle, config: WindowConfig) {
+    if let Some(window) = app.get_webview_window(config.label) {
+        let _ = window.show();
+        let _ = window.unminimize(); // 确保窗口不是最小化状态
+        let _ = window.set_focus();
+    } else {
+
+        let mut builder = WebviewWindowBuilder::new(
+            app,
+            config.label,
+            WebviewUrl::App(config.url.into()),
+        )
+        // 性能优化：限制每个 Webview 的资源占用
+        // 某些版本的 WebView2 支持通过这种方式传递参数，或者在环境初始化时设置
+        .title(get_i18n_text(app, config.title_key))
+
+        .inner_size(config.width, config.height)
+        .resizable(config.resizable);
+
+        if config.center {
+            builder = builder.center();
+        }
+
+        if let Ok(window) = builder.build() {
+            apply_window_icon(app, &window);
+            
+            // 如果配置了销毁，则不拦截关闭事件，让其默认销毁窗口及对应的渲染进程
+            // 注意：Tauri 默认行为就是关闭窗口即销毁，
+            // 我们只需要确保没有全局的 close 拦截器将其改为 hide 即可。
+            if !config.destroy_on_close {
+                let w_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = w_clone.hide();
+                    }
+                });
+            }
+        }
+
+    }
+}
+
+/// 内部函数：根据当前加载的Mod更新托盘图标（同步版本，用于非异步上下文）
+///
+/// 用途：在同步上下文中更新托盘图标（如卸载 mod 时）
+pub(crate) fn update_tray_icon_sync(app: &tauri::AppHandle) {
+
+    if let Some(tray) = app.tray_by_id(TRAY_ID_MAIN) {
+        if let Some(icon) = get_app_icon(app) {
+            let _ = tray.set_icon(Some(icon));
+        } else {
+            let _ = tray.set_icon(app.default_window_icon().cloned());
+        }
+    }
+}
+
+/// 内部函数：恢复所有窗口的默认图标（同步版本，用于非异步上下文）
+///
+/// 用途：在同步上下文中恢复窗口图标（如卸载 mod 时）
+pub(crate) fn restore_window_icons_sync(app: &tauri::AppHandle) {
+
+    if let Some(default_icon) = app.default_window_icon() {
+        // 恢复所有窗口的默认图标
+        let windows = app.webview_windows();
+        for (_label, window) in windows {
+            let _ = window.set_icon(default_icon.clone());
+        }
+    }
+
+}
+
+/// 内部函数：构建国际化托盘菜单
+///
+/// 内存优化：避免克隆整个 settings，只提取需要的布尔值
+pub(crate) fn inner_build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+
+    let app_state: State<AppState> = app.state();
+    // 内存优化：只提取需要的字段，避免克隆整个 settings 结构体
+    let (no_audio_mode, silence_mode, streamer_mode, show_character) = {
+        let storage = app_state.storage.lock().unwrap();
+        (
+            storage.data.settings.no_audio_mode,
+            storage.data.settings.silence_mode,
+            storage.data.settings.streamer_mode,
+            storage.data.settings.show_character,
+        )
+    };
+
+
+    let about_i = MenuItem::with_id(
+        app,
+        "about",
+        get_i18n_text(app, "menu.about"),
+        true,
+        None::<&str>,
+    )?;
+    let other_tools_i = MenuItem::with_id(
+        app,
+        "open_other_tool_dir",
+        get_i18n_text(app, "menu.otherTools"),
+        true,
+        None::<&str>,
+    )?;
+
+    let mod_editor_i = MenuItem::with_id(
+        app,
+        "open_mod_tool_dir",
+        get_i18n_text(app, "menu.modEditor"),
+        true,
+        None::<&str>,
+    )?;
+    let settings_i = MenuItem::with_id(
+      app,
+      "settings",
+      get_i18n_text(app, "menu.settings"),
+      true,
+      None::<&str>,
+    )?;
+    let memo_i = MenuItem::with_id(
+      app,
+      "memo",
+      get_i18n_text(app, "menu.memo"),
+      true,
+      None::<&str>,
+    )?;
+    let reminder_i = MenuItem::with_id(
+      app,
+      "reminder",
+      get_i18n_text(app, "menu.reminder"),
+      true,
+      None::<&str>,
+    )?;
+    let mod_i = MenuItem::with_id(
+      app,
+      "mod",
+      get_i18n_text(app, "menu.mods"),
+      true,
+      None::<&str>,
+    )?;
+    let debugger_i = MenuItem::with_id(
+      app,
+      "debugger",
+      get_i18n_text(app, "menu.debugger"),
+      true,
+      None::<&str>,
+    )?;
+
+
+    let sep1 = PredefinedMenuItem::separator(app)?;
+
+    let mute_i = CheckMenuItem::with_id(
+        app,
+        "toggle_mute",
+        get_i18n_text(app, "menu.mute"),
+        true,
+        no_audio_mode,
+        None::<&str>,
+    )?;
+    let silence_i = CheckMenuItem::with_id(
+        app,
+        "toggle_silence",
+        get_i18n_text(app, "menu.silence"),
+        true,
+        silence_mode,
+        None::<&str>,
+    )?;
+
+    let streamer_mode_i = CheckMenuItem::with_id(
+        app,
+        "toggle_streamer_mode",
+        get_i18n_text(app, "menu.streamerMode"),
+        true,
+        streamer_mode,
+        None::<&str>,
+    )?;
+
+    let show_widget_i = CheckMenuItem::with_id(
+
+        app,
+        "toggle_show_widget",
+        get_i18n_text(app, "menu.showCharacter"),
+        true,
+        show_character,
+        None::<&str>,
+    )?;
+
+    let sep2 = PredefinedMenuItem::separator(app)?;
+
+    let quit_i = MenuItem::with_id(
+        app,
+        "quit",
+        get_i18n_text(app, "menu.quit"),
+        true,
+        None::<&str>,
+    )?;
+
+    let sep3 = PredefinedMenuItem::separator(app)?;
+
+    Menu::with_items(
+        app,
+        &[
+            &about_i,
+            &other_tools_i,
+            &mod_editor_i,
+            &sep3,
+            &debugger_i,
+            &mod_i,
+            &settings_i,
+            &memo_i,
+            &reminder_i,
+
+
+            &sep2,
+            &streamer_mode_i,
+            &show_widget_i,
+            &mute_i,
+            &silence_i,
+            &sep1,
+            &quit_i,
+        ],
+    )
+}
+
+
+
+/// 统一渲染/托盘菜单事件处理
+pub(crate) fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
+
+    match id {
+        "open_mod_tool_dir" | "open_other_tool_dir" => {
+            let subdir = if id == "open_mod_tool_dir" {
+                "mod-tool"
+            } else {
+                "other-tool"
+            };
+
+            // 优先使用可执行文件所在目录（发布版符合预期），开发模式下回退到工作目录
+            let resolved = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.join(subdir)))
+                .filter(|p| p.exists())
+                .or_else(|| {
+                    let p = std::path::PathBuf::from(subdir);
+                    if p.exists() { Some(p) } else { None }
+                });
+
+            if let Some(path) = resolved {
+                if let Err(e) = open_dir(path.to_string_lossy().to_string()) {
+                    eprintln!("[Menu] Failed to open dir '{}': {}", subdir, e);
+                }
+            } else {
+                eprintln!("[Menu] Tool dir not found: {}", subdir);
+            }
+        }
+        "quit" => {
+            let app_state: State<AppState> = app.state();
+            let mut storage = app_state.storage.lock().unwrap();
+            storage.save();
+
+            app.exit(0)
+        }
+        "about" | "settings" | "mod" | "debugger" | "memo" | "reminder" => {
+            // 优化：对于这些工具窗口，如果已经打开，尝试聚焦；
+            // 考虑未来改为关闭即销毁，而不是隐藏
+            let label = match id {
+                "about" => "about",
+                "settings" => "settings",
+                "mod" => "mods",
+                "memo" => WINDOW_LABEL_MEMO,
+                "reminder" => WINDOW_LABEL_REMINDER,
+                "debugger" => WINDOW_LABEL_MAIN,
+                _ => id
+            };
+
+            let config = match id {
+                "about" => WindowConfig {
+                    label: "about",
+                    url: "about",
+                    title_key: "menu.about",
+                    width: 500.0,
+                    height: 720.0,
+                    resizable: true,
+                    center: true,
+                    destroy_on_close: true, // 工具窗口，关闭即销毁，释放进程
+                },
+                "debugger" => WindowConfig {
+                    label: WINDOW_LABEL_MAIN,
+                    url: "index.html",
+                    title_key: "common.appTitle",
+                    width: 800.0,
+                    height: 600.0,
+                    resizable: true,
+                    center: false,
+                    destroy_on_close: true,
+                },
+                "mod" => WindowConfig {
+                    label: "mods",
+                    url: "mods",
+                    title_key: "common.modsTitle",
+                    width: 800.0,
+                    height: 700.0,
+                    resizable: true,
+                    center: false,
+                    destroy_on_close: true,
+                },
+                "settings" => WindowConfig {
+                    label: "settings",
+                    url: "settings",
+                    title_key: "common.settingsTitle",
+                    width: 800.0,
+                    height: 700.0,
+                    resizable: true,
+                    center: false,
+                    destroy_on_close: true,
+                },
+                "memo" => WindowConfig {
+                    label: WINDOW_LABEL_MEMO,
+                    url: "memo",
+                    title_key: "common.memoTitle",
+                    width: 720.0,
+                    height: 760.0,
+                    resizable: true,
+                    center: true,
+                    destroy_on_close: true,
+                },
+                "reminder" => WindowConfig {
+                    label: WINDOW_LABEL_REMINDER,
+                    url: "reminder",
+                    title_key: "common.reminderTitle",
+                    width: 760.0,
+                    height: 760.0,
+                    resizable: true,
+                    center: true,
+                    destroy_on_close: true,
+                },
+
+                _ => unreachable!()
+            };
+            
+            show_or_create_window(app, config);
+        }
+
+        "toggle_mute" | "toggle_silence" | "toggle_streamer_mode" | "toggle_show_widget" => {
+
+            // 提取 settings 和需要的字段
+            let (settings) = {
+                let app_state: State<AppState> = app.state();
+                let mut storage = app_state.storage.lock().unwrap();
+                match id {
+                    "toggle_mute" => {
+                        storage.data.settings.no_audio_mode = !storage.data.settings.no_audio_mode
+                    }
+                    "toggle_silence" => {
+                        storage.data.settings.silence_mode = !storage.data.settings.silence_mode
+                    }
+                    "toggle_streamer_mode" => {
+                        storage.data.settings.streamer_mode = !storage.data.settings.streamer_mode
+                    }
+                    "toggle_show_widget" => {
+                        storage.data.settings.show_character = !storage.data.settings.show_character
+                    }
+
+                    _ => {}
+                }
+                let settings = storage.data.settings.clone();
+                let _ = storage.save();
+                settings
+            };
+
+            // 广播设置变更 (供所有窗口 UI 同步)
+            let _ = emit_settings(&app, &settings);
+
+            // --- 执行副作用 ---
+
+            // 1. 静音模式副作用
+            if id == "toggle_mute" {
+                let _ = emit(&app, events::MUTE_CHANGE, settings.no_audio_mode);
+            }
+
+            // 2. 主播模式副作用：用于窗口捕捉（开启时不再 skip_taskbar）
+            if id == "toggle_streamer_mode" {
+                let should_skip_taskbar = !settings.streamer_mode;
+                for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED] {
+                    if let Some(window) = app.get_webview_window(label) {
+                        if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
+                            eprintln!(
+                                "[StreamerMode] set_skip_taskbar({}) failed: {}",
+                                should_skip_taskbar,
+                                e
+                            );
+                        }
+                    }
+                }
+            }
+
+
+            // 3. 免打扰模式副作用 (修复死锁：提前释放锁)
+            if id == "toggle_silence" {
+
+
+                let target_state = if get_media_status() {
+                    // 后面可能增加从music到silence的特殊动画
+                    if settings.silence_mode {
+                        STATE_SILENCE_START
+                    } 
+                    else {
+                        STATE_SILENCE_END
+                    }
+                } else {
+                    if settings.silence_mode {
+                        STATE_SILENCE_START
+                    } 
+                    else {
+                        STATE_SILENCE_END
+                    }
+                };
+
+                let state_info = {
+                    let app_state: State<AppState> = app.state();
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    rm.get_state_by_name(target_state).cloned()
+                }; // 锁在此处释放
+
+                if let Some(state_info) = state_info {
+                    let app_state = app.state::<AppState>();
+                    let rm = app_state.resource_manager.lock().unwrap();
+                    let mut sm = app_state.state_manager.lock().unwrap();
+                    let _ = sm.change_state_ex(state_info, true, &rm);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+
+
+
+
+// ========================================================================= //
+// 桌面会话检测
+// ========================================================================= //
+
+/// 解析生日日期字符串（格式：MM-DD）
+/// 返回 (月, 日) 或 None
+///
+/// 内存优化：避免创建临时 Vec，使用直接解析
+fn parse_birthday_date(birthday: &str) -> Option<(u32, u32)> {
+    // 直接使用 split_once 而不是 collect 到 Vec，避免堆分配
+    let (month_str, day_str) = birthday.split_once('-')?;
+    let month = month_str.parse::<u32>().ok()?;
+    let day = day_str.parse::<u32>().ok()?;
+    // 验证日期有效性
+    if month >= MONTH_MIN && month <= MONTH_MAX
+        && day >= DAY_MIN && day <= DAY_MAX
+    {
+        Some((month, day))
+    } else {
+        None
+    }
+}
+
+/// 统一的日期判定函数，集中处理所有日期相关的事件类型判定
+/// 优先级：生日 > 首登录纪念日 > 普通登录
+///
+/// 内存优化：返回 &'static str 而不是 String，避免堆分配
+fn determine_event_type(
+    birthday: Option<&Box<str>>,
+    first_login_timestamp: Option<i64>,
+    is_silence_mode: bool,
+) -> &'static str {
+    use chrono::Datelike;
+
+    let dt = get_current_datetime();
+
+    // 1. 生日判断（最高优先级）
+    if let Some(ref bday) = birthday {
+        if !bday.is_empty() {
+            if let Some((bday_month, bday_day)) = parse_birthday_date(bday) {
+                if bday_month == dt.month && bday_day == dt.day {
+                    println!("[SessionObserver] 今天是生日，优先触发 birthday 事件");
+                    return "birthday";
+                }
+            }
+        }
+    }
+
+    // 2. 首登录纪念日判断
+    if let Some(timestamp) = first_login_timestamp {
+        let first_login_date = chrono::DateTime::from_timestamp(timestamp, 0)
+            .map(|dt| dt.naive_utc().date())
+            .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+
+        let first_login_year = first_login_date.year();
+        let first_login_month = first_login_date.month() as u32;
+        let first_login_day = first_login_date.day();
+
+        let current_year = dt.year as u32;
+        let current_month = dt.month;
+        let current_day = dt.day;
+
+        // 仅在年份大于首次登录年份且月日相符时触发
+        if current_year > first_login_year as u32 && current_month == first_login_month && current_day == first_login_day {
+            println!("[SessionObserver] 今天是首登录纪念日，优先触发 firstday 事件");
+            return "firstday";
+        }
+    }
+
+    // 3. 普通登录
+    if is_silence_mode {
+        "login_silence"
+    } else {
+        "login"
+    }
+}
+
+
+/// 检测当前会话是否未锁定（用户在桌面上）
+/// 
+/// 兼容性说明：
+/// - Windows 10/11: 检测 "Windows.UI.Core.CoreWindow" 和 "ApplicationFrameWindow" 类名
+/// - Windows 8/8.1: 检测 "LockScreen" 类名
+/// - Windows 7: 检测 "LogonUI" 窗口进程
+#[cfg(target_os = "windows")]
+fn is_user_logged_in_desktop() -> bool {
+    use crate::modules::utils::os_version::{get_windows_version, WindowsVersion};
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetForegroundWindow, GetWindowThreadProcessId};
+
+    unsafe {
+        // 检查是否有前台窗口
+        // 锁屏时，GetForegroundWindow 返回 0 或特定的锁屏窗口句柄
+        let hwnd = GetForegroundWindow();
+
+        // 如果没有前台窗口，可能是锁屏状态
+        if hwnd.is_invalid() {
+            return false;
+        }
+
+        // 获取窗口类名
+        let mut class_name = [0u16; 256];
+        if GetClassNameW(hwnd, &mut class_name) > 0 {
+            let len = class_name.iter().position(|&x| x == 0).unwrap_or(class_name.len());
+            let class_str = String::from_utf16_lossy(&class_name[..len]);
+
+            // 锁屏窗口的类名判断
+            // Windows 10/11: "Windows.UI.Core.CoreWindow", "ApplicationFrameWindow"
+            // Windows 8/8.1: "LockScreen", "LockAppHost"
+            // Windows 7: "LogonUI" (需要通过进程名检测)
+            if class_str.contains("Windows.UI.Core.CoreWindow")
+                || class_str.contains("ApplicationFrameWindow")
+                || class_str.contains("LockScreen")
+                || class_str.contains("LockAppHost")
+            {
+                return false;
+            }
+
+            // Windows 7 特殊处理：检测 LogonUI 窗口
+            let win_ver = get_windows_version();
+            if win_ver.is_win7() {
+                // Windows 7 锁屏窗口类名可能是 "#32770" (对话框) 或其他
+                // 更可靠的方法是检测进程名是否为 LogonUI.exe
+                let mut pid: u32 = 0;
+                GetWindowThreadProcessId(hwnd, Some(&mut pid));
+                if pid > 0 {
+                    if let Some(name) = get_process_name_by_pid(pid) {
+                        if name.to_lowercase().contains("logonui") {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 有前台窗口且不是锁屏窗口，认为已登录
+        true
+    }
+}
+
+/// 根据 PID 获取进程名（用于 Windows 7 锁屏检测）
+#[cfg(target_os = "windows")]
+fn get_process_name_by_pid(pid: u32) -> Option<String> {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+
+        let mut buffer = [0u16; 260];
+        let mut size = buffer.len() as u32;
+
+        let result = QueryFullProcessImageNameW(
+            handle,
+            PROCESS_NAME_WIN32,
+            windows::core::PWSTR(buffer.as_mut_ptr()),
+            &mut size,
+        );
+
+        let _ = CloseHandle(handle);
+
+        if result.is_ok() {
+            let path = String::from_utf16_lossy(&buffer[..size as usize]);
+            path.rsplit('\\').next().map(|s| s.to_string())
+        } else {
+            None
+        }
+    }
+}
+
+/// 非Windows平台的占位实现
+#[cfg(not(target_os = "windows"))]
+fn is_user_logged_in_desktop() -> bool {
+    // 非Windows平台默认返回true，表示已登录
+    true
+}
+
+/// 启动桌面会话监听器（使用 WTS 事件驱动）
+#[cfg(target_os = "windows")]
+pub(crate) fn start_session_observer(app_handle: tauri::AppHandle) {
+
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::*;
+    use windows::Win32::Graphics::Gdi::*;
+    use windows::Win32::System::RemoteDesktop::{NOTIFY_FOR_THIS_SESSION, WTSRegisterSessionNotification, WTSUnRegisterSessionNotification};
+    use windows::Win32::UI::WindowsAndMessaging::*;
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+
+    // WTS 会话事件常量
+    const WTS_SESSION_LOCK: u32 = 7;
+    const WTS_SESSION_UNLOCK: u32 = 8;
+
+    std::thread::spawn(move || {
+        println!("[SessionObserver] 启动 WTS 会话监听线程");
+
+        unsafe {
+            // 注册窗口类
+            let class_name_wstr: Vec<u16> = "TrayBuddySessionObserver\0".encode_utf16().collect();
+            let title_wstr: Vec<u16> = "TrayBuddy Session Observer\0".encode_utf16().collect();
+
+            let wnd_class = WNDCLASSW {
+                style: WNDCLASS_STYLES(0),
+                lpfnWndProc: Some(session_window_proc),
+                cbClsExtra: 0,
+                cbWndExtra: 0,
+                hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default().into(),
+                hIcon: HICON::default(),
+                hCursor: HCURSOR::default(),
+                hbrBackground: HBRUSH::default(),
+                lpszMenuName: PCWSTR::null(),
+                lpszClassName: PCWSTR::from_raw(class_name_wstr.as_ptr()),
+            };
+
+            if RegisterClassW(&wnd_class) == 0 {
+                eprintln!("[SessionObserver] 窗口类注册失败: {:?}", GetLastError());
+                return;
+            }
+
+            // 创建隐藏窗口
+            let hwnd = CreateWindowExW(
+                WINDOW_EX_STYLE(0),
+                PCWSTR::from_raw(class_name_wstr.as_ptr()),
+                PCWSTR::from_raw(title_wstr.as_ptr()),
+                WINDOW_STYLE(0),
+                0,
+                0,
+                0,
+                0,
+                HWND::default(),
+                HMENU::default(),
+                GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+                None,
+            );
+
+            let hwnd = match hwnd {
+                Ok(h) => h,
+                Err(e) => {
+                    eprintln!("[SessionObserver] 窗口创建失败: {:?}", e);
+                    return;
+                }
+            };
+
+            if hwnd.is_invalid() {
+                eprintln!("[SessionObserver] 窗口创建失败: {:?}", GetLastError());
+                return;
+            }
+
+            // 保存上下文到窗口用户数据
+            let session_locked = {
+                let app_state: tauri::State<AppState> = app_handle.state();
+                app_state.session_locked.clone()
+            };
+
+            // 设置初始锁屏状态
+            let is_logged_in = is_user_logged_in_desktop();
+            session_locked.store(!is_logged_in, Ordering::SeqCst);
+
+            let context = SessionObserverContext {
+                app_handle: app_handle.clone(),
+                session_locked,
+            };
+
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, Box::into_raw(Box::new(context)) as isize);
+
+            // 注册 WTS 会话通知
+            if WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION).is_err() {
+                eprintln!("[SessionObserver] WTS 会话通知注册失败: {:?}", GetLastError());
+                let _ = DestroyWindow(hwnd);
+                return;
+            }
+
+            println!("[SessionObserver] WTS 会话通知注册成功");
+
+            // 初始状态检查：如果程序启动时用户已经解锁，主动触发登录事件
+            if is_logged_in {
+                println!("[SessionObserver] 程序启动时检测到用户已登录，主动触发登录事件");
+
+                // 启动后台服务
+                start_background_services(&app_handle);
+
+                // 检查并触发登录事件
+                trigger_login_events(&app_handle);
+            }
+
+            // 消息循环
+            let mut msg = MSG::default();
+            while GetMessageW(&mut msg, HWND::default(), 0, 0).into() {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+
+            // 清理
+            let _ = WTSUnRegisterSessionNotification(hwnd);
+            let _ = DestroyWindow(hwnd);
+        }
+    });
+}
+
+/// 会话观察器上下文
+#[cfg(target_os = "windows")]
+struct SessionObserverContext {
+    app_handle: tauri::AppHandle,
+    session_locked: Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(target_os = "windows")]
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+
+/// 会话窗口过程函数
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn session_window_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    use std::sync::atomic::Ordering;
+    use windows::Win32::Foundation::*;
+    use windows::Win32::UI::WindowsAndMessaging::*;
+
+    // WTS 会话事件常量
+    const WTS_SESSION_LOCK: u32 = 7;
+    const WTS_SESSION_UNLOCK: u32 = 8;
+
+    match msg {
+        WM_WTSSESSION_CHANGE => {
+            let event_code = wparam.0 as u32;
+            let session_id = lparam.0 as u32;
+
+            // 获取窗口用户数据
+            let context_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut SessionObserverContext;
+            if !context_ptr.is_null() {
+                let context = &*context_ptr;
+
+                match event_code {
+                    WTS_SESSION_UNLOCK => {
+                        println!("[SessionObserver] 检测到会话解锁 (session_id: {})", session_id);
+
+                        // 更新锁屏状态
+                        context.session_locked.store(false, Ordering::SeqCst);
+
+                        // 启动后台服务
+                        start_background_services(&context.app_handle);
+
+                        // 触发登录事件（每次解锁都会触发）
+                        trigger_login_events(&context.app_handle);
+                    }
+                    WTS_SESSION_LOCK => {
+                        println!("[SessionObserver] 检测到会话锁定 (session_id: {})", session_id);
+
+                        // 更新锁屏状态
+                        context.session_locked.store(true, Ordering::SeqCst);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        WM_DESTROY => {
+            // 清理上下文
+            let context_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut SessionObserverContext;
+            if !context_ptr.is_null() {
+                let _ = Box::from_raw(context_ptr);
+            }
+            PostQuitMessage(0);
+        }
+
+        _ => {}
+    }
+
+    DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
+/// 启动后台服务（避免死锁）
+#[cfg(target_os = "windows")]
+fn start_background_services(app_handle: &tauri::AppHandle) {
+    use std::sync::atomic::Ordering;
+
+    // 检查是否已经启动过，防止重复启动导致资源泄漏
+    if BACKGROUND_SERVICES_STARTED.swap(true, Ordering::SeqCst) {
+        println!("[SessionObserver] 后台服务已启动，跳过重复启动");
+        return;
+    }
+
+    println!("[SessionObserver] 启动后台服务");
+
+    let app_state = app_handle.state::<AppState>();
+
+    // 获取免打扰模式设置（短暂持有锁）
+    let is_silence_mode = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.silence_mode
+    };
+
+    // 启动媒体监听器（独立线程，无锁）
+    start_media_observer(app_handle.clone(), is_silence_mode);
+
+    // 启动进程监测器（独立线程，无锁）
+    start_process_observer(app_handle.clone());
+
+    // 启动定时提醒调度器（独立线程，无锁）
+    start_reminder_scheduler(app_handle.clone());
+
+    // 启动全局键盘监听器（独立线程）
+    start_global_keyboard_listener(app_handle.clone());
+
+    // 启动全局鼠标监听器（独立线程）
+    start_global_mouse_listener(app_handle.clone());
+
+    // 启动系统状态观察器（独立线程，无锁）
+
+
+    {
+        let observer = SystemObserver::new();
+        observer.start(app_handle.clone());
+    }
+
+    // 启动定时触发器（短暂持有锁）
+    {
+        let mut sm = app_state.state_manager.lock().unwrap();
+        sm.start_timer_loop(app_handle.clone());
+    }
+}
+
+/// 触发登录相关事件
+#[cfg(target_os = "windows")]
+pub(crate) fn trigger_login_events(app_handle: &tauri::AppHandle) {
+
+    println!("[SessionObserver] 准备触发登录事件");
+
+    // 获取 AppState 引用
+    let app_state = app_handle.state::<AppState>();
+
+    // 一次性获取所有需要的设置信息，避免重复获取锁
+    // 内存优化：只克隆 birthday 的 Box<str>，而不是整个 settings
+    // 同时判断是否存在有效备忘录（无备忘录则不弹窗）
+    let (birthday_opt, first_login_timestamp, is_silence_mode, has_any_memo) = {
+        let storage = app_state.storage.lock().unwrap();
+        let has_any_memo = storage
+            .data
+            .info
+            .memos
+            .iter()
+            .any(|m| !m.content.as_ref().trim().is_empty());
+        (
+            storage.data.settings.birthday.clone(),
+            storage.data.info.first_login,
+            storage.data.settings.silence_mode,
+            has_any_memo,
+        )
+    };
+
+    // 使用统一的日期判定函数确定事件类型
+    let event_name = determine_event_type(birthday_opt.as_ref(), first_login_timestamp, is_silence_mode);
+
+    // 触发事件（获取资源管理器和状态管理器锁）
+    println!("[SessionObserver] 触发事件: {}", event_name);
+
+    let rm = app_state.resource_manager.lock().unwrap();
+    let mut sm = app_state.state_manager.lock().unwrap();
+
+    match TriggerManager::trigger_event(&event_name, false, &rm, &mut sm) {
+        Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
+        Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
+        Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),
+    }
+
+    // 释放锁
+    drop(rm);
+    drop(sm);
+
+    // 结束锁屏后，触发 login 时弹出备忘录窗口
+    // 若用户没有任何备忘录，则不弹出
+    if event_name == EVENT_LOGIN && has_any_memo {
+        let config = WindowConfig {
+            label: WINDOW_LABEL_MEMO,
+            url: "memo",
+            title_key: "common.memoTitle",
+            width: 720.0,
+            height: 760.0,
+            resizable: true,
+            center: true,
+            destroy_on_close: true,
+        };
+        show_or_create_window(app_handle, config);
+    }
+}
+
+
+/// 非Windows平台的占位实现
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn start_session_observer(app_handle: tauri::AppHandle) {
+
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    // 非Windows平台使用简化的轮询方式
+    let login_triggered = Arc::new(AtomicBool::new(false));
+
+    tauri::async_runtime::spawn(async move {
+        println!("[SessionObserver] 非Windows平台启动简化的会话检测线程");
+
+        // 只需要触发一次，触发后退出循环
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(
+                modules::constants::SESSION_OBSERVER_POLL_INTERVAL_SECS,
+            ))
+            .await;
+
+            // 启动后台服务
+            start_background_services_non_windows(&app_handle);
+
+            // 检查并触发登录事件
+            if login_triggered.compare_exchange(
+                false,
+                true,
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            )
+            .is_ok()
+            {
+                println!("[SessionObserver] 非Windows平台模拟登录事件");
+                trigger_login_events_non_windows(&app_handle);
+                break; // 触发后退出循环
+            }
+        }
+    });
+}
+
+
+/// 非Windows平台启动后台服务
+#[cfg(not(target_os = "windows"))]
+fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
+    use std::sync::atomic::Ordering;
+
+    // 检查是否已经启动过，防止重复启动导致资源泄漏
+    if BACKGROUND_SERVICES_STARTED.swap(true, Ordering::SeqCst) {
+        println!("[SessionObserver] 后台服务已启动，跳过重复启动（非Windows平台）");
+        return;
+    }
+
+    println!("[SessionObserver] 启动后台服务（非Windows平台）");
+
+    let app_state = app_handle.state::<AppState>();
+
+    // 获取免打扰模式设置（短暂持有锁）
+    let is_silence_mode = {
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.silence_mode
+    };
+
+    // 启动媒体监听器
+    start_media_observer(app_handle.clone(), is_silence_mode);
+
+    // 启动定时提醒调度器（独立线程，无锁）
+    start_reminder_scheduler(app_handle.clone());
+
+    // 启动系统状态观察器（独立线程，无锁）
+
+    {
+        let observer = SystemObserver::new();
+        observer.start(app_handle.clone());
+    }
+
+    // 启动定时触发器
+    {
+        let mut sm = app_state.state_manager.lock().unwrap();
+        sm.start_timer_loop(app_handle.clone());
+    }
+}
+
+/// 非Windows平台的登录事件触发（简化版本）
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
+
+    let app_state = app_handle.state::<AppState>();
+
+    // 内存优化：只克隆 birthday 的 Box<str>，而不是整个 settings
+    let (birthday_opt, first_login_timestamp, is_silence_mode) = {
+        let storage = app_state.storage.lock().unwrap();
+        (
+            storage.data.settings.birthday.clone(),
+            storage.data.info.first_login,
+            storage.data.settings.silence_mode,
+        )
+    };
+
+    // 使用统一的日期判定函数确定事件类型
+    let event_name = determine_event_type(birthday_opt.as_ref(), first_login_timestamp, is_silence_mode);
+
+    println!("[SessionObserver] 触发事件: {}", event_name);
+
+    let rm = app_state.resource_manager.lock().unwrap();
+    let mut sm = app_state.state_manager.lock().unwrap();
+
+    match TriggerManager::trigger_event(&event_name, false, &rm, &mut sm) {
+        Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
+        Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
+        Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),
+    }
+
+    // 释放锁
+    drop(rm);
+    drop(sm);
+}
