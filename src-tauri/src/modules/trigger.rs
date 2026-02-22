@@ -236,3 +236,27 @@ impl TriggerManager {
         state_manager.change_state_ex(selected, force, resource_manager)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn triggered_state_history_keeps_recent_items() {
+        if let Ok(mut guard) = TRIGGERED_STATE_HISTORY.lock() {
+            *guard = None;
+        }
+
+        let event = "click";
+        let persistent = "idle";
+
+        add_triggered_state_to_history(event, persistent, "a");
+        add_triggered_state_to_history(event, persistent, "b");
+        add_triggered_state_to_history(event, persistent, "c");
+        add_triggered_state_to_history(event, persistent, "d");
+
+        let history = get_triggered_state_history(event, persistent);
+        assert_eq!(history, vec!["b", "c", "d"]);
+    }
+}
+

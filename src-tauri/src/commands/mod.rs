@@ -873,3 +873,80 @@ pub fn start_login_detection(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::storage::{ReminderItem, ReminderSchedule};
+    use chrono::{Datelike, Local, TimeZone};
+
+    #[test]
+    fn compute_next_weekly_trigger_falls_back_when_no_days() {
+        let now_ts = 1_700_000_000;
+        let next = compute_next_weekly_trigger_at(now_ts, &[], 10, 30);
+        assert_eq!(next, now_ts + 365 * 24 * 3600);
+    }
+
+    #[test]
+    fn compute_next_weekly_trigger_picks_same_day_if_future_time() {
+        let now = Local.with_ymd_and_hms(2025, 1, 1, 10, 0, 0).single().unwrap();
+        let weekday = now.weekday().number_from_monday() as u8;
+        let now_ts = now.timestamp();
+
+        let next = compute_next_weekly_trigger_at(now_ts, &[weekday], 10, 30);
+        let expected = Local.with_ymd_and_hms(2025, 1, 1, 10, 30, 0).single().unwrap();
+        assert_eq!(next, expected.timestamp());
+    }
+
+    #[test]
+    fn normalize_reminder_trims_text_and_sets_next_trigger() {
+        let now_ts = 1_700_000_100;
+        let reminder = ReminderItem {
+            id: "r1".to_string(),
+            text: "  hello  ".into(),
+            enabled: true,
+            schedule: ReminderSchedule::After {
+                seconds: 60,
+                created_at: None,
+            },
+            next_trigger_at: 0,
+            last_trigger_at: None,
+        };
+
+        let normalized = normalize_reminder(reminder, now_ts);
+        assert_eq!(&*normalized.text, "hello");
+        match normalized.schedule {
+            ReminderSchedule::After { seconds, created_at } => {
+                assert_eq!(seconds, 60);
+                assert_eq!(created_at, Some(now_ts));
+            }
+            _ => panic!("unexpected schedule"),
+        }
+        assert_eq!(normalized.next_trigger_at, now_ts + 60);
+
+        let absolute = ReminderItem {
+            schedule: ReminderSchedule::Absolute { timestamp: 12345 },
+            ..ReminderItem::default()
+        };
+        let normalized = normalize_reminder(absolute, now_ts);
+        assert_eq!(normalized.next_trigger_at, 12345);
+    }
+
+    #[test]
+    fn normalize_reminder_weekly_schedules_next_time() {
+        let now = Local.with_ymd_and_hms(2025, 1, 2, 8, 0, 0).single().unwrap();
+        let weekday = now.weekday().number_from_monday() as u8;
+        let reminder = ReminderItem {
+            schedule: ReminderSchedule::Weekly {
+                days: vec![weekday],
+                hour: 9,
+                minute: 0,
+            },
+            ..ReminderItem::default()
+        };
+
+        let normalized = normalize_reminder(reminder, now.timestamp());
+        assert!(normalized.next_trigger_at > now.timestamp());
+    }
+}
+
+

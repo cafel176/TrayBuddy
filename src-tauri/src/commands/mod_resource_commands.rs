@@ -455,3 +455,80 @@ pub(crate) fn get_bubble_style(state: State<'_, AppState>) -> Option<serde_json:
     let rm = state.resource_manager.lock().unwrap();
     rm.get_bubble_style()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::resource::{build_test_mod_info, ModManifest};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_storage_path(tag: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        std::env::temp_dir().join(format!("traybuddy_storage_{}_{}.json", tag, nanos))
+    }
+
+    #[test]
+    fn apply_mod_storage_update_migrates_legacy_key_and_sets_current() {
+        let path = temp_storage_path("migrate");
+        let mut storage = Storage::new_with_path(path.clone());
+
+        storage.data.info.mod_data.insert(
+            "legacy".to_string(),
+            ModData {
+                mod_id: "legacy".to_string(),
+                value: 7,
+            },
+        );
+
+        let mut manifest = ModManifest::default();
+        manifest.id = "new_mod".into();
+        manifest.mod_data_default_int = 42;
+        let mod_info = build_test_mod_info(manifest);
+
+        apply_mod_storage_update(&mut storage, &mod_info, Some("legacy"));
+
+        assert_eq!(&*storage.data.info.current_mod, "new_mod");
+        assert!(!storage.data.info.mod_data.contains_key("legacy"));
+        let data = storage.data.info.mod_data.get("new_mod").unwrap();
+        assert_eq!(data.value, 7);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn apply_mod_storage_update_keeps_existing_manifest_key() {
+        let path = temp_storage_path("conflict");
+        let mut storage = Storage::new_with_path(path.clone());
+
+        storage.data.info.mod_data.insert(
+            "legacy".to_string(),
+            ModData {
+                mod_id: "legacy".to_string(),
+                value: 1,
+            },
+        );
+        storage.data.info.mod_data.insert(
+            "new_mod".to_string(),
+            ModData {
+                mod_id: "new_mod".to_string(),
+                value: 99,
+            },
+        );
+
+        let mut manifest = ModManifest::default();
+        manifest.id = "new_mod".into();
+        let mod_info = build_test_mod_info(manifest);
+
+        apply_mod_storage_update(&mut storage, &mod_info, Some("legacy"));
+
+        assert!(!storage.data.info.mod_data.contains_key("legacy"));
+        let data = storage.data.info.mod_data.get("new_mod").unwrap();
+        assert_eq!(data.value, 99);
+
+        let _ = std::fs::remove_file(path);
+    }
+}
+

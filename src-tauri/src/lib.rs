@@ -25,7 +25,8 @@
 
 #![allow(unused)]
 
-mod modules;
+pub mod modules;
+
 mod app_state;
 mod commands;
 mod lib_helpers;

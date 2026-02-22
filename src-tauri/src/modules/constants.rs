@@ -348,3 +348,23 @@ pub const MODS_SEARCH_MAX_LEVELS_CWD: u32 = 2;
 ///
 /// **用途**: 判断窗口是否覆盖全屏时的最小覆盖范围（像素）。
 pub const FULLSCREEN_COVERAGE_THRESHOLD: i32 = 5;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn animation_window_base_dimensions_match_formula() {
+        let expected_width = ANIMATION_AREA_WIDTH.max(BUBBLE_AREA_WIDTH);
+        let expected_height = ANIMATION_AREA_HEIGHT + BUBBLE_AREA_HEIGHT;
+        assert_eq!(ANIMATION_WINDOW_BASE_WIDTH, expected_width);
+        assert_eq!(ANIMATION_WINDOW_BASE_HEIGHT, expected_height);
+    }
+
+    #[test]
+    fn identifiers_are_stable() {
+        assert_eq!(TRAY_ID_MAIN, "main");
+        assert_eq!(WINDOW_LABEL_ANIMATION, "animation");
+    }
+}
+

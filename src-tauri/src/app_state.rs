@@ -165,3 +165,23 @@ pub(crate) fn urlencoding_decode(input: &str) -> String {
     }
     String::from_utf8_lossy(&result).into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guess_mime_type_handles_known_and_unknown() {
+        assert_eq!(guess_mime_type("config.json"), "application/json");
+        assert_eq!(guess_mime_type("sound.mp3"), "audio/mpeg");
+        assert_eq!(guess_mime_type("image.unknown"), "application/octet-stream");
+    }
+
+    #[test]
+    fn urlencoding_decode_handles_percent_sequences() {
+        assert_eq!(urlencoding_decode("hello%20world"), "hello world");
+        assert_eq!(urlencoding_decode("%E4%BD%A0%E5%A5%BD"), "你好");
+        assert_eq!(urlencoding_decode("100%"), "100%");
+    }
+}
+

@@ -310,6 +310,11 @@ impl Storage {
 
         let storage_dir = Self::get_storage_dir(app_handle);
         let storage_path = storage_dir.join("storage.json");
+        Self::new_with_path(storage_path)
+    }
+
+    /// 使用指定路径初始化存储管理器（用于测试或工具场景）
+    pub fn new_with_path(storage_path: PathBuf) -> Self {
         let data = Self::load(&storage_path);
 
         // 记录程序启动时间（不重置）
@@ -324,6 +329,7 @@ impl Storage {
             usage_checkpoint_time,
         }
     }
+
 
     // ========================================================================= //
 
@@ -385,3 +391,83 @@ impl Storage {
         self.save()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+    fn temp_path(label: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        path.push(format!("traybuddy_storage_test_{}_{}.json", label, nanos));
+        path
+    }
+
+    #[test]
+    fn load_missing_returns_default() {
+        let path = temp_path("missing");
+        if path.exists() {
+            let _ = fs::remove_file(&path);
+        }
+
+        let data = Storage::load(&path);
+        assert_eq!(data.settings.lang.as_ref(), "zh");
+        assert_eq!(data.info.current_mod.as_ref(), "ema");
+    }
+
+    #[test]
+    fn load_invalid_returns_default() {
+        let path = temp_path("invalid");
+        fs::write(&path, "not json").unwrap();
+
+        let data = Storage::load(&path);
+        assert_eq!(data.settings.lang.as_ref(), "zh");
+        assert_eq!(data.info.current_mod.as_ref(), "ema");
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_valid_parses_data() {
+        let path = temp_path("valid");
+        let mut data = AppStorageData::default();
+        data.settings.lang = "en".into();
+        data.info.current_mod = "test_mod".into();
+        let content = serde_json::to_string_pretty(&data).unwrap();
+        fs::write(&path, content).unwrap();
+
+        let loaded = Storage::load(&path);
+        assert_eq!(loaded.settings.lang.as_ref(), "en");
+        assert_eq!(loaded.info.current_mod.as_ref(), "test_mod");
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn save_writes_json_file() {
+        let path = temp_path("save");
+        let mut data = AppStorageData::default();
+        data.settings.lang = "en".into();
+        data.info.current_mod = "saved_mod".into();
+
+        let mut storage = Storage {
+            data: data.clone(),
+            storage_path: path.clone(),
+            app_start_time: Instant::now(),
+            usage_checkpoint_time: Instant::now(),
+        };
+
+        storage.save().unwrap();
+        let content = fs::read_to_string(&path).unwrap();
+        let saved: AppStorageData = serde_json::from_str(&content).unwrap();
+        assert_eq!(saved.settings.lang.as_ref(), "en");
+        assert_eq!(saved.info.current_mod.as_ref(), "saved_mod");
+
+        let _ = fs::remove_file(&path);
+    }
+}
+

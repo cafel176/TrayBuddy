@@ -13,7 +13,8 @@
 //! - 外部调用时可以通过便捷函数直接调用，避免创建管理器实例
 //!
 //! ## 示例
-//! ```ignore
+//! ```text
+
 //! let mut manager = EnvironmentManager::new();
 //! let env = manager.get_environment_info();
 //! println!("当前时间: {}:{}", env.datetime.hour, env.datetime.minute);
@@ -722,3 +723,75 @@ pub fn get_cached_weather() -> Option<WeatherInfo> {
 }
 
 // ========================================================================= //
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ip_geo_response_success() {
+        let body = r#"{
+            "status": "success",
+            "country": "China",
+            "regionName": "Beijing",
+            "city": "Beijing",
+            "lat": 39.9,
+            "lon": 116.4,
+            "timezone": "Asia/Shanghai"
+        }"#;
+
+
+        let geo = EnvironmentManager::parse_ip_geo_response(body).unwrap();
+        assert_eq!(geo.latitude, 39.9);
+        assert_eq!(geo.longitude, 116.4);
+        assert!(geo.is_northern_hemisphere);
+        assert_eq!(geo.city.as_deref(), Some("Beijing"));
+    }
+
+    #[test]
+    fn parse_ip_geo_response_failure_status() {
+        let body = r#"{ "status": "fail" }"#;
+        let err = EnvironmentManager::parse_ip_geo_response(body).unwrap_err();
+        assert!(err.contains("error status"));
+
+    }
+
+    #[test]
+    fn parse_wttr_response_success() {
+        let body = r#"{
+            "current_condition": [
+                {
+                    "temp_C": "23",
+                    "FeelsLikeC": "21",
+                    "humidity": "55",
+                    "windspeedKmph": "10",
+                    "lang_zh": [{ "value": "多云" }],
+                    "weatherDesc": [{ "value": "Cloudy" }],
+                    "weatherCode": "116"
+                }
+            ]
+        }"#;
+
+
+        let manager = EnvironmentManager::new();
+        let weather = manager.parse_wttr_response(body).unwrap();
+        assert_eq!(weather.temperature, 23.0);
+        assert_eq!(weather.feels_like, Some(21.0));
+        assert_eq!(weather.humidity, Some(55));
+        assert_eq!(weather.wind_speed, Some(10.0));
+        assert_eq!(weather.condition.as_ref(), "多云");
+        assert_eq!(weather.condition_code.as_ref(), "116");
+    }
+
+    #[test]
+    fn season_names_and_hemispheres() {
+        assert_eq!(Season::Spring.name(), "spring");
+        assert_eq!(Season::Winter.name_zh(), "冬");
+
+        assert_eq!(get_season_by_month_and_latitude(4, 30.0), Season::Spring);
+        assert_eq!(get_season_by_month_and_latitude(4, -30.0), Season::Autumn);
+        assert_eq!(get_season_by_month_and_latitude(12, 40.0), Season::Winter);
+        assert_eq!(get_season_by_month_and_latitude(12, -40.0), Season::Summer);
+    }
+}
+

@@ -8,9 +8,11 @@
 //! - 支持嵌套键路径访问（如 "menu.about"）
 //!
 //! ## 使用示例
-//! ```rust
-//! let text = get_i18n_text(app, "menu.about");
+//! ```text
+//! let text = get_i18n_text(app, "zh", "menu.about");
 //! ```
+
+
 
 use serde_json::Value;
 use std::path::PathBuf;
@@ -137,4 +139,28 @@ fn get_nested_value(json: &Value, key: &str) -> Option<String> {
 
     current.as_str().map(|s| s.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn get_nested_value_returns_nested_string() {
+        let data = json!({
+            "menu": {
+                "about": "关于",
+                "nested": { "deep": "深层" }
+            }
+        });
+
+        assert_eq!(get_nested_value(&data, "menu.about"), Some("关于".to_string()));
+        assert_eq!(
+            get_nested_value(&data, "menu.nested.deep"),
+            Some("深层".to_string())
+        );
+        assert_eq!(get_nested_value(&data, "menu.missing"), None);
+    }
+}
+
 

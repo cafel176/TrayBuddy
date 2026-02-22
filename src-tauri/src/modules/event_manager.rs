@@ -11,8 +11,9 @@
 //!
 //! # 使用示例
 //!
-//! ```rust,ignore
+//! ```text
 //! use crate::modules::event_manager::{emit, EmitOptions};
+
 //!
 //! // 基本使用（失败时静默忽略）
 //! emit(&app_handle, "event-name", payload)?;
@@ -173,7 +174,7 @@ impl EmitOptions {
 ///
 /// # 示例
 ///
-/// ```rust,ignore
+/// ```text
 /// emit(&app_handle, events::VOLUME_CHANGE, volume)?;
 /// ```
 pub fn emit<T: serde::Serialize + Clone>(
@@ -200,7 +201,7 @@ pub fn emit<T: serde::Serialize + Clone>(
 ///
 /// # 示例
 ///
-/// ```rust,ignore
+/// ```text
 /// emit_from_window(&window, events::WINDOW_POSITION_CHANGED, (x, y))?;
 /// ```
 pub fn emit_from_window<T: serde::Serialize + Clone>(
@@ -228,7 +229,7 @@ pub fn emit_from_window<T: serde::Serialize + Clone>(
 ///
 /// # 示例
 ///
-/// ```rust,ignore
+/// ```text
 /// .on_window_event(|window, event| {
 ///     match event {
 ///         tauri::WindowEvent::Moved(_) => {
@@ -273,7 +274,7 @@ pub fn emit_from_tauri_window<T: serde::Serialize + Clone>(
 ///
 /// # 示例
 ///
-/// ```rust,ignore
+/// ```text
 /// // 基本使用（失败时静默）
 /// emit(&app_handle, events::SETTINGS_CHANGE, settings)?;
 ///
@@ -371,7 +372,7 @@ pub fn emit_with_options_window<T: serde::Serialize + Clone>(
 ///
 /// # 示例
 ///
-/// ```rust,ignore
+/// ```text
 /// emit_settings(&app, &settings)?;
 /// ```
 pub fn emit_settings<T: serde::Serialize>(
@@ -407,3 +408,23 @@ pub fn emit_debug_update<T: serde::Serialize>(
 
     emit_with_options(app, event_name, debug_info, EmitOptions::log_on_error())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn emit_options_flags() {
+        assert!(EmitOptions::default().should_log() == false);
+        assert!(EmitOptions::default().should_fail() == false);
+
+        let log = EmitOptions::log_on_error();
+        assert!(log.should_log());
+        assert!(!log.should_fail());
+
+        let fail = EmitOptions::fail_on_error();
+        assert!(fail.should_log());
+        assert!(fail.should_fail());
+    }
+}
+

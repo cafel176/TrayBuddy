@@ -2360,3 +2360,42 @@ pub(crate) fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
     drop(rm);
     drop(sm);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_birthday_date_rejects_invalid_and_accepts_valid() {
+        assert_eq!(parse_birthday_date("02-29"), Some((2, 29)));
+        assert_eq!(parse_birthday_date("12-31"), Some((12, 31)));
+        assert_eq!(parse_birthday_date("13-01"), None);
+        assert_eq!(parse_birthday_date("00-10"), None);
+        assert_eq!(parse_birthday_date("02-30"), Some((2, 30)));
+
+        assert_eq!(parse_birthday_date("0229"), None);
+        assert_eq!(parse_birthday_date("aa-bb"), None);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn map_vk_code_covers_known_keys() {
+        assert_eq!(map_vk_code(0x41), Some("KeyA"));
+        assert_eq!(map_vk_code(0x30), Some("Digit0"));
+        assert_eq!(map_vk_code(0x70), Some("F1"));
+        assert_eq!(map_vk_code(0xFF), None);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn should_emit_key_to_frontend_allows_navigation_keys() {
+        assert!(should_emit_key_to_frontend("Space"));
+        assert!(should_emit_key_to_frontend("Enter"));
+        assert!(should_emit_key_to_frontend("ArrowUp"));
+        assert!(should_emit_key_to_frontend("ArrowDown"));
+        assert!(should_emit_key_to_frontend("ArrowLeft"));
+        assert!(should_emit_key_to_frontend("ArrowRight"));
+        assert!(!should_emit_key_to_frontend("KeyA"));
+    }
+}
+

@@ -574,3 +574,51 @@ impl ProcessObserver {
         out
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_path(label: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        path.push(format!("traybuddy_process_keywords_{}_{}.json", label, nanos));
+        path
+    }
+
+    #[test]
+    fn load_process_keywords_from_file_trims_and_lowercases() {
+        let path = temp_path("keywords");
+        let content = r#"{ "process_keywords": ["  Chrome ", "", "WeChat"] }"#;
+
+        std::fs::write(&path, content).unwrap();
+
+        let keywords = load_process_keywords_from_file(&path).unwrap();
+        assert_eq!(keywords, vec!["chrome".into(), "wechat".into()]);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn should_trigger_for_process_name_matches_keywords() {
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec!["chrome".into(), "wechat".into()];
+        }
+
+        assert_eq!(
+            should_trigger_for_process_name("Chrome.exe").as_deref(),
+            Some("chrome")
+        );
+        assert_eq!(
+            should_trigger_for_process_name("We Chat").as_deref(),
+            Some("wechat")
+        );
+        assert!(should_trigger_for_process_name("UnknownApp").is_none());
+    }
+}
+

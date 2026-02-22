@@ -24,6 +24,7 @@ sbuddy-crypto.exe
 mod-tool/sbuddy-crypto.exe
 mod-tool/to-sbuddy.bat
 src-tauri/sbuddy-crypto.exe
+src-tauri/test_logs
 
 my-tool/ExportVrma/Library
 my-tool/ExportVrma/Logs

@@ -583,6 +583,143 @@ pub(crate) async fn export_mod_as_sbuddy(
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::{Cursor, Write};
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use zip::write::{SimpleFileOptions, ZipWriter};
+
+    fn unique_temp_path(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        std::env::temp_dir().join(format!("traybuddy_{}_{}.zip", name, nanos))
+    }
+
+    fn write_zip_file(path: &PathBuf, entries: &[(&str, &str)]) {
+        let file = File::create(path).expect("create zip");
+        let mut zip = ZipWriter::new(file);
+        let options = SimpleFileOptions::default();
+
+        for (name, content) in entries {
+            if name.ends_with('/') {
+                zip.add_directory(*name, options).expect("add dir");
+            } else {
+                zip.start_file(*name, options).expect("start file");
+                zip.write_all(content.as_bytes()).expect("write file");
+            }
+        }
+        zip.finish().expect("finish zip");
+    }
+
+    fn build_zip_bytes(entries: &[(&str, &str)]) -> Vec<u8> {
+        let cursor = Cursor::new(Vec::new());
+        let mut zip = ZipWriter::new(cursor);
+        let options = SimpleFileOptions::default();
+
+        for (name, content) in entries {
+            if name.ends_with('/') {
+                zip.add_directory(*name, options).expect("add dir");
+            } else {
+                zip.start_file(*name, options).expect("start file");
+                zip.write_all(content.as_bytes()).expect("write file");
+            }
+        }
+
+        zip.finish().expect("finish zip").into_inner()
+    }
+
+    fn minimal_manifest_json(id: &str, version: &str) -> String {
+        format!("{{\"id\":\"{}\",\"version\":\"{}\"}}", id, version)
+    }
+
+    #[test]
+    fn get_tbuddy_root_folder_detects_single_root() {
+        let path = unique_temp_path("root_ok");
+        write_zip_file(
+            &path,
+            &[
+                ("mod1/", ""),
+                ("mod1/manifest.json", &minimal_manifest_json("m1", "1.0")),
+                ("mod1/assets/a.txt", "hello"),
+            ],
+        );
+
+        let file = File::open(&path).expect("open zip");
+        let mut archive = zip::ZipArchive::new(file).expect("read zip");
+        let root = get_tbuddy_root_folder(&mut archive).expect("root");
+        assert_eq!(root, "mod1");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn get_tbuddy_root_folder_rejects_multiple_roots() {
+        let path = unique_temp_path("root_bad");
+        write_zip_file(
+            &path,
+            &[("mod1/a.txt", "a"), ("mod2/b.txt", "b")],
+        );
+
+        let file = File::open(&path).expect("open zip");
+        let mut archive = zip::ZipArchive::new(file).expect("read zip");
+        let err = get_tbuddy_root_folder(&mut archive).unwrap_err();
+        assert!(err.contains("multiple root folders"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn read_tbuddy_manifest_parses_manifest_json() {
+        let path = unique_temp_path("manifest_ok");
+        write_zip_file(
+            &path,
+            &[
+                ("mod1/", ""),
+                ("mod1/manifest.json", &minimal_manifest_json("m1", "1.0")),
+            ],
+        );
+
+        let file = File::open(&path).expect("open zip");
+        let mut archive = zip::ZipArchive::new(file).expect("read zip");
+        let root = get_tbuddy_root_folder(&mut archive).expect("root");
+        let manifest = read_tbuddy_manifest(&mut archive, &root).expect("manifest");
+        assert_eq!(&*manifest.id, "m1");
+        assert_eq!(&*manifest.version, "1.0");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn read_zip_manifest_errors_when_missing() {
+        let zip_bytes = build_zip_bytes(&[("mod1/", ""), ("mod1/a.txt", "x")]);
+        let cursor = Cursor::new(zip_bytes);
+        let mut archive = zip::ZipArchive::new(cursor).expect("read zip");
+        let root = get_zip_root_folder(&mut archive).expect("root");
+        let err = read_zip_manifest(&mut archive, &root).unwrap_err();
+        assert!(err.contains("manifest.json"));
+    }
+
+    #[test]
+    fn read_zip_manifest_parses_manifest_json() {
+        let zip_bytes = build_zip_bytes(&[
+            ("mod1/", ""),
+            ("mod1/manifest.json", &minimal_manifest_json("m2", "2.0")),
+        ]);
+        let cursor = Cursor::new(zip_bytes);
+        let mut archive = zip::ZipArchive::new(cursor).expect("read zip");
+        let root = get_zip_root_folder(&mut archive).expect("root");
+        let manifest = read_zip_manifest(&mut archive, &root).expect("manifest");
+        assert_eq!(&*manifest.id, "m2");
+        assert_eq!(&*manifest.version, "2.0");
+    }
+}
+
+
 /// 将文件夹 mod 打包为 ZIP（内存中），用于导出
 fn zip_mod_directory(state: &State<'_, AppState>, mod_id: &str) -> Result<Vec<u8>, String> {
     use std::io::{BufReader, Cursor, Write};

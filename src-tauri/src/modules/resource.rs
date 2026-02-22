@@ -1710,6 +1710,19 @@ impl ResourceManager {
         }
     }
 
+    /// 创建资源管理器（自定义搜索路径，用于测试或工具场景）
+    pub fn new_with_search_paths(search_paths: Vec<PathBuf>) -> Self {
+        Self {
+            current_mod: None,
+            search_paths,
+            mod_index: HashMap::new(),
+            folder_to_id: HashMap::new(),
+            archive_mod_ids: std::collections::HashSet::new(),
+            archive_store: None,
+        }
+    }
+
+
     /// 设置 archive store 引用（在 AppState 初始化后调用）
     pub fn set_archive_store(&mut self, store: Arc<std::sync::Mutex<super::mod_archive::ModArchiveStore>>) {
         self.archive_store = Some(store);
@@ -2587,3 +2600,112 @@ impl ResourceManager {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Deserialize;
+    use std::cmp::Ordering;
+
+    #[derive(Debug, Deserialize)]
+    struct TriggerWeatherHolder {
+        #[serde(deserialize_with = "deserialize_trigger_weather")]
+        trigger_weather: Vec<Box<str>>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct EventsHolder {
+        #[serde(deserialize_with = "deserialize_string_or_vec")]
+        events: Vec<String>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct CanTriggerHolder {
+        #[serde(deserialize_with = "deserialize_can_trigger_states")]
+        states: Vec<CanTriggerState>,
+    }
+
+    #[test]
+    fn parse_version_and_compare() {
+        let (nums, pre) = ResourceManager::parse_version("v1.2.3-beta");
+        assert_eq!(nums, vec![1, 2, 3]);
+        assert_eq!(pre.as_deref(), Some("beta"));
+
+        assert_eq!(ResourceManager::compare_version("1.0.0", "1.0.0"), Ordering::Equal);
+        assert_eq!(ResourceManager::compare_version("1.0.1", "1.0.0"), Ordering::Greater);
+        assert_eq!(ResourceManager::compare_version("1.0.0", "1.0.1"), Ordering::Less);
+        assert_eq!(
+            ResourceManager::compare_version("1.0.0", "1.0.0-beta"),
+            Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn deserialize_trigger_weather_supports_string_and_array() {
+        let single: TriggerWeatherHolder = serde_json::from_str(
+            r#"{"trigger_weather": "  Sunny  "}"#,
+        )
+        .unwrap();
+
+        assert_eq!(single.trigger_weather, vec!["Sunny".into()]);
+
+        let arr: TriggerWeatherHolder = serde_json::from_str(
+            r#"{"trigger_weather": ["Rain", " " , "Cloudy"]}"#,
+        )
+        .unwrap();
+
+        assert_eq!(arr.trigger_weather, vec!["Rain".into(), "Cloudy".into()]);
+    }
+
+    #[test]
+    fn deserialize_string_or_vec_supports_event_alias() {
+        let single: EventsHolder = serde_json::from_str(r#"{"events": "click"}"#).unwrap();
+
+        assert_eq!(single.events, vec!["click".to_string()]);
+
+        let arr: EventsHolder =
+            serde_json::from_str(r#"{"events": ["a", "b"]}"#).unwrap();
+
+        assert_eq!(arr.events, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn deserialize_can_trigger_states_supports_string_and_object() {
+        let holder: CanTriggerHolder = serde_json::from_str(
+            r#"{"states": ["idle", {"state": "hello", "weight": 3}] }"#,
+        )
+        .unwrap();
+
+        assert_eq!(holder.states.len(), 2);
+        assert_eq!(holder.states[0].state.as_ref(), "idle");
+        assert_eq!(holder.states[0].weight, 1);
+        assert_eq!(holder.states[1].state.as_ref(), "hello");
+        assert_eq!(holder.states[1].weight, 3);
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn build_test_mod_info(manifest: ModManifest) -> ModInfo {
+    ModInfo {
+        path: std::path::PathBuf::from("test_mod"),
+        manifest,
+        imgs: Vec::new(),
+        sequences: Vec::new(),
+        live2d: None,
+        pngremix: None,
+        threed: None,
+        audios: HashMap::new(),
+        texts: HashMap::new(),
+        info: HashMap::new(),
+        bubble_style: None,
+        icon_path: None,
+        preview_path: None,
+        state_index: HashMap::new(),
+        trigger_index: HashMap::new(),
+        asset_index: HashMap::new(),
+        audio_index: HashMap::new(),
+        text_index: HashMap::new(),
+    }
+}
+
+

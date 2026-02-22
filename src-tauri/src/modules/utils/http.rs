@@ -144,3 +144,16 @@ pub async fn http_get_async(
     .await
     .map_err(|e| format!("Task join error: {}", e))?
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore]
+    fn http_get_returns_error_for_invalid_url() {
+        let result = http_get("http://invalid.invalid", 1, None);
+        assert!(result.is_err());
+    }
+}
+

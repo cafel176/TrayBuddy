@@ -90,3 +90,17 @@ pub fn get_work_area() -> RECT {
     }
     rect
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(windows)]
+    fn get_work_area_returns_nonzero_rect() {
+        let rect = get_work_area();
+        assert!(rect.right > rect.left);
+        assert!(rect.bottom > rect.top);
+    }
+}
+

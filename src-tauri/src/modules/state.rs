@@ -1106,3 +1106,83 @@ impl StateManager {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::environment::WeatherInfo;
+
+    fn weather(code: &str, condition: &str) -> WeatherInfo {
+        WeatherInfo {
+            condition: condition.into(),
+            condition_code: code.into(),
+            temperature: 20.0,
+            feels_like: None,
+            humidity: None,
+            wind_speed: None,
+        }
+    }
+
+    #[test]
+    fn temp_range_allows_when_unrestricted_or_in_range() {
+        let mut state = StateInfo::default();
+        assert!(StateManager::is_state_allowed_by_temp_range(&state, None));
+
+        state.trigger_temp_start = 0;
+        state.trigger_temp_end = 10;
+        assert!(StateManager::is_state_allowed_by_temp_range(&state, Some(5.0)));
+        assert!(!StateManager::is_state_allowed_by_temp_range(&state, Some(15.0)));
+        assert!(!StateManager::is_state_allowed_by_temp_range(&state, None));
+    }
+
+    #[test]
+    fn uptime_minimum_is_enforced() {
+        let mut state = StateInfo::default();
+        state.trigger_uptime = 10;
+        assert!(!StateManager::is_state_allowed_by_uptime_min(&state, 5));
+        assert!(StateManager::is_state_allowed_by_uptime_min(&state, 10));
+    }
+
+    #[test]
+    fn weather_matching_supports_code_and_text() {
+        let mut state = StateInfo::default();
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, None));
+
+        state.trigger_weather = vec!["100".into(), "多云".into()];
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("100", "晴"))));
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("101", "多云"))));
+        assert!(!StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("101", "小雨"))));
+        assert!(!StateManager::is_state_allowed_by_weather_any(&state, None));
+    }
+
+    #[test]
+    fn limits_static_combines_all_checks() {
+        let mut state = StateInfo::default();
+        state.trigger_counter_start = 1;
+        state.trigger_counter_end = 2;
+        state.trigger_uptime = 5;
+        state.trigger_temp_start = 0;
+        state.trigger_temp_end = 30;
+        state.trigger_weather = vec!["100".into()];
+
+        let ok = StateManager::is_state_allowed_by_limits_static(
+            &state,
+            2,
+            10,
+            Some(25.0),
+            Some(&weather("100", "晴")),
+        );
+        assert!(ok);
+
+        let bad_counter = StateManager::is_state_allowed_by_limits_static(
+            &state,
+            3,
+            10,
+            Some(25.0),
+            Some(&weather("100", "晴")),
+        );
+        assert!(!bad_counter);
+    }
+}
+
+
+
