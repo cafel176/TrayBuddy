@@ -1,3 +1,9 @@
 # Check tool logs
 memory_profile/Logs/
 bundle_analyzer/Logs/
+
+# Build/cache outputs
+node_modules/
+dist/
+build/
+coverage/

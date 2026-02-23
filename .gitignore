@@ -4,6 +4,11 @@ node_modules
 /.svelte-kit
 /.vscode
 /.codebuddy
+.idea/
+.cache/
+dist/
+coverage/
+test_logs/
 /package
 
 

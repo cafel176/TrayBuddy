@@ -10,3 +10,8 @@ ExportVrma/Assets/*.meta
 ExportVrma/Assets/Editor/*.meta
 ExportVrma/Assets/AnimBaked
 ExportVrma/Assets/AnimExports
+
+# Unity build outputs
+ExportVrma/Obj
+ExportVrma/Build
+ExportVrma/Builds

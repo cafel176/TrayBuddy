@@ -1,0 +1,10 @@
+# Node/Vite outputs
+node_modules/
+dist/
+build/
+.vite/
+.svelte-kit/
+.cache/
+.parcel-cache/
+.turbo/
+coverage/
