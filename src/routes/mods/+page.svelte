@@ -54,17 +54,22 @@
         description: string;
     }
 
+    type ModType = "sequence" | "live2d" | "pngremix" | "3d" | "threed" | "unknown" | (string & {});
+
     interface ModManifest {
         id: string;
         version: string;
         author: string;
         default_text_lang_id: string;
+        mod_type?: ModType;
     }
 
     interface ModInfo {
         path: string;
         manifest: ModManifest;
         info: Record<string, CharacterInfo>;
+        icon_path?: string | null;
+        preview_path?: string | null;
     }
 
     interface ModTbuddyPick {
@@ -85,7 +90,7 @@
     // State
     // ======================================================================= //
     let searchPaths: string[] = $state([]);
-    let mods: string[] = $state([]);
+    let mods: ModInfo[] = $state([]);
     let selectedMod = $state("");
     let selectedModInfo = $state<ModInfo | null>(null);
     let loading = $state(false);
@@ -124,18 +129,132 @@
         );
     });
 
+
+
+    // ======================================================================= //
+    // UI Helpers
+    // ======================================================================= //
+
+    function formatModType(modType?: ModType): string {
+        const t = (modType || "unknown").toLowerCase();
+        if (t === "sequence") return _("modWindow.modTypeSequence");
+        if (t === "live2d") return _("modWindow.modTypeLive2D");
+        if (t === "pngremix") return _("modWindow.modTypePngRemix");
+        if (t === "3d" || t === "threed") return _("modWindow.modType3D");
+        if (t === "unknown") return _("common.unknown");
+        return modType || _("common.unknown");
+    }
+
+    type DescToken =
+        | { kind: "text"; value: string }
+        | { kind: "link"; href: string; text: string };
+
+    function tokenizeLinks(input: string): DescToken[] {
+        if (!input) return [];
+
+        const tokens: DescToken[] = [];
+        const regex = /\bhttps?:\/\/[^\s<>"']+/gi;
+        let lastIndex = 0;
+
+        for (const m of input.matchAll(regex)) {
+            const raw = m[0];
+            const index = m.index ?? 0;
+
+            if (index > lastIndex) {
+                tokens.push({ kind: "text", value: input.slice(lastIndex, index) });
+            }
+
+            // 处理结尾常见标点，避免把 ")" / "," 等算进 URL
+            let href = raw;
+            let trailing = "";
+            while (href.length > 0 && /[),.;!?]$/.test(href)) {
+                trailing = href.slice(-1) + trailing;
+                href = href.slice(0, -1);
+            }
+
+            if (href) {
+                tokens.push({ kind: "link", href, text: href });
+            } else {
+                // 极端兜底：如果被裁剪到空，按原文输出
+                tokens.push({ kind: "text", value: raw });
+            }
+
+            if (trailing) {
+                tokens.push({ kind: "text", value: trailing });
+            }
+
+            lastIndex = index + raw.length;
+        }
+
+        if (lastIndex < input.length) {
+            tokens.push({ kind: "text", value: input.slice(lastIndex) });
+        }
+
+        return tokens.length ? tokens : [{ kind: "text", value: input }];
+    }
+
+    async function openExternal(url: string) {
+        try {
+            const { openUrl } = await import("@tauri-apps/plugin-opener");
+            await openUrl(url);
+        } catch (e) {
+            // web/测试环境兜底
+            try {
+                window.open(url, "_blank", "noopener,noreferrer");
+            } catch {
+                // ignore
+            }
+        }
+    }
+
+    /** 当前描述文本的 token（把 URL 变成可点击链接） */
+    let activeDescTokens = $derived.by(() => {
+        if (!activeCharInfo?.description) return [] as DescToken[];
+        return tokenizeLinks(activeCharInfo.description);
+    });
+
     // ======================================================================= //
     // Logic
     // ======================================================================= //
 
+
     async function loadModList() {
         try {
             searchPaths = await invoke("get_mod_search_paths");
-            mods = await invoke("get_available_mods");
+            const modIds = (await invoke("get_available_mods")) as string[];
+
+            // 拉取摘要信息以便在列表里展示 mod 类型（失败则降级为仅显示 ID）
+            const summaries = await Promise.all(
+                modIds.map(async (id) => {
+                    try {
+                        const info = (await invoke("get_mod_details", { modId: id })) as ModInfo | null;
+                        if (!info || !info.manifest) {
+                            throw new Error("Invalid mod summary");
+                        }
+                        return info;
+                    } catch (e) {
+                        return {
+                            path: "",
+                            manifest: {
+                                id,
+                                version: "",
+                                author: "",
+                                default_text_lang_id: "zh",
+                                mod_type: "unknown",
+                            },
+                            info: {},
+                            icon_path: null,
+                            preview_path: null,
+                        } as ModInfo;
+                    }
+                })
+            );
+
+            mods = summaries;
             statusMsg = "";
-            
+
             // 加载完成后，如果有当前选中的 mod 且在列表中，则自动选中
-            if (currentModName && mods.includes(currentModName)) {
+            if (currentModName && mods.some((m) => m.manifest.id === currentModName)) {
                 await selectMod(currentModName);
             }
         } catch (e) {
@@ -171,7 +290,10 @@
         try {
             const info = (await invoke("get_mod_details", {
                 modId: modName,
-            })) as ModInfo;
+            })) as ModInfo | null;
+            if (!info || !info.manifest) {
+                throw new Error("Invalid mod summary");
+            }
             selectedModInfo = info;
 
             // Load preview image
@@ -518,10 +640,16 @@
             {#each mods as mod}
                 <button
                     class="mod-item"
-                    class:active={selectedMod === mod}
-                    onclick={() => selectMod(mod)}
+                    class:active={selectedMod === mod.manifest.id}
+                    onclick={() => selectMod(mod.manifest.id)}
+                    title={mod.path || mod.manifest.id}
                 >
-                    {mod}
+                    <div class="mod-item-row">
+                        <span class="mod-id">{mod.manifest.id}</span>
+                        <span class="mod-type-tag" data-type={mod.manifest.mod_type}>
+                            {formatModType(mod.manifest.mod_type)}
+                        </span>
+                    </div>
                 </button>
             {/each}
         </div>
@@ -540,6 +668,9 @@
             <div class="header">
                 <h2>{selectedModInfo.manifest.id}</h2>
                 <span class="version">v{selectedModInfo.manifest.version}</span>
+                <span class="mod-type-tag large" data-type={selectedModInfo.manifest.mod_type}>
+                    {formatModType(selectedModInfo.manifest.mod_type)}
+                </span>
             </div>
 
             <div class="preview-area">
@@ -561,13 +692,35 @@
                     <span class="value">{selectedModInfo.manifest.author}</span>
                 </div>
 
+                <div class="row">
+                    <span class="label">{_("modWindow.modType")}:</span>
+                    <span class="value">{formatModType(selectedModInfo.manifest.mod_type)}</span>
+                </div>
+
                 {#if activeCharInfo}
                     <div class="row">
                         <span class="label">{_("modWindow.modName")}:</span>
                         <span class="value">{activeCharInfo.name}</span>
                     </div>
                     <div class="desc">
-                        {activeCharInfo.description}
+                        {#each activeDescTokens as token}
+                            {#if token.kind === "link"}
+                                <a
+                                    class="external-link"
+                                    href={token.href}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onclick={(e) => {
+                                        e.preventDefault();
+                                        openExternal(token.href);
+                                    }}
+                                >
+                                    {token.text}
+                                </a>
+                            {:else}
+                                {token.value}
+                            {/if}
+                        {/each}
                     </div>
                 {/if}
             </div>
@@ -741,6 +894,58 @@
         transition: all 0.2s;
     }
 
+    .mod-item-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .mod-id {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+    }
+
+    .mod-type-tag {
+        flex-shrink: 0;
+        font-size: 0.72em;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid #e0e0e0;
+        background: #f6f7f9;
+        color: #555;
+        line-height: 1.2;
+        user-select: none;
+    }
+
+    .mod-type-tag.large {
+        font-size: 0.8em;
+        padding: 3px 10px;
+    }
+
+    /* 轻微区分不同类型（保持低干扰风格） */
+    .mod-type-tag[data-type="live2d"] {
+        border-color: rgba(88, 80, 236, 0.35);
+        background: rgba(88, 80, 236, 0.08);
+        color: #3b36b4;
+    }
+
+    .mod-type-tag[data-type="pngremix"] {
+        border-color: rgba(250, 173, 20, 0.35);
+        background: rgba(250, 173, 20, 0.10);
+        color: #b78103;
+    }
+
+    .mod-type-tag[data-type="3d"],
+    .mod-type-tag[data-type="threed"] {
+        border-color: rgba(82, 196, 26, 0.35);
+        background: rgba(82, 196, 26, 0.10);
+        color: #2d7a0d;
+    }
+
     .mod-item:hover {
         background: #f5f5f5;
     }
@@ -846,6 +1051,18 @@
         color: #555;
         border-top: 1px solid #eee;
         padding-top: 15px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .external-link {
+        color: #1890ff;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .external-link:hover {
+        color: #096dd9;
     }
 
     .actions {
@@ -1037,6 +1254,39 @@
         .desc {
             color: #ccc;
             border-color: #444;
+        }
+
+        .mod-type-tag {
+            border-color: #555;
+            background: #444;
+            color: #ccc;
+        }
+
+        .mod-type-tag[data-type="live2d"] {
+            border-color: rgba(88, 80, 236, 0.45);
+            background: rgba(88, 80, 236, 0.16);
+            color: #c7c5ff;
+        }
+
+        .mod-type-tag[data-type="pngremix"] {
+            border-color: rgba(250, 173, 20, 0.45);
+            background: rgba(250, 173, 20, 0.18);
+            color: #ffe7b3;
+        }
+
+        .mod-type-tag[data-type="3d"],
+        .mod-type-tag[data-type="threed"] {
+            border-color: rgba(82, 196, 26, 0.45);
+            background: rgba(82, 196, 26, 0.18);
+            color: #d8ffbf;
+        }
+
+        .external-link {
+            color: #69c0ff;
+        }
+
+        .external-link:hover {
+            color: #91d5ff;
         }
         .status {
             color: #aaa;

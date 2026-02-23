@@ -1409,8 +1409,35 @@
                       class="thumb-open-btn"
                       onclick={() => openAssetFile(`asset/${img.img}`)}
                       title={_("resource.openFile")}
+                      aria-label={_("resource.openFile")}
                     >
-                      鎵撳紑
+                      <svg
+                        class="icon-svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M10 4H4.8C3.8 4 3 4.8 3 5.8V18.2C3 19.2 3.8 20 4.8 20H19.2C20.2 20 21 19.2 21 18.2V8.8C21 7.8 20.2 7 19.2 7H12L10 4Z"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          d="M12 10V16"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                        />
+                        <path
+                          d="M9.5 13.5L12 16L14.5 13.5"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
                     </button>
 
                   </div>
@@ -1493,8 +1520,35 @@
                       class="thumb-open-btn"
                       onclick={() => openAssetFile(`asset/${seq.img}`)}
                       title={_("resource.openFile")}
+                      aria-label={_("resource.openFile")}
                     >
-                      鎵撳紑
+                      <svg
+                        class="icon-svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M10 4H4.8C3.8 4 3 4.8 3 5.8V18.2C3 19.2 3.8 20 4.8 20H19.2C20.2 20 21 19.2 21 18.2V8.8C21 7.8 20.2 7 19.2 7H12L10 4Z"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          d="M12 10V16"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                        />
+                        <path
+                          d="M9.5 13.5L12 16L14.5 13.5"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
                     </button>
 
                   </div>
@@ -1959,14 +2013,31 @@
                         title={playingAudioName === `${lang}/${audio.name}`
                           ? _("common.stop")
                           : _("common.play")}
+                        aria-label={playingAudioName === `${lang}/${audio.name}`
+                          ? _("common.stop")
+                          : _("common.play")}
                       >
                         {#if playingAudioName === `${lang}/${audio.name}`}
-                          <span class="icon">?</span>
+                          <svg
+                            class="icon-svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            xmlns="http://www.w3.org/2000/svg"
+                            aria-hidden="true"
+                          >
+                            <rect x="7" y="7" width="10" height="10" rx="1" />
+                          </svg>
                         {:else}
-                          <span class="icon">?</span>
+                          <svg
+                            class="icon-svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            xmlns="http://www.w3.org/2000/svg"
+                            aria-hidden="true"
+                          >
+                            <path d="M9 7L18 12L9 17V7Z" />
+                          </svg>
                         {/if}
-
-
                       </button>
                       <div class="audio-info">
                         <div class="audio-name">{audio.name}</div>
@@ -1976,8 +2047,35 @@
                         class="open-btn"
                         onclick={() => openAssetFile(`audio/${audio.audio}`)}
                         title={_("resource.openFile")}
+                        aria-label={_("resource.openFile")}
                       >
-                        鎵撳紑
+                        <svg
+                          class="icon-svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M10 4H4.8C3.8 4 3 4.8 3 5.8V18.2C3 19.2 3.8 20 4.8 20H19.2C20.2 20 21 19.2 21 18.2V8.8C21 7.8 20.2 7 19.2 7H12L10 4Z"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            d="M12 10V16"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-linecap="round"
+                          />
+                          <path
+                            d="M9.5 13.5L12 16L14.5 13.5"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
                       </button>
 
 
@@ -2631,6 +2729,9 @@
     justify-content: center;
     flex-shrink: 0;
     padding: 0;
+    border: none;
+    cursor: pointer;
+    line-height: 0;
   }
 
   .play-btn:hover {
@@ -2645,8 +2746,29 @@
     background: #c0392b;
   }
 
-  .icon {
-    font-size: 14px;
+
+
+  .icon-svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    pointer-events: none;
+  }
+
+  .thumb-open-btn .icon-svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* 语音区按钮的图标稍大一些，且确保视觉居中 */
+  .play-btn .icon-svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .open-btn .icon-svg {
+    width: 16px;
+    height: 16px;
   }
 
   .audio-info {
@@ -2674,6 +2796,11 @@
     border: 1px solid #ddd;
     border-radius: 4px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 0;
   }
 
   .open-btn:hover {

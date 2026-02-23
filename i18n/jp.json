@@ -713,6 +713,11 @@
     "preview": "プレビュー",
     "noPreview": "プレビューなし",
     "author": "作者",
+    "modType": "種類",
+    "modTypeSequence": "シーケンス",
+    "modTypeLive2D": "Live2D",
+    "modTypePngRemix": "PngRemix",
+    "modType3D": "3D",
     "modName": "Mod名",
     "version": "バージョン",
 

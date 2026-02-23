@@ -713,6 +713,11 @@
     "preview": "Preview",
     "noPreview": "No Preview",
     "author": "Author",
+    "modType": "Type",
+    "modTypeSequence": "Sequence",
+    "modTypeLive2D": "Live2D",
+    "modTypePngRemix": "PngRemix",
+    "modType3D": "3D",
     "modName": "Mod Name",
     "version": "Version",
 
