@@ -1748,36 +1748,6 @@
       ]
     },
     {
-      "event": "drag_start",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "drag_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_end",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
       "event": "work",
       "can_trigger_states": [
         {
