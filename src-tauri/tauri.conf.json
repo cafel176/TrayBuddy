@@ -32,12 +32,12 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../mods": "mods",  
       "../config": "config",
       "../i18n": "i18n",
+      "../mods": "mods",  
       "../mod-tool": "mod-tool",
       "../other-tool": "other-tool",
-      "icons": "icons"
+      "../tools-common": "tools-common"
     },
     "windows": {
       "nsis": {

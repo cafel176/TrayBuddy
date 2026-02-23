@@ -12,6 +12,8 @@ goto :_tb_got_admin
 
 :_tb_elevate
 set "TB_SELF=%~f0"
+REM If the caller provides TB_ENTRY_BAT, elevate the *entry* script so TB_ROOT/TB_PORT are set correctly.
+if defined TB_ENTRY_BAT set "TB_SELF=%TB_ENTRY_BAT%"
 set "TB_CWD=%CD%"
 set "TB_ARGS=%*"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:TB_SELF; $cwd=$env:TB_CWD; $a=$env:TB_ARGS; $q=[char]34; $cmd=$q+$bat+$q; if($a){$cmd+=' '+$a}; Start-Process -FilePath 'cmd.exe' -WorkingDirectory $cwd -ArgumentList @('/d','/c',$cmd) -Verb RunAs"
@@ -20,7 +22,8 @@ exit /b
 :_tb_got_admin
 
 if "%TB_ROOT%"=="" (
-  echo [open-tool] TB_ROOT is not set.
+  echo [open-tool] TB_ROOT is not set. Please run the tool opener .bat, not open-tool-common.bat directly.
+  if not defined TB_NO_PAUSE pause
   exit /b 2
 )
 
