@@ -307,16 +307,19 @@
   class:debug-border-active={debugBordersEnabled}
   class:no-border={!modBorderEnabled}
   oncontextmenu={core.handleContextMenu}
-  style="outline: {debugBordersEnabled
+  style:outline={debugBordersEnabled
     ? '1px dashed ' + debugColors.bubble
-    : 'none'}; outline-offset: -1px; --debug-color-bubble: {debugColors.bubble};"
+    : 'none'}
+  style:outline-offset="-1px"
+  style:--debug-color-bubble={debugColors.bubble}
 >
   <!-- 气泡区域 - 位于顶部 -->
   <div
     class="bubble-area"
-    style="outline: {debugBordersEnabled
+    style:outline={debugBordersEnabled
       ? '1px solid ' + debugColors.bubble
-      : 'none'}; outline-offset: -1px;"
+      : 'none'}
+    style:outline-offset="-1px"
   >
     <BubbleManager
       bind:this={bubbleManager}
@@ -329,21 +332,23 @@
   <!-- 动画区域 - 位于底部 -->
   <div
     class="animation-area"
-    style="height: {showCharacter
-      ? 500 * animationScale + 'px'
-      : '0px'}; flex: 0 0 {showCharacter
-      ? 500 * animationScale + 'px'
-      : '0px'}; overflow: hidden; outline: {debugBordersEnabled
+    style:height={showCharacter ? 500 * animationScale + "px" : "0px"}
+    style:flex={showCharacter ? `0 0 ${500 * animationScale}px` : "0 0 0px"}
+    style:overflow="hidden"
+    style:outline={debugBordersEnabled
       ? '1px solid ' + debugColors.animation
-      : 'none'}; outline-offset: -2px;"
+      : 'none'}
+    style:outline-offset="-2px"
   >
     <!-- 角色动画 Canvas -->
     <canvas
       class="character-canvas"
       class:hidden={!showCharacter}
-      style="z-index: {characterZOffset}; outline: {debugBordersEnabled
+      style:z-index={characterZOffset}
+      style:outline={debugBordersEnabled
         ? '2px solid ' + debugColors.character
-        : 'none'}; outline-offset: -2px;"
+        : 'none'}
+      style:outline-offset="-2px"
       bind:this={characterCanvas}
       onmousedown={core.handleMouseDown}
     ></canvas>
@@ -353,9 +358,11 @@
       <canvas
         class="border-canvas"
         class:hidden={!showCharacter || !showBorder}
-        style="z-index: {borderZOffset}; outline: {debugBordersEnabled
+        style:z-index={borderZOffset}
+        style:outline={debugBordersEnabled
           ? '2px solid ' + debugColors.border
-          : 'none'}; outline-offset: -2px;"
+          : 'none'}
+        style:outline-offset="-2px"
         bind:this={borderCanvas}
       ></canvas>
     {/if}

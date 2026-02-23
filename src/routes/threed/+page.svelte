@@ -253,15 +253,18 @@
   class="container"
   class:debug-border-active={debugBordersEnabled}
   oncontextmenu={core.handleContextMenu}
-  style="outline: {debugBordersEnabled
+  style:outline={debugBordersEnabled
     ? '1px dashed ' + debugColors.bubble
-    : 'none'}; outline-offset: -1px; --debug-color-bubble: {debugColors.bubble};"
+    : 'none'}
+  style:outline-offset="-1px"
+  style:--debug-color-bubble={debugColors.bubble}
 >
   <div
     class="bubble-area"
-    style="outline: {debugBordersEnabled
+    style:outline={debugBordersEnabled
       ? '1px solid ' + debugColors.bubble
-      : 'none'}; outline-offset: -1px;"
+      : 'none'}
+    style:outline-offset="-1px"
   >
     <BubbleManager
       bind:this={bubbleManager}
@@ -273,16 +276,18 @@
 
   <div
     class="threed-area"
-    style="outline: {debugBordersEnabled
+    style:outline={debugBordersEnabled
       ? '1px solid ' + debugColors.animation
-      : 'none'}; outline-offset: -2px;"
+      : 'none'}
+    style:outline-offset="-2px"
   >
     <canvas
       class="threed-canvas"
       class:hidden={!showCharacter}
-      style="outline: {debugBordersEnabled
+      style:outline={debugBordersEnabled
         ? '2px solid ' + debugColors.character
-        : 'none'}; outline-offset: -2px;"
+        : 'none'}
+      style:outline-offset="-2px"
       bind:this={threedCanvas}
       onmousedown={(e) => {
         core.handleMouseDown(e);
