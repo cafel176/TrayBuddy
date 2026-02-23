@@ -155,7 +155,29 @@ pub fn run() {
 
             // URL 解码
             let mod_id = urlencoding_decode(mod_id);
-            let file_path = urlencoding_decode(file_path);
+            let file_path = {
+                // 一些模型/配置会出现 `asset/live2d//xxx.model3.json` 这样的重复斜杠，
+                // 这里做一次规范化，避免 archive 查找失败 (404)。
+                let raw = urlencoding_decode(file_path).replace('\\', "/");
+
+                // collapse multiple '/'
+                let mut out = String::with_capacity(raw.len());
+                let mut prev_slash = false;
+                for ch in raw.chars() {
+                    if ch == '/' {
+                        if prev_slash {
+                            continue;
+                        }
+                        prev_slash = true;
+                        out.push('/');
+                    } else {
+                        prev_slash = false;
+                        out.push(ch);
+                    }
+                }
+
+                out.trim_start_matches('/').to_string()
+            };
 
             #[cfg(debug_assertions)]
             println!("[tbuddy-asset] mod_id={}, file_path={}", mod_id, file_path);
@@ -170,6 +192,7 @@ pub fn run() {
 
             let mut store = protocol_store.lock().unwrap();
             match store.read_file(&mod_id, &file_path) {
+
 
                 Ok(data) => {
                     let mime = guess_mime_type(&file_path);

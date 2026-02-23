@@ -19,17 +19,25 @@ import {
 
 describe("modAssetUrl utils", () => {
   it("normalizes paths and preserves protocol prefix", () => {
-    expect(normalizePath("C:\\mods\\demo//asset\\idle.webp")).toBe("C:/mods/demo//asset/idle.webp");
-    expect(normalizePath("tbuddy-archive://demo//asset\\idle.webp")).toBe("tbuddy-archive://demo//asset/idle.webp");
-    expect(normalizePath("./mods//demo")).toBe("mods//demo");
+    expect(normalizePath("C:\\mods\\demo//asset\\idle.webp")).toBe("C:/mods/demo/asset/idle.webp");
+    expect(normalizePath("tbuddy-archive://demo//asset\\idle.webp")).toBe("tbuddy-archive://demo/asset/idle.webp");
+    expect(normalizePath("./mods//demo")).toBe("mods/demo");
     expect(normalizePath(undefined as unknown as string)).toBe("");
   });
+
 
 
 
   it("joins paths safely", () => {
     expect(joinPath("C:\\mods", "demo", "asset\\idle.webp")).toBe("C:/mods/demo/asset/idle.webp");
   });
+
+  it("collapses duplicate slashes in live2d model paths", () => {
+    expect(joinPath("tbuddy-archive://hiyori", "asset/live2d/", "/hiyori.model3.json")).toBe(
+      "tbuddy-archive://hiyori/asset/live2d/hiyori.model3.json",
+    );
+  });
+
 
   it("parses archive virtual path", () => {
     expect(parseArchiveVirtualPath("tbuddy-archive://demo")).toEqual({

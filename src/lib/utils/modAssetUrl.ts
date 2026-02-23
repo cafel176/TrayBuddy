@@ -71,13 +71,15 @@ export function normalizePath(path: string): string {
     const prefix = protoMatch[1];
     const rest = s
       .slice(prefix.length)
-      .replace(/\/+?/g, "/")
+      .replace(/\/+/g, "/")
       .replace(/^\/+/, "")
       .replace(/^\.\//, "");
 
+
     return prefix + rest;
   }
-  return s.replace(/\/+?/g, "/").replace(/^\/+/, "").replace(/^\.\//, "");
+  return s.replace(/\/+/g, "/").replace(/^\/+/, "").replace(/^\.\//, "");
+
 }
 
 
