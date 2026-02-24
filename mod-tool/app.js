@@ -783,20 +783,99 @@ async function loadModTbuddy() {
     const file = await fileHandle.getFile();
     const jszip = new JSZip();
     const zipData = await jszip.loadAsync(file);
+    // 记录当前打开的 tbuddy（用于后续保存/导出时把资源一并带上）
+    zip = zipData;
+
     
     showToast(window.i18n.t('msg_loading_tbuddy'), 'info');
     
-    // 寻找根目录
+    // 寻找根目录（注意：包内可能包含多个 manifest.json，例如 Live2D/3D 资源目录也可能有）
+    // 这里优先选择“最像 Mod manifest”的那个（包含 id），否则回退到最浅层的 manifest.json。
     let rootPath = '';
-    const manifestFile = Object.keys(zipData.files).find(f => f.endsWith('manifest.json'));
-    if (!manifestFile) {
+
+    const allFileNames = Object.keys(zipData.files).filter((f) => !zipData.files[f]?.dir);
+
+    // 注意：某些打包工具会在 zip 内使用 `\\` 作为分隔符；JSZip 会原样保留。
+    // 因此这里做：大小写不敏感 + 分隔符不敏感 的文件定位。
+    const normalizeZipPath = (p) => String(p).replace(/\\/g, '/');
+
+    const originalByLower = new Map();
+    const originalByNormalizedLower = new Map();
+    for (const n of allFileNames) {
+      originalByLower.set(String(n).toLowerCase(), n);
+      originalByNormalizedLower.set(normalizeZipPath(n).toLowerCase(), n);
+    }
+
+    function getZipFile(relPath) {
+      const exact = zipData.file(relPath);
+      if (exact) return exact;
+
+      const s = String(relPath);
+      const candidates = [s, normalizeZipPath(s), s.replace(/\//g, '\\')];
+
+      for (const cand of candidates) {
+        const lower = cand.toLowerCase();
+        const actual = originalByLower.get(lower) || originalByNormalizedLower.get(lower);
+        if (actual) {
+          const f = zipData.file(actual);
+          if (f) return f;
+        }
+      }
+
+      return null;
+    }
+
+    const manifestCandidates = allFileNames
+      .map((orig) => ({ orig, norm: normalizeZipPath(orig) }))
+      .filter((x) => x.norm.split('/').pop()?.toLowerCase() === 'manifest.json')
+      .sort((a, b) => {
+        const da = a.norm.split('/').length;
+        const db = b.norm.split('/').length;
+        return da - db || a.norm.length - b.norm.length;
+      })
+      .map((x) => x.orig);
+
+    if (manifestCandidates.length === 0) {
       throw new Error(window.i18n.t('msg_manifest_not_found'));
     }
-    rootPath = manifestFile.replace('manifest.json', '');
-    
-    const manifestText = await zipData.file(manifestFile).async('string');
-    const manifest = JSON.parse(manifestText);
+
+
+    let manifestFile = null;
+    let manifest = null;
+
+    for (const cand of manifestCandidates) {
+      try {
+        const text = await zipData.file(cand).async('string');
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object' && typeof parsed.id === 'string' && parsed.id.trim()) {
+          manifestFile = cand;
+          manifest = parsed;
+          break;
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    // 回退：选最浅层的 manifest.json
+    if (!manifestFile) {
+      manifestFile = manifestCandidates[0];
+      const text = await zipData.file(manifestFile).async('string');
+      manifest = JSON.parse(text);
+    }
+
+    // 根目录用路径切片来算，避免大小写/替换失败问题（例如 Manifest.json），也兼容 `\\` 分隔符
+    const manifestFileNorm = normalizeZipPath(manifestFile);
+    const lastSlash = manifestFileNorm.lastIndexOf('/');
+    rootPath = lastSlash >= 0 ? manifestFileNorm.slice(0, lastSlash + 1) : '';
+
+
     normalizeManifestForEditor(manifest);
+
+    if (!manifest || typeof manifest !== 'object' || typeof manifest.id !== 'string' || !manifest.id.trim()) {
+      throw new Error('未在 .tbuddy 中找到有效的 Mod manifest.json（缺少 id）');
+    }
+
     
     currentMod = {
       manifest: manifest,
@@ -814,23 +893,23 @@ async function loadModTbuddy() {
     // 重置预览图扩展名
     currentPreviewExt = 'png';
     
-    // 读取其他文件
-    const seqFile = zipData.file(`${rootPath}asset/sequence.json`);
+    // 读取其他文件（大小写不敏感）
+    const seqFile = getZipFile(`${rootPath}asset/sequence.json`);
     if (seqFile) currentMod.assets.sequence = JSON.parse(await seqFile.async('string'));
     
-    const imgFile = zipData.file(`${rootPath}asset/img.json`);
+    const imgFile = getZipFile(`${rootPath}asset/img.json`);
     if (imgFile) currentMod.assets.img = JSON.parse(await imgFile.async('string'));
     
-    const live2dFile = zipData.file(`${rootPath}asset/live2d.json`);
+    const live2dFile = getZipFile(`${rootPath}asset/live2d.json`);
     if (live2dFile) currentMod.assets.live2d = JSON.parse(await live2dFile.async('string'));
 
-    const pngremixFile2 = zipData.file(`${rootPath}asset/pngremix.json`);
+    const pngremixFile2 = getZipFile(`${rootPath}asset/pngremix.json`);
     if (pngremixFile2) currentMod.assets.pngremix = JSON.parse(await pngremixFile2.async('string'));
 
-    const threedFile = zipData.file(`${rootPath}asset/3d.json`);
+    const threedFile = getZipFile(`${rootPath}asset/3d.json`);
     if (threedFile) currentMod.assets.threed = JSON.parse(await threedFile.async('string'));
 
-    const bubbleFile = zipData.file(`${rootPath}bubble_style.json`);
+    const bubbleFile = getZipFile(`${rootPath}bubble_style.json`);
     if (bubbleFile) {
       currentMod.bubbleStyle = JSON.parse(await bubbleFile.async('string'));
       currentMod.bubbleEnabled = true;
@@ -839,34 +918,39 @@ async function loadModTbuddy() {
     // 读取 text 和 audio
     let foundTextSpeech = false;
     let foundAudioSpeech = false;
+    const rootLower = rootPath.toLowerCase();
     for (const fileName in zipData.files) {
-      if (fileName.startsWith(`${rootPath}text/`) && fileName.endsWith('info.json')) {
-        const parts = fileName.split('/');
+      const fileNameNorm = normalizeZipPath(fileName);
+      const lower = fileNameNorm.toLowerCase();
+
+      if (lower.startsWith(`${rootLower}text/`) && lower.endsWith('info.json')) {
+        const parts = fileNameNorm.split('/');
         const lang = parts[parts.length - 2];
         if (!currentMod.texts[lang]) currentMod.texts[lang] = { info: null, speech: [] };
         currentMod.texts[lang].info = JSON.parse(await zipData.file(fileName).async('string'));
         
-        const speechFile = zipData.file(`${rootPath}text/${lang}/speech.json`);
+        const speechFile = getZipFile(`${rootPath}text/${lang}/speech.json`);
         if (speechFile) {
           currentMod.texts[lang].speech = JSON.parse(await speechFile.async('string'));
           foundTextSpeech = true;
         }
       }
       
-      if (fileName.startsWith(`${rootPath}audio/`) && fileName.endsWith('speech.json')) {
-        const parts = fileName.split('/');
+      if (lower.startsWith(`${rootLower}audio/`) && lower.endsWith('speech.json')) {
+        const parts = fileNameNorm.split('/');
         const lang = parts[parts.length - 2];
         currentMod.audio[lang] = JSON.parse(await zipData.file(fileName).async('string'));
         foundAudioSpeech = true;
       }
     }
+
     currentMod.textSpeechEnabled = foundTextSpeech;
     currentMod.audioSpeechEnabled = foundAudioSpeech;
     
     // 读取预览图（支持多种格式）
     currentPreviewExt = 'png'; // 默认
     for (const ext of PREVIEW_EXTENSIONS) {
-      const previewFile = zipData.file(`${rootPath}preview.${ext}`);
+      const previewFile = getZipFile(`${rootPath}preview.${ext}`);
       if (previewFile) {
         const blob = await previewFile.async('blob');
         currentMod.previewData = await new Promise(resolve => {
@@ -880,7 +964,7 @@ async function loadModTbuddy() {
     }
     
     // 读取图标
-    const iconFile = zipData.file(`${rootPath}icon.ico`);
+    const iconFile = getZipFile(`${rootPath}icon.ico`);
     if (iconFile) {
       const blob = await iconFile.async('blob');
       currentMod.iconData = await new Promise(resolve => {
@@ -889,9 +973,14 @@ async function loadModTbuddy() {
         reader.readAsDataURL(blob);
       });
     }
+
     
+    // 记录 zip 根目录，便于后续保存/导出时从 zip 中复制资源
+    currentMod._zipRootPath = rootPath;
+
     modFolderHandle = null; // .tbuddy 加载的不记录文件夹句柄
     finishLoading(manifest);
+
     
   } catch (e) {
     console.error('Failed to load .tbuddy:', e);
@@ -1617,11 +1706,111 @@ function shouldSkipCopiedNonJson(relPath, { preferPreviewFromEditor = true, pref
   return false;
 }
 
+function isTypeMismatchError(e) {
+  return e && (e.name === 'TypeMismatchError' || String(e.message || '').includes('TypeMismatch'));
+}
+
+async function safeGetDirectoryHandle(parentDirHandle, name, options = { create: true, overwriteFile: false }) {
+  const create = options?.create === true;
+  const overwriteFile = options?.overwriteFile === true;
+
+  try {
+    return await parentDirHandle.getDirectoryHandle(name, { create });
+  } catch (e) {
+    // 目标已存在但不是目录（通常是同名文件）
+    if (isTypeMismatchError(e) && create && overwriteFile) {
+      try {
+        await parentDirHandle.removeEntry(name, { recursive: true });
+      } catch (_) {
+        // ignore
+      }
+      return await parentDirHandle.getDirectoryHandle(name, { create });
+    }
+    throw e;
+  }
+}
+
+async function safeGetFileHandle(parentDirHandle, name, options = { create: true, overwriteDirectory: false }) {
+  try {
+    return await parentDirHandle.getFileHandle(name, { create: options?.create !== false });
+  } catch (e) {
+    // 目标已存在但不是文件（通常是同名目录）
+    if (isTypeMismatchError(e) && options?.overwriteDirectory === true) {
+      try {
+        await parentDirHandle.removeEntry(name, { recursive: true });
+      } catch (_) {
+        // ignore
+      }
+      return await parentDirHandle.getFileHandle(name, { create: options?.create !== false });
+    }
+    throw e;
+  }
+}
+
+function sanitizeFolderName(name) {
+  // Windows 禁止字符: < > : " / \ | ? * 以及控制字符
+  const raw = String(name ?? '').trim();
+  let cleaned = raw
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .replace(/[<>:"/\\|?*]/g, '_')
+    .replace(/\.+$/g, '')
+    .trim();
+
+  // 避免空/仅点号
+  if (!cleaned || cleaned === '.' || cleaned === '..') cleaned = 'mod';
+
+  // 避免 Windows 保留设备名
+  const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+  if (reserved.test(cleaned)) cleaned = `${cleaned}_mod`;
+
+  return cleaned;
+}
+
+function sanitizeFileBaseName(name) {
+  // 文件名与目录名类似，但 Windows 还禁止末尾为点/空格
+  const raw = String(name ?? '').trim();
+  let cleaned = raw
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .replace(/[<>:"/\\|?*]/g, '_')
+    .trim()
+    .replace(/[\.\s]+$/g, '');
+
+  if (!cleaned || cleaned === '.' || cleaned === '..') cleaned = 'mod';
+
+  const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+  if (reserved.test(cleaned)) cleaned = `${cleaned}_mod`;
+
+  return cleaned;
+}
+
+function getSuggestedTbuddyFileName(modId) {
+  return `${sanitizeFileBaseName(modId)}.tbuddy`;
+}
+
+async function getOrCreateUniqueDirectory(parentDirHandle, desiredName) {
+  const base = sanitizeFolderName(desiredName);
+
+  for (let i = 0; i < 100; i++) {
+    const name = i === 0 ? base : `${base}_${i}`;
+
+    try {
+      // create:true: 存在则直接返回目录句柄
+      return await parentDirHandle.getDirectoryHandle(name, { create: true });
+    } catch (e) {
+      // 同名但类型不对（是文件）→ 尝试下一个名字，不在父目录里做删除
+      if (isTypeMismatchError(e)) continue;
+      throw e;
+    }
+  }
+
+  throw new Error('无法创建唯一的导出目录，请选择一个空目录后重试');
+}
+
 async function ensureDirectoryForPath(rootDirHandle, relPath) {
   const parts = String(relPath).split('/').filter(Boolean);
   let dir = rootDirHandle;
   for (let i = 0; i < parts.length - 1; i++) {
-    dir = await dir.getDirectoryHandle(parts[i], { create: true });
+    dir = await safeGetDirectoryHandle(dir, parts[i], { create: true, overwriteFile: true });
   }
   return { dir, fileName: parts[parts.length - 1] };
 }
@@ -1634,11 +1823,16 @@ async function copyNonJsonFilesBetweenDirectories(sourceDirHandle, targetDirHand
   for (const { relPath, file } of files) {
     if (shouldSkipCopiedNonJson(relPath, options)) continue;
 
-    const { dir, fileName } = await ensureDirectoryForPath(targetDirHandle, relPath);
-    const fileHandle = await dir.getFileHandle(fileName, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(file);
-    await writable.close();
+    try {
+      const { dir, fileName } = await ensureDirectoryForPath(targetDirHandle, relPath);
+      const fileHandle = await safeGetFileHandle(dir, fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(file);
+      await writable.close();
+    } catch (e) {
+      // 跳过“同名但类型冲突”的条目，避免一次失败导致整个保存失败
+      console.warn('Skip copying file due to error:', relPath, e);
+    }
   }
 }
 
@@ -1688,18 +1882,176 @@ async function copyAllFilesBetweenDirectories(sourceDirHandle, targetDirHandle, 
   if (basePathInTarget) {
     const parts = basePathInTarget.split('/').filter(Boolean);
     for (const part of parts) {
-      targetRoot = await targetRoot.getDirectoryHandle(part, { create: true });
+      targetRoot = await safeGetDirectoryHandle(targetRoot, part, { create: true, overwriteFile: true });
     }
   }
   for (const { relPath, file } of files) {
-    const { dir, fileName } = await ensureDirectoryForPath(targetRoot, relPath);
-    const fileHandle = await dir.getFileHandle(fileName, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(file);
-    await writable.close();
+    try {
+      const { dir, fileName } = await ensureDirectoryForPath(targetRoot, relPath);
+      const fileHandle = await safeGetFileHandle(dir, fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(file);
+      await writable.close();
+    } catch (e) {
+      console.warn('Skip copying file due to error:', relPath, e);
+    }
   }
 }
 
+function normalizeZipEntryPath(p) {
+  return String(p || '').replace(/\\/g, '/').replace(/^\/+/, '');
+}
+
+function normalizeZipRootPath(rootPath) {
+  const n = normalizeZipEntryPath(rootPath);
+  if (!n) return '';
+  return n.endsWith('/') ? n : `${n}/`;
+}
+
+function zipRelPathIsUnderSkippedDir(relPath, skipDirs = []) {
+  const p = normalizeZipEntryPath(relPath).toLowerCase();
+  for (const d of skipDirs || []) {
+    const dd = normalizeZipEntryPath(d).replace(/\/+$/, '').toLowerCase();
+    if (!dd) continue;
+    if (p === dd) return true;
+    if (p.startsWith(dd + '/')) return true;
+  }
+  return false;
+}
+
+function* iterZipFilesUnderRoot(zipData, zipRootPath) {
+  if (!zipData || !zipData.files) return;
+
+  const root = normalizeZipRootPath(zipRootPath);
+  const rootLower = root.toLowerCase();
+
+  for (const origName in zipData.files) {
+    const entry = zipData.files[origName];
+    if (!entry || entry.dir) continue;
+
+    const norm = normalizeZipEntryPath(origName);
+    // 兼容某些 zip 会把目录占位项当作“文件”(例如 "audio/"、"text/")
+    // 这种条目不是实际文件，复制会触发类型不匹配。
+    if (norm.endsWith('/')) continue;
+
+    const normLower = norm.toLowerCase();
+
+    if (rootLower && !normLower.startsWith(rootLower)) continue;
+
+    const relPath = rootLower ? norm.slice(root.length) : norm;
+    if (!relPath) continue;
+
+    yield { origName, relPath };
+  }
+}
+
+async function copyNonJsonFilesFromLoadedZipToDirectory(zipData, zipRootPath, targetDirHandle, options = {}) {
+  if (!zipData || !targetDirHandle) return;
+
+  const skipDirs = options.skipDirs || [];
+
+  for (const { origName, relPath } of iterZipFilesUnderRoot(zipData, zipRootPath)) {
+    const relNorm = normalizeZipEntryPath(relPath);
+    if (zipRelPathIsUnderSkippedDir(relNorm, skipDirs)) continue;
+    if (relNorm.toLowerCase().endsWith('.json')) continue;
+    if (shouldSkipCopiedNonJson(relNorm, options)) continue;
+
+    const f = zipData.file(origName);
+    if (!f) continue;
+
+    try {
+      const buf = await f.async('arraybuffer');
+      const { dir, fileName } = await ensureDirectoryForPath(targetDirHandle, relNorm);
+      const fileHandle = await safeGetFileHandle(dir, fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(new Blob([buf]));
+      await writable.close();
+    } catch (e) {
+      console.warn('Skip copying zip file due to error:', relNorm, e);
+    }
+  }
+}
+
+async function copyAllFilesFromZipPrefixToDirectory(zipData, zipRootPath, prefix, targetDirHandle, basePathInTarget = '') {
+  if (!zipData || !targetDirHandle) return;
+
+  const prefixNorm = normalizeZipEntryPath(prefix).replace(/\/+$/, '');
+  const prefixLower = prefixNorm.toLowerCase();
+  const destBase = normalizeZipEntryPath(basePathInTarget).replace(/\/+$/, '');
+
+  for (const { origName, relPath } of iterZipFilesUnderRoot(zipData, zipRootPath)) {
+    const relNorm = normalizeZipEntryPath(relPath);
+    const relLower = relNorm.toLowerCase();
+
+    if (!prefixLower) continue;
+    if (!relLower.startsWith(prefixLower + '/')) continue;
+
+    const rest = relNorm.slice(prefixNorm.length + 1);
+    if (!rest) continue;
+
+    const outRel = destBase ? `${destBase}/${rest}` : rest;
+
+    const f = zipData.file(origName);
+    if (!f) continue;
+
+    try {
+      const buf = await f.async('arraybuffer');
+      const { dir, fileName } = await ensureDirectoryForPath(targetDirHandle, outRel);
+      const fileHandle = await safeGetFileHandle(dir, fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(new Blob([buf]));
+      await writable.close();
+    } catch (e) {
+      console.warn('Skip copying zip file due to error:', outRel, e);
+    }
+  }
+}
+
+async function addNonJsonFilesToZipFromLoadedZip(zipData, zipRootPath, zipRootFolder, options = {}) {
+  if (!zipData || !zipRootFolder) return;
+
+  const skipDirs = options.skipDirs || [];
+
+  for (const { origName, relPath } of iterZipFilesUnderRoot(zipData, zipRootPath)) {
+    const relNorm = normalizeZipEntryPath(relPath);
+    if (zipRelPathIsUnderSkippedDir(relNorm, skipDirs)) continue;
+    if (relNorm.toLowerCase().endsWith('.json')) continue;
+    if (shouldSkipCopiedNonJson(relNorm, options)) continue;
+
+    const f = zipData.file(origName);
+    if (!f) continue;
+
+    const buf = await f.async('arraybuffer');
+    zipRootFolder.file(relNorm, buf);
+  }
+}
+
+async function addAllFilesFromZipPrefixToZip(zipData, zipRootPath, prefix, zipRootFolder, basePathInZip = '') {
+  if (!zipData || !zipRootFolder) return;
+
+  const prefixNorm = normalizeZipEntryPath(prefix).replace(/\/+$/, '');
+  const prefixLower = prefixNorm.toLowerCase();
+  const destBase = normalizeZipEntryPath(basePathInZip).replace(/\/+$/, '');
+
+  for (const { origName, relPath } of iterZipFilesUnderRoot(zipData, zipRootPath)) {
+    const relNorm = normalizeZipEntryPath(relPath);
+    const relLower = relNorm.toLowerCase();
+
+    if (!prefixLower) continue;
+    if (!relLower.startsWith(prefixLower + '/')) continue;
+
+    const rest = relNorm.slice(prefixNorm.length + 1);
+    if (!rest) continue;
+
+    const outRel = destBase ? `${destBase}/${rest}` : rest;
+
+    const f = zipData.file(origName);
+    if (!f) continue;
+
+    const buf = await f.async('arraybuffer');
+    zipRootFolder.file(outRel, buf);
+  }
+}
 
 
 /**
@@ -1749,10 +2101,18 @@ async function saveMod() {
 
   // 如果是从文件夹加载的 Mod，保存/导出时把该目录下的非 json 资源一并带上
   const sourceFolderHandle = modFolderHandle;
+  // 如果是从 .tbuddy 打开的 Mod，则从 zip 来源中复制资源
+  const sourceZip = zip;
+  const sourceZipRootPath = currentMod?._zipRootPath || '';
+
   
   // 每次保存都弹窗选择目标文件夹
+  // 为避免误选“父目录”导致覆盖/冲突，这里会尽量保存到一个独立的 Mod 子目录：
+  // - 如果用户选中的目录本身已经包含 manifest.json，则视为 Mod 目录，直接保存到该目录
+  // - 否则在该目录下创建一个以 Mod id 命名的子目录进行保存
+  let targetFolderHandle = null;
   try {
-    modFolderHandle = await window.showDirectoryPicker({
+    targetFolderHandle = await window.showDirectoryPicker({
       mode: 'readwrite'
     });
   } catch (e) {
@@ -1761,33 +2121,46 @@ async function saveMod() {
     }
     return;
   }
+
+  let resolvedTargetFolderHandle = targetFolderHandle;
+  try {
+    await resolvedTargetFolderHandle.getFileHandle('manifest.json');
+  } catch (_) {
+    resolvedTargetFolderHandle = await getOrCreateUniqueDirectory(
+      resolvedTargetFolderHandle,
+      currentMod?.manifest?.id || 'mod'
+    );
+  }
+
+  modFolderHandle = resolvedTargetFolderHandle;
+
   
   try {
     showToast(window.i18n.t('msg_saving'), 'info');
     
     // 保存 manifest.json
-    const manifestHandle = await modFolderHandle.getFileHandle('manifest.json', { create: true });
+    const manifestHandle = await safeGetFileHandle(modFolderHandle, 'manifest.json', { create: true, overwriteDirectory: true });
     const manifestWritable = await manifestHandle.createWritable();
     await manifestWritable.write(stringifyForSave(getManifestForSave()));
     await manifestWritable.close();
 
     // 保存 bubble_style.json (仅当启用时)
     if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
-      const bubbleHandle = await modFolderHandle.getFileHandle('bubble_style.json', { create: true });
+      const bubbleHandle = await safeGetFileHandle(modFolderHandle, 'bubble_style.json', { create: true, overwriteDirectory: true });
       const bubbleWritable = await bubbleHandle.createWritable();
       await bubbleWritable.write(stringifyForSave(currentMod.bubbleStyle));
       await bubbleWritable.close();
     }
     
     // 创建 asset 目录并保存
-    const assetDir = await modFolderHandle.getDirectoryHandle('asset', { create: true });
+    const assetDir = await safeGetDirectoryHandle(modFolderHandle, 'asset', { create: true, overwriteFile: true });
     
     const modType = currentMod.manifest.mod_type || 'sequence';
 
     if (modType === 'live2d') {
       // 保存 live2d.json
       if (currentMod.assets.live2d) {
-        const live2dHandle = await assetDir.getFileHandle('live2d.json', { create: true });
+        const live2dHandle = await safeGetFileHandle(assetDir, 'live2d.json', { create: true, overwriteDirectory: true });
         const live2dWritable = await live2dHandle.createWritable();
         await live2dWritable.write(stringifyForSave(currentMod.assets.live2d));
         await live2dWritable.close();
@@ -1796,14 +2169,14 @@ async function saveMod() {
       // PngRemix 资源由外部 .pngremix 文件管理
       // 如果有 pngremix.json 配置，保存它
       if (currentMod.assets.pngremix) {
-        const pngremixHandle = await assetDir.getFileHandle('pngremix.json', { create: true });
+        const pngremixHandle = await safeGetFileHandle(assetDir, 'pngremix.json', { create: true, overwriteDirectory: true });
         const pngremixWritable = await pngremixHandle.createWritable();
         await pngremixWritable.write(stringifyForSave(currentMod.assets.pngremix));
         await pngremixWritable.close();
       }
     } else if (modType === 'threed') {
       if (currentMod.assets.threed) {
-        const threedHandle = await assetDir.getFileHandle('3d.json', { create: true });
+        const threedHandle = await safeGetFileHandle(assetDir, '3d.json', { create: true, overwriteDirectory: true });
         const threedWritable = await threedHandle.createWritable();
         await threedWritable.write(stringifyForSave(currentMod.assets.threed));
         await threedWritable.close();
@@ -1816,7 +2189,7 @@ async function saveMod() {
       await seqWritable.close();
       
       // 保存 img.json
-      const imgHandle = await assetDir.getFileHandle('img.json', { create: true });
+      const imgHandle = await safeGetFileHandle(assetDir, 'img.json', { create: true, overwriteDirectory: true });
       const imgWritable = await imgHandle.createWritable();
       await imgWritable.write(stringifyForSave(currentMod.assets.img));
       await imgWritable.close();
@@ -1824,17 +2197,17 @@ async function saveMod() {
     
     // 创建 asset 子目录
     if (isSequenceModType(modType)) {
-      await assetDir.getDirectoryHandle('sequence', { create: true });
-      await assetDir.getDirectoryHandle('img', { create: true });
+      await safeGetDirectoryHandle(assetDir, 'sequence', { create: true });
+      await safeGetDirectoryHandle(assetDir, 'img', { create: true });
     }
     
     // 保存 text 目录
-    const textDir = await modFolderHandle.getDirectoryHandle('text', { create: true });
+    const textDir = await safeGetDirectoryHandle(modFolderHandle, 'text', { create: true, overwriteFile: true });
     for (const [lang, data] of Object.entries(currentMod.texts)) {
-      const langDir = await textDir.getDirectoryHandle(lang, { create: true });
+      const langDir = await safeGetDirectoryHandle(textDir, lang, { create: true });
       
       if (data.info) {
-        const infoHandle = await langDir.getFileHandle('info.json', { create: true });
+        const infoHandle = await safeGetFileHandle(langDir, 'info.json', { create: true, overwriteDirectory: true });
         const infoWritable = await infoHandle.createWritable();
         await infoWritable.write(stringifyForSave(data.info));
         await infoWritable.close();
@@ -1842,7 +2215,7 @@ async function saveMod() {
 
       // 仅当启用时生成 text/<lang>/speech.json
       if (currentMod.textSpeechEnabled === true) {
-        const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
+        const speechHandle = await safeGetFileHandle(langDir, 'speech.json', { create: true, overwriteDirectory: true });
         const speechWritable = await speechHandle.createWritable();
         await speechWritable.write(stringifyForSave(data.speech));
         await speechWritable.close();
@@ -1851,12 +2224,12 @@ async function saveMod() {
 
     // 保存 audio 目录（仅当启用时生成 audio/<lang>/speech.json）
     if (currentMod.audioSpeechEnabled === true) {
-      const audioDir = await modFolderHandle.getDirectoryHandle('audio', { create: true });
+      const audioDir = await safeGetDirectoryHandle(modFolderHandle, 'audio', { create: true, overwriteFile: true });
       for (const [lang, data] of Object.entries(currentMod.audio)) {
-        const langDir = await audioDir.getDirectoryHandle(lang, { create: true });
-        await langDir.getDirectoryHandle('speech', { create: true });
+        const langDir = await safeGetDirectoryHandle(audioDir, lang, { create: true });
+        await safeGetDirectoryHandle(langDir, 'speech', { create: true });
         
-        const speechHandle = await langDir.getFileHandle('speech.json', { create: true });
+        const speechHandle = await safeGetFileHandle(langDir, 'speech.json', { create: true, overwriteDirectory: true });
         const speechWritable = await speechHandle.createWritable();
         await speechWritable.write(stringifyForSave(data));
         await speechWritable.close();
@@ -1867,7 +2240,7 @@ async function saveMod() {
     if (currentMod.previewData) {
       // 从 data URL 中提取实际的 MIME 类型
       const actualExt = getExtensionFromDataUrl(currentMod.previewData) || currentPreviewExt;
-      const previewHandle = await modFolderHandle.getFileHandle(`preview.${actualExt}`, { create: true });
+      const previewHandle = await safeGetFileHandle(modFolderHandle, `preview.${actualExt}`, { create: true, overwriteDirectory: true });
       const previewWritable = await previewHandle.createWritable();
       const response = await fetch(currentMod.previewData);
       const blob = await response.blob();
@@ -1888,7 +2261,7 @@ async function saveMod() {
     
     // 保存图标
     if (currentMod.iconData) {
-      const iconHandle = await modFolderHandle.getFileHandle('icon.ico', { create: true });
+      const iconHandle = await safeGetFileHandle(modFolderHandle, 'icon.ico', { create: true, overwriteDirectory: true });
       const iconWritable = await iconHandle.createWritable();
       const response = await fetch(currentMod.iconData);
       const blob = await response.blob();
@@ -1896,10 +2269,26 @@ async function saveMod() {
       await iconWritable.close();
     }
 
-    // 复制源目录中的资源文件到目标目录
+    // 复制源目录/源 zip 中的资源文件到目标目录
+    // 重要：如果当前 Mod 最初来自 .tbuddy，我们希望“每次保存”都能从 zip 兜底补齐资源。
+    // 否则第一次保存后 `modFolderHandle` 不再为 null，会转而从上次保存目录复制，导致资源可能逐步缺失。
+
+    // 1) 先从 zip 兜底复制（如果存在）
+    if (sourceZip && sourceZipRootPath) {
+      if (modType === 'live2d') {
+        await copyAllFilesFromZipPrefixToDirectory(sourceZip, sourceZipRootPath, 'asset/live2d', modFolderHandle, 'asset/live2d');
+        await copyNonJsonFilesFromLoadedZipToDirectory(sourceZip, sourceZipRootPath, modFolderHandle, { skipDirs: ['asset/live2d'] });
+      } else if (modType === 'threed') {
+        await copyAllFilesFromZipPrefixToDirectory(sourceZip, sourceZipRootPath, 'asset/3d', modFolderHandle, 'asset/3d');
+        await copyNonJsonFilesFromLoadedZipToDirectory(sourceZip, sourceZipRootPath, modFolderHandle, { skipDirs: ['asset/3d'] });
+      } else {
+        await copyNonJsonFilesFromLoadedZipToDirectory(sourceZip, sourceZipRootPath, modFolderHandle);
+      }
+    }
+
+    // 2) 再从源文件夹覆盖补充（如果存在）
     if (sourceFolderHandle) {
       if (modType === 'live2d') {
-        // Live2D mod：将 asset/live2d/ 下所有文件（含 .json）完整复制
         try {
           const srcAssetDir = await sourceFolderHandle.getDirectoryHandle('asset');
           const srcLive2dDir = await srcAssetDir.getDirectoryHandle('live2d');
@@ -1907,13 +2296,10 @@ async function saveMod() {
         } catch (e) {
           // asset/live2d 目录不存在则跳过
         }
-        // 其余非 json 文件照常复制，但跳过 asset/live2d 目录（已完整处理）
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle, { skipDirs: ['asset/live2d'] });
       } else if (modType === 'pngremix') {
-        // PngRemix mod：复制 .pngremix 等资源文件
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
       } else if (modType === 'threed') {
-        // 3D mod：将 asset/3d/ 下所有文件（含 .json 配置）完整复制
         try {
           const srcAssetDir = await sourceFolderHandle.getDirectoryHandle('asset');
           const srcThreeDDir = await srcAssetDir.getDirectoryHandle('3d');
@@ -1921,12 +2307,13 @@ async function saveMod() {
         } catch (e) {
           // asset/3d 目录不存在则跳过
         }
-        // 其余非 json 文件照常复制，但跳过 asset/3d 目录（已完整处理）
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle, { skipDirs: ['asset/3d'] });
       } else {
         await copyNonJsonFilesBetweenDirectories(sourceFolderHandle, modFolderHandle);
       }
     }
+
+
     
     hasUnsavedChanges = false;
     document.getElementById('currentModName').textContent = currentMod.manifest.id;
@@ -1935,8 +2322,14 @@ async function saveMod() {
   } catch (e) {
     console.error('Failed to save mod:', e);
     showToast(window.i18n.t('msg_save_failed', { error: e.message }), 'error');
+  } finally {
+    // 恢复源句柄：从文件夹打开的 Mod 不应被“保存目标目录”覆盖
+    if (sourceFolderHandle) {
+      modFolderHandle = sourceFolderHandle;
+    }
   }
 }
+
 
 /**
  * 导出 Mod (生成 .tbuddy ZIP)
@@ -2010,7 +2403,7 @@ async function exportMod() {
       root.file('icon.ico', base64Data, { base64: true });
     }
 
-    // 把当前 Mod 目录下的资产文件打包进去
+    // 把当前 Mod 的资源文件打包进去
     if (modFolderHandle) {
       if (exportModType === 'live2d') {
         // Live2D mod：将 asset/live2d/ 下所有文件（含 .json）完整打包
@@ -2036,7 +2429,19 @@ async function exportMod() {
       } else {
         await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
       }
+    } else if (zip && currentMod?._zipRootPath) {
+      // 从已打开的 tbuddy(zip) 来源中补齐资源（解决“只有 json 没有资源”的问题）
+      if (exportModType === 'live2d') {
+        await addAllFilesFromZipPrefixToZip(zip, currentMod._zipRootPath, 'asset/live2d', root, 'asset/live2d');
+        await addNonJsonFilesToZipFromLoadedZip(zip, currentMod._zipRootPath, root, { skipDirs: ['asset/live2d'] });
+      } else if (exportModType === 'threed') {
+        await addAllFilesFromZipPrefixToZip(zip, currentMod._zipRootPath, 'asset/3d', root, 'asset/3d');
+        await addNonJsonFilesToZipFromLoadedZip(zip, currentMod._zipRootPath, root, { skipDirs: ['asset/3d'] });
+      } else {
+        await addNonJsonFilesToZipFromLoadedZip(zip, currentMod._zipRootPath, root);
+      }
     }
+
     
     // 生成并保存
     const content = await jszip.generateAsync({ type: 'blob' });
@@ -2153,14 +2558,26 @@ async function exportModSbuddy() {
       } else {
         await addNonJsonFilesToZipFromDirectory(modFolderHandle, root);
       }
+    } else if (zip && currentMod?._zipRootPath) {
+      // 从已打开的 tbuddy(zip) 来源中补齐资源（与 exportMod 保持一致）
+      if (exportModType2 === 'live2d') {
+        await addAllFilesFromZipPrefixToZip(zip, currentMod._zipRootPath, 'asset/live2d', root, 'asset/live2d');
+        await addNonJsonFilesToZipFromLoadedZip(zip, currentMod._zipRootPath, root, { skipDirs: ['asset/live2d'] });
+      } else if (exportModType2 === 'threed') {
+        await addAllFilesFromZipPrefixToZip(zip, currentMod._zipRootPath, 'asset/3d', root, 'asset/3d');
+        await addNonJsonFilesToZipFromLoadedZip(zip, currentMod._zipRootPath, root, { skipDirs: ['asset/3d'] });
+      } else {
+        await addNonJsonFilesToZipFromLoadedZip(zip, currentMod._zipRootPath, root);
+      }
     }
     // ---- 打包逻辑结束 ----
+
 
     // 生成 ZIP 字节并保存为 .tbuddy
     const zipBlob = await jszip.generateAsync({ type: 'blob' });
 
     const fileHandle = await window.showSaveFilePicker({
-      suggestedName: `${currentMod.manifest.id}.tbuddy`,
+      suggestedName: getSuggestedTbuddyFileName(currentMod.manifest.id),
       types: [{ description: 'TrayBuddy Mod', accept: { 'application/octet-stream': ['.tbuddy'] } }]
     });
 
