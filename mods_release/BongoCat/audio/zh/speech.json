@@ -1,0 +1,30 @@
+[
+  {
+    "name": "1.C(do)",
+    "audio": "zh/speech/1.C(do).mp3"
+  },
+  {
+    "name": "2.D(re)",
+    "audio": "zh/speech/2.D(re).mp3"
+  },
+  {
+    "name": "3.E(mi)",
+    "audio": "zh/speech/3.E(mi).mp3"
+  },
+  {
+    "name": "4.F(fa)",
+    "audio": "zh/speech/4.F(fa).mp3"
+  },
+  {
+    "name": "5.G(sol)",
+    "audio": "zh/speech/5.G(sol).mp3"
+  },
+  {
+    "name": "6.A(la)",
+    "audio": "zh/speech/6.A(la).mp3"
+  },
+  {
+    "name": "7.B(si)",
+    "audio": "zh/speech/7.B(si).mp3"
+  }
+]

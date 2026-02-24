@@ -185,18 +185,6 @@
       "events": [
         "keydown:KeyW"
       ]
-    },
-    {
-      "name": "cover",
-      "file": "resources/cover.png",
-      "dir": "resources",
-      "events": []
-    },
-    {
-      "name": "background",
-      "file": "resources/background.png",
-      "dir": "resources",
-      "events": []
     }
   ],
   "background_layers": [

@@ -1,7 +1,7 @@
 {
-  "id": "BongoCat2",
+  "id": "BongoCat",
   "version": "1.0.0",
-  "author": "Cafel",
+  "author": "MMmmmoko",
   "default_audio_lang_id": "zh",
   "default_text_lang_id": "zh",
   "character": {
@@ -236,23 +236,7 @@
       "trigger_weather": [],
       "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": [
-        {
-          "id": "ParamMouseLeftDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "ParamMouseRightDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "CatParamLeftHandDown",
-          "value": 0,
-          "target": "Parameter"
-        }
-      ]
+      "live2d_params": null
     },
     "music_start": {
       "name": "music_start",
@@ -557,14 +541,6 @@
   ],
   "triggers": [
     {
-      "event": "click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "right_click",
-      "can_trigger_states": []
-    },
-    {
       "event": "global_click",
       "can_trigger_states": [
         {
@@ -595,14 +571,6 @@
       ]
     },
     {
-      "event": "keydown:Space",
-      "can_trigger_states": []
-    },
-    {
-      "event": "login",
-      "can_trigger_states": []
-    },
-    {
       "event": "login_silence",
       "can_trigger_states": [
         {
@@ -610,66 +578,6 @@
           "states": [
             {
               "state": "silence_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "music_start",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "music_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "music_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "music_end",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "drag_start",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "drag_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_end",
               "weight": 1
             }
           ],

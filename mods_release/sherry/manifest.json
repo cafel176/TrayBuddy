@@ -574,10 +574,6 @@
       ]
     },
     {
-      "event": "login",
-      "can_trigger_states": []
-    },
-    {
       "event": "login_silence",
       "can_trigger_states": [
         {
@@ -585,66 +581,6 @@
           "states": [
             {
               "state": "silence_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "music_start",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "music_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "music_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "music_end",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "drag_start",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "drag_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_end",
               "weight": 1
             }
           ],
