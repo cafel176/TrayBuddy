@@ -685,10 +685,24 @@ impl ModArchiveStore {
     }
 
 
-    /// 移除指定 mod 的 archive
+    /// 移除指定 mod 的 archive（同时移除来源映射）。
     pub fn remove(&mut self, mod_id: &str) {
         self.archives.remove(mod_id);
         self.sources.remove(mod_id);
+        if let Some(pos) = self.access_order.iter().position(|id| id == mod_id) {
+            self.access_order.remove(pos);
+        }
+    }
+
+    /// 仅从内存中卸载（淘汰）已加载的 archive 数据，但**保留来源映射**。
+    ///
+    /// 用途：切换 Mod / 低内存模式下，主动释放旧 Mod 的内存占用；
+    /// 当该 mod 的资源再次被访问时，会通过 `ensure_loaded()` 重新从磁盘加载。
+    pub fn evict_loaded(&mut self, mod_id: &str) {
+        self.archives.remove(mod_id);
+        if let Some(pos) = self.access_order.iter().position(|id| id == mod_id) {
+            self.access_order.remove(pos);
+        }
     }
 
     /// 清空所有已加载的 archive

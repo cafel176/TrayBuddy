@@ -124,13 +124,24 @@ where
     F: FnOnce(&mut crate::modules::resource::ResourceManager) -> Result<Arc<ModInfo>, String>,
 {
     // 0. 记录当前 Mod 类型（用于后续判断是否跨类型切换）
-    let old_mod_type = {
+    // 同时记录旧 mod_id（若为 archive mod，用于切换后主动释放内存缓存）。
+    let (old_mod_type, old_archive_mod_id) = {
         let rm = state.resource_manager.lock().unwrap();
-        rm.current_mod.as_ref().map(|m| m.manifest.mod_type)
+        let old_type = rm.current_mod.as_ref().map(|m| m.manifest.mod_type);
+        let old_archive_id = rm.current_mod.as_ref().and_then(|m| {
+            let p = m.path.to_string_lossy();
+            p.strip_prefix("tbuddy-archive://").map(|s| s.to_string())
+        });
+        (old_type, old_archive_id)
     };
 
     // 关闭除 mods 以外的所有窗口
     // 理由：每个 Mod 的动画窗口参数可能完全不同，热重载不如重建窗口稳定。
+    //
+    // 策略：
+    // - 渲染窗口（animation/live2d/pngremix/threed）注册了 CloseRequested 拦截器（close → hide），
+    //   这里调用 close() 会将其隐藏以复用 WebView2，减少“被迫启动”的冷启动次数。
+    // - 工具窗口（destroy_on_close: true）则会按 Tauri 默认行为被销毁。
     let windows = app.webview_windows();
     for (label, window) in windows {
         if label != WINDOW_LABEL_MODS {
@@ -217,6 +228,15 @@ where
         }
         ModType::ThreeD => {
             recreate_threed_window(app.clone()).await?;
+        }
+    }
+
+    // 5.5 低内存策略：切换完成后主动淘汰旧 archive 的“已加载字节”，避免常驻占用
+    if let Some(old_id) = old_archive_mod_id {
+        // 若新 mod 恰好还是同一个 id，则不做处理
+        if old_id != mod_info.manifest.id.to_string() {
+            let mut store = state.archive_store.lock().unwrap();
+            store.evict_loaded(&old_id);
         }
     }
 
@@ -320,11 +340,26 @@ pub(crate) async fn load_mod(
 /// 卸载当前 Mod
 #[tauri::command]
 pub(crate) fn unload_mod(app: AppHandle, state: State<'_, AppState>) -> bool {
+    // 卸载前记录当前 archive mod_id（如果是 archive mod）
+    let old_archive_mod_id = {
+        let rm = state.resource_manager.lock().unwrap();
+        rm.current_mod.as_ref().and_then(|m| {
+            let p = m.path.to_string_lossy();
+            p.strip_prefix("tbuddy-archive://").map(|s| s.to_string())
+        })
+    };
+
     let mut rm = state.resource_manager.lock().unwrap();
     let result = rm.unload_mod();
 
-    // 卸载后恢复默认托盘图标和窗口图标（同步版本，因为函数本身是同步的）
+    // 卸载后主动淘汰该 archive 的已加载字节（保留 source 映射，后续需要可再加载）
     if result {
+        if let Some(old_id) = old_archive_mod_id {
+            let mut store = state.archive_store.lock().unwrap();
+            store.evict_loaded(&old_id);
+        }
+
+        // 卸载后恢复默认托盘图标和窗口图标（同步版本，因为函数本身是同步的）
         update_tray_icon_sync(&app);
         restore_window_icons_sync(&app);
     }
