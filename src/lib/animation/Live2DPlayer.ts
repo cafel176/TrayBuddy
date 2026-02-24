@@ -6,6 +6,7 @@ import {
   normalizePath,
   parseArchiveVirtualPath,
 } from "../utils/modAssetUrl";
+import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled } from "./render_tuning";
 
 import type {
   Live2DConfig,
@@ -593,7 +594,11 @@ export class Live2DPlayer {
       const width = Math.max(target.clientWidth, 1);
       const height = Math.max(target.clientHeight, 1);
       dbg("resize", "parentSize:", width, "x", height);
+
+      // DPR 可能在系统缩放/显示器切换时变化，resize 时同步更新。
+      this.app.renderer.resolution = getRenderDpr();
       this.app.renderer.resize(width, height);
+
       this.updateFitScale();
       this.applyCurrentTransform();
     });

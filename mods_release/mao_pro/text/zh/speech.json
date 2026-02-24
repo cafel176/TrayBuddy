@@ -1,32 +1,32 @@
 [
   {
     "name": "mtn_02",
-    "text": "mtn_02",
+    "text": "当前播放动画：mtn_02",
     "duration": 3
   },
   {
     "name": "mtn_03",
-    "text": "mtn_03",
+    "text": "当前播放动画：mtn_03",
     "duration": 3
   },
   {
     "name": "special_01",
-    "text": "special_01",
+    "text": "当前播放动画：special_01",
     "duration": 3
   },
   {
     "name": "mtn_04",
-    "text": "mtn_04",
+    "text": "当前播放动画：mtn_04",
     "duration": 3
   },
   {
     "name": "special_02",
-    "text": "special_02",
+    "text": "当前播放动画：special_02",
     "duration": 3
   },
   {
     "name": "special_03",
-    "text": "special_03",
+    "text": "当前播放动画：special_03",
     "duration": 3
   }
 ]
