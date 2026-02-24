@@ -167,6 +167,34 @@ export const TRAY_ADAPTIVE_OFFSET_Y = 20;
 export const DEBUG_CLOCK_UPDATE_INTERVAL_MS = 3000;
 
 // ========================================================================= //
+// 渲染性能调参（DPR / AA / FPS）
+// ========================================================================= //
+
+/**
+ * 渲染性能调参总开关集合。
+ *
+ * 说明：
+ * - 这些值主要影响 `ThreeDPlayer` / `Live2DPlayer` / `PngRemixPlayer` 的渲染负载。
+ * - 修改后需要重新构建/重启 dev server 才会生效。
+ */
+export const RENDER_TUNING = {
+  /** 是否对 `window.devicePixelRatio` 做钳制（clamp）。 */
+  DPR_CLAMP_ENABLED: true,
+  /** DPR 下限（一般保持 1）。 */
+  DPR_CLAMP_MIN: 1,
+  /** DPR 上限（建议 2；过高会显著增加显存与带宽）。 */
+  DPR_CLAMP_MAX: 2,
+
+  /** 是否启用 WebGL antialias（MSAA）。关闭可明显降低 GPU 压力。 */
+  ANTIALIAS_ENABLED: false,
+
+  /** 是否启用渲染 FPS 上限。 */
+  FPS_LIMIT_ENABLED: true,
+  /** 全局 FPS 上限（例如 60 可避免 144/240Hz 显示器导致 rAF 过高）。 */
+  FPS_LIMIT_MAX: 60,
+} as const;
+
+// ========================================================================= //
 // 日志工具
 // ========================================================================= //
 

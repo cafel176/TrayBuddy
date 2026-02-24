@@ -561,7 +561,8 @@ export class Live2DPlayer {
 
     const width = Math.max(this.canvas.clientWidth, 1);
     const height = Math.max(this.canvas.clientHeight, 1);
-    dbg("initPixiApp", "canvas clientSize:", width, "x", height, "dpr:", window.devicePixelRatio);
+    const dpr = getRenderDpr();
+    dbg("initPixiApp", "canvas clientSize:", width, "x", height, "dpr:", dpr);
 
     this.app = new window.PIXI.Application({
       view: this.canvas,
@@ -569,10 +570,16 @@ export class Live2DPlayer {
       height,
       backgroundAlpha: 0,
       autoStart: true,
-      resolution: window.devicePixelRatio || 1,
+      resolution: dpr,
       autoDensity: true,
       preserveDrawingBuffer: true,
+      antialias: isAntialiasEnabled(),
     });
+
+    const maxFps = getRenderMaxFps();
+    if (maxFps && this.app?.ticker) {
+      this.app.ticker.maxFPS = maxFps;
+    }
 
     dbg("initPixiApp", "renderer size:", this.app.renderer.width, "x", this.app.renderer.height);
   }
@@ -1172,8 +1179,9 @@ export class Live2DPlayer {
         const sprite = new PIXI.Sprite(texture);
         sprite.anchor.set(0.5, 0.5);
         sprite.scale.set(lyr.scale || 1);
-        sprite.x = (this.app.renderer.width / (window.devicePixelRatio || 1)) / 2 + (lyr.offset_x || 0);
-        sprite.y = (this.app.renderer.height / (window.devicePixelRatio || 1)) / 2 + (lyr.offset_y || 0);
+        const dpr = this.app.renderer.resolution || 1;
+        sprite.x = (this.app.renderer.width / dpr) / 2 + (lyr.offset_x || 0);
+        sprite.y = (this.app.renderer.height / dpr) / 2 + (lyr.offset_y || 0);
 
         // 有 events 的默认隐藏
         const hasEvents = Array.isArray(lyr.events) && lyr.events.length > 0;

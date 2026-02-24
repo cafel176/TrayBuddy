@@ -10,6 +10,7 @@ import type { VRM } from "@pixiv/three-vrm";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { buildModAssetUrlFor3D } from "../utils/modAssetUrl";
 import type { ThreeDConfig, ThreeDAnimation, ThreeDState } from "$lib/types/asset";
+import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled } from "./render_tuning";
 // @ts-ignore — vendored JS module without TS declarations
 import { MMDLoader } from "./mmd/MMDLoader.js";
 
@@ -718,13 +719,13 @@ export class ThreeDPlayer {
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      antialias: true,
+      antialias: isAntialiasEnabled(),
       alpha: true,
       // 必须为 true，否则 readPixels（异步轮询的像素穿透检测）
       // 读到的 buffer 已被清空，alpha 全为 0，导致穿透检测失效
       preserveDrawingBuffer: true,
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(getRenderDpr());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.scene = new THREE.Scene();
@@ -1331,9 +1332,18 @@ export class ThreeDPlayer {
     if (this.isRendering) return;
     this.isRendering = true;
 
-    const animate = () => {
+    const maxFps = getRenderMaxFps();
+    const minDeltaMs = maxFps ? 1000 / Math.max(1, maxFps) : 0;
+    let lastTs = 0;
+
+    const animate = (ts: number) => {
       if (!this.isRendering) return;
       this.animationFrameId = requestAnimationFrame(animate);
+
+      if (minDeltaMs > 0 && lastTs > 0 && ts - lastTs < minDeltaMs) {
+        return;
+      }
+      lastTs = ts;
 
       this.timer?.update();
       const dt = this.timer?.getDelta() ?? 0;
@@ -1398,7 +1408,8 @@ export class ThreeDPlayer {
       }
     };
 
-    animate();
+
+    this.animationFrameId = requestAnimationFrame(animate);
   }
 
   private stopRenderLoop(): void {
@@ -1416,6 +1427,8 @@ export class ThreeDPlayer {
     const w = Math.max(parent.clientWidth, 1);
     const h = Math.max(parent.clientHeight, 1);
 
+    // DPR 可能在系统缩放/显示器切换时变化，resize 时同步更新。
+    this.renderer.setPixelRatio(getRenderDpr());
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();

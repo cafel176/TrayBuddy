@@ -12,6 +12,8 @@ import type {
   PngRemixParameterSetting,
 } from "$lib/types/asset";
 import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
+import { capFps, getRenderDpr } from "./render_tuning";
+
 
 // ============================================================================
 // 全局脚本加载
@@ -1515,8 +1517,9 @@ export class PngRemixPlayer {
     const ctx = this.hitTestCtx;
     if (!hit || !ctx || hit.width <= 0 || hit.height <= 0) return false;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = getRenderDpr();
     const scale = clamp(this.hitTestScale, 0.05, 1);
+
 
     // Map to device pixels then to hit buffer pixels.
     const px = cssX * dpr;
@@ -1609,7 +1612,8 @@ export class PngRemixPlayer {
 
     const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
     const factor = (this.animationScale / 0.4) * (Number(this.modelScale) || 1) * (Number(this.stateScale) || 1);
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = getRenderDpr();
+
 
     // fit.panX/panY are derived from fit.zoom, so they should be scaled together.
     this.zoom = fit.zoom * factor;
@@ -1765,8 +1769,9 @@ export class PngRemixPlayer {
   private resizeCanvas(): void {
     // Avoid getBoundingClientRect() in the hot path (can trigger layout).
     // clientWidth/Height are CSS pixels.
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = getRenderDpr();
     const cssW = this.canvas.clientWidth;
+
     const cssH = this.canvas.clientHeight;
     const w = Math.max(1, Math.floor(cssW * dpr));
     const h = Math.max(1, Math.floor(cssH * dpr));
@@ -1803,7 +1808,7 @@ export class PngRemixPlayer {
   private recordMouseCssPosition(cssX: number, cssY: number, source: string): void {
     if (!this.scene) return;
     this.hasMouse = true;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = getRenderDpr();
     this.mouseCanvas.x = cssX * dpr;
     this.mouseCanvas.y = cssY * dpr;
     this.mouseDirty = true;
@@ -1926,7 +1931,8 @@ export class PngRemixPlayer {
     if (!this.scene) return;
     this.scene.playing = true;
 
-    const maxFps = Number(this.config?.model?.max_fps) || 60;
+    const maxFpsRaw = Number(this.config?.model?.max_fps) || 60;
+    const maxFps = capFps(maxFpsRaw);
     const minDeltaMs = 1000 / Math.max(1, clamp(maxFps, 1, 240));
 
     const frame = (ts: number) => {
