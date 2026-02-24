@@ -40,6 +40,17 @@ pub(crate) fn get_available_mods(state: State<'_, AppState>) -> Vec<String> {
     rm.list_mods()
 }
 
+/// 获取 Mod 列表的“快速摘要”（不解密 .sbuddy）
+///
+/// 用途：用于 Mods 页面列表快速渲染（显示版本/类型等），
+/// 避免启动时对大量 `.sbuddy` 逐个解密导致卡顿。
+#[tauri::command]
+pub(crate) fn get_mod_summaries_fast(state: State<'_, AppState>) -> Vec<resource::ModSummary> {
+    let mut rm = state.resource_manager.lock().unwrap();
+    rm.list_mod_summaries_fast()
+}
+
+
 /// Mod 加载后的公共 storage 更新逻辑
 ///
 /// 处理数据迁移（旧文件夹名 → manifest.id）、更新 current_mod、初始化 mod_data。

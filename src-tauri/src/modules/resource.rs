@@ -1695,7 +1695,18 @@ pub struct ResourceManager {
     archive_mod_ids: std::collections::HashSet<String>,
     /// 对 ModArchiveStore 的引用（由 AppState 共享）
     archive_store: Option<Arc<std::sync::Mutex<super::mod_archive::ModArchiveStore>>>,
+
+    /// `.sbuddy` 解密后缓存的真实 manifest 关键信息。
+    ///
+    /// canonical_file_path -> (manifest.id, manifest.version, manifest.mod_type)
+    ///
+    /// 目的：
+    /// - 当 `.sbuddy` 文件名不等于 `manifest.id` 时，扫描阶段仍可“无解密”地建立正确索引
+    /// - Mods 列表在刷新时可直接显示已解密过的 `.sbuddy` 的真实类型/版本
+    sbuddy_manifest_cache: HashMap<PathBuf, (String, String, ModType)>,
+
 }
+
 
 impl ResourceManager {
     /// 创建资源管理器
@@ -1707,8 +1718,10 @@ impl ResourceManager {
             folder_to_id: HashMap::new(),
             archive_mod_ids: std::collections::HashSet::new(),
             archive_store: None,
+            sbuddy_manifest_cache: HashMap::new(),
         }
     }
+
 
     /// 创建资源管理器（自定义搜索路径，用于测试或工具场景）
     pub fn new_with_search_paths(search_paths: Vec<PathBuf>) -> Self {
@@ -1719,8 +1732,10 @@ impl ResourceManager {
             folder_to_id: HashMap::new(),
             archive_mod_ids: std::collections::HashSet::new(),
             archive_store: None,
+            sbuddy_manifest_cache: HashMap::new(),
         }
     }
+
 
 
     /// 设置 archive store 引用（在 AppState 初始化后调用）
@@ -2016,39 +2031,65 @@ impl ResourceManager {
                         continue;
                     }
 
-                    let Some(store_arc) = &self.archive_store else {
-                        continue;
-                    };
-                    let mut store = store_arc.lock().unwrap();
+                    // 只做索引：不要在启动/扫描阶段把 archive 全部解包/加载到内存里。
+                    // 否则当 mods_test 下有大量 .sbuddy 时，会因为逐个解密 + 解析导致启动“卡死”。
 
-                    // 尝试加载到内存并读取 manifest
-                    let (manifest_id, manifest_version) = if is_sbuddy {
-                        match store.load_sbuddy(&entry_path) {
-                            Ok((id, manifest)) => (id, manifest.version.to_string()),
+                    // 1) 优先用文件名推断 mod_id（历史约定：{manifest.id}.tbuddy/.sbuddy）
+                    let file_stem = entry_path
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    if file_stem.is_empty() {
+                        continue;
+                    }
+
+                    // 统一使用 canonical 路径作为 cache key（避免同一文件的不同表示形式导致 cache miss）
+                    let canonical_file =
+                        dunce::canonicalize(&entry_path).unwrap_or_else(|_| entry_path.clone());
+
+                    // 2) 读取版本号
+                    // - .tbuddy：直接读取 zip 内 manifest.json（无需解密，成本低）
+                    // - .sbuddy：扫描阶段不解密（成本高），优先使用“解密后缓存”的真实 manifest 信息；
+                    //            若无缓存，则回退为文件名推断（可能不是真实 manifest.id）。
+                    let (manifest_id, manifest_version) = if is_tbuddy {
+                        let mut id = file_stem.clone();
+                        let mut ver = String::new();
+
+                        match super::mod_archive::ZipArchiveReader::from_file(&canonical_file)
+                            .and_then(|r| r.read_json::<ModManifest>("manifest.json"))
+                        {
+                            Ok(m) => {
+                                id = m.id.to_string();
+                                ver = m.version.to_string();
+                            }
                             Err(e) => {
                                 #[cfg(debug_assertions)]
                                 println!(
-                                    "[ResourceManager] Failed to load .sbuddy '{}': {}",
-                                    entry_path.display(),
+                                    "[ResourceManager] Failed to read manifest from .tbuddy '{}': {}",
+                                    canonical_file.display(),
                                     e
                                 );
-                                continue;
                             }
                         }
+
+                        (id, ver)
                     } else {
-                        match store.load_tbuddy(&entry_path) {
-                            Ok((id, manifest)) => (id, manifest.version.to_string()),
-                            Err(e) => {
-                                #[cfg(debug_assertions)]
-                                println!(
-                                    "[ResourceManager] Failed to load .tbuddy '{}': {}",
-                                    entry_path.display(),
-                                    e
-                                );
-                                continue;
-                            }
+                        // .sbuddy：扫描阶段不解密（优先用缓存）
+                        match self.sbuddy_manifest_cache.get(&canonical_file) {
+                            Some((id, ver, _ty)) => (id.clone(), ver.clone()),
+                            None => (file_stem.clone(), String::new()),
                         }
+
                     };
+
+                    // 3) 注册 archive 来源（按需加载依赖此映射）
+                    if let Some(store_arc) = &self.archive_store {
+                        if let Ok(mut store) = store_arc.lock() {
+                            store.register_source(manifest_id.clone(), canonical_file.clone());
+                        }
+                    }
+
+
 
                     // 同 id 版本比较（文件夹 mod 优先；包文件之间比版本号）
                     if let Some(existing) = self.mod_index.get(&manifest_id) {
@@ -2074,9 +2115,10 @@ impl ResourceManager {
                             id: manifest_id,
                             version: manifest_version,
                             folder,
-                            path: entry_path,  // .tbuddy / .sbuddy 文件路径
+                            path: canonical_file, // .tbuddy / .sbuddy 文件路径
                         },
                     );
+
                 }
             }
         }
@@ -2136,6 +2178,181 @@ impl ResourceManager {
         result.sort();
         result
     }
+
+    /// 列出 Mod 的“快速摘要”（不解密 `.sbuddy`）
+    ///
+    /// 规则：
+    /// - 文件夹 mod：读取 `manifest.json` + 仅加载默认语言的 `text/{lang}/info.json`
+    /// - `.tbuddy`：读取 zip 内 `manifest.json` + 默认语言 `text/{lang}/info.json`
+    /// - `.sbuddy`：**不解密**，默认返回占位摘要；若该文件在本次运行中曾被解密过，则会从 cache 回填 version/mod_type
+
+    pub fn list_mod_summaries_fast(&mut self) -> Vec<ModSummary> {
+        use crate::modules::mod_archive::ModArchiveReader;
+
+        self.rebuild_mod_index();
+
+        let mut ids: Vec<String> = self.mod_index.keys().cloned().collect();
+
+        ids.sort();
+
+        fn fix_char_info_id(mut ci: CharacterInfo, fallback: &str) -> CharacterInfo {
+            if ci.id.is_empty() || ci.id.as_ref() == "ERROR" {
+                ci.id = fallback.into();
+            }
+            ci
+        }
+
+        let mut out: Vec<ModSummary> = Vec::with_capacity(ids.len());
+
+        for id in ids {
+            let Some(locator) = self.mod_index.get(&id) else {
+                continue;
+            };
+
+            let is_archive = self.archive_mod_ids.contains(&id);
+
+            // 默认占位
+            let mut manifest = ModManifest::default();
+            manifest.id = id.clone().into();
+            if !locator.version.is_empty() {
+                manifest.version = locator.version.clone().into();
+            }
+            if manifest.default_text_lang_id.is_empty() {
+                manifest.default_text_lang_id = "zh".into();
+            }
+
+            let mut info: HashMap<Box<str>, CharacterInfo> = HashMap::new();
+            let mut icon_path: Option<Box<str>> = None;
+            let mut preview_path: Option<Box<str>> = None;
+
+            if !is_archive {
+                // ========== 文件夹 mod ========== 
+                let mod_path = locator.path.clone();
+
+                // manifest.json
+                let manifest_path = mod_path.join("manifest.json");
+                if let Some(m) = crate::modules::utils::fs::load_json_obj::<ModManifest>(&manifest_path) {
+                    manifest = m;
+                    // 兜底 default_text_lang_id
+                    if manifest.default_text_lang_id.is_empty() {
+                        manifest.default_text_lang_id = "zh".into();
+                    }
+                }
+
+                // icon / preview
+                for ext in ["ico", "png"] {
+                    let p = mod_path.join(format!("icon.{ext}"));
+                    if p.exists() {
+                        icon_path = Some(format!("icon.{ext}").into());
+                        break;
+                    }
+                }
+                for ext in ["png", "jpg", "jpeg", "webp"] {
+                    let p = mod_path.join(format!("preview.{ext}"));
+                    if p.exists() {
+                        preview_path = Some(format!("preview.{ext}").into());
+                        break;
+                    }
+                }
+
+                // 默认语言角色信息（仅 info.json，不加载 speech.json）
+                let lang = manifest.default_text_lang_id.to_string();
+                let p = mod_path.join("text").join(&lang).join("info.json");
+                if let Some(ci) = crate::modules::utils::fs::load_json_obj::<CharacterInfo>(&p) {
+                    info.insert(lang.clone().into(), fix_char_info_id(ci, &lang));
+                }
+
+                out.push(ModSummary {
+                    path: mod_path,
+                    manifest,
+                    info,
+                    icon_path,
+                    preview_path,
+                });
+                continue;
+            }
+
+            // ========== archive mod（tbuddy / sbuddy） ==========
+            let archive_path = locator.path.clone();
+            let ext = archive_path
+                .extension()
+                .and_then(|s| s.to_str())
+                .map(|s| s.to_lowercase())
+                .unwrap_or_default();
+
+            // archive 的 path 统一使用虚拟标记，前端通过它走 tbuddy-asset:// 协议
+            let virtual_path = PathBuf::from(format!("tbuddy-archive://{}", id));
+
+            if ext == "tbuddy" {
+                // `.tbuddy`：可快速读取 zip 内 manifest，不需要解密
+                if let Ok(reader) = super::mod_archive::ZipArchiveReader::from_file(&archive_path) {
+                    if let Ok(m) = reader.read_json::<ModManifest>("manifest.json") {
+                        manifest = m;
+                        if manifest.default_text_lang_id.is_empty() {
+                            manifest.default_text_lang_id = "zh".into();
+                        }
+                    }
+
+                    // icon / preview
+                    for e in ["ico", "png"] {
+                        let p = format!("icon.{e}");
+                        if reader.file_exists(&p) {
+                            icon_path = Some(p.into());
+                            break;
+                        }
+                    }
+                    for e in ["png", "jpg", "jpeg", "webp"] {
+                        let p = format!("preview.{e}");
+                        if reader.file_exists(&p) {
+                            preview_path = Some(p.into());
+                            break;
+                        }
+                    }
+
+                    // 默认语言角色信息（仅 info.json）
+                    let lang = manifest.default_text_lang_id.to_string();
+                    let p = format!("text/{}/info.json", &lang);
+                    if let Some(ci) = reader.read_json_optional::<CharacterInfo>(&p) {
+                        info.insert(lang.clone().into(), fix_char_info_id(ci, &lang));
+                    }
+                }
+            } else {
+                // `.sbuddy`：快速摘要阶段不解密
+                // 默认保持为占位（用于触发前端 hydrate），但若该文件在本次运行中曾被解密过，则使用 cache 回填 version/mod_type。
+                manifest.id = id.clone().into();
+
+                // locator.path 现在是 canonical_file
+                if let Some((cached_id, cached_ver, cached_type)) =
+                    self.sbuddy_manifest_cache.get(&locator.path)
+                {
+                    // 理论上 cached_id == id（已用真实 id 建索引），这里保守做一次校验
+                    if cached_id == &id {
+                        if !cached_ver.is_empty() {
+                            manifest.version = cached_ver.clone().into();
+                        }
+                        manifest.mod_type = *cached_type;
+                    }
+                }
+
+                // cache 未命中时：保持 version 为空（占位）
+                if manifest.version.is_empty() {
+                    manifest.version = "".into();
+                }
+            }
+
+
+            out.push(ModSummary {
+                path: virtual_path,
+                manifest,
+                info,
+                icon_path,
+                preview_path,
+            });
+        }
+
+        out
+    }
+
 
 
     /// 卸载当前 Mod
@@ -2255,15 +2472,176 @@ impl ResourceManager {
         Ok(mod_info)
     }
 
+    /// 尝试在不完整索引下定位 archive mod（主要处理：`.sbuddy` 文件名 != `manifest.id`）。
+    ///
+    /// - 扫描阶段我们不会解密 `.sbuddy`，因此可能只能用文件名推断一个“占位 id”。
+    /// - 当外部传入的是“真实 manifest.id”（例如启动时从 storage 读取 current_mod），这里会尝试：
+    ///   1) 命中内存 cache（上一次解密时写入）
+    ///   2) 必要时逐个解密 `.sbuddy` 的 manifest.json，直到找到匹配项（只在确实需要加载该 id 时发生）
+    fn try_register_archive_by_real_id(&mut self, target_id: &str) {
+        if target_id.is_empty() {
+            return;
+        }
+        if self.mod_index.contains_key(target_id) {
+            return;
+        }
+
+        // 没有 archive store 时无从注册
+        let Some(store_arc) = &self.archive_store else {
+            return;
+        };
+
+        // 先从 cache 里找：canonical_file -> (id, version, mod_type)
+        if let Some((cached_path, (_, ver, _ty))) = self
+            .sbuddy_manifest_cache
+            .iter()
+            .find(|(_, (id, _, _))| id == target_id)
+            .map(|(p, v)| (p.clone(), v.clone()))
+        {
+
+            if let Ok(mut store) = store_arc.lock() {
+                store.register_source(target_id.to_string(), cached_path.clone());
+            }
+
+            let folder = cached_path
+                .file_name()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| target_id.to_string());
+
+            self.archive_mod_ids.insert(target_id.to_string());
+            self.mod_index.insert(
+                target_id.to_string(),
+                ModLocator {
+                    id: target_id.to_string(),
+                    version: ver,
+                    folder,
+                    path: cached_path,
+                },
+            );
+            return;
+        }
+
+        // cache 未命中：尝试遍历 `.sbuddy` 文件解密读取 manifest.json
+        if !super::mod_archive::is_sbuddy_supported() {
+            return;
+        }
+
+        for base in &self.search_paths {
+            let Ok(entries) = fs::read_dir(base) else {
+                continue;
+            };
+
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let is_sbuddy = entry
+                    .file_name()
+                    .to_string_lossy()
+                    .to_lowercase()
+                    .ends_with(".sbuddy");
+                if !is_sbuddy {
+                    continue;
+                }
+
+                let canonical_file = dunce::canonicalize(&p).unwrap_or(p);
+
+                // 如果之前已缓存但没匹配到（比如 cache 被部分清空），快速检查一次
+                if let Some((id, ver, _ty)) = self.sbuddy_manifest_cache.get(&canonical_file) {
+                    if id == target_id {
+
+                        if let Ok(mut store) = store_arc.lock() {
+                            store.register_source(target_id.to_string(), canonical_file.clone());
+                        }
+
+                        let folder = canonical_file
+                            .file_name()
+                            .map(|s| s.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| target_id.to_string());
+
+                        self.archive_mod_ids.insert(target_id.to_string());
+                        self.mod_index.insert(
+                            target_id.to_string(),
+                            ModLocator {
+                                id: target_id.to_string(),
+                                version: ver.clone(),
+                                folder,
+                                path: canonical_file,
+                            },
+                        );
+                        return;
+                    }
+                    continue;
+                }
+
+                // 真正解密（只读 manifest.json）
+                let Ok(reader) = super::mod_archive::SbuddyArchiveReader::from_file(&canonical_file) else {
+                    continue;
+                };
+
+                let Ok(m) = reader.read_json::<ModManifest>("manifest.json") else {
+                    continue;
+                };
+
+                let real_id = m.id.to_string();
+                let real_ver = m.version.to_string();
+
+                // 写入 cache，后续 rebuild_mod_index / fast summaries 可直接使用
+                self.sbuddy_manifest_cache.insert(
+                    canonical_file.clone(),
+                    (real_id.clone(), real_ver.clone(), m.mod_type),
+                );
+
+
+                if real_id != target_id {
+                    continue;
+                }
+
+                if let Ok(mut store) = store_arc.lock() {
+                    store.register_source(target_id.to_string(), canonical_file.clone());
+                }
+
+                let folder = canonical_file
+                    .file_name()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| target_id.to_string());
+
+                self.archive_mod_ids.insert(target_id.to_string());
+                self.mod_index.insert(
+                    target_id.to_string(),
+                    ModLocator {
+                        id: target_id.to_string(),
+                        version: real_ver,
+                        folder,
+                        path: canonical_file,
+                    },
+                );
+                return;
+            }
+        }
+    }
+
     /// 从磁盘读取 Mod 信息（不加载到当前状态）
     ///
     /// 用于 Mod 预览或加载前的检查。
     /// 自动判断是文件夹 mod 还是 archive mod。
     pub fn read_mod_from_disk(&mut self, mod_id: &str) -> Result<ModInfo, String> {
+        // 每次读取前刷新索引，确保 archive_mod_ids / sources 是最新的。
+        // 这能保证“启动时当前 mod”即使是 `.tbuddy/.sbuddy` 也会正确走到 archive 解密/读取逻辑。
+        self.rebuild_mod_index();
+
+        // 若扫描阶段只用文件名推断（`.sbuddy`），这里兜底尝试定位真实 manifest.id。
+        if !self.mod_index.contains_key(mod_id) {
+            self.try_register_archive_by_real_id(mod_id);
+        }
+
         // 先检查是否为 archive mod
         if self.is_archive_mod(mod_id) {
             return self.read_mod_from_archive(mod_id);
         }
+
+
 
         // 查找 Mod 目录（优先使用 manifest.id 解析）
         let mod_path = self
@@ -2276,23 +2654,53 @@ impl ResourceManager {
     /// 从 archive 读取 Mod 信息
     ///
     /// - 使用 ModArchiveReader 读取虚拟目录结构
-    /// - 构造 `tbuddy-archive://{mod_id}` 虚拟路径供前端识别
-    fn read_mod_from_archive(&self, mod_id: &str) -> Result<ModInfo, String> {
+    /// - 返回的 `path` 使用 `tbuddy-archive://{manifest.id}`（真实 id）供前端识别
+    /// - 若扫描阶段只能用文件名推断 id（`.sbuddy`），这里会在解密后把真实 id 反哺到内存 cache 与 archive store
+    fn read_mod_from_archive(&mut self, requested_id: &str) -> Result<ModInfo, String> {
 
         let store_arc = self
             .archive_store
             .as_ref()
             .ok_or_else(|| "Archive store not initialized".to_string())?;
         let mut store = store_arc.lock().unwrap();
-        let reader = store
-            .get(mod_id)
-            .ok_or_else(|| format!("Archive for mod '{}' not loaded", mod_id))?;
 
+        // requested_id 可能是扫描阶段推断出来的“占位 id”，此处 ensure_loaded 会按需加载（.sbuddy 会触发解密）
+        let reader = store
+            .get(requested_id)
+            .ok_or_else(|| format!("Archive for mod '{}' not loaded", requested_id))?;
+
+        // 记录来源路径，供后续 cache
+        let source_path = store.get_source(requested_id).map(|s| s.file_path.clone());
 
         // 解析 manifest.json
         let manifest: ModManifest = reader
             .read_json("manifest.json")
             .map_err(|e| format!("Failed to parse manifest from archive: {}", e))?;
+
+        let actual_id = manifest.id.to_string();
+
+        // `.sbuddy`/`.tbuddy`：解密/读取到 manifest 后，把真实 id/版本/类型缓存起来，后续 rebuild_mod_index/fast summaries 可直接使用
+        if let Some(p) = source_path {
+            let canonical = dunce::canonicalize(&p).unwrap_or(p);
+            self.sbuddy_manifest_cache.insert(
+                canonical,
+                (
+                    actual_id.clone(),
+                    manifest.version.to_string(),
+                    manifest.mod_type,
+                ),
+            );
+        }
+
+
+        // 如果真实 id 与 requested_id 不一致：
+        // - alias 到 archive_store，确保 tbuddy-asset 协议与 get_tbuddy_source_path 均可使用真实 id
+        // - 同时在当前 session 中把真实 id 标记为 archive mod
+        if !actual_id.is_empty() && actual_id != requested_id {
+            store.alias_mod_id(requested_id, &actual_id);
+            self.archive_mod_ids.insert(actual_id.clone());
+        }
+
 
         // 解析资产定义
         let imgs: Vec<AssetInfo> = reader.read_json_list("asset/img.json");
@@ -2368,9 +2776,10 @@ impl ResourceManager {
             }
         }
 
-        // archive mod 的 path 使用特殊标记：tbuddy-archive://{mod_id}
+        // archive mod 的 path 使用特殊标记：tbuddy-archive://{manifest.id}
         // 前端通过此标记判断走 tbuddy-asset:// 协议
-        let virtual_path = PathBuf::from(format!("tbuddy-archive://{}", mod_id));
+        let virtual_path = PathBuf::from(format!("tbuddy-archive://{}", actual_id));
+
 
         let mut mod_info = ModInfo {
             path: virtual_path,

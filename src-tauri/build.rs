@@ -1,6 +1,6 @@
 fn main() {
-    // 检查外部工具可执行文件是否存在于 src-tauri 目录
-    // 存在则通过 include_bytes! 嵌入到最终二进制中
+    // 检查外部工具可执行文件是否存在
+    // 找到则通过 include_bytes! 嵌入到最终二进制中
 
     let exe_name = if cfg!(windows) {
         "sbuddy-crypto.exe"
@@ -9,20 +9,38 @@ fn main() {
     };
 
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let crypto_path = std::path::Path::new(&manifest_dir).join(exe_name);
+    let manifest_dir = std::path::Path::new(&manifest_dir);
 
-    if crypto_path.is_file() {
+    // 搜索顺序：
+    // 1) src-tauri/ 目录（历史约定）
+    // 2) 项目根目录（d:/TrayBuddy/）
+    // 3) tools-common/（如果你以后搬到这里）
+    let candidates = [
+        manifest_dir.join(exe_name),
+        manifest_dir.join("..").join(exe_name),
+        manifest_dir.join("..").join("tools-common").join(exe_name),
+    ];
+
+    for p in &candidates {
+        println!("cargo:rerun-if-changed={}", p.display());
+    }
+
+    if let Some(crypto_path) = candidates.into_iter().find(|p| p.is_file()) {
+        // 找到则启用“内置 sbuddy-crypto”功能
         println!("cargo:rustc-cfg=has_embedded_sbuddy_crypto");
         println!(
             "cargo:rustc-env=SBUDDY_CRYPTO_PATH={}",
             crypto_path.display()
         );
+    } else {
+        // 没找到也允许正常构建：只是 sbuddy 功能不可用
+        // （运行时不会从外部磁盘/PATH 查找，避免“意外可用”或泄露痕迹）
     }
 
-    // 当 exe 文件变化时重新运行
-    println!("cargo:rerun-if-changed={}", exe_name);
+
 
     tauri_build::build();
+
 
     // 为集成测试嵌入 Windows Application Manifest（声明 Common Controls v6 依赖）
     //

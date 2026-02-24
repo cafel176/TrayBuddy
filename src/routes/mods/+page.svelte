@@ -100,6 +100,9 @@
     let currentModName = $state("");
     let currentModPath = $state("");
     let currentModVersion = $state("");
+    // 当前已加载 Mod 的完整信息（用于避免后台 hydrate 重复解密当前 mod）
+    let currentModInfoFull = $state<ModInfo | null>(null);
+
     let unsubRefresh: (() => void) | null = null;
 
     // 导入冲突弹窗（同 id 已加载）
@@ -213,50 +216,155 @@
         return tokenizeLinks(activeCharInfo.description);
     });
 
+
+
     // ======================================================================= //
     // Logic
     // ======================================================================= //
 
+    // 后台逐个解密/读取 .sbuddy 的摘要（进入 Mods 页后自动执行）
+    let hydrateSeq = 0;
+    let hydratingSbuddy = $state(false);
+    let hydrateDone = $state(0);
+    let hydrateTotal = $state(0);
+
+    function needsHydrateSbuddy(m: ModInfo): boolean {
+        // 仅针对 archive（tbuddy-archive://）且 version 为空的条目：这在快速摘要阶段代表 `.sbuddy` 占位
+        return (
+            isArchiveMod(m.path) &&
+            (!m.manifest?.version || m.manifest.version.trim().length === 0)
+        );
+    }
+
+    function startHydrateSbuddyInBackground() {
+        void hydrateSbuddyInBackground();
+    }
+
+    async function hydrateSbuddyInBackground() {
+        const run = ++hydrateSeq;
+
+        // 后台 hydrate 只处理“占位的 `.sbuddy`”，并且跳过当前正在运行的 mod（数据可直接拿到）。
+        const candidates = mods
+            .filter(needsHydrateSbuddy)
+            .filter((m) => !currentModName || m.manifest.id !== currentModName);
+
+        hydrateDone = 0;
+        hydrateTotal = candidates.length;
+
+        if (hydrateTotal === 0) return;
+
+        hydratingSbuddy = true;
+        try {
+            for (const m of candidates) {
+                if (run !== hydrateSeq) return;
+
+                // 可能已被用户选中/后台更新过，实时检查一次
+                const cur = mods.find((x) => x.manifest.id === m.manifest.id);
+                if (!cur || !needsHydrateSbuddy(cur)) {
+                    hydrateDone++;
+                    continue;
+                }
+
+                try {
+                    const requestedId = m.manifest.id;
+                    const info = (await invoke("get_mod_details", { modId: requestedId })) as ModInfo | null;
+                    if (run !== hydrateSeq) return;
+                    if (info && info.manifest?.id) {
+                        const actualId = info.manifest.id;
+
+                        // 回填列表：用“请求时的占位 id”命中并替换，允许替换后 id 发生变化
+                        mods = mods.map((x) => (x.manifest.id === requestedId ? (info as ModInfo) : x));
+
+                        // 如果解密后发现真实 id 与占位 id 不一致：同步修正选中态
+                        if (selectedMod === requestedId) {
+                            selectedMod = actualId;
+                        }
+                        if (selectedModInfo && selectedModInfo.manifest?.id === requestedId) {
+                            selectedModInfo = info;
+                        }
+
+                        // 如果当前正选中的是该 mod，且右侧详情之前还是占位，则同步刷新右侧信息与预览
+                        if (
+                            selectedMod === actualId &&
+                            selectedModInfo &&
+                            (!selectedModInfo.manifest?.version || selectedModInfo.manifest.version.trim().length === 0)
+                        ) {
+                            selectedModInfo = info;
+                            await loadPreview(info);
+                        }
+                    }
+                } catch {
+                    // 单个 sbuddy 失败不影响后续队列
+                } finally {
+                    hydrateDone++;
+                }
+
+
+                // 让出事件循环，保证 UI 不被长任务“卡住”
+                await new Promise((r) => setTimeout(r, 0));
+            }
+        } finally {
+            if (run === hydrateSeq) {
+                hydratingSbuddy = false;
+            }
+        }
+    }
+
 
     async function loadModList() {
+
         try {
             searchPaths = await invoke("get_mod_search_paths");
-            const modIds = (await invoke("get_available_mods")) as string[];
 
-            // 拉取摘要信息以便在列表里展示 mod 类型（失败则降级为仅显示 ID）
-            const summaries = await Promise.all(
-                modIds.map(async (id) => {
-                    try {
-                        const info = (await invoke("get_mod_details", { modId: id })) as ModInfo | null;
-                        if (!info || !info.manifest) {
-                            throw new Error("Invalid mod summary");
-                        }
-                        return info;
-                    } catch (e) {
-                        return {
-                            path: "",
-                            manifest: {
-                                id,
-                                version: "",
-                                author: "",
-                                default_text_lang_id: "zh",
-                                mod_type: "unknown",
-                            },
-                            info: {},
-                            icon_path: null,
-                            preview_path: null,
-                        } as ModInfo;
-                    }
-                })
-            );
+            // 启动时加载“快速摘要”（不解密 .sbuddy），用于列表展示版本/类型等基础信息。
+            // 选中某个 Mod 时，如果摘要缺少 info/version，再按需 get_mod_details() 补全。
+            try {
+                const quick = (await invoke("get_mod_summaries_fast")) as unknown;
+                if (!Array.isArray(quick)) {
+                    throw new Error("Invalid fast summaries");
+                }
+                mods = quick as ModInfo[];
+            } catch {
 
-            mods = summaries;
+                // 兼容旧后端：没有快速摘要接口时，退化为仅拿 ID 列表
+                const modIdsRaw = (await invoke("get_available_mods")) as unknown;
+                const modIds = Array.isArray(modIdsRaw) ? (modIdsRaw as string[]) : [];
+                mods = modIds.map((id) => ({
+
+                    path: "",
+                    manifest: {
+                        id,
+                        version: "",
+                        author: "",
+                        default_text_lang_id: "zh",
+                        mod_type: "unknown",
+                    },
+                    info: {},
+                    icon_path: null,
+                    preview_path: null,
+                }) as ModInfo);
+            }
+
+
+
             statusMsg = "";
+
+            // 如果当前 Mod 已经在运行（启动时一定加载过），优先用 get_current_mod 的结果回填列表，
+            // 避免后续后台 hydrate 重复解密当前 mod。
+            if (currentModInfoFull && currentModName) {
+                mods = mods.map((m) => (m.manifest.id === currentModName ? currentModInfoFull! : m));
+            }
 
             // 加载完成后，如果有当前选中的 mod 且在列表中，则自动选中
             if (currentModName && mods.some((m) => m.manifest.id === currentModName)) {
                 await selectMod(currentModName);
             }
+
+            // 进入 Mods 页后：后台逐个解密/读取所有 `.sbuddy` 的信息，逐条回填到列表 UI。
+            // 注意：这是异步队列，不阻塞首屏。
+            startHydrateSbuddyInBackground();
+
+
         } catch (e) {
             statusMsg = `${_("modWindow.loadListFailed")} ${e}`;
         }
@@ -265,12 +373,15 @@
     // 获取当前加载的 mod（统一使用 manifest.id 作为唯一标识）
     async function loadCurrentMod() {
         try {
-            const modInfo = (await invoke("get_current_mod")) as ModInfo | null;
-            if (modInfo) {
+            const raw = (await invoke("get_current_mod")) as unknown;
+            const modInfo = raw && typeof raw === "object" ? (raw as ModInfo) : null;
+            if (modInfo && modInfo.manifest?.id) {
+                currentModInfoFull = modInfo;
                 currentModPath = modInfo.path;
                 currentModName = modInfo.manifest.id;
                 currentModVersion = modInfo.manifest.version;
             } else {
+                currentModInfoFull = null;
                 currentModPath = "";
                 currentModName = "";
                 currentModVersion = "";
@@ -280,57 +391,97 @@
         }
     }
 
+
+    let selectSeq = 0;
+
+    async function loadPreview(info: ModInfo) {
+        previewSrc = "";
+        imageLoadError = false;
+
+        // 尝试加载预览图，失败则尝试其他格式
+        const previewExtensions = ["png", "jpg", "jpeg", "webp"];
+
+        for (const ext of previewExtensions) {
+            const testSrc = buildModAssetUrl(info.path, `preview.${ext}`);
+
+            // 测试图片是否可以加载
+            const success = await new Promise<boolean>((resolve) => {
+                const testImg = new Image();
+                testImg.onload = () => {
+                    testImg.onload = null;
+                    testImg.onerror = null;
+                    resolve(true);
+                };
+                testImg.onerror = () => {
+                    testImg.onload = null;
+                    testImg.onerror = null;
+                    testImg.src = "data:,";
+                    resolve(false);
+                };
+                testImg.src = testSrc;
+            });
+
+            if (success) {
+                previewSrc = testSrc;
+                break;
+            }
+        }
+    }
+
     async function selectMod(modName: string) {
+        const req = ++selectSeq;
+
         selectedMod = modName;
-        selectedModInfo = null;
+        statusMsg = "";
+
+        // 先用列表里已有的缓存信息（如果有）直接展示，避免界面闪白
+        const cached = mods.find((m) => m.manifest.id === modName) || null;
+        selectedModInfo = cached;
+
+        const cachedHasDetails =
+            !!cached &&
+            !!cached.manifest?.version &&
+            cached.manifest.version.trim().length > 0 &&
+            cached.info &&
+            Object.keys(cached.info).length > 0;
+
+        if (cachedHasDetails) {
+            await loadPreview(cached as ModInfo);
+            return;
+        }
+
+        // 缺少版本/信息时：按需解密加载（.sbuddy 会在这里触发解密）
         previewSrc = "";
         imageLoadError = false;
         statusMsg = _("common.loading");
 
         try {
-            const info = (await invoke("get_mod_details", {
-                modId: modName,
-            })) as ModInfo | null;
-            if (!info || !info.manifest) {
+            const requestedId = modName;
+            const info = (await invoke("get_mod_details", { modId: requestedId })) as ModInfo | null;
+            if (req !== selectSeq) return;
+            if (!info || !info.manifest?.id) {
                 throw new Error("Invalid mod summary");
             }
+
+            const actualId = info.manifest.id;
+
+            // 缓存回列表：下次选中同一个 mod 直接显示，不再重复解密
+            // 注意：`.sbuddy` 场景下 requestedId 可能只是文件名推断的占位 id，解密后需更新为真实 id
+            mods = mods.map((m) => (m.manifest.id === requestedId ? (info as ModInfo) : m));
+
+            // 同步修正选中 id（避免右侧按钮继续使用旧占位 id）
+            selectedMod = actualId;
             selectedModInfo = info;
 
-            // Load preview image
-            // 尝试加载预览图，失败则尝试其他格式
-            const previewExtensions = ['png', 'jpg', 'jpeg', 'webp'];
-            
-            for (const ext of previewExtensions) {
-                const testSrc = buildModAssetUrl(info.path, `preview.${ext}`);
-                
-                // 测试图片是否可以加载
-                const success = await new Promise<boolean>((resolve) => {
-                    const testImg = new Image();
-                    testImg.onload = () => {
-                        testImg.onload = null;
-                        testImg.onerror = null;
-                        resolve(true);
-                    };
-                    testImg.onerror = () => {
-                        testImg.onload = null;
-                        testImg.onerror = null;
-                        testImg.src = 'data:,';
-                        resolve(false);
-                    };
-                    testImg.src = testSrc;
-                });
-                
-                if (success) {
-                    previewSrc = testSrc;
-                    break;
-                }
-            }
-
+            await loadPreview(info);
             statusMsg = "";
         } catch (e) {
+
+            if (req !== selectSeq) return;
             statusMsg = `${_("modWindow.loadDetailsFailed")} ${e}`;
         }
     }
+
 
     async function loadMod() {
         if (!selectedMod) return;
@@ -340,10 +491,13 @@
                 modId: selectedMod,
             })) as ModInfo;
             // 更新当前 mod 信息（统一使用 manifest.id）
+            currentModInfoFull = info;
             currentModPath = info.path;
             currentModName = info.manifest.id;
+            currentModVersion = info.manifest.version;
             // 加载成功后更新按钮状态
             selectedModInfo = info;
+
             statusMsg = _("resource.statusLoadSuccess") + " " + selectedMod;
         } catch (e) {
             statusMsg = _("resource.statusLoadFailed") + " " + e;
@@ -360,8 +514,10 @@
         try {
             // tbuddy 包形式的 mod：打开 .tbuddy 文件所在目录并选中该文件
             if (isArchiveMod(selectedModInfo.path)) {
-                const modId = selectedModInfo.manifest?.id ?? getArchiveModId(selectedModInfo.path);
+                // archive mod：以 path 中的 archive id 为准（与 tbuddy-asset 协议一致）
+                const modId = getArchiveModId(selectedModInfo.path);
                 const sourcePath: string | null = await invoke("get_tbuddy_source_path", { modId });
+
                 if (sourcePath) {
                     await invoke("open_path", { path: sourcePath });
                     statusMsg = _("modWindow.modDirOpened");
@@ -510,9 +666,11 @@
                     })) as ModInfo;
 
                     // 立即刷新当前 mod 状态
+                    currentModInfoFull = info;
                     currentModPath = info.path;
                     currentModName = info.manifest.id;
                     currentModVersion = info.manifest.version;
+
 
                     // 手动刷新 mod 列表（因为导入后目录可能改变）
                     await loadModList();
@@ -617,9 +775,12 @@
     });
 
     onDestroy(() => {
+        // 取消后台 hydrate 队列，避免离开页面后还在解密
+        hydrateSeq++;
         cleanupI18n?.();
         unsubRefresh?.();
     });
+
 
 </script>
 
@@ -627,7 +788,13 @@
     <!-- Sidebar: List -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <h3>{_("modWindow.availableMods")}</h3>
+            <h3>
+                {_("modWindow.availableMods")}
+                {#if hydratingSbuddy}
+                    <span class="hydrate-hint">({hydrateDone}/{hydrateTotal})</span>
+                {/if}
+            </h3>
+
             <button
                 class="import-btn"
                 onclick={importMod}
@@ -646,9 +813,13 @@
                 >
                     <div class="mod-item-row">
                         <span class="mod-id">{mod.manifest.id}</span>
-                        <span class="mod-type-tag" data-type={mod.manifest.mod_type}>
-                            {formatModType(mod.manifest.mod_type)}
+                        <span
+                            class="mod-type-tag"
+                            data-type={needsHydrateSbuddy(mod) ? "unknown" : mod.manifest.mod_type}
+                        >
+                            {formatModType(needsHydrateSbuddy(mod) ? "unknown" : mod.manifest.mod_type)}
                         </span>
+
                     </div>
                 </button>
             {/each}

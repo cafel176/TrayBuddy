@@ -867,12 +867,13 @@ describe("pages render detailed", () => {
 
     invokeMock.mockImplementation(async (command: string, args?: unknown) => {
       if (command === "get_mod_search_paths") return ["C:/mods"];
-      if (command === "get_available_mods") return ["demo"];
+      if (command === "get_mod_summaries_fast") return [modInfo];
       if (command === "get_current_mod") return null;
       if (command === "get_mod_details") return modInfo;
       if (command === "load_mod") return modInfo;
       if (command === "open_dir") return true;
       if (command === "export_mod_as_sbuddy") return true;
+
       return originalImpl ? originalImpl(command, args as never) : null;
     });
 

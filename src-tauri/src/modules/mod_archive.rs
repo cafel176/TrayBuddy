@@ -333,110 +333,68 @@ impl ModArchiveReader for ZipArchiveReader {
 // ========================================================================= //
 
 /// 编译时嵌入的外部工具可执行文件字节
-/// 仅当 build.rs 检测到外部工具时才编译此常量
-
+///
+/// 说明：本项目不再从磁盘/PATH 查找 `sbuddy-crypto`，仅使用“内置并按需解包”的方式。
+/// 若构建时没有找到 `sbuddy-crypto`，则该功能会被禁用（仍可正常构建/运行）。
 #[cfg(has_embedded_sbuddy_crypto)]
 static EMBEDDED_SBUDDY_CRYPTO: &[u8] = include_bytes!(env!("SBUDDY_CRYPTO_PATH"));
 
-/// 将嵌入的外部工具释放到临时目录
+#[cfg(not(has_embedded_sbuddy_crypto))]
+static EMBEDDED_SBUDDY_CRYPTO: &[u8] = &[];
 
-#[cfg(has_embedded_sbuddy_crypto)]
-fn extract_embedded_exe() -> Option<PathBuf> {
-    let exe_name = if cfg!(windows) {
-        "sbuddy-crypto.exe"
+
+/// 将内置的 `sbuddy-crypto` 临时解包到系统临时目录。
+///
+/// - **仅在需要运行时解包**
+/// - **每次生成唯一文件名**，避免复用导致“留痕”
+/// - 调用方负责在使用后立刻删除文件
+fn extract_embedded_exe_to_temp() -> Result<(PathBuf, PathBuf), String> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    if EMBEDDED_SBUDDY_CRYPTO.is_empty() {
+        return Err("sbuddy tool not embedded (sbuddy not supported)".to_string());
+    }
+
+
+    let dir = std::env::temp_dir().join("traybuddy").join("sbuddy_crypto");
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Failed to create temp dir '{}': {}", dir.display(), e))?;
+
+    let pid = std::process::id();
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+
+    let file_name = if cfg!(windows) {
+        format!("sbuddy-crypto-{}-{}.exe", pid, stamp)
     } else {
-        "sbuddy-crypto"
+        format!("sbuddy-crypto-{}-{}", pid, stamp)
     };
 
-    let dir = std::env::temp_dir().join("traybuddy");
-    if std::fs::create_dir_all(&dir).is_err() {
-        return None;
-    }
+    let exe_path = dir.join(file_name);
 
-    let target = dir.join(exe_name);
-
-    // 如果文件已存在且大小一致，直接复用
-    if target.is_file() {
-        if let Ok(meta) = std::fs::metadata(&target) {
-            if meta.len() == EMBEDDED_SBUDDY_CRYPTO.len() as u64 {
-                return Some(target);
-            }
-        }
-    }
-
-    if std::fs::write(&target, EMBEDDED_SBUDDY_CRYPTO).is_err() {
-        return None;
-    }
+    std::fs::write(&exe_path, EMBEDDED_SBUDDY_CRYPTO)
+        .map_err(|e| format!("Failed to write temp exe '{}': {}", exe_path.display(), e))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755));
+        let _ = std::fs::set_permissions(&exe_path, std::fs::Permissions::from_mode(0o755));
     }
 
-    Some(target)
+    Ok((exe_path, dir))
 }
 
-/// 查找外部工具可执行文件路径
-
+/// 检查 sbuddy 功能是否可用
 ///
-/// 搜索顺序：
-/// 1. 嵌入式释放（编译时嵌入）
-/// 2. 当前可执行文件所在目录
-/// 3. 当前工作目录
-/// 4. PATH 环境变量
-fn find_sbuddy_crypto() -> Option<PathBuf> {
-    #[cfg(has_embedded_sbuddy_crypto)]
-    {
-        if let Some(path) = extract_embedded_exe() {
-            return Some(path);
-        }
-    }
-
-    let exe_name = if cfg!(windows) {
-        "sbuddy-crypto.exe"
-    } else {
-        "sbuddy-crypto"
-    };
-
-    if let Ok(current_exe) = std::env::current_exe() {
-        if let Some(dir) = current_exe.parent() {
-            let candidate = dir.join(exe_name);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
-
-    if let Ok(cwd) = std::env::current_dir() {
-        let candidate = cwd.join(exe_name);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-
-    if let Ok(output) = std::process::Command::new(exe_name)
-        .arg("check")
-        .output()
-    {
-        if output.status.success() {
-            return Some(PathBuf::from(exe_name));
-        }
-    }
-
-    None
-}
-
-/// 检查外部工具是否可用
-
+/// 若构建期未嵌入 `sbuddy-crypto`，则该功能不可用。
 pub fn is_sbuddy_supported() -> bool {
-    let found = find_sbuddy_crypto();
-    // 检查完毕后删除找到的 exe（不保留在磁盘上）
-    if let Some(ref path) = found {
-        let _ = std::fs::remove_file(path);
-    }
-    found.is_some()
+    !EMBEDDED_SBUDDY_CRYPTO.is_empty()
 }
+
+
+
 
 /// 创建子进程 Command，在 Windows 上隐藏控制台窗口
 fn sbuddy_command(exe: &Path, arg: &str) -> std::process::Command {
@@ -467,45 +425,42 @@ fn sbuddy_command(exe: &Path, arg: &str) -> std::process::Command {
 /// `input`: 通过 stdin 传入的数据
 
 fn run_sbuddy_crypto(arg: &str, input: &[u8]) -> Result<Vec<u8>, String> {
-
     use std::io::Write;
 
-    let exe_path = find_sbuddy_crypto()
-        .ok_or_else(|| "sbuddy tool not found (sbuddy not supported)".to_string())?;
-
+    // 仅在需要时解包，用完立刻删除，不从外部查找。
+    let (exe_path, exe_dir) = extract_embedded_exe_to_temp()?;
 
     let result = (|| {
         let mut child = sbuddy_command(&exe_path, arg)
             .spawn()
             .map_err(|e| format!("Failed to start sbuddy tool: {}", e))?;
 
-
         if let Some(mut stdin) = child.stdin.take() {
             stdin
                 .write_all(input)
                 .map_err(|e| format!("Failed to write to sbuddy tool stdin: {}", e))?;
-
         }
 
         let output = child
             .wait_with_output()
             .map_err(|e| format!("Failed to wait for sbuddy tool: {}", e))?;
 
-
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(format!("sbuddy tool {} failed: {}", arg, stderr.trim()));
-
         }
 
         Ok(output.stdout)
     })();
 
-    // 用完后立刻删除 exe
+    // 用完后立刻删除 exe（Windows: 需等待子进程结束后才能删除）
     let _ = std::fs::remove_file(&exe_path);
+    // 尝试清理目录（仅在为空时成功），避免长期留痕
+    let _ = std::fs::remove_dir(&exe_dir);
 
     result
 }
+
 
 /// 使用外部工具处理 .sbuddy 文件内容
 ///
@@ -604,8 +559,58 @@ pub struct ModArchiveStore {
 
 
 impl ModArchiveStore {
-    /// 内存中最多保留的 archive 数量（避免长期驻留过多 ZIP 数据）
-    const ARCHIVE_CACHE_MAX: usize = 4;
+
+
+    /// 将已加载/已注册的 old_id “别名”到 new_id。
+    ///
+    /// 场景：扫描阶段 `.sbuddy` 可能只能用文件名推断 id（old_id），
+    /// 真正解密读取 manifest 后拿到真实 `manifest.id`（new_id）。
+    /// 这里确保：
+    /// - `get_source(new_id)` 可用（用于打开源文件）
+    /// - `tbuddy-asset://{new_id}/...` 可读（协议读取时以 new_id 为 key）
+    pub fn alias_mod_id(&mut self, old_id: &str, new_id: &str) {
+        if old_id.is_empty() || new_id.is_empty() || old_id == new_id {
+            return;
+        }
+
+        // 1) sources：保证 new_id 能拿到来源路径
+        if !self.sources.contains_key(new_id) {
+            if let Some(src) = self.sources.get(old_id).cloned() {
+                self.sources.insert(
+                    new_id.to_string(),
+                    ArchiveSource {
+                        file_path: src.file_path,
+                        mod_id: new_id.to_string(),
+                    },
+                );
+            }
+        }
+
+        // 2) archives：若 old_id 已加载，迁移到 new_id，避免缓存条目翻倍
+        if self.archives.contains_key(old_id) && !self.archives.contains_key(new_id) {
+            if let Some(reader) = self.archives.remove(old_id) {
+                self.archives.insert(new_id.to_string(), reader);
+
+                // 更新 LRU 队列：把 old_id 替换成 new_id
+                let mut new_order = VecDeque::new();
+                for id in self.access_order.drain(..) {
+                    if id == old_id {
+                        // 去重：若队列中已有 new_id，就跳过替换
+                        if !new_order.iter().any(|x| x == new_id) {
+                            new_order.push_back(new_id.to_string());
+                        }
+                    } else {
+                        // 去重
+                        if !new_order.iter().any(|x| x == &id) {
+                            new_order.push_back(id);
+                        }
+                    }
+                }
+                self.access_order = new_order;
+            }
+        }
+    }
+
 
     /// 创建新的 archive 存储并初始化缓存结构。
     pub fn new() -> Self {
@@ -694,10 +699,25 @@ impl ModArchiveStore {
     }
 
 
-    /// 获取指定 mod 的来源信息（包含 .tbuddy 文件的实际磁盘路径）
+    /// 注册某个 archive 的来源信息（不加载到内存）。
+    ///
+    /// 用途：在扫描磁盘索引阶段先建立 `mod_id -> 文件路径` 映射，
+    /// 之后由 `ensure_loaded()` 在真正需要读取资源时再按需加载。
+    pub fn register_source(&mut self, mod_id: String, file_path: PathBuf) {
+        self.sources.insert(
+            mod_id.clone(),
+            ArchiveSource {
+                file_path,
+                mod_id,
+            },
+        );
+    }
+
+    /// 获取指定 mod 的来源信息（包含 .tbuddy/.sbuddy 文件的实际磁盘路径）
     pub fn get_source(&self, mod_id: &str) -> Option<&ArchiveSource> {
         self.sources.get(mod_id)
     }
+
 
     /// 列出所有已加载的 mod ID
     pub fn loaded_ids(&self) -> Vec<String> {
@@ -744,7 +764,8 @@ impl ModArchiveStore {
 
     /// 按 LRU 策略移除最久未使用的 archive
     fn enforce_limit(&mut self) {
-        while self.archives.len() > Self::ARCHIVE_CACHE_MAX {
+        while self.archives.len() > crate::modules::constants::MOD_ARCHIVE_CACHE_MAX {
+
             if let Some(oldest) = self.access_order.pop_front() {
                 self.archives.remove(&oldest);
             } else {

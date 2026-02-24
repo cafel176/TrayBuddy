@@ -557,7 +557,9 @@ pub fn run() {
             get_mod_details,
             get_mod_search_paths,
             get_available_mods,
+            get_mod_summaries_fast,
             load_mod,
+
             unload_mod,
             get_current_mod,
             get_mod_path,
