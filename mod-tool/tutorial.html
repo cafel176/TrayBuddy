@@ -351,6 +351,17 @@
         <tr><td data-i18n="live2d_expression_file">file</td><td data-i18n="live2d_expression_file_desc">表情文件路径（相对于 expressions_dir）</td></tr>
       </table>
 
+      <h3>图片资源（resources）</h3>
+      <p>用于按键叠加层/事件驱动的图片资源索引表。新增字段 <code>audio</code> 可在资源因事件显示时同步触发音效，填写值为音频索引名（对应 <code>audio/&lt;lang&gt;/speech.json</code> 的 <code>name</code>）。</p>
+      <table>
+        <tr><th>字段</th><th>说明</th></tr>
+        <tr><td>name</td><td>资源名称</td></tr>
+        <tr><td>file</td><td>图片路径（相对于 <code>base_dir</code>）</td></tr>
+        <tr><td>dir</td><td>目录（可选，便于分组/筛选）</td></tr>
+        <tr><td>events</td><td>关联事件列表（如 <code>keydown:KeyA</code>）</td></tr>
+        <tr><td>audio</td><td>触发音效（可选，音频名；空则不播放）</td></tr>
+      </table>
+
 
       <h3 data-i18n="section_live2d_states_config">状态映射</h3>
       <p data-i18n="live2d_states_config_desc">状态映射定义了每个应用状态应使用的 Live2D 动作和表情。这些条目会在「状态和触发」页的动画下拉中可选。</p>

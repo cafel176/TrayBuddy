@@ -351,6 +351,31 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `offset_x` | Number | X 轴偏移（默认 `0`） |
 ||| `offset_y` | Number | Y 轴偏移（默认 `0`） |
 
+#### 2.4.6 图片资源对象 (Resource Object)
+用于 `resources` 数组，定义“可被事件激活的图片资源”，常用于按键高亮叠加。
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 资源名称（标识用） |
+||| `file` | String | 图片路径（相对于 `model.base_dir`） |
+||| `dir` | String | 目录（可选，用于工具侧分组/筛选） |
+||| `events` | Array | 事件列表（例如 `keydown:KeyA`）。任意一个事件触发时认为该资源“激活” |
+||| `audio` | String | **新增**：触发时播放的音效名称（对应 `audio/<lang>/speech.json` 的 `name`；空字符串表示不播放） |
+
+> 说明：当按键事件驱动叠加层显示时，如果匹配到 `resources[].audio`，会同步触发音效播放。
+
+#### 2.4.7 背景层对象 (Background Layer Object)
+用于 `background_layers` 数组，在模型下方或上方渲染的图片层（静态背景、按键叠加高亮等）。
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 层名称（标识用） |
+||| `file` | String | 图片路径（相对于 `model.base_dir`） |
+||| `layer` | String | 渲染层级：`behind`（模型之后）或 `front`（模型之前） |
+||| `scale` | Number | 缩放比例（默认 `1`） |
+||| `offset_x` / `offset_y` | Number | 位置偏移（默认 `0`） |
+||| `events` | Array | 事件列表；为空则常驻显示；非空则在事件触发时显示/隐藏 |
+
 **示例：**
 ```json
 {
@@ -375,6 +400,13 @@ mod主要信息清单文件，决定了程序如何加载该mod。
   ],
   "states": [
     { "state": "mtn_01", "motion": "mtn_01", "expression": "", "scale": 1, "offset_x": 0, "offset_y": 0 }
+  ],
+  "resources": [
+    { "name": "KeyA", "file": "resources/KeyA.png", "dir": "resources", "audio": "click", "events": ["keydown:KeyA"] }
+  ],
+  "background_layers": [
+    { "name": "background", "file": "resources/bg.png", "layer": "behind", "scale": 1, "offset_x": 0, "offset_y": 0, "events": [] },
+    { "name": "KeyA", "file": "resources/KeyA.png", "layer": "front", "scale": 1, "offset_x": 0, "offset_y": 0, "events": ["keydown:KeyA"] }
   ]
 }
 ```

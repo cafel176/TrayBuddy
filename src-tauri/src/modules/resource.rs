@@ -334,6 +334,40 @@ where
     deserializer.deserialize_any(StringOrVec)
 }
 
+/// Live2D 图片资源定义（用于按键叠加等场景）。
+///
+/// 说明：
+/// - 与 `background_layers` 不同，`resources` 更偏向“资源索引表”，用于在 UI/逻辑层做事件映射。
+/// - `audio` 为可选音效索引：填写音频名（对应 `audio/<lang>/speech.json` 里的 `name`），
+///   在资源因事件显示时可同步触发音效。
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Live2DResource {
+    /// 资源名称（标识用）
+    pub name: Box<str>,
+    /// 图片文件路径（相对于 base_dir）
+    pub file: Box<str>,
+    /// 图片所在目录（可选，用于工具侧分组/筛选）
+    pub dir: Box<str>,
+    /// 关联事件名列表（任意一个事件触发时认为“激活”）
+    #[serde(alias = "event", deserialize_with = "deserialize_string_or_vec")]
+    pub events: Vec<String>,
+    /// 触发时播放的音效名称（音频索引；空字符串表示不播放）
+    pub audio: Box<str>,
+}
+
+impl Default for Live2DResource {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            file: "".into(),
+            dir: "".into(),
+            events: Vec::new(),
+            audio: "".into(),
+        }
+    }
+}
+
 /// 背景层定义
 ///
 /// 在 Live2D 模型下方或上方渲染的图片层。
@@ -382,6 +416,8 @@ pub struct Live2DConfig {
     pub motions: Vec<Live2DMotion>,
     pub expressions: Vec<Live2DExpression>,
     pub states: Vec<Live2DState>,
+    /// 图片资源索引表（按键叠加/事件映射等）
+    pub resources: Vec<Live2DResource>,
     /// 背景/叠加图层列表
     pub background_layers: Vec<Live2DBackgroundLayer>,
 }
@@ -394,6 +430,7 @@ impl Default for Live2DConfig {
             motions: Vec::new(),
             expressions: Vec::new(),
             states: Vec::new(),
+            resources: Vec::new(),
             background_layers: Vec::new(),
         }
     }

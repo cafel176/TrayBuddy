@@ -5165,6 +5165,9 @@ function ensureLive2dData() {
       res.events = res.event ? [res.event] : [];
       delete res.event;
     }
+    if (typeof res.audio !== 'string') {
+      res.audio = '';
+    }
   }
   for (const lyr of currentMod.assets.live2d.background_layers) {
     if (!Array.isArray(lyr.events)) {
@@ -5561,6 +5564,7 @@ async function syncLive2dAssetsFromFiles() {
               name: existing?.name || baseName,
               file: filePath,
               dir: prefix || '',
+              audio: existing?.audio || '',
               events: existing?.events || (existing?.event ? [existing.event] : []),
             });
           }
@@ -8177,6 +8181,7 @@ function renderLive2dResources(resources) {
     const rName = String(res.name || '');
     const rFile = String(res.file || '');
     const rDir = String(res.dir || '');
+    const rAudio = String(res.audio || '');
     const rEvents = Array.isArray(res.events) ? res.events : [];
     if (nameNdl && !rName.toLowerCase().includes(nameNdl)) return;
     if (dirNdl && !rDir.toLowerCase().includes(dirNdl)) return;
@@ -8203,6 +8208,7 @@ function renderLive2dResources(resources) {
       <div class="asset-card-body">
         <div class="asset-field"><span class="label">${window.i18n.t('live2d_resource_file_label')}:</span> ${escapeHtml(rFile)}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('live2d_resource_dir_label')}:</span> ${highlightNeedleHtml(rDir || '-', dirRaw)}</div>
+        <div class="asset-field"><span class="label">${window.i18n.t('live2d_resource_audio_label')}:</span> ${escapeHtml(rAudio || '-')}</div>
         <div class="asset-field"><span class="label">${window.i18n.t('live2d_resource_events_label')}:</span> ${eventsHtml}</div>
       </div>
     `;
@@ -8679,6 +8685,11 @@ function openLive2dResourceModal(title, res, index) {
         <input type="text" id="live2d-edit-res-dir" value="${escapeHtml(res.dir || '')}" placeholder="${window.i18n.t('placeholder_live2d_res_dir')}">
       </div>
       <div class="form-group">
+        <label>${window.i18n.t('live2d_resource_audio_label')}</label>
+        <input type="text" id="live2d-edit-res-audio" value="${escapeHtml(res.audio || '')}" placeholder="${window.i18n.t('placeholder_live2d_res_audio')}">
+        <small>${window.i18n.t('live2d_resource_audio_hint')}</small>
+      </div>
+      <div class="form-group">
         <label>${window.i18n.t('live2d_resource_events_label')}</label>
         <div id="live2d-edit-res-events-tags"></div>
         <small>${window.i18n.t('live2d_resource_events_hint')}</small>
@@ -8709,6 +8720,7 @@ function saveLive2dResource(index) {
     name,
     file,
     dir: document.getElementById('live2d-edit-res-dir').value.trim(),
+    audio: document.getElementById('live2d-edit-res-audio').value.trim(),
     events: getEventsFromTagInput('live2d-edit-res-events-tags'),
   };
 

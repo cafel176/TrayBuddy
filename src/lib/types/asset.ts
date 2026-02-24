@@ -178,6 +178,18 @@ export interface Live2DState {
   offset_y: number;
 }
 
+/** Live2D 图片资源配置（用于按键叠加/事件映射等）。 */
+export interface Live2DResource {
+  name: string;
+  file: string;
+  /** 目录（可选，用于工具侧分组/筛选） */
+  dir: string;
+  /** 关联事件名列表（如 "keydown:KeyA"） */
+  events: string[];
+  /** 触发时播放的音效名称（对应 `audio/<lang>/speech.json` 的 `name`；空字符串表示不播放） */
+  audio: string;
+}
+
 /** Live2D 背景/叠加层配置。 */
 export interface Live2DBackgroundLayer {
 
@@ -198,6 +210,8 @@ export interface Live2DConfig {
   motions: Live2DMotion[];
   expressions: Live2DExpression[];
   states: Live2DState[];
+  /** 图片资源索引表（按键叠加/事件映射等） */
+  resources: Live2DResource[];
   background_layers: Live2DBackgroundLayer[];
 }
 

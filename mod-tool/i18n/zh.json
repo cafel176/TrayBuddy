@@ -495,6 +495,9 @@
   "live2d_resource_name_label": "资源名称",
   "live2d_resource_file_label": "文件路径",
   "live2d_resource_dir_label": "所在目录",
+  "live2d_resource_audio_label": "触发音效（可选）",
+  "live2d_resource_audio_hint": "填写音频索引名（对应 audio/<lang>/speech.json 的 name）。当按键叠加资源显示时触发播放。",
+  "placeholder_live2d_res_audio": "例如：1.C(do)",
   "live2d_resource_events_label": "关联事件",
   "live2d_resource_events_hint": "可选，关联的触发事件名；任意一个事件触发时该资源生效。按 Enter 添加，支持多个",
 

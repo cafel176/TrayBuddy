@@ -14,7 +14,16 @@ Live2D 渲染层暂为空占位。
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
-  import type { Live2DConfig, Live2DParameterSetting, ModData, ModType, UserSettings } from "$lib/types/asset";
+  import { getAudioManager } from "$lib/audio/AudioManager";
+  import type {
+    Live2DConfig,
+    Live2DParameterSetting,
+    Live2DResource,
+    ModData,
+    ModType,
+    UserSettings,
+  } from "$lib/types/asset";
+
 
   import {
     createWindowCore,
@@ -136,6 +145,29 @@ Live2D 渲染层暂为空占位。
   let globalKeyboardEnabled = false;
   let globalMouseEnabled = false;
 
+  // 按键叠加层音效：避免按住按键时重复触发
+  const pressedKeysForSfx = new Set<string>();
+
+  function findLive2dResourceAudioByEvent(eventName: string): string | null {
+    const resources: Live2DResource[] = live2dConfig?.resources ?? [];
+    for (const r of resources) {
+      if (!r?.audio) continue;
+      if (Array.isArray(r.events) && r.events.includes(eventName)) {
+        return r.audio;
+      }
+    }
+    return null;
+  }
+
+  function triggerLive2dResourceAudioByKeyEvent(code: string): void {
+    const audioName = findLive2dResourceAudioByEvent(`keydown:${code}`);
+    if (!audioName) return;
+
+    // 复用全局 AudioManager（与 WindowCore 共用同一个单例）
+    void getAudioManager().then((am) => am.play(audioName));
+  }
+
+
 
   // =========================================================================
   // 叠加层事件驱动（按键/鼠标 → background_layers 显示/隐藏）
@@ -171,6 +203,15 @@ Live2D 渲染层暂为空占位。
       (event) => {
         const { code, pressed } = event.payload;
         live2dPlayer?.setBackgroundLayersByEvent(`keydown:${code}`, pressed);
+
+        if (pressed) {
+          if (!pressedKeysForSfx.has(code)) {
+            pressedKeysForSfx.add(code);
+            triggerLive2dResourceAudioByKeyEvent(code);
+          }
+        } else {
+          pressedKeysForSfx.delete(code);
+        }
       },
     );
   }

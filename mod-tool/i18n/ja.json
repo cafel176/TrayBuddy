@@ -495,6 +495,9 @@
   "live2d_resource_name_label": "リソース名",
   "live2d_resource_file_label": "ファイルパス",
   "live2d_resource_dir_label": "ディレクトリ",
+  "live2d_resource_audio_label": "効果音（任意）",
+  "live2d_resource_audio_hint": "音声キー名（audio/<lang>/speech.json の name と一致）。リソース表示時に再生します。",
+  "placeholder_live2d_res_audio": "例：1.C(do)",
   "live2d_resource_events_label": "関連イベント",
   "live2d_resource_events_hint": "任意、関連するトリガーイベント名；いずれか一つのイベントが発火するとリソースが有効になります。Enter で追加、複数対応",
 

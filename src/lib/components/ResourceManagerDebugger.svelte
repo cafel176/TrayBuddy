@@ -320,6 +320,41 @@
     currentAudio.play();
   }
 
+  function joinRelPath(a: string, b: string): string {
+    const aa = String(a || "").replace(/\\/g, "/");
+    const bb = String(b || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!aa) return bb;
+    return aa.endsWith("/") ? `${aa}${bb}` : `${aa}/${bb}`;
+  }
+
+  /**
+   * 通过音频名（AudioInfo.name）解析为可播放的音频相对路径（AudioInfo.audio）。
+   * 优先使用 manifest 的 default_audio_lang_id，其次回退到任意语言匹配。
+   */
+  function resolveAudioPathByName(audioName: string): { lang: string; path: string } | null {
+    if (!currentModInfo) return null;
+    const name = String(audioName || "").trim();
+    if (!name) return null;
+
+    const preferLang = currentModInfo.manifest?.default_audio_lang_id || "zh";
+    const audios = currentModInfo.audios || {};
+
+    const tryLang = (lang: string): { lang: string; path: string } | null => {
+      const list = audios[lang] || [];
+      const hit = list.find((a) => a.name === name);
+      return hit ? { lang, path: hit.audio } : null;
+    };
+
+    return tryLang(preferLang) || Object.keys(audios).map(tryLang).find(Boolean) || null;
+  }
+
+  function getLive2dAssetSrc(relPathUnderBaseDir: string): string {
+    if (!currentModInfo?.live2d) return "";
+    const baseDir = currentModInfo.live2d.model?.base_dir || "";
+    return getAssetSrc(joinRelPath(baseDir, relPathUnderBaseDir));
+  }
+
+
   /**
    * 停止当前预览音频。
    */
@@ -1706,6 +1741,77 @@
                             <span class="detail-label">{_("resource.animationLabel")}</span>
                             {exp.file}
                           </div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
+                <details open class="live2d-section">
+                  <summary>
+                    {_("resource.live2dResources")} ({currentModInfo.live2d.resources?.length ?? 0})
+                  </summary>
+                  <div class="state-list">
+                    {#each currentModInfo.live2d.resources as res}
+                      <div class="state-card">
+                        <div class="state-header">
+                          <span class="state-name">{res.name}</span>
+                          <div class="state-actions">
+                            {#if res.file}
+                              <button
+                                class="thumbnail-btn"
+                                onclick={() =>
+                                  openImageViewer(
+                                    getLive2dAssetSrc(res.file),
+                                    `live2d resource: ${res.name}`,
+                                  )}
+                                title={_("resource.preview")}
+                              >
+                                🖼️
+                              </button>
+                            {/if}
+                          </div>
+                        </div>
+                        <div class="state-detail">
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.file")}</span>
+                            {res.file}
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.dir")}</span>
+                            {res.dir || "-"}
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">{_("resource.events")}</span>
+                            {#if res.events && res.events.length > 0}
+                              <div class="tag-list">
+                                {#each res.events as ev}
+                                  <span class="tag state-tag">{ev}</span>
+                                {/each}
+                              </div>
+                            {:else}
+                              -
+                            {/if}
+                          </div>
+
+                          {#if res.audio}
+                            {@const ap = resolveAudioPathByName(res.audio)}
+                            <div class="detail-item">
+                              <span class="detail-label">{_("resource.live2dResourceAudio")}</span>
+                              <span>{res.audio}</span>
+                              {#if ap}
+                                <button
+                                  class="play-btn"
+                                  onclick={() => playAudio(ap.path, `${ap.lang}/${res.audio}`)}
+                                  title={playingAudioName === `${ap.lang}/${res.audio}`
+                                    ? _("common.stop")
+                                    : _("common.play")}
+                                >
+                                  {playingAudioName === `${ap.lang}/${res.audio}` ? "⏹" : "▶"}
+                                </button>
+                              {/if}
+                            </div>
+                          {/if}
                         </div>
                       </div>
                     {/each}

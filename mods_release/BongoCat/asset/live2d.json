@@ -72,7 +72,8 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:KeyA"
-      ]
+      ],
+      "audio": ""
     },
     {
       "name": "KeyD",
@@ -80,7 +81,8 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:KeyD"
-      ]
+      ],
+      "audio": ""
     },
     {
       "name": "KeyE",
@@ -88,7 +90,8 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:KeyE"
-      ]
+      ],
+      "audio": ""
     },
     {
       "name": "KeyR",
@@ -96,7 +99,8 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:KeyR"
-      ]
+      ],
+      "audio": ""
     },
     {
       "name": "KeyQ",
@@ -104,12 +108,14 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:KeyQ"
-      ]
+      ],
+      "audio": ""
     },
     {
       "name": "Num4",
       "file": "resources/left-keys/Num4.png",
       "dir": "resources/left-keys",
+      "audio": "4.F(fa)",
       "events": [
         "keydown:Digit4"
       ]
@@ -118,6 +124,7 @@
       "name": "Num1",
       "file": "resources/left-keys/Num1.png",
       "dir": "resources/left-keys",
+      "audio": "1.C(do)",
       "events": [
         "keydown:Digit1"
       ]
@@ -126,6 +133,7 @@
       "name": "Num3",
       "file": "resources/left-keys/Num3.png",
       "dir": "resources/left-keys",
+      "audio": "3.E(mi)",
       "events": [
         "keydown:Digit3"
       ]
@@ -136,12 +144,14 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:KeyS"
-      ]
+      ],
+      "audio": ""
     },
     {
       "name": "Num6",
       "file": "resources/left-keys/Num6.png",
       "dir": "resources/left-keys",
+      "audio": "6.A(la)",
       "events": [
         "keydown:Digit6"
       ]
@@ -150,6 +160,7 @@
       "name": "Num7",
       "file": "resources/left-keys/Num7.png",
       "dir": "resources/left-keys",
+      "audio": "7.B(si)",
       "events": [
         "keydown:Digit7"
       ]
@@ -158,6 +169,7 @@
       "name": "Num5",
       "file": "resources/left-keys/Num5.png",
       "dir": "resources/left-keys",
+      "audio": "5.G(sol)",
       "events": [
         "keydown:Digit5"
       ]
@@ -166,6 +178,7 @@
       "name": "Num2",
       "file": "resources/left-keys/Num2.png",
       "dir": "resources/left-keys",
+      "audio": "2.D(re)",
       "events": [
         "keydown:Digit2"
       ]
@@ -176,7 +189,8 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:Space"
-      ]
+      ],
+      "audio": ""
     },
     {
       "name": "KeyW",
@@ -184,7 +198,8 @@
       "dir": "resources/left-keys",
       "events": [
         "keydown:KeyW"
-      ]
+      ],
+      "audio": ""
     }
   ],
   "background_layers": [

@@ -494,6 +494,9 @@
   "live2d_resource_name_label": "Resource Name",
   "live2d_resource_file_label": "File Path",
   "live2d_resource_dir_label": "Directory",
+  "live2d_resource_audio_label": "SFX (optional)",
+  "live2d_resource_audio_hint": "Audio key name (matches audio/<lang>/speech.json name). Plays when the resource is shown.",
+  "placeholder_live2d_res_audio": "e.g. 1.C(do)",
   "live2d_resource_events_label": "Associated Events",
   "live2d_resource_events_hint": "Optional, associated trigger event names; any one event triggers this resource. Press Enter to add, supports multiple",
 
