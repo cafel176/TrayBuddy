@@ -718,15 +718,23 @@
                 }
             }
 
-            // 如果发现已经加载了同 id 的 mod，则弹窗提示并询问保留哪个
-            if (currentModName && picked.id === currentModName) {
+            // 如果发现本地已存在同 id 的 mod，则弹窗提示并询问保留哪个
+            // 注意：这里的“已存在”不一定是当前正在运行的 mod；
+            // 若冲突的是当前 mod，后续会走热重载分支（keepIncomingAndContinue 内判定）。
+            const existing = mods.find((m) => m.manifest?.id === picked.id) || null;
+            if ((currentModName && picked.id === currentModName) || existing) {
                 conflictOpen = true;
                 conflictModId = picked.id;
-                conflictLoadedVersion = currentModVersion || _("common.unknown");
-                conflictIncomingVersion = picked.version || _("common.unknown");
+
+                const existingVer = (existing?.manifest?.version || "").trim();
+                const loadedVer = (currentModVersion || "").trim();
+                conflictLoadedVersion = existingVer || loadedVer || _("common.unknown");
+
+                conflictIncomingVersion = (picked.version || "").trim() || _("common.unknown");
                 pendingImportPath = picked.filePath;
                 return;
             }
+
 
             await doImportFromPath(picked.filePath);
         } catch (e) {
