@@ -34,7 +34,34 @@ try {
 
   # Inputs
   $model = if ($args.Count -ge 1 -and $args[0]) { $args[0] } else { 'Assets/model.vrm' }
-  $anims = if ($args.Count -ge 2) { $args[1..($args.Count-1)] } else { @('Assets/Animations/PET_IDLE_2.anim', 'Assets/Animations/PET_IDLE 1.anim') }
+
+  $animDir = Join-Path $projectDir 'Assets/Animations'
+  $anims = if ($args.Count -ge 2) {
+    $args[1..($args.Count-1)]
+  }
+  else {
+    if (-not (Test-Path -LiteralPath $animDir)) {
+      @()
+    }
+    else {
+      Get-ChildItem -LiteralPath $animDir -File -Filter "*.anim" |
+        Sort-Object Name |
+        ForEach-Object {
+          # Unity 侧通常需要 project-relative 的 "Assets/..." 路径
+          # 兼容 PowerShell 5.1 / .NET Framework：不使用 [System.IO.Path]::GetRelativePath
+          $proj = $projectDir.TrimEnd('\', '/')
+          $full = $_.FullName
+          if ($full.StartsWith($proj, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $rel = $full.Substring($proj.Length).TrimStart('\', '/')
+          }
+          else {
+            $rel = $full
+          }
+          ($rel -replace '\\', '/')
+        }
+    }
+  }
+
 
   Write-Host "[Info] UNITY_EXE: $unityExe"
   Write-Host "[Info] PROJECT_DIR: $projectDir"

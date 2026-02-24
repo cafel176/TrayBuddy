@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "HatsuneMikuNT",
+    "type": "vrm",
+    "file": "asset/3d/HatsuneMikuNT.vrm",
+    "scale": 0.9,
+    "offset_x": 0,
+    "offset_y": 0,
+    "texture_base_dir": "",
+    "animation_base_dir": "asset/3d/animations"
+  },
+  "animations": [
+    {
+      "name": "pet_idle_2",
+      "type": "vrma",
+      "file": "PET_IDLE_2.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_1",
+      "type": "vrma",
+      "file": "PET_IDLE 1.vrma",
+      "speed": 1,
+      "fps": 60
+    }
+  ]
+}
