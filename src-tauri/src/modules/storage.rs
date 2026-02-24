@@ -239,7 +239,7 @@ impl Default for UserInfo {
         Self {
             first_login: None,
             last_login: None,
-            current_mod: "ema".into(),
+            current_mod: "tutorial".into(),
 
             animation_window_x: None,
             animation_window_y: None,
