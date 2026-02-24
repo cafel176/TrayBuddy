@@ -1,0 +1,26 @@
+[
+  {
+    "name": "apple1",
+    "audio": "jp/speech/apple1.ogg"
+  },
+  {
+    "name": "apple2",
+    "audio": "jp/speech/apple2.ogg"
+  },
+  {
+    "name": "cry",
+    "audio": "jp/speech/cry.ogg"
+  },
+  {
+    "name": "serious",
+    "audio": "jp/speech/serious.ogg"
+  },
+  {
+    "name": "think_point1",
+    "audio": "jp/speech/think_point1.ogg"
+  },
+  {
+    "name": "think_point2",
+    "audio": "jp/speech/think_point2.ogg"
+  }
+]

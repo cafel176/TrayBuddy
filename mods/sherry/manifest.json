@@ -1,8 +1,8 @@
 {
   "id": "sherry",
   "version": "1.0.0",
-  "author": "Cafel",
-  "default_audio_lang_id": "zh",
+  "author": "Dazeroyu",
+  "default_audio_lang_id": "jp",
   "default_text_lang_id": "zh",
   "character": {
     "z_offset": 1,
@@ -332,8 +332,8 @@
       "name": "think_point",
       "persistent": false,
       "anima": "think_point",
-      "audio": "",
-      "text": "Wait",
+      "audio": "think_point1",
+      "text": "think_point1",
       "priority": 2,
       "date_start": "",
       "date_end": "",
@@ -349,7 +349,7 @@
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
+      "branch_show_bubble": true,
       "mod_data_counter": null,
       "live2d_params": null,
       "pngremix_params": [
@@ -368,8 +368,8 @@
       "name": "apple",
       "persistent": false,
       "anima": "apple",
-      "audio": "",
-      "text": "Wait",
+      "audio": "apple1",
+      "text": "apple1",
       "priority": 2,
       "date_start": "",
       "date_end": "",
@@ -385,7 +385,7 @@
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
+      "branch_show_bubble": true,
       "mod_data_counter": null,
       "live2d_params": null,
       "pngremix_params": [
@@ -404,8 +404,8 @@
       "name": "serious",
       "persistent": false,
       "anima": "serious",
-      "audio": "",
-      "text": "Wait",
+      "audio": "serious",
+      "text": "serious",
       "priority": 2,
       "date_start": "",
       "date_end": "",
@@ -421,13 +421,13 @@
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
+      "branch_show_bubble": true,
       "mod_data_counter": null,
       "live2d_params": null,
       "pngremix_params": [
         {
           "type": "expression",
-          "name": "serious"
+          "name": "shy"
         },
         {
           "type": "motion",
@@ -440,8 +440,8 @@
       "name": "cry",
       "persistent": false,
       "anima": "cry",
-      "audio": "",
-      "text": "Wait",
+      "audio": "cry",
+      "text": "cry",
       "priority": 2,
       "date_start": "",
       "date_end": "",
@@ -457,7 +457,7 @@
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
+      "branch_show_bubble": true,
       "mod_data_counter": null,
       "live2d_params": null,
       "pngremix_params": [
@@ -476,8 +476,8 @@
       "name": "apple2",
       "persistent": false,
       "anima": "apple2",
-      "audio": "",
-      "text": "Wait",
+      "audio": "apple2",
+      "text": "apple2",
       "priority": 2,
       "date_start": "",
       "date_end": "",
@@ -493,7 +493,7 @@
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
+      "branch_show_bubble": true,
       "mod_data_counter": null,
       "live2d_params": null,
       "pngremix_params": [
@@ -512,8 +512,8 @@
       "name": "think_point2",
       "persistent": false,
       "anima": "think_point2",
-      "audio": "",
-      "text": "Wait",
+      "audio": "think_point2",
+      "text": "think_point2",
       "priority": 2,
       "date_start": "",
       "date_end": "",
@@ -529,13 +529,13 @@
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
+      "branch_show_bubble": true,
       "mod_data_counter": null,
       "live2d_params": null,
       "pngremix_params": [
         {
           "type": "expression",
-          "name": "shy"
+          "name": "serious"
         },
         {
           "type": "motion",

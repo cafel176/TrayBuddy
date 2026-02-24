@@ -132,7 +132,7 @@ fileInput.addEventListener('change', (e) => {
 
 clearBtn.addEventListener('click', clearAll);
 
-function downloadBlob(blob, fileName) {
+function triggerDownload(blob, fileName) {
   if (typeof window.downloadBlob === 'function') {
     window.downloadBlob(blob, fileName, { revokeDelay: 1000, appendToBody: true });
     return;
@@ -316,7 +316,7 @@ convertBtn.addEventListener('click', async () => {
     updateUI();
 
     // Auto download
-    downloadBlob(zipBlob, 'png_to_ico.zip');
+    triggerDownload(zipBlob, 'png_to_ico.zip');
     setStatus(t('msg_done'), 'ok');
   } catch (e) {
     console.error(e);
@@ -326,7 +326,7 @@ convertBtn.addEventListener('click', async () => {
 
 downloadZipBtn.addEventListener('click', () => {
   if (!lastZipBlob) return;
-  downloadBlob(lastZipBlob, 'png_to_ico.zip');
+  triggerDownload(lastZipBlob, 'png_to_ico.zip');
 });
 
 window.addEventListener('languageChanged', () => {

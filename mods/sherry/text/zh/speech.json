@@ -3,5 +3,35 @@
     "name": "Wait",
     "text": "",
     "duration": 1
+  },
+  {
+    "name": "apple1",
+    "text": "是魔法展示会吗！\n那么我也要来一个厉害的！",
+    "duration": 5
+  },
+  {
+    "name": "apple2",
+    "text": "震惊！\n雪莉的魔法竟然是【怪力】！",
+    "duration": 5
+  },
+  {
+    "name": "cry",
+    "text": "不管怎么努力，也无法假装成普通人......\n这不是很可悲吗？\n嘤嘤嘤嘤......",
+    "duration": 5
+  },
+  {
+    "name": "serious",
+    "text": "嗨嗨~！我叫橘雪莉。\n哪里有案件哪里就有我！\n一切就交给我这位名侦探吧！",
+    "duration": 5
+  },
+  {
+    "name": "think_point1",
+    "text": "那大家就打起精神开始审判吧！",
+    "duration": 3
+  },
+  {
+    "name": "think_point2",
+    "text": "......毕竟垂头丧气也没有意义嘛。",
+    "duration": 3
   }
 ]

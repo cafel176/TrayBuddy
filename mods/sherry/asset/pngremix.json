@@ -97,7 +97,7 @@
     {
       "state": "serious",
       "motion": "search",
-      "expression": "serious",
+      "expression": "shy",
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
@@ -124,11 +124,11 @@
     {
       "state": "think_point2",
       "motion": "think_point",
-      "expression": "shy",
-      "mouth_state": 1,
+      "expression": "serious",
       "scale": 1,
       "offset_x": 0,
-      "offset_y": 0
+      "offset_y": 0,
+      "mouth_state": 1
     }
   ]
 }
