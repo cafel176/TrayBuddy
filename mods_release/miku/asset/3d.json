@@ -12,9 +12,86 @@
   },
   "animations": [
     {
-      "name": "pet_idle_2",
+      "name": "pet_dancing_1",
       "type": "vrma",
-      "file": "PET_IDLE_2.vrma",
+      "file": "PET_DANCING_1.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_11",
+      "type": "vrma",
+      "file": "PET_DANCING_11.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_13",
+      "type": "vrma",
+      "file": "PET_DANCING_13.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_5",
+      "type": "vrma",
+      "file": "PET_DANCING_5.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_12",
+      "type": "vrma",
+      "file": "PET_DANCING_12.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_10",
+      "type": "vrma",
+      "file": "PET_DANCING_10.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_4",
+      "type": "vrma",
+      "file": "PET_DANCING_4.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_9",
+      "type": "vrma",
+      "file": "PET_DANCING_9.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_7",
+      "type": "vrma",
+      "file": "PET_DANCING_7.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_2",
+      "type": "vrma",
+      "file": "PET_DANCING_2.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_3",
+      "type": "vrma",
+      "file": "PET_DANCING_3.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_10",
+      "type": "vrma",
+      "file": "PET_IDLE_10.vrma",
       "speed": 1,
       "fps": 60
     },
@@ -22,6 +99,139 @@
       "name": "pet_idle_1",
       "type": "vrma",
       "file": "PET_IDLE 1.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_8",
+      "type": "vrma",
+      "file": "PET_DANCING_8.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_11",
+      "type": "vrma",
+      "file": "PET_IDLE_11.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_dancing_6",
+      "type": "vrma",
+      "file": "PET_DANCING_6.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_13",
+      "type": "vrma",
+      "file": "PET_IDLE_13.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_12",
+      "type": "vrma",
+      "file": "PET_IDLE_12.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_14",
+      "type": "vrma",
+      "file": "PET_IDLE_14.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_15",
+      "type": "vrma",
+      "file": "PET_IDLE_15.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_3",
+      "type": "vrma",
+      "file": "PET_IDLE_3.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_2",
+      "type": "vrma",
+      "file": "PET_IDLE_2.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_4",
+      "type": "vrma",
+      "file": "PET_IDLE_4.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_5",
+      "type": "vrma",
+      "file": "PET_IDLE_5.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_6",
+      "type": "vrma",
+      "file": "PET_IDLE_6.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_7",
+      "type": "vrma",
+      "file": "PET_IDLE_7.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_8",
+      "type": "vrma",
+      "file": "PET_IDLE_8.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_pose_2",
+      "type": "vrma",
+      "file": "PET_POSE_2.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_idle_9",
+      "type": "vrma",
+      "file": "PET_IDLE_9.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_pose_1",
+      "type": "vrma",
+      "file": "PET_POSE_1.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_pose_3",
+      "type": "vrma",
+      "file": "PET_POSE_3.vrma",
+      "speed": 1,
+      "fps": 60
+    },
+    {
+      "name": "pet_pose_4",
+      "type": "vrma",
+      "file": "PET_POSE_4.vrma",
       "speed": 1,
       "fps": 60
     }

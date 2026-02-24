@@ -1,0 +1,162 @@
+[
+  {
+    "name": "pet_idle_1",
+    "text": "播放动画：pet_idle_1",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_2",
+    "text": "播放动画：pet_idle_2",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_3",
+    "text": "播放动画：pet_idle_3",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_4",
+    "text": "播放动画：pet_idle_4",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_5",
+    "text": "播放动画：pet_idle_5",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_6",
+    "text": "播放动画：pet_idle_6",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_7",
+    "text": "播放动画：pet_idle_7",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_8",
+    "text": "播放动画：pet_idle_8",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_9",
+    "text": "播放动画：pet_idle_9",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_10",
+    "text": "播放动画：pet_idle_10",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_11",
+    "text": "播放动画：pet_idle_11",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_12",
+    "text": "播放动画：pet_idle_12",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_13",
+    "text": "播放动画：pet_idle_13",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_14",
+    "text": "播放动画：pet_idle_14",
+    "duration": 3
+  },
+  {
+    "name": "pet_idle_15",
+    "text": "播放动画：pet_idle_15",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_1",
+    "text": "播放动画：pet_dancing_1",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_2",
+    "text": "播放动画：pet_dancing_2",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_3",
+    "text": "播放动画：pet_dancing_3",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_4",
+    "text": "播放动画：pet_dancing_4",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_5",
+    "text": "播放动画：pet_dancing_5",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_6",
+    "text": "播放动画：pet_dancing_6",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_7",
+    "text": "播放动画：pet_dancing_7",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_8",
+    "text": "播放动画：pet_dancing_8",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_9",
+    "text": "播放动画：pet_dancing_9",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_10",
+    "text": "播放动画：pet_dancing_10",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_11",
+    "text": "播放动画：pet_dancing_11",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_12",
+    "text": "播放动画：pet_dancing_12",
+    "duration": 3
+  },
+  {
+    "name": "pet_dancing_13",
+    "text": "播放动画：pet_dancing_13",
+    "duration": 3
+  },
+  {
+    "name": "pet_pose_1",
+    "text": "播放动画：pet_pose_1",
+    "duration": 3
+  },
+  {
+    "name": "pet_pose_2",
+    "text": "播放动画：pet_pose_2",
+    "duration": 3
+  },
+  {
+    "name": "pet_pose_3",
+    "text": "播放动画：pet_pose_3",
+    "duration": 3
+  },
+  {
+    "name": "pet_pose_4",
+    "text": "播放动画：pet_pose_4",
+    "duration": 3
+  }
+]

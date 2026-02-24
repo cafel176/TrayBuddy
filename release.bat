@@ -35,7 +35,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1"
 if errorlevel 1 goto :_tb_pack_failed
 
 echo Packing mods_release to .tbuddy files...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1" -ModsDir "%~mods_release" -NoClean
+ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1" -ModsDir "%~dp0mods_release" -NoClean
 if errorlevel 1 goto :_tb_pack_failed
 
 echo Packing mods_test to .tbuddy files...
