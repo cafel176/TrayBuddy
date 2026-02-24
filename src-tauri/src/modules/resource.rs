@@ -1801,6 +1801,18 @@ impl ResourceManager {
             }
         }
 
+        // 2.5 mods_release 目录（仅 Debug 模式下加载，用于开发测试）
+        if let Ok(resource_dir) = app_handle.path().resource_dir() {
+            let mods_path = resource_dir.join("mods_release");
+            if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                #[cfg(debug_assertions)]
+                println!("[ResourceManager] 资源目录 mods_release: {:?}", canonical);
+                if canonical.is_dir() && !paths.contains(&canonical) {
+                    paths.push(canonical);
+                }
+            }
+        }
+
         // 3. 可执行文件所在目录的 mods
         if let Ok(exe_path) = std::env::current_exe() {
             // 尝试向上查找多级父目录中的 mods 文件夹
@@ -1848,6 +1860,29 @@ impl ResourceManager {
             }
         }
 
+        if let Ok(exe_path) = std::env::current_exe() {
+            // 尝试向上查找多级父目录中的 mods 文件夹
+            let mut current_dir = exe_path.parent();
+            for level in 1..=crate::modules::constants::MODS_SEARCH_MAX_LEVELS_EXE {
+                if let Some(dir) = current_dir {
+                    let mods_path = dir.join("mods_release");
+                    if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[ResourceManager] 程序目录 mods_release (level {}): {:?}",
+                            level, canonical
+                        );
+                        if canonical.is_dir() && !paths.contains(&canonical) {
+                            paths.push(canonical);
+                        }
+                    }
+                    current_dir = dir.parent();
+                } else {
+                    break;
+                }
+            }
+        }
+
         // 4. 开发环境：当前工作目录向上查找 mods
         if let Ok(cwd) = std::env::current_dir() {
             let mut current_dir = Some(cwd.as_path());
@@ -1871,7 +1906,6 @@ impl ResourceManager {
             }
         }
 
-        // 4. 开发环境：当前工作目录向上查找 mods
         if let Ok(cwd) = std::env::current_dir() {
             let mut current_dir = Some(cwd.as_path());
             for level in 1..=crate::modules::constants::MODS_SEARCH_MAX_LEVELS_CWD {
@@ -1881,6 +1915,28 @@ impl ResourceManager {
                         #[cfg(debug_assertions)]
                         println!(
                             "[ResourceManager] 项目目录 mods_test (level {}): {:?}",
+                            level, canonical
+                        );
+                        if canonical.is_dir() && !paths.contains(&canonical) {
+                            paths.push(canonical);
+                        }
+                    }
+                    current_dir = dir.parent();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        if let Ok(cwd) = std::env::current_dir() {
+            let mut current_dir = Some(cwd.as_path());
+            for level in 1..=crate::modules::constants::MODS_SEARCH_MAX_LEVELS_CWD {
+                if let Some(dir) = current_dir {
+                    let mods_path = dir.join("mods_release");
+                    if let Ok(canonical) = dunce::canonicalize(&mods_path) {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[ResourceManager] 项目目录 mods_release (level {}): {:?}",
                             level, canonical
                         );
                         if canonical.is_dir() && !paths.contains(&canonical) {

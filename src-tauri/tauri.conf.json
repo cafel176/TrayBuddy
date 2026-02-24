@@ -35,6 +35,7 @@
       "../config": "config",
       "../i18n": "i18n",
       "../mods": "mods",  
+      "../mods_release": "mods",  
       "../mod-tool": "mod-tool",
       "../other-tool": "other-tool",
       "../tools-common": "tools-common"
