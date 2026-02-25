@@ -169,10 +169,7 @@ function buildNameKey(name: string): string {
   return String(name || "").trim().toLowerCase();
 }
 
-const DEBUG = false;
-function dbg(tag: string, ...args: any[]) {
-  if (DEBUG) console.log(`[Live2DPlayer][${tag}]`, ...args);
-}
+function dbg(_tag: string, ..._args: any[]) {}
 
 // ============================================================================
 // Live2D 贴图优化：记录逻辑尺寸 + 降采样（默认开启） + LRU（默认关闭）
@@ -180,7 +177,7 @@ function dbg(tag: string, ...args: any[]) {
 
 // 降采样策略默认值/阈值
 const LIVE2D_TEX_OPT_ENABLED_DEFAULT = true;
-const LIVE2D_TEX_OPT_MAX_DIM_DEFAULT = 384; // 像素封顶（最长边）
+const LIVE2D_TEX_OPT_MAX_DIM_DEFAULT = 400; // 像素封顶（最长边）
 const LIVE2D_TEX_OPT_SCALE_DEFAULT = 1;      // 额外倍率（0-1）
 const LIVE2D_TEX_OPT_MIN_SCALE = 0.05;
 const LIVE2D_TEX_OPT_NO_RESIZE_EPS = 0.999;
@@ -223,6 +220,7 @@ function readLocalStorageBool(key: string, defaultValue: boolean): boolean {
     return defaultValue;
   }
 }
+
 
 function getLive2DTextureDecodePolicy(): Live2DTextureDecodePolicy {
   // tb_live2d_tex_opt=0 可关闭（默认开启）
@@ -466,6 +464,12 @@ export class Live2DPlayer {
   private static texOptInstalled = false;
   private static texOptPlayers = new Set<Live2DPlayer>();
 
+  // 贴图优化：对 PIXI.BaseTexture.from(url) 的 hook（用于处理绕过 Loader 的加载路径）
+  private static texOptBaseTextureFromInstalled = false;
+
+
+
+
   constructor(canvas: HTMLCanvasElement, options?: Live2DPlayerOptions) {
     this.canvas = canvas;
     this.featureFlags = {
@@ -487,6 +491,7 @@ export class Live2DPlayer {
     // 注册贴图优化（按需安装全局 Loader middleware）
     Live2DPlayer.installGlobalTextureOptimizer();
     Live2DPlayer.texOptPlayers.add(this);
+
 
     this.initPixiApp();
     this.bindResize();
@@ -744,6 +749,19 @@ export class Live2DPlayer {
     // 贴图优化：pin 当前模型相关贴图（只 pin baseDir 下的资源），供 LRU 判断可淘汰对象
     this.refreshPinnedTextures();
 
+    // 贴图优化兜底：有些模型会直接创建 HTMLImageElement 并走 BaseTexture.from(img)，
+    // 或者用其它方式绕过 Loader/from(url) 路径；因此在 load 后做一次 cache 扫描兜底。
+    setTimeout(() => {
+      void this.optimizeCachedModelBaseTextures();
+    }, 0);
+
+
+    // 贴图优化兜底（二次扫描）：部分资源可能在模型 load 后延迟创建
+    setTimeout(() => {
+      void this.optimizeCachedModelBaseTextures();
+    }, 1000);
+
+
     dbg("load", "complete. motionMap keys:", [...this.motionMap.keys()],
       "expressionMap keys:", [...this.expressionMap.keys()],
       "baseFitScale:", this.baseFitScale,
@@ -948,7 +966,8 @@ export class Live2DPlayer {
     // ParamMouseX/Y 是自定义参数，需要直接通过 coreModel 写入
     this.hasCustomMouseXY = hasMouse;
 
-    console.log(`[Live2DPlayer] detectMouseParams: hasMouseParams=${this.hasMouseParams} (angle=${hasAngle} eyeBall=${hasEyeBall} mouseXY=${hasMouse})`);
+
+
 
     // 如果有 ParamMouseX/Y，绑定每帧更新 hook
     if (this.hasCustomMouseXY) {
@@ -980,7 +999,8 @@ export class Live2DPlayer {
     const defaultX = coreModel.getParameterDefaultValue?.(idxX) ?? 0;
     const defaultY = coreModel.getParameterDefaultValue?.(idxY) ?? 0;
 
-    console.log(`[Live2DPlayer] setupMouseXYHook: idxX=${idxX}(${minX}~${maxX},def=${defaultX}) idxY=${idxY}(${minY}~${maxY},def=${defaultY})`);
+
+
 
     const handler = () => {
       // latestMouseX/Y 是 -1~1 归一化值，映射到参数范围
@@ -1032,19 +1052,9 @@ export class Live2DPlayer {
       this.latestMouseY = Math.max(-1, Math.min(1, (canvasY - rect.height / 2) / (rect.height / 2)));
     }
 
-    // DEBUG: 每5秒打印一次
-    if (!this._lastMouseLog || Date.now() - this._lastMouseLog > 5000) {
-      this._lastMouseLog = Date.now();
-      const fc = (this.model as any).internalModel?.focusController;
-      console.log(
-        `[Live2DPlayer][DEBUG] mouseFollow: window=(${localX.toFixed(1)},${localY.toFixed(1)}) canvas=(${canvasX.toFixed(1)},${canvasY.toFixed(1)})`,
-        `rect=${rect.width.toFixed(0)}x${rect.height.toFixed(0)}`,
-        `mouseXY=(${this.latestMouseX.toFixed(3)},${this.latestMouseY.toFixed(3)})`,
-        `focusCtrl=(${fc?.x?.toFixed(3)},${fc?.y?.toFixed(3)})`
-      );
-    }
+
   }
-  private _lastMouseLog: number = 0;
+
 
   private applyFeatureFlags(): void {
     if (!this.model) return;
@@ -1438,9 +1448,16 @@ export class Live2DPlayer {
 
   private static installGlobalTextureOptimizer(): void {
     if (Live2DPlayer.texOptInstalled) return;
+
     const PIXI = (window as any).PIXI;
     const loader = PIXI?.Loader?.shared;
-    if (!loader?.use) return;
+
+    // 覆盖绕过 Loader 的贴图加载路径
+    Live2DPlayer.installBaseTextureFromHook();
+
+    if (!loader?.use) {
+      return;
+    }
 
     Live2DPlayer.texOptInstalled = true;
 
@@ -1451,14 +1468,12 @@ export class Live2DPlayer {
         return;
       }
 
-      // 如果未开启贴图优化，直接透传（避免额外开销）
       const policy = getLive2DTextureDecodePolicy();
       if (!policy.enabled) {
         next();
         return;
       }
 
-      // 找到第一个“声称拥有该 URL”的 Live2DPlayer
       let owner: Live2DPlayer | null = null;
       for (const p of Live2DPlayer.texOptPlayers) {
         if (p.shouldOptimizeUrl(url)) {
@@ -1476,6 +1491,159 @@ export class Live2DPlayer {
         .catch(() => { /* ignore */ })
         .finally(() => next());
     });
+  }
+
+
+  private static installBaseTextureFromHook(): void {
+    if (Live2DPlayer.texOptBaseTextureFromInstalled) return;
+
+    const PIXI = (window as any).PIXI;
+    const BaseTexture = PIXI?.BaseTexture;
+    if (!BaseTexture?.from) {
+      return;
+    }
+
+    Live2DPlayer.texOptBaseTextureFromInstalled = true;
+
+    const orig = BaseTexture.from.bind(BaseTexture);
+
+
+    BaseTexture.from = function (source: any, ...args: any[]) {
+      // 调用原始逻辑先创建 BaseTexture（同步返回）
+      const bt = orig(source, ...args);
+
+      try {
+        Live2DPlayer.onBaseTextureFromCreated(source, bt);
+      } catch {
+        // ignore
+      }
+
+      return bt;
+    };
+
+
+  }
+
+  private static onBaseTextureFromCreated(source: any, bt: any): void {
+    if (!bt) return;
+
+    // pixi-live2d-display 可能走 BaseTexture.from(HTMLImageElement) 而不是 BaseTexture.from(url)
+    const tryGetUrl = (): string => {
+      if (typeof source === "string") return source;
+
+      try {
+        if (typeof HTMLImageElement !== "undefined" && source instanceof HTMLImageElement) {
+          return String(source.currentSrc || source.src || "");
+        }
+      } catch {
+        // ignore
+      }
+
+      const src = bt?.resource?.source ?? bt?.resource?._source;
+      try {
+        if (typeof HTMLImageElement !== "undefined" && src instanceof HTMLImageElement) {
+          return String(src.currentSrc || src.src || "");
+        }
+      } catch {
+        // ignore
+      }
+
+      const urlLike = bt?.resource?.url ?? bt?.resource?._url;
+      if (urlLike) return String(urlLike);
+
+      return "";
+    };
+
+    const url = tryGetUrl();
+    if (!url) return;
+
+
+    const policy = getLive2DTextureDecodePolicy();
+    if (!policy.enabled) {
+      return;
+    }
+
+
+    // 找到第一个 owner
+    let owner: Live2DPlayer | null = null;
+    for (const p of Live2DPlayer.texOptPlayers) {
+      if (p.shouldOptimizeUrl(url)) {
+        owner = p;
+        break;
+      }
+    }
+
+    if (!owner) {
+      // 这里不计入 skippedNoOwner（避免把全局图片都算进来），只作为 fromSeen
+      return;
+    }
+
+
+    // 可能已经完成加载
+    const run = () => owner!.optimizeBaseTextureInPlace(url, bt, "from");
+
+
+    if (bt.valid) {
+      // 保持异步，避免在创建调用栈里做重活
+      setTimeout(run, 0);
+      return;
+    }
+
+    if (typeof bt.once === "function") {
+      bt.once("loaded", () => run());
+      bt.once("error", () => { /* ignore */ });
+    } else {
+      // 没有事件系统就只能尝试异步跑一次
+      setTimeout(run, 0);
+    }
+  }
+
+  private async optimizeBaseTextureInPlace(url: string, bt: any, _origin: "from" | "scan" = "from"): Promise<void> {
+    const policy = getLive2DTextureDecodePolicy();
+    if (!policy.enabled) return;
+
+    // 避免重复处理
+    if ((bt as any).__tb_live2d_texopt_done) return;
+
+    const curW = Number(bt?.realWidth ?? bt?.width ?? 0);
+    const curH = Number(bt?.realHeight ?? bt?.height ?? 0);
+    if (!curW || !curH) return;
+
+    const target = computeDecodeTarget(curW, curH, policy);
+    if (target.scale >= LIVE2D_TEX_OPT_NO_RESIZE_EPS) {
+      Live2DTextureLRU.touch(url, curW * curH * 4);
+      (bt as any).__tb_live2d_texopt_done = true;
+      return;
+    }
+
+    const src = bt?.resource?.source ?? bt?.resource?._source;
+    if (!src) return;
+
+    const canvas = await downsampleToCanvas(src, target.w, target.h);
+    if (!canvas) return;
+
+    // 标记 logical size（用于保持显示逻辑尺寸不变）
+    (canvas as any)._logicalW = curW;
+    (canvas as any)._logicalH = curH;
+
+    const newBytes = target.w * target.h * 4;
+
+    try {
+      // 就地替换 resource source（让已有 Texture 引用仍然生效）
+      if (bt?.resource) {
+        try { bt.resource.source = canvas; } catch { /* ignore */ }
+        try { bt.resource._source = canvas; } catch { /* ignore */ }
+      }
+
+      // 尽量更新尺寸信息
+      try { bt.setRealSize?.(canvas.width, canvas.height, bt.resolution || 1); } catch { /* ignore */ }
+      try { bt.update?.(); } catch { /* ignore */ }
+
+      Live2DTextureLRU.touch(url, newBytes);
+      (bt as any).__tb_live2d_texopt_done = true;
+    } catch {
+      // ignore
+    }
   }
 
   private shouldOptimizeUrl(url: string): boolean {
@@ -1518,8 +1686,14 @@ export class Live2DPlayer {
     }
 
     const src = bt?.resource?.source ?? bt?.resource?._source ?? resource?.data;
+    if (!src) return;
+
     const canvas = await downsampleToCanvas(src, target.w, target.h);
     if (!canvas) return;
+
+    // 标记 logical size（用于保持显示逻辑尺寸不变）
+    (canvas as any)._logicalW = curW;
+    (canvas as any)._logicalH = curH;
 
     // 用降采样后的 canvas 生成新 BaseTexture/Texture，并写回 cache
     const newBase = PIXI.BaseTexture.from(canvas);
@@ -1527,6 +1701,8 @@ export class Live2DPlayer {
 
     const texCache = PIXI?.utils?.TextureCache ?? PIXI?.TextureCache ?? {};
     const baseCache = PIXI?.utils?.BaseTextureCache ?? PIXI?.BaseTextureCache ?? {};
+
+    const newBytes = target.w * target.h * 4;
 
     try {
       // 释放旧的 GPU 资源
@@ -1545,13 +1721,43 @@ export class Live2DPlayer {
       texCache[url] = newTex;
 
       // 更新 LRU
-      Live2DTextureLRU.touch(url, target.w * target.h * 4);
-
-      if (DEBUG) {
-        console.log(`[Live2DPlayer][texopt] downsample ${url} ${curW}x${curH} -> ${target.w}x${target.h}`);
-      }
+      Live2DTextureLRU.touch(url, newBytes);
     } catch {
       // ignore
+    }
+  }
+
+  private async optimizeCachedModelBaseTextures(): Promise<void> {
+    const policy = getLive2DTextureDecodePolicy();
+    if (!policy.enabled) return;
+    if (!this.assetUrlPrefix) return;
+
+    const PIXI = (window as any).PIXI;
+    const baseCache = PIXI?.utils?.BaseTextureCache ?? PIXI?.BaseTextureCache ?? {};
+    const keys = Object.keys(baseCache);
+
+    for (const k of keys) {
+      if (!k.startsWith(this.assetUrlPrefix)) continue;
+      const kl = k.toLowerCase();
+      if (!(kl.endsWith(".png") || kl.endsWith(".jpg") || kl.endsWith(".jpeg") || kl.endsWith(".webp"))) continue;
+
+      const bt = baseCache[k];
+      if (!bt) continue;
+
+      if ((bt as any).__tb_live2d_texopt_scan_seen) continue;
+      (bt as any).__tb_live2d_texopt_scan_seen = true;
+
+      const run = () => this.optimizeBaseTextureInPlace(k, bt, "scan");
+
+      // 可能尚未完成加载
+      if (bt.valid) {
+        await run();
+      } else if (typeof bt.once === "function") {
+        bt.once("loaded", () => { void run(); });
+        bt.once("error", () => { /* ignore */ });
+      } else {
+        setTimeout(() => { void run(); }, 0);
+      }
     }
   }
 
@@ -1602,6 +1808,8 @@ export class Live2DPlayer {
     }
     this.pinnedTextureKeys = next;
   }
+
+
 
   // =========================================================================
   // 背景/叠加图层
