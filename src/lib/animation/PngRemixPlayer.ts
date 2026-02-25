@@ -166,12 +166,60 @@ function compositeForBlendMode(mode: string): GlobalCompositeOperation {
 // ============================================================================
 
 // 贴图解码策略默认值/阈值（仅作用于本文件的降采样/封顶逻辑）
-const TEXTURE_DECODE_DEFAULT_MAX_DIM = 384;
+const TEXTURE_DECODE_DEFAULT_MAX_DIM = 4096;
 const TEXTURE_DECODE_MIN_SCALE = 0.05;
 const TEXTURE_DECODE_NO_RESIZE_EPS = 0.999;
 const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
 
+// 贴图去重：对同内容 bytes 只解码一次，避免重复贴图占用多份内存
+const TEXTURE_DEDUP_HASH_ALGO = "SHA-256";
+const TEXTURE_DEDUP_FALLBACK_SAMPLE_BYTES = 32;
+const _bytesHashKeyCache = new WeakMap<Uint8Array, Promise<string>>();
+
+function bytesToHex(bytes: Uint8Array): string {
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    out += bytes[i].toString(16).padStart(2, "0");
+  }
+  return out;
+}
+
+function simpleBytesSignature(bytes: Uint8Array): string {
+  // 仅用于极端情况下（无 SubtleCrypto）的去重 key，尽量降低碰撞概率
+  const len = bytes.byteLength;
+  const n = Math.min(TEXTURE_DEDUP_FALLBACK_SAMPLE_BYTES, len);
+
+  let h = 2166136261 >>> 0; // FNV-1a 32
+  const step = Math.max(1, Math.floor(len / 2048));
+  for (let i = 0; i < len; i += step) {
+    h ^= bytes[i];
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+
+  const head = bytesToHex(bytes.subarray(0, n));
+  const tail = bytesToHex(bytes.subarray(Math.max(0, len - n), len));
+  return `${len}:${h.toString(16)}:${head}:${tail}`;
+}
+
+async function getBytesHashKey(bytes: Uint8Array): Promise<string> {
+  const cached = _bytesHashKeyCache.get(bytes);
+  if (cached) return cached;
+
+  const p = (async () => {
+    const cryptoObj: any = (globalThis as any).crypto;
+    if (cryptoObj?.subtle?.digest) {
+      const digest = await cryptoObj.subtle.digest(TEXTURE_DEDUP_HASH_ALGO, bytes);
+      return `${TEXTURE_DEDUP_HASH_ALGO.toLowerCase()}:${bytesToHex(new Uint8Array(digest))}`;
+    }
+    return `sig:${simpleBytesSignature(bytes)}`;
+  })();
+
+  _bytesHashKeyCache.set(bytes, p);
+  return p;
+}
+
 type TextureDecodePolicy = {
+
 
   /** 贴图解码分辨率封顶（像素）；<=0 表示不封顶 */
   maxDim: number;
@@ -259,7 +307,8 @@ function computeDecodeTarget(logicalW: number, logicalH: number, policy: Texture
   const h0 = Math.max(1, Math.floor(Number(logicalH) || 1));
   if (!policy) return { w: w0, h: h0, scale: 1 };
 
-  const baseScale = clamp(Number(policy.scale) || 1, 0.05, 1);
+  const baseScale = clamp(Number(policy.scale) || 1, TEXTURE_DECODE_MIN_SCALE, 1);
+
   let s = baseScale;
   const maxDim = Number(policy.maxDim);
   if (Number.isFinite(maxDim) && maxDim > 0) {
@@ -293,7 +342,8 @@ async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: 
   // 非动图 PNG：优先用 createImageBitmap 直接缩放解码，避免先解出大图
   if (!isAnimated && mime === "image/png" && typeof createImageBitmap === "function") {
     try {
-      const needsResize = logicalW > 0 && logicalH > 0 && target.scale < 0.999;
+      const needsResize = logicalW > 0 && logicalH > 0 && target.scale < TEXTURE_DECODE_NO_RESIZE_EPS;
+
       const bitmap = needsResize
         ? await createImageBitmap(blob, {
           resizeWidth: target.w,
@@ -329,7 +379,8 @@ async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: 
     // 仅对非动图尝试二次下采样（注意：这里仍会先解码原图，无法避免峰值内存）
     if (!isAnimated && lw > 0 && lh > 0) {
       const t2 = computeDecodeTarget(lw, lh, policy);
-      if (t2.scale < 0.999 && t2.w > 0 && t2.h > 0) {
+      if (t2.scale < TEXTURE_DECODE_NO_RESIZE_EPS && t2.w > 0 && t2.h > 0) {
+
         const c = document.createElement("canvas");
         c.width = t2.w;
         c.height = t2.h;
@@ -366,9 +417,20 @@ function applySpriteTextureTransforms(drawable: any, spriteRaw: any) {
   ctx.rotate(rot * Math.PI / 2);
   ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
   ctx.drawImage(drawable, -w / 2, -h / 2);
-  copyLogicalSize(out, drawable);
+
+  // 逻辑尺寸需要随旋转变换（rot=1/3 时交换宽高）
+  const logical = getImageLogicalSize(drawable);
+  let lw = logical.w;
+  let lh = logical.h;
+  if (rot % 2 === 1) {
+    const t = lw; lw = lh; lh = t;
+  }
+  (out as any)._logicalW = lw;
+  (out as any)._logicalH = lh;
+
   return out;
 }
+
 
 
 // ============================================================================
@@ -1377,6 +1439,9 @@ async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDeco
   initNodeStateMachine(scene);
   buildHotkeyGroups(scene);
 
+  // 贴图去重缓存：同内容 bytes 只解码一次；同变换（flip/rot）也复用
+  const decodedDrawableCache = new Map<string, Promise<any>>();
+  const transformedDrawableCache = new Map<string, Promise<any>>();
 
   let hasAnimatedTextures = false;
   let cursor = 0;
@@ -1385,15 +1450,57 @@ async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDeco
       const n = scene.nodes[cursor++];
       const bytes = normalizedModel.sprites[n.index]?.imgBytes;
       if (!(bytes instanceof Uint8Array) || bytes.length < 6) continue;
-      let drawable = await decodePngBytesToDrawable(bytes, n.name, decodePolicy);
+
+      // 先用 header 判断是否动图；动图不做去重（避免共享同一 Image 导致动画时间轴耦合）
+      const isGif = isGifBytes(bytes);
+      const isPng = isPngBytes(bytes);
+      const isApng = isPng && pngHasChunk(bytes, "acTL");
+      const isAnimated = isGif || isApng;
+
+      let drawable: any = null;
+
+      if (!isAnimated) {
+        const key = await getBytesHashKey(bytes);
+
+        let baseP = decodedDrawableCache.get(key);
+        if (!baseP) {
+          baseP = decodePngBytesToDrawable(bytes, n.name, decodePolicy);
+          decodedDrawableCache.set(key, baseP);
+        }
+
+        const base = await baseP;
+        if (!base) continue;
+        if (base._isAnimated) hasAnimatedTextures = true;
+
+        const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
+        const rot = ((Math.floor(Number(n.raw?.rotated) || 0) % 4) + 4) % 4;
+        n._texXform = null;
+
+        if (flipH || flipV || rot !== 0) {
+          const tKey = `${key}|fh${flipH ? 1 : 0}|fv${flipV ? 1 : 0}|r${rot}`;
+          let tp = transformedDrawableCache.get(tKey);
+          if (!tp) {
+            tp = Promise.resolve(applySpriteTextureTransforms(base, n.raw));
+            transformedDrawableCache.set(tKey, tp);
+          }
+          drawable = await tp;
+        } else {
+          drawable = base;
+        }
+      } else {
+        drawable = await decodePngBytesToDrawable(bytes, n.name, decodePolicy);
+        if (!drawable) continue;
+
+        if (drawable._isAnimated) hasAnimatedTextures = true;
+        const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
+        const rot = ((Math.floor(Number(n.raw?.rotated) || 0) % 4) + 4) % 4;
+        n._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
+        if (!drawable._isAnimated) drawable = applySpriteTextureTransforms(drawable, n.raw);
+      }
 
       if (!drawable) continue;
-      if (drawable._isAnimated) hasAnimatedTextures = true;
-      const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
-      let rot = ((Math.floor(Number(n.raw?.rotated) || 0) % 4) + 4) % 4;
-      n._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
-      if (!drawable._isAnimated) drawable = applySpriteTextureTransforms(drawable, n.raw);
       scene.spriteDrawableByIndex.set(n.index, drawable);
+
 
       const spriteInfo = normalizedModel.sprites[n.index];
       if (spriteInfo && spriteInfo.imgBytes instanceof Uint8Array) {
@@ -1588,15 +1695,19 @@ export class PngRemixPlayer {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
-    // 显式关闭 ImageBitmap 以立即释放 GPU 纹理资源
+    // 显式关闭 ImageBitmap 以立即释放 GPU 纹理资源（注意：贴图可能被多个 sprite 共享）
     if (this.scene?.spriteDrawableByIndex) {
+      const closed = new Set<any>();
       for (const drawable of this.scene.spriteDrawableByIndex.values()) {
         if (drawable instanceof ImageBitmap) {
+          if (closed.has(drawable)) continue;
+          closed.add(drawable);
           drawable.close();
         }
       }
       this.scene.spriteDrawableByIndex.clear();
     }
+
     clearTintCache();
     this.scene = null;
     this.config = null;
