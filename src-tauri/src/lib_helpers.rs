@@ -1167,25 +1167,78 @@ pub(crate) fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
 
 /// 内部函数：获取当前 Mod 的图标或默认图标
 ///
-/// 优化：减少锁的获取次数，避免重复的图标路径解析逻辑
-fn get_app_icon(app: &tauri::AppHandle) -> Option<Image<'_>> {
-    if let Some(state) = app.try_state::<AppState>() {
-        let rm = state.resource_manager.lock().unwrap();
+/// - 文件夹 mod：从磁盘读取 `path/icon.*`
+/// - archive mod（.tbuddy / .sbuddy）：从 archive_store 读取 `icon.*` 并落盘到临时目录再加载
+///
+/// 说明：Tauri 的 `Image::from_path` 需要真实文件路径；而 archive mod 的 `path` 是虚拟标记
+/// `tbuddy-archive://{mod_id}`，因此必须走 archive_store。
+pub(crate) fn get_app_icon(app: &tauri::AppHandle) -> Option<Image<'_>> {
+    let default_icon = app.default_window_icon().cloned();
 
-        if let Some(current_mod) = &rm.current_mod {
-            if let Some(icon_path) = &current_mod.icon_path {
-                let full_icon_path = current_mod.path.join(icon_path.as_ref());
-                if full_icon_path.exists() {
-                    if let Ok(mod_icon) = Image::from_path(&full_icon_path) {
-                        return Some(mod_icon);
-                    }
-                }
-            }
+    let Some(state) = app.try_state::<AppState>() else {
+        return default_icon;
+    };
+
+    // 仅提取需要的字段，避免 clone 整个 ModInfo
+    let (mod_path, icon_rel) = {
+        let rm = state.resource_manager.lock().unwrap();
+        let Some(current_mod) = &rm.current_mod else {
+            return default_icon;
+        };
+        let Some(icon_path) = &current_mod.icon_path else {
+            return default_icon;
+        };
+        (current_mod.path.clone(), icon_path.to_string())
+    };
+
+    let mod_path_str = mod_path.to_string_lossy().into_owned();
+
+    // archive mod：tbuddy-archive://{mod_id}
+    if let Some(rest) = mod_path_str.strip_prefix("tbuddy-archive://") {
+        let mod_id = rest.trim_start_matches('/');
+        if mod_id.is_empty() {
+            return default_icon;
+        }
+
+        let bytes = {
+            let mut store = state.archive_store.lock().unwrap();
+            store.read_file(mod_id, &icon_rel).ok()
+        };
+
+        let Some(bytes) = bytes else {
+            return default_icon;
+        };
+
+        // 写入临时目录：避免要求 `Image::from_bytes` 的 API 依赖
+        let dir = std::env::temp_dir().join("traybuddy_mod_icons");
+        let _ = std::fs::create_dir_all(&dir);
+
+        let safe_mod_id: String = mod_id
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            .collect();
+        let safe_rel = icon_rel.replace(['/', '\\'], "_");
+        let temp_path = dir.join(format!("{}_{}", safe_mod_id, safe_rel));
+
+        // 覆盖写入（图标通常很小，且该函数在后台线程中调用）
+        let _ = std::fs::write(&temp_path, &bytes);
+
+        if let Ok(img) = Image::from_path(&temp_path) {
+            return Some(img);
+        }
+
+        return default_icon;
+    }
+
+    // 文件夹 mod：从真实文件系统路径读取
+    let full_icon_path = mod_path.join(&icon_rel);
+    if full_icon_path.exists() {
+        if let Ok(mod_icon) = Image::from_path(&full_icon_path) {
+            return Some(mod_icon);
         }
     }
 
-    // 使用默认图标
-    app.default_window_icon().cloned()
+    default_icon
 }
 
 /// 内部函数：根据当前加载的Mod更新托盘图标（异步版本）

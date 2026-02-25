@@ -386,11 +386,42 @@ pub fn run() {
             // ========== 系统托盘 (System Tray) ==========
             // 必须在注册AppState之前创建，因为需要先使用rm
             let tray_icon = {
-                // 1. 获取当前加载的 Mod 图标
-                let icon = {
-                    let rm_guard = rm.lock().unwrap();
-                    if let Some(current_mod) = &rm_guard.current_mod {
-                        if let Some(icon_path) = &current_mod.icon_path {
+                // 1) 获取当前加载的 Mod 图标
+                // - 文件夹 mod：直接从磁盘读取
+                // - archive mod：从 shared_archive_store 读取 icon.* 并落盘到临时目录再加载
+                let rm_guard = rm.lock().unwrap();
+                if let Some(current_mod) = &rm_guard.current_mod {
+                    if let Some(icon_path) = &current_mod.icon_path {
+                        let mod_path_str = current_mod.path.to_string_lossy().into_owned();
+                        if let Some(rest) = mod_path_str.strip_prefix("tbuddy-archive://") {
+                            let mod_id = rest.trim_start_matches('/');
+                            if !mod_id.is_empty() {
+                                let bytes = {
+                                    let mut store = shared_archive_store.lock().unwrap();
+                                    store.read_file(mod_id, icon_path.as_ref()).ok()
+                                };
+                                if let Some(bytes) = bytes {
+                                    let dir = std::env::temp_dir().join("traybuddy_mod_icons");
+                                    let _ = std::fs::create_dir_all(&dir);
+                                    let safe_mod_id: String = mod_id
+                                        .chars()
+                                        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+                                        .collect();
+                                    let safe_rel = icon_path.as_ref().replace(['/', '\\'], "_");
+                                    let temp_path = dir.join(format!("{}_{}", safe_mod_id, safe_rel));
+                                    let _ = std::fs::write(&temp_path, &bytes);
+                                    if let Ok(img) = Image::from_path(&temp_path) {
+                                        img
+                                    } else {
+                                        app.default_window_icon().unwrap().clone()
+                                    }
+                                } else {
+                                    app.default_window_icon().unwrap().clone()
+                                }
+                            } else {
+                                app.default_window_icon().unwrap().clone()
+                            }
+                        } else {
                             let full_icon_path = current_mod.path.join(icon_path.as_ref());
                             if full_icon_path.exists() {
                                 Image::from_path(&full_icon_path)
@@ -398,14 +429,13 @@ pub fn run() {
                             } else {
                                 app.default_window_icon().unwrap().clone()
                             }
-                        } else {
-                            app.default_window_icon().unwrap().clone()
                         }
                     } else {
                         app.default_window_icon().unwrap().clone()
                     }
-                };
-                icon
+                } else {
+                    app.default_window_icon().unwrap().clone()
+                }
             };
 
             // ========== 注册全局状态（必须在创建窗口之前） ==========
