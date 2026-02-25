@@ -1,4 +1,4 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import {
   buildModAssetUrlForLive2D,
   decodeFileSrcUrl,
@@ -171,13 +171,68 @@ function buildNameKey(name: string): string {
 
 function dbg(_tag: string, ..._args: any[]) {}
 
+type BackendModInfo = {
+  path?: string;
+  manifest?: {
+    enable_texture_downsample?: boolean;
+  };
+} | null;
+
+function normalizeFsPath(p: string): string {
+  return String(p || "").replace(/\\/g, "/").trim().toLowerCase();
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 从后端读取当前 Mod 的 enable_texture_downsample。
+ *
+ * - **启动/切换 Mod** 时，这里以 backend 的 `get_current_mod` 为准，避免前端缓存造成时序错乱。
+ * - 若 `get_current_mod.path` 与当前要加载的 `expectedModPath` 不一致，会短暂重试。
+ */
+async function resolveEnableTextureDownsampleFromBackend(expectedModPath: string, fallback?: boolean): Promise<boolean> {
+  const expected = normalizeFsPath(expectedModPath);
+  let lastSeen: boolean | null = null;
+
+  for (let i = 0; i < 12; i++) {
+    try {
+      const mod = (await invoke("get_current_mod")) as BackendModInfo;
+      const p = mod?.path ? normalizeFsPath(String(mod.path)) : "";
+
+      const v = mod?.manifest?.enable_texture_downsample;
+      if (typeof v === "boolean") {
+        lastSeen = v;
+      }
+
+      if (expected && p && p === expected && lastSeen !== null) {
+        return lastSeen;
+      }
+
+      // 如果没有期望路径（极少见），那就尽量用后端的值
+      if (!expected && lastSeen !== null) {
+        return lastSeen;
+      }
+
+    } catch {
+      // ignore
+    }
+
+    if (i < 11) await sleepMs(80);
+  }
+
+  if (typeof fallback === "boolean") return fallback;
+  return lastSeen ?? false;
+}
+
 // ============================================================================
 // Live2D 贴图优化：记录逻辑尺寸 + 降采样（默认开启） + LRU（默认关闭）
 // ============================================================================
 
 // 降采样策略默认值/阈值
 const LIVE2D_TEX_OPT_ENABLED_DEFAULT = true;
-const LIVE2D_TEX_OPT_MAX_DIM_DEFAULT = 400; // 像素封顶（最长边）
+const LIVE2D_TEX_OPT_MAX_DIM_DEFAULT = 300; // 像素封顶（最长边）
 const LIVE2D_TEX_OPT_SCALE_DEFAULT = 1;      // 额外倍率（0-1）
 const LIVE2D_TEX_OPT_MIN_SCALE = 0.05;
 const LIVE2D_TEX_OPT_NO_RESIZE_EPS = 0.999;
@@ -417,6 +472,10 @@ export class Live2DPlayer {
   private model: any | null = null;
   private config: Live2DConfig | null = null;
   private modPath = "";
+
+  /** 当前 Mod 是否允许贴图降采样（来源：后端 manifest.enable_texture_downsample）。 */
+  private modDownsampleEnabled = false;
+
   private featureFlags: Live2DFeatureFlags;
   private motionMap = new Map<string, MotionEntry>();
   private expressionMap = new Map<string, number>();
@@ -677,9 +736,12 @@ export class Live2DPlayer {
   /**
    * 加载 Live2D 模型与资源映射，并应用基础缩放/叠加层。
    */
-  async load(modPath: string, config: Live2DConfig): Promise<void> {
+  async load(modPath: string, config: Live2DConfig, manifest?: { enable_texture_downsample?: boolean }): Promise<void> {
 
-    dbg("load", "modPath:", modPath, "model:", config.model.model_json);
+    const downsampleEnabled = await resolveEnableTextureDownsampleFromBackend(modPath, manifest?.enable_texture_downsample);
+    this.modDownsampleEnabled = downsampleEnabled;
+
+    dbg("load", "modPath:", modPath, "model:", config.model.model_json, "enable_texture_downsample:", downsampleEnabled);
     this.config = config;
     this.modPath = modPath;
     this.modelScale = Number((config.model as any)?.scale) || 1;
@@ -1468,11 +1530,6 @@ export class Live2DPlayer {
         return;
       }
 
-      const policy = getLive2DTextureDecodePolicy();
-      if (!policy.enabled) {
-        next();
-        return;
-      }
 
       let owner: Live2DPlayer | null = null;
       for (const p of Live2DPlayer.texOptPlayers) {
@@ -1558,10 +1615,6 @@ export class Live2DPlayer {
     if (!url) return;
 
 
-    const policy = getLive2DTextureDecodePolicy();
-    if (!policy.enabled) {
-      return;
-    }
 
 
     // 找到第一个 owner
@@ -1598,8 +1651,14 @@ export class Live2DPlayer {
     }
   }
 
+  private getTextureDecodePolicy(): Live2DTextureDecodePolicy {
+    const base = getLive2DTextureDecodePolicy();
+    // manifest.enable_texture_downsample 为 false 时，强制关闭降采样（即使 localStorage 显式开启）。
+    return { ...base, enabled: base.enabled && this.modDownsampleEnabled };
+  }
+
   private async optimizeBaseTextureInPlace(url: string, bt: any, _origin: "from" | "scan" = "from"): Promise<void> {
-    const policy = getLive2DTextureDecodePolicy();
+    const policy = this.getTextureDecodePolicy();
     if (!policy.enabled) return;
 
     // 避免重复处理
@@ -1647,7 +1706,7 @@ export class Live2DPlayer {
   }
 
   private shouldOptimizeUrl(url: string): boolean {
-    const policy = getLive2DTextureDecodePolicy();
+    const policy = this.getTextureDecodePolicy();
     if (!policy.enabled) return false;
     if (!this.assetUrlPrefix) return false;
 
@@ -1660,7 +1719,7 @@ export class Live2DPlayer {
   }
 
   private async optimizeLoadedResourceTexture(url: string, resource: any): Promise<void> {
-    const policy = getLive2DTextureDecodePolicy();
+    const policy = this.getTextureDecodePolicy();
     if (!policy.enabled) return;
 
     // 避免重复处理
@@ -1728,7 +1787,7 @@ export class Live2DPlayer {
   }
 
   private async optimizeCachedModelBaseTextures(): Promise<void> {
-    const policy = getLive2DTextureDecodePolicy();
+    const policy = this.getTextureDecodePolicy();
     if (!policy.enabled) return;
     if (!this.assetUrlPrefix) return;
 

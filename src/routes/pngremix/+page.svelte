@@ -26,6 +26,7 @@ PngRemix 渲染层暂为空占位。
     mod_type?: ModType;
     global_keyboard?: boolean;
     global_mouse?: boolean;
+    enable_texture_downsample?: boolean;
   }
 
   interface ModInfo {
@@ -116,7 +117,7 @@ PngRemix 渲染层暂为空占位。
 
       // 初始化 PngRemixPlayer 渲染引擎
       player = new PngRemixPlayer(pngremixCanvas);
-      await player.init(modPath, pngremixConfig);
+      await player.init(modPath, pngremixConfig, mod.manifest);
       player.setAnimationScale(animationScale);
     } catch (error) {
       console.error("Failed to init PngRemix player:", error);

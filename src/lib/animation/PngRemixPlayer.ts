@@ -11,8 +11,64 @@ import type {
   PngRemixMotion,
   PngRemixParameterSetting,
 } from "$lib/types/asset";
+import { invoke } from "@tauri-apps/api/core";
 import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
 import { capFps, getRenderDpr } from "./render_tuning";
+
+
+type BackendModInfo = {
+  path?: string;
+  manifest?: {
+    enable_texture_downsample?: boolean;
+  };
+} | null;
+
+function normalizeFsPath(p: string): string {
+  return String(p || "").replace(/\\/g, "/").trim().toLowerCase();
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 从后端读取当前 Mod 的 enable_texture_downsample。
+ *
+ * - **启动/切换 Mod** 时以 backend 的 `get_current_mod` 为准，避免前端传参/缓存造成时序错乱。
+ * - 若后端 current_mod 的 path 与本次 init 的 `expectedModPath` 不一致，会短暂重试。
+ */
+async function resolveEnableTextureDownsampleFromBackend(expectedModPath: string, fallback?: boolean): Promise<boolean> {
+  const expected = normalizeFsPath(expectedModPath);
+  let lastSeen: boolean | null = null;
+
+  for (let i = 0; i < 8; i++) {
+    try {
+      const mod = (await invoke("get_current_mod")) as BackendModInfo;
+      const p = mod?.path ? normalizeFsPath(String(mod.path)) : "";
+
+      const v = mod?.manifest?.enable_texture_downsample;
+      if (typeof v === "boolean") {
+        lastSeen = v;
+      }
+
+      if (expected && p && p === expected && lastSeen !== null) {
+        return lastSeen;
+      }
+
+      if (!expected && lastSeen !== null) {
+        return lastSeen;
+      }
+
+    } catch {
+      // ignore
+    }
+
+    if (i < 11) await sleepMs(80);
+  }
+
+  if (typeof fallback === "boolean") return fallback;
+  return lastSeen ?? false;
+}
 
 
 // ============================================================================
@@ -45,6 +101,57 @@ async function ensureScripts(): Promise<void> {
     _scriptsLoaded = true;
   })();
   return _scriptsPromise;
+}
+
+// ============================================================================
+// Upscale quality control（降采样后放大策略）
+// ============================================================================
+
+const PNGREMIX_UPSCALE_MODE_KEY = "tb_pngremix_upscale_mode";
+
+/**
+ * 降采样后放大策略（可通过 localStorage 的 `tb_pngremix_upscale_mode` 控制）
+ *
+ * 可选项：
+ * - "high"（默认）：开启平滑，`imageSmoothingQuality = "high"`，整体更柔和
+ * - "pixelated"：关闭平滑，像素边缘更硬（也接受别名："nearest" / "none"）
+ */
+type PngRemixUpscaleMode = "high" | "pixelated";
+
+const PNGREMIX_UPSCALE_MODE_DEFAULT: PngRemixUpscaleMode = "high";
+
+/**
+ * Canvas 2D 平滑质量可选项："low" / "medium" / "high"。
+ * 仅在 `PngRemixUpscaleMode` 为 "high" 时生效。
+ */
+const PNGREMIX_UPSCALE_SMOOTHING_QUALITY_DEFAULT = "high" as const;
+
+function readLocalStorageString(key: string, fallback: string): string {
+  try {
+    const v = localStorage.getItem(key);
+    if (v === null || v === undefined) return fallback;
+    const s = String(v).trim();
+    return s ? s : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getPngRemixUpscaleMode(): PngRemixUpscaleMode {
+  const v = readLocalStorageString(PNGREMIX_UPSCALE_MODE_KEY, PNGREMIX_UPSCALE_MODE_DEFAULT).toLowerCase();
+  if (v === "pixelated" || v === "nearest" || v === "none") return "pixelated";
+  return PNGREMIX_UPSCALE_MODE_DEFAULT;
+}
+
+function applyPngRemixUpscaleSettings(ctx: CanvasRenderingContext2D): void {
+  const mode = getPngRemixUpscaleMode();
+  if (mode === "pixelated") {
+    ctx.imageSmoothingEnabled = false;
+    return;
+  }
+  ctx.imageSmoothingEnabled = true;
+  // @ts-ignore - 일부 DOM typings 可能不包含 imageSmoothingQuality
+  ctx.imageSmoothingQuality = PNGREMIX_UPSCALE_SMOOTHING_QUALITY_DEFAULT;
 }
 
 // ============================================================================
@@ -166,7 +273,7 @@ function compositeForBlendMode(mode: string): GlobalCompositeOperation {
 // ============================================================================
 
 // 贴图解码策略默认值/阈值（仅作用于本文件的降采样/封顶逻辑）
-const TEXTURE_DECODE_DEFAULT_MAX_DIM = 400;
+const TEXTURE_DECODE_DEFAULT_MAX_DIM = 300;
 const TEXTURE_DECODE_MIN_SCALE = 0.05;
 const TEXTURE_DECODE_NO_RESIZE_EPS = 0.999;
 const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
@@ -1899,7 +2006,10 @@ export class PngRemixPlayer {
   /**
    * 初始化播放器并加载 PngRemix 模型资源。
    */
-  async init(modPath: string, config: PngRemixConfig): Promise<void> {
+  async init(modPath: string, config: PngRemixConfig, manifest?: { enable_texture_downsample?: boolean }): Promise<void> {
+
+    // 以 backend 的 current_mod 为准，确保切换 Mod 时序正确。
+    const downsampleEnabled = await resolveEnableTextureDownsampleFromBackend(modPath, manifest?.enable_texture_downsample);
 
     this.modPath = modPath;
     this.config = config;
@@ -1922,7 +2032,9 @@ export class PngRemixPlayer {
     const scaleRaw = Number((config.model as any)?.texture_decode_scale);
     const maxDim = Number.isFinite(maxDimRaw) ? Math.floor(maxDimRaw) : TEXTURE_DECODE_DEFAULT_MAX_DIM;
     const scale = Number.isFinite(scaleRaw) && scaleRaw > 0 ? clamp(scaleRaw, TEXTURE_DECODE_MIN_SCALE, 1) : 1;
-    const decodePolicy: TextureDecodePolicy | null = (maxDim > 0 || scale < TEXTURE_DECODE_NO_RESIZE_EPS) ? { maxDim, scale } : null;
+    const decodePolicy: TextureDecodePolicy | null = (downsampleEnabled && (maxDim > 0 || scale < TEXTURE_DECODE_NO_RESIZE_EPS))
+      ? { maxDim, scale }
+      : null;
 
 
     this.scene = await buildRuntimeScene(normalized, decodePolicy);

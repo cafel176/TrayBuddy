@@ -38,6 +38,7 @@ Live2D 渲染层暂为空占位。
     mod_type?: ModType;
     global_keyboard?: boolean;
     global_mouse?: boolean;
+    enable_texture_downsample?: boolean;
   }
 
   interface ModInfo {
@@ -349,7 +350,7 @@ Live2D 渲染层暂为空占位。
         featureFlags,
       });
       await live2dPlayer.init();
-      await live2dPlayer.load(modPath, live2dConfig);
+      await live2dPlayer.load(modPath, live2dConfig, mod.manifest);
       live2dPlayer.setVisible(showCharacter);
       live2dPlayer.setAnimationScale(animationScale);
       console.log("[Live2D Page] Player init complete, animationScale:", animationScale);
