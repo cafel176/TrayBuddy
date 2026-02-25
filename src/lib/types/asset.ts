@@ -58,7 +58,27 @@ export interface PngRemixModelConfig {
   /** 模型整体缩放（窗口预览用，避免模型过大超出画布） */
   scale: number;
   max_fps: number;
+
+  /**
+   * 贴图解码分辨率封顶（像素）。
+   *
+   * 逻辑尺寸仍以原图为准，但实际解码出的像素会被缩小到不超过该值，
+   * 渲染时再按逻辑尺寸放大，以降低运行时内存占用。
+   * - <= 0：禁用封顶
+   * - 未设置：默认 4096（只对超大贴图生效）
+   */
+  texture_decode_max_dim?: number;
+
+  /**
+   * 贴图解码额外降采样倍率（0-1）。
+   *
+   * 例如 0.5 表示在封顶前先按一半分辨率解码；
+   * 渲染时仍按原图逻辑尺寸放大。
+   * - <= 0：视为 1
+   */
+  texture_decode_scale?: number;
 }
+
 
 /** PngRemix 动画特性配置。 */
 export interface PngRemixFeatures {

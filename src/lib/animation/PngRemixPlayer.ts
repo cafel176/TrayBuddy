@@ -162,8 +162,22 @@ function compositeForBlendMode(mode: string): GlobalCompositeOperation {
 }
 
 // ============================================================================
-// 图像解码
+// 图像解码（支持解码期降采样/封顶：逻辑尺寸=原图，像素数据可更小）
 // ============================================================================
+
+// 贴图解码策略默认值/阈值（仅作用于本文件的降采样/封顶逻辑）
+const TEXTURE_DECODE_DEFAULT_MAX_DIM = 384;
+const TEXTURE_DECODE_MIN_SCALE = 0.05;
+const TEXTURE_DECODE_NO_RESIZE_EPS = 0.999;
+const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
+
+type TextureDecodePolicy = {
+
+  /** 贴图解码分辨率封顶（像素）；<=0 表示不封顶 */
+  maxDim: number;
+  /** 额外降采样倍率（0-1）；<=0 视为 1 */
+  scale: number;
+};
 
 function isGifBytes(b: Uint8Array) {
   return b.length >= 6 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38 && (b[4] === 0x37 || b[4] === 0x39) && b[5] === 0x61;
@@ -184,33 +198,157 @@ function pngHasChunk(b: Uint8Array, chunk: string) {
   return false;
 }
 
-async function decodePngBytesToDrawable(bytes: Uint8Array, _name = ""): Promise<any> {
+function tryReadPngSize(bytes: Uint8Array): { w: number; h: number } | null {
+  // PNG signature(8) + IHDR length(4) + "IHDR"(4) + w(4) + h(4)
+  if (!isPngBytes(bytes) || bytes.length < 24) return null;
+  if (bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null;
+  try {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const w = dv.getUint32(16, false);
+    const h = dv.getUint32(20, false);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+    return { w, h };
+  } catch {
+    return null;
+  }
+}
+
+function tryReadGifSize(bytes: Uint8Array): { w: number; h: number } | null {
+  // GIF logical screen descriptor: width/height are little-endian uint16 at offset 6/8
+  if (!isGifBytes(bytes) || bytes.length < 10) return null;
+  try {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const w = dv.getUint16(6, true);
+    const h = dv.getUint16(8, true);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+    return { w, h };
+  } catch {
+    return null;
+  }
+}
+
+function getImageSize(d: any): { w: number; h: number } {
+  // 实际像素尺寸（解码后的 drawable 尺寸）
+  if (!d) return { w: 0, h: 0 };
+  if (typeof ImageBitmap !== "undefined" && d instanceof ImageBitmap) return { w: d.width, h: d.height };
+  if (d instanceof HTMLImageElement) return { w: d.naturalWidth || d.width, h: d.naturalHeight || d.height };
+  if (d instanceof HTMLCanvasElement) return { w: d.width, h: d.height };
+  return { w: 0, h: 0 };
+}
+
+function getImageLogicalSize(d: any): { w: number; h: number } {
+  // 逻辑尺寸（用于布局/帧切分/裁剪）：默认等于实际像素尺寸，但支持在降采样时保持原图尺寸
+  if (!d) return { w: 0, h: 0 };
+  const lw = Number((d as any)._logicalW);
+  const lh = Number((d as any)._logicalH);
+  if (Number.isFinite(lw) && Number.isFinite(lh) && lw > 0 && lh > 0) return { w: lw, h: lh };
+  return getImageSize(d);
+}
+
+function copyLogicalSize(dst: any, src: any) {
+  if (!dst || !src) return;
+  const { w, h } = getImageLogicalSize(src);
+  if (w > 0 && h > 0) {
+    (dst as any)._logicalW = w;
+    (dst as any)._logicalH = h;
+  }
+}
+
+function computeDecodeTarget(logicalW: number, logicalH: number, policy: TextureDecodePolicy | null | undefined): { w: number; h: number; scale: number } {
+  const w0 = Math.max(1, Math.floor(Number(logicalW) || 1));
+  const h0 = Math.max(1, Math.floor(Number(logicalH) || 1));
+  if (!policy) return { w: w0, h: h0, scale: 1 };
+
+  const baseScale = clamp(Number(policy.scale) || 1, 0.05, 1);
+  let s = baseScale;
+  const maxDim = Number(policy.maxDim);
+  if (Number.isFinite(maxDim) && maxDim > 0) {
+    const denom = Math.max(w0, h0);
+    if (denom > 0) s = Math.min(s, maxDim / denom);
+  }
+  s = clamp(s, TEXTURE_DECODE_MIN_SCALE, 1);
+
+
+  const tw = Math.max(1, Math.round(w0 * s));
+  const th = Math.max(1, Math.round(h0 * s));
+  return { w: tw, h: th, scale: s };
+}
+
+async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: TextureDecodePolicy | null): Promise<any> {
   if (bytes.length < 6) return null;
   const isGif = isGifBytes(bytes);
   const isPng = isPngBytes(bytes);
   const isApng = isPng && pngHasChunk(bytes, "acTL");
   const isAnimated = isGif || isApng;
   const mime = isGif ? "image/gif" : isPng ? "image/png" : "application/octet-stream";
+
+  // 逻辑尺寸（优先从头部快速读取；失败时在解码后回填）
+  const headerSize = isPng ? tryReadPngSize(bytes) : isGif ? tryReadGifSize(bytes) : null;
+  const logicalW = headerSize?.w ?? 0;
+  const logicalH = headerSize?.h ?? 0;
+  const target = (!isAnimated && logicalW > 0 && logicalH > 0) ? computeDecodeTarget(logicalW, logicalH, policy) : { w: logicalW, h: logicalH, scale: 1 };
+
   const blob = new Blob([bytes], { type: mime });
 
+  // 非动图 PNG：优先用 createImageBitmap 直接缩放解码，避免先解出大图
   if (!isAnimated && mime === "image/png" && typeof createImageBitmap === "function") {
-    try { return await createImageBitmap(blob); } catch { /* fall through */ }
+    try {
+      const needsResize = logicalW > 0 && logicalH > 0 && target.scale < 0.999;
+      const bitmap = needsResize
+        ? await createImageBitmap(blob, {
+          resizeWidth: target.w,
+          resizeHeight: target.h,
+          // DOM lib 对 resizeQuality 的 union 可能不完整，这里做一下兼容
+          resizeQuality: TEXTURE_DECODE_RESIZE_QUALITY,
+
+        } as any)
+        : await createImageBitmap(blob);
+
+      (bitmap as any)._logicalW = logicalW > 0 ? logicalW : bitmap.width;
+      (bitmap as any)._logicalH = logicalH > 0 ? logicalH : bitmap.height;
+      return bitmap;
+    } catch {
+      /* fall through */
+    }
   }
+
+  // fallback：HTMLImageElement（动图 GIF/APNG 也走这里，浏览器负责播放）
   const url = URL.createObjectURL(blob);
   try {
-    const img = new Image(); img.decoding = "async"; img.src = url;
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
     await img.decode();
     if (isAnimated) (img as any)._isAnimated = true;
-    return img;
-  } finally { URL.revokeObjectURL(url); }
-}
 
-function getImageSize(d: any): { w: number; h: number } {
-  if (!d) return { w: 0, h: 0 };
-  if (typeof ImageBitmap !== "undefined" && d instanceof ImageBitmap) return { w: d.width, h: d.height };
-  if (d instanceof HTMLImageElement) return { w: d.naturalWidth || d.width, h: d.naturalHeight || d.height };
-  if (d instanceof HTMLCanvasElement) return { w: d.width, h: d.height };
-  return { w: 0, h: 0 };
+    const decodedW = img.naturalWidth || img.width;
+    const decodedH = img.naturalHeight || img.height;
+    const lw = logicalW > 0 ? logicalW : decodedW;
+    const lh = logicalH > 0 ? logicalH : decodedH;
+
+    // 仅对非动图尝试二次下采样（注意：这里仍会先解码原图，无法避免峰值内存）
+    if (!isAnimated && lw > 0 && lh > 0) {
+      const t2 = computeDecodeTarget(lw, lh, policy);
+      if (t2.scale < 0.999 && t2.w > 0 && t2.h > 0) {
+        const c = document.createElement("canvas");
+        c.width = t2.w;
+        c.height = t2.h;
+        const cctx = c.getContext("2d")!;
+        cctx.imageSmoothingEnabled = true;
+        cctx.imageSmoothingQuality = "high";
+        cctx.drawImage(img, 0, 0, t2.w, t2.h);
+        (c as any)._logicalW = lw;
+        (c as any)._logicalH = lh;
+        return c;
+      }
+    }
+
+    (img as any)._logicalW = lw;
+    (img as any)._logicalH = lh;
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function applySpriteTextureTransforms(drawable: any, spriteRaw: any) {
@@ -228,8 +366,10 @@ function applySpriteTextureTransforms(drawable: any, spriteRaw: any) {
   ctx.rotate(rot * Math.PI / 2);
   ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
   ctx.drawImage(drawable, -w / 2, -h / 2);
+  copyLogicalSize(out, drawable);
   return out;
 }
+
 
 // ============================================================================
 // Tint cache
@@ -269,9 +409,11 @@ function getTintedDrawable(drawable: any, color: RGBA) {
   }
 
   const c = document.createElement("canvas"); c.width = w; c.height = h;
+  copyLogicalSize(c, drawable);
   const ctx = c.getContext("2d")!;
   ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
   ctx.drawImage(drawable, 0, 0);
+
   ctx.globalCompositeOperation = "multiply";
   ctx.fillStyle = `rgb(${key})`; ctx.fillRect(0, 0, w, h);
   ctx.globalCompositeOperation = "destination-in";
@@ -292,16 +434,26 @@ function getTintedDrawable(drawable: any, color: RGBA) {
 // ============================================================================
 
 function drawImageFrame(ctx: CanvasRenderingContext2D, drawable: any, hframes: number, vframes: number, frameIndex: number) {
-  const { w, h } = getImageSize(drawable);
-  if (!w || !h) return;
+  // 源矩形：按实际像素尺寸取帧；目标矩形：按逻辑尺寸绘制（降采样后仍保持原图大小）
+  const src = getImageSize(drawable);
+  const dst = getImageLogicalSize(drawable);
+  if (!src.w || !src.h || !dst.w || !dst.h) return;
+
   const hf = Math.max(1, Math.floor(hframes || 1));
   const vf = Math.max(1, Math.floor(vframes || 1));
   const total = hf * vf;
   const f = total > 0 ? ((Math.floor(frameIndex || 0) % total) + total) % total : 0;
-  const fw = w / hf, fh = h / vf;
-  const fx = (f % hf) * fw, fy = Math.floor(f / hf) * fh;
-  ctx.drawImage(drawable, fx, fy, fw, fh, -fw / 2, -fh / 2, fw, fh);
+
+  const fwSrc = src.w / hf;
+  const fhSrc = src.h / vf;
+  const fxSrc = (f % hf) * fwSrc;
+  const fySrc = Math.floor(f / hf) * fhSrc;
+
+  const fwDst = dst.w / hf;
+  const fhDst = dst.h / vf;
+  ctx.drawImage(drawable, fxSrc, fySrc, fwSrc, fhSrc, -fwDst / 2, -fhDst / 2, fwDst, fhDst);
 }
+
 
 // ============================================================================
 // RuntimeNode / RuntimeScene
@@ -1130,10 +1282,11 @@ function buildDrawList(scene: RuntimeScene, rootSpriteMat: Mat2D): DrawItem[] {
 
     const shouldClipChildren = scene.enableClip && Number(st.clip || 0) !== 0;
     if (shouldClipChildren && drawable) {
-      const { w, h } = getImageSize(drawable);
+      const { w, h } = getImageLogicalSize(drawable);
       const hfC = Math.max(1, Math.floor(Number(st.hframes) || 1));
       const vfC = Math.max(1, Math.floor(Number(st.vframes) || 1));
       clipStack.push({ mat: spriteMat, x: -w / hfC / 2, y: -h / vfC / 2, w: w / hfC, h: h / vfC });
+
     }
     for (const c of node.children) visit(c, spriteMat, z, rainbowHueForChildren);
     if (shouldClipChildren && drawable) clipStack.pop();
@@ -1206,7 +1359,8 @@ function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: numbe
 
 const SPRITE_DECODE_CONCURRENCY = 4;
 
-async function buildRuntimeScene(normalizedModel: any): Promise<RuntimeScene> {
+async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDecodePolicy | null = null): Promise<RuntimeScene> {
+
   const scene = new RuntimeScene(normalizedModel);
 
   scene.nodes = normalizedModel.sprites.map((s: any) => new RuntimeNode(s, s.index));
@@ -1231,7 +1385,8 @@ async function buildRuntimeScene(normalizedModel: any): Promise<RuntimeScene> {
       const n = scene.nodes[cursor++];
       const bytes = normalizedModel.sprites[n.index]?.imgBytes;
       if (!(bytes instanceof Uint8Array) || bytes.length < 6) continue;
-      let drawable = await decodePngBytesToDrawable(bytes, n.name);
+      let drawable = await decodePngBytesToDrawable(bytes, n.name, decodePolicy);
+
       if (!drawable) continue;
       if (drawable._isAnimated) hasAnimatedTextures = true;
       const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
@@ -1380,7 +1535,16 @@ export class PngRemixPlayer {
     let normalized = W.ModelNormalizer.normalizePngRemixModel(decoded);
     ab = null as any;
 
-    this.scene = await buildRuntimeScene(normalized);
+    // 贴图解码降采样/封顶：逻辑尺寸按原图，实际像素可更小（降低内存占用）
+    const maxDimRaw = Number((config.model as any)?.texture_decode_max_dim);
+    const scaleRaw = Number((config.model as any)?.texture_decode_scale);
+    const maxDim = Number.isFinite(maxDimRaw) ? Math.floor(maxDimRaw) : TEXTURE_DECODE_DEFAULT_MAX_DIM;
+    const scale = Number.isFinite(scaleRaw) && scaleRaw > 0 ? clamp(scaleRaw, TEXTURE_DECODE_MIN_SCALE, 1) : 1;
+    const decodePolicy: TextureDecodePolicy | null = (maxDim > 0 || scale < TEXTURE_DECODE_NO_RESIZE_EPS) ? { maxDim, scale } : null;
+
+
+    this.scene = await buildRuntimeScene(normalized, decodePolicy);
+
     decoded = null as any;
     normalized = null as any;
 
