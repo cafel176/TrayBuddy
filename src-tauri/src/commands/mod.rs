@@ -35,10 +35,12 @@ use std::os::windows::process::CommandExt;
 
 pub mod mod_archive_commands;
 pub mod mod_resource_commands;
+pub mod open_with_commands;
 pub mod window_system_commands;
 
 pub use mod_archive_commands::*;
 pub use mod_resource_commands::*;
+pub use open_with_commands::*;
 pub use window_system_commands::*;
 
 

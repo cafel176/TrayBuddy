@@ -1354,6 +1354,89 @@ fn show_or_create_window(app: &tauri::AppHandle, config: WindowConfig) {
     }
 }
 
+// ========================================================================= //
+// Open-with: 双击 .tbuddy/.sbuddy 自动导入
+// ========================================================================= //
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenModArchivePayload {
+    file_path: String,
+}
+
+/// 显示/创建 Mods 窗口（供 open-with 场景直接拉起）。
+pub(crate) fn show_mods_window(app: &tauri::AppHandle) {
+    let config = WindowConfig {
+        label: "mods",
+        url: "mods",
+        title_key: "common.modsTitle",
+        width: 800.0,
+        height: 700.0,
+        resizable: true,
+        center: false,
+        destroy_on_close: true,
+    };
+    show_or_create_window(app, config);
+}
+
+/// 从启动参数/二次启动参数中提取 .tbuddy/.sbuddy 路径，
+/// 拉起 Mods 窗口，并通知前端自动导入。
+pub(crate) fn handle_open_mod_archives_from_args(app: &tauri::AppHandle, args: &[String]) {
+    // 过滤：只保留真实文件路径（忽略 --minimized 等 flags）
+    let mut paths: Vec<String> = Vec::new();
+    for a in args {
+        if a.starts_with('-') {
+            continue;
+        }
+        let p = std::path::Path::new(a);
+        let ext = p
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        if ext != "tbuddy" && ext != "sbuddy" {
+            continue;
+        }
+        // 仅在文件存在时处理（避免把 "mods" 等路由当成参数误判）
+        if !p.is_file() {
+            continue;
+        }
+        paths.push(a.to_string());
+    }
+
+    if paths.is_empty() {
+        return;
+    }
+
+    // 写入待处理队列（即使 emit 时机太早也能兜底）
+    {
+        let state: State<'_, AppState> = app.state();
+        let mut q = state.pending_open_mod_archives.lock().unwrap();
+        for p in &paths {
+            if !q.contains(p) {
+                q.push(p.clone());
+            }
+        }
+    }
+
+    // 拉起 Mods 窗口并尝试即时通知
+    show_mods_window(app);
+
+    if let Some(w) = app.get_webview_window("mods") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+
+        for p in paths {
+            let _ = w.emit(
+                "open-mod-archive",
+                OpenModArchivePayload {
+                    file_path: p,
+                },
+            );
+        }
+    }
+}
+
 /// 内部函数：根据当前加载的Mod更新托盘图标（同步版本，用于非异步上下文）
 ///
 /// 用途：在同步上下文中更新托盘图标（如卸载 mod 时）

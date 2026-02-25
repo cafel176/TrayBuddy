@@ -104,6 +104,7 @@
     let currentModInfoFull = $state<ModInfo | null>(null);
 
     let unsubRefresh: (() => void) | null = null;
+    let unsubOpenArchive: (() => void) | null = null;
 
     // 导入冲突弹窗（同 id 已加载）
     let conflictOpen = $state(false);
@@ -698,12 +699,65 @@
     }
 
 
+    async function importFromExternalPath(filePath: string) {
+        try {
+            const picked = (await invoke("inspect_mod_tbuddy", { filePath })) as {
+                id: string;
+                version: string;
+            };
+
+            // 如果选择了 .sbuddy 文件，先检查外部工具是否可用
+            if (filePath.toLowerCase().endsWith(".sbuddy")) {
+                const supported = (await invoke("is_sbuddy_supported")) as boolean;
+                if (!supported) {
+                    await message(_("modWindow.sbuddyNotSupported"), {
+                        title: _("common.appName"),
+                        kind: "error",
+                    });
+                    return;
+                }
+            }
+
+            const existing = mods.find((m) => m.manifest?.id === picked.id) || null;
+            if ((currentModName && picked.id === currentModName) || existing) {
+                conflictOpen = true;
+                conflictModId = picked.id;
+
+                const existingVer = (existing?.manifest?.version || "").trim();
+                const loadedVer = (currentModVersion || "").trim();
+                conflictLoadedVersion = existingVer || loadedVer || _("common.unknown");
+
+                conflictIncomingVersion = (picked.version || "").trim() || _("common.unknown");
+                pendingImportPath = filePath;
+                return;
+            }
+
+            await doImportFromPath(filePath);
+        } catch (e) {
+            await showImportError(e);
+        }
+    }
+
+    async function consumePendingOpenArchives() {
+        try {
+            const pending = (await invoke("take_pending_open_mod_archives")) as string[];
+            if (!pending || pending.length === 0) return;
+
+            // 实际使用场景一般一次只会打开一个文件；这里先处理第一个。
+            await importFromExternalPath(pending[0]);
+        } catch (e) {
+            // 兜底：不阻塞 Mods 页初始化
+            console.error("consumePendingOpenArchives failed:", e);
+        }
+    }
+
     async function importMod() {
         try {
             const picked = (await invoke("pick_mod_tbuddy")) as ModTbuddyPick;
             if (!picked?.filePath) {
                 return;
             }
+
 
             // 如果选择了 .sbuddy 文件，先检查外部工具是否可用
 
@@ -778,6 +832,22 @@
                 console.log("Mods refreshed via event:", event.payload);
                 loadModList();
             });
+
+            // 监听后端的 open-with 事件：双击 .tbuddy/.sbuddy → 直接导入
+            unsubOpenArchive = await listen("open-mod-archive", async (event) => {
+                const payload = event.payload as unknown;
+                const filePath =
+                    typeof payload === "string"
+                        ? payload
+                        : (payload as any)?.filePath || (payload as any)?.file_path;
+
+                if (typeof filePath === "string" && filePath.trim()) {
+                    await importFromExternalPath(filePath);
+                }
+            });
+
+            // 冷启动兜底：如果事件 emit 过早被错过，从队列里取出再导入
+            await consumePendingOpenArchives();
         };
         init().catch(console.error);
     });
@@ -787,6 +857,7 @@
         hydrateSeq++;
         cleanupI18n?.();
         unsubRefresh?.();
+        unsubOpenArchive?.();
     });
 
 

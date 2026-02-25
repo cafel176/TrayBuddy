@@ -25,6 +25,7 @@ tauri = { version = "2", features = ["protocol-asset", "tray-icon", "image-ico",
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dunce = "1.0"

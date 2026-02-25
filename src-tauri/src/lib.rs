@@ -116,7 +116,11 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
         ))
-        // ========== 自定义协议：tbuddy-asset:// ==========
+        // 单实例：二次启动（例如双击 .tbuddy/.sbuddy）转发参数给现有实例
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            handle_open_mod_archives_from_args(app, &argv);
+        }))
+        // ========== 自定义协议：tbuddy-asset:// ========== 
         // 用于从内存中的 .tbuddy archive 流式返回资源文件
         // 前端发送的 URL 格式因平台而异：
         //   Windows: http://tbuddy-asset.localhost/mod_id/path
@@ -413,6 +417,7 @@ pub fn run() {
                 session_locked: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 global_keyboard_enabled: Arc::new(std::sync::atomic::AtomicBool::new(initial_global_keyboard)),
                 global_mouse_enabled: Arc::new(std::sync::atomic::AtomicBool::new(initial_global_mouse)),
+                pending_open_mod_archives: Mutex::new(Vec::new()),
                 archive_store: shared_archive_store,
             });
 
@@ -477,6 +482,10 @@ pub fn run() {
             std::thread::spawn(move || {
                 init_environment(Some(app_handle_env));
             });
+
+            // 冷启动：如果是通过双击 .tbuddy/.sbuddy 启动，自动拉起 Mods 并导入
+            let cli_args: Vec<String> = std::env::args().skip(1).collect();
+            handle_open_mod_archives_from_args(app.handle(), &cli_args);
 
             Ok(())
         })
@@ -598,6 +607,7 @@ pub fn run() {
             is_cursor_in_interact_area,
             open_path,
             inspect_mod_tbuddy,
+            take_pending_open_mod_archives,
             pick_mod_tbuddy,
             import_mod_from_path,
             import_mod_from_path_detailed,

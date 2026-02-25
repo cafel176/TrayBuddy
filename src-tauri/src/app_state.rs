@@ -93,6 +93,11 @@ pub struct AppState {
     /// 全局鼠标监听开关：由当前 Mod 的 global_mouse 字段控制
     pub(crate) global_mouse_enabled: Arc<AtomicBool>,
 
+    /// 待处理的“通过系统打开的 Mod 包路径”队列（双击 .tbuddy/.sbuddy）
+    /// - 冷启动：setup 时写入；
+    /// - 已运行：single-instance 回调写入。
+    /// 前端 Mods 页面会在 mount 时取走并触发导入。
+    pub pending_open_mod_archives: Mutex<Vec<String>>,
 
     /// Mod 包内存存储：管理从 .tbuddy 加载到内存中的 archive 实例
     pub archive_store: Arc<Mutex<ModArchiveStore>>,
