@@ -182,7 +182,9 @@ const tutorialTranslations = {
 
     section_mod_data: "Mod 数据面板",
     mod_data_desc: "可在角色窗口左上角显示自定义数据（如好感度）。配置 show_mod_data_panel 开关和 mod_data_default_int 默认值。",
-    section_global_keyboard: "全局键盘监听",
+    section_texture_downsample: "贴图降采样",
+    texture_downsample_desc: "通过 manifest.enable_texture_downsample 控制是否允许贴图在解码阶段降采样/封顶（对 Live2D/PngRemix 生效）。开启可降低内存占用，关闭可保留原始清晰度。",
+    section_global_keyboard: "全局键盘监听", 
     global_keyboard_desc: "配置 global_keyboard 为 true 后，即使动画窗口未获得焦点，也能触发 keydown 事件。适用于需要实时响应键盘输入的桌面宠物模型。",
     section_global_mouse: "全局鼠标监听",
     global_mouse_desc: "配置 global_mouse 为 true 后，鼠标点击任意位置都可触发 global_click / global_right_click 事件，无需点击在角色身上。",
@@ -645,6 +647,8 @@ const tutorialTranslations = {
 
     section_mod_data: "Mod Data Panel",
     mod_data_desc: "Display custom data (like affinity) in top-left corner. Configure show_mod_data_panel and mod_data_default_int.",
+    section_texture_downsample: "Texture Downsampling",
+    texture_downsample_desc: "Use manifest.enable_texture_downsample to allow downsampling/capping textures during decoding (effective for Live2D/PngRemix). Enabling reduces memory usage; disabling preserves original sharpness.",
     section_global_keyboard: "Global Keyboard Listener",
     global_keyboard_desc: "Set global_keyboard to true to trigger keydown events even when the animation window is not focused. Useful for desktop pet models that need real-time keyboard input.",
     section_global_mouse: "Global Mouse Listener",
@@ -1107,6 +1111,8 @@ const tutorialTranslations = {
 
     section_mod_data: "Mod データパネル",
     mod_data_desc: "左上隅にカスタムデータ（好感度など）を表示。show_mod_data_panel と mod_data_default_int を設定。",
+    section_texture_downsample: "テクスチャのダウンサンプリング",
+    texture_downsample_desc: "manifest.enable_texture_downsample により、解码時のテクスチャ縮小/上限適用（Live2D/PngRemix に有効）を制御します。有効でメモリ使用量を削減し、無効で元の鮮明さを保持します。",
     section_global_keyboard: "グローバルキーボード監視",
     global_keyboard_desc: "global_keyboard を true に設定すると、アニメーションウィンドウにフォーカスがなくても keydown イベントが発火します。リアルタイムのキーボード入力が必要なデスクトップペットモデルに適しています。",
     section_global_mouse: "グローバルマウス監視",

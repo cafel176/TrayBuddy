@@ -192,6 +192,21 @@
               </div>
             </section>
 
+            <!-- 贴图优化（3D Mod 不适用） -->
+            <section class="form-section" id="section-texture-downsample">
+              <h3 data-i18n="section_texture_downsample">贴图优化</h3>
+              <div class="form-grid">
+                <div class="form-group" id="manifest-texture-downsample-group">
+                  <label for="enable-texture-downsample" data-i18n="enable_texture_downsample_label">启用贴图降采样</label>
+                  <label class="switch">
+                    <input type="checkbox" id="enable-texture-downsample">
+                    <span class="slider"></span>
+                  </label>
+                  <small data-i18n="enable_texture_downsample_hint">影响 Live2D/PngRemix 的贴图解码：开启可降低内存，关闭保留原始清晰度</small>
+                </div>
+              </div>
+            </section>
+
             <!-- 键盘设置 -->
             <section class="form-section">
               <h3 data-i18n="section_keyboard">键盘设置</h3>

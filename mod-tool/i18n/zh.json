@@ -58,6 +58,11 @@
   "show_mod_data_panel_hint": "是否显示 Mod Data 面板（供脚本/状态使用）",
   "mod_data_default_int_label": "数据默认值 (int)",
   "mod_data_default_int_hint": "新建数据计数器时的默认初始值",
+
+  "section_texture_downsample": "贴图优化",
+  "enable_texture_downsample_label": "启用贴图降采样",
+  "enable_texture_downsample_hint": "影响 Live2D/PngRemix 的贴图解码：开启可降低内存，关闭保留原始清晰度",
+
   "section_keyboard": "键盘设置",
   "global_keyboard_label": "全局键盘监听",
   "global_keyboard_hint": "开启后无需聚焦动画窗口即可触发键盘事件",

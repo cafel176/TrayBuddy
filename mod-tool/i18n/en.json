@@ -57,6 +57,11 @@
   "show_mod_data_panel_hint": "Whether to show the Mod Data panel",
   "mod_data_default_int_label": "Default Data Value (int)",
   "mod_data_default_int_hint": "Default initial value for new counters",
+
+  "section_texture_downsample": "Texture Optimization",
+  "enable_texture_downsample_label": "Enable texture downsampling",
+  "enable_texture_downsample_hint": "Affects Live2D/PngRemix texture decoding: enable to reduce memory, disable to keep original sharpness",
+
   "section_keyboard": "Keyboard Settings",
   "global_keyboard_label": "Global Keyboard Listener",
   "global_keyboard_hint": "Enable to trigger keyboard events without focusing the animation window",

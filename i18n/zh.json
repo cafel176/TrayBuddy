@@ -408,6 +408,7 @@
     "defaultText": "默认文本",
     "showModDataPanel": "显示数据面板",
     "modDataDefaultInt": "初始数据值",
+    "enableTextureDownsample": "启用贴图降采样",
     "globalKeyboard": "全局键盘监听",
     "globalMouse": "全局鼠标监听",
     "characterConfig": "角色配置",

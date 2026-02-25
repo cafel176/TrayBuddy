@@ -2899,6 +2899,10 @@ function populateManifestForm() {
   document.getElementById('show-mod-data-panel').checked = m.show_mod_data_panel === true;
   document.getElementById('mod-data-default-int').value = Number.isFinite(Number(m.mod_data_default_int)) ? Number(m.mod_data_default_int) : 0;
 
+  // 贴图降采样（3D Mod 不适用）
+  const texDownsampleEl = document.getElementById('enable-texture-downsample');
+  if (texDownsampleEl) texDownsampleEl.checked = m.enable_texture_downsample === true;
+
   // 全局键盘
   document.getElementById('global-keyboard').checked = m.global_keyboard === true;
 
@@ -2980,6 +2984,14 @@ function collectManifestData() {
   // 数据面板
   m.show_mod_data_panel = document.getElementById('show-mod-data-panel').checked;
   m.mod_data_default_int = parseInt(document.getElementById('mod-data-default-int').value) || 0;
+
+  // 贴图降采样（3D Mod 不适用；即使隐藏也保持字段可保存）
+  const texDownsampleEl = document.getElementById('enable-texture-downsample');
+  if (texDownsampleEl) {
+    m.enable_texture_downsample = texDownsampleEl.checked === true;
+  } else if (typeof m.enable_texture_downsample !== 'boolean') {
+    m.enable_texture_downsample = false;
+  }
 
   // 全局键盘
   m.global_keyboard = document.getElementById('global-keyboard').checked;

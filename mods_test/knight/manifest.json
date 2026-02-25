@@ -15,6 +15,7 @@
   },
   "show_mod_data_panel": true,
   "mod_data_default_int": 0,
+  "enable_texture_downsample": false,
   "global_keyboard": false,
   "global_mouse": false,
   "important_states": {

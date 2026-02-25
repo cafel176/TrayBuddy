@@ -56,6 +56,7 @@
     border: BorderConfig;
     show_mod_data_panel: boolean;
     mod_data_default_int: number;
+    enable_texture_downsample: boolean;
     global_keyboard: boolean;
     global_mouse: boolean;
     important_states: Record<string, StateInfo>;
@@ -624,6 +625,11 @@
                 <span class="info-label">{_("resource.modDataDefaultInt")}</span>
                 <span class="info-value"
                   >{currentModInfo.manifest.mod_data_default_int}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.enableTextureDownsample")}</span>
+                <span class="info-value"
+                  >{currentModInfo.manifest.enable_texture_downsample ? _("common.yes") : _("common.no")}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">{_("resource.globalKeyboard")}</span>

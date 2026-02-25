@@ -58,6 +58,10 @@
   "show_mod_data_panel_hint": "Mod Data パネルを表示するかどうか",
   "mod_data_default_int_label": "データ既定値 (int)",
   "mod_data_default_int_hint": "新しいカウンターの初期値",
+
+  "section_texture_downsample": "テクスチャ最適化",
+  "enable_texture_downsample_label": "テクスチャのダウンサンプリングを有効化",
+  "enable_texture_downsample_hint": "Live2D/PngRemix のテクスチャ解码に影響：有効でメモリ削減、無効で元の鮮明さを保持",
   "section_keyboard": "キーボード設定",
   "global_keyboard_label": "グローバルキーボード監視",
   "global_keyboard_hint": "有効にするとアニメーションウィンドウにフォーカスしなくてもキーボードイベントが発火します",

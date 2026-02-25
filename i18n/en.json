@@ -409,6 +409,7 @@
     "defaultText": "Default Text",
     "showModDataPanel": "Show Data Panel",
     "modDataDefaultInt": "Default Data Value",
+    "enableTextureDownsample": "Enable Texture Downsampling",
     "globalKeyboard": "Global Keyboard",
     "globalMouse": "Global Mouse",
     "characterConfig": "Character Config",

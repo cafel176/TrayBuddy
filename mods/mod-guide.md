@@ -127,6 +127,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `border` | Object | 边框配置 |
 ||| `show_mod_data_panel` | Boolean | 是否在动画窗口左上角显示 Mod 数据面板 |
 ||| `mod_data_default_int` | Number | Mod 数据的默认初始整数值 (首次加载该 Mod 时写入) |
+||| `enable_texture_downsample` | Boolean | 是否启用贴图降采样（对 Live2D/PngRemix 的贴图解码策略生效；开启可降低内存，关闭保留原始清晰度；默认 false） |
 ||| `global_keyboard` | Boolean | 是否开启全局键盘监听（开启后无需聚焦动画窗口也能触发 keydown/keyup/global_keydown/global_keyup） |
 ||| `global_mouse` | Boolean | 是否开启全局鼠标监听（开启后鼠标点击/松开任意位置可触发 global_click/global_click_up/global_right_click/global_right_click_up） |
 ||| `important_states` | Object | 关键状态映射 (如 `idle`, `silence`)，Key 为状态名，Value 为状态对象 |
