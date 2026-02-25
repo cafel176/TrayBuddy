@@ -166,7 +166,7 @@ function compositeForBlendMode(mode: string): GlobalCompositeOperation {
 // ============================================================================
 
 // 贴图解码策略默认值/阈值（仅作用于本文件的降采样/封顶逻辑）
-const TEXTURE_DECODE_DEFAULT_MAX_DIM = 384;
+const TEXTURE_DECODE_DEFAULT_MAX_DIM = 400;
 const TEXTURE_DECODE_MIN_SCALE = 0.05;
 const TEXTURE_DECODE_NO_RESIZE_EPS = 0.999;
 const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
@@ -181,9 +181,11 @@ const TEXTURE_STREAM_DECODE_CONCURRENCY = 4;
 const TEXTURE_STREAM_REQUEST_COOLDOWN_MS = 200;
 
 // LRU 预算（估算：像素宽 * 像素高 * 4 bytes）
-const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 256;
-const TEXTURE_LRU_MAX_BYTES_DEFAULT = TEXTURE_LRU_MAX_ITEMS_DEFAULT * TEXTURE_DECODE_DEFAULT_MAX_DIM * TEXTURE_DECODE_DEFAULT_MAX_DIM;
+const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 64;
+// 注意：这里必须乘以 4（RGBA bytesPerPixel），否则会低估预算导致频繁回收/闪烁。
+const TEXTURE_LRU_MAX_BYTES_DEFAULT = TEXTURE_LRU_MAX_ITEMS_DEFAULT * TEXTURE_DECODE_DEFAULT_MAX_DIM * TEXTURE_DECODE_DEFAULT_MAX_DIM * 4;
 const TEXTURE_LRU_TRIM_GUARD_RATIO = 0.92; // 超预算后尽量裁到预算的 92%
+
 
 function bytesToHex(bytes: Uint8Array): string {
   let out = "";
