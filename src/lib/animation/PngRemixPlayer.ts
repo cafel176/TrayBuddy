@@ -166,7 +166,7 @@ function compositeForBlendMode(mode: string): GlobalCompositeOperation {
 // ============================================================================
 
 // 贴图解码策略默认值/阈值（仅作用于本文件的降采样/封顶逻辑）
-const TEXTURE_DECODE_DEFAULT_MAX_DIM = 4096;
+const TEXTURE_DECODE_DEFAULT_MAX_DIM = 384;
 const TEXTURE_DECODE_MIN_SCALE = 0.05;
 const TEXTURE_DECODE_NO_RESIZE_EPS = 0.999;
 const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
@@ -175,6 +175,15 @@ const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
 const TEXTURE_DEDUP_HASH_ALGO = "SHA-256";
 const TEXTURE_DEDUP_FALLBACK_SAMPLE_BYTES = 32;
 const _bytesHashKeyCache = new WeakMap<Uint8Array, Promise<string>>();
+
+// 按需解码/缓存/LRU 回收
+const TEXTURE_STREAM_DECODE_CONCURRENCY = 4;
+const TEXTURE_STREAM_REQUEST_COOLDOWN_MS = 200;
+
+// LRU 预算（估算：像素宽 * 像素高 * 4 bytes）
+const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 256;
+const TEXTURE_LRU_MAX_BYTES_DEFAULT = TEXTURE_LRU_MAX_ITEMS_DEFAULT * TEXTURE_DECODE_DEFAULT_MAX_DIM * TEXTURE_DECODE_DEFAULT_MAX_DIM;
+const TEXTURE_LRU_TRIM_GUARD_RATIO = 0.92; // 超预算后尽量裁到预算的 92%
 
 function bytesToHex(bytes: Uint8Array): string {
   let out = "";
@@ -601,6 +610,8 @@ class RuntimeNode {
 class RuntimeScene {
 
   model: any;
+  textureManager: SpriteTextureManager | null = null;
+
   stateId = 0;
   enableClip = true;
   viewerJumpY = 0;
@@ -638,10 +649,302 @@ class RuntimeScene {
   constructor(model: any) { this.model = model; }
 }
 
+// ============================================================================
+// 按需解码 + LRU 贴图回收
+// ============================================================================
+
+type TextureCacheRecord = {
+  promise: Promise<any>;
+  drawable: any | null;
+};
+
+type TextureLruEntry = {
+  bytes: number;
+  lastUsed: number;
+  indices: Set<number>;
+  cacheKeys: Set<string>;
+  transformedKeys: Set<string>;
+};
+
+class SpriteTextureManager {
+  private scene: RuntimeScene;
+  private spriteBytesByIndex: (Uint8Array | null)[];
+  private spriteHeaderSizeByIndex: ({ w: number; h: number } | null)[];
+  private spriteAnimatedByIndex: boolean[];
+  private decodePolicy: TextureDecodePolicy | null;
+
+  private maxItems: number;
+  private maxBytes: number;
+
+  private decodedCache = new Map<string, TextureCacheRecord>();
+  private transformedCache = new Map<string, TextureCacheRecord>();
+
+  private inFlightByIndex = new Map<number, Promise<void>>();
+  private lastRequestMsByIndex = new Map<number, number>();
+
+  private queue: RuntimeNode[] = [];
+  private active = 0;
+
+  private lruByDrawable = new Map<any, TextureLruEntry>();
+  private totalBytes = 0;
+
+  constructor(
+    scene: RuntimeScene,
+    spriteBytesByIndex: (Uint8Array | null)[],
+    decodePolicy: TextureDecodePolicy | null,
+    opts?: { maxItems?: number; maxBytes?: number },
+  ) {
+    this.scene = scene;
+    this.spriteBytesByIndex = spriteBytesByIndex;
+    this.decodePolicy = decodePolicy;
+
+    this.maxItems = Math.max(16, Math.floor(opts?.maxItems ?? TEXTURE_LRU_MAX_ITEMS_DEFAULT));
+    this.maxBytes = Math.max(16 * 1024 * 1024, Math.floor(opts?.maxBytes ?? TEXTURE_LRU_MAX_BYTES_DEFAULT));
+
+    // 预解析头部尺寸/动图标记，保证未解码时也能算 clip/逻辑尺寸
+    this.spriteHeaderSizeByIndex = new Array(spriteBytesByIndex.length).fill(null);
+    this.spriteAnimatedByIndex = new Array(spriteBytesByIndex.length).fill(false);
+    for (let i = 0; i < spriteBytesByIndex.length; i++) {
+      const b = spriteBytesByIndex[i];
+      if (!(b instanceof Uint8Array) || b.length < 6) continue;
+      const isGif = isGifBytes(b);
+      const isPng = isPngBytes(b);
+      const isApng = isPng && pngHasChunk(b, "acTL");
+      const isAnimated = isGif || isApng;
+      this.spriteAnimatedByIndex[i] = isAnimated;
+      this.spriteHeaderSizeByIndex[i] = isPng ? tryReadPngSize(b) : isGif ? tryReadGifSize(b) : null;
+      if (isAnimated) this.scene.hasAnimatedTextures = true;
+    }
+  }
+
+  dispose(): void {
+    // 清理缓存引用，确保 LRU 回收/GC 生效
+    this.queue.length = 0;
+    this.decodedCache.clear();
+    this.transformedCache.clear();
+    this.inFlightByIndex.clear();
+    this.lastRequestMsByIndex.clear();
+
+    // 尽量释放 ImageBitmap
+    for (const drawable of this.lruByDrawable.keys()) {
+      if (drawable instanceof ImageBitmap) {
+        try { drawable.close(); } catch { /* ignore */ }
+      }
+    }
+
+    this.lruByDrawable.clear();
+    this.totalBytes = 0;
+    this.spriteBytesByIndex = [];
+    this.spriteHeaderSizeByIndex = [];
+    this.spriteAnimatedByIndex = [];
+  }
+
+  getNodeLogicalSize(node: RuntimeNode): { w: number; h: number } {
+    const base = this.spriteHeaderSizeByIndex[node.index] || { w: 0, h: 0 };
+    let w = base.w;
+    let h = base.h;
+    const rot = ((Math.floor(Number(node.raw?.rotated) || 0) % 4) + 4) % 4;
+    if (rot % 2 === 1) {
+      const t = w; w = h; h = t;
+    }
+    return { w, h };
+  }
+
+  request(node: RuntimeNode): void {
+    if (!node) return;
+    if (this.scene.spriteDrawableByIndex.has(node.index)) return;
+    if (this.inFlightByIndex.has(node.index)) return;
+
+    const now = performance.now();
+    const last = this.lastRequestMsByIndex.get(node.index) || 0;
+    if (last && now - last < TEXTURE_STREAM_REQUEST_COOLDOWN_MS) return;
+    this.lastRequestMsByIndex.set(node.index, now);
+
+    this.queue.push(node);
+    this.pump();
+  }
+
+  touchDrawable(drawable: any): void {
+    const e = this.lruByDrawable.get(drawable);
+    if (e) e.lastUsed = performance.now();
+  }
+
+  trim(): void {
+    // 若超预算，回收最久未使用资源
+    const overItems = this.lruByDrawable.size > this.maxItems;
+    const overBytes = this.totalBytes > this.maxBytes;
+    if (!overItems && !overBytes) return;
+
+    const targetBytes = Math.floor(this.maxBytes * TEXTURE_LRU_TRIM_GUARD_RATIO);
+
+    while ((this.lruByDrawable.size > this.maxItems) || (this.totalBytes > this.maxBytes)) {
+      let victim: any = null;
+      let victimEntry: TextureLruEntry | null = null;
+      let bestTs = Infinity;
+
+      for (const [d, e] of this.lruByDrawable.entries()) {
+        if (e.lastUsed < bestTs) {
+          bestTs = e.lastUsed;
+          victim = d;
+          victimEntry = e;
+        }
+      }
+
+      if (!victim || !victimEntry) break;
+
+      // 从所有 index 解绑
+      for (const idx of victimEntry.indices) {
+        const cur = this.scene.spriteDrawableByIndex.get(idx);
+        if (cur === victim) this.scene.spriteDrawableByIndex.delete(idx);
+      }
+
+      // 清理去重缓存 key（否则 Map 会一直强引用 drawable，LRU 失效）
+      for (const k of victimEntry.cacheKeys) this.decodedCache.delete(k);
+      for (const k of victimEntry.transformedKeys) this.transformedCache.delete(k);
+
+      // 释放像素资源
+      if (victim instanceof ImageBitmap) {
+        try { victim.close(); } catch { /* ignore */ }
+      }
+
+      this.totalBytes -= victimEntry.bytes;
+      this.lruByDrawable.delete(victim);
+
+      // 若已经明显低于目标，提前停止
+      if (this.totalBytes <= targetBytes && this.lruByDrawable.size <= this.maxItems) break;
+    }
+  }
+
+  private pump(): void {
+    while (this.active < TEXTURE_STREAM_DECODE_CONCURRENCY && this.queue.length > 0) {
+      const node = this.queue.shift()!;
+      this.active++;
+      const p = this.ensureNodeDecoded(node)
+        .catch(() => { /* ignore */ })
+        .finally(() => {
+          this.active--;
+          this.inFlightByIndex.delete(node.index);
+          this.trim();
+          // 继续消费队列
+          if (this.queue.length > 0) this.pump();
+        });
+      this.inFlightByIndex.set(node.index, p);
+    }
+  }
+
+  private async ensureNodeDecoded(node: RuntimeNode): Promise<void> {
+    const idx = node.index;
+    const bytes = this.spriteBytesByIndex[idx];
+    if (!(bytes instanceof Uint8Array) || bytes.length < 6) return;
+
+    const isAnimated = !!this.spriteAnimatedByIndex[idx];
+
+    let drawable: any = null;
+
+    if (!isAnimated) {
+      const key = await getBytesHashKey(bytes);
+
+      let rec = this.decodedCache.get(key);
+      if (!rec) {
+        const promise = decodePngBytesToDrawable(bytes, node.name, this.decodePolicy);
+        rec = { promise, drawable: null };
+        this.decodedCache.set(key, rec);
+        promise.then((d) => { rec!.drawable = d; }).catch(() => { /* ignore */ });
+      }
+
+      const base = await rec.promise;
+      if (!base) return;
+
+      const flipH = !!node.raw?.flipped_h, flipV = !!node.raw?.flipped_v;
+      const rot = ((Math.floor(Number(node.raw?.rotated) || 0) % 4) + 4) % 4;
+      node._texXform = null;
+
+      if (flipH || flipV || rot !== 0) {
+        const tKey = `${key}|fh${flipH ? 1 : 0}|fv${flipV ? 1 : 0}|r${rot}`;
+        let trec = this.transformedCache.get(tKey);
+        if (!trec) {
+          const promise = Promise.resolve(applySpriteTextureTransforms(base, node.raw));
+          trec = { promise, drawable: null };
+          this.transformedCache.set(tKey, trec);
+          promise.then((d) => { trec!.drawable = d; }).catch(() => { /* ignore */ });
+        }
+        drawable = await trec.promise;
+      } else {
+        drawable = base;
+      }
+
+      // 记录缓存 key：baseKey 对应 base drawable；transformedKey 对应变换后的 drawable
+      const baseKey = key;
+      const transformedKey = (flipH || flipV || rot !== 0)
+        ? `${key}|fh${flipH ? 1 : 0}|fv${flipV ? 1 : 0}|r${rot}`
+        : null;
+
+      // base drawable 也要纳入 LRU（否则 decodedCache 会长期强引用导致无法回收）
+      this.registerDrawable(base, -1);
+      this.touchDrawable(base);
+      this.attachCacheKey(base, baseKey, false);
+
+      // 先写入 index->drawable，再纳入 LRU 与 key 追踪
+      if (drawable) {
+        this.scene.spriteDrawableByIndex.set(idx, drawable);
+        this.registerDrawable(drawable, idx);
+        this.touchDrawable(drawable);
+        if (transformedKey) this.attachCacheKey(drawable, transformedKey, true);
+      }
+      return;
+
+
+    } else {
+      drawable = await decodePngBytesToDrawable(bytes, node.name, this.decodePolicy);
+      if (!drawable) return;
+
+      const flipH = !!node.raw?.flipped_h, flipV = !!node.raw?.flipped_v;
+      const rot = ((Math.floor(Number(node.raw?.rotated) || 0) % 4) + 4) % 4;
+      node._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
+      if (!drawable._isAnimated) {
+        node._texXform = null;
+        drawable = applySpriteTextureTransforms(drawable, node.raw);
+      }
+    }
+
+    if (!drawable) return;
+    this.scene.spriteDrawableByIndex.set(idx, drawable);
+    this.registerDrawable(drawable, idx);
+    this.touchDrawable(drawable);
+  }
+
+  private attachCacheKey(drawable: any, key: string, transformed: boolean): void {
+    const e = this.lruByDrawable.get(drawable);
+    if (!e) return;
+    if (transformed) e.transformedKeys.add(key);
+    else e.cacheKeys.add(key);
+  }
+
+  private registerDrawable(drawable: any, idx: number): void {
+    const now = performance.now();
+    let e = this.lruByDrawable.get(drawable);
+    if (!e) {
+      const sz = getImageSize(drawable);
+      const bytes = Math.max(0, Math.floor((sz.w || 0) * (sz.h || 0) * 4));
+      e = {
+        bytes,
+        lastUsed: now,
+        indices: new Set<number>(),
+        cacheKeys: new Set<string>(),
+        transformedKeys: new Set<string>(),
+      };
+      this.lruByDrawable.set(drawable, e);
+      this.totalBytes += bytes;
+    }
+    e.indices.add(idx);
+  }
+}
+
 
 // ============================================================================
 // Deep clone / state machine
 // ============================================================================
+
 
 function deepClone(v: any): any {
   if (v === null || v === undefined) return v;
@@ -1331,27 +1634,52 @@ function buildDrawList(scene: RuntimeScene, rootSpriteMat: Mat2D): DrawItem[] {
     if (st.flip_sprite_h || st.flip_sprite_v)
       spriteMat = spriteMat.multiply(Mat2D.scale(st.flip_sprite_h ? -1 : 1, st.flip_sprite_v ? -1 : 1));
 
-    const drawable = scene.spriteDrawableByIndex.get(node.index);
-    const tintedDrawable = getTintedDrawable(drawable, modulate);
+    let drawable = scene.spriteDrawableByIndex.get(node.index);
 
-    items.push({
-      order: orderCounter.v++, z, mat: spriteMat, clip: clipStack.slice(),
-      alpha, blend: compositeForBlendMode(st.blend_mode),
-      drawable: tintedDrawable, texXform: node._texXform || null,
-      hf: st.hframes ?? 1, vf: st.vframes ?? 1,
-      frame: node.runtimeFrameOverride ?? node.runtimeFrame ?? st.frame ?? 0,
-    });
+    // 按需解码：仅当节点真的可见时才触发贴图解码
+    if (!drawable && scene.textureManager) {
+      scene.textureManager.request(node);
+    }
+
+    if (drawable && scene.textureManager) {
+      scene.textureManager.touchDrawable(drawable);
+    }
+
+    const tintedDrawable = drawable ? getTintedDrawable(drawable, modulate) : null;
+
+    if (tintedDrawable) {
+      items.push({
+        order: orderCounter.v++, z, mat: spriteMat, clip: clipStack.slice(),
+        alpha, blend: compositeForBlendMode(st.blend_mode),
+        drawable: tintedDrawable, texXform: node._texXform || null,
+        hf: st.hframes ?? 1, vf: st.vframes ?? 1,
+        frame: node.runtimeFrameOverride ?? node.runtimeFrame ?? st.frame ?? 0,
+      });
+    }
 
     const shouldClipChildren = scene.enableClip && Number(st.clip || 0) !== 0;
-    if (shouldClipChildren && drawable) {
-      const { w, h } = getImageLogicalSize(drawable);
-      const hfC = Math.max(1, Math.floor(Number(st.hframes) || 1));
-      const vfC = Math.max(1, Math.floor(Number(st.vframes) || 1));
-      clipStack.push({ mat: spriteMat, x: -w / hfC / 2, y: -h / vfC / 2, w: w / hfC, h: h / vfC });
+    let pushedClip = false;
+    if (shouldClipChildren) {
+      let w = 0, h = 0;
+      if (drawable) {
+        const s = getImageLogicalSize(drawable);
+        w = s.w; h = s.h;
+      } else if (scene.textureManager) {
+        const s = scene.textureManager.getNodeLogicalSize(node);
+        w = s.w; h = s.h;
+      }
 
+      if (w > 0 && h > 0) {
+        const hfC = Math.max(1, Math.floor(Number(st.hframes) || 1));
+        const vfC = Math.max(1, Math.floor(Number(st.vframes) || 1));
+        clipStack.push({ mat: spriteMat, x: -w / hfC / 2, y: -h / vfC / 2, w: w / hfC, h: h / vfC });
+        pushedClip = true;
+      }
     }
+
     for (const c of node.children) visit(c, spriteMat, z, rainbowHueForChildren);
-    if (shouldClipChildren && drawable) clipStack.pop();
+    if (pushedClip) clipStack.pop();
+
   }
 
   for (const r of scene.roots) visit(r, rootSpriteMat, 0, null);
@@ -1413,13 +1741,15 @@ function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: numbe
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
+
+  // LRU 回收：在每帧渲染后做一次预算检查
+  scene.textureManager?.trim();
 }
+
 
 // ============================================================================
 // buildRuntimeScene
 // ============================================================================
-
-const SPRITE_DECODE_CONCURRENCY = 4;
 
 async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDecodePolicy | null = null): Promise<RuntimeScene> {
 
@@ -1439,83 +1769,26 @@ async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDeco
   initNodeStateMachine(scene);
   buildHotkeyGroups(scene);
 
-  // 贴图去重缓存：同内容 bytes 只解码一次；同变换（flip/rot）也复用
-  const decodedDrawableCache = new Map<string, Promise<any>>();
-  const transformedDrawableCache = new Map<string, Promise<any>>();
-
-  let hasAnimatedTextures = false;
-  let cursor = 0;
-  const workers = new Array(Math.min(SPRITE_DECODE_CONCURRENCY, scene.nodes.length)).fill(0).map(async () => {
-    while (cursor < scene.nodes.length) {
-      const n = scene.nodes[cursor++];
-      const bytes = normalizedModel.sprites[n.index]?.imgBytes;
-      if (!(bytes instanceof Uint8Array) || bytes.length < 6) continue;
-
-      // 先用 header 判断是否动图；动图不做去重（避免共享同一 Image 导致动画时间轴耦合）
-      const isGif = isGifBytes(bytes);
-      const isPng = isPngBytes(bytes);
-      const isApng = isPng && pngHasChunk(bytes, "acTL");
-      const isAnimated = isGif || isApng;
-
-      let drawable: any = null;
-
-      if (!isAnimated) {
-        const key = await getBytesHashKey(bytes);
-
-        let baseP = decodedDrawableCache.get(key);
-        if (!baseP) {
-          baseP = decodePngBytesToDrawable(bytes, n.name, decodePolicy);
-          decodedDrawableCache.set(key, baseP);
-        }
-
-        const base = await baseP;
-        if (!base) continue;
-        if (base._isAnimated) hasAnimatedTextures = true;
-
-        const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
-        const rot = ((Math.floor(Number(n.raw?.rotated) || 0) % 4) + 4) % 4;
-        n._texXform = null;
-
-        if (flipH || flipV || rot !== 0) {
-          const tKey = `${key}|fh${flipH ? 1 : 0}|fv${flipV ? 1 : 0}|r${rot}`;
-          let tp = transformedDrawableCache.get(tKey);
-          if (!tp) {
-            tp = Promise.resolve(applySpriteTextureTransforms(base, n.raw));
-            transformedDrawableCache.set(tKey, tp);
-          }
-          drawable = await tp;
-        } else {
-          drawable = base;
-        }
-      } else {
-        drawable = await decodePngBytesToDrawable(bytes, n.name, decodePolicy);
-        if (!drawable) continue;
-
-        if (drawable._isAnimated) hasAnimatedTextures = true;
-        const flipH = !!n.raw?.flipped_h, flipV = !!n.raw?.flipped_v;
-        const rot = ((Math.floor(Number(n.raw?.rotated) || 0) % 4) + 4) % 4;
-        n._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
-        if (!drawable._isAnimated) drawable = applySpriteTextureTransforms(drawable, n.raw);
-      }
-
-      if (!drawable) continue;
-      scene.spriteDrawableByIndex.set(n.index, drawable);
-
-
-      const spriteInfo = normalizedModel.sprites[n.index];
-      if (spriteInfo && spriteInfo.imgBytes instanceof Uint8Array) {
-        spriteInfo.imgBytes = null;
-      }
+  // 保留压缩贴图 bytes（内存远小于解码后像素），用于按需解码 + LRU 反复回收/重建
+  const spriteBytesByIndex: (Uint8Array | null)[] = new Array(scene.nodes.length).fill(null);
+  for (let i = 0; i < scene.nodes.length; i++) {
+    const spriteInfo = normalizedModel.sprites?.[i];
+    const b = spriteInfo?.imgBytes;
+    if (b instanceof Uint8Array && b.length >= 6) {
+      spriteBytesByIndex[i] = b;
+      // 解除 normalizedModel 对 bytes 的引用，便于后续释放 model 对象
+      spriteInfo.imgBytes = null;
     }
-  });
-
-  if (workers.length > 0) {
-    await Promise.all(workers);
   }
 
-  scene.hasAnimatedTextures = hasAnimatedTextures;
+  scene.textureManager = new SpriteTextureManager(scene, spriteBytesByIndex, decodePolicy, {
+    maxItems: TEXTURE_LRU_MAX_ITEMS_DEFAULT,
+    maxBytes: TEXTURE_LRU_MAX_BYTES_DEFAULT,
+  });
+
   return scene;
 }
+
 
 
 // ============================================================================
@@ -1664,7 +1937,15 @@ export class PngRemixPlayer {
       materializeSceneState(this.scene, config.model.default_state_index);
     }
 
+    // 按需解码预热：预请求初始状态下可见的贴图，减少首帧空白/闪烁
+    try {
+      buildDrawList(this.scene, Mat2D.identity());
+    } catch {
+      /* ignore */
+    }
+
     // Apply model scale
+
     this.modelScale = Number((config.model as any)?.scale) || 1;
 
     // Setup canvas and fit
@@ -1695,14 +1976,22 @@ export class PngRemixPlayer {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
+    const hadTextureManager = !!this.scene?.textureManager;
+    if (this.scene?.textureManager) {
+      this.scene.textureManager.dispose();
+      this.scene.textureManager = null;
+    }
+
     // 显式关闭 ImageBitmap 以立即释放 GPU 纹理资源（注意：贴图可能被多个 sprite 共享）
     if (this.scene?.spriteDrawableByIndex) {
-      const closed = new Set<any>();
-      for (const drawable of this.scene.spriteDrawableByIndex.values()) {
-        if (drawable instanceof ImageBitmap) {
-          if (closed.has(drawable)) continue;
-          closed.add(drawable);
-          drawable.close();
+      if (!hadTextureManager) {
+        const closed = new Set<any>();
+        for (const drawable of this.scene.spriteDrawableByIndex.values()) {
+          if (drawable instanceof ImageBitmap) {
+            if (closed.has(drawable)) continue;
+            closed.add(drawable);
+            try { drawable.close(); } catch { /* ignore */ }
+          }
         }
       }
       this.scene.spriteDrawableByIndex.clear();
@@ -1710,6 +1999,7 @@ export class PngRemixPlayer {
 
     clearTintCache();
     this.scene = null;
+
     this.config = null;
     this.hitTestCanvas = null;
     this.hitTestCtx = null;
