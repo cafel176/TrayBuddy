@@ -2112,9 +2112,11 @@ export class PngRemixPlayer {
 
   setAnimationScale(scale: number): void {
     this.animationScale = scale;
-    if (!this.scene) return;
-    this.recomputeView();
+    // NOTE: animationScale 由 Rust 端通过调整窗口/canvas 的物理尺寸实现。
+    // 这里不再把 animationScale 叠加到相机 zoom 上，否则会出现“窗口变大 + 相机再放大”导致裁切。
+    // ResizeObserver 会在 canvas 尺寸变化时自动触发 resizeCanvas + recomputeView。
   }
+
 
   setFeatureFlags(flags: PngRemixFeatureFlags): void {
     this.enableMouseFollow = flags.mouseFollow;
@@ -2176,14 +2178,17 @@ export class PngRemixPlayer {
     if (!this.scene) return;
 
     const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
-    const factor = (this.animationScale / 0.4) * (Number(this.modelScale) || 1) * (Number(this.stateScale) || 1);
-    const dpr = getRenderDpr();
 
+    // NOTE: 不把 WindowCore 的 animationScale 叠加到相机。
+    // animationScale 会由 Rust 调整窗口大小，canvas 变大后 fit.zoom 会自然变化。
+    const factor = (Number(this.modelScale) || 1) * (Number(this.stateScale) || 1);
+    const dpr = getRenderDpr();
 
     // fit.panX/panY are derived from fit.zoom, so they should be scaled together.
     this.zoom = fit.zoom * factor;
     this.panX = fit.panX * factor + (Number(this.stateOffsetX) || 0) * dpr;
     this.panY = fit.panY * factor + (Number(this.stateOffsetY) || 0) * dpr;
+
 
     this.cameraDirty = true;
     this.mouseDirty = true;
