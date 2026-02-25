@@ -174,6 +174,236 @@ function dbg(tag: string, ...args: any[]) {
   if (DEBUG) console.log(`[Live2DPlayer][${tag}]`, ...args);
 }
 
+// ============================================================================
+// Live2D 贴图优化：记录逻辑尺寸 + 降采样（默认开启） + LRU（默认关闭）
+// ============================================================================
+
+// 降采样策略默认值/阈值
+const LIVE2D_TEX_OPT_ENABLED_DEFAULT = true;
+const LIVE2D_TEX_OPT_MAX_DIM_DEFAULT = 384; // 像素封顶（最长边）
+const LIVE2D_TEX_OPT_SCALE_DEFAULT = 1;      // 额外倍率（0-1）
+const LIVE2D_TEX_OPT_MIN_SCALE = 0.05;
+const LIVE2D_TEX_OPT_NO_RESIZE_EPS = 0.999;
+const LIVE2D_TEX_OPT_RESIZE_QUALITY = "high" as any;
+
+// LRU 默认值/阈值（默认关闭）
+const LIVE2D_TEX_LRU_ENABLED_DEFAULT = false;
+const LIVE2D_TEX_LRU_MAX_ITEMS_DEFAULT = 256;
+const LIVE2D_TEX_LRU_MAX_MB_DEFAULT = 512;
+const LIVE2D_TEX_LRU_MIN_ITEMS = 32;
+const LIVE2D_TEX_LRU_MIN_MB = 16;
+
+type Live2DTextureDecodePolicy = {
+  enabled: boolean;
+  maxDim: number;
+  scale: number;
+};
+
+function readLocalStorageNumber(key: string, defaultValue: number): number {
+  try {
+    if (typeof localStorage === "undefined") return defaultValue;
+    const raw = localStorage.getItem(key);
+    if (raw == null || raw === "") return defaultValue;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function readLocalStorageBool(key: string, defaultValue: boolean): boolean {
+  try {
+    if (typeof localStorage === "undefined") return defaultValue;
+    const raw = localStorage.getItem(key);
+    if (raw == null) return defaultValue;
+    if (raw === "1" || raw === "true") return true;
+    if (raw === "0" || raw === "false") return false;
+    return defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function getLive2DTextureDecodePolicy(): Live2DTextureDecodePolicy {
+  // tb_live2d_tex_opt=0 可关闭（默认开启）
+  // tb_live2d_tex_max_dim=2048 （像素封顶）
+  // tb_live2d_tex_scale=1 （额外倍率，0-1）
+  const enabled = readLocalStorageBool("tb_live2d_tex_opt", LIVE2D_TEX_OPT_ENABLED_DEFAULT);
+  const maxDim = Math.floor(readLocalStorageNumber("tb_live2d_tex_max_dim", LIVE2D_TEX_OPT_MAX_DIM_DEFAULT));
+  const scale = Math.max(LIVE2D_TEX_OPT_MIN_SCALE, Math.min(1, readLocalStorageNumber("tb_live2d_tex_scale", LIVE2D_TEX_OPT_SCALE_DEFAULT)));
+  return { enabled, maxDim, scale };
+}
+
+function computeDecodeTarget(w: number, h: number, policy: Live2DTextureDecodePolicy): { w: number; h: number; scale: number } {
+  const w0 = Math.max(1, Math.floor(Number(w) || 1));
+  const h0 = Math.max(1, Math.floor(Number(h) || 1));
+  if (!policy.enabled) return { w: w0, h: h0, scale: 1 };
+
+  let s = Math.max(LIVE2D_TEX_OPT_MIN_SCALE, Math.min(1, Number(policy.scale) || 1));
+  const maxDim = Number(policy.maxDim);
+  if (Number.isFinite(maxDim) && maxDim > 0) {
+    const denom = Math.max(w0, h0);
+    if (denom > 0) s = Math.min(s, maxDim / denom);
+  }
+  s = Math.max(LIVE2D_TEX_OPT_MIN_SCALE, Math.min(1, s));
+
+  const tw = Math.max(1, Math.round(w0 * s));
+  const th = Math.max(1, Math.round(h0 * s));
+  return { w: tw, h: th, scale: s };
+}
+
+function getDrawableSize(src: any): { w: number; h: number } {
+  if (!src) return { w: 0, h: 0 };
+  if (typeof ImageBitmap !== "undefined" && src instanceof ImageBitmap) return { w: src.width, h: src.height };
+  if (src instanceof HTMLImageElement) return { w: src.naturalWidth || src.width, h: src.naturalHeight || src.height };
+  if (src instanceof HTMLCanvasElement) return { w: src.width, h: src.height };
+  return { w: Number(src.width) || 0, h: Number(src.height) || 0 };
+}
+
+function getDrawableLogicalSize(src: any): { w: number; h: number } {
+  if (!src) return { w: 0, h: 0 };
+  const lw = Number((src as any)._logicalW);
+  const lh = Number((src as any)._logicalH);
+  if (Number.isFinite(lw) && Number.isFinite(lh) && lw > 0 && lh > 0) return { w: lw, h: lh };
+  return getDrawableSize(src);
+}
+
+async function downsampleToCanvas(src: any, tw: number, th: number): Promise<HTMLCanvasElement | null> {
+  const { w: lw, h: lh } = getDrawableLogicalSize(src);
+  const { w: sw, h: sh } = getDrawableSize(src);
+  if (!sw || !sh) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.floor(tw));
+  canvas.height = Math.max(1, Math.floor(th));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = true;
+  (ctx as any).imageSmoothingQuality = LIVE2D_TEX_OPT_RESIZE_QUALITY;
+  try {
+    ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+  } catch {
+    return null;
+  }
+
+  // 记录“逻辑尺寸”（原图尺寸），便于 Sprite 侧按需放大回原逻辑大小
+  (canvas as any)._logicalW = lw || sw;
+  (canvas as any)._logicalH = lh || sh;
+  return canvas;
+}
+
+type Live2DLruEntry = { bytes: number; lastUsed: number; pinned: number };
+
+class Live2DTextureLRU {
+  private static lru = new Map<string, Live2DLruEntry>();
+  private static totalBytes = 0;
+
+  static enabled(): boolean {
+    return readLocalStorageBool("tb_live2d_tex_lru", LIVE2D_TEX_LRU_ENABLED_DEFAULT);
+  }
+
+  static limits(): { maxItems: number; maxBytes: number } {
+    const maxItems = Math.max(LIVE2D_TEX_LRU_MIN_ITEMS, Math.floor(readLocalStorageNumber("tb_live2d_tex_lru_max_items", LIVE2D_TEX_LRU_MAX_ITEMS_DEFAULT)));
+    const maxMb = Math.max(LIVE2D_TEX_LRU_MIN_MB, readLocalStorageNumber("tb_live2d_tex_lru_max_mb", LIVE2D_TEX_LRU_MAX_MB_DEFAULT));
+    return { maxItems, maxBytes: Math.floor(maxMb * 1024 * 1024) };
+  }
+
+  static touch(key: string, bytes: number): void {
+    if (!key) return;
+    const now = performance.now();
+    let e = this.lru.get(key);
+    if (!e) {
+      e = { bytes: Math.max(0, Math.floor(bytes || 0)), lastUsed: now, pinned: 0 };
+      this.lru.set(key, e);
+      this.totalBytes += e.bytes;
+    } else {
+      e.lastUsed = now;
+      // bytes 变化（例如降采样后变小）时更新
+      const b = Math.max(0, Math.floor(bytes || 0));
+      if (Number.isFinite(b) && b >= 0 && b !== e.bytes) {
+        this.totalBytes += (b - e.bytes);
+        e.bytes = b;
+      }
+    }
+
+    if (this.enabled()) this.trim();
+  }
+
+  static pin(key: string): void {
+    if (!key) return;
+    const e = this.lru.get(key) ?? { bytes: 0, lastUsed: performance.now(), pinned: 0 };
+    e.pinned += 1;
+    this.lru.set(key, e);
+  }
+
+  static unpin(key: string): void {
+    const e = this.lru.get(key);
+    if (!e) return;
+    e.pinned = Math.max(0, e.pinned - 1);
+  }
+
+  static trim(): void {
+    if (!this.enabled()) return;
+
+    const { maxItems, maxBytes } = this.limits();
+    const overItems = this.lru.size > maxItems;
+    const overBytes = this.totalBytes > maxBytes;
+    if (!overItems && !overBytes) return;
+
+    // 只淘汰未 pinned 的最久未使用条目
+    while (this.lru.size > maxItems || this.totalBytes > maxBytes) {
+      let victimKey: string | null = null;
+      let bestTs = Infinity;
+      for (const [k, e] of this.lru.entries()) {
+        if (e.pinned > 0) continue;
+        if (e.lastUsed < bestTs) {
+          bestTs = e.lastUsed;
+          victimKey = k;
+        }
+      }
+      if (!victimKey) break;
+      this.evictFromPixiCaches(victimKey);
+      const e = this.lru.get(victimKey);
+      if (e) this.totalBytes -= e.bytes;
+      this.lru.delete(victimKey);
+    }
+  }
+
+  private static evictFromPixiCaches(key: string): void {
+    const PIXI = (window as any).PIXI;
+    if (!PIXI) return;
+
+    const texCache = PIXI?.utils?.TextureCache ?? PIXI?.TextureCache ?? {};
+    const baseCache = PIXI?.utils?.BaseTextureCache ?? PIXI?.BaseTextureCache ?? {};
+
+    try {
+      const tex = texCache[key];
+      tex?.destroy?.(true);
+    } catch {
+      // ignore
+    }
+    try {
+      const bt = baseCache[key];
+      bt?.destroy?.();
+    } catch {
+      // ignore
+    }
+
+    try {
+      if (PIXI?.Texture?.removeFromCache) PIXI.Texture.removeFromCache(key);
+      else delete texCache[key];
+    } catch {
+      // ignore
+    }
+    try {
+      if (PIXI?.BaseTexture?.removeFromCache) PIXI.BaseTexture.removeFromCache(key);
+      else delete baseCache[key];
+    } catch {
+      // ignore
+    }
+  }
+}
+
 /**
  * Live2DPlayer
  *
@@ -226,6 +456,16 @@ export class Live2DPlayer {
   private bgLayerConfigs: Live2DBackgroundLayer[] = [];
   private bgSpriteMap = new Map<string, any>(); // name -> PIXI.Sprite
 
+  // 贴图优化：当前模型资源前缀（用于判定“哪些贴图属于当前 Live2D 模型”）
+  private assetUrlPrefix = "";
+  private pinnedTextureKeys = new Set<string>();
+  private bgTextureKeys = new Set<string>();
+
+
+  // 贴图优化：全局 Loader middleware 是否已安装
+  private static texOptInstalled = false;
+  private static texOptPlayers = new Set<Live2DPlayer>();
+
   constructor(canvas: HTMLCanvasElement, options?: Live2DPlayerOptions) {
     this.canvas = canvas;
     this.featureFlags = {
@@ -243,6 +483,11 @@ export class Live2DPlayer {
     dbg("init", "start, canvas:", this.canvas.clientWidth, "x", this.canvas.clientHeight);
     await ensureLive2DLibs();
     dbg("init", "libs loaded, PIXI:", !!window.PIXI, "CubismCore:", !!window.Live2DCubismCore);
+
+    // 注册贴图优化（按需安装全局 Loader middleware）
+    Live2DPlayer.installGlobalTextureOptimizer();
+    Live2DPlayer.texOptPlayers.add(this);
+
     this.initPixiApp();
     this.bindResize();
     this.bindMouseFollow();
@@ -269,6 +514,10 @@ export class Live2DPlayer {
       this.model.destroy();
     }
     this.model = null;
+
+    // 贴图优化：解除 pinned，允许 LRU 淘汰
+    this.updatePinnedTextureKeys(new Set());
+    Live2DPlayer.texOptPlayers.delete(this);
 
     this.app?.destroy(true, { children: true });
     this.app = null;
@@ -444,11 +693,21 @@ export class Live2DPlayer {
       this.model = null;
     }
 
+    // 贴图优化：切换模型前先解除上一轮 pinned，避免 LRU 永远不回收
+    this.updatePinnedTextureKeys(new Set());
+
+
     const baseDir = config.model.base_dir;
     const modelJson = config.model.model_json;
     const modelPath = joinPath(modPath, baseDir, modelJson).replace(/\\/g, "/");
     const modelUrl = toAssetUrl(modelPath);
+
+    // 贴图优化：以 modelUrl 所在目录作为前缀（Live2D 贴图通常与 model3.json 同目录或子目录）
+    const slash = modelUrl.lastIndexOf("/");
+    this.assetUrlPrefix = slash >= 0 ? modelUrl.slice(0, slash + 1) : "";
+
     dbg("load", "modelPath:", modelPath, "modelUrl:", modelUrl);
+
 
     const Live2DModel = window.PIXI?.live2d?.Live2DModel;
     if (!Live2DModel) {
@@ -481,6 +740,9 @@ export class Live2DPlayer {
 
     // 加载背景/叠加图层
     await this.loadBackgroundLayers();
+
+    // 贴图优化：pin 当前模型相关贴图（只 pin baseDir 下的资源），供 LRU 判断可淘汰对象
+    this.refreshPinnedTextures();
 
     dbg("load", "complete. motionMap keys:", [...this.motionMap.keys()],
       "expressionMap keys:", [...this.expressionMap.keys()],
@@ -1171,6 +1433,177 @@ export class Live2DPlayer {
   }
 
   // =========================================================================
+  // 贴图优化：Loader middleware + pinned/LRU
+  // =========================================================================
+
+  private static installGlobalTextureOptimizer(): void {
+    if (Live2DPlayer.texOptInstalled) return;
+    const PIXI = (window as any).PIXI;
+    const loader = PIXI?.Loader?.shared;
+    if (!loader?.use) return;
+
+    Live2DPlayer.texOptInstalled = true;
+
+    loader.use((resource: any, next: () => void) => {
+      const url = String(resource?.url ?? resource?.name ?? "");
+      if (!url) {
+        next();
+        return;
+      }
+
+      // 如果未开启贴图优化，直接透传（避免额外开销）
+      const policy = getLive2DTextureDecodePolicy();
+      if (!policy.enabled) {
+        next();
+        return;
+      }
+
+      // 找到第一个“声称拥有该 URL”的 Live2DPlayer
+      let owner: Live2DPlayer | null = null;
+      for (const p of Live2DPlayer.texOptPlayers) {
+        if (p.shouldOptimizeUrl(url)) {
+          owner = p;
+          break;
+        }
+      }
+
+      if (!owner) {
+        next();
+        return;
+      }
+
+      Promise.resolve(owner.optimizeLoadedResourceTexture(url, resource))
+        .catch(() => { /* ignore */ })
+        .finally(() => next());
+    });
+  }
+
+  private shouldOptimizeUrl(url: string): boolean {
+    const policy = getLive2DTextureDecodePolicy();
+    if (!policy.enabled) return false;
+    if (!this.assetUrlPrefix) return false;
+
+    // 仅处理当前模型目录（或子目录）下的贴图
+    if (!url.startsWith(this.assetUrlPrefix)) return false;
+
+    // 尽量只处理常见图片扩展名（避免误伤 json 等资源）
+    const u = url.toLowerCase();
+    return u.endsWith(".png") || u.endsWith(".jpg") || u.endsWith(".jpeg") || u.endsWith(".webp");
+  }
+
+  private async optimizeLoadedResourceTexture(url: string, resource: any): Promise<void> {
+    const policy = getLive2DTextureDecodePolicy();
+    if (!policy.enabled) return;
+
+    // 避免重复处理
+    if (resource && resource.__tb_live2d_texopt_done) return;
+
+    const PIXI = (window as any).PIXI;
+    if (!PIXI) return;
+
+    const tex = resource?.texture;
+    const bt = tex?.baseTexture;
+    if (!bt) return;
+
+    const curW = Number(bt?.realWidth ?? bt?.width ?? 0);
+    const curH = Number(bt?.realHeight ?? bt?.height ?? 0);
+    if (!curW || !curH) return;
+
+    const target = computeDecodeTarget(curW, curH, policy);
+    if (target.scale >= LIVE2D_TEX_OPT_NO_RESIZE_EPS) {
+      // 仍然纳入 LRU 统计
+      Live2DTextureLRU.touch(url, curW * curH * 4);
+      if (resource) resource.__tb_live2d_texopt_done = true;
+      return;
+    }
+
+    const src = bt?.resource?.source ?? bt?.resource?._source ?? resource?.data;
+    const canvas = await downsampleToCanvas(src, target.w, target.h);
+    if (!canvas) return;
+
+    // 用降采样后的 canvas 生成新 BaseTexture/Texture，并写回 cache
+    const newBase = PIXI.BaseTexture.from(canvas);
+    const newTex = new PIXI.Texture(newBase);
+
+    const texCache = PIXI?.utils?.TextureCache ?? PIXI?.TextureCache ?? {};
+    const baseCache = PIXI?.utils?.BaseTextureCache ?? PIXI?.BaseTextureCache ?? {};
+
+    try {
+      // 释放旧的 GPU 资源
+      try { tex?.destroy?.(true); } catch { /* ignore */ }
+      try { bt?.destroy?.(); } catch { /* ignore */ }
+
+      // 更新资源对象
+      if (resource) {
+        resource.texture = newTex;
+        resource.data = canvas;
+        resource.__tb_live2d_texopt_done = true;
+      }
+
+      // 维护 Pixi 全局缓存（key 通常就是 url）
+      baseCache[url] = newBase;
+      texCache[url] = newTex;
+
+      // 更新 LRU
+      Live2DTextureLRU.touch(url, target.w * target.h * 4);
+
+      if (DEBUG) {
+        console.log(`[Live2DPlayer][texopt] downsample ${url} ${curW}x${curH} -> ${target.w}x${target.h}`);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private refreshPinnedTextures(): void {
+    const PIXI = (window as any).PIXI;
+    if (!PIXI) return;
+
+    const baseCache = PIXI?.utils?.BaseTextureCache ?? PIXI?.BaseTextureCache ?? {};
+    const keys = Object.keys(baseCache);
+
+    const next = new Set<string>();
+
+    // 1) 当前模型目录下的贴图
+    if (this.assetUrlPrefix) {
+      for (const k of keys) {
+        if (!k.startsWith(this.assetUrlPrefix)) continue;
+        const kl = k.toLowerCase();
+        if (!(kl.endsWith(".png") || kl.endsWith(".jpg") || kl.endsWith(".jpeg") || kl.endsWith(".webp"))) continue;
+        next.add(k);
+
+        // 触碰一下 LRU（估算 bytes）
+        const bt = baseCache[k];
+        const w = Number(bt?.realWidth ?? bt?.width ?? 0);
+        const h = Number(bt?.realHeight ?? bt?.height ?? 0);
+        if (w > 0 && h > 0) Live2DTextureLRU.touch(k, w * h * 4);
+      }
+    }
+
+    // 2) 背景/叠加层贴图（只要 sprite 存在就 pin）
+    for (const k of this.bgTextureKeys) {
+      next.add(k);
+    }
+
+    this.updatePinnedTextureKeys(next);
+
+    // 若开启 LRU，尝试裁剪到预算
+    Live2DTextureLRU.trim();
+  }
+
+  private updatePinnedTextureKeys(next: Set<string>): void {
+    // unpin removed
+    for (const k of this.pinnedTextureKeys) {
+      if (!next.has(k)) Live2DTextureLRU.unpin(k);
+    }
+    // pin added
+    for (const k of next) {
+      if (!this.pinnedTextureKeys.has(k)) Live2DTextureLRU.pin(k);
+    }
+    this.pinnedTextureKeys = next;
+  }
+
+  // =========================================================================
   // 背景/叠加图层
   // =========================================================================
 
@@ -1215,10 +1648,21 @@ export class Live2DPlayer {
 
         const sprite = new PIXI.Sprite(texture);
         sprite.anchor.set(0.5, 0.5);
-        sprite.scale.set(lyr.scale || 1);
+
+        // 若启用了降采样：texture 的实际像素尺寸会变小。
+        // 为了保持“逻辑尺寸”（原图尺寸）不变，这里按 logical/actual 比例放大回去。
+        const src = texture?.baseTexture?.resource?.source;
+        const logical = getDrawableLogicalSize(src);
+        const actual = getDrawableSize(src);
+        const baseScale = Number(lyr.scale || 1) || 1;
+        const sx = actual.w > 0 && logical.w > 0 ? (logical.w / actual.w) : 1;
+        const sy = actual.h > 0 && logical.h > 0 ? (logical.h / actual.h) : 1;
+        sprite.scale.set(baseScale * sx, baseScale * sy);
+
         const dpr = this.app.renderer.resolution || 1;
         sprite.x = (this.app.renderer.width / dpr) / 2 + (lyr.offset_x || 0);
         sprite.y = (this.app.renderer.height / dpr) / 2 + (lyr.offset_y || 0);
+
 
         // 有 events 的默认隐藏
         const hasEvents = Array.isArray(lyr.events) && lyr.events.length > 0;
@@ -1234,6 +1678,9 @@ export class Live2DPlayer {
           behindInsertIndex++;
           this.bgSpriteBehind.push(sprite);
         }
+
+        // 贴图优化：背景贴图在 sprite 存在期间视为 pinned
+        this.bgTextureKeys.add(url);
 
         this.bgSpriteMap.set(lyr.name, sprite);
         dbg("loadBackgroundLayers", "loaded", lyr.name, "layer:", lyr.layer, "events:", lyr.events?.length ? lyr.events.join(",") : "(always)");
@@ -1253,6 +1700,7 @@ export class Live2DPlayer {
     this.bgSpriteFront = [];
     this.bgSpriteMap.clear();
     this.bgLayerConfigs = [];
+    this.bgTextureKeys.clear();
   }
 
   /**
