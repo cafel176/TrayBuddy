@@ -227,6 +227,10 @@ PngRemix 渲染层暂为空占位。
     const init = async () => {
       await initPngRemixPlayer();
       await core.init();
+
+      // WindowCore.init() 会先从 get_settings 同步 animationScale，但不会触发 onAnimationScaleChanged 回调。
+      // 这里补一次应用，避免启动时缩放仍为默认值。
+      if (player) player.setAnimationScale(animationScale);
     };
 
     init().catch((error) => console.error("PngRemix init failed:", error));
