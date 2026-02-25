@@ -469,6 +469,13 @@ export class Live2DPlayer {
 
   private canvas: HTMLCanvasElement;
   private app: any | null = null;
+
+  /**
+   * 世界容器：将 model + background_layers 放在同一个容器里统一缩放/居中。
+   * 这样“角色缩放”变化时，背景/资源会自动同步。
+   */
+  private world: any | null = null;
+
   private model: any | null = null;
   private config: Live2DConfig | null = null;
   private modPath = "";
@@ -722,14 +729,15 @@ export class Live2DPlayer {
       ? this.modelScale
       : 1;
 
-    // Live2D 窗口缩放：历史上并不使用 WindowCore 的 animationScale。
-    // 为了避免用户已有的 animation_scale=1 等配置引入 2.5x 放大，这里保持只由 mod 的 scale / state.scale / debug 影响。
+    // Live2D 窗口缩放：使用 WindowCore 的 animationScale，使“窗口缩放”和“角色/背景”同步。
+    const animScale = Number.isFinite(this.animationScale) && this.animationScale > 0 ? this.animationScale : 1;
+
     return {
       scale: this.debugScale,
       offsetX: this.debugOffsetX,
       offsetY: this.debugOffsetY,
       baseFitScale: this.baseFitScale,
-      finalScale: this.baseFitScale * modelScale * stateScale * this.debugScale,
+      finalScale: this.baseFitScale * modelScale * stateScale * this.debugScale * animScale,
     };
   }
 
@@ -755,7 +763,9 @@ export class Live2DPlayer {
     }
 
     if (this.model && this.app) {
-      this.app.stage.removeChild(this.model);
+      const root = this.world ?? this.app.stage;
+      try { root?.removeChild(this.model); } catch { /* ignore */ }
+      try { this.app.stage.removeChild(this.model); } catch { /* ignore */ }
       this.model.destroy();
       this.model = null;
     }
@@ -796,7 +806,10 @@ export class Live2DPlayer {
     this.model.anchor.set(0.5, 0.5);
     this.model.visible = true;
 
-    this.app?.stage.addChild(this.model);
+
+    const root = this.world ?? this.app?.stage;
+    root?.addChild(this.model);
+
 
     this.buildMotionMap();
     this.buildExpressionMap();
@@ -921,6 +934,17 @@ export class Live2DPlayer {
       preserveDrawingBuffer: true,
       antialias: isAntialiasEnabled(),
     });
+
+    // 使用 world 容器承载 model + background_layers，保证缩放/居中一致。
+    try {
+      const PIXI = (window as any).PIXI;
+      if (PIXI?.Container && this.app?.stage) {
+        this.world = new PIXI.Container();
+        this.app.stage.addChild(this.world);
+      }
+    } catch {
+      this.world = null;
+    }
 
     const maxFps = getRenderMaxFps();
     if (maxFps && this.app?.ticker) {
@@ -1152,7 +1176,10 @@ export class Live2DPlayer {
   }
 
   private applyStateTransform(): void {
-    if (!this.model || !this.app || !this.activeState) return;
+    if (!this.model || !this.app) return;
+    const root = this.world ?? this.app.stage;
+    if (!root) return;
+    if (!this.activeState) return;
 
     const stateScale = Number.isFinite(this.activeState.scale)
       ? this.activeState.scale
@@ -1164,11 +1191,14 @@ export class Live2DPlayer {
 
     const scale = this.baseFitScale * modelScale * stateScale * this.debugScale;
 
-    this.model.scale.set(scale);
+    root.scale.set(scale);
 
     const { width: viewW, height: viewH } = this.getLogicalSize();
-    this.model.x = viewW / 2 + (this.activeState.offset_x ?? 0) + this.debugOffsetX;
-    this.model.y = viewH / 2 + (this.activeState.offset_y ?? 0) + this.debugOffsetY;
+    root.x = viewW / 2 + this.debugOffsetX;
+    root.y = viewH / 2 + this.debugOffsetY;
+
+    this.model.x = (this.activeState.offset_x ?? 0);
+    this.model.y = (this.activeState.offset_y ?? 0);
 
     dbg("applyStateTransform",
       "baseFit:", this.baseFitScale.toFixed(4),
@@ -1186,17 +1216,24 @@ export class Live2DPlayer {
    */
   private applyInitialTransform(): void {
     if (!this.model || !this.app) return;
+    const root = this.world ?? this.app.stage;
+    if (!root) return;
 
     const modelScale = Number.isFinite(this.modelScale) && this.modelScale > 0
       ? this.modelScale
       : 1;
 
-    const scale = this.baseFitScale * modelScale * this.debugScale;
-    this.model.scale.set(scale);
+    const animScale = Number.isFinite(this.animationScale) && this.animationScale > 0 ? this.animationScale : 1;
+    const scale = this.baseFitScale * modelScale * this.debugScale * animScale;
+    root.scale.set(scale);
 
     const { width: viewW, height: viewH } = this.getLogicalSize();
-    this.model.x = viewW / 2 + this.debugOffsetX;
-    this.model.y = viewH / 2 + this.debugOffsetY;
+    root.x = viewW / 2 + this.debugOffsetX;
+    root.y = viewH / 2 + this.debugOffsetY;
+
+    // 初始状态：模型在 world 中居中
+    this.model.x = 0;
+    this.model.y = 0;
 
     dbg("applyInitialTransform", "scale:", scale.toFixed(4),
       "pos:", this.model.x.toFixed(1), this.model.y.toFixed(1));
@@ -1892,9 +1929,17 @@ export class Live2DPlayer {
     if (!PIXI?.Sprite || !PIXI?.Texture) return;
 
     const baseDir = this.config.model.base_dir;
-    const modelIndex = this.model ? this.app.stage.getChildIndex(this.model) : 0;
+
+    // 背景层必须与 model 挂在同一个容器里；否则用 stage.getChildIndex(model) 会直接抛错。
+    const root = (this.model?.parent as any) ?? this.world ?? this.app.stage;
+    const modelIndex = (this.model && this.model.parent === root)
+      ? root.getChildIndex(this.model)
+      : root.children.length;
 
     let behindInsertIndex = modelIndex; // 在模型之前插入
+
+    // 记录背景层创建时的模型缩放，用于后续 resize/stateScale 变化时计算相对倍率
+    this.bgBaseModelScale = Number((this.model as any)?.scale?.x) || 1;
 
     for (const lyr of layers) {
       if (!lyr.file) continue;
@@ -1926,9 +1971,10 @@ export class Live2DPlayer {
         const sy = actual.h > 0 && logical.h > 0 ? (logical.h / actual.h) : 1;
         sprite.scale.set(baseScale * sx, baseScale * sy);
 
-        const dpr = this.app.renderer.resolution || 1;
-        sprite.x = (this.app.renderer.width / dpr) / 2 + (lyr.offset_x || 0);
-        sprite.y = (this.app.renderer.height / dpr) / 2 + (lyr.offset_y || 0);
+        // world 会在 applyInitial/applyStateTransform 时统一做居中/缩放，这里只设置相对偏移。
+        sprite.x = (lyr.offset_x || 0);
+        sprite.y = (lyr.offset_y || 0);
+
 
 
         // 有 events 的默认隐藏
@@ -1938,10 +1984,10 @@ export class Live2DPlayer {
         }
 
         if (lyr.layer === "front") {
-          this.app.stage.addChild(sprite);
+          root.addChild(sprite);
           this.bgSpriteFront.push(sprite);
         } else {
-          this.app.stage.addChildAt(sprite, behindInsertIndex);
+          root.addChildAt(sprite, behindInsertIndex);
           behindInsertIndex++;
           this.bgSpriteBehind.push(sprite);
         }
@@ -1958,8 +2004,10 @@ export class Live2DPlayer {
   }
 
   private removeBackgroundLayers(): void {
+    const root = this.world ?? this.app?.stage;
     for (const sprite of [...this.bgSpriteBehind, ...this.bgSpriteFront]) {
-      this.app?.stage.removeChild(sprite);
+      try { root?.removeChild(sprite); } catch { /* ignore */ }
+      try { this.app?.stage.removeChild(sprite); } catch { /* ignore */ }
       sprite.destroy?.({ children: true, texture: true, baseTexture: true });
     }
 
