@@ -1,8 +1,13 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
+
 import { sveltekit } from "@sveltejs/kit/vite";
 
-// @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
+
+const env = /** @type {any} */ (globalThis).process?.env ?? {};
+const host = env.TAURI_DEV_HOST;
+const isProd = env.NODE_ENV === "production";
+
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -116,13 +121,23 @@ export default defineConfig({
   },
 
   // =========================================================================
-  // esbuild 配置 - 生产环境移除 console
+  // esbuild 配置 - 生产环境移除部分 console
   // =========================================================================
   esbuild: {
-    // 生产环境移除 console.log，保留 console.warn 和 console.error
-    // @ts-expect-error process is a nodejs global
-    drop: process.env.NODE_ENV === 'production' ? ['console'] : [],
+    // 生产环境仅移除 console.log/info/debug/trace，保留 warn/error。
+    // 注意：esbuild 的 drop:["console"] 会把 warn/error 也一起删掉。
+    pure: isProd
+      ? [
+          "console.log",
+          "console.info",
+          "console.debug",
+          "console.trace",
+        ]
+      : [],
+    drop: isProd ? ["debugger"] : [],
   },
+
+
 
   // =========================================================================
   // Tauri 开发环境配置

@@ -194,6 +194,9 @@ export class Live2DPlayer {
   private expressionMap = new Map<string, number>();
   private motionDurationCache = new Map<string, number>();
   private resizeObserver: ResizeObserver | null = null;
+  private lastResizeWidth = 0;
+  private lastResizeHeight = 0;
+  private lastResizeDpr = 0;
   private mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
   private playToken = 0;
   private playTimer: ReturnType<typeof setTimeout> | null = null;
@@ -579,10 +582,22 @@ export class Live2DPlayer {
 
     const maxFps = getRenderMaxFps();
     if (maxFps && this.app?.ticker) {
+      // app.ticker.maxFPS 只影响当前 Application；
+      // 但 pixi-live2d-display 可能挂在 PIXI.Ticker.shared 上，导致绕过该限制。
       this.app.ticker.maxFPS = maxFps;
+      const shared = window.PIXI?.Ticker?.shared;
+      if (shared) {
+        shared.maxFPS = maxFps;
+      }
     }
 
+    // 初始化 resize 缓存，避免首轮 ResizeObserver 重复触发无意义 resize
+    this.lastResizeWidth = width;
+    this.lastResizeHeight = height;
+    this.lastResizeDpr = dpr;
+
     dbg("initPixiApp", "renderer size:", this.app.renderer.width, "x", this.app.renderer.height);
+
   }
 
   private bindResize(): void {
@@ -595,12 +610,29 @@ export class Live2DPlayer {
       const height = Math.max(target.clientHeight, 1);
       dbg("resize", "parentSize:", width, "x", height);
 
+      const nextDpr = getRenderDpr();
+
+      // ResizeObserver 在布局抖动/动画时可能高频触发。
+      // 若尺寸与 DPR 都未变化，则跳过 renderer.resize()，避免无意义的 GPU 缓冲重建。
+      if (
+        width === this.lastResizeWidth &&
+        height === this.lastResizeHeight &&
+        nextDpr === this.lastResizeDpr
+      ) {
+        return;
+      }
+
+      this.lastResizeWidth = width;
+      this.lastResizeHeight = height;
+      this.lastResizeDpr = nextDpr;
+
       // DPR 可能在系统缩放/显示器切换时变化，resize 时同步更新。
-      this.app.renderer.resolution = getRenderDpr();
+      this.app.renderer.resolution = nextDpr;
       this.app.renderer.resize(width, height);
 
       this.updateFitScale();
       this.applyCurrentTransform();
+
     });
     this.resizeObserver.observe(target);
   }
