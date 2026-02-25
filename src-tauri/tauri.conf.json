@@ -29,7 +29,9 @@
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/tbuddy.ico",
+      "icons/sbuddy.ico"
     ],
     "resources": {
       "../config": "config",
@@ -38,14 +40,28 @@
       "../mods_release": "mods",  
       "../mod-tool": "mod-tool",
       "../other-tool": "other-tool",
-      "../tools-common": "tools-common"
+      "../tools-common": "tools-common",
+      "icons": "icons"
     },
+    "fileAssociations": [
+      {
+        "ext": ["tbuddy"],
+        "name": "TrayBuddy Mod Package",
+        "description": "TrayBuddy Mod Package"
+      },
+      {
+        "ext": ["sbuddy"],
+        "name": "TrayBuddy Secure Mod Package",
+        "description": "TrayBuddy Encrypted Mod Package"
+      }
+    ],
     "windows": {
       "nsis": {
         "languages": ["SimpChinese", "TradChinese", "English", "Japanese"],
         "displayLanguageSelector": true,
         "installerIcon": "icons/icon.ico",
-        "installMode": "perMachine"
+        "installMode": "perMachine",
+        "installerHooks": "nsis-hooks.nsh"
       }
     }
   }
