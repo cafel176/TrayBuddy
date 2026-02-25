@@ -97,9 +97,12 @@ impl SystemObserver {
         running.store(true, std::sync::atomic::Ordering::SeqCst);
 
         // 启动消息循环线程（SetWinEventHook 需要消息循环）
-        thread::spawn(move || {
-            Self::event_loop(app_handle, running);
-        });
+        let _ = thread::Builder::new()
+            .name("traybuddy-system-observer".to_string())
+            .spawn(move || {
+                crate::modules::utils::thread::set_current_thread_description("traybuddy: system-observer");
+                Self::event_loop(app_handle, running);
+            });
     }
 
     /// 停止观察器（终止后台线程的运行标记）。

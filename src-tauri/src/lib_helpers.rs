@@ -2039,10 +2039,13 @@ pub(crate) fn start_session_observer(app_handle: tauri::AppHandle) {
     const WTS_SESSION_LOCK: u32 = 7;
     const WTS_SESSION_UNLOCK: u32 = 8;
 
-    std::thread::spawn(move || {
-        println!("[SessionObserver] 启动 WTS 会话监听线程");
+    let _ = std::thread::Builder::new()
+        .name("traybuddy-session-observer".to_string())
+        .spawn(move || {
+            crate::modules::utils::thread::set_current_thread_description("traybuddy: session-observer");
+            println!("[SessionObserver] 启动 WTS 会话监听线程");
 
-        unsafe {
+            unsafe {
             // 注册窗口类
             let class_name_wstr: Vec<u16> = "TrayBuddySessionObserver\0".encode_utf16().collect();
             let title_wstr: Vec<u16> = "TrayBuddy Session Observer\0".encode_utf16().collect();

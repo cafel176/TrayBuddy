@@ -1032,10 +1032,13 @@ impl StateManager {
             return;
         };
 
-        std::thread::spawn(move || {
-            let Some(app_state) = app_handle.try_state::<AppState>() else {
-                return;
-            };
+        let _ = std::thread::Builder::new()
+            .name("traybuddy-mod-data".to_string())
+            .spawn(move || {
+                crate::modules::utils::thread::set_current_thread_description("traybuddy: mod-data-counter");
+                let Some(app_state) = app_handle.try_state::<AppState>() else {
+                    return;
+                };
 
             let mut storage = app_state.storage.lock().unwrap();
             let mod_id = storage.data.info.current_mod.to_string();

@@ -479,9 +479,12 @@ pub fn run() {
 
             // 在后台线程初始化环境信息（地理位置和天气）
             let app_handle_env = app.handle().clone();
-            std::thread::spawn(move || {
-                init_environment(Some(app_handle_env));
-            });
+            let _ = std::thread::Builder::new()
+                .name("traybuddy-env".to_string())
+                .spawn(move || {
+                    crate::modules::utils::thread::set_current_thread_description("traybuddy: env-init");
+                    init_environment(Some(app_handle_env));
+                });
 
             // 冷启动：如果是通过双击 .tbuddy/.sbuddy 启动，自动拉起 Mods 并导入
             let cli_args: Vec<String> = std::env::args().skip(1).collect();
