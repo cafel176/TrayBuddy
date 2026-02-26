@@ -1845,7 +1845,11 @@ function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: numbe
 
   const items = buildDrawList(scene, rootMat);
   sortDrawItems(items);
-  ctx.imageSmoothingEnabled = true;
+
+  // 放大/缩小时的插值策略：必须在最终 draw 之前设置。
+  // 否则降采样后的贴图会在放大绘制时被持续平滑，观感会明显变糊。
+  applyPngRemixUpscaleSettings(ctx);
+
   for (const it of items) drawItem(ctx, it);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
