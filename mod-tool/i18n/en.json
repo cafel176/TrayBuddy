@@ -61,6 +61,8 @@
   "section_texture_downsample": "Texture Optimization",
   "enable_texture_downsample_label": "Enable texture downsampling",
   "enable_texture_downsample_hint": "Affects Live2D/PngRemix texture decoding: enable to reduce memory, disable to keep original sharpness",
+  "texture_downsample_start_dim_label": "Downsample start texture size",
+  "texture_downsample_start_dim_hint": "Only downsample when max(texture width,height) ≥ this value; 0 = no limit", 
 
   "section_keyboard": "Keyboard Settings",
   "global_keyboard_label": "Global Keyboard Listener",

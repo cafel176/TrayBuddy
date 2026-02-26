@@ -20,6 +20,7 @@ type BackendModInfo = {
   path?: string;
   manifest?: {
     enable_texture_downsample?: boolean;
+    texture_downsample_start_dim?: number;
   };
 } | null;
 
@@ -31,43 +32,76 @@ function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+type TextureDownsampleSettings = {
+  enabled: boolean;
+  startDim: number;
+};
+
+function normalizeStartDim(v: any): number | null {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.floor(n));
+}
+
 /**
- * 从后端读取当前 Mod 的 enable_texture_downsample。
+ * 从后端读取当前 Mod 的贴图降采样设置：
+ * - manifest.enable_texture_downsample
+ * - manifest.texture_downsample_start_dim
  *
+ * 说明：
  * - **启动/切换 Mod** 时以 backend 的 `get_current_mod` 为准，避免前端传参/缓存造成时序错乱。
  * - 若后端 current_mod 的 path 与本次 init 的 `expectedModPath` 不一致，会短暂重试。
+ * - 两个字段在同一次 `get_current_mod` 里读取，避免切换时出现“读到不同 mod 的字段”的竞态。
  */
-async function resolveEnableTextureDownsampleFromBackend(expectedModPath: string, fallback?: boolean): Promise<boolean> {
+async function resolveTextureDownsampleSettingsFromBackend(
+  expectedModPath: string,
+  fallback?: Partial<TextureDownsampleSettings>,
+): Promise<TextureDownsampleSettings> {
   const expected = normalizeFsPath(expectedModPath);
-  let lastSeen: boolean | null = null;
+
+  const fbEnabled = typeof fallback?.enabled === "boolean" ? fallback.enabled : null;
+  const fbStartDim = normalizeStartDim(fallback?.startDim);
+
+  let lastEnabled: boolean | null = null;
+  let lastStartDim: number | null = null;
 
   for (let i = 0; i < 8; i++) {
     try {
       const mod = (await invoke("get_current_mod")) as BackendModInfo;
       const p = mod?.path ? normalizeFsPath(String(mod.path)) : "";
 
-      const v = mod?.manifest?.enable_texture_downsample;
-      if (typeof v === "boolean") {
-        lastSeen = v;
+      const vEnabled = mod?.manifest?.enable_texture_downsample;
+      if (typeof vEnabled === "boolean") {
+        lastEnabled = vEnabled;
       }
 
-      if (expected && p && p === expected && lastSeen !== null) {
-        return lastSeen;
+      const vStartDim = normalizeStartDim(mod?.manifest?.texture_downsample_start_dim);
+      if (vStartDim !== null) {
+        lastStartDim = vStartDim;
       }
 
-      if (!expected && lastSeen !== null) {
-        return lastSeen;
+      const enabled = lastEnabled ?? fbEnabled;
+      const startDim = lastStartDim ?? fbStartDim;
+
+      if (expected && p && p === expected && enabled !== null && startDim !== null) {
+        return { enabled, startDim };
+      }
+
+      if (!expected && enabled !== null && startDim !== null) {
+        return { enabled, startDim };
       }
 
     } catch {
       // ignore
     }
 
-    if (i < 11) await sleepMs(80);
+    if (i < 7) await sleepMs(80);
   }
 
-  if (typeof fallback === "boolean") return fallback;
-  return lastSeen ?? false;
+  return {
+    enabled: lastEnabled ?? fbEnabled ?? false,
+    startDim: lastStartDim ?? fbStartDim ?? 0,
+  };
 }
 
 
@@ -273,7 +307,7 @@ function compositeForBlendMode(mode: string): GlobalCompositeOperation {
 // ============================================================================
 
 // 贴图解码策略默认值/阈值（仅作用于本文件的降采样/封顶逻辑）
-const TEXTURE_DECODE_DEFAULT_MAX_DIM = 300;
+// maxDim 已改为动态从后端（manifest.texture_downsample_start_dim）获取，因此不再需要静态默认值常量。
 const TEXTURE_DECODE_MIN_SCALE = 0.05;
 const TEXTURE_DECODE_NO_RESIZE_EPS = 0.999;
 const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
@@ -289,8 +323,6 @@ const TEXTURE_STREAM_REQUEST_COOLDOWN_MS = 200;
 
 // LRU 预算（估算：像素宽 * 像素高 * 4 bytes）
 const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 64;
-// 注意：这里必须乘以 4（RGBA bytesPerPixel），否则会低估预算导致频繁回收/闪烁。
-const TEXTURE_LRU_MAX_BYTES_DEFAULT = TEXTURE_LRU_MAX_ITEMS_DEFAULT * TEXTURE_DECODE_DEFAULT_MAX_DIM * TEXTURE_DECODE_DEFAULT_MAX_DIM * 4;
 const TEXTURE_LRU_TRIM_GUARD_RATIO = 0.92; // 超预算后尽量裁到预算的 92%
 
 
@@ -337,12 +369,12 @@ async function getBytesHashKey(bytes: Uint8Array): Promise<string> {
 }
 
 type TextureDecodePolicy = {
-
-
   /** 贴图解码分辨率封顶（像素）；<=0 表示不封顶 */
   maxDim: number;
   /** 额外降采样倍率（0-1）；<=0 视为 1 */
   scale: number;
+  /** 触发降采样的起始贴图尺寸阈值（像素；最长边）；<=0 表示不限制 */
+  startDim: number;
 };
 
 function isGifBytes(b: Uint8Array) {
@@ -424,6 +456,13 @@ function computeDecodeTarget(logicalW: number, logicalH: number, policy: Texture
   const w0 = Math.max(1, Math.floor(Number(logicalW) || 1));
   const h0 = Math.max(1, Math.floor(Number(logicalH) || 1));
   if (!policy) return { w: w0, h: h0, scale: 1 };
+
+  const denom0 = Math.max(w0, h0);
+  const startDim = Number(policy.startDim);
+  if (Number.isFinite(startDim) && startDim > 0 && denom0 > 0 && denom0 < startDim) {
+    // 未达到阈值：不触发降采样
+    return { w: w0, h: h0, scale: 1 };
+  }
 
   const baseScale = clamp(Number(policy.scale) || 1, TEXTURE_DECODE_MIN_SCALE, 1);
 
@@ -808,7 +847,12 @@ class SpriteTextureManager {
     this.decodePolicy = decodePolicy;
 
     this.maxItems = Math.max(16, Math.floor(opts?.maxItems ?? TEXTURE_LRU_MAX_ITEMS_DEFAULT));
-    this.maxBytes = Math.max(16 * 1024 * 1024, Math.floor(opts?.maxBytes ?? TEXTURE_LRU_MAX_BYTES_DEFAULT));
+
+    // 默认预算：跟随当前 decodePolicy.maxDim（已与 manifest.texture_downsample_start_dim 对齐）。
+    // 若 maxDim<=0（例如 Mod 显式不封顶），则 defaultMaxBytes=0，最终由下方 16MB 下限兜底。
+    const dimHint = Math.max(0, Math.floor(Number(this.decodePolicy?.maxDim ?? 0) || 0));
+    const defaultMaxBytes = this.maxItems * dimHint * dimHint * 4;
+    this.maxBytes = Math.max(16 * 1024 * 1024, Math.floor(opts?.maxBytes ?? defaultMaxBytes));
 
     // 预解析头部尺寸/动图标记，保证未解码时也能算 clip/逻辑尺寸
     this.spriteHeaderSizeByIndex = new Array(spriteBytesByIndex.length).fill(null);
@@ -1896,7 +1940,6 @@ async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDeco
 
   scene.textureManager = new SpriteTextureManager(scene, spriteBytesByIndex, decodePolicy, {
     maxItems: TEXTURE_LRU_MAX_ITEMS_DEFAULT,
-    maxBytes: TEXTURE_LRU_MAX_BYTES_DEFAULT,
   });
 
   return scene;
@@ -2010,10 +2053,13 @@ export class PngRemixPlayer {
   /**
    * 初始化播放器并加载 PngRemix 模型资源。
    */
-  async init(modPath: string, config: PngRemixConfig, manifest?: { enable_texture_downsample?: boolean }): Promise<void> {
+  async init(modPath: string, config: PngRemixConfig, manifest?: { enable_texture_downsample?: boolean; texture_downsample_start_dim?: number }): Promise<void> {
 
     // 以 backend 的 current_mod 为准，确保切换 Mod 时序正确。
-    const downsampleEnabled = await resolveEnableTextureDownsampleFromBackend(modPath, manifest?.enable_texture_downsample);
+    const ds = await resolveTextureDownsampleSettingsFromBackend(modPath, {
+      enabled: manifest?.enable_texture_downsample,
+      startDim: manifest?.texture_downsample_start_dim,
+    });
 
     this.modPath = modPath;
     this.config = config;
@@ -2032,12 +2078,12 @@ export class PngRemixPlayer {
     ab = null as any;
 
     // 贴图解码降采样/封顶：逻辑尺寸按原图，实际像素可更小（降低内存占用）
-    const maxDimRaw = Number((config.model as any)?.texture_decode_max_dim);
+    // 像素封顶 maxDim：与 manifest.texture_downsample_start_dim 保持一致（后端动态读取）。
     const scaleRaw = Number((config.model as any)?.texture_decode_scale);
-    const maxDim = Number.isFinite(maxDimRaw) ? Math.floor(maxDimRaw) : TEXTURE_DECODE_DEFAULT_MAX_DIM;
+    const maxDim = Math.max(0, Math.floor(Number(ds.startDim) || 0));
     const scale = Number.isFinite(scaleRaw) && scaleRaw > 0 ? clamp(scaleRaw, TEXTURE_DECODE_MIN_SCALE, 1) : 1;
-    const decodePolicy: TextureDecodePolicy | null = (downsampleEnabled && (maxDim > 0 || scale < TEXTURE_DECODE_NO_RESIZE_EPS))
-      ? { maxDim, scale }
+    const decodePolicy: TextureDecodePolicy | null = (ds.enabled && (maxDim > 0 || scale < TEXTURE_DECODE_NO_RESIZE_EPS))
+      ? { maxDim, scale, startDim: ds.startDim }
       : null;
 
 

@@ -1793,5 +1793,6 @@
       ]
     }
   ],
-  "mod_type": "sequence"
+  "mod_type": "sequence",
+  "texture_downsample_start_dim": 300
 }

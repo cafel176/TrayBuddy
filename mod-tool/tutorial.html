@@ -168,6 +168,8 @@
 
       <h4 data-i18n="section_texture_downsample">贴图降采样</h4>
       <p data-i18n="texture_downsample_desc">通过 manifest.enable_texture_downsample 控制是否允许贴图在解码阶段降采样/封顶（对 Live2D/PngRemix 生效）。开启可降低内存占用，关闭可保留原始清晰度。</p>
+      <p data-i18n="texture_downsample_start_dim_desc">通过 manifest.texture_downsample_start_dim 设置“开始降采样的贴图尺寸阈值”（像素；最长边）。0 表示不限制；>0 表示仅当贴图尺寸达到阈值时才允许触发降采样。</p>
+
 
       <h4 data-i18n="section_global_keyboard">全局键盘监听</h4>
       <p data-i18n="global_keyboard_desc">配置 global_keyboard 为 true 后，即使动画窗口未获得焦点，也能触发 keydown 事件。适用于需要实时响应键盘输入的桌面宠物模型。</p>

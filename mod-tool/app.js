@@ -2903,6 +2903,12 @@ function populateManifestForm() {
   const texDownsampleEl = document.getElementById('enable-texture-downsample');
   if (texDownsampleEl) texDownsampleEl.checked = m.enable_texture_downsample === true;
 
+  const texDownsampleStartDimEl = document.getElementById('texture-downsample-start-dim');
+  if (texDownsampleStartDimEl) {
+    const v = Number(m.texture_downsample_start_dim);
+    texDownsampleStartDimEl.value = Number.isFinite(v) && v >= 0 ? String(Math.floor(v)) : '300';
+  }
+
   // 全局键盘
   document.getElementById('global-keyboard').checked = m.global_keyboard === true;
 
@@ -2991,6 +2997,14 @@ function collectManifestData() {
     m.enable_texture_downsample = texDownsampleEl.checked === true;
   } else if (typeof m.enable_texture_downsample !== 'boolean') {
     m.enable_texture_downsample = false;
+  }
+
+  const texDownsampleStartDimEl = document.getElementById('texture-downsample-start-dim');
+  if (texDownsampleStartDimEl) {
+    const n = Math.floor(Number(texDownsampleStartDimEl.value));
+    m.texture_downsample_start_dim = Number.isFinite(n) && n > 0 ? n : 0;
+  } else if (!Number.isFinite(Number(m.texture_downsample_start_dim))) {
+    m.texture_downsample_start_dim = 0;
   }
 
   // 全局键盘

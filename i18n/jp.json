@@ -410,6 +410,7 @@
     "showModDataPanel": "データパネルを表示",
     "modDataDefaultInt": "初期データ値",
     "enableTextureDownsample": "テクスチャのダウンサンプリングを有効化",
+    "textureDownsampleStartDim": "ダウンサンプリング開始サイズ",
     "globalKeyboard": "グローバルキーボード",
     "globalMouse": "グローバルマウス",
     "characterConfig": "キャラクター設定",

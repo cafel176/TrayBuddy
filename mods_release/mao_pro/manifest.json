@@ -664,5 +664,6 @@
         }
       ]
     }
-  ]
+  ],
+  "texture_downsample_start_dim": 300
 }

@@ -702,5 +702,6 @@
       ]
     }
   ],
-  "mod_type": "pngremix"
+  "mod_type": "pngremix",
+  "texture_downsample_start_dim": 300
 }

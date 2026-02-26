@@ -27,6 +27,7 @@ PngRemix 渲染层暂为空占位。
     global_keyboard?: boolean;
     global_mouse?: boolean;
     enable_texture_downsample?: boolean;
+    texture_downsample_start_dim?: number;
   }
 
   interface ModInfo {

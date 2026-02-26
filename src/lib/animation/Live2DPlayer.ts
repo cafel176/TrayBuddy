@@ -175,6 +175,7 @@ type BackendModInfo = {
   path?: string;
   manifest?: {
     enable_texture_downsample?: boolean;
+    texture_downsample_start_dim?: number;
   };
 } | null;
 
@@ -186,33 +187,64 @@ function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+type TextureDownsampleSettings = {
+  enabled: boolean;
+  startDim: number;
+};
+
+function normalizeStartDim(v: any): number | null {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.floor(n));
+}
+
 /**
- * 从后端读取当前 Mod 的 enable_texture_downsample。
+ * 从后端读取当前 Mod 的贴图降采样设置：
+ * - manifest.enable_texture_downsample
+ * - manifest.texture_downsample_start_dim
  *
+ * 说明：
  * - **启动/切换 Mod** 时，这里以 backend 的 `get_current_mod` 为准，避免前端缓存造成时序错乱。
  * - 若 `get_current_mod.path` 与当前要加载的 `expectedModPath` 不一致，会短暂重试。
+ * - 两个字段在同一次 `get_current_mod` 里读取，避免切换时出现“读到不同 mod 的字段”的竞态。
  */
-async function resolveEnableTextureDownsampleFromBackend(expectedModPath: string, fallback?: boolean): Promise<boolean> {
+async function resolveTextureDownsampleSettingsFromBackend(
+  expectedModPath: string,
+  fallback?: Partial<TextureDownsampleSettings>,
+): Promise<TextureDownsampleSettings> {
   const expected = normalizeFsPath(expectedModPath);
-  let lastSeen: boolean | null = null;
+
+  const fbEnabled = typeof fallback?.enabled === "boolean" ? fallback.enabled : null;
+  const fbStartDim = normalizeStartDim(fallback?.startDim);
+
+  let lastEnabled: boolean | null = null;
+  let lastStartDim: number | null = null;
 
   for (let i = 0; i < 12; i++) {
     try {
       const mod = (await invoke("get_current_mod")) as BackendModInfo;
       const p = mod?.path ? normalizeFsPath(String(mod.path)) : "";
 
-      const v = mod?.manifest?.enable_texture_downsample;
-      if (typeof v === "boolean") {
-        lastSeen = v;
+      const vEnabled = mod?.manifest?.enable_texture_downsample;
+      if (typeof vEnabled === "boolean") {
+        lastEnabled = vEnabled;
       }
 
-      if (expected && p && p === expected && lastSeen !== null) {
-        return lastSeen;
+      const vStartDim = normalizeStartDim(mod?.manifest?.texture_downsample_start_dim);
+      if (vStartDim !== null) {
+        lastStartDim = vStartDim;
+      }
+
+      const enabled = lastEnabled ?? fbEnabled;
+      const startDim = lastStartDim ?? fbStartDim;
+
+      if (expected && p && p === expected && enabled !== null && startDim !== null) {
+        return { enabled, startDim };
       }
 
       // 如果没有期望路径（极少见），那就尽量用后端的值
-      if (!expected && lastSeen !== null) {
-        return lastSeen;
+      if (!expected && enabled !== null && startDim !== null) {
+        return { enabled, startDim };
       }
 
     } catch {
@@ -222,8 +254,10 @@ async function resolveEnableTextureDownsampleFromBackend(expectedModPath: string
     if (i < 11) await sleepMs(80);
   }
 
-  if (typeof fallback === "boolean") return fallback;
-  return lastSeen ?? false;
+  return {
+    enabled: lastEnabled ?? fbEnabled ?? false,
+    startDim: lastStartDim ?? fbStartDim ?? 0,
+  };
 }
 
 // ============================================================================
@@ -231,12 +265,17 @@ async function resolveEnableTextureDownsampleFromBackend(expectedModPath: string
 // ============================================================================
 
 // 降采样策略默认值/阈值
-const LIVE2D_TEX_OPT_ENABLED_DEFAULT = true;
-const LIVE2D_TEX_OPT_MAX_DIM_DEFAULT = 300; // 像素封顶（最长边）
 const LIVE2D_TEX_OPT_SCALE_DEFAULT = 1;      // 额外倍率（0-1）
 const LIVE2D_TEX_OPT_MIN_SCALE = 0.05;
 const LIVE2D_TEX_OPT_NO_RESIZE_EPS = 0.999;
 const LIVE2D_TEX_OPT_RESIZE_QUALITY = "high" as any;
+
+// 降采样后放大策略（全局开关）
+// - 默认：pixelated/nearest（更清晰但更锯齿）
+// - 可通过 localStorage 的 `tb_live2d_upscale_mode` 切换："pixelated"/"nearest"/"none" 或 "high"/"linear"/"smooth"
+type Live2DUpscaleMode = "high" | "pixelated";
+const LIVE2D_UPSCALE_MODE_KEY = "tb_live2d_upscale_mode";
+const LIVE2D_UPSCALE_MODE_DEFAULT: Live2DUpscaleMode = "high";
 
 // LRU 默认值/阈值（默认关闭）
 const LIVE2D_TEX_LRU_ENABLED_DEFAULT = false;
@@ -249,6 +288,8 @@ type Live2DTextureDecodePolicy = {
   enabled: boolean;
   maxDim: number;
   scale: number;
+  /** 触发降采样的起始贴图尺寸阈值（像素；最长边）；<=0 表示不限制 */
+  startDim: number;
 };
 
 function readLocalStorageNumber(key: string, defaultValue: number): number {
@@ -276,21 +317,59 @@ function readLocalStorageBool(key: string, defaultValue: boolean): boolean {
   }
 }
 
-
-function getLive2DTextureDecodePolicy(): Live2DTextureDecodePolicy {
-  // tb_live2d_tex_opt=0 可关闭（默认开启）
-  // tb_live2d_tex_max_dim=2048 （像素封顶）
-  // tb_live2d_tex_scale=1 （额外倍率，0-1）
-  const enabled = readLocalStorageBool("tb_live2d_tex_opt", LIVE2D_TEX_OPT_ENABLED_DEFAULT);
-  const maxDim = Math.floor(readLocalStorageNumber("tb_live2d_tex_max_dim", LIVE2D_TEX_OPT_MAX_DIM_DEFAULT));
-  const scale = Math.max(LIVE2D_TEX_OPT_MIN_SCALE, Math.min(1, readLocalStorageNumber("tb_live2d_tex_scale", LIVE2D_TEX_OPT_SCALE_DEFAULT)));
-  return { enabled, maxDim, scale };
+function readLocalStorageString(key: string, defaultValue: string): string {
+  try {
+    if (typeof localStorage === "undefined") return defaultValue;
+    const raw = localStorage.getItem(key);
+    return raw == null ? defaultValue : String(raw);
+  } catch {
+    return defaultValue;
+  }
 }
+
+function getLive2DUpscaleMode(): Live2DUpscaleMode {
+  const v = readLocalStorageString(LIVE2D_UPSCALE_MODE_KEY, LIVE2D_UPSCALE_MODE_DEFAULT).toLowerCase();
+  if (v === "pixelated" || v === "nearest" || v === "none") return "pixelated";
+  if (v === "high" || v === "linear" || v === "smooth") return "high";
+  return LIVE2D_UPSCALE_MODE_DEFAULT;
+}
+
+function applyLive2DCanvasResampleSettings(ctx: CanvasRenderingContext2D): void {
+  const mode = getLive2DUpscaleMode();
+  if (mode === "pixelated") {
+    ctx.imageSmoothingEnabled = false;
+    return;
+  }
+  ctx.imageSmoothingEnabled = true;
+  (ctx as any).imageSmoothingQuality = LIVE2D_TEX_OPT_RESIZE_QUALITY;
+}
+
+function applyLive2DBaseTextureScaleMode(bt: any): void {
+  const PIXI = (window as any).PIXI;
+  const scaleModes = PIXI?.SCALE_MODES;
+  if (!scaleModes || !bt) return;
+
+  const mode = getLive2DUpscaleMode();
+  const desired = (mode === "pixelated") ? scaleModes.NEAREST : scaleModes.LINEAR;
+  if (desired === undefined || desired === null) return;
+
+  try { bt.scaleMode = desired; } catch { /* ignore */ }
+  // 某些 Pixi 版本需要 update 才会把 scaleMode 应用到 GPU sampler
+  try { bt.update?.(); } catch { /* ignore */ }
+}
+
 
 function computeDecodeTarget(w: number, h: number, policy: Live2DTextureDecodePolicy): { w: number; h: number; scale: number } {
   const w0 = Math.max(1, Math.floor(Number(w) || 1));
   const h0 = Math.max(1, Math.floor(Number(h) || 1));
   if (!policy.enabled) return { w: w0, h: h0, scale: 1 };
+
+  const denom0 = Math.max(w0, h0);
+  const startDim = Number(policy.startDim);
+  if (Number.isFinite(startDim) && startDim > 0 && denom0 > 0 && denom0 < startDim) {
+    // 未达到阈值：不触发降采样
+    return { w: w0, h: h0, scale: 1 };
+  }
 
   let s = Math.max(LIVE2D_TEX_OPT_MIN_SCALE, Math.min(1, Number(policy.scale) || 1));
   const maxDim = Number(policy.maxDim);
@@ -331,8 +410,7 @@ async function downsampleToCanvas(src: any, tw: number, th: number): Promise<HTM
   canvas.height = Math.max(1, Math.floor(th));
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  ctx.imageSmoothingEnabled = true;
-  (ctx as any).imageSmoothingQuality = LIVE2D_TEX_OPT_RESIZE_QUALITY;
+  applyLive2DCanvasResampleSettings(ctx);
   try {
     ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
   } catch {
@@ -482,6 +560,8 @@ export class Live2DPlayer {
 
   /** 当前 Mod 是否允许贴图降采样（来源：后端 manifest.enable_texture_downsample）。 */
   private modDownsampleEnabled = false;
+  /** 触发降采样的贴图尺寸阈值（来源：后端 manifest.texture_downsample_start_dim；0 表示不限制）。 */
+  private modDownsampleStartDim = 0;
 
   private featureFlags: Live2DFeatureFlags;
   private motionMap = new Map<string, MotionEntry>();
@@ -519,6 +599,9 @@ export class Live2DPlayer {
   private bgSpriteFront: any[] = [];   // layer="front" 的 PIXI.Sprite（模型之前）
   private bgLayerConfigs: Live2DBackgroundLayer[] = [];
   private bgSpriteMap = new Map<string, any>(); // name -> PIXI.Sprite
+
+  // 背景层创建时的模型缩放（用于兼容旧逻辑；当前主要用于调试/排查）
+  private bgBaseModelScale = 1;
 
   // 贴图优化：当前模型资源前缀（用于判定“哪些贴图属于当前 Live2D 模型”）
   private assetUrlPrefix = "";
@@ -744,12 +827,16 @@ export class Live2DPlayer {
   /**
    * 加载 Live2D 模型与资源映射，并应用基础缩放/叠加层。
    */
-  async load(modPath: string, config: Live2DConfig, manifest?: { enable_texture_downsample?: boolean }): Promise<void> {
+  async load(modPath: string, config: Live2DConfig, manifest?: { enable_texture_downsample?: boolean; texture_downsample_start_dim?: number }): Promise<void> {
 
-    const downsampleEnabled = await resolveEnableTextureDownsampleFromBackend(modPath, manifest?.enable_texture_downsample);
-    this.modDownsampleEnabled = downsampleEnabled;
+    const ds = await resolveTextureDownsampleSettingsFromBackend(modPath, {
+      enabled: manifest?.enable_texture_downsample,
+      startDim: manifest?.texture_downsample_start_dim,
+    });
+    this.modDownsampleEnabled = ds.enabled;
+    this.modDownsampleStartDim = ds.startDim;
 
-    dbg("load", "modPath:", modPath, "model:", config.model.model_json, "enable_texture_downsample:", downsampleEnabled);
+    dbg("load", "modPath:", modPath, "model:", config.model.model_json, "enable_texture_downsample:", ds.enabled, "texture_downsample_start_dim:", ds.startDim);
     this.config = config;
     this.modPath = modPath;
     this.modelScale = Number((config.model as any)?.scale) || 1;
@@ -1689,9 +1776,25 @@ export class Live2DPlayer {
   }
 
   private getTextureDecodePolicy(): Live2DTextureDecodePolicy {
-    const base = getLive2DTextureDecodePolicy();
-    // manifest.enable_texture_downsample 为 false 时，强制关闭降采样（即使 localStorage 显式开启）。
-    return { ...base, enabled: base.enabled && this.modDownsampleEnabled };
+    // 开关默认值：动态跟随后端当前 Mod（manifest.enable_texture_downsample）。
+    // 允许用户用 localStorage `tb_live2d_tex_opt` 覆盖（例如临时全局关闭）。
+    const enabledLocal = readLocalStorageBool("tb_live2d_tex_opt", this.modDownsampleEnabled);
+
+    // 像素封顶/触发阈值：与 manifest.texture_downsample_start_dim 保持一致（后端动态读取）。
+    const modStartDim = Math.max(0, Math.floor(Number(this.modDownsampleStartDim) || 0));
+
+    // scale 仍允许通过 localStorage 调整，但默认值为 1。
+    const scale = Math.max(
+      LIVE2D_TEX_OPT_MIN_SCALE,
+      Math.min(1, readLocalStorageNumber("tb_live2d_tex_scale", LIVE2D_TEX_OPT_SCALE_DEFAULT)),
+    );
+
+    return {
+      enabled: enabledLocal && this.modDownsampleEnabled,
+      maxDim: modStartDim,
+      scale,
+      startDim: modStartDim,
+    };
   }
 
   private async optimizeBaseTextureInPlace(url: string, bt: any, _origin: "from" | "scan" = "from"): Promise<void> {
@@ -1734,6 +1837,9 @@ export class Live2DPlayer {
       // 尽量更新尺寸信息
       try { bt.setRealSize?.(canvas.width, canvas.height, bt.resolution || 1); } catch { /* ignore */ }
       try { bt.update?.(); } catch { /* ignore */ }
+
+      // 应用放大策略（NEAREST/像素化 或 LINEAR/平滑）
+      applyLive2DBaseTextureScaleMode(bt);
 
       Live2DTextureLRU.touch(url, newBytes);
       (bt as any).__tb_live2d_texopt_done = true;
@@ -1794,6 +1900,9 @@ export class Live2DPlayer {
     // 用降采样后的 canvas 生成新 BaseTexture/Texture，并写回 cache
     const newBase = PIXI.BaseTexture.from(canvas);
     const newTex = new PIXI.Texture(newBase);
+
+    // 应用放大策略（NEAREST/像素化 或 LINEAR/平滑）
+    applyLive2DBaseTextureScaleMode(newBase);
 
     const texCache = PIXI?.utils?.TextureCache ?? PIXI?.TextureCache ?? {};
     const baseCache = PIXI?.utils?.BaseTextureCache ?? PIXI?.BaseTextureCache ?? {};

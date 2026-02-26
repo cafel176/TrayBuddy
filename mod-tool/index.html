@@ -204,6 +204,12 @@
                   </label>
                   <small data-i18n="enable_texture_downsample_hint">影响 Live2D/PngRemix 的贴图解码：开启可降低内存，关闭保留原始清晰度</small>
                 </div>
+
+                <div class="form-group" id="manifest-texture-downsample-start-dim-group">
+                  <label for="texture-downsample-start-dim" data-i18n="texture_downsample_start_dim_label">开始降采样的贴图尺寸</label>
+                  <input type="number" id="texture-downsample-start-dim" value="300" min="0" step="1">
+                  <small data-i18n="texture_downsample_start_dim_hint">仅当贴图最长边 ≥ 该值时才触发降采样；0 表示不限制</small>
+                </div>
               </div>
             </section>
 

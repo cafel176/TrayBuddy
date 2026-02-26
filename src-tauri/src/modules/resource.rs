@@ -1424,6 +1424,12 @@ pub struct ModManifest {
     /// - true: 允许贴图降采样/封顶（实际策略由各播放器内部阈值/设置决定）
     pub enable_texture_downsample: bool,
 
+    /// 开始降采样的贴图尺寸阈值（像素；最长边）
+    ///
+    /// - 0: 不设阈值，所有贴图都可按策略降采样（默认）
+    /// - >0: 仅当 max(width,height) >= threshold 时才允许触发降采样
+    pub texture_downsample_start_dim: u32,
+
     /// 全局键盘监听：为 true 时即使动画窗口未获得焦点也能触发 keydown 事件
     pub global_keyboard: bool,
 
@@ -1453,6 +1459,7 @@ impl Default for ModManifest {
             show_mod_data_panel: false,
             mod_data_default_int: 0,
             enable_texture_downsample: false,
+            texture_downsample_start_dim: 0,
             global_keyboard: false,
             global_mouse: false,
             important_states: HashMap::new(),

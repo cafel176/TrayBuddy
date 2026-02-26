@@ -62,6 +62,8 @@
   "section_texture_downsample": "テクスチャ最適化",
   "enable_texture_downsample_label": "テクスチャのダウンサンプリングを有効化",
   "enable_texture_downsample_hint": "Live2D/PngRemix のテクスチャ解码に影響：有効でメモリ削減、無効で元の鮮明さを保持",
+  "texture_downsample_start_dim_label": "ダウンサンプリング開始サイズ",
+  "texture_downsample_start_dim_hint": "テクスチャの長辺がこの値以上のときのみ縮小します（0 は制限なし）", 
   "section_keyboard": "キーボード設定",
   "global_keyboard_label": "グローバルキーボード監視",
   "global_keyboard_hint": "有効にするとアニメーションウィンドウにフォーカスしなくてもキーボードイベントが発火します",

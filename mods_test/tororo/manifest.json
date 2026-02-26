@@ -720,5 +720,6 @@
       ]
     }
   ],
-  "mod_type": "live2d"
+  "mod_type": "live2d",
+  "texture_downsample_start_dim": 300
 }
