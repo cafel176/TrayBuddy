@@ -322,7 +322,7 @@ const TEXTURE_STREAM_DECODE_CONCURRENCY = 4;
 const TEXTURE_STREAM_REQUEST_COOLDOWN_MS = 200;
 
 // LRU 预算（估算：像素宽 * 像素高 * 4 bytes）
-const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 64;
+const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 10;
 const TEXTURE_LRU_TRIM_GUARD_RATIO = 0.92; // 超预算后尽量裁到预算的 92%
 
 
@@ -772,6 +772,7 @@ class RuntimeScene {
   tick = 0;
   _rafId = 0;
   _lastTs = 0;
+  _frameCount = 0; // 用于控制 LRU trim 频率
   bounceChange = 0;
   _bouncePosY = 0;
   _lastBounceY = 0;
@@ -835,6 +836,9 @@ class SpriteTextureManager {
 
   private lruByDrawable = new Map<any, TextureLruEntry>();
   private totalBytes = 0;
+
+  // 当前帧正在使用的 drawable 集合（用于可见性保护）
+  private usedThisFrame = new Set<any>();
 
   constructor(
     scene: RuntimeScene,
@@ -920,6 +924,12 @@ class SpriteTextureManager {
   touchDrawable(drawable: any): void {
     const e = this.lruByDrawable.get(drawable);
     if (e) e.lastUsed = performance.now();
+    this.usedThisFrame.add(drawable);
+  }
+
+  /** 标记一帧开始，清空"本帧使用"集合 */
+  beginFrame(): void {
+    this.usedThisFrame.clear();
   }
 
   trim(): void {
@@ -935,11 +945,28 @@ class SpriteTextureManager {
       let victimEntry: TextureLruEntry | null = null;
       let bestTs = Infinity;
 
+      // 优先从"当前帧未使用"的贴图中选择回收目标
+      // 如果所有贴图都在使用，则选择最久未使用的（即使正在显示）
       for (const [d, e] of this.lruByDrawable.entries()) {
+        const inUse = this.usedThisFrame.has(d);
+        // 跳过当前帧正在使用的贴图（除非没有其他选择）
+        if (inUse && this.lruByDrawable.size > this.usedThisFrame.size) continue;
         if (e.lastUsed < bestTs) {
           bestTs = e.lastUsed;
           victim = d;
           victimEntry = e;
+        }
+      }
+
+      // 如果没有找到"未使用"的贴图，强制回收最久未使用的
+      if (!victim) {
+        bestTs = Infinity;
+        for (const [d, e] of this.lruByDrawable.entries()) {
+          if (e.lastUsed < bestTs) {
+            bestTs = e.lastUsed;
+            victim = d;
+            victimEntry = e;
+          }
         }
       }
 
@@ -1874,7 +1901,10 @@ function drawItem(ctx: CanvasRenderingContext2D, item: DrawItem) {
   if (hadClip) ctx.restore();
 }
 
-function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: number, panX: number, panY: number) {
+function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: number, panX: number, panY: number, enableTrim = false) {
+  // 标记新帧开始，清空"本帧使用"集合
+  scene.textureManager?.beginFrame();
+
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const w = canvas.width, h = canvas.height;
@@ -1899,8 +1929,14 @@ function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: numbe
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
 
-  // LRU 回收：在每帧渲染后做一次预算检查
-  scene.textureManager?.trim();
+  // LRU 回收：每 30 帧做一次预算检查（降低 CPU 开销）
+  if (enableTrim) {
+    scene._frameCount = (scene._frameCount || 0) + 1;
+    if (scene._frameCount >= 30) {
+      scene._frameCount = 0;
+      scene.textureManager?.trim();
+    }
+  }
 }
 
 
@@ -1939,7 +1975,9 @@ async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDeco
   }
 
   scene.textureManager = new SpriteTextureManager(scene, spriteBytesByIndex, decodePolicy, {
-    maxItems: TEXTURE_LRU_MAX_ITEMS_DEFAULT,
+    // 动态预算：根据贴图数量调整 maxItems，避免小贴图多的角色频繁回收
+    // 策略：max(默认64, min(贴图数*0.8, 200))
+    maxItems: Math.max(TEXTURE_LRU_MAX_ITEMS_DEFAULT, Math.min(spriteBytesByIndex.length, 200)),
   });
 
   return scene;
@@ -2669,6 +2707,13 @@ export class PngRemixPlayer {
     const maxFps = capFps(maxFpsRaw);
     const minDeltaMs = 1000 / Math.max(1, clamp(maxFps, 1, 240));
 
+    // 同时限制 Pixi shared ticker 的帧率，避免其他 Pixi 动画消耗 GPU
+    const PIXI = (globalThis as any).PIXI;
+    const sharedTicker = PIXI?.Ticker?.shared;
+    if (sharedTicker && sharedTicker.maxFPS !== maxFps) {
+      sharedTicker.maxFPS = maxFps;
+    }
+
     const frame = (ts: number) => {
       if (this.destroyed || !this.scene) return;
       if (!this.scene.playing) return;
@@ -2690,10 +2735,9 @@ export class PngRemixPlayer {
       this.updateMouseWorld();
       stepSceneRuntime(this.scene, dtSec, this.enableMouseFollow, this.mouseWorld, this.hasMouse);
       this.resizeCanvas();
-      renderScene(this.scene, this.canvas, this.zoom, this.panX, this.panY);
-      // Update hit-test alpha buffer after we rendered a new frame.
+      renderScene(this.scene, this.canvas, this.zoom, this.panX, this.panY, true);
+      // 标记 hit-test buffer 为脏，但不立即更新（改为懒加载）
       this.hitTestDirty = true;
-      this.updateHitTestBuffer();
 
       this.scene._rafId = requestAnimationFrame(frame);
     };
