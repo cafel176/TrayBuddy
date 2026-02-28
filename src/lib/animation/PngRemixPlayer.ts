@@ -1,8 +1,8 @@
 /**
  * PngRemix 渲染引擎
  *
- * 将 other-tool/pngRemix预览/app.js 的渲染核心移植为 TypeScript class，
- * 提供与 Live2DPlayer 相同的公共 API，供 pngremix/+page.svelte 集成。
+ * other-tool/pngRemix预览/app.js 的渲染核心移植为 TypeScript class
+ * 提供Live2DPlayer 相同的公API，供 pngremix/+page.svelte 集成
  */
 
 import type {
@@ -44,14 +44,14 @@ function normalizeStartDim(v: any): number | null {
 }
 
 /**
- * 从后端读取当前 Mod 的贴图降采样设置：
+ * 从后端读取当Mod 的贴图降采样设置
  * - manifest.enable_texture_downsample
  * - manifest.texture_downsample_start_dim
  *
- * 说明：
- * - **启动/切换 Mod** 时以 backend 的 `get_current_mod` 为准，避免前端传参/缓存造成时序错乱。
- * - 若后端 current_mod 的 path 与本次 init 的 `expectedModPath` 不一致，会短暂重试。
- * - 两个字段在同一次 `get_current_mod` 里读取，避免切换时出现“读到不同 mod 的字段”的竞态。
+ * 说明
+ * - **启动/切换 Mod** 时以 backend `get_current_mod` 为准，避免前端传缓存造成时序错乱
+ * - 若后current_mod path 与本init `expectedModPath` 不一致，会短暂重试
+ * - 两个字段在同一`get_current_mod` 里读取，避免切换时出现“读到不mod 的字段”的竞态
  */
 async function resolveTextureDownsampleSettingsFromBackend(
   expectedModPath: string,
@@ -144,21 +144,20 @@ async function ensureScripts(): Promise<void> {
 const PNGREMIX_UPSCALE_MODE_KEY = "tb_pngremix_upscale_mode";
 
 /**
- * 降采样后放大策略（可通过 localStorage 的 `tb_pngremix_upscale_mode` 控制）
+ * 降采样后放大策略（可通过 localStorage `tb_pngremix_upscale_mode` 控制
  *
- * 可选项：
+ * 可选项
  * - "high"（默认）：开启平滑，`imageSmoothingQuality = "high"`，整体更柔和
- * - "pixelated"：关闭平滑，像素边缘更硬（也接受别名："nearest" / "none"）
+ * - "pixelated"：关闭平滑，像素边缘更硬（也接受别名nearest" / "none"
  */
 type PngRemixUpscaleMode = "high" | "pixelated";
 
 const PNGREMIX_UPSCALE_MODE_DEFAULT: PngRemixUpscaleMode = "high";
 
 /**
- * Canvas 2D 平滑质量可选项："low" / "medium" / "high"。
- * 仅在 `PngRemixUpscaleMode` 为 "high" 时生效。
+ * Canvas 2D 平滑质量可选项low" / "medium" / "high"
+ * 仅在 `PngRemixUpscaleMode` "high" 时生效
  */
-const PNGREMIX_UPSCALE_SMOOTHING_QUALITY_DEFAULT = "high" as const;
 
 function readLocalStorageString(key: string, fallback: string): string {
   try {
@@ -177,19 +176,12 @@ function getPngRemixUpscaleMode(): PngRemixUpscaleMode {
   return PNGREMIX_UPSCALE_MODE_DEFAULT;
 }
 
-function applyPngRemixUpscaleSettings(ctx: CanvasRenderingContext2D): void {
-  const mode = getPngRemixUpscaleMode();
-  if (mode === "pixelated") {
-    ctx.imageSmoothingEnabled = false;
-    return;
-  }
-  ctx.imageSmoothingEnabled = true;
-  // @ts-ignore - 일부 DOM typings 可能不包含 imageSmoothingQuality
-  ctx.imageSmoothingQuality = PNGREMIX_UPSCALE_SMOOTHING_QUALITY_DEFAULT;
+function getPngRemixTextureFilter(gl: WebGLRenderingContext): number {
+  return getPngRemixUpscaleMode() === "pixelated" ? gl.NEAREST : gl.LINEAR;
 }
 
 // ============================================================================
-// Mat2D — 2D 仿射矩阵
+// Mat2D 2D 仿射矩阵
 // ============================================================================
 
 class Mat2D {
@@ -266,9 +258,6 @@ function mulColor(a: any, b: any): RGBA {
     a: clamp(a?.a ?? 1, 0, 1) * clamp(b?.a ?? 1, 0, 1),
   };
 }
-function isWhiteRgb(c: any) {
-  return Math.abs((c?.r ?? 1) - 1) < 1e-6 && Math.abs((c?.g ?? 1) - 1) < 1e-6 && Math.abs((c?.b ?? 1) - 1) < 1e-6;
-}
 function rgbToHsv(r: number, g: number, b: number) {
   const rr = clamp(r, 0, 1), gg = clamp(g, 0, 1), bb = clamp(b, 0, 1);
   const max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb), d = max - min;
@@ -292,27 +281,29 @@ function hsvToRgb(h: number, s: number, v: number) {
   }
 }
 
-function compositeForBlendMode(mode: string): GlobalCompositeOperation {
+type PngRemixBlendMode = "normal" | "add" | "multiply" | "difference";
+
+function compositeForBlendMode(mode: string): PngRemixBlendMode {
   switch (String(mode || "Normal")) {
-    case "Add": return "lighter";
+    case "Add": return "add";
     case "Multiply": return "multiply";
     case "Subtract": return "difference";
     case "Burn": return "multiply";
-    default: return "source-over";
+    default: return "normal";
   }
 }
 
 // ============================================================================
-// 图像解码（支持解码期降采样/封顶：逻辑尺寸=原图，像素数据可更小）
+// 图像解码（支持解码期降采封顶：逻辑尺寸=原图，像素数据可更小
 // ============================================================================
 
-// 贴图解码策略默认值/阈值（仅作用于本文件的降采样/封顶逻辑）
-// maxDim 已改为动态从后端（manifest.texture_downsample_start_dim）获取，因此不再需要静态默认值常量。
+// 贴图解码策略默认阈值（仅作用于本文件的降采封顶逻辑
+// maxDim 已改为动态从后端（manifest.texture_downsample_start_dim）获取，因此不再需要静态默认值常量
 const TEXTURE_DECODE_MIN_SCALE = 0.05;
 const TEXTURE_DECODE_NO_RESIZE_EPS = 0.999;
 const TEXTURE_DECODE_RESIZE_QUALITY = "high" as any;
 
-// 贴图去重：对同内容 bytes 只解码一次，避免重复贴图占用多份内存
+// 贴图去重：对同内bytes 只解码一次，避免重复贴图占用多份内存
 const TEXTURE_DEDUP_HASH_ALGO = "SHA-256";
 const TEXTURE_DEDUP_FALLBACK_SAMPLE_BYTES = 32;
 const _bytesHashKeyCache = new WeakMap<Uint8Array, Promise<string>>();
@@ -321,9 +312,9 @@ const _bytesHashKeyCache = new WeakMap<Uint8Array, Promise<string>>();
 const TEXTURE_STREAM_DECODE_CONCURRENCY = 4;
 const TEXTURE_STREAM_REQUEST_COOLDOWN_MS = 200;
 
-// LRU 预算（估算：像素宽 * 像素高 * 4 bytes）
+// LRU 预算（估算：像素* 像素* 4 bytes
 const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 10;
-const TEXTURE_LRU_TRIM_GUARD_RATIO = 0.92; // 超预算后尽量裁到预算的 92%
+const TEXTURE_LRU_TRIM_GUARD_RATIO = 0.92; // 超预算后尽量裁到预算92%
 
 
 function bytesToHex(bytes: Uint8Array): string {
@@ -335,7 +326,7 @@ function bytesToHex(bytes: Uint8Array): string {
 }
 
 function simpleBytesSignature(bytes: Uint8Array): string {
-  // 仅用于极端情况下（无 SubtleCrypto）的去重 key，尽量降低碰撞概率
+  // 仅用于极端情况下（无 SubtleCrypto）的去重 key，尽量降低碰撞概
   const len = bytes.byteLength;
   const n = Math.min(TEXTURE_DEDUP_FALLBACK_SAMPLE_BYTES, len);
 
@@ -369,11 +360,11 @@ async function getBytesHashKey(bytes: Uint8Array): Promise<string> {
 }
 
 type TextureDecodePolicy = {
-  /** 贴图解码分辨率封顶（像素）；<=0 表示不封顶 */
+  /** 贴图解码分辨率封顶（像素）；<=0 表示不封*/
   maxDim: number;
-  /** 额外降采样倍率（0-1）；<=0 视为 1 */
+  /** 额外降采样倍率-1）；<=0 视为 1 */
   scale: number;
-  /** 触发降采样的起始贴图尺寸阈值（像素；最长边）；<=0 表示不限制 */
+  /** 触发降采样的起始贴图尺寸阈值（像素；最长边）；<=0 表示不限*/
   startDim: number;
 };
 
@@ -426,7 +417,7 @@ function tryReadGifSize(bytes: Uint8Array): { w: number; h: number } | null {
 }
 
 function getImageSize(d: any): { w: number; h: number } {
-  // 实际像素尺寸（解码后的 drawable 尺寸）
+  // 实际像素尺寸（解码后drawable 尺寸
   if (!d) return { w: 0, h: 0 };
   if (typeof ImageBitmap !== "undefined" && d instanceof ImageBitmap) return { w: d.width, h: d.height };
   if (d instanceof HTMLImageElement) return { w: d.naturalWidth || d.width, h: d.naturalHeight || d.height };
@@ -435,7 +426,7 @@ function getImageSize(d: any): { w: number; h: number } {
 }
 
 function getImageLogicalSize(d: any): { w: number; h: number } {
-  // 逻辑尺寸（用于布局/帧切分/裁剪）：默认等于实际像素尺寸，但支持在降采样时保持原图尺寸
+  // 逻辑尺寸（用于布局/帧切裁剪）：默认等于实际像素尺寸，但支持在降采样时保持原图尺
   if (!d) return { w: 0, h: 0 };
   const lw = Number((d as any)._logicalW);
   const lh = Number((d as any)._logicalH);
@@ -443,14 +434,6 @@ function getImageLogicalSize(d: any): { w: number; h: number } {
   return getImageSize(d);
 }
 
-function copyLogicalSize(dst: any, src: any) {
-  if (!dst || !src) return;
-  const { w, h } = getImageLogicalSize(src);
-  if (w > 0 && h > 0) {
-    (dst as any)._logicalW = w;
-    (dst as any)._logicalH = h;
-  }
-}
 
 function computeDecodeTarget(logicalW: number, logicalH: number, policy: TextureDecodePolicy | null | undefined): { w: number; h: number; scale: number } {
   const w0 = Math.max(1, Math.floor(Number(logicalW) || 1));
@@ -496,7 +479,7 @@ async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: 
 
   const blob = new Blob([bytes], { type: mime });
 
-  // 非动图 PNG：优先用 createImageBitmap 直接缩放解码，避免先解出大图
+  // 非动PNG：优先用 createImageBitmap 直接缩放解码，避免先解出大图
   if (!isAnimated && mime === "image/png" && typeof createImageBitmap === "function") {
     try {
       const needsResize = logicalW > 0 && logicalH > 0 && target.scale < TEXTURE_DECODE_NO_RESIZE_EPS;
@@ -505,11 +488,14 @@ async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: 
         ? await createImageBitmap(blob, {
           resizeWidth: target.w,
           resizeHeight: target.h,
-          // DOM lib 对 resizeQuality 的 union 可能不完整，这里做一下兼容
+          premultiplyAlpha: "none",
+          // DOM lib resizeQuality union 可能不完整，这里做一下兼
           resizeQuality: TEXTURE_DECODE_RESIZE_QUALITY,
 
         } as any)
-        : await createImageBitmap(blob);
+        : await createImageBitmap(blob, {
+          premultiplyAlpha: "none",
+        } as any);
 
       (bitmap as any)._logicalW = logicalW > 0 ? logicalW : bitmap.width;
       (bitmap as any)._logicalH = logicalH > 0 ? logicalH : bitmap.height;
@@ -519,7 +505,7 @@ async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: 
     }
   }
 
-  // fallback：HTMLImageElement（动图 GIF/APNG 也走这里，浏览器负责播放）
+  // fallback：HTMLImageElement（动GIF/APNG 也走这里，浏览器负责播放
   const url = URL.createObjectURL(blob);
   try {
     const img = new Image();
@@ -533,21 +519,25 @@ async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: 
     const lw = logicalW > 0 ? logicalW : decodedW;
     const lh = logicalH > 0 ? logicalH : decodedH;
 
-    // 仅对非动图尝试二次下采样（注意：这里仍会先解码原图，无法避免峰值内存）
+    // Non-animated fallback: try bitmap resize decode without Canvas2D.
     if (!isAnimated && lw > 0 && lh > 0) {
       const t2 = computeDecodeTarget(lw, lh, policy);
       if (t2.scale < TEXTURE_DECODE_NO_RESIZE_EPS && t2.w > 0 && t2.h > 0) {
-
-        const c = document.createElement("canvas");
-        c.width = t2.w;
-        c.height = t2.h;
-        const cctx = c.getContext("2d")!;
-        cctx.imageSmoothingEnabled = true;
-        cctx.imageSmoothingQuality = "high";
-        cctx.drawImage(img, 0, 0, t2.w, t2.h);
-        (c as any)._logicalW = lw;
-        (c as any)._logicalH = lh;
-        return c;
+        if (typeof createImageBitmap === "function") {
+          try {
+            const bitmap = await createImageBitmap(img, {
+              resizeWidth: t2.w,
+              resizeHeight: t2.h,
+              premultiplyAlpha: "none",
+              resizeQuality: TEXTURE_DECODE_RESIZE_QUALITY,
+            } as any);
+            (bitmap as any)._logicalW = lw;
+            (bitmap as any)._logicalH = lh;
+            return bitmap;
+          } catch {
+            // fall through
+          }
+        }
       }
     }
 
@@ -559,118 +549,71 @@ async function decodePngBytesToDrawable(bytes: Uint8Array, _name = "", policy?: 
   }
 }
 
-function applySpriteTextureTransforms(drawable: any, spriteRaw: any) {
-  if (!drawable || !spriteRaw || drawable._isAnimated) return drawable;
-  const flipH = !!spriteRaw.flipped_h, flipV = !!spriteRaw.flipped_v;
-  let rot = ((Math.floor(Number(spriteRaw.rotated) || 0) % 4) + 4) % 4;
-  if (!flipH && !flipV && rot === 0) return drawable;
-  const { w, h } = getImageSize(drawable);
-  if (!w || !h) return drawable;
-  const out = document.createElement("canvas");
-  out.width = rot % 2 === 1 ? h : w; out.height = rot % 2 === 1 ? w : h;
-  const ctx = out.getContext("2d")!;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.translate(out.width / 2, out.height / 2);
-  ctx.rotate(rot * Math.PI / 2);
-  ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
-  ctx.drawImage(drawable, -w / 2, -h / 2);
+type SpriteTextureTransform = {
+  flipH: boolean;
+  flipV: boolean;
+  rot: number;
+  swapLogicalWH: boolean;
+};
 
-  // 逻辑尺寸需要随旋转变换（rot=1/3 时交换宽高）
-  const logical = getImageLogicalSize(drawable);
-  let lw = logical.w;
-  let lh = logical.h;
-  if (rot % 2 === 1) {
-    const t = lw; lw = lh; lh = t;
-  }
-  (out as any)._logicalW = lw;
-  (out as any)._logicalH = lh;
-
-  return out;
+function getSpriteTextureTransform(spriteRaw: any, allowLogicalSwap: boolean): SpriteTextureTransform | null {
+  if (!spriteRaw) return null;
+  const flipH = !!spriteRaw.flipped_h;
+  const flipV = !!spriteRaw.flipped_v;
+  const rot = ((Math.floor(Number(spriteRaw.rotated) || 0) % 4) + 4) % 4;
+  if (!flipH && !flipV && rot === 0) return null;
+  return { flipH, flipV, rot, swapLogicalWH: allowLogicalSwap && (rot % 2 === 1) };
 }
-
-
-
-// ============================================================================
-// Tint cache
-// ============================================================================
-
-const TINT_CACHE_MAX_PER_DRAWABLE = 16;
-type TintCacheEntry = { map: Map<string, HTMLCanvasElement>; order: string[] };
-
-// drawable -> ("r,g,b" -> tintedCanvas)
-let _tintCache = new WeakMap<any, TintCacheEntry>();
 
 function clearTintCache(): void {
-  _tintCache = new WeakMap<any, TintCacheEntry>();
+  // Tint is now applied in WebGL shader uniforms.
 }
 
+type FrameInfo = {
+  u0: number;
+  v0: number;
+  u1: number;
+  v1: number;
+  w: number;
+  h: number;
+};
 
-function getTintedDrawable(drawable: any, color: RGBA) {
-  if (!drawable || drawable._isAnimated || isWhiteRgb(color)) return drawable;
-  const { w, h } = getImageSize(drawable);
-  if (!w || !h) return drawable;
-
-  const key = `${Math.round(clamp(color.r, 0, 1) * 255)},${Math.round(clamp(color.g, 0, 1) * 255)},${Math.round(clamp(color.b, 0, 1) * 255)}`;
-
-  let entry = _tintCache.get(drawable);
-  if (!entry) {
-    entry = { map: new Map(), order: [] };
-    _tintCache.set(drawable, entry);
-  }
-
-  const cached = entry.map.get(key);
-  if (cached) {
-    // LRU: touch
-    const idx = entry.order.indexOf(key);
-    if (idx >= 0) entry.order.splice(idx, 1);
-    entry.order.push(key);
-    return cached;
-  }
-
-  const c = document.createElement("canvas"); c.width = w; c.height = h;
-  copyLogicalSize(c, drawable);
-  const ctx = c.getContext("2d")!;
-  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
-  ctx.drawImage(drawable, 0, 0);
-
-  ctx.globalCompositeOperation = "multiply";
-  ctx.fillStyle = `rgb(${key})`; ctx.fillRect(0, 0, w, h);
-  ctx.globalCompositeOperation = "destination-in";
-  ctx.drawImage(drawable, 0, 0);
-
-  entry.map.set(key, c);
-  entry.order.push(key);
-  if (entry.order.length > TINT_CACHE_MAX_PER_DRAWABLE) {
-    const evictKey = entry.order.shift();
-    if (evictKey) entry.map.delete(evictKey);
-  }
-
-  return c;
-}
-
-// ============================================================================
-// drawImageFrame
-// ============================================================================
-
-function drawImageFrame(ctx: CanvasRenderingContext2D, drawable: any, hframes: number, vframes: number, frameIndex: number) {
-  // 源矩形：按实际像素尺寸取帧；目标矩形：按逻辑尺寸绘制（降采样后仍保持原图大小）
+function getFrameInfo(
+  drawable: any,
+  hframes: number,
+  vframes: number,
+  frameIndex: number,
+  swapLogicalWH = false,
+): FrameInfo | null {
   const src = getImageSize(drawable);
-  const dst = getImageLogicalSize(drawable);
-  if (!src.w || !src.h || !dst.w || !dst.h) return;
+  const dstRaw = getImageLogicalSize(drawable);
+  let dstW = dstRaw.w;
+  let dstH = dstRaw.h;
+  if (swapLogicalWH) {
+    const t = dstW;
+    dstW = dstH;
+    dstH = t;
+  }
+  if (!src.w || !src.h || !dstW || !dstH) return null;
 
   const hf = Math.max(1, Math.floor(hframes || 1));
   const vf = Math.max(1, Math.floor(vframes || 1));
   const total = hf * vf;
   const f = total > 0 ? ((Math.floor(frameIndex || 0) % total) + total) % total : 0;
 
-  const fwSrc = src.w / hf;
-  const fhSrc = src.h / vf;
-  const fxSrc = (f % hf) * fwSrc;
-  const fySrc = Math.floor(f / hf) * fhSrc;
+  const fx = (f % hf) / hf;
+  const fy = Math.floor(f / hf) / vf;
+  const fw = 1 / hf;
+  const fh = 1 / vf;
 
-  const fwDst = dst.w / hf;
-  const fhDst = dst.h / vf;
-  ctx.drawImage(drawable, fxSrc, fySrc, fwSrc, fhSrc, -fwDst / 2, -fhDst / 2, fwDst, fhDst);
+  return {
+    u0: fx,
+    v0: fy,
+    u1: fx + fw,
+    v1: fy + fh,
+    w: dstW / hf,
+    h: dstH / vf,
+  };
 }
 
 
@@ -679,10 +622,10 @@ function drawImageFrame(ctx: CanvasRenderingContext2D, drawable: any, hframes: n
 // ============================================================================
 
 /**
- * 运行时节点：对应一个 sprite 的渲染/动画状态。
+ * 运行时节点：对应一sprite 的渲动画状态
  *
  * - runtime* 字段保存当前帧的动画结果
- * - _follow/_move 为鼠标跟随/移动的中间态缓存
+ * - _follow/_move 为鼠标跟移动的中间态缓
  * - key/path/pathIds 用于可见性覆盖与调试定位
  */
 class RuntimeNode {
@@ -705,7 +648,7 @@ class RuntimeNode {
   _rainbowHue = Number.NaN;
   _visiblePrev = false;
   _visibleNow = false;
-  _texXform: any = null;
+  _texXform: SpriteTextureTransform | null = null;
 
   baseWorldPos: Vec2 = { x: 0, y: 0 };
   runtimeFollowPos: Vec2 = { x: 0, y: 0 };
@@ -749,10 +692,10 @@ class RuntimeNode {
 }
 
 /**
- * 运行时场景：承载全局播放状态与节点索引。
+ * 运行时场景：承载全局播放状态与节点索引
  *
  * - nodes/roots 为渲染树结构
- * - visibilityOverrides/hotkeyGroups 用于快捷键与可见性切换
+ * - visibilityOverrides/hotkeyGroups 用于快捷键与可见性切
  * - tick/bounce/mouthState 等为动画全局参数
  */
 class RuntimeScene {
@@ -778,6 +721,7 @@ class RuntimeScene {
   _lastBounceY = 0;
   _clickBounce = { active: false, t: 0, dur: 0.5, amp: 50 };
   hasAnimatedTextures = false;
+  onDrawableReleased: ((drawable: any) => void) | null = null;
 
   // Visibility overrides keyed by RuntimeNode.key
   // - boolean: quick override
@@ -812,7 +756,6 @@ type TextureLruEntry = {
   lastUsed: number;
   indices: Set<number>;
   cacheKeys: Set<string>;
-  transformedKeys: Set<string>;
 };
 
 class SpriteTextureManager {
@@ -826,7 +769,6 @@ class SpriteTextureManager {
   private maxBytes: number;
 
   private decodedCache = new Map<string, TextureCacheRecord>();
-  private transformedCache = new Map<string, TextureCacheRecord>();
 
   private inFlightByIndex = new Map<number, Promise<void>>();
   private lastRequestMsByIndex = new Map<number, number>();
@@ -852,13 +794,13 @@ class SpriteTextureManager {
 
     this.maxItems = Math.max(16, Math.floor(opts?.maxItems ?? TEXTURE_LRU_MAX_ITEMS_DEFAULT));
 
-    // 默认预算：跟随当前 decodePolicy.maxDim（已与 manifest.texture_downsample_start_dim 对齐）。
-    // 若 maxDim<=0（例如 Mod 显式不封顶），则 defaultMaxBytes=0，最终由下方 16MB 下限兜底。
+    // 默认预算：跟随当decodePolicy.maxDim（已manifest.texture_downsample_start_dim 对齐）
+    // maxDim<=0（例Mod 显式不封顶），则 defaultMaxBytes=0，最终由下方 16MB 下限兜底
     const dimHint = Math.max(0, Math.floor(Number(this.decodePolicy?.maxDim ?? 0) || 0));
     const defaultMaxBytes = this.maxItems * dimHint * dimHint * 4;
     this.maxBytes = Math.max(16 * 1024 * 1024, Math.floor(opts?.maxBytes ?? defaultMaxBytes));
 
-    // 预解析头部尺寸/动图标记，保证未解码时也能算 clip/逻辑尺寸
+    // 预解析头部尺动图标记，保证未解码时也能算 clip/逻辑尺寸
     this.spriteHeaderSizeByIndex = new Array(spriteBytesByIndex.length).fill(null);
     this.spriteAnimatedByIndex = new Array(spriteBytesByIndex.length).fill(false);
     for (let i = 0; i < spriteBytesByIndex.length; i++) {
@@ -875,15 +817,15 @@ class SpriteTextureManager {
   }
 
   dispose(): void {
-    // 清理缓存引用，确保 LRU 回收/GC 生效
+    // 清理缓存引用，确LRU 回收/GC 生效
     this.queue.length = 0;
     this.decodedCache.clear();
-    this.transformedCache.clear();
     this.inFlightByIndex.clear();
     this.lastRequestMsByIndex.clear();
 
     // 尽量释放 ImageBitmap
     for (const drawable of this.lruByDrawable.keys()) {
+      this.scene.onDrawableReleased?.(drawable);
       if (drawable instanceof ImageBitmap) {
         try { drawable.close(); } catch { /* ignore */ }
       }
@@ -900,9 +842,11 @@ class SpriteTextureManager {
     const base = this.spriteHeaderSizeByIndex[node.index] || { w: 0, h: 0 };
     let w = base.w;
     let h = base.h;
-    const rot = ((Math.floor(Number(node.raw?.rotated) || 0) % 4) + 4) % 4;
-    if (rot % 2 === 1) {
-      const t = w; w = h; h = t;
+    if (!this.spriteAnimatedByIndex[node.index]) {
+      const rot = ((Math.floor(Number(node.raw?.rotated) || 0) % 4) + 4) % 4;
+      if (rot % 2 === 1) {
+        const t = w; w = h; h = t;
+      }
     }
     return { w, h };
   }
@@ -945,11 +889,11 @@ class SpriteTextureManager {
       let victimEntry: TextureLruEntry | null = null;
       let bestTs = Infinity;
 
-      // 优先从"当前帧未使用"的贴图中选择回收目标
-      // 如果所有贴图都在使用，则选择最久未使用的（即使正在显示）
+      // 优先当前帧未使用"的贴图中选择回收目标
+      // 如果所有贴图都在使用，则选择最久未使用的（即使正在显示
       for (const [d, e] of this.lruByDrawable.entries()) {
         const inUse = this.usedThisFrame.has(d);
-        // 跳过当前帧正在使用的贴图（除非没有其他选择）
+        // 跳过当前帧正在使用的贴图（除非没有其他选择
         if (inUse && this.lruByDrawable.size > this.usedThisFrame.size) continue;
         if (e.lastUsed < bestTs) {
           bestTs = e.lastUsed;
@@ -958,7 +902,7 @@ class SpriteTextureManager {
         }
       }
 
-      // 如果没有找到"未使用"的贴图，强制回收最久未使用的
+      // 如果没有找到"未使的贴图，强制回收最久未使用
       if (!victim) {
         bestTs = Infinity;
         for (const [d, e] of this.lruByDrawable.entries()) {
@@ -972,17 +916,17 @@ class SpriteTextureManager {
 
       if (!victim || !victimEntry) break;
 
-      // 从所有 index 解绑
+      // 从所index 解绑
       for (const idx of victimEntry.indices) {
         const cur = this.scene.spriteDrawableByIndex.get(idx);
         if (cur === victim) this.scene.spriteDrawableByIndex.delete(idx);
       }
 
-      // 清理去重缓存 key（否则 Map 会一直强引用 drawable，LRU 失效）
+      // 清理去重缓存 key（否Map 会一直强引用 drawable，LRU 失效
       for (const k of victimEntry.cacheKeys) this.decodedCache.delete(k);
-      for (const k of victimEntry.transformedKeys) this.transformedCache.delete(k);
 
       // 释放像素资源
+      this.scene.onDrawableReleased?.(victim);
       if (victim instanceof ImageBitmap) {
         try { victim.close(); } catch { /* ignore */ }
       }
@@ -1035,41 +979,19 @@ class SpriteTextureManager {
       const base = await rec.promise;
       if (!base) return;
 
-      const flipH = !!node.raw?.flipped_h, flipV = !!node.raw?.flipped_v;
-      const rot = ((Math.floor(Number(node.raw?.rotated) || 0) % 4) + 4) % 4;
-      node._texXform = null;
+      node._texXform = getSpriteTextureTransform(node.raw, true);
+      drawable = base;
 
-      if (flipH || flipV || rot !== 0) {
-        const tKey = `${key}|fh${flipH ? 1 : 0}|fv${flipV ? 1 : 0}|r${rot}`;
-        let trec = this.transformedCache.get(tKey);
-        if (!trec) {
-          const promise = Promise.resolve(applySpriteTextureTransforms(base, node.raw));
-          trec = { promise, drawable: null };
-          this.transformedCache.set(tKey, trec);
-          promise.then((d) => { trec!.drawable = d; }).catch(() => { /* ignore */ });
-        }
-        drawable = await trec.promise;
-      } else {
-        drawable = base;
-      }
-
-      // 记录缓存 key：baseKey 对应 base drawable；transformedKey 对应变换后的 drawable
-      const baseKey = key;
-      const transformedKey = (flipH || flipV || rot !== 0)
-        ? `${key}|fh${flipH ? 1 : 0}|fv${flipV ? 1 : 0}|r${rot}`
-        : null;
-
-      // base drawable 也要纳入 LRU（否则 decodedCache 会长期强引用导致无法回收）
+      // base drawable 也要纳入 LRU（否decodedCache 会长期强引用导致无法回收
       this.registerDrawable(base, -1);
       this.touchDrawable(base);
-      this.attachCacheKey(base, baseKey, false);
+      this.attachCacheKey(base, key);
 
-      // 先写入 index->drawable，再纳入 LRU 与 key 追踪
+      // 先写index->drawable，再纳入 LRU key 追踪
       if (drawable) {
         this.scene.spriteDrawableByIndex.set(idx, drawable);
         this.registerDrawable(drawable, idx);
         this.touchDrawable(drawable);
-        if (transformedKey) this.attachCacheKey(drawable, transformedKey, true);
       }
       return;
 
@@ -1078,13 +1000,7 @@ class SpriteTextureManager {
       drawable = await decodePngBytesToDrawable(bytes, node.name, this.decodePolicy);
       if (!drawable) return;
 
-      const flipH = !!node.raw?.flipped_h, flipV = !!node.raw?.flipped_v;
-      const rot = ((Math.floor(Number(node.raw?.rotated) || 0) % 4) + 4) % 4;
-      node._texXform = drawable._isAnimated && (flipH || flipV || rot !== 0) ? { flipH, flipV, rot } : null;
-      if (!drawable._isAnimated) {
-        node._texXform = null;
-        drawable = applySpriteTextureTransforms(drawable, node.raw);
-      }
+      node._texXform = getSpriteTextureTransform(node.raw, false);
     }
 
     if (!drawable) return;
@@ -1093,11 +1009,10 @@ class SpriteTextureManager {
     this.touchDrawable(drawable);
   }
 
-  private attachCacheKey(drawable: any, key: string, transformed: boolean): void {
+  private attachCacheKey(drawable: any, key: string): void {
     const e = this.lruByDrawable.get(drawable);
     if (!e) return;
-    if (transformed) e.transformedKeys.add(key);
-    else e.cacheKeys.add(key);
+    e.cacheKeys.add(key);
   }
 
   private registerDrawable(drawable: any, idx: number): void {
@@ -1111,7 +1026,6 @@ class SpriteTextureManager {
         lastUsed: now,
         indices: new Set<number>(),
         cacheKeys: new Set<string>(),
-        transformedKeys: new Set<string>(),
       };
       this.lruByDrawable.set(drawable, e);
       this.totalBytes += bytes;
@@ -1365,14 +1279,14 @@ function computeSceneBaseWorldPositions(scene: RuntimeScene) {
 }
 
 // ============================================================================
-// stepNodeRuntime — 单节点每帧更新
+// stepNodeRuntime 单节点每帧更
 // ============================================================================
 
 /**
- * 单节点的每帧更新：推进帧动画、鼠标跟随、彩虹/摆动/移动等组合效果。
+ * 单节点的每帧更新：推进帧动画、鼠标跟随、彩摆动/移动等组合效果
  *
- * 注意：该函数会同时更新 runtimeFrame 与跟随/移动的缓冲状态，
- * 是 PngRemix 动画效果的核心路径。
+ * 注意：该函数会同时更runtimeFrame 与跟移动的缓冲状态，
+ * PngRemix 动画效果的核心路径
  */
 function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, enableMouseFollow: boolean, mouseWorld: Vec2, hasMouse: boolean) {
 
@@ -1449,10 +1363,10 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
   const followType3 = Math.floor(getMouthNumber(scene, st, "follow_type3", 15));
   const mouseDelayRaw = clamp(getMouthNumber(scene, st, "mouse_delay", 0.1), 0, 1);
 
-  // Godot/PngRemix 的跟随逻辑默认是按 60Hz tick 重复执行 lerp(x, target, mouse_delay)。
-  // 如果我们只在低帧率下每帧执行一次，视觉上会变慢（例如 20fps 会慢约 3 倍）。
-  // 这里把每帧 dt 合成为等价的 lerp 系数：tEff = 1 - (1 - t)^(dt*60)
-  // 这样无论 render fps 如何变化，跟随速度都能与 60Hz tick 保持一致。
+  // Godot/PngRemix 的跟随逻辑默认是按 60Hz tick 重复执行 lerp(x, target, mouse_delay)
+  // 如果我们只在低帧率下每帧执行一次，视觉上会变慢（例20fps 会慢3 倍）
+  // 这里把每dt 合成为等价的 lerp 系数：tEff = 1 - (1 - t)^(dt*60)
+  // 这样无论 render fps 如何变化，跟随速度都能60Hz tick 保持一致
   const followTicks = shouldDelta ? Math.max(0, dtSec) * 60 : 1;
   const tEff = clamp(1 - Math.pow(1 - mouseDelayRaw, followTicks), 0, 1);
   const tPos = tEff;
@@ -1481,9 +1395,9 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
   }
 
   // Helper: followPositionCalculations
-  // 注意：这里不要再对 targetPos 做一次 lerp。
-  // 因为后面 runtimeFollowPos 还会 lerp(targetPos)，对"移动目标"会形成二阶低通，体感更黏、更滞后。
-  // 直接计算目标位置（targetPos），只保留 runtimeFollowPos 的一次平滑即可。
+  // 注意：这里不要再targetPos 做一lerp
+  // 因为后面 runtimeFollowPos 还会 lerp(targetPos)，对"移动目标"会形成二阶低通，体感更黏、更滞后
+  // 直接计算目标位置（targetPos），只保runtimeFollowPos 的一次平滑即可
   function followPositionCalculations(dir: Vec2, mDist: Vec2 | null) {
     const posXMin = getMouthNumber(scene, st, "pos_x_min", 0);
     const posXMax = getMouthNumber(scene, st, "pos_x_max", 0);
@@ -1726,23 +1640,34 @@ function updateGlobalBounce(scene: RuntimeScene, dtSec: number, features: PngRem
 // buildDrawList
 // ============================================================================
 
+type ClipRect = { mat: Mat2D; x: number; y: number; w: number; h: number };
+
 interface DrawItem {
-  order: number; z: number; mat: Mat2D; clip: any[];
-  alpha: number; blend: GlobalCompositeOperation; drawable: any; texXform: any;
-  hf: number; vf: number; frame: number;
+  order: number;
+  z: number;
+  mat: Mat2D;
+  clip: ClipRect[];
+  alpha: number;
+  tint: RGBA;
+  blend: PngRemixBlendMode;
+  drawable: any;
+  texXform: SpriteTextureTransform | null;
+  hf: number;
+  vf: number;
+  frame: number;
 }
 
 /**
- * 构建可绘制列表：按树遍历计算可见性、颜色、变换与裁剪栈。
+ * 构建可绘制列表：按树遍历计算可见性、颜色、变换与裁剪栈
  *
- * 输出的 DrawItem 会在后续排序并逐项渲染。
+ * 输出DrawItem 会在后续排序并逐项渲染
  */
 function buildDrawList(scene: RuntimeScene, rootSpriteMat: Mat2D): DrawItem[] {
 
   const items: DrawItem[] = [];
   for (const n of scene.nodes) n._visibleNow = false;
   const orderCounter = { v: 0 };
-  const clipStack: any[] = [];
+  const clipStack: ClipRect[] = [];
 
   function visit(node: RuntimeNode, parentSpriteMat: Mat2D, parentZ: number, inheritedRainbowHue: number | null) {
     const st = node.getState(scene.stateId); if (!st) return;
@@ -1816,7 +1741,7 @@ function buildDrawList(scene: RuntimeScene, rootSpriteMat: Mat2D): DrawItem[] {
 
     let drawable = scene.spriteDrawableByIndex.get(node.index);
 
-    // 按需解码：仅当节点真的可见时才触发贴图解码
+    // 按需解码：仅当节点真的可见时才触发贴图解
     if (!drawable && scene.textureManager) {
       scene.textureManager.request(node);
     }
@@ -1825,13 +1750,18 @@ function buildDrawList(scene: RuntimeScene, rootSpriteMat: Mat2D): DrawItem[] {
       scene.textureManager.touchDrawable(drawable);
     }
 
-    const tintedDrawable = drawable ? getTintedDrawable(drawable, modulate) : null;
-
-    if (tintedDrawable) {
+    if (drawable) {
       items.push({
         order: orderCounter.v++, z, mat: spriteMat, clip: clipStack.slice(),
         alpha, blend: compositeForBlendMode(st.blend_mode),
-        drawable: tintedDrawable, texXform: node._texXform || null,
+        tint: {
+          r: clamp(modulate.r, 0, 1),
+          g: clamp(modulate.g, 0, 1),
+          b: clamp(modulate.b, 0, 1),
+          a: 1,
+        },
+        drawable,
+        texXform: node._texXform || null,
         hf: st.hframes ?? 1, vf: st.vframes ?? 1,
         frame: node.runtimeFrameOverride ?? node.runtimeFrame ?? st.frame ?? 0,
       });
@@ -1844,6 +1774,11 @@ function buildDrawList(scene: RuntimeScene, rootSpriteMat: Mat2D): DrawItem[] {
       if (drawable) {
         const s = getImageLogicalSize(drawable);
         w = s.w; h = s.h;
+        if (node._texXform?.swapLogicalWH) {
+          const t = w;
+          w = h;
+          h = t;
+        }
       } else if (scene.textureManager) {
         const s = scene.textureManager.getNodeLogicalSize(node);
         w = s.w; h = s.h;
@@ -1875,41 +1810,418 @@ function sortDrawItems(list: DrawItem[]) {
   list.sort((a, b) => (a.z - b.z) || (a.order - b.order));
 }
 
-function drawItem(ctx: CanvasRenderingContext2D, item: DrawItem) {
-  if (!item.drawable) return;
-  const hadClip = item.clip.length > 0;
-  if (hadClip) {
-    ctx.save();
-    for (const clip of item.clip) {
-      ctx.setTransform(clip.mat.a, clip.mat.b, clip.mat.c, clip.mat.d, clip.mat.e, clip.mat.f);
-      ctx.beginPath(); ctx.rect(clip.x, clip.y, clip.w, clip.h); ctx.clip();
+type GlTextureRecord = {
+  texture: WebGLTexture;
+  w: number;
+  h: number;
+  filter: number;
+  animated: boolean;
+  lastUploadFrame: number;
+};
+
+class WebGLSceneRenderer {
+  private canvas: HTMLCanvasElement;
+  private gl: WebGLRenderingContext;
+  private program: WebGLProgram;
+  private buffer: WebGLBuffer;
+  private aPos: number;
+  private aUv: number;
+  private uMat: WebGLUniformLocation;
+  private uResolution: WebGLUniformLocation;
+  private uColor: WebGLUniformLocation;
+  private uTex: WebGLUniformLocation;
+  private whiteTexture: WebGLTexture;
+  private textures = new Map<any, GlTextureRecord>();
+  private quadData = new Float32Array(16);
+  private frameId = 0;
+  private blendMode: PngRemixBlendMode | null = null;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    const gl = (canvas.getContext("webgl", {
+      alpha: true,
+      antialias: true,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: true,
+      stencil: true,
+    }) || canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
+    if (!gl) throw new Error("WebGL is not available");
+    this.gl = gl;
+
+    const vsSource = `
+      attribute vec2 a_pos;
+      attribute vec2 a_uv;
+      uniform mat3 u_mat;
+      uniform vec2 u_resolution;
+      varying vec2 v_uv;
+      void main() {
+        vec3 p = u_mat * vec3(a_pos, 1.0);
+        vec2 ndc = vec2((p.x / u_resolution.x) * 2.0 - 1.0, 1.0 - (p.y / u_resolution.y) * 2.0);
+        gl_Position = vec4(ndc, 0.0, 1.0);
+        v_uv = a_uv;
+      }
+    `;
+    const fsSource = `
+      precision mediump float;
+      varying vec2 v_uv;
+      uniform sampler2D u_tex;
+      uniform vec4 u_color;
+      void main() {
+        vec4 tex = texture2D(u_tex, v_uv);
+        // Straight-alpha pipeline to match Canvas2D tint + globalAlpha behavior.
+        gl_FragColor = vec4(tex.rgb * u_color.rgb, tex.a * u_color.a);
+      }
+    `;
+    const program = this.createProgram(vsSource, fsSource);
+    if (!program) throw new Error("Failed to create WebGL shader program");
+    this.program = program;
+
+    const buffer = gl.createBuffer();
+    if (!buffer) throw new Error("Failed to create WebGL vertex buffer");
+    this.buffer = buffer;
+
+    const aPos = gl.getAttribLocation(program, "a_pos");
+    const aUv = gl.getAttribLocation(program, "a_uv");
+    const uMat = gl.getUniformLocation(program, "u_mat");
+    const uResolution = gl.getUniformLocation(program, "u_resolution");
+    const uColor = gl.getUniformLocation(program, "u_color");
+    const uTex = gl.getUniformLocation(program, "u_tex");
+    if (aPos < 0 || aUv < 0 || !uMat || !uResolution || !uColor || !uTex) {
+      throw new Error("Failed to bind WebGL shader attributes/uniforms");
+    }
+    this.aPos = aPos;
+    this.aUv = aUv;
+    this.uMat = uMat;
+    this.uResolution = uResolution;
+    this.uColor = uColor;
+    this.uTex = uTex;
+
+    const white = gl.createTexture();
+    if (!white) throw new Error("Failed to create WebGL helper texture");
+    this.whiteTexture = white;
+    gl.bindTexture(gl.TEXTURE_2D, white);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array([255, 255, 255, 255]),
+    );
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(aPos);
+    gl.enableVertexAttribArray(aUv);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 16, 8);
+    gl.uniform1i(uTex, 0);
+    gl.enable(gl.BLEND);
+    gl.clearColor(0, 0, 0, 0);
+  }
+
+  destroy(): void {
+    const gl = this.gl;
+    for (const rec of this.textures.values()) gl.deleteTexture(rec.texture);
+    this.textures.clear();
+    gl.deleteTexture(this.whiteTexture);
+    gl.deleteBuffer(this.buffer);
+    gl.deleteProgram(this.program);
+  }
+
+  getWidth(): number {
+    return this.canvas.width;
+  }
+
+  getHeight(): number {
+    return this.canvas.height;
+  }
+
+  releaseDrawable(drawable: any): void {
+    const rec = this.textures.get(drawable);
+    if (!rec) return;
+    this.gl.deleteTexture(rec.texture);
+    this.textures.delete(drawable);
+  }
+
+  render(items: DrawItem[]): void {
+    const gl = this.gl;
+    this.frameId++;
+
+    const w = Math.max(1, this.canvas.width | 0);
+    const h = Math.max(1, this.canvas.height | 0);
+    gl.viewport(0, 0, w, h);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+
+    gl.useProgram(this.program);
+    gl.uniform2f(this.uResolution, w, h);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+
+    for (const item of items) {
+      if (!item.drawable) continue;
+      const tex = this.ensureTexture(item.drawable);
+      if (!tex) continue;
+
+      const frame = getFrameInfo(
+        item.drawable,
+        item.hf,
+        item.vf,
+        item.frame,
+        !!item.texXform?.swapLogicalWH,
+      );
+      if (!frame) continue;
+
+      let mat = item.mat;
+      const tx = item.texXform;
+      if (tx && (tx.flipH || tx.flipV || tx.rot)) {
+        mat = mat
+          .multiply(Mat2D.rotate((Number(tx.rot) || 0) * Math.PI / 2))
+          .multiply(Mat2D.scale(tx.flipH ? -1 : 1, tx.flipV ? -1 : 1));
+      }
+
+      const x0 = -frame.w / 2;
+      const y0 = -frame.h / 2;
+      const x1 = frame.w / 2;
+      const y1 = frame.h / 2;
+
+      const hadClip = item.clip.length > 0;
+      if (hadClip) this.beginClip(item.clip);
+
+      this.setBlendMode(item.blend);
+      this.drawQuad(tex, mat, x0, y0, x1, y1, frame.u0, frame.v0, frame.u1, frame.v1, item.tint, item.alpha);
+
+      if (hadClip) this.endClip();
     }
   }
-  ctx.globalCompositeOperation = item.blend;
-  ctx.globalAlpha = item.alpha;
-  ctx.setTransform(item.mat.a, item.mat.b, item.mat.c, item.mat.d, item.mat.e, item.mat.f);
-  const tx = item.texXform;
-  if (tx && (tx.flipH || tx.flipV || tx.rot)) {
-    ctx.save();
-    ctx.rotate((Number(tx.rot) || 0) * Math.PI / 2);
-    ctx.scale(tx.flipH ? -1 : 1, tx.flipV ? -1 : 1);
-    drawImageFrame(ctx, item.drawable, item.hf, item.vf, item.frame);
-    ctx.restore();
-  } else {
-    drawImageFrame(ctx, item.drawable, item.hf, item.vf, item.frame);
+
+  isOpaqueAtCanvasPx(px: number, py: number, alphaThreshold: number): boolean {
+    const gl = this.gl;
+    const w = Math.max(1, this.canvas.width | 0);
+    const h = Math.max(1, this.canvas.height | 0);
+    if (px < 0 || py < 0 || px >= w || py >= h) return false;
+
+    const x0 = Math.max(0, Math.min(w - 1, Math.floor(px) - 1));
+    const y0 = Math.max(0, Math.min(h - 1, Math.floor(py) - 1));
+    const rw = Math.max(1, Math.min(3, w - x0));
+    const rh = Math.max(1, Math.min(3, h - y0));
+    const readY = h - y0 - rh;
+
+    const data = new Uint8Array(rw * rh * 4);
+    try {
+      gl.readPixels(x0, readY, rw, rh, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    } catch {
+      return false;
+    }
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] >= alphaThreshold) return true;
+    }
+    return false;
   }
-  if (hadClip) ctx.restore();
+
+  private createProgram(vsSource: string, fsSource: string): WebGLProgram | null {
+    const gl = this.gl;
+    const vs = this.compileShader(gl.VERTEX_SHADER, vsSource);
+    const fs = this.compileShader(gl.FRAGMENT_SHADER, fsSource);
+    if (!vs || !fs) return null;
+    const p = gl.createProgram();
+    if (!p) return null;
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    const ok = !!gl.getProgramParameter(p, gl.LINK_STATUS);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    if (!ok) {
+      gl.deleteProgram(p);
+      return null;
+    }
+    return p;
+  }
+
+  private compileShader(type: number, source: string): WebGLShader | null {
+    const gl = this.gl;
+    const s = gl.createShader(type);
+    if (!s) return null;
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      gl.deleteShader(s);
+      return null;
+    }
+    return s;
+  }
+
+  private ensureTexture(drawable: any): WebGLTexture | null {
+    const gl = this.gl;
+    const sz = getImageSize(drawable);
+    if (!sz.w || !sz.h) return null;
+
+    const animated = !!drawable?._isAnimated;
+    const desiredFilter = getPngRemixTextureFilter(gl);
+    let rec = this.textures.get(drawable);
+    if (!rec) {
+      const texture = gl.createTexture();
+      if (!texture) return null;
+      rec = { texture, w: 0, h: 0, filter: desiredFilter, animated, lastUploadFrame: -1 };
+      this.textures.set(drawable, rec);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, desiredFilter);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, desiredFilter);
+    } else {
+      gl.bindTexture(gl.TEXTURE_2D, rec.texture);
+      if (rec.filter !== desiredFilter) {
+        rec.filter = desiredFilter;
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, desiredFilter);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, desiredFilter);
+      }
+    }
+
+    const needUpload =
+      rec.w !== sz.w ||
+      rec.h !== sz.h ||
+      rec.animated !== animated ||
+      (animated && rec.lastUploadFrame !== this.frameId);
+
+    if (needUpload) {
+      try {
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, drawable as TexImageSource);
+      } catch {
+        this.releaseDrawable(drawable);
+        return null;
+      }
+      rec.w = sz.w;
+      rec.h = sz.h;
+      rec.animated = animated;
+      rec.lastUploadFrame = this.frameId;
+    }
+
+    return rec.texture;
+  }
+
+  private beginClip(clips: ClipRect[]): void {
+    const gl = this.gl;
+    gl.enable(gl.STENCIL_TEST);
+    gl.clearStencil(0);
+    gl.clear(gl.STENCIL_BUFFER_BIT);
+    gl.colorMask(false, false, false, false);
+    gl.disable(gl.BLEND);
+
+    for (let i = 0; i < clips.length; i++) {
+      if (i === 0) {
+        gl.stencilFunc(gl.ALWAYS, 1, 0xff);
+        gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
+      } else {
+        gl.stencilFunc(gl.EQUAL, 1, 0xff);
+        gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+      }
+      const c = clips[i];
+      this.drawQuad(
+        this.whiteTexture,
+        c.mat,
+        c.x,
+        c.y,
+        c.x + c.w,
+        c.y + c.h,
+        0,
+        0,
+        1,
+        1,
+        { r: 1, g: 1, b: 1, a: 1 },
+        1,
+      );
+    }
+
+    gl.colorMask(true, true, true, true);
+    gl.enable(gl.BLEND);
+    gl.stencilFunc(gl.EQUAL, 1, 0xff);
+    gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+  }
+
+  private endClip(): void {
+    this.gl.disable(this.gl.STENCIL_TEST);
+  }
+
+  private setBlendMode(mode: PngRemixBlendMode): void {
+    const gl = this.gl;
+    gl.enable(gl.BLEND);
+    if (this.blendMode === mode) return;
+    gl.blendEquation(gl.FUNC_ADD);
+    switch (mode) {
+      case "add":
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+        break;
+      case "multiply":
+        gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        break;
+      case "difference":
+        gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
+        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        break;
+      case "normal":
+      default:
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        break;
+    }
+    this.blendMode = mode;
+  }
+
+  private drawQuad(
+    texture: WebGLTexture,
+    mat: Mat2D,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    u0: number,
+    v0: number,
+    u1: number,
+    v1: number,
+    tint: RGBA,
+    alpha: number,
+  ): void {
+    const gl = this.gl;
+    this.quadData[0] = x0; this.quadData[1] = y0; this.quadData[2] = u0; this.quadData[3] = v0;
+    this.quadData[4] = x1; this.quadData[5] = y0; this.quadData[6] = u1; this.quadData[7] = v0;
+    this.quadData[8] = x0; this.quadData[9] = y1; this.quadData[10] = u0; this.quadData[11] = v1;
+    this.quadData[12] = x1; this.quadData[13] = y1; this.quadData[14] = u1; this.quadData[15] = v1;
+    gl.bufferData(gl.ARRAY_BUFFER, this.quadData, gl.DYNAMIC_DRAW);
+
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniformMatrix3fv(this.uMat, false, new Float32Array([
+      mat.a, mat.b, 0,
+      mat.c, mat.d, 0,
+      mat.e, mat.f, 1,
+    ]));
+    gl.uniform4f(
+      this.uColor,
+      clamp(tint.r, 0, 1),
+      clamp(tint.g, 0, 1),
+      clamp(tint.b, 0, 1),
+      clamp(alpha, 0, 1),
+    );
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 }
 
-function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: number, panX: number, panY: number, enableTrim = false) {
+function renderScene(scene: RuntimeScene, renderer: WebGLSceneRenderer, zoom: number, panX: number, panY: number, enableTrim = false) {
   // 标记新帧开始，清空"本帧使用"集合
   scene.textureManager?.beginFrame();
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const w = canvas.width, h = canvas.height;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, w, h);
+  const w = renderer.getWidth();
+  const h = renderer.getHeight();
 
   const center = Mat2D.translate(w / 2, h / 2)
     .multiply(Mat2D.translate(panX, panY))
@@ -1919,17 +2231,9 @@ function renderScene(scene: RuntimeScene, canvas: HTMLCanvasElement, zoom: numbe
 
   const items = buildDrawList(scene, rootMat);
   sortDrawItems(items);
+  renderer.render(items);
 
-  // 放大/缩小时的插值策略：必须在最终 draw 之前设置。
-  // 否则降采样后的贴图会在放大绘制时被持续平滑，观感会明显变糊。
-  applyPngRemixUpscaleSettings(ctx);
-
-  for (const it of items) drawItem(ctx, it);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = "source-over";
-
-  // LRU 回收：每 30 帧做一次预算检查（降低 CPU 开销）
+  // LRU 回收：每 30 帧做一次预算检查（降低 CPU 开销
   if (enableTrim) {
     scene._frameCount = (scene._frameCount || 0) + 1;
     if (scene._frameCount >= 30) {
@@ -1969,14 +2273,14 @@ async function buildRuntimeScene(normalizedModel: any, decodePolicy: TextureDeco
     const b = spriteInfo?.imgBytes;
     if (b instanceof Uint8Array && b.length >= 6) {
       spriteBytesByIndex[i] = b;
-      // 解除 normalizedModel 对 bytes 的引用，便于后续释放 model 对象
+      // 解除 normalizedModel bytes 的引用，便于后续释放 model 对象
       spriteInfo.imgBytes = null;
     }
   }
 
   scene.textureManager = new SpriteTextureManager(scene, spriteBytesByIndex, decodePolicy, {
     // 动态预算：根据贴图数量调整 maxItems，避免小贴图多的角色频繁回收
-    // 策略：max(默认64, min(贴图数*0.8, 200))
+    // 策略：max(默认64, min(贴图0.8, 200))
     maxItems: Math.max(TEXTURE_LRU_MAX_ITEMS_DEFAULT, Math.min(spriteBytesByIndex.length, 200)),
   });
 
@@ -2011,14 +2315,14 @@ function fitViewToContent(scene: RuntimeScene, canvasW: number, canvasH: number)
 // PngRemixPlayer
 // ============================================================================
 
-/** PngRemix 功能开关（鼠标跟随等）。 */
+/** PngRemix 功能开关（鼠标跟随等）*/
 export type PngRemixFeatureFlags = {
   mouseFollow: boolean;
 };
 
 
 /**
- * PngRemix 播放器：负责加载 .pngRemix 模型并驱动表达/动作/鼠标跟随。
+ * PngRemix 播放器：负责加载 .pngRemix 模型并驱动表动作/鼠标跟随
  */
 export class PngRemixPlayer {
 
@@ -2069,31 +2373,22 @@ export class PngRemixPlayer {
   // Resize observer
   private resizeObserver: ResizeObserver | null = null;
 
-  // Hit-test buffer (for transparent-pixel click-through)
-  private hitTestCanvas: HTMLCanvasElement | null = null;
-  private hitTestCtx: CanvasRenderingContext2D | null = null;
-  private hitTestScale = 0.25; // smaller = faster readback
-  private hitTestDirty = true;
+  // WebGL renderer
+  private renderer: WebGLSceneRenderer;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-
-    // Create an offscreen hit-test buffer. We keep it small and enable willReadFrequently.
-    this.hitTestCanvas = document.createElement("canvas");
-    this.hitTestCtx = this.hitTestCanvas.getContext("2d", {
-      alpha: true,
-      willReadFrequently: true,
-    });
+    this.renderer = new WebGLSceneRenderer(canvas);
   }
 
   // ==== PUBLIC API ====
 
   /**
-   * 初始化播放器并加载 PngRemix 模型资源。
+   * 初始化播放器并加PngRemix 模型资源
    */
   async init(modPath: string, config: PngRemixConfig, manifest?: { enable_texture_downsample?: boolean; texture_downsample_start_dim?: number }): Promise<void> {
 
-    // 以 backend 的 current_mod 为准，确保切换 Mod 时序正确。
+    // backend current_mod 为准，确保切Mod 时序正确
     const ds = await resolveTextureDownsampleSettingsFromBackend(modPath, {
       enabled: manifest?.enable_texture_downsample,
       startDim: manifest?.texture_downsample_start_dim,
@@ -2115,8 +2410,8 @@ export class PngRemixPlayer {
     let normalized = W.ModelNormalizer.normalizePngRemixModel(decoded);
     ab = null as any;
 
-    // 贴图解码降采样/封顶：逻辑尺寸按原图，实际像素可更小（降低内存占用）
-    // 像素封顶 maxDim：与 manifest.texture_downsample_start_dim 保持一致（后端动态读取）。
+    // 贴图解码降采封顶：逻辑尺寸按原图，实际像素可更小（降低内存占用
+    // 像素封顶 maxDim：与 manifest.texture_downsample_start_dim 保持一致（后端动态读取）
     const scaleRaw = Number((config.model as any)?.texture_decode_scale);
     const maxDim = Math.max(0, Math.floor(Number(ds.startDim) || 0));
     const scale = Number.isFinite(scaleRaw) && scaleRaw > 0 ? clamp(scaleRaw, TEXTURE_DECODE_MIN_SCALE, 1) : 1;
@@ -2126,6 +2421,9 @@ export class PngRemixPlayer {
 
 
     this.scene = await buildRuntimeScene(normalized, decodePolicy);
+    this.scene.onDrawableReleased = (drawable: any) => {
+      this.renderer.releaseDrawable(drawable);
+    };
 
     decoded = null as any;
     normalized = null as any;
@@ -2166,9 +2464,10 @@ export class PngRemixPlayer {
   }
 
   /**
-   * 释放渲染资源与监听器。
+   * 释放渲染资源与监听器
    */
   destroy(): void {
+    if (this.destroyed) return;
 
     this.destroyed = true;
     this.stopPlayback();
@@ -2184,11 +2483,12 @@ export class PngRemixPlayer {
       this.scene.textureManager = null;
     }
 
-    // 显式关闭 ImageBitmap 以立即释放 GPU 纹理资源（注意：贴图可能被多个 sprite 共享）
+    // 显式关闭 ImageBitmap 以立即释GPU 纹理资源（注意：贴图可能被多sprite 共享
     if (this.scene?.spriteDrawableByIndex) {
       if (!hadTextureManager) {
         const closed = new Set<any>();
         for (const drawable of this.scene.spriteDrawableByIndex.values()) {
+          this.renderer.releaseDrawable(drawable);
           if (drawable instanceof ImageBitmap) {
             if (closed.has(drawable)) continue;
             closed.add(drawable);
@@ -2200,11 +2500,11 @@ export class PngRemixPlayer {
     }
 
     clearTintCache();
+    if (this.scene) this.scene.onDrawableReleased = null;
     this.scene = null;
 
     this.config = null;
-    this.hitTestCanvas = null;
-    this.hitTestCtx = null;
+    this.renderer.destroy();
   }
 
 
@@ -2213,7 +2513,7 @@ export class PngRemixPlayer {
    * assetName == StateInfo.anima. For pngremix, we map it via pngremixConfig.states.
    */
   /**
-   * 由 WindowCore 触发的状态播放入口（StateInfo.anima）。
+   * WindowCore 触发的状态播放入口（StateInfo.anima）
    */
   playFromAnima(
     animaName: string,
@@ -2242,14 +2542,14 @@ export class PngRemixPlayer {
 
   /**
    * Update mouse position from WindowCore cursor tracking.
-   * 注意：WindowCore 传入的是"窗口视口坐标"（CSS 逻辑像素），不是 canvas 内部坐标。
-   * 如果直接当成 canvas 坐标，会在某些布局（如 canvas 不在 (0,0)）下产生跳变，表现为鬼畜抖动/点头。
+   * 注意：WindowCore 传入的是"窗口视口坐标"（CSS 逻辑像素），不是 canvas 内部坐标
+   * 如果直接当成 canvas 坐标，会在某些布局（如 canvas 不在 (0,0)）下产生跳变，表现为鬼畜抖动/点头
    */
   updateGlobalMouseFollow(localX: number, localY: number): void {
     if (!this.scene) return;
 
-    // 如果最近已经收到过 canvas 内的高频 pointer/mouse 事件，就优先使用它们，
-    // 避免 windowcore(轮询) 与 local events 混用导致坐标系切换。
+    // 如果最近已经收到过 canvas 内的高频 pointer/mouse 事件，就优先使用它们
+    // 避免 windowcore(轮询) local events 混用导致坐标系切换
     const now = performance.now();
     if (this.lastLocalMouseTs > 0 && now - this.lastLocalMouseTs < 200) {
       return;
@@ -2259,18 +2559,18 @@ export class PngRemixPlayer {
   }
 
   /**
-   * 检测 canvas 上指定坐标附近是否存在不透明像素。
-   * 使用多点采样（中心 + 周围扩展），在模型边缘提供足够的容差，
-   * 使穿透可以在鼠标到达模型之前提前关闭。
-   * @param screenX 窗口内 X 坐标（CSS 逻辑坐标）
-   * @param screenY 窗口内 Y 坐标（CSS 逻辑坐标）
+   * 检canvas 上指定坐标附近是否存在不透明像素
+   * 使用多点采样（中+ 周围扩展），在模型边缘提供足够的容差
+   * 使穿透可以在鼠标到达模型之前提前关闭
+   * @param screenX 窗口X 坐标（CSS 逻辑坐标
+   * @param screenY 窗口Y 坐标（CSS 逻辑坐标
    * @param alphaThreshold alpha 阈值（0-255），低于此值视为透明
    * @returns true = 不透明（拦截鼠标），false = 透明（允许穿透）
    */
   isPixelOpaqueAtScreen(screenX: number, screenY: number, alphaThreshold = 10): boolean {
     const rect = this.canvas.getBoundingClientRect();
 
-    // screenX/screenY 为窗口视口坐标（CSS 逻辑像素）。先转为 canvas 内部坐标（CSS）。
+    // screenX/screenY 为窗口视口坐标（CSS 逻辑像素）。先转为 canvas 内部坐标（CSS）
     const cssX = screenX - rect.left;
     const cssY = screenY - rect.top;
 
@@ -2278,45 +2578,17 @@ export class PngRemixPlayer {
       return false;
     }
 
-    // Prefer hit-test buffer to avoid getImageData on the main render canvas.
-    if (this.hitTestDirty) this.updateHitTestBuffer();
-    const hit = this.hitTestCanvas;
-    const ctx = this.hitTestCtx;
-    if (!hit || !ctx || hit.width <= 0 || hit.height <= 0) return false;
-
     const dpr = getRenderDpr();
-    const scale = clamp(this.hitTestScale, 0.05, 1);
-
-
-    // Map to device pixels then to hit buffer pixels.
     const px = cssX * dpr;
     const py = cssY * dpr;
-    let hx = Math.floor(px * scale);
-    let hy = Math.floor(py * scale);
-
-    // Read a tiny block (3x3) to be robust against AA edges.
-    const startX = clamp(hx - 1, 0, Math.max(0, hit.width - 1));
-    const startY = clamp(hy - 1, 0, Math.max(0, hit.height - 1));
-    const w = Math.min(3, hit.width - startX);
-    const h = Math.min(3, hit.height - startY);
-
-    try {
-      const data = ctx.getImageData(startX, startY, w, h).data;
-      for (let i = 3; i < data.length; i += 4) {
-        if (data[i] >= alphaThreshold) return true;
-      }
-    } catch {
-      return false;
-    }
-
-    return false;
+    return this.renderer.isOpaqueAtCanvasPx(px, py, alphaThreshold);
   }
 
   setAnimationScale(scale: number): void {
     this.animationScale = scale;
-    // NOTE: animationScale 由 Rust 端通过调整窗口/canvas 的物理尺寸实现。
-    // 这里不再把 animationScale 叠加到相机 zoom 上，否则会出现“窗口变大 + 相机再放大”导致裁切。
-    // ResizeObserver 会在 canvas 尺寸变化时自动触发 resizeCanvas + recomputeView。
+    // NOTE: animationScale Rust 端通过调整窗口/canvas 的物理尺寸实现
+    // 这里不再animationScale 叠加到相zoom 上，否则会出现“窗口变+ 相机再放大”导致裁切
+    // ResizeObserver 会在 canvas 尺寸变化时自动触resizeCanvas + recomputeView
   }
 
 
@@ -2336,7 +2608,7 @@ export class PngRemixPlayer {
   }
 
   /**
-   * 直接切换到指定表情状态。
+   * 直接切换到指定表情状态
    */
   playExpression(name: string): void {
 
@@ -2348,7 +2620,7 @@ export class PngRemixPlayer {
   }
 
   /**
-   * 触发指定动作（可附带快捷键驱动）。
+   * 触发指定动作（可附带快捷键驱动）
    */
   playMotion(name: string): void {
 
@@ -2381,8 +2653,8 @@ export class PngRemixPlayer {
 
     const fit = fitViewToContent(this.scene, this.canvas.width, this.canvas.height);
 
-    // NOTE: 不把 WindowCore 的 animationScale 叠加到相机。
-    // animationScale 会由 Rust 调整窗口大小，canvas 变大后 fit.zoom 会自然变化。
+    // NOTE: 不把 WindowCore animationScale 叠加到相机
+    // animationScale 会由 Rust 调整窗口大小，canvas 变大fit.zoom 会自然变化
     const factor = (Number(this.modelScale) || 1) * (Number(this.stateScale) || 1);
     const dpr = getRenderDpr();
 
@@ -2410,9 +2682,9 @@ export class PngRemixPlayer {
     if (!scene) return;
 
     // Mouth state overrides (optional)
-    // 对齐预览工具（other-tool/pngRemix预览）的语义：
+    // 对齐预览工具（other-tool/pngRemix预览）的语义
     // - mouth_state: 0=Closed, 1=Open, 2=Screaming
-    // - 渲染阶段以 `mouthState !== 0` 作为"张嘴中"判定
+    // - 渲染阶段`mouthState !== 0` 作为"张嘴判定
     const mouthStateRaw = Number((state as any).mouth_state);
     if (Number.isFinite(mouthStateRaw)) {
       scene.mouthState = clamp(Math.floor(mouthStateRaw), 0, 2);
@@ -2552,7 +2824,6 @@ export class PngRemixPlayer {
       this.canvas.height = h;
       this.cameraDirty = true;
       this.mouseDirty = true;
-      this.hitTestDirty = true;
     }
   }
 
@@ -2572,7 +2843,7 @@ export class PngRemixPlayer {
   }
 
   private recordMouseViewportPosition(viewX: number, viewY: number, source: string): void {
-    // viewX/viewY 是窗口视口坐标（client 坐标系），需要转换到 canvas 内部坐标。
+    // viewX/viewY 是窗口视口坐标（client 坐标系），需要转换到 canvas 内部坐标
     const rect = this.canvas.getBoundingClientRect();
     this.recordMouseCssPosition(viewX - rect.left, viewY - rect.top, source);
   }
@@ -2586,30 +2857,6 @@ export class PngRemixPlayer {
     this.mouseDirty = true;
 
     if (source !== "windowcore") this.lastLocalMouseTs = performance.now();
-  }
-
-  private updateHitTestBuffer(): void {
-    const src = this.canvas;
-    const dst = this.hitTestCanvas;
-    const ctx = this.hitTestCtx;
-    if (!dst || !ctx) return;
-
-    const scale = clamp(this.hitTestScale, 0.05, 1);
-    const w = Math.max(1, Math.floor(src.width * scale));
-    const h = Math.max(1, Math.floor(src.height * scale));
-
-    if (dst.width !== w || dst.height !== h) {
-      dst.width = w;
-      dst.height = h;
-    }
-
-    // Copy the final composited frame (with alpha) into the small buffer.
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, w, h);
-
-    this.hitTestDirty = false;
   }
 
   private syncMouseFollowBindings(): void {
@@ -2707,7 +2954,7 @@ export class PngRemixPlayer {
     const maxFps = capFps(maxFpsRaw);
     const minDeltaMs = 1000 / Math.max(1, clamp(maxFps, 1, 240));
 
-    // 同时限制 Pixi shared ticker 的帧率，避免其他 Pixi 动画消耗 GPU
+    // 同时限制 Pixi shared ticker 的帧率，避免其他 Pixi 动画消GPU
     const PIXI = (globalThis as any).PIXI;
     const sharedTicker = PIXI?.Ticker?.shared;
     if (sharedTicker && sharedTicker.maxFPS !== maxFps) {
@@ -2735,9 +2982,7 @@ export class PngRemixPlayer {
       this.updateMouseWorld();
       stepSceneRuntime(this.scene, dtSec, this.enableMouseFollow, this.mouseWorld, this.hasMouse);
       this.resizeCanvas();
-      renderScene(this.scene, this.canvas, this.zoom, this.panX, this.panY, true);
-      // 标记 hit-test buffer 为脏，但不立即更新（改为懒加载）
-      this.hitTestDirty = true;
+      renderScene(this.scene, this.renderer, this.zoom, this.panX, this.panY, true);
 
       this.scene._rafId = requestAnimationFrame(frame);
     };
@@ -2752,3 +2997,4 @@ export class PngRemixPlayer {
     this.scene._lastTs = 0;
   }
 }
+
