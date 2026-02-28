@@ -781,6 +781,7 @@ class SpriteTextureManager {
 
   // 当前帧正在使用的 drawable 集合（用于可见性保护）
   private usedThisFrame = new Set<any>();
+  private disposed = false;
 
   constructor(
     scene: RuntimeScene,
@@ -817,6 +818,8 @@ class SpriteTextureManager {
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     // 清理缓存引用，确LRU 回收/GC 生效
     this.queue.length = 0;
     this.decodedCache.clear();
@@ -832,7 +835,9 @@ class SpriteTextureManager {
     }
 
     this.lruByDrawable.clear();
+    this.usedThisFrame.clear();
     this.totalBytes = 0;
+    this.active = 0;
     this.spriteBytesByIndex = [];
     this.spriteHeaderSizeByIndex = [];
     this.spriteAnimatedByIndex = [];
@@ -852,6 +857,7 @@ class SpriteTextureManager {
   }
 
   request(node: RuntimeNode): void {
+    if (this.disposed) return;
     if (!node) return;
     if (this.scene.spriteDrawableByIndex.has(node.index)) return;
     if (this.inFlightByIndex.has(node.index)) return;
@@ -866,6 +872,7 @@ class SpriteTextureManager {
   }
 
   touchDrawable(drawable: any): void {
+    if (this.disposed) return;
     const e = this.lruByDrawable.get(drawable);
     if (e) e.lastUsed = performance.now();
     this.usedThisFrame.add(drawable);
@@ -873,10 +880,12 @@ class SpriteTextureManager {
 
   /** 标记一帧开始，清空"本帧使用"集合 */
   beginFrame(): void {
+    if (this.disposed) return;
     this.usedThisFrame.clear();
   }
 
   trim(): void {
+    if (this.disposed) return;
     // 若超预算，回收最久未使用资源
     const overItems = this.lruByDrawable.size > this.maxItems;
     const overBytes = this.totalBytes > this.maxBytes;
@@ -940,14 +949,16 @@ class SpriteTextureManager {
   }
 
   private pump(): void {
+    if (this.disposed) return;
     while (this.active < TEXTURE_STREAM_DECODE_CONCURRENCY && this.queue.length > 0) {
       const node = this.queue.shift()!;
       this.active++;
       const p = this.ensureNodeDecoded(node)
         .catch(() => { /* ignore */ })
         .finally(() => {
-          this.active--;
+          this.active = Math.max(0, this.active - 1);
           this.inFlightByIndex.delete(node.index);
+          if (this.disposed) return;
           this.trim();
           // 继续消费队列
           if (this.queue.length > 0) this.pump();
@@ -957,6 +968,7 @@ class SpriteTextureManager {
   }
 
   private async ensureNodeDecoded(node: RuntimeNode): Promise<void> {
+    if (this.disposed) return;
     const idx = node.index;
     const bytes = this.spriteBytesByIndex[idx];
     if (!(bytes instanceof Uint8Array) || bytes.length < 6) return;
@@ -967,6 +979,7 @@ class SpriteTextureManager {
 
     if (!isAnimated) {
       const key = await getBytesHashKey(bytes);
+      if (this.disposed) return;
 
       let rec = this.decodedCache.get(key);
       if (!rec) {
@@ -978,6 +991,12 @@ class SpriteTextureManager {
 
       const base = await rec.promise;
       if (!base) return;
+      if (this.disposed) {
+        if (base instanceof ImageBitmap) {
+          try { base.close(); } catch { /* ignore */ }
+        }
+        return;
+      }
 
       node._texXform = getSpriteTextureTransform(node.raw, true);
       drawable = base;
@@ -999,10 +1018,22 @@ class SpriteTextureManager {
     } else {
       drawable = await decodePngBytesToDrawable(bytes, node.name, this.decodePolicy);
       if (!drawable) return;
+      if (this.disposed) {
+        if (drawable instanceof ImageBitmap) {
+          try { drawable.close(); } catch { /* ignore */ }
+        }
+        return;
+      }
 
       node._texXform = getSpriteTextureTransform(node.raw, false);
     }
 
+    if (this.disposed) {
+      if (drawable instanceof ImageBitmap) {
+        try { drawable.close(); } catch { /* ignore */ }
+      }
+      return;
+    }
     if (!drawable) return;
     this.scene.spriteDrawableByIndex.set(idx, drawable);
     this.registerDrawable(drawable, idx);
@@ -1010,12 +1041,14 @@ class SpriteTextureManager {
   }
 
   private attachCacheKey(drawable: any, key: string): void {
+    if (this.disposed) return;
     const e = this.lruByDrawable.get(drawable);
     if (!e) return;
     e.cacheKeys.add(key);
   }
 
   private registerDrawable(drawable: any, idx: number): void {
+    if (this.disposed) return;
     const now = performance.now();
     let e = this.lruByDrawable.get(drawable);
     if (!e) {
@@ -2381,12 +2414,71 @@ export class PngRemixPlayer {
     this.renderer = new WebGLSceneRenderer(canvas);
   }
 
+  private releaseSceneResources(scene: RuntimeScene | null): void {
+    if (!scene) return;
+
+    scene.playing = false;
+    if (scene._rafId) {
+      cancelAnimationFrame(scene._rafId);
+      scene._rafId = 0;
+    }
+    scene._lastTs = 0;
+
+    scene.autoBlink = false;
+    if (scene._autoBlinkTimer) {
+      clearInterval(scene._autoBlinkTimer);
+      scene._autoBlinkTimer = null;
+    }
+    if (scene._blinkTimeout) {
+      clearTimeout(scene._blinkTimeout);
+      scene._blinkTimeout = null;
+    }
+
+    const hadTextureManager = !!scene.textureManager;
+    if (scene.textureManager) {
+      scene.textureManager.dispose();
+      scene.textureManager = null;
+    }
+
+    if (!hadTextureManager) {
+      const closed = new Set<any>();
+      for (const drawable of scene.spriteDrawableByIndex.values()) {
+        this.renderer.releaseDrawable(drawable);
+        if (drawable instanceof ImageBitmap) {
+          if (closed.has(drawable)) continue;
+          closed.add(drawable);
+          try { drawable.close(); } catch { /* ignore */ }
+        }
+      }
+    }
+    scene.spriteDrawableByIndex.clear();
+    scene.onDrawableReleased = null;
+  }
+
+  private resetBindingsForInitOrDestroy(): void {
+    this.unbindLocalMouseFollow();
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    this.cameraDirty = true;
+    this.mouseDirty = true;
+  }
+
   // ==== PUBLIC API ====
 
   /**
    * 初始化播放器并加PngRemix 模型资源
    */
   async init(modPath: string, config: PngRemixConfig, manifest?: { enable_texture_downsample?: boolean; texture_downsample_start_dim?: number }): Promise<void> {
+    if (this.destroyed) {
+      throw new Error("PngRemixPlayer has been destroyed");
+    }
+
+    // Make init idempotent: fully tear down previous scene resources.
+    this.resetBindingsForInitOrDestroy();
+    this.releaseSceneResources(this.scene);
+    this.scene = null;
 
     // backend current_mod 为准，确保切Mod 时序正确
     const ds = await resolveTextureDownsampleSettingsFromBackend(modPath, {
@@ -2470,37 +2562,11 @@ export class PngRemixPlayer {
     if (this.destroyed) return;
 
     this.destroyed = true;
-    this.stopPlayback();
-    this.stopAutoBlink();
-    this.unbindLocalMouseFollow();
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
-    const hadTextureManager = !!this.scene?.textureManager;
-    if (this.scene?.textureManager) {
-      this.scene.textureManager.dispose();
-      this.scene.textureManager = null;
-    }
+    this.resetBindingsForInitOrDestroy();
+    this.releaseSceneResources(this.scene);
 
     // 显式关闭 ImageBitmap 以立即释GPU 纹理资源（注意：贴图可能被多sprite 共享
-    if (this.scene?.spriteDrawableByIndex) {
-      if (!hadTextureManager) {
-        const closed = new Set<any>();
-        for (const drawable of this.scene.spriteDrawableByIndex.values()) {
-          this.renderer.releaseDrawable(drawable);
-          if (drawable instanceof ImageBitmap) {
-            if (closed.has(drawable)) continue;
-            closed.add(drawable);
-            try { drawable.close(); } catch { /* ignore */ }
-          }
-        }
-      }
-      this.scene.spriteDrawableByIndex.clear();
-    }
-
     clearTintCache();
-    if (this.scene) this.scene.onDrawableReleased = null;
     this.scene = null;
 
     this.config = null;
@@ -2828,6 +2894,7 @@ export class PngRemixPlayer {
   }
 
   private bindResize(): void {
+    if (this.resizeObserver) this.resizeObserver.disconnect();
     this.resizeObserver = new ResizeObserver(() => {
       this.resizeCanvas();
       this.recomputeView();

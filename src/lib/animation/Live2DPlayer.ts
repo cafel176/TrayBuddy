@@ -653,7 +653,9 @@ export class Live2DPlayer {
    */
   destroy(): void {
 
+    this.playToken += 1;
     this.clearPlayTimer();
+    this.detachMotionFinishHandler();
     this.unbindMouseFollow();
     this.cleanupParamOverride();
     this.cleanupMouseXYHook();
@@ -828,6 +830,12 @@ export class Live2DPlayer {
    * 加载 Live2D 模型与资源映射，并应用基础缩放/叠加层。
    */
   async load(modPath: string, config: Live2DConfig, manifest?: { enable_texture_downsample?: boolean; texture_downsample_start_dim?: number }): Promise<void> {
+    // Stop previous playback lifecycle before replacing model/runtime bindings.
+    this.playToken += 1;
+    this.clearPlayTimer();
+    this.detachMotionFinishHandler();
+    this.cleanupParamOverride();
+    this.cleanupMouseXYHook();
 
     const ds = await resolveTextureDownsampleSettingsFromBackend(modPath, {
       enabled: manifest?.enable_texture_downsample,
