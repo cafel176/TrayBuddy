@@ -27,9 +27,172 @@ const LOOP_BLEND_DURATION = 0.3;
 /** 动画剪辑缓存最大容量（避免长期驻留过多动画数据） */
 const CLIP_CACHE_MAX_SIZE = 4;
 
+// ============================================================================
+// 纹理优化常量
+// ============================================================================
+
+/** 纹理降采样最小缩放比 */
+const TEX_OPT_MIN_SCALE = 0.05;
+/** 纹理降采样精度接近1时跳过 */
+const TEX_OPT_NO_RESIZE_EPS = 0.999;
+/** 降采样画布品质 */
+const TEX_OPT_RESIZE_QUALITY: ImageSmoothingQuality = "high";
+
+/** 纹理优化 manifest 参数 */
+type ThreeDTextureManifest = {
+  enable_texture_downsample?: boolean;
+  texture_downsample_start_dim?: number;
+};
+
+/** 纹理降采样策略 */
+type ThreeDTexturePolicy = {
+  enabled: boolean;
+  startDim: number;  // 触发阈值（贴图最长边 >= 此值才降采样）
+  maxDim: number;    // 降采样目标上限（像素）
+  scale: number;     // 额外缩放倍率 (0-1)
+};
+
 
 function dbg(tag: string, ...args: unknown[]) {
   if (DEBUG) console.log(`[ThreeDPlayer][${tag}]`, ...args);
+}
+
+// ============================================================================
+// 纹理优化工具函数
+// ============================================================================
+
+/**
+ * 计算降采样目标尺寸。
+ * 与 Live2D 的 computeDecodeTarget 逻辑一致。
+ */
+function computeTexDownsampleTarget(w0: number, h0: number, policy: ThreeDTexturePolicy): { w: number; h: number; scale: number } {
+  if (!policy.enabled || w0 <= 0 || h0 <= 0) return { w: w0, h: h0, scale: 1 };
+
+  const maxSide = Math.max(w0, h0);
+
+  // 小于阈值的贴图不降采样
+  if (policy.startDim > 0 && maxSide < policy.startDim) return { w: w0, h: h0, scale: 1 };
+
+  let s = policy.scale;
+
+  // 如果设置了 maxDim，进一步限制
+  if (policy.maxDim > 0 && maxSide * s > policy.maxDim) {
+    s = policy.maxDim / maxSide;
+  }
+
+  s = Math.max(TEX_OPT_MIN_SCALE, Math.min(1, s));
+  if (s >= TEX_OPT_NO_RESIZE_EPS) return { w: w0, h: h0, scale: 1 };
+
+  return {
+    w: Math.max(1, Math.round(w0 * s)),
+    h: Math.max(1, Math.round(h0 * s)),
+    scale: s,
+  };
+}
+
+/**
+ * 将图片/画布降采样到指定尺寸，返回新 canvas。
+ * 与 Live2D 一致：在 canvas 上挂载 _logicalW/_logicalH 记录原始逻辑尺寸。
+ *
+ * 注意：THREE.js 3D 模型使用归一化 UV (0~1) 映射纹理，降采样不会影响映射关系，
+ * 只是降低精度/清晰度。_logicalW/_logicalH 主要用于诊断和未来可能的 2D 叠加层。
+ */
+function downsampleToCanvas(src: CanvasImageSource, origW: number, origH: number, tw: number, th: number): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = tw;
+  c.height = th;
+  const ctx = c.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = TEX_OPT_RESIZE_QUALITY;
+  ctx.drawImage(src, 0, 0, tw, th);
+  // 记录原始逻辑尺寸（与 Live2D 的 _logicalW/_logicalH 对齐）
+  (c as any)._logicalW = origW;
+  (c as any)._logicalH = origH;
+  return c;
+}
+
+/**
+ * 计算简单的像素数据指纹（用于纹理去重）。
+ * 使用 FNV-1a 采样：对像素数据均匀取 512 个采样点做哈希，O(1) 复杂度。
+ */
+function computeTextureFingerprint(tex: THREE.Texture): string | null {
+  const image = tex.image;
+  if (!image) return null;
+
+  let w = 0, h = 0;
+  let canvas: HTMLCanvasElement;
+
+  if (image instanceof HTMLCanvasElement) {
+    canvas = image;
+    w = canvas.width; h = canvas.height;
+  } else if (image instanceof HTMLImageElement || image instanceof ImageBitmap) {
+    w = (image as any).naturalWidth || (image as any).width || 0;
+    h = (image as any).naturalHeight || (image as any).height || 0;
+    if (w <= 0 || h <= 0) return null;
+    canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(image, 0, 0);
+  } else {
+    return null;
+  }
+
+  if (w <= 0 || h <= 0) return null;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  // 采样 512 个像素点做 FNV-1a 哈希
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const totalPixels = w * h;
+  const sampleCount = Math.min(512, totalPixels);
+  const step = Math.max(1, Math.floor(totalPixels / sampleCount));
+
+  let hash = 0x811c9dc5;  // FNV offset basis
+  for (let i = 0; i < sampleCount; i++) {
+    const idx = (i * step * 4) % data.length;
+    hash ^= data[idx]; hash = Math.imul(hash, 0x01000193);
+    hash ^= data[idx + 1]; hash = Math.imul(hash, 0x01000193);
+    hash ^= data[idx + 2]; hash = Math.imul(hash, 0x01000193);
+    hash ^= data[idx + 3]; hash = Math.imul(hash, 0x01000193);
+  }
+
+  return `${w}x${h}:${(hash >>> 0).toString(16)}`;
+}
+
+/**
+ * 遍历 Object3D 收集所有纹理引用（去重）。
+ */
+function collectAllTextures(root: THREE.Object3D): Map<THREE.Texture, { materials: any[]; propNames: string[] }> {
+  const texMap = new Map<THREE.Texture, { materials: any[]; propNames: string[] }>();
+
+  const texProps = [
+    "map", "alphaMap", "aoMap", "emissiveMap", "bumpMap",
+    "normalMap", "displacementMap", "roughnessMap", "metalnessMap",
+    "specularMap", "lightMap", "envMap",
+  ];
+
+  root.traverse((child: any) => {
+    const mat = child.material;
+    if (!mat) return;
+    const mats = Array.isArray(mat) ? mat : [mat];
+    for (const m of mats) {
+      for (const prop of texProps) {
+        const tex = m[prop] as THREE.Texture | undefined;
+        if (!tex || !tex.image) continue;
+        let entry = texMap.get(tex);
+        if (!entry) {
+          entry = { materials: [], propNames: [] };
+          texMap.set(tex, entry);
+        }
+        entry.materials.push(m);
+        entry.propNames.push(prop);
+      }
+    }
+  });
+
+  return texMap;
 }
 
 function getVrmBoneNode(vrm: VRM, boneName: string): THREE.Object3D | null {
@@ -584,6 +747,9 @@ export class ThreeDPlayer {
   private config: ThreeDConfig | null = null;
   private modPath = "";
 
+  // 纹理优化
+  private texPolicy: ThreeDTexturePolicy = { enabled: false, startDim: 0, maxDim: 0, scale: 1 };
+
   private clipCache = new Map<string, THREE.AnimationClip>();
 
   /**
@@ -660,6 +826,80 @@ export class ThreeDPlayer {
         disposeMaterial(mat);
       }
     });
+  }
+
+  /**
+   * 模型加载后的纹理优化：降采样 + 去重。
+   *
+   * 降采样：超过 startDim 的贴图按比例缩小，降低 GPU 显存占用。
+   * 去重：相同内容的贴图只保留一份 GPU 纹理，其他材质引用同一份。
+   */
+  private optimizeModelTextures(): void {
+    if (!this.model) return;
+
+    const texMap = collectAllTextures(this.model);
+    if (texMap.size === 0) return;
+
+    let downsampledCount = 0;
+    let downsampledSavedBytes = 0;
+    let dedupCount = 0;
+
+    // --- Pass 1: 降采样 ---
+    if (this.texPolicy.enabled) {
+      for (const [tex] of texMap) {
+        const image = tex.image;
+        if (!image) continue;
+
+        const w0 = (image as any).naturalWidth || (image as any).width || 0;
+        const h0 = (image as any).naturalHeight || (image as any).height || 0;
+        if (w0 <= 0 || h0 <= 0) continue;
+
+        const target = computeTexDownsampleTarget(w0, h0, this.texPolicy);
+        if (target.scale >= TEX_OPT_NO_RESIZE_EPS) continue;
+
+        // 降采样到目标尺寸（保留原始逻辑尺寸）
+        const smallCanvas = downsampleToCanvas(image as CanvasImageSource, w0, h0, target.w, target.h);
+        tex.image = smallCanvas;
+        tex.needsUpdate = true;
+
+        downsampledCount++;
+        downsampledSavedBytes += (w0 * h0 - target.w * target.h) * 4;  // RGBA
+      }
+    }
+
+    // --- Pass 2: 纹理去重 ---
+    const fingerToTex = new Map<string, THREE.Texture>();
+
+    for (const [tex, info] of texMap) {
+      const fp = computeTextureFingerprint(tex);
+      if (!fp) continue;
+
+      const existing = fingerToTex.get(fp);
+      if (existing && existing !== tex) {
+        // 找到相同内容的纹理，替换引用
+        for (let i = 0; i < info.materials.length; i++) {
+          const mat = info.materials[i];
+          const prop = info.propNames[i];
+          if (mat[prop] === tex) {
+            mat[prop] = existing;
+            mat.needsUpdate = true;
+          }
+        }
+        // 释放多余的纹理
+        tex.dispose();
+        dedupCount++;
+      } else {
+        fingerToTex.set(fp, tex);
+      }
+    }
+
+    const totalTextures = texMap.size;
+    const savedMB = (downsampledSavedBytes / (1024 * 1024)).toFixed(1);
+    console.log(
+      `[ThreeDPlayer] texture optimize: ${totalTextures} textures, ` +
+      `downsample: ${downsampledCount} (saved ~${savedMB}MB), ` +
+      `dedup: ${dedupCount} (${totalTextures - dedupCount} unique)`
+    );
   }
 
 
@@ -814,6 +1054,7 @@ export class ThreeDPlayer {
     this.mmdRuntime = null;
     this.pmxMesh = null;
     this.mmdLoader = null;
+    this.texPolicy = { enabled: false, startDim: 0, maxDim: 0, scale: 1 };
 
     dbg("destroy", "done");
   }
@@ -821,12 +1062,23 @@ export class ThreeDPlayer {
   /**
    * 加载 3D 模型与动画配置（VRM/PMX）。
    */
-  async load(modPath: string, config: ThreeDConfig): Promise<void> {
+  async load(modPath: string, config: ThreeDConfig, manifest?: ThreeDTextureManifest): Promise<void> {
 
     dbg("load", "modPath:", modPath, "model:", config.model.file, "type:", config.model.type);
     this.config = config;
     this.modPath = modPath;
     this.clipCache.clear();
+
+    // 解析纹理优化策略
+    const downsampleEnabled = manifest?.enable_texture_downsample === true;
+    const startDim = Math.max(0, Math.floor(Number(manifest?.texture_downsample_start_dim) || 0));
+    this.texPolicy = {
+      enabled: downsampleEnabled,
+      startDim,
+      maxDim: startDim,
+      scale: 1,
+    };
+    console.log(`[ThreeDPlayer] texture policy: enabled=${downsampleEnabled}, startDim=${startDim}`);
 
     if (!this.renderer || !this.scene || !this.gltfLoader) {
       throw new Error("ThreeDPlayer not initialized");
@@ -875,6 +1127,9 @@ export class ThreeDPlayer {
     // 需要 PropertyBinding 能在 root 上找到 skeleton.bones
     // VRM: mixer 基于 model (vrm.scene) 创建，baked clip 使用 uuid 路径
     this.mixer = new THREE.AnimationMixer(this.pmxMesh ?? this.model!);
+
+    // 纹理优化：降采样 + 去重（模型加载完成后执行）
+    this.optimizeModelTextures();
 
     // Fit camera to model
     this.fitCameraToModel();

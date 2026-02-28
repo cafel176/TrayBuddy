@@ -26,6 +26,8 @@
     mod_type?: ModType;
     global_keyboard?: boolean;
     global_mouse?: boolean;
+    enable_texture_downsample?: boolean;
+    texture_downsample_start_dim?: number;
   }
 
   interface ModInfo {
@@ -114,7 +116,10 @@
       // 初始化 ThreeDPlayer 渲染引擎
       player = new ThreeDPlayer(threedCanvas);
       await player.init();
-      await player.load(modPath, threedConfig);
+      await player.load(modPath, threedConfig, {
+        enable_texture_downsample: mod.manifest?.enable_texture_downsample,
+        texture_downsample_start_dim: mod.manifest?.texture_downsample_start_dim,
+      });
       player.setAnimationScale(animationScale);
 
       // 从用户设置中读取 3D 动画过渡时长
