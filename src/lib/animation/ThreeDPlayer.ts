@@ -113,50 +113,47 @@ function downsampleToCanvas(src: CanvasImageSource, origW: number, origH: number
 
 /**
  * 计算简单的像素数据指纹（用于纹理去重）。
- * 使用 FNV-1a 采样：对像素数据均匀取 512 个采样点做哈希，O(1) 复杂度。
+ * 使用 FNV-1a 采样：缩小到 32x32 后做全像素哈希，避免创建全尺寸临时 Canvas。
  */
 function computeTextureFingerprint(tex: THREE.Texture): string | null {
   const image = tex.image;
   if (!image) return null;
 
   let w = 0, h = 0;
-  let canvas: HTMLCanvasElement;
 
   if (image instanceof HTMLCanvasElement) {
-    canvas = image;
-    w = canvas.width; h = canvas.height;
+    w = image.width; h = image.height;
   } else if (image instanceof HTMLImageElement || image instanceof ImageBitmap) {
     w = (image as any).naturalWidth || (image as any).width || 0;
     h = (image as any).naturalHeight || (image as any).height || 0;
-    if (w <= 0 || h <= 0) return null;
-    canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(image, 0, 0);
   } else {
     return null;
   }
-
   if (w <= 0 || h <= 0) return null;
 
-  const ctx = canvas.getContext("2d");
+  // 缩小到 32x32 做指纹采样（避免全尺寸临时 Canvas 的内存开销）
+  const sampleSize = 32;
+  const sampleCanvas = document.createElement("canvas");
+  sampleCanvas.width = sampleSize;
+  sampleCanvas.height = sampleSize;
+  const ctx = sampleCanvas.getContext("2d");
   if (!ctx) return null;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(image as CanvasImageSource, 0, 0, sampleSize, sampleSize);
 
-  // 采样 512 个像素点做 FNV-1a 哈希
-  const data = ctx.getImageData(0, 0, w, h).data;
-  const totalPixels = w * h;
-  const sampleCount = Math.min(512, totalPixels);
-  const step = Math.max(1, Math.floor(totalPixels / sampleCount));
+  const data = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
 
   let hash = 0x811c9dc5;  // FNV offset basis
-  for (let i = 0; i < sampleCount; i++) {
-    const idx = (i * step * 4) % data.length;
-    hash ^= data[idx]; hash = Math.imul(hash, 0x01000193);
-    hash ^= data[idx + 1]; hash = Math.imul(hash, 0x01000193);
-    hash ^= data[idx + 2]; hash = Math.imul(hash, 0x01000193);
-    hash ^= data[idx + 3]; hash = Math.imul(hash, 0x01000193);
+  for (let i = 0; i < data.length; i += 4) {
+    hash ^= data[i]; hash = Math.imul(hash, 0x01000193);
+    hash ^= data[i + 1]; hash = Math.imul(hash, 0x01000193);
+    hash ^= data[i + 2]; hash = Math.imul(hash, 0x01000193);
+    hash ^= data[i + 3]; hash = Math.imul(hash, 0x01000193);
   }
+
+  // 释放采样 Canvas
+  sampleCanvas.width = 0;
+  sampleCanvas.height = 0;
 
   return `${w}x${h}:${(hash >>> 0).toString(16)}`;
 }
@@ -777,11 +774,28 @@ export class ThreeDPlayer {
     if (this.clipCache.size >= CLIP_CACHE_MAX_SIZE) {
       const oldestKey = this.clipCache.keys().next().value;
       if (oldestKey !== undefined) {
+        const evicted = this.clipCache.get(oldestKey);
         this.clipCache.delete(oldestKey);
+        // 释放淘汰 clip 的 track 内存
+        if (evicted) this.disposeClipTrackData(evicted);
       }
     }
 
     this.clipCache.set(key, clip);
+  }
+
+  /**
+   * 释放 AnimationClip 内部 track 的 Float32Array 数据，帮助 GC 回收。
+   */
+  private disposeClipTrackData(clip: THREE.AnimationClip): void {
+    // 从 mixer 中移除缓存引用
+    if (this.mixer) {
+      try { this.mixer.uncacheClip(clip); } catch { /* ignore */ }
+    }
+    for (const track of clip.tracks) {
+      (track as any).times = new Float32Array(0);
+      (track as any).values = new Float32Array(0);
+    }
   }
 
   /**
@@ -859,8 +873,17 @@ export class ThreeDPlayer {
 
         // 降采样到目标尺寸（保留原始逻辑尺寸）
         const smallCanvas = downsampleToCanvas(image as CanvasImageSource, w0, h0, target.w, target.h);
+
+        // 释放旧的 GPU 纹理（dispose 会删除 WebGL 纹理对象）
+        tex.dispose();
+
         tex.image = smallCanvas;
         tex.needsUpdate = true;
+
+        // 释放原始图片内存
+        if (image instanceof ImageBitmap) {
+          image.close();
+        }
 
         downsampledCount++;
         downsampledSavedBytes += (w0 * h0 - target.w * target.h) * 4;  // RGBA
@@ -895,13 +918,261 @@ export class ThreeDPlayer {
 
     const totalTextures = texMap.size;
     const savedMB = (downsampledSavedBytes / (1024 * 1024)).toFixed(1);
+
+    // 统计优化后的实际纹理尺寸
+    let totalTexMemAfter = 0;
+    for (const [tex] of texMap) {
+      const img = tex.image;
+      if (!img) continue;
+      const tw = (img as any).width || 0;
+      const th = (img as any).height || 0;
+      totalTexMemAfter += tw * th * 4;
+    }
+    const afterMB = (totalTexMemAfter / (1024 * 1024)).toFixed(1);
+
     console.log(
       `[ThreeDPlayer] texture optimize: ${totalTextures} textures, ` +
       `downsample: ${downsampledCount} (saved ~${savedMB}MB), ` +
-      `dedup: ${dedupCount} (${totalTextures - dedupCount} unique)`
+      `dedup: ${dedupCount} (${totalTextures - dedupCount} unique), ` +
+      `current VRAM estimate: ~${afterMB}MB`
+    );
+
+    // 几何体 + morph targets 内存统计
+    this.logGeometryMemory();
+
+    // morph targets 裁剪（VRM 模型）
+    if (this.vrm) {
+      this.pruneUnusedMorphTargets();
+    }
+  }
+
+  /**
+   * 统计并输出几何体 + morph targets 的内存占用。
+   */
+  private logGeometryMemory(): void {
+    if (!this.model) return;
+
+    let geoBytes = 0;
+    let morphBytes = 0;
+    let morphCount = 0;
+    let geoCount = 0;
+
+    this.model.traverse((child: any) => {
+      const geo = child.geometry as THREE.BufferGeometry | undefined;
+      if (!geo) return;
+      geoCount++;
+
+      // 统计普通 attribute 内存
+      for (const attrName in geo.attributes) {
+        const attr = geo.attributes[attrName];
+        if (attr?.array) geoBytes += attr.array.byteLength;
+      }
+      if (geo.index?.array) geoBytes += geo.index.array.byteLength;
+
+      // 统计 morph attributes 内存
+      if (geo.morphAttributes) {
+        for (const key in geo.morphAttributes) {
+          const morphArr = (geo.morphAttributes as any)[key];
+          if (!Array.isArray(morphArr)) continue;
+          for (const attr of morphArr) {
+            if (attr?.array) {
+              morphBytes += attr.array.byteLength;
+              morphCount++;
+            }
+          }
+        }
+      }
+    });
+
+    const geoMB = (geoBytes / (1024 * 1024)).toFixed(1);
+    const morphMB = (morphBytes / (1024 * 1024)).toFixed(1);
+    const totalMB = ((geoBytes + morphBytes) / (1024 * 1024)).toFixed(1);
+    console.log(
+      `[ThreeDPlayer] geometry memory: ${geoCount} geometries ~${geoMB}MB, ` +
+      `morph targets: ${morphCount} ~${morphMB}MB, ` +
+      `total geometry+morph: ~${totalMB}MB`
     );
   }
 
+
+  /**
+   * 裁剪 VRM 模型中未被使用的 morph targets，大幅释放内存。
+   *
+   * VRM 的 morph targets（BlendShape/Expression）通常有大量表情变体，
+   * 但当前只用骨骼动画（VRMA），不驱动任何 morph，因此可以安全裁剪。
+   *
+   * 策略：收集所有 animation clip 中被 morphTargetInfluences track 引用的 morph index，
+   * 只保留这些 + VRM expressionManager 绑定的 morph（为未来表情支持预留），
+   * 其余全部移除。
+   */
+  private pruneUnusedMorphTargets(): void {
+    if (!this.model) return;
+
+    // --- Step 1: 收集被动画 track 引用的 morph indices ---
+    // 格式: mesh.uuid -> Set<morphIndex>
+    const usedMorphIndices = new Map<string, Set<number>>();
+
+    // 扫描 clipCache 中所有 clip
+    for (const clip of this.clipCache.values()) {
+      for (const track of clip.tracks) {
+        // morphTargetInfluences track 的路径格式：
+        // ".morphTargetInfluences[N]" 或 "meshUUID.morphTargetInfluences[N]"
+        const match = track.name.match(/morphTargetInfluences\[(\d+)\]/);
+        if (match) {
+          const idx = parseInt(match[1], 10);
+          // 尝试从 track.name 中提取 mesh 引用
+          const dotPos = track.name.indexOf(".");
+          const meshRef = dotPos > 0 ? track.name.substring(0, dotPos) : "__root__";
+          if (!usedMorphIndices.has(meshRef)) usedMorphIndices.set(meshRef, new Set());
+          usedMorphIndices.get(meshRef)!.add(idx);
+        }
+      }
+    }
+
+    // --- Step 2: 收集 VRM expressionManager 绑定的 morph indices ---
+    // VRM expressionManager.expressions[].binds[] -> { mesh, index }
+    const vrmUsedMorphs = new Map<THREE.Mesh, Set<number>>();
+    if (this.vrm) {
+      const em = (this.vrm as any).expressionManager;
+      if (em?.expressions) {
+        for (const expr of em.expressions) {
+          const binds = (expr as any)?._binds ?? (expr as any)?.binds ?? [];
+          for (const bind of binds) {
+            // @pixiv/three-vrm 的 VRMExpressionMorphTargetBind
+            const mesh = (bind as any)?.primitives?.[0] ?? (bind as any)?.mesh ?? (bind as any)?._primitives?.[0];
+            const morphIdx = (bind as any)?.index ?? (bind as any)?.morphTargetIndex;
+            if (mesh instanceof THREE.Mesh && typeof morphIdx === "number") {
+              if (!vrmUsedMorphs.has(mesh)) vrmUsedMorphs.set(mesh, new Set());
+              vrmUsedMorphs.get(mesh)!.add(morphIdx);
+            }
+          }
+        }
+      }
+    }
+
+    // --- Step 3: 遍历所有 mesh，裁剪未使用的 morph targets ---
+    let totalRemoved = 0;
+    let totalKept = 0;
+    let freedBytes = 0;
+
+    this.model.traverse((child: any) => {
+      if (!child.isMesh && !child.isSkinnedMesh) return;
+      const mesh = child as THREE.Mesh;
+      const geo = mesh.geometry as THREE.BufferGeometry;
+      if (!geo?.morphAttributes) return;
+
+      // 收集此 mesh 需要保留的 morph indices
+      const keepIndices = new Set<number>();
+
+      // 从 animation track 引用中查找
+      for (const [ref, indices] of usedMorphIndices) {
+        if (ref === "__root__" || ref === mesh.uuid || ref === mesh.name) {
+          for (const idx of indices) keepIndices.add(idx);
+        }
+      }
+
+      // 从 VRM expressionManager 绑定中查找
+      const vrmIndices = vrmUsedMorphs.get(mesh);
+      if (vrmIndices) {
+        for (const idx of vrmIndices) keepIndices.add(idx);
+      }
+
+      // 统计当前 morph 总数
+      const morphKeys = Object.keys(geo.morphAttributes);
+      if (morphKeys.length === 0) return;
+
+      // 获取 morph target 数量（取任一属性数组的长度）
+      const firstKey = morphKeys[0];
+      const morphCount = ((geo.morphAttributes as any)[firstKey] as THREE.BufferAttribute[])?.length ?? 0;
+      if (morphCount === 0) return;
+
+      // 如果全部被引用，跳过
+      if (keepIndices.size >= morphCount) {
+        totalKept += morphCount;
+        return;
+      }
+
+      // 执行裁剪
+      const removedCount = morphCount - keepIndices.size;
+      totalRemoved += removedCount;
+      totalKept += keepIndices.size;
+
+      if (keepIndices.size === 0) {
+        // 全部不需要 → 清空所有 morph attributes
+        for (const key of morphKeys) {
+          const morphArr = (geo.morphAttributes as any)[key] as THREE.BufferAttribute[];
+          if (Array.isArray(morphArr)) {
+            for (const attr of morphArr) {
+              if (attr?.array) freedBytes += attr.array.byteLength;
+            }
+          }
+          delete (geo.morphAttributes as any)[key];
+        }
+
+        // 清空 mesh 上的 morphTargetInfluences 和 morphTargetDictionary
+        if (mesh.morphTargetInfluences) {
+          mesh.morphTargetInfluences.length = 0;
+        }
+        if (mesh.morphTargetDictionary) {
+          for (const k of Object.keys(mesh.morphTargetDictionary)) {
+            delete mesh.morphTargetDictionary[k];
+          }
+        }
+
+        // 更新 geometry morph 相关标志
+        (geo as any).morphTargetsRelative = false;
+      } else {
+        // 部分保留 → 重建 morph arrays，只保留 keepIndices
+        const sortedKeep = Array.from(keepIndices).sort((a, b) => a - b);
+
+        // 重建 morphTargetDictionary 的 name->newIndex 映射
+        const oldDict = mesh.morphTargetDictionary ?? {};
+        const oldNameByIndex = new Map<number, string>();
+        for (const [name, idx] of Object.entries(oldDict)) {
+          oldNameByIndex.set(idx, name);
+        }
+
+        const newDict: Record<string, number> = {};
+        for (let newIdx = 0; newIdx < sortedKeep.length; newIdx++) {
+          const oldIdx = sortedKeep[newIdx];
+          const name = oldNameByIndex.get(oldIdx) ?? `morph_${oldIdx}`;
+          newDict[name] = newIdx;
+        }
+
+        for (const key of morphKeys) {
+          const morphArr = (geo.morphAttributes as any)[key] as THREE.BufferAttribute[];
+          if (!Array.isArray(morphArr)) continue;
+
+          const newArr: THREE.BufferAttribute[] = [];
+          for (let i = 0; i < morphArr.length; i++) {
+            if (keepIndices.has(i)) {
+              newArr.push(morphArr[i]);
+            } else {
+              if (morphArr[i]?.array) freedBytes += morphArr[i].array.byteLength;
+            }
+          }
+          (geo.morphAttributes as any)[key] = newArr;
+        }
+
+        // 更新 morphTargetInfluences
+        if (mesh.morphTargetInfluences) {
+          const newInfluences = sortedKeep.map(i => mesh.morphTargetInfluences![i] ?? 0);
+          mesh.morphTargetInfluences.length = 0;
+          for (const v of newInfluences) mesh.morphTargetInfluences.push(v);
+        }
+
+        mesh.morphTargetDictionary = newDict;
+      }
+    });
+
+    if (totalRemoved > 0 || totalKept > 0) {
+      const freedMB = (freedBytes / (1024 * 1024)).toFixed(1);
+      console.log(
+        `[ThreeDPlayer] morph prune: removed ${totalRemoved}, kept ${totalKept}, ` +
+        `freed ~${freedMB}MB`
+      );
+    }
+  }
 
   private gltfLoader: GLTFLoader | null = null;
   private animationFrameId: number | null = null;
@@ -1009,9 +1280,18 @@ export class ThreeDPlayer {
 
     if (this.mixer) {
       this.mixer.stopAllAction();
+      try { if (this.model) this.mixer.uncacheRoot(this.model); } catch { /* ignore */ }
       this.mixer = null;
     }
     this.currentAction = null;
+
+    // 释放 clipCache 中所有 clip 的 track 内存
+    for (const clip of this.clipCache.values()) {
+      for (const track of clip.tracks) {
+        (track as any).times = new Float32Array(0);
+        (track as any).values = new Float32Array(0);
+      }
+    }
 
     if (this.vrm) {
       try {
@@ -1102,6 +1382,7 @@ export class ThreeDPlayer {
 
     if (this.mixer) {
       this.mixer.stopAllAction();
+      try { if (this.model) this.mixer.uncacheRoot(this.model); } catch { /* ignore */ }
       this.mixer = null;
     }
     this.currentAction = null;
@@ -1544,6 +1825,9 @@ export class ThreeDPlayer {
       this.model,
       { fps, loop },
     );
+
+    // 释放 VRMA 临时 scene 的资源（避免内存泄漏）
+    try { this.disposeObject3DResources(vrmaGltf.scene); } catch { /* ignore */ }
 
     dbg("loadVrmaClip", "baked clip:", clip.name, "duration:", clip.duration, "tracks:", clip.tracks.length, "loop:", loop);
     return clip;
