@@ -33,6 +33,7 @@
 
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
   import {
@@ -67,6 +68,10 @@
   let characterAnimator: SpriteAnimator | null = null;
   /** 边框动画播放器 */
   let borderAnimator: SpriteAnimator | null = null;
+
+  /** 贴图降采样配置（从 mod manifest 读取） */
+  let dsEnabled = false;
+  let dsStartDim = 0;
 
   /** 气泡管理器 */
   let bubbleManager: BubbleManager;
@@ -140,6 +145,9 @@
 
     if (!characterAnimator) {
       characterAnimator = new SpriteAnimator(characterCanvas);
+      if (dsEnabled) {
+        characterAnimator.setDownsamplePolicy(dsEnabled, dsStartDim);
+      }
     }
 
     const success = await characterAnimator.switchToAsset(
@@ -164,6 +172,9 @@
     const borderAnima = borderConfig.anima;
     if (borderCanvas && borderAnima) {
       borderAnimator = new SpriteAnimator(borderCanvas);
+      if (dsEnabled) {
+        borderAnimator.setDownsamplePolicy(dsEnabled, dsStartDim);
+      }
       const success = await borderAnimator.loadByAssetName(borderAnima);
       if (success) borderAnimator.play();
     }
@@ -293,7 +304,20 @@
   onMount(() => {
     window.addEventListener("beforeunload", _onBeforeUnload);
     void initSequenceMemoryDebug();
-    void core.init();
+
+    const init = async () => {
+      // 从 mod manifest 读取贴图降采样配置（在 core.init 之前，确保 playAnimation 回调时策略已就绪）
+      try {
+        const mod = (await invoke("get_current_mod")) as any;
+        if (mod?.manifest) {
+          dsEnabled = mod.manifest.enable_texture_downsample === true;
+          dsStartDim = Math.max(0, Math.floor(Number(mod.manifest.texture_downsample_start_dim) || 0));
+        }
+      } catch { /* ignore */ }
+
+      await core.init();
+    };
+    init().catch((error) => console.error("Sequence init failed:", error));
   });
 
   onDestroy(() => {

@@ -61,6 +61,78 @@ const ALWAYS_IMAGE_CACHE_MAX_SIZE = 4;
 
 const MEMORY_DEBUG_MODE = false;
 
+// ============================================================================
+// 贴图降采样（与 Live2D/ThreeD 对齐）
+// ============================================================================
+
+/** 降采样策略 */
+type SpriteTexturePolicy = {
+  enabled: boolean;
+  /** 触发降采样的起始贴图尺寸阈值（像素；最长边）；<=0 表示不限制 */
+  startDim: number;
+  /** 降采样目标尺寸阈值（像素；最长边）；与 startDim 保持一致 */
+  maxDim: number;
+  /** 额外缩放倍率（0-1），默认 1 */
+  scale: number;
+};
+
+const SPRITE_TEX_OPT_MIN_SCALE = 0.05;
+const SPRITE_TEX_OPT_NO_RESIZE_EPS = 0.999;
+const SPRITE_TEX_OPT_RESIZE_QUALITY: ImageSmoothingQuality = "high";
+
+/**
+ * 计算降采样目标尺寸（与 Live2D/ThreeD 的 computeDecodeTarget 逻辑一致）。
+ */
+function computeSpriteDownsampleTarget(
+  w0: number, h0: number, policy: SpriteTexturePolicy,
+): { w: number; h: number; scale: number } {
+  if (!policy.enabled || w0 <= 0 || h0 <= 0) return { w: w0, h: h0, scale: 1 };
+
+  const denom0 = Math.max(w0, h0);
+  const startDim = Number(policy.startDim);
+  if (Number.isFinite(startDim) && startDim > 0 && denom0 > 0 && denom0 < startDim) {
+    return { w: w0, h: h0, scale: 1 };
+  }
+
+  let s = Math.max(SPRITE_TEX_OPT_MIN_SCALE, Math.min(1, Number(policy.scale) || 1));
+  const maxDim = Number(policy.maxDim);
+  if (Number.isFinite(maxDim) && maxDim > 0) {
+    const denom = Math.max(w0, h0);
+    if (denom > 0) s = Math.min(s, maxDim / denom);
+  }
+  s = Math.max(SPRITE_TEX_OPT_MIN_SCALE, Math.min(1, s));
+
+  const tw = Math.max(1, Math.round(w0 * s));
+  const th = Math.max(1, Math.round(h0 * s));
+  return { w: tw, h: th, scale: s };
+}
+
+/**
+ * 将精灵图降采样到较小的 Canvas 上。
+ */
+function downsampleSpriteSheet(
+  src: HTMLImageElement, tw: number, th: number,
+): HTMLCanvasElement | null {
+  const sw = src.naturalWidth || src.width;
+  const sh = src.naturalHeight || src.height;
+  if (!sw || !sh) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.floor(tw));
+  canvas.height = Math.max(1, Math.floor(th));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = SPRITE_TEX_OPT_RESIZE_QUALITY;
+  try {
+    ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+  } catch {
+    return null;
+  }
+  return canvas;
+}
+
 
 // ============================================================================
 // 内存诊断日志（用于追踪内存问题）
@@ -349,8 +421,16 @@ export class SpriteAnimator {
   // --- Canvas 相关 ---
   private canvas: HTMLCanvasElement;           // 目标 Canvas 元素
   private ctx: CanvasRenderingContext2D | null = null; // 2D 渲染上下文
-  private img: HTMLImageElement | null = null; // 当前加载的精灵图
+  private img: HTMLImageElement | null = null; // 当前加载的精灵图（原始）
   private currentImgSrc = "";                  // 当前图片 URL（用于判断是否需要重新加载）
+
+  // --- 贴图降采样 ---
+  /** 降采样策略（由外部通过 setDownsamplePolicy 设置）。 */
+  private dsPolicy: SpriteTexturePolicy = { enabled: false, startDim: 0, maxDim: 0, scale: 1 };
+  /** 降采样后的精灵图 Canvas（null 表示未降采样，直接使用原图）。 */
+  private dsImg: HTMLCanvasElement | null = null;
+  /** 降采样比例（降采样后像素/原始像素），1 表示未降采样。 */
+  private dsScale = 1;
 
   // --- Canvas 显示适配（仅影响元素显示尺寸） ---
   private fitPreference: CanvasFitPreference | null = null;
@@ -410,6 +490,13 @@ export class SpriteAnimator {
           this.hiddenImgSrc = this.currentImgSrc;
           this.img = null;
         }
+        // 同步释放降采样 Canvas
+        if (this.dsImg) {
+          this.dsImg.width = 0;
+          this.dsImg.height = 0;
+          this.dsImg = null;
+        }
+        this.dsScale = 1;
       } else if (this.isVisible && !wasVisible) {
 
 
@@ -442,6 +529,49 @@ export class SpriteAnimator {
       }
     };
     document.addEventListener('visibilitychange', this.visibilityHandler);
+  }
+
+  // ============================================================================
+  // 贴图降采样配置
+  // ============================================================================
+
+  /**
+   * 设置贴图降采样策略。
+   *
+   * 调用时机：在创建 SpriteAnimator 后、加载图片之前调用。
+   * 已加载的图片不会重新降采样（下次 loadImage 时生效）。
+   *
+   * @param enabled  - 是否启用降采样
+   * @param startDim - 触发降采样的最长边阈值（像素）；<=0 表示不限制
+   */
+  setDownsamplePolicy(enabled: boolean, startDim: number): void {
+    const dim = Math.max(0, Math.floor(Number(startDim) || 0));
+    this.dsPolicy = { enabled, startDim: dim, maxDim: dim, scale: 1 };
+  }
+
+  /**
+   * 对已加载的原始图片尝试降采样。
+   * 生成降采样后的 Canvas 存入 dsImg，并计算 dsScale。
+   * 若未启用或未达到阈值，dsImg 为 null，dsScale 为 1。
+   */
+  private applyDownsample(): void {
+    this.dsImg = null;
+    this.dsScale = 1;
+
+    if (!this.img || !this.dsPolicy.enabled) return;
+
+    const w0 = this.img.naturalWidth || this.img.width;
+    const h0 = this.img.naturalHeight || this.img.height;
+    if (w0 <= 0 || h0 <= 0) return;
+
+    const target = computeSpriteDownsampleTarget(w0, h0, this.dsPolicy);
+    if (target.scale >= SPRITE_TEX_OPT_NO_RESIZE_EPS) return;
+
+    const canvas = downsampleSpriteSheet(this.img, target.w, target.h);
+    if (!canvas) return;
+
+    this.dsImg = canvas;
+    this.dsScale = target.scale;
   }
 
   // ============================================================================
@@ -663,6 +793,7 @@ export class SpriteAnimator {
           logMemoryEvent('LOAD_IMAGE', `加载${cacheType}图片: ${shortUrl} (命中率: ${getCacheStats().hitRate})`, { cacheHit: true, imageSrc: shortUrl });
         }
         this.img = cached;
+        this.applyDownsample();
         resolve(true);
         return;
       }
@@ -690,6 +821,7 @@ export class SpriteAnimator {
           await newImg.decode();
           cache.set(imgSrc, newImg);
           this.img = newImg;
+          this.applyDownsample();
           if (debugMode) {
             logMemoryEvent('IMAGE_LOADED', `图片加载并解码完成: ${shortUrl}`, { imageSrc: shortUrl });
           }
@@ -699,6 +831,7 @@ export class SpriteAnimator {
           // 解码失败时退回到 onload 逻辑（部分环境可能不支持 decode）
           cache.set(imgSrc, newImg);
           this.img = newImg;
+          this.applyDownsample();
           resolve(true);
         }
       };
@@ -940,6 +1073,14 @@ export class SpriteAnimator {
     
     // 断开当前图片引用（不修改 img.src，由 clearImageCache 的 onEvict 统一释放）
     this.img = null;
+
+    // 释放降采样 Canvas
+    if (this.dsImg) {
+      this.dsImg.width = 0;
+      this.dsImg.height = 0;
+      this.dsImg = null;
+    }
+    this.dsScale = 1;
     
     // 清零 canvas 缓冲区，释放 Canvas 2D 上下文持有的最后一帧 GPU 纹理
     try {
@@ -1011,23 +1152,31 @@ export class SpriteAnimator {
   /**
    * 绘制当前帧
    *
-   * 从精灵图中裁剪当前帧区域并绘制到 Canvas
+   * 从精灵图中裁剪当前帧区域并绘制到 Canvas。
+   * 若启用了降采样（dsImg 不为 null），则从降采样 Canvas 中按缩放后的坐标裁剪，
+   * 并拉伸绘制到逻辑尺寸的目标区域，从而实现"降采样后放大到原始尺寸"。
    */
   private drawCurrentFrame(): void {
     if (!this.ctx || !this.img) return;
     
     // 清除画布
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // 选择绘制源：有降采样版本时使用它，否则用原图
+    const src: CanvasImageSource = this.dsImg ?? this.img;
+    const s = this.dsScale;
+
+    // 计算源图像中的裁剪位置（按降采样比例缩放）
+    const sx = this.frameX * this.frameWidth * s;
+    const sy = this.frameY * this.frameHeight * s;
+    const sw = this.frameWidth * s;
+    const sh = this.frameHeight * s;
     
-    // 计算源图像中的裁剪位置
-    const sx = this.frameX * this.frameWidth;
-    const sy = this.frameY * this.frameHeight;
-    
-    // 绘制帧（支持偏移）
+    // 绘制帧（支持偏移）：目标区域始终使用逻辑尺寸
     this.ctx.drawImage(
-      this.img,
-      sx, sy, this.frameWidth, this.frameHeight,    // 源区域
-      this.offsetX, this.offsetY, this.frameWidth, this.frameHeight  // 目标区域
+      src,
+      sx, sy, sw, sh,                                               // 源区域（降采样后的像素坐标）
+      this.offsetX, this.offsetY, this.frameWidth, this.frameHeight  // 目标区域（逻辑尺寸）
     );
   }
 
