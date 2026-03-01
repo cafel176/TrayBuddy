@@ -562,16 +562,57 @@ mod tests {
     }
 }
 
-// Stub for non-Windows
+// ========================================================================= //
+// 非 Windows 平台占位实现
+// ========================================================================= //
 
 #[cfg(not(target_os = "windows"))]
-pub struct SystemObserver;
+pub struct SystemObserver {
+    running: Arc<std::sync::atomic::AtomicBool>,
+}
 
 #[cfg(not(target_os = "windows"))]
 impl SystemObserver {
     pub fn new() -> Self {
-        Self
+        Self {
+            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
     }
-    pub fn start(&self, _app: tauri::AppHandle) {}
-    pub fn stop(&self) {}
+
+    pub fn start(&self, app_handle: tauri::AppHandle) {
+        self.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        let running = self.running.clone();
+        tauri::async_runtime::spawn(async move {
+            Self::event_loop_non_windows(app_handle, running).await;
+        });
+    }
+
+    pub fn stop(&self) {
+        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// 非 Windows 平台的系统观察器事件循环。
+    ///
+    /// TODO(cross-platform): macOS — 使用 NSWorkspace 通知监听前台应用切换；
+    ///                        Linux — 使用 X11/Wayland 协议或 D-Bus 监听窗口焦点变化。
+    async fn event_loop_non_windows(app_handle: tauri::AppHandle, running: Arc<std::sync::atomic::AtomicBool>) {
+        eprintln!("[SystemObserver] 系统状态观察器在非 Windows 平台暂未实现，使用轮询降级");
+
+        // 轮询检测全屏状态（降级策略）
+        while running.load(std::sync::atomic::Ordering::SeqCst) {
+            let is_fullscreen = Self::is_fullscreen_busy_non_windows();
+            let _ = (&app_handle, is_fullscreen); // 预留：未来可用于触发免打扰逻辑
+            tokio::time::sleep(Duration::from_secs(
+                crate::modules::constants::SYSTEM_OBSERVER_POLL_INTERVAL_SECS,
+            )).await;
+        }
+    }
+
+    /// 非 Windows 平台的全屏/繁忙状态检测。
+    ///
+    /// TODO(cross-platform): macOS — 通过 NSApplication.currentSystemPresentationOptions 检测全屏；
+    ///                        Linux — 通过 _NET_WM_STATE_FULLSCREEN 属性检测。
+    fn is_fullscreen_busy_non_windows() -> bool {
+        false
+    }
 }

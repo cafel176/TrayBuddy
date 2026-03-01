@@ -3,6 +3,7 @@
 //! 兼容性说明：
 //! - Windows Vista+: DWM API 可用（但 Windows 7 禁用 Aero 时可能不工作）
 //! - 当 DWM 不可用时，回退到 GetWindowRect
+//! - macOS/Linux: 占位实现，待跨平台适配
 
 #[cfg(windows)]
 use windows::Win32::Foundation::{HWND, RECT};
@@ -89,6 +90,38 @@ pub fn get_work_area() -> RECT {
         );
     }
     rect
+}
+
+// ========================================================================= //
+// 非 Windows 平台占位
+// ========================================================================= //
+
+/// 非 Windows 平台的窗口视觉边界获取。
+///
+/// TODO(cross-platform): macOS — 使用 CGWindowListCopyWindowInfo 获取窗口边界；
+///                        Linux — 使用 X11 XGetWindowAttributes 或 Wayland 协议。
+///                        返回值类型需要从 RECT 泛化为跨平台的矩形结构体。
+#[cfg(not(windows))]
+pub fn get_visual_window_rect_non_windows(_window_id: u64) -> (i32, i32, i32, i32) {
+    (0, 0, 0, 0) // (left, top, right, bottom)
+}
+
+/// 非 Windows 平台的窗口管理器合成检测。
+///
+/// TODO(cross-platform): macOS — 始终返回 true（Quartz Compositor 始终启用）；
+///                        Linux — 检测是否运行在 Wayland 或 X11 合成器下。
+#[cfg(not(windows))]
+pub fn is_compositor_enabled_non_windows() -> bool {
+    true
+}
+
+/// 非 Windows 平台获取屏幕工作区域（排除 Dock/面板的可用区域）。
+///
+/// TODO(cross-platform): macOS — 使用 NSScreen.visibleFrame；
+///                        Linux — 使用 _NET_WORKAREA X11 属性。
+#[cfg(not(windows))]
+pub fn get_work_area_non_windows() -> (i32, i32, i32, i32) {
+    (0, 0, 1920, 1080) // (left, top, right, bottom) — 降级默认值
 }
 
 #[cfg(test)]

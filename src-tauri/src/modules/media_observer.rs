@@ -419,8 +419,15 @@ impl MediaObserver {
         let running = self.running.clone();
 
         // 启动异步监听任务
+        #[cfg(windows)]
         tauri::async_runtime::spawn(async move {
             Self::media_event_loop(tx, running, app_handle, skip_delay).await;
+        });
+        #[cfg(not(windows))]
+        tauri::async_runtime::spawn(async move {
+            let _ = app_handle;
+            let _ = skip_delay;
+            Self::media_event_loop(tx, running).await;
         });
 
 
@@ -1327,13 +1334,43 @@ impl MediaObserver {
         (title, artist)
     }
 
-    /// 非 Windows 平台的空实现
+    /// 非 Windows 平台的媒体事件循环。
+    ///
+    /// TODO(cross-platform): macOS — 使用 MediaRemote.framework (MRMediaRemoteGetNowPlayingInfo)
+    ///                                或 MPNowPlayingInfoCenter 监听系统媒体播放状态；
+    ///                        Linux — 使用 D-Bus MPRIS2 协议 (org.mpris.MediaPlayer2.Player)
+    ///                                监听媒体播放器的播放/暂停/切歌事件。
     #[cfg(not(windows))]
     async fn media_event_loop(
         _tx: mpsc::UnboundedSender<MediaStateEvent>,
         _running: Arc<std::sync::atomic::AtomicBool>,
     ) {
-        eprintln!("[MediaObserver] 媒体监听仅支持 Windows 平台");
+        eprintln!("[MediaObserver] 媒体监听在非 Windows 平台暂未实现");
+    }
+
+    /// 非 Windows 平台获取综合媒体状态。
+    ///
+    /// TODO(cross-platform): macOS — 查询 MRMediaRemoteGetNowPlayingApplicationIsPlaying；
+    ///                        Linux — 通过 MPRIS2 D-Bus 接口查询 PlaybackStatus 属性。
+    #[cfg(not(windows))]
+    fn get_combined_media_state_non_windows() -> MediaPlaybackStatus {
+        MediaPlaybackStatus::Stopped
+    }
+
+    /// 非 Windows 平台获取带来源的综合媒体状态。
+    ///
+    /// TODO(cross-platform): 同 get_combined_media_state_non_windows，额外返回应用名和曲目信息。
+    #[cfg(not(windows))]
+    fn get_combined_media_state_with_source_non_windows() -> (MediaPlaybackStatus, Option<String>, Option<String>, Option<String>) {
+        (MediaPlaybackStatus::Stopped, None, None, None)
+    }
+
+    /// 非 Windows 平台获取进程名。
+    ///
+    /// TODO(cross-platform): macOS — 使用 proc_pidpath；Linux — 读取 /proc/[pid]/comm。
+    #[cfg(not(windows))]
+    fn get_process_name_non_windows(_pid: u32) -> Option<String> {
+        None
     }
 }
 

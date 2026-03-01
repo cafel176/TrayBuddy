@@ -106,7 +106,11 @@ pub fn get_windows_version() -> WindowsVersion {
     })
 }
 
-/// 获取当前 Windows 版本（非 Windows 平台返回默认值）
+/// 获取当前操作系统版本（非 Windows 平台返回默认值）
+///
+/// TODO(cross-platform): macOS — 使用 NSProcessInfo.operatingSystemVersion 获取版本号；
+///                        Linux — 读取 /etc/os-release 或 uname。
+///                        返回值类型可能需要泛化为统一的 OsVersion 枚举。
 #[cfg(not(windows))]
 pub fn get_windows_version() -> WindowsVersion {
     WindowsVersion::WIN10

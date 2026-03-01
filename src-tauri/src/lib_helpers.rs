@@ -955,9 +955,12 @@ fn start_global_input_hook(app_handle: tauri::AppHandle) {
     }
 
 
+    /// TODO(cross-platform): macOS — 使用 CGEventTap 监听全局键盘/鼠标事件（需要辅助功能权限）；
+    ///                        Linux — 使用 XRecord 扩展或 /dev/input 监听全局输入事件。
     #[cfg(not(target_os = "windows"))]
     {
         let _ = app_handle;
+        eprintln!("[GlobalInputHook] 全局输入钩子在非 Windows 平台暂未实现");
     }
 }
 
@@ -2068,10 +2071,13 @@ fn get_process_name_by_pid(pid: u32) -> Option<String> {
     }
 }
 
-/// 非Windows平台的占位实现
+/// 非 Windows 平台的登录桌面检测。
+///
+/// TODO(cross-platform): macOS — 通过 CGSessionCopyCurrentDictionary 检测屏幕锁定状态；
+///                        Linux — 通过 D-Bus org.freedesktop.login1 查询会话锁定状态。
 #[cfg(not(target_os = "windows"))]
 fn is_user_logged_in_desktop() -> bool {
-    // 非Windows平台默认返回true，表示已登录
+    // 非 Windows 平台默认返回 true，表示已登录
     true
 }
 
@@ -2392,7 +2398,12 @@ pub(crate) fn trigger_login_events(app_handle: &tauri::AppHandle) {
 }
 
 
-/// 非Windows平台的占位实现
+/// 非 Windows 平台的会话观察器。
+///
+/// TODO(cross-platform): macOS — 使用 NSDistributedNotificationCenter 监听
+///                                com.apple.screenIsLocked / com.apple.screenIsUnlocked；
+///                        Linux — 使用 D-Bus 监听 org.freedesktop.login1.Session 的
+///                                Lock/Unlock 信号。
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn start_session_observer(app_handle: tauri::AppHandle) {
 
@@ -2433,7 +2444,10 @@ pub(crate) fn start_session_observer(app_handle: tauri::AppHandle) {
 }
 
 
-/// 非Windows平台启动后台服务
+/// 非 Windows 平台启动后台服务。
+///
+/// TODO(cross-platform): 当各观察器（媒体/进程/系统）的跨平台实现完成后，
+///                        此函数的逻辑可以与 Windows 版 start_background_services 统一。
 #[cfg(not(target_os = "windows"))]
 fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
     use std::sync::atomic::Ordering;
@@ -2474,7 +2488,10 @@ fn start_background_services_non_windows(app_handle: &tauri::AppHandle) {
     }
 }
 
-/// 非Windows平台的登录事件触发（简化版本）
+/// 非 Windows 平台的登录事件触发。
+///
+/// TODO(cross-platform): 当会话观察器的跨平台实现完成后，
+///                        此函数可以与 Windows 版 trigger_login_events 统一。
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
 

@@ -125,6 +125,8 @@ pub fn http_get(
         Ok(body)
     }
 
+    /// macOS/Linux: 直接使用系统 curl（通常预装）。
+    /// TODO(cross-platform): 考虑使用 reqwest 等纯 Rust HTTP 库统一所有平台实现。
     #[cfg(not(windows))]
     {
         let output = Command::new("curl")

@@ -244,9 +244,10 @@
   async function openAssetFile(relativePath: string) {
     if (!currentModInfo) return;
     try {
+      // 拼接路径后统一使用正斜杠——后端 open_path 会根据平台处理路径分隔符
       const fullPath = `${currentModInfo.path}/${relativePath}`.replace(
-        /\//g,
-        "\\",
+        /\\/g,
+        "/",
       );
       await invoke("open_path", { path: fullPath });
     } catch (e) {

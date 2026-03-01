@@ -655,9 +655,10 @@ pub fn open_storage_dir(app_handle: AppHandle) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    /// macOS: open; Linux: xdg-open
     #[cfg(not(target_os = "windows"))]
     {
-        opener::reveal(&dir_path).map_err(|e| e.to_string())?;
+        open_dir_non_windows(&dir_path)?;
     }
 
     Ok(())
@@ -695,9 +696,10 @@ pub fn open_dir(path: String) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    /// macOS: open; Linux: xdg-open
     #[cfg(not(target_os = "windows"))]
     {
-        opener::reveal(&dir_path).map_err(|e| e.to_string())?;
+        open_dir_non_windows(&dir_path)?;
     }
 
     Ok(())
@@ -742,7 +744,7 @@ pub fn get_tray_position(app: AppHandle) -> (f64, f64) {
             return (target_x, target_y);
         }
     }
-
+    // Windows 回退: 通过 Shell_TrayWnd 查找任务栏位置
     #[cfg(target_os = "windows")]
     {
         use windows::core::PCWSTR;
@@ -764,7 +766,13 @@ pub fn get_tray_position(app: AppHandle) -> (f64, f64) {
             return (rect.right as f64 - 150.0, rect.top as f64);
         }
     }
+    // 非 Windows: 使用跨平台占位函数
+    #[cfg(not(target_os = "windows"))]
+    {
+        return get_tray_position_non_windows();
+    }
     // 最终降级方案
+    #[allow(unreachable_code)]
     (1700.0, 1030.0)
 }
 
@@ -877,6 +885,48 @@ pub fn start_login_detection(app: AppHandle) -> Result<(), String> {
     crate::start_session_observer(app);
 
     Ok(())
+}
+
+// ========================================================================= //
+// 非 Windows 平台占位函数
+// ========================================================================= //
+
+/// 非 Windows 平台打开目录。
+///
+/// TODO(cross-platform): macOS — 使用 `open <dir>`；
+///                        Linux — 使用 `xdg-open <dir>`。
+#[cfg(not(target_os = "windows"))]
+fn open_dir_non_windows(dir_path: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(dir_path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(dir_path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Err("open_dir not implemented for this platform".to_string())
+}
+
+/// 非 Windows 平台获取系统托盘/Dock 位置（用于窗口吸附定位）。
+///
+/// TODO(cross-platform): macOS — 通过 NSScreen.visibleFrame 推算 Dock 位置；
+///                        Linux — 通过 _NET_WORKAREA X11 属性推算面板位置。
+#[cfg(not(target_os = "windows"))]
+fn get_tray_position_non_windows() -> (f64, f64) {
+    // 降级：返回屏幕右下角的大致位置
+    (1700.0, 1030.0)
 }
 
 #[cfg(test)]

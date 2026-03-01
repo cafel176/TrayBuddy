@@ -50,6 +50,8 @@ pub(crate) fn is_left_mouse_down() -> Result<bool, String> {
         Ok(down)
     }
 
+    /// TODO(cross-platform): macOS — 使用 CGEvent API 或 NSEvent.pressedMouseButtons；
+    ///                        Linux — 使用 X11 XQueryPointer 或 libinput。
     #[cfg(not(target_os = "windows"))]
     {
         Err("is_left_mouse_down not implemented for this platform".to_string())
@@ -65,6 +67,7 @@ pub(crate) fn set_drag_end_tracking(enabled: bool) -> Result<bool, String> {
     }
 
 
+    /// TODO(cross-platform): macOS/Linux — 根据平台实现拖拽追踪（如有需要）。
     #[cfg(not(target_os = "windows"))]
     {
         let _ = enabled;
@@ -87,6 +90,8 @@ pub(crate) fn get_cursor_position() -> Result<(i32, i32), String> {
         Ok((point.x, point.y))
     }
 
+    /// TODO(cross-platform): macOS — 使用 NSEvent.mouseLocation；
+    ///                        Linux — 使用 X11 XQueryPointer 或 Wayland 指针协议。
     #[cfg(not(target_os = "windows"))]
     {
         Err("get_cursor_position not implemented for this platform".to_string())
@@ -156,7 +161,7 @@ pub(crate) fn is_cursor_in_interact_area(
 
     // 获取鼠标位置
     #[cfg(target_os = "windows")]
-    {
+    let (cursor_x, cursor_y) = {
         use windows::Win32::Foundation::POINT;
         use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 
@@ -166,38 +171,39 @@ pub(crate) fn is_cursor_in_interact_area(
         }
 
         // 鼠标逻辑坐标
-        let cursor_x = point.x as f64 / scale_factor;
-        let cursor_y = point.y as f64 / scale_factor;
+        (point.x as f64 / scale_factor, point.y as f64 / scale_factor)
+    };
 
-        // 检查鼠标是否在角色 Canvas 区域内（始终需要交互）
-        let in_canvas = cursor_x >= canvas_left
-            && cursor_x <= canvas_right
-            && cursor_y >= canvas_top
-            && cursor_y <= canvas_bottom;
-
-        // 检查鼠标是否在气泡实际区域内（前端传入实际边界）
-        let in_bubble = if let Some(bounds) = bubble_bounds {
-            // 将窗口相对坐标转换为屏幕坐标
-            let bubble_left = window_x + bounds.left;
-            let bubble_top = window_y + bounds.top;
-            let bubble_right = window_x + bounds.right;
-            let bubble_bottom = window_y + bounds.bottom;
-
-            cursor_x >= bubble_left
-                && cursor_x <= bubble_right
-                && cursor_y >= bubble_top
-                && cursor_y <= bubble_bottom
-        } else {
-            false
-        };
-
-        Ok(in_canvas || in_bubble)
-    }
-
+    // 非 Windows: 复用 get_cursor_position 的跨平台实现
     #[cfg(not(target_os = "windows"))]
-    {
-        Ok(false)
-    }
+    let (cursor_x, cursor_y) = {
+        let (x, y) = get_cursor_position()?;
+        (x as f64 / scale_factor, y as f64 / scale_factor)
+    };
+
+    // 检查鼠标是否在角色 Canvas 区域内（始终需要交互）
+    let in_canvas = cursor_x >= canvas_left
+        && cursor_x <= canvas_right
+        && cursor_y >= canvas_top
+        && cursor_y <= canvas_bottom;
+
+    // 检查鼠标是否在气泡实际区域内（前端传入实际边界）
+    let in_bubble = if let Some(bounds) = bubble_bounds {
+        // 将窗口相对坐标转换为屏幕坐标
+        let bubble_left = window_x + bounds.left;
+        let bubble_top = window_y + bounds.top;
+        let bubble_right = window_x + bounds.right;
+        let bubble_bottom = window_y + bounds.bottom;
+
+        cursor_x >= bubble_left
+            && cursor_x <= bubble_right
+            && cursor_y >= bubble_top
+            && cursor_y <= bubble_bottom
+    } else {
+        false
+    };
+
+    Ok(in_canvas || in_bubble)
 }
 
 /// 设置音量（实时生效）
@@ -303,9 +309,10 @@ pub(crate) fn open_path(path: String) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    /// macOS: 使用 open -R 选中文件；Linux: 使用 xdg-open 打开所在目录。
     #[cfg(not(target_os = "windows"))]
     {
-        opener::reveal(&path).map_err(|e| e.to_string())?;
+        open_path_non_windows(&path)?;
     }
 
     Ok(())
@@ -395,6 +402,44 @@ pub(crate) async fn recreate_pngremix_window(app: AppHandle) -> Result<(), Strin
 
     // 2. 创建新窗口
     crate::inner_create_pngremix_window(&app)
+}
+
+// ========================================================================= //
+// 非 Windows 平台占位函数
+// ========================================================================= //
+
+/// 非 Windows 平台打开文件管理器并选中指定路径。
+///
+/// TODO(cross-platform): macOS — `open -R <path>` 在 Finder 中选中文件；
+///                        Linux — `xdg-open` 打开所在目录（不支持直接选中文件）。
+#[cfg(not(target_os = "windows"))]
+fn open_path_non_windows(path: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // xdg-open 打开所在目录（无法直接选中文件）
+        let parent = std::path::Path::new(path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.to_string());
+        std::process::Command::new("xdg-open")
+            .arg(&parent)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Err("open_path not implemented for this platform".to_string())
 }
 
 #[cfg(test)]

@@ -342,6 +342,9 @@ impl EnvironmentManager {
             };
         }
 
+        /// macOS/Linux: 使用 $TZ 环境变量推断时区。
+        /// TODO(cross-platform): macOS — 使用 NSTimeZone.localTimeZone 获取更精确的时区信息；
+        ///                        Linux — 读取 /etc/timezone 或 timedatectl。
         #[cfg(not(windows))]
         {
             let tz = std::env::var("TZ").unwrap_or_else(|_| "UTC".to_string());

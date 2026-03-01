@@ -1,11 +1,12 @@
-//! 进程启动监测模块（Windows）
+//! 进程启动监测模块
 //!
-//! 目标：当用户启动一个新进程时，检查进程名是否包含“监测表”中的任意关键字，
+//! 目标：当用户启动一个新进程时，检查进程名是否包含"监测表"中的任意关键字，
 //! 若命中则对外发送事件（上层可据此触发 `work` 事件）。
 //!
 //! 设计参考：`media_observer.rs`
 //! - 支持从 `config/process_observer_keywords.json` 加载关键字
-//! - 仅在 Windows 平台实现；其他平台为 no-op
+//! - Windows: 使用 CreateToolhelp32Snapshot 枚举进程
+//! - macOS/Linux: TODO(cross-platform) 待实现
 
 #![allow(unused)]
 
@@ -271,7 +272,7 @@ impl ProcessObserver {
             {
                 let _ = running;
                 let _ = tx;
-                eprintln!("[ProcessObserver] 进程监测仅支持 Windows 平台");
+                Self::process_event_loop_non_windows().await;
             }
         });
 
@@ -310,8 +311,8 @@ impl ProcessObserver {
         let mut ticker = tokio::time::interval(poll_interval);
 
 
-        // 观察器启动时先做一次快照，把“已有进程”记为已见过，避免启动瞬间触发大量 work
-        // 同时记录“已存在的进程名集合”，用于抑制同一应用启动时的多子进程重复触发。
+        // 观察器启动时先做一次快照，把"已有进程"记为已见过，避免启动瞬间触发大量 work
+        // 同时记录"已存在的进程名集合"，用于抑制同一应用启动时的多子进程重复触发。
         let initial = Self::enumerate_processes();
         let mut seen_pids: HashSet<u32> = HashSet::new();
         let mut prev_names: HashSet<String> = HashSet::new();
@@ -401,7 +402,7 @@ impl ProcessObserver {
                 .map(|g| g.is_empty())
                 .unwrap_or(true);
 
-            // 只触发“每个进程名”一次：优先非子进程；若只有子进程，则允许触发一次
+            // 只触发"每个进程名"一次：优先非子进程；若只有子进程，则允许触发一次
             // candidates: name_key → (pid, exe_name, matched_keyword, is_child)
             let mut candidates: HashMap<String, (u32, String, Box<str>, bool)> = HashMap::new();
 
@@ -489,17 +490,8 @@ impl ProcessObserver {
     }
 
 
-    #[cfg(target_os = "windows")]
-    fn snapshot_pids() -> HashSet<u32> {
-        let mut set = HashSet::new();
-        for p in Self::enumerate_processes() {
-            set.insert(p.pid);
-        }
-        set
-    }
 
 
-    #[cfg(target_os = "windows")]
     fn snapshot_with_new(
         seen: &HashSet<u32>,
     ) -> (HashSet<u32>, Vec<(u32, String)>) {
@@ -518,7 +510,7 @@ impl ProcessObserver {
 
 
     #[cfg(target_os = "windows")]
-    fn enumerate_processes() -> Vec<ProcessInfo> {
+    fn enumerate_processes_windows() -> Vec<ProcessInfo> {
 
         use windows::Win32::Foundation::{CloseHandle, HANDLE};
         use windows::Win32::System::Diagnostics::ToolHelp::{
@@ -572,6 +564,69 @@ impl ProcessObserver {
         }
 
         out
+    }
+
+    // ========================================================================= //
+    // 非 Windows 平台占位
+    // ========================================================================= //
+
+    /// 非 Windows 平台的进程事件循环。
+    ///
+    /// TODO(cross-platform): macOS — 使用 NSWorkspace 的 didLaunchApplicationNotification 监听新进程启动；
+    ///                        Linux — 使用 /proc 文件系统轮询或 netlink connector 监听进程创建。
+    #[cfg(not(target_os = "windows"))]
+    async fn process_event_loop_non_windows() {
+        eprintln!("[ProcessObserver] 进程监测在非 Windows 平台暂未实现");
+    }
+
+    /// 非 Windows 平台的进程快照（PID 集合）。
+    ///
+    /// TODO(cross-platform): macOS — 使用 sysctl(KERN_PROC) 或 libproc；
+    ///                        Linux — 遍历 /proc/[pid]/ 目录。
+    #[cfg(not(target_os = "windows"))]
+    fn snapshot_pids_non_windows() -> HashSet<u32> {
+        HashSet::new()
+    }
+
+    /// 非 Windows 平台的进程枚举。
+    ///
+    /// TODO(cross-platform): macOS — 使用 proc_listallpids + proc_pidpath；
+    ///                        Linux — 遍历 /proc/[pid]/comm 或 /proc/[pid]/exe。
+    #[cfg(not(target_os = "windows"))]
+    fn enumerate_processes_non_windows() -> Vec<ProcessInfo> {
+        Vec::new()
+    }
+
+    /// 获取当前所有进程的 PID 快照。
+    ///
+    /// 内部根据平台分发到对应的实现。
+    fn snapshot_pids() -> HashSet<u32> {
+        #[cfg(target_os = "windows")]
+        {
+            let mut set = HashSet::new();
+            for p in Self::enumerate_processes() {
+                set.insert(p.pid);
+            }
+            set
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            Self::snapshot_pids_non_windows()
+        }
+    }
+
+    /// 枚举当前系统中的所有进程。
+    ///
+    /// 内部根据平台分发到对应的实现。
+    fn enumerate_processes() -> Vec<ProcessInfo> {
+        #[cfg(target_os = "windows")]
+        {
+            Self::enumerate_processes_windows()
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            Self::enumerate_processes_non_windows()
+        }
     }
 }
 
