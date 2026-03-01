@@ -213,10 +213,10 @@ function releaseImageResource(img: HTMLImageElement) {
   // 1. 清空事件处理器，避免内存泄漏
   img.onload = null;
   img.onerror = null;
-  // 2. 设置 src 为最小透明图片，提示浏览器释放旧纹理资源
-  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-  // 3. 移除 src 属性并尝试手动触发垃圾回收提示
-  img.removeAttribute('src');
+  // 2. 设置 src 为空数据 URI，提示浏览器释放旧纹理占用的 GPU 显存。
+  //    注意：不要在 set src 后再 removeAttribute('src')，否则浏览器会中止加载，
+  //    导致旧纹理无法被替换、GPU 显存无法释放。
+  img.src = 'data:,';
 }
 
 // 设置淘汰回调，主动释放被淘汰图片的引用
@@ -938,13 +938,14 @@ export class SpriteAnimator {
       this.visibilityHandler = null;
     }
     
-    // 显式释放当前图片引用
-    if (this.img) {
-      this.img.onload = null;
-      this.img.onerror = null;
-      this.img.src = 'data:,';
-      this.img = null;
-    }
+    // 断开当前图片引用（不修改 img.src，由 clearImageCache 的 onEvict 统一释放）
+    this.img = null;
+    
+    // 清零 canvas 缓冲区，释放 Canvas 2D 上下文持有的最后一帧 GPU 纹理
+    try {
+      this.canvas.width = 0;
+      this.canvas.height = 0;
+    } catch { /* ignore */ }
     
     this.ctx = null;
     this.currentImgSrc = "";

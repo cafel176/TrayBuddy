@@ -675,9 +675,20 @@ export class Live2DPlayer {
     this.updatePinnedTextureKeys(new Set());
     Live2DPlayer.texOptPlayers.delete(this);
 
+    // 清理 PIXI 全局 TextureCache / BaseTextureCache 中当前模型的贴图资源，
+    // 避免切换 Mod 后旧模型的 GPU 纹理残留。
+    this.cleanupPixiGlobalCaches();
+
     this.app?.destroy(true, { children: true });
     this.app = null;
+    this.world = null;
     this.config = null;
+
+    this.motionMap.clear();
+    this.expressionMap.clear();
+    this.pinnedTextureKeys.clear();
+    this.bgTextureKeys.clear();
+    this.assetUrlPrefix = "";
   }
 
 
@@ -2022,7 +2033,77 @@ export class Live2DPlayer {
     this.pinnedTextureKeys = next;
   }
 
+  /**
+   * 清理 PIXI 全局 TextureCache / BaseTextureCache 中属于当前模型的贴图。
+   *
+   * PIXI 全局缓存是单例字典，不会随 Application.destroy() 一起清除。
+   * 如果不主动清理，切换 Mod 后旧模型的贴图依然驻留在缓存中，
+   * 占用 GPU 显存并导致内存持续增长。
+   *
+   * 策略：遍历 BaseTextureCache，找出以 assetUrlPrefix 开头的贴图资源，
+   * 调用 destroy() 释放 GPU 纹理后从缓存中删除。
+   * 同时清除 Live2DTextureLRU 中对应的条目。
+   */
+  private cleanupPixiGlobalCaches(): void {
+    const PIXI = (window as any).PIXI;
+    if (!PIXI) return;
 
+    const texCache = PIXI?.utils?.TextureCache ?? PIXI?.TextureCache ?? {};
+    const baseCache = PIXI?.utils?.BaseTextureCache ?? PIXI?.BaseTextureCache ?? {};
+
+    // 收集需要清理的 key（当前模型目录下的贴图 + 背景层贴图）
+    const keysToRemove = new Set<string>();
+
+    if (this.assetUrlPrefix) {
+      for (const k of Object.keys(baseCache)) {
+        if (k.startsWith(this.assetUrlPrefix)) {
+          keysToRemove.add(k);
+        }
+      }
+      for (const k of Object.keys(texCache)) {
+        if (k.startsWith(this.assetUrlPrefix)) {
+          keysToRemove.add(k);
+        }
+      }
+    }
+
+    // 背景层贴图
+    for (const k of this.bgTextureKeys) {
+      keysToRemove.add(k);
+    }
+
+    // 已 pinned 的贴图也需要清理
+    for (const k of this.pinnedTextureKeys) {
+      keysToRemove.add(k);
+    }
+
+    for (const key of keysToRemove) {
+      // 销毁 BaseTexture（释放 GPU 纹理）
+      try {
+        const bt = baseCache[key];
+        bt?.destroy?.();
+      } catch { /* ignore */ }
+
+      // 销毁 Texture
+      try {
+        const tex = texCache[key];
+        tex?.destroy?.(true);
+      } catch { /* ignore */ }
+
+      // 从缓存中移除
+      try {
+        if (PIXI?.BaseTexture?.removeFromCache) PIXI.BaseTexture.removeFromCache(key);
+        else delete baseCache[key];
+      } catch { /* ignore */ }
+      try {
+        if (PIXI?.Texture?.removeFromCache) PIXI.Texture.removeFromCache(key);
+        else delete texCache[key];
+      } catch { /* ignore */ }
+
+      // 清除 LRU 条目
+      Live2DTextureLRU.unpin(key);
+    }
+  }
 
   // =========================================================================
   // 背景/叠加图层

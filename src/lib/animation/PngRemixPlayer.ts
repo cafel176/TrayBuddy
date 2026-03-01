@@ -1968,6 +1968,18 @@ class WebGLSceneRenderer {
     gl.deleteTexture(this.whiteTexture);
     gl.deleteBuffer(this.buffer);
     gl.deleteProgram(this.program);
+
+    // 显式释放 WebGL 上下文，确保 GPU 资源立即回收
+    try {
+      const ext = gl.getExtension("WEBGL_lose_context");
+      ext?.loseContext();
+    } catch { /* ignore */ }
+
+    // 清零 canvas 缓冲区，协助浏览器回收显存
+    try {
+      this.canvas.width = 0;
+      this.canvas.height = 0;
+    } catch { /* ignore */ }
   }
 
   getWidth(): number {
@@ -2453,6 +2465,22 @@ export class PngRemixPlayer {
     }
     scene.spriteDrawableByIndex.clear();
     scene.onDrawableReleased = null;
+
+    // 释放 scene 中持有的大对象引用，切断 JS 引用链以便 GC 回收
+    // model 包含标准化后的完整模型结构（节点树、状态、参数等），
+    // nodes/roots 持有所有 RuntimeNode 的引用。若不清理，切换 Mod 后旧模型数据
+    // 会一直驻留在内存中，导致 GPU 相关的 ImageBitmap/纹理无法被回收。
+    scene.model = null;
+    scene.nodeBySpriteId.clear();
+    for (const n of scene.nodes) {
+      n.children = [];
+      (n as any).raw = null;
+    }
+    scene.nodes = [];
+    scene.roots = [];
+    scene.visibilityOverrides = {};
+    scene.hotkeyGroups = [];
+    scene.availableHotkeys.clear();
   }
 
   private resetBindingsForInitOrDestroy(): void {

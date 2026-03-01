@@ -1233,8 +1233,18 @@ export class ThreeDPlayer {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
 
+    // 清除过渡中残留的 fadingOutAction
+    if (this.fadingOutAction) {
+      try { this.fadingOutAction.stop(); } catch { /* ignore */ }
+      this.fadingOutAction = null;
+    }
+
     if (this.mixer) {
       this.mixer.stopAllAction();
+      // 从 mixer 中移除所有缓存的 clip 引用，避免 mixer 内部持有 clip → track 数据
+      for (const clip of this.clipCache.values()) {
+        try { this.mixer.uncacheClip(clip); } catch { /* ignore */ }
+      }
       try { if (this.model) this.mixer.uncacheRoot(this.model); } catch { /* ignore */ }
       this.mixer = null;
     }
@@ -1267,8 +1277,20 @@ export class ThreeDPlayer {
     }
     this.model = null;
 
-
-    this.renderer?.dispose();
+    // 显式释放 WebGL 上下文，确保 GPU 资源立即回收
+    if (this.renderer) {
+      this.renderer.dispose();
+      try {
+        const gl = this.renderer.getContext();
+        const ext = gl?.getExtension("WEBGL_lose_context");
+        ext?.loseContext();
+      } catch { /* ignore */ }
+      // 清零 canvas 缓冲区，协助浏览器回收显存
+      try {
+        this.canvas.width = 0;
+        this.canvas.height = 0;
+      } catch { /* ignore */ }
+    }
     this.renderer = null;
 
     // 清理 THREE.js 全局缓存
@@ -1289,6 +1311,7 @@ export class ThreeDPlayer {
     this.baseHipsWorldX = 0;
     this.hipsXCompensation = 0;
     this.fadeDurationTotal = 0;
+    this.fadeRemaining = 0;
     this.fadeStartModelX = 0;
     this.mmdRuntime = null;
     this.pmxMesh = null;
