@@ -434,6 +434,8 @@ async function retargetVrmaToVrmClipBaked(
   }
 
   srcAction.stop();
+  srcMixer.uncacheClip(srcClip);
+  srcMixer.uncacheRoot(vrmaGltf.scene);
 
   // 循环动画：最后 blendFrames 帧渐进插值回第一帧，消除 LoopRepeat 取模跳变
   if (opts.loop && frameCount >= 3) {
@@ -854,10 +856,6 @@ export class ThreeDPlayer {
     const texMap = collectAllTextures(this.model);
     if (texMap.size === 0) return;
 
-    let downsampledCount = 0;
-    let downsampledSavedBytes = 0;
-    let dedupCount = 0;
-
     // --- Pass 1: 降采样 ---
     if (this.texPolicy.enabled) {
       for (const [tex] of texMap) {
@@ -883,10 +881,9 @@ export class ThreeDPlayer {
         // 释放原始图片内存
         if (image instanceof ImageBitmap) {
           image.close();
+        } else if (image instanceof HTMLImageElement) {
+          image.src = "";  // 释放解码后的位图内存
         }
-
-        downsampledCount++;
-        downsampledSavedBytes += (w0 * h0 - target.w * target.h) * 4;  // RGBA
       }
     }
 
@@ -910,90 +907,16 @@ export class ThreeDPlayer {
         }
         // 释放多余的纹理
         tex.dispose();
-        dedupCount++;
       } else {
         fingerToTex.set(fp, tex);
       }
     }
-
-    const totalTextures = texMap.size;
-    const savedMB = (downsampledSavedBytes / (1024 * 1024)).toFixed(1);
-
-    // 统计优化后的实际纹理尺寸
-    let totalTexMemAfter = 0;
-    for (const [tex] of texMap) {
-      const img = tex.image;
-      if (!img) continue;
-      const tw = (img as any).width || 0;
-      const th = (img as any).height || 0;
-      totalTexMemAfter += tw * th * 4;
-    }
-    const afterMB = (totalTexMemAfter / (1024 * 1024)).toFixed(1);
-
-    console.log(
-      `[ThreeDPlayer] texture optimize: ${totalTextures} textures, ` +
-      `downsample: ${downsampledCount} (saved ~${savedMB}MB), ` +
-      `dedup: ${dedupCount} (${totalTextures - dedupCount} unique), ` +
-      `current VRAM estimate: ~${afterMB}MB`
-    );
-
-    // 几何体 + morph targets 内存统计
-    this.logGeometryMemory();
 
     // morph targets 裁剪（VRM 模型）
     if (this.vrm) {
       this.pruneUnusedMorphTargets();
     }
   }
-
-  /**
-   * 统计并输出几何体 + morph targets 的内存占用。
-   */
-  private logGeometryMemory(): void {
-    if (!this.model) return;
-
-    let geoBytes = 0;
-    let morphBytes = 0;
-    let morphCount = 0;
-    let geoCount = 0;
-
-    this.model.traverse((child: any) => {
-      const geo = child.geometry as THREE.BufferGeometry | undefined;
-      if (!geo) return;
-      geoCount++;
-
-      // 统计普通 attribute 内存
-      for (const attrName in geo.attributes) {
-        const attr = geo.attributes[attrName];
-        if (attr?.array) geoBytes += attr.array.byteLength;
-      }
-      if (geo.index?.array) geoBytes += geo.index.array.byteLength;
-
-      // 统计 morph attributes 内存
-      if (geo.morphAttributes) {
-        for (const key in geo.morphAttributes) {
-          const morphArr = (geo.morphAttributes as any)[key];
-          if (!Array.isArray(morphArr)) continue;
-          for (const attr of morphArr) {
-            if (attr?.array) {
-              morphBytes += attr.array.byteLength;
-              morphCount++;
-            }
-          }
-        }
-      }
-    });
-
-    const geoMB = (geoBytes / (1024 * 1024)).toFixed(1);
-    const morphMB = (morphBytes / (1024 * 1024)).toFixed(1);
-    const totalMB = ((geoBytes + morphBytes) / (1024 * 1024)).toFixed(1);
-    console.log(
-      `[ThreeDPlayer] geometry memory: ${geoCount} geometries ~${geoMB}MB, ` +
-      `morph targets: ${morphCount} ~${morphMB}MB, ` +
-      `total geometry+morph: ~${totalMB}MB`
-    );
-  }
-
 
   /**
    * 裁剪 VRM 模型中未被使用的 morph targets，大幅释放内存。
@@ -1029,31 +952,13 @@ export class ThreeDPlayer {
       }
     }
 
-    // --- Step 2: 收集 VRM expressionManager 绑定的 morph indices ---
-    // VRM expressionManager.expressions[].binds[] -> { mesh, index }
+    // --- Step 2: 当前不使用表情动画，跳过 VRM expressionManager 保留逻辑 ---
+    // 如果未来需要表情支持，可在此收集 expressionManager 绑定的 morph indices
     const vrmUsedMorphs = new Map<THREE.Mesh, Set<number>>();
-    if (this.vrm) {
-      const em = (this.vrm as any).expressionManager;
-      if (em?.expressions) {
-        for (const expr of em.expressions) {
-          const binds = (expr as any)?._binds ?? (expr as any)?.binds ?? [];
-          for (const bind of binds) {
-            // @pixiv/three-vrm 的 VRMExpressionMorphTargetBind
-            const mesh = (bind as any)?.primitives?.[0] ?? (bind as any)?.mesh ?? (bind as any)?._primitives?.[0];
-            const morphIdx = (bind as any)?.index ?? (bind as any)?.morphTargetIndex;
-            if (mesh instanceof THREE.Mesh && typeof morphIdx === "number") {
-              if (!vrmUsedMorphs.has(mesh)) vrmUsedMorphs.set(mesh, new Set());
-              vrmUsedMorphs.get(mesh)!.add(morphIdx);
-            }
-          }
-        }
-      }
-    }
 
     // --- Step 3: 遍历所有 mesh，裁剪未使用的 morph targets ---
     let totalRemoved = 0;
     let totalKept = 0;
-    let freedBytes = 0;
 
     this.model.traverse((child: any) => {
       if (!child.isMesh && !child.isSkinnedMesh) return;
@@ -1100,12 +1005,6 @@ export class ThreeDPlayer {
       if (keepIndices.size === 0) {
         // 全部不需要 → 清空所有 morph attributes
         for (const key of morphKeys) {
-          const morphArr = (geo.morphAttributes as any)[key] as THREE.BufferAttribute[];
-          if (Array.isArray(morphArr)) {
-            for (const attr of morphArr) {
-              if (attr?.array) freedBytes += attr.array.byteLength;
-            }
-          }
           delete (geo.morphAttributes as any)[key];
         }
 
@@ -1147,8 +1046,6 @@ export class ThreeDPlayer {
           for (let i = 0; i < morphArr.length; i++) {
             if (keepIndices.has(i)) {
               newArr.push(morphArr[i]);
-            } else {
-              if (morphArr[i]?.array) freedBytes += morphArr[i].array.byteLength;
             }
           }
           (geo.morphAttributes as any)[key] = newArr;
@@ -1165,13 +1062,68 @@ export class ThreeDPlayer {
       }
     });
 
-    if (totalRemoved > 0 || totalKept > 0) {
-      const freedMB = (freedBytes / (1024 * 1024)).toFixed(1);
-      console.log(
-        `[ThreeDPlayer] morph prune: removed ${totalRemoved}, kept ${totalKept}, ` +
-        `freed ~${freedMB}MB`
-      );
+    // morph 全部清除后，剥离 VRM 表情/眼球追踪相关对象（减少对象图 + 每帧 update 开销）
+    if (this.vrm && totalKept === 0) {
+      try { (this.vrm as any).expressionManager = null; } catch { /* ignore */ }
+      try { (this.vrm as any).lookAt = null; } catch { /* ignore */ }
     }
+  }
+
+  /**
+   * 首帧渲染后释放所有材质纹理的 CPU 侧 image 数据。
+   * 纹理已上传至 GPU，CPU 侧副本不再需要。
+   */
+  private releaseTextureImages(): void {
+    if (!this.model) return;
+    const seen = new Set<THREE.Texture>();
+
+    this.model.traverse((child: any) => {
+      const mat = child.material;
+      const mats = Array.isArray(mat) ? mat : mat ? [mat] : [];
+      for (const m of mats) {
+        for (const prop of ["map", "alphaMap", "aoMap", "emissiveMap", "bumpMap",
+          "normalMap", "roughnessMap", "metalnessMap", "specularMap", "lightMap", "envMap"]) {
+          const tex = (m as any)?.[prop] as THREE.Texture | undefined;
+          if (!tex || seen.has(tex)) continue;
+          seen.add(tex);
+          if (tex.image) tex.image = null;
+        }
+      }
+    });
+  }
+
+  /**
+   * 清理 GLTF 对象内部的 parser 缓存，释放原始 ArrayBuffer 和解码对象。
+   * GLTFParser.cache 可持有文件大小级别的数据（30-100MB+）。
+   */
+  private cleanupGltfParser(gltf: GLTF): void {
+    const parser = (gltf as any).parser;
+    if (!parser) return;
+
+    // 清理缓存
+    if (parser.cache) {
+      const cacheMap = parser.cache;
+      try { if (typeof cacheMap.clear === "function") cacheMap.clear(); } catch { /* ignore */ }
+      try { if (typeof cacheMap.removeAll === "function") cacheMap.removeAll(); } catch { /* ignore */ }
+    }
+
+    // 清理 parser.json（GLTF JSON 结构）
+    if (parser.json) {
+      parser.json = null;
+    }
+
+    // 清理 parser 的 extensions
+    if (parser.extensions) {
+      try { parser.extensions = {}; } catch { /* ignore */ }
+    }
+
+    // 清理 parser 的 associations
+    if (parser.associations) {
+      try { parser.associations = new Map(); } catch { /* ignore */ }
+    }
+
+    // 断开 gltf 对 parser 的引用
+    try { (gltf as any).parser = null; } catch { /* ignore */ }
   }
 
   private gltfLoader: GLTFLoader | null = null;
@@ -1259,6 +1211,9 @@ export class ThreeDPlayer {
     this.gltfLoader = new GLTFLoader();
     this.gltfLoader.register((parser) => new VRMLoaderPlugin(parser));
 
+    // 防御性：确保 THREE.js 全局文件缓存关闭
+    THREE.Cache.enabled = false;
+
     this.handleResize();
     this.bindResize();
     this.startRenderLoop();
@@ -1315,6 +1270,10 @@ export class ThreeDPlayer {
 
     this.renderer?.dispose();
     this.renderer = null;
+
+    // 清理 THREE.js 全局缓存
+    try { THREE.Cache.clear(); } catch { /* ignore */ }
+
     this.scene = null;
     this.camera = null;
     this.timer?.dispose();
@@ -1358,7 +1317,6 @@ export class ThreeDPlayer {
       maxDim: startDim,
       scale: 1,
     };
-    console.log(`[ThreeDPlayer] texture policy: enabled=${downsampleEnabled}, startDim=${startDim}`);
 
     if (!this.renderer || !this.scene || !this.gltfLoader) {
       throw new Error("ThreeDPlayer not initialized");
@@ -1409,7 +1367,7 @@ export class ThreeDPlayer {
     // VRM: mixer 基于 model (vrm.scene) 创建，baked clip 使用 uuid 路径
     this.mixer = new THREE.AnimationMixer(this.pmxMesh ?? this.model!);
 
-    // 纹理优化：降采样 + 去重（模型加载完成后执行）
+    // 纹理优化：降采样 + 去重 + morph 裁剪（模型加载完成后执行）
     this.optimizeModelTextures();
 
     // Fit camera to model
@@ -1438,7 +1396,26 @@ export class ThreeDPlayer {
     // VRM0 rotation fix
     try { VRMUtils.rotateVRM0(vrm); } catch { /* ignore */ }
 
+    // 合并多个 SkinnedMesh 的 Skeleton 为共享 Skeleton，剔除未使用的 bone
+    // 6 个独立 Skeleton → 1 个共享，减少冗余 boneMatrices/boneTexture 副本
+    try { VRMUtils.combineSkeletons(vrm.scene); } catch { /* ignore */ }
+
+    // 移除未被 index buffer 引用的顶点数据，缩小 geometry + morph attributes
+    try { VRMUtils.removeUnnecessaryVertices(vrm.scene); } catch { /* ignore */ }
+
     this.model = vrm.scene;
+
+    // 释放 GLTFParser 内部缓存（原始 ArrayBuffer + 解码的中间对象）
+    // parser.cache 可持有 VRM 文件大小级别的数据（30-100MB）
+    try { this.cleanupGltfParser(gltf); } catch { /* ignore */ }
+
+    // 断开 gltf 对 scenes/animations 等的引用
+    try {
+      (gltf as any).scenes = null;
+      (gltf as any).animations = null;
+      (gltf as any).cameras = null;
+      (gltf as any).asset = null;
+    } catch { /* ignore */ }
 
     // Avoid frustum culling issues
     this.model.traverse((o) => {
@@ -1828,6 +1805,18 @@ export class ThreeDPlayer {
 
     // 释放 VRMA 临时 scene 的资源（避免内存泄漏）
     try { this.disposeObject3DResources(vrmaGltf.scene); } catch { /* ignore */ }
+    // 释放 VRMA 的 GLTFParser 内部缓存
+    try { this.cleanupGltfParser(vrmaGltf); } catch { /* ignore */ }
+
+    // 断开 vrmaGltf 对象的所有引用，协助 GC
+    try {
+      (vrmaGltf as any).scene = null;
+      (vrmaGltf as any).scenes = null;
+      (vrmaGltf as any).animations = null;
+      (vrmaGltf as any).cameras = null;
+      (vrmaGltf as any).asset = null;
+      (vrmaGltf as any).userData = null;
+    } catch { /* ignore */ }
 
     dbg("loadVrmaClip", "baked clip:", clip.name, "duration:", clip.duration, "tracks:", clip.tracks.length, "loop:", loop);
     return clip;
@@ -1874,6 +1863,7 @@ export class ThreeDPlayer {
     const maxFps = getRenderMaxFps();
     const minDeltaMs = maxFps ? 1000 / Math.max(1, maxFps) : 0;
     let lastTs = 0;
+    let firstRenderDone = false;
 
     const animate = (ts: number) => {
       if (!this.isRendering) return;
@@ -1944,6 +1934,12 @@ export class ThreeDPlayer {
       // Render
       if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera);
+
+        // 首帧渲染后纹理已上传至 GPU，释放 CPU 侧 image 数据
+        if (!firstRenderDone && this.model) {
+          firstRenderDone = true;
+          this.releaseTextureImages();
+        }
       }
     };
 
