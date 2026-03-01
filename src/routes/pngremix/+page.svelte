@@ -224,7 +224,28 @@ PngRemix 渲染层暂为空占位。
     windowType: "pngremix",
   });
 
+  // =========================================================================
+  // beforeunload 兜底 destroy
+  // =========================================================================
+
+  let _destroyed = false;
+
+  function _doDestroy() {
+    if (_destroyed) return;
+    _destroyed = true;
+    if (player) {
+      player.destroy();
+      player = null;
+    }
+    core.destroy();
+  }
+
+  function _onBeforeUnload() {
+    _doDestroy();
+  }
+
   onMount(() => {
+    window.addEventListener("beforeunload", _onBeforeUnload);
     console.log("[PngRemix Page] onMount: window.innerWidth:", window.innerWidth, "window.innerHeight:", window.innerHeight);
     const init = async () => {
       await initPngRemixPlayer();
@@ -239,11 +260,8 @@ PngRemix 渲染层暂为空占位。
   });
 
   onDestroy(() => {
-    if (player) {
-      player.destroy();
-      player = null;
-    }
-    core.destroy();
+    window.removeEventListener("beforeunload", _onBeforeUnload);
+    _doDestroy();
   });
 
 </script>

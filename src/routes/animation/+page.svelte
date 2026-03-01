@@ -269,16 +269,36 @@
     }
   }
 
+  // =========================================================================
+  // beforeunload 兜底 destroy
+  // =========================================================================
+  // Tauri 切换 mod 时直接销毁 WebView，Svelte 的 onDestroy 来不及执行。
+  // 通过 beforeunload 事件同步调用 destroy，确保资源释放。
+
+  let _destroyed = false;
+
+  function _doDestroy() {
+    if (_destroyed) return;
+    _destroyed = true;
+    core.destroy();
+    characterAnimator?.destroy();
+    borderAnimator?.destroy();
+    clearImageCache();
+  }
+
+  function _onBeforeUnload() {
+    _doDestroy();
+  }
+
   onMount(() => {
+    window.addEventListener("beforeunload", _onBeforeUnload);
     void initSequenceMemoryDebug();
     void core.init();
   });
 
   onDestroy(() => {
-    core.destroy();
-    characterAnimator?.destroy();
-    borderAnimator?.destroy();
-    clearImageCache();
+    window.removeEventListener("beforeunload", _onBeforeUnload);
+    _doDestroy();
   });
 </script>
 

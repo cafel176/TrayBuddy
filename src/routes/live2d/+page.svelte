@@ -463,7 +463,31 @@ Live2D 渲染层暂为空占位。
     windowType: "live2d",
   });
 
+  // =========================================================================
+  // beforeunload 兜底 destroy
+  // =========================================================================
+
+  let _destroyed = false;
+
+  function _doDestroy() {
+    if (_destroyed) return;
+    _destroyed = true;
+    unbindFeatureHotkeys?.();
+    unbindDebugControls?.();
+    unbindOverlayKeyListeners?.();
+    unlistenSettings?.();
+    unlistenKeyState?.();
+    unlistenMouseState?.();
+    live2dPlayer?.destroy();
+    core.destroy();
+  }
+
+  function _onBeforeUnload() {
+    _doDestroy();
+  }
+
   onMount(() => {
+    window.addEventListener("beforeunload", _onBeforeUnload);
     console.log("[Live2D Page] onMount: window.innerWidth:", window.innerWidth, "window.innerHeight:", window.innerHeight);
     bindFeatureHotkeys();
     bindDebugControls();
@@ -491,14 +515,8 @@ Live2D 渲染层暂为空占位。
   });
 
   onDestroy(() => {
-    unbindFeatureHotkeys?.();
-    unbindDebugControls?.();
-    unbindOverlayKeyListeners?.();
-    unlistenSettings?.();
-    unlistenKeyState?.();
-    unlistenMouseState?.();
-    live2dPlayer?.destroy();
-    core.destroy();
+    window.removeEventListener("beforeunload", _onBeforeUnload);
+    _doDestroy();
   });
 
 </script>
