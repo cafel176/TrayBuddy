@@ -558,6 +558,11 @@
   "msg_sync_no_model3_found": "No .model3.json file found in the base_dir directory",
   "msg_sync_choose_model3": "Multiple model files found. Please enter the filename to use:\n{files}",
 
+  "btn_import_pngremix_file": "Import File",
+  "msg_import_pngremix_need_folder": "Please open the Mod from a folder to import .pngRemix files",
+  "msg_import_pngremix_success": "Imported {file} to asset directory",
+  "msg_import_pngremix_failed": "Import failed: {error}",
+
   "msg_sync_no_pngremix_found": "No .pngRemix file found in the Mod folder",
   "msg_sync_choose_pngremix": "Multiple .pngRemix files found. Please enter the filename to use:\n{files}",
   "msg_sync_pngremix_file_not_found": "No .pngRemix file found. Please check the .pngRemix file path",

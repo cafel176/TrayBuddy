@@ -6497,6 +6497,47 @@ async function _decodePngRemixFileFromModFolder() {
 }
 
 /**
+ * 导入一个 .pngRemix 文件到 Mod 的 asset 目录
+ */
+async function importPngRemixFile() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_pngremix_need_folder'), 'warning');
+    return;
+  }
+
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [{
+        description: 'PngRemix File',
+        accept: { 'application/octet-stream': ['.pngRemix', '.pngremix'] }
+      }]
+    });
+    const file = await fileHandle.getFile();
+
+    const assetDir = await getOrCreateDir(modFolderHandle, ['asset']);
+    const fileName = await writeFileToDir(assetDir, file);
+
+    // 自动更新 pngremix_file 字段
+    const p = ensurePngRemixData();
+    p.model.pngremix_file = `asset/${fileName}`;
+    populatePngRemixForm();
+    markUnsaved();
+
+    showToast(window.i18n.t('msg_import_pngremix_success').replace('{file}', fileName), 'success');
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    console.error('importPngRemixFile error:', err);
+    const msg = window.i18n.t('msg_import_pngremix_failed').replace('{error}', err?.message || String(err));
+    showToast(msg, 'error');
+  }
+}
+
+/**
  * 从文件同步 PngRemix 配置
  * - 读取 .pngRemix 文件的 settings_dict 中的部分字段（如 blink_speed/blink_chance）
  */

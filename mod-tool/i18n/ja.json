@@ -558,6 +558,11 @@
   "msg_sync_no_model3_found": "base_dir ディレクトリに .model3.json ファイルが見つかりません",
   "msg_sync_choose_model3": "複数のモデルファイルが見つかりました。使用するファイル名を入力してください：\n{files}",
 
+  "btn_import_pngremix_file": "ファイルをインポート",
+  "msg_import_pngremix_need_folder": ".pngRemix ファイルをインポートするにはフォルダから Mod を開いてください",
+  "msg_import_pngremix_success": "{file} を asset ディレクトリにインポートしました",
+  "msg_import_pngremix_failed": "インポートに失敗しました：{error}",
+
   "msg_sync_no_pngremix_found": "Mod フォルダ内に .pngRemix ファイルが見つかりません",
   "msg_sync_choose_pngremix": "複数の .pngRemix ファイルが見つかりました。使用するファイル名を入力してください：\n{files}",
   "msg_sync_pngremix_file_not_found": ".pngRemix ファイルが見つかりません。.pngRemix のパスを確認してください",
