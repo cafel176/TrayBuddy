@@ -475,6 +475,8 @@
   "live2d_expressions_dir_label": "表情目录",
   "live2d_physics_json_label": "物理文件",
   "live2d_pose_json_label": "姿势文件",
+  "live2d_breath_json_label": "呼吸文件",
+  "live2d_breath_json_hint": "呼吸动画配置文件（如 breath.json）",
   "live2d_eye_blink_label": "启用眨眼",
   "live2d_lip_sync_label": "启用口型同步",
 

@@ -5254,6 +5254,7 @@ function populateLive2dModelForm(model) {
   document.getElementById('live2d-expressions-dir').value = model.expressions_dir || '';
   document.getElementById('live2d-physics-json').value = model.physics_json || '';
   document.getElementById('live2d-pose-json').value = model.pose_json || '';
+  document.getElementById('live2d-breath-json').value = model.breath_json || '';
   document.getElementById('live2d-eye-blink').checked = model.eye_blink !== false;
   document.getElementById('live2d-lip-sync').checked = model.lip_sync !== false;
   
@@ -5288,6 +5289,7 @@ function collectLive2dModelData() {
   model.expressions_dir = document.getElementById('live2d-expressions-dir').value.trim();
   model.physics_json = document.getElementById('live2d-physics-json').value.trim();
   model.pose_json = document.getElementById('live2d-pose-json').value.trim();
+  model.breath_json = document.getElementById('live2d-breath-json').value.trim();
   model.eye_blink = document.getElementById('live2d-eye-blink').checked;
   model.lip_sync = document.getElementById('live2d-lip-sync').checked;
 }

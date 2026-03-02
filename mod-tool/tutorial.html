@@ -325,11 +325,13 @@
         <tr><td data-i18n="live2d_field_name">name</td><td data-i18n="live2d_field_name_desc">模型显示名称</td></tr>
         <tr><td data-i18n="live2d_field_base_dir">base_dir</td><td data-i18n="live2d_field_base_dir_desc">模型资源根目录，相对于 Mod 目录</td></tr>
         <tr><td data-i18n="live2d_field_model_json">model_json</td><td data-i18n="live2d_field_model_json_desc">模型描述文件名（通常为 .model3.json）</td></tr>
+        <tr><td data-i18n="live2d_field_scale">scale</td><td data-i18n="live2d_field_scale_desc">模型整体缩放比例（默认 1）</td></tr>
         <tr><td data-i18n="live2d_field_textures_dir">textures_dir</td><td data-i18n="live2d_field_textures_dir_desc">贴图目录</td></tr>
         <tr><td data-i18n="live2d_field_motions_dir">motions_dir</td><td data-i18n="live2d_field_motions_dir_desc">动作文件目录</td></tr>
         <tr><td data-i18n="live2d_field_expressions_dir">expressions_dir</td><td data-i18n="live2d_field_expressions_dir_desc">表情文件目录</td></tr>
         <tr><td data-i18n="live2d_field_physics_json">physics_json</td><td data-i18n="live2d_field_physics_desc">物理运算配置文件</td></tr>
         <tr><td data-i18n="live2d_field_pose_json">pose_json</td><td data-i18n="live2d_field_pose_desc">姿势配置文件</td></tr>
+        <tr><td data-i18n="live2d_field_breath_json">breath_json</td><td data-i18n="live2d_field_breath_desc">呼吸动画配置文件</td></tr>
         <tr><td data-i18n="live2d_field_eye_blink">eye_blink</td><td data-i18n="live2d_field_eye_blink_desc">是否启用自动眨眼</td></tr>
         <tr><td data-i18n="live2d_field_lip_sync">lip_sync</td><td data-i18n="live2d_field_lip_sync_desc">是否启用口型同步</td></tr>
       </table>
@@ -366,6 +368,21 @@
         <tr><td data-i18n="live2d_state_expression">expression</td><td data-i18n="live2d_state_expression_desc">关联的表情名称（可选）</td></tr>
         <tr><td data-i18n="live2d_state_scale">scale</td><td data-i18n="live2d_state_scale_desc">模型缩放比例</td></tr>
         <tr><td data-i18n="live2d_state_offset">offset_x / offset_y</td><td data-i18n="live2d_state_offset_desc">位置偏移量</td></tr>
+      </table>
+
+
+      <h3 data-i18n="section_live2d_background_layers">背景图层</h3>
+      <p data-i18n="live2d_background_layers_desc">背景图层用于在 Live2D 模型的下方或上方渲染额外的图片层，适用于静态背景、按键叠加高亮等场景。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td data-i18n="live2d_bg_field_name">name</td><td data-i18n="live2d_bg_field_name_desc">图层名称（标识用）</td></tr>
+        <tr><td data-i18n="live2d_bg_field_file">file</td><td data-i18n="live2d_bg_field_file_desc">图片文件路径（相对于 base_dir）</td></tr>
+        <tr><td data-i18n="live2d_bg_field_layer">layer</td><td data-i18n="live2d_bg_field_layer_desc">渲染层级："behind"（模型之后）或 "front"（模型之前）</td></tr>
+        <tr><td data-i18n="live2d_bg_field_scale">scale</td><td data-i18n="live2d_bg_field_scale_desc">缩放比例（1.0 = 原尺寸）</td></tr>
+        <tr><td data-i18n="live2d_bg_field_offset">offset_x / offset_y</td><td data-i18n="live2d_bg_field_offset_desc">位置偏移量（像素）</td></tr>
+        <tr><td data-i18n="live2d_bg_field_events">events</td><td data-i18n="live2d_bg_field_events_desc">关联事件名列表，任一事件触发时显示；为空则常驻显示</td></tr>
+        <tr><td data-i18n="live2d_bg_field_audio">audio</td><td data-i18n="live2d_bg_field_audio_desc">触发时播放的音效名称（空字符串表示不播放）</td></tr>
+        <tr><td data-i18n="live2d_bg_field_dir">dir</td><td data-i18n="live2d_bg_field_dir_desc">图片所在目录（可选，用于分组筛选）</td></tr>
       </table>
 
 

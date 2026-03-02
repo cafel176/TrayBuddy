@@ -474,6 +474,8 @@
   "live2d_expressions_dir_label": "表情ディレクトリ",
   "live2d_physics_json_label": "物理ファイル",
   "live2d_pose_json_label": "ポーズファイル",
+  "live2d_breath_json_label": "ブレスファイル",
+  "live2d_breath_json_hint": "呼吸アニメーション設定ファイル（例: breath.json）",
   "live2d_eye_blink_label": "まばたきを有効化",
   "live2d_lip_sync_label": "リップシンクを有効化",
 

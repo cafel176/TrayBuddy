@@ -10,10 +10,12 @@
     "expressions_dir": "",
     "physics_json": "",
     "pose_json": "",
+    "breath_json": "",
     "eye_blink": true,
     "lip_sync": true
   },
   "motions": [],
   "expressions": [],
-  "states": []
+  "states": [],
+  "background_layers": []
 }

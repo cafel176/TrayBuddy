@@ -474,6 +474,8 @@
   "live2d_expressions_dir_label": "Expressions Directory",
   "live2d_physics_json_label": "Physics File",
   "live2d_pose_json_label": "Pose File",
+  "live2d_breath_json_label": "Breath File",
+  "live2d_breath_json_hint": "Breath animation config file (e.g. breath.json)",
   "live2d_eye_blink_label": "Enable Eye Blink",
   "live2d_lip_sync_label": "Enable Lip Sync",
 

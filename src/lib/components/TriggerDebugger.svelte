@@ -33,6 +33,7 @@
     formatTriggerableStates,
     formatLive2dParams,
     formatPngRemixParams,
+    isModDataCounterEffective,
   } from "$lib/utils/stateFormatters";
   import type {
     StateInfo,
@@ -313,7 +314,7 @@
                 chance: ((currentState.trigger_rate ?? 0) * 100).toFixed(0),
               })}
             </div>{/if}
-          {#if currentState.mod_data_counter}<div class="detail-row">
+          {#if currentState.mod_data_counter && isModDataCounterEffective(currentState.mod_data_counter)}<div class="detail-row">
               <span class="label">{_("state.modDataCounterLabel")}</span>
               <span class="counter-value">{currentState.mod_data_counter.op} {currentState.mod_data_counter.value}</span>
             </div>{/if}

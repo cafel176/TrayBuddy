@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 ==========================================================================
 资源管理调试组件 (ResourceManagerDebugger.svelte)
 ==========================================================================
@@ -24,7 +24,7 @@
   import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
   import { t, onLangChange } from "$lib/i18n";
   import { isError } from "$lib/utils/statusMessage";
-  import { formatTriggerCounterRange, formatTempRange } from "$lib/utils/stateFormatters";
+  import { formatTriggerCounterRange, isTriggerCounterRangeLimited, formatTempRange, isTempRangeLimited, isModDataCounterEffective } from "$lib/utils/stateFormatters";
   import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
   import type {
     AssetInfo,
@@ -723,17 +723,19 @@
                           </div>
                         {/if}
 
-                        {#if state.mod_data_counter}
+                        {#if state.mod_data_counter && isModDataCounterEffective(state.mod_data_counter)}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.modDataCounter")}</span>
                             <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                           </div>
                         {/if}
+                        {#if isTriggerCounterRangeLimited(state)}
                         <div class="detail-item">
                           <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                           <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                         </div>
-                        {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                        {/if}
+                        {#if isTempRangeLimited(state)}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.triggerTempRange")}</span>
                             <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>
@@ -879,17 +881,19 @@
                           </div>
                         {/if}
 
-                        {#if state.mod_data_counter}
+                        {#if state.mod_data_counter && isModDataCounterEffective(state.mod_data_counter)}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.modDataCounter")}</span>
                             <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                           </div>
                         {/if}
+                        {#if isTriggerCounterRangeLimited(state)}
                         <div class="detail-item">
                           <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                           <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                         </div>
-                        {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                        {/if}
+                        {#if isTempRangeLimited(state)}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.triggerTempRange")}</span>
                             <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>
@@ -1046,17 +1050,19 @@
                             </div>
                           {/if}
 
-                          {#if state.mod_data_counter}
+                          {#if state.mod_data_counter && isModDataCounterEffective(state.mod_data_counter)}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.modDataCounter")}</span>
                               <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                             </div>
                           {/if}
+                          {#if isTriggerCounterRangeLimited(state)}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                             <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                           </div>
-                          {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                          {/if}
+                          {#if isTempRangeLimited(state)}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.triggerTempRange")}</span>
                               <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>
@@ -1204,17 +1210,19 @@
                             </div>
                           {/if}
 
-                          {#if state.mod_data_counter}
+                          {#if state.mod_data_counter && isModDataCounterEffective(state.mod_data_counter)}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.modDataCounter")}</span>
                               <span class="tag counter-tag">{state.mod_data_counter.op} {state.mod_data_counter.value}</span>
                             </div>
                           {/if}
+                          {#if isTriggerCounterRangeLimited(state)}
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.triggerCounterRange")}</span>
                             <span class="tag counter-tag">{formatTriggerCounterRange(state.trigger_counter_start, state.trigger_counter_end)}</span>
                           </div>
-                          {#if state.trigger_temp_start != null || state.trigger_temp_end != null}
+                          {/if}
+                          {#if isTempRangeLimited(state)}
                             <div class="detail-item">
                               <span class="detail-label">{_("resource.triggerTempRange")}</span>
                               <span class="tag counter-tag">{formatTempRange(state.trigger_temp_start, state.trigger_temp_end)}</span>

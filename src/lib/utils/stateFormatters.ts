@@ -86,6 +86,18 @@ export function formatLive2dParams(params?: Live2DParameterSetting[]): string {
     .join(", ");
 }
 
+/** 判断 mod_data_counter 是否有实际效果（排除 add 0 / sub 0 等无效操作）。 */
+export function isModDataCounterEffective(counter?: {
+  op: string;
+  value: number;
+} | null): boolean {
+  if (!counter) return false;
+  if ((counter.op === "add" || counter.op === "sub") && counter.value === 0) {
+    return false;
+  }
+  return true;
+}
+
 /** 格式化 PngRemix 参数列表。 */
 export function formatPngRemixParams(params?: PngRemixParameterSetting[]): string {
   if (!params || params.length === 0) return "";
