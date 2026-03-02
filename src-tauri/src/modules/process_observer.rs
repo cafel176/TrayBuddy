@@ -305,8 +305,8 @@ impl ProcessObserver {
 
         let start_time = Instant::now();
 
-        // 轮询间隔：尽量轻量，且可接受的响应速度
-        let poll_interval = Duration::from_millis(900);
+        // 轮询间隔：从常量获取，兼顾响应速度与 CPU 消耗
+        let poll_interval = Duration::from_millis(crate::modules::constants::PROCESS_OBSERVER_POLL_INTERVAL_MS);
         let poll_interval_ms = poll_interval.as_millis() as u64;
         let mut ticker = tokio::time::interval(poll_interval);
 
