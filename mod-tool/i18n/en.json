@@ -580,12 +580,12 @@
   "msg_sync_pngremix_assets_confirm": "This will scan state count and hotkeys (saved_keys/saved_disappear) from the .pngRemix file and overwrite current expression/motion lists (state mappings will be preserved and best-effort filled). Continue?",
   "msg_sync_pngremix_assets_success": "Assets synced: {motions} motions, {expressions} expressions, {states} mappings",
 
-  "btn_gen_keyboard_events": "Generate Keyboard Events from File",
+  "btn_gen_keyboard_events": "Generate Input Events from File",
   "msg_gen_keyboard_live2d_only": "This feature is only available for Live2D type Mods",
   "msg_gen_keyboard_no_cdi": "No DisplayInfo (cdi3.json) reference found in model file, cannot identify parameter names",
   "msg_gen_keyboard_no_params": "No keyboard/key-related parameters found in cdi3.json",
-  "msg_gen_keyboard_confirm": "Identified {count} key parameters from cdi3.json. This will auto-generate corresponding states and triggers:\n\n{params}\n\nIt will also reset these parameters to 0 in the idle state and enable global keyboard listening. Continue?",
-  "msg_gen_keyboard_success": "Keyboard events generated: {states} new states, {triggers} new triggers ({params} key parameters total)",
+  "msg_gen_keyboard_confirm": "Identified {count} input parameters from cdi3.json. This will auto-generate corresponding states and triggers (including down/up events):\n\n{params}\n\nGlobal keyboard listening will be enabled. Continue?",
+  "msg_gen_keyboard_success": "Input events generated: {states} new states, {triggers} new triggers ({params} input parameters total)",
 
   "section_live2d_bg_layers": "Background / Overlay Layers (background_layers)",
   "live2d_bg_layers_hint": "Configure image layers rendered behind or in front of the Live2D model, for static backgrounds, key highlight overlays, etc.",

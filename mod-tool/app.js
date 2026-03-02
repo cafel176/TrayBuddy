@@ -5739,7 +5739,7 @@ async function syncLive2dAssetsFromFiles() {
 
 /**
  * 从 Live2D 模型的 cdi3.json 中识别键盘/鼠标按键相关参数，
- * 自动生成对应的 keydown 触发器和过渡状态，以及 idle 状态的参数重置。
+ * 自动生成对应的 down/up 触发器和过渡状态。
  *
  * 识别规则：
  * - ParameterGroups 中 Name 包含 "按键"/"键盘"/"key"/"keyboard" 的分组下所有参数
@@ -5747,10 +5747,9 @@ async function syncLive2dAssetsFromFiles() {
  * - 参数 Name 直接是单个按键名称（已知键名映射）
  *
  * 对每个识别到的参数：
- * 1. 创建一个过渡状态 `key_<keyCode>`，设置该参数 value=1
- * 2. 创建一个触发器 `keydown:<KeyCode>`（或 click），触发该过渡状态
- * 3. 对通用键盘按下参数，创建 `key_any` 状态和 `global_keydown` 触发器
- * 4. 在 idle 状态的 live2d_params 中将该参数重置为 0
+ * 1. 创建过渡状态 `key_<keyCode>` (down, value=1) 和 `key_<keyCode>_up` (up, value=0)
+ * 2. 创建触发器 `keydown:<KeyCode>` / `keyup:<KeyCode>`（或 global_click / global_click_up 等）
+ * 3. CatParamLeftHandDown 映射到 global_keydown / global_keyup
  */
 async function generateKeyboardEventsFromFiles() {
   if (!currentMod) {
@@ -5832,12 +5831,13 @@ async function generateKeyboardEventsFromFiles() {
 
     // ======== Id 特殊匹配规则 ========
     const MOUSE_ID_MAP = {
-      'ParamMouseLeftDown': { event: 'global_click', stateName: 'key_mouse_left' },
-      'ParamMouseRightDown': { event: 'global_right_click', stateName: 'key_mouse_right' },
+      'ParamMouseLeftDown': { event: 'global_click', upEvent: 'global_click_up', stateName: 'key_mouse_left', upStateName: 'key_mouse_left_up' },
+      'ParamMouseRightDown': { event: 'global_right_click', upEvent: 'global_right_click_up', stateName: 'key_mouse_right', upStateName: 'key_mouse_right_up' },
     };
 
     // ======== 通用键盘按下参数（Name 包含"键盘按下"/"keyboard down"等） ========
     const GENERIC_KEYBOARD_NAMES = ['键盘按下', 'keyboard down', 'key down', 'keydown'];
+    // CatParamLeftHandDown 映射到 global_keydown / global_keyup
     const GENERIC_KEYBOARD_IDS = ['CatParamLeftHandDown'];
 
     // ======== 收集需要生成的键盘参数 ========
@@ -5859,6 +5859,8 @@ async function generateKeyboardEventsFromFiles() {
             keyCode: mapping.event,
             eventName: mapping.event,
             stateName: mapping.stateName,
+            upEventName: mapping.upEvent,
+            upStateName: mapping.upStateName,
           });
           seenEvents.add(mapping.event);
         }
@@ -5883,12 +5885,15 @@ async function generateKeyboardEventsFromFiles() {
 
       if (inKeyboardGroup && keyCode) {
         const eventName = `keydown:${keyCode}`;
+        const upEventName = `keyup:${keyCode}`;
         if (!seenEvents.has(eventName)) {
           keyParams.push({
             paramId,
             keyCode,
             eventName,
             stateName: `key_${nameLower.replace(/\s+/g, '_')}`,
+            upEventName,
+            upStateName: `key_${nameLower.replace(/\s+/g, '_')}_up`,
           });
           seenEvents.add(eventName);
         }
@@ -5932,7 +5937,7 @@ async function generateKeyboardEventsFromFiles() {
     for (const kp of keyParams) {
       const isKeyboardKey = kp.eventName.startsWith('keydown:');
 
-      // 1. 创建过渡状态
+      // 1. 创建 down 过渡状态（value=1）
       if (!existingStateNames.has(kp.stateName)) {
         const newState = createDefaultState(kp.stateName, false);
         newState.priority = 3;
@@ -5964,7 +5969,7 @@ async function generateKeyboardEventsFromFiles() {
 
       if (isKeyboardKey) keyboardStateNames.add(kp.stateName);
 
-      // 2. 创建触发器
+      // 2. 创建 down 触发器
       if (!existingTriggerEvents.has(kp.eventName)) {
         const newTrigger = {
           event: kp.eventName,
@@ -5978,10 +5983,44 @@ async function generateKeyboardEventsFromFiles() {
         existingTriggerEvents.add(kp.eventName);
         addedTriggers++;
       }
+
+      // 3. 创建 up 过渡状态（value=0）
+      if (kp.upStateName && !existingStateNames.has(kp.upStateName)) {
+        const upState = createDefaultState(kp.upStateName, false);
+        upState.priority = 3;
+        upState.next_state = '';
+        const upParams = [{ id: kp.paramId, value: 0 }];
+        // 为键盘按键 up 状态附加通用键盘参数（value=0）
+        if (isKeyboardKey) {
+          for (const gp of genericKeyboardParams) {
+            upParams.push({ id: gp, value: 0 });
+          }
+        }
+        upState.live2d_params = upParams;
+        manifest.states.push(upState);
+        existingStateNames.add(kp.upStateName);
+        addedStates++;
+      }
+
+      // 4. 创建 up 触发器
+      if (kp.upEventName && !existingTriggerEvents.has(kp.upEventName)) {
+        const upTrigger = {
+          event: kp.upEventName,
+          can_trigger_states: [{
+            persistent_state: '',
+            states: [{ state: kp.upStateName, weight: 1 }],
+            allow_repeat: true,
+          }],
+        };
+        manifest.triggers.push(upTrigger);
+        existingTriggerEvents.add(kp.upEventName);
+        addedTriggers++;
+      }
     }
 
-    // 2.5 为通用键盘按下参数创建 global_keydown 状态和触发器
+    // 2.5 为通用键盘按下参数创建 global_keydown / global_keyup 状态和触发器
     if (genericKeyboardParams.length > 0) {
+      // global_keydown -> key_any (value=1)
       const globalKeydownState = 'key_any';
       if (!existingStateNames.has(globalKeydownState)) {
         const newState = createDefaultState(globalKeydownState, false);
@@ -6005,34 +6044,34 @@ async function generateKeyboardEventsFromFiles() {
         existingTriggerEvents.add('global_keydown');
         addedTriggers++;
       }
+
+      // global_keyup -> key_any_up (value=0)
+      const globalKeyupState = 'key_any_up';
+      if (!existingStateNames.has(globalKeyupState)) {
+        const upState = createDefaultState(globalKeyupState, false);
+        upState.priority = 3;
+        upState.next_state = '';
+        upState.live2d_params = genericKeyboardParams.map(gp => ({ id: gp, value: 0 }));
+        manifest.states.push(upState);
+        existingStateNames.add(globalKeyupState);
+        addedStates++;
+      }
+      if (!existingTriggerEvents.has('global_keyup')) {
+        const upTrigger = {
+          event: 'global_keyup',
+          can_trigger_states: [{
+            persistent_state: '',
+            states: [{ state: globalKeyupState, weight: 1 }],
+            allow_repeat: true,
+          }],
+        };
+        manifest.triggers.push(upTrigger);
+        existingTriggerEvents.add('global_keyup');
+        addedTriggers++;
+      }
     }
 
-    // 3. 为 idle 状态添加 live2d_params 重置所有按键参数为 0
-    const idleState = manifest.important_states?.idle;
-    if (idleState) {
-      const existingParamIds = new Set();
-      if (Array.isArray(idleState.live2d_params)) {
-        for (const p of idleState.live2d_params) {
-          existingParamIds.add(p.id);
-        }
-      } else {
-        idleState.live2d_params = [];
-      }
-
-      for (const kp of keyParams) {
-        if (!existingParamIds.has(kp.paramId)) {
-          idleState.live2d_params.push({ id: kp.paramId, value: 0 });
-          existingParamIds.add(kp.paramId);
-        }
-      }
-      // 通用键盘参数也重置
-      for (const gp of genericKeyboardParams) {
-        if (!existingParamIds.has(gp)) {
-          idleState.live2d_params.push({ id: gp, value: 0 });
-          existingParamIds.add(gp);
-        }
-      }
-    }
+    // 3. 不再在 idle 状态中设参数为 0（由 up 事件负责重置参数）
 
     // 4. 同时开启 global_keyboard 和 global_mouse（如有鼠标事件）
     manifest.global_keyboard = true;

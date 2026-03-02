@@ -580,12 +580,12 @@
   "msg_sync_pngremix_assets_confirm": ".pngRemix ファイルから state 数とホットキー（saved_keys/saved_disappear）をスキャンし、現在の表情/モーション一覧を上書きします（状態マッピングは保持し、可能な範囲で補完します）。続行しますか？",
   "msg_sync_pngremix_assets_success": "アセット同期完了：モーション {motions} 件、表情 {expressions} 件、マッピング {states} 件",
 
-  "btn_gen_keyboard_events": "ファイルからキーボードイベントを生成",
+  "btn_gen_keyboard_events": "ファイルから入力イベントを生成",
   "msg_gen_keyboard_live2d_only": "この機能は Live2D タイプの Mod でのみ使用できます",
   "msg_gen_keyboard_no_cdi": "モデルファイルに DisplayInfo (cdi3.json) の参照が見つかりません。パラメータ名を識別できません",
   "msg_gen_keyboard_no_params": "cdi3.json にキーボード/キー関連のパラメータが見つかりませんでした",
-  "msg_gen_keyboard_confirm": "cdi3.json から {count} 個のキーパラメータを識別しました。対応するステートとトリガーを自動生成します：\n\n{params}\n\nまた、idle ステートでこれらのパラメータを 0 にリセットし、グローバルキーボードリスニングを有効にします。続行しますか？",
-  "msg_gen_keyboard_success": "キーボードイベント生成完了：{states} 個の新しいステート、{triggers} 個の新しいトリガー（{params} 個のキーパラメータ）",
+  "msg_gen_keyboard_confirm": "cdi3.json から {count} 個の入力パラメータを識別しました。対応するステートとトリガー（down/upイベント含む）を自動生成します：\n\n{params}\n\nグローバルキーボードリスニングを有効にします。続行しますか？",
+  "msg_gen_keyboard_success": "入力イベント生成完了：{states} 個の新しいステート、{triggers} 個の新しいトリガー（{params} 個の入力パラメータ）",
 
   "section_live2d_bg_layers": "背景/オーバーレイレイヤー (background_layers)",
   "live2d_bg_layers_hint": "Live2D モデルの背面または前面にレンダリングする画像レイヤーを設定します（静的背景、キーハイライトオーバーレイなど）",

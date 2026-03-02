@@ -581,12 +581,12 @@
   "msg_sync_pngremix_assets_confirm": "将从 .pngRemix 文件扫描 state 数量与热键（saved_keys/saved_disappear），并覆盖当前的表情/动作列表（状态映射会保留并尽量补齐）。是否继续？",
   "msg_sync_pngremix_assets_success": "资产同步完成：{motions} 个动作，{expressions} 个表情，{states} 个映射",
 
-  "btn_gen_keyboard_events": "从文件生成键盘事件",
+  "btn_gen_keyboard_events": "从文件生成输入事件",
   "msg_gen_keyboard_live2d_only": "该功能仅支持 Live2D 类型的 Mod",
   "msg_gen_keyboard_no_cdi": "模型文件中未找到 DisplayInfo (cdi3.json) 引用，无法识别参数名称",
   "msg_gen_keyboard_no_params": "未在 cdi3.json 中识别到键盘/按键相关参数",
-  "msg_gen_keyboard_confirm": "从 cdi3.json 中识别到 {count} 个按键参数，将自动生成对应的状态和触发器：\n\n{params}\n\n同时会在 idle 状态中重置这些参数为 0，并开启全局键盘监听。是否继续？",
-  "msg_gen_keyboard_success": "键盘事件生成完成：新增 {states} 个状态、{triggers} 个触发器（共 {params} 个按键参数）",
+  "msg_gen_keyboard_confirm": "从 cdi3.json 中识别到 {count} 个输入参数，将自动生成对应的状态和触发器（含 down/up 事件）：\n\n{params}\n\n将开启全局键盘监听。是否继续？",
+  "msg_gen_keyboard_success": "输入事件生成完成：新增 {states} 个状态、{triggers} 个触发器（共 {params} 个输入参数）",
 
   "section_live2d_bg_layers": "背景/叠加图层 (background_layers)",
   "live2d_bg_layers_hint": "配置在 Live2D 模型下方或上方渲染的图片层，用于静态背景、按键高亮叠加等",
