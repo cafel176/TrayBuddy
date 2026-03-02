@@ -334,40 +334,6 @@ where
     deserializer.deserialize_any(StringOrVec)
 }
 
-/// Live2D 图片资源定义（用于按键叠加等场景）。
-///
-/// 说明：
-/// - 与 `background_layers` 不同，`resources` 更偏向“资源索引表”，用于在 UI/逻辑层做事件映射。
-/// - `audio` 为可选音效索引：填写音频名（对应 `audio/<lang>/speech.json` 里的 `name`），
-///   在资源因事件显示时可同步触发音效。
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(default)]
-pub struct Live2DResource {
-    /// 资源名称（标识用）
-    pub name: Box<str>,
-    /// 图片文件路径（相对于 base_dir）
-    pub file: Box<str>,
-    /// 图片所在目录（可选，用于工具侧分组/筛选）
-    pub dir: Box<str>,
-    /// 关联事件名列表（任意一个事件触发时认为“激活”）
-    #[serde(alias = "event", deserialize_with = "deserialize_string_or_vec")]
-    pub events: Vec<String>,
-    /// 触发时播放的音效名称（音频索引；空字符串表示不播放）
-    pub audio: Box<str>,
-}
-
-impl Default for Live2DResource {
-    fn default() -> Self {
-        Self {
-            name: "".into(),
-            file: "".into(),
-            dir: "".into(),
-            events: Vec::new(),
-            audio: "".into(),
-        }
-    }
-}
-
 /// 背景层定义
 ///
 /// 在 Live2D 模型下方或上方渲染的图片层。
@@ -390,6 +356,10 @@ pub struct Live2DBackgroundLayer {
     /// 关联事件名列表（任意一个事件触发时显示），为空则常驻显示
     #[serde(alias = "event", deserialize_with = "deserialize_string_or_vec")]
     pub events: Vec<String>,
+    /// 触发时播放的音效名称（音频索引；空字符串表示不播放）
+    pub audio: Box<str>,
+    /// 图片所在目录（可选，用于工具侧分组/筛选）
+    pub dir: Box<str>,
 }
 
 impl Default for Live2DBackgroundLayer {
@@ -402,6 +372,8 @@ impl Default for Live2DBackgroundLayer {
             offset_x: 0,
             offset_y: 0,
             events: Vec::new(),
+            audio: "".into(),
+            dir: "".into(),
         }
     }
 }
@@ -416,9 +388,7 @@ pub struct Live2DConfig {
     pub motions: Vec<Live2DMotion>,
     pub expressions: Vec<Live2DExpression>,
     pub states: Vec<Live2DState>,
-    /// 图片资源索引表（按键叠加/事件映射等）
-    pub resources: Vec<Live2DResource>,
-    /// 背景/叠加图层列表
+    /// 背景/叠加图层列表（已合并原 resources）
     pub background_layers: Vec<Live2DBackgroundLayer>,
 }
 
@@ -430,7 +400,6 @@ impl Default for Live2DConfig {
             motions: Vec::new(),
             expressions: Vec::new(),
             states: Vec::new(),
-            resources: Vec::new(),
             background_layers: Vec::new(),
         }
     }
@@ -1028,7 +997,7 @@ pub struct StateInfo {
     pub text: Box<str>,
     
     /// 状态优先级：
-    /// 用于决定是否可以“打断”当前正在播放的状态。数值越高，话语权越大。
+    /// 用于决定是否可以"打断"当前正在播放的状态。数值越高，话语权越大。
     pub priority: u32,
 
     /// 环境约束 - 日期范围 (MM-DD)：
@@ -1073,7 +1042,7 @@ pub struct StateInfo {
     pub trigger_temp_end: i32,
 
     /// 启动时长触发门槛（分钟）
-    /// 当“本次程序启动已运行分钟数” >= trigger_uptime 时，该状态才允许触发。
+    /// 当"本次程序启动已运行分钟数" >= trigger_uptime 时，该状态才允许触发。
     /// - 0 表示不限制
     pub trigger_uptime: i32,
 
@@ -1752,7 +1721,7 @@ pub struct ResourceManager {
     /// canonical_file_path -> (manifest.id, manifest.version, manifest.mod_type)
     ///
     /// 目的：
-    /// - 当 `.sbuddy` 文件名不等于 `manifest.id` 时，扫描阶段仍可“无解密”地建立正确索引
+    /// - 当 `.sbuddy` 文件名不等于 `manifest.id` 时，扫描阶段仍可"无解密"地建立正确索引
     /// - Mods 列表在刷新时可直接显示已解密过的 `.sbuddy` 的真实类型/版本
     sbuddy_manifest_cache: HashMap<PathBuf, (String, String, ModType)>,
 
@@ -2139,7 +2108,7 @@ impl ResourceManager {
                     }
 
                     // 只做索引：不要在启动/扫描阶段把 archive 全部解包/加载到内存里。
-                    // 否则当 mods_test 下有大量 .sbuddy 时，会因为逐个解密 + 解析导致启动“卡死”。
+                    // 否则当 mods_test 下有大量 .sbuddy 时，会因为逐个解密 + 解析导致启动"卡死"。
 
                     // 1) 优先用文件名推断 mod_id（历史约定：{manifest.id}.tbuddy/.sbuddy）
                     let file_stem = entry_path
@@ -2156,7 +2125,7 @@ impl ResourceManager {
 
                     // 2) 读取版本号
                     // - .tbuddy：直接读取 zip 内 manifest.json（无需解密，成本低）
-                    // - .sbuddy：扫描阶段不解密（成本高），优先使用“解密后缓存”的真实 manifest 信息；
+                    // - .sbuddy：扫描阶段不解密（成本高），优先使用"解密后缓存"的真实 manifest 信息；
                     //            若无缓存，则回退为文件名推断（可能不是真实 manifest.id）。
                     let (manifest_id, manifest_version) = if is_tbuddy {
                         let mut id = file_stem.clone();
@@ -2286,7 +2255,7 @@ impl ResourceManager {
         result
     }
 
-    /// 列出 Mod 的“快速摘要”（不解密 `.sbuddy`）
+    /// 列出 Mod 的"快速摘要"（不解密 `.sbuddy`）
     ///
     /// 规则：
     /// - 文件夹 mod：读取 `manifest.json` + 仅加载默认语言的 `text/{lang}/info.json`
@@ -2581,8 +2550,8 @@ impl ResourceManager {
 
     /// 尝试在不完整索引下定位 archive mod（主要处理：`.sbuddy` 文件名 != `manifest.id`）。
     ///
-    /// - 扫描阶段我们不会解密 `.sbuddy`，因此可能只能用文件名推断一个“占位 id”。
-    /// - 当外部传入的是“真实 manifest.id”（例如启动时从 storage 读取 current_mod），这里会尝试：
+    /// - 扫描阶段我们不会解密 `.sbuddy`，因此可能只能用文件名推断一个"占位 id"。
+    /// - 当外部传入的是"真实 manifest.id"（例如启动时从 storage 读取 current_mod），这里会尝试：
     ///   1) 命中内存 cache（上一次解密时写入）
     ///   2) 必要时逐个解密 `.sbuddy` 的 manifest.json，直到找到匹配项（只在确实需要加载该 id 时发生）
     fn try_register_archive_by_real_id(&mut self, target_id: &str) {
@@ -2735,7 +2704,7 @@ impl ResourceManager {
     /// 自动判断是文件夹 mod 还是 archive mod。
     pub fn read_mod_from_disk(&mut self, mod_id: &str) -> Result<ModInfo, String> {
         // 每次读取前刷新索引，确保 archive_mod_ids / sources 是最新的。
-        // 这能保证“启动时当前 mod”即使是 `.tbuddy/.sbuddy` 也会正确走到 archive 解密/读取逻辑。
+        // 这能保证"启动时当前 mod"即使是 `.tbuddy/.sbuddy` 也会正确走到 archive 解密/读取逻辑。
         self.rebuild_mod_index();
 
         // 若扫描阶段只用文件名推断（`.sbuddy`），这里兜底尝试定位真实 manifest.id。
@@ -2771,7 +2740,7 @@ impl ResourceManager {
             .ok_or_else(|| "Archive store not initialized".to_string())?;
         let mut store = store_arc.lock().unwrap();
 
-        // requested_id 可能是扫描阶段推断出来的“占位 id”，此处 ensure_loaded 会按需加载（.sbuddy 会触发解密）
+        // requested_id 可能是扫描阶段推断出来的"占位 id"，此处 ensure_loaded 会按需加载（.sbuddy 会触发解密）
         let reader = store
             .get(requested_id)
             .ok_or_else(|| format!("Archive for mod '{}' not loaded", requested_id))?;

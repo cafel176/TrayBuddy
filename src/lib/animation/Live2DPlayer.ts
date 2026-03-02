@@ -124,6 +124,8 @@ function loadScript(src: string): Promise<void> {
 async function ensureLive2DLibs(): Promise<void> {
 
   if (window.PIXI && window.PIXI.live2d?.Live2DModel && window.Live2DCubismCore) {
+    // SDK 已加载，但仍需确保 CubismConfig 已设置（组件重新挂载时可能走到这里）
+    applyCubism4Config();
     return;
   }
 
@@ -142,6 +144,29 @@ async function ensureLive2DLibs(): Promise<void> {
   }
   if (!window.Live2DCubismCore) {
     throw new Error("Live2D Cubism Core not loaded");
+  }
+
+  applyCubism4Config();
+}
+
+/**
+ * 启用 motion 文件中 PartOpacity 曲线的正确应用。
+ *
+ * SDK 默认 setOpacityFromMotion=false，此时 motion3.json 中 Target:"PartOpacity"
+ * 的曲线会被错误地当作 Parameter 处理（按 Part ID 查找 Parameter Index），
+ * 导致找不到对应 Parameter 而被跳过，PartOpacity 不生效。
+ * 设为 true 后 SDK 会调用 setPartOpacityById 正确设置部件透明度。
+ */
+function applyCubism4Config(): void {
+  // CubismConfig 对象在 SDK 中有两个访问路径：
+  //   1. window.PIXI.live2d.CubismConfig   （直接导出）
+  //   2. window.PIXI.live2d.config.cubism4  （通过 config 属性）
+  // 两者指向同一个对象，修改任意一个即可。
+  const cubism4Config =
+    window.PIXI?.live2d?.CubismConfig ??
+    window.PIXI?.live2d?.config?.cubism4;
+  if (cubism4Config) {
+    cubism4Config.setOpacityFromMotion = true;
   }
 }
 

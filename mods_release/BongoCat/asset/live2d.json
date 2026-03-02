@@ -65,143 +65,6 @@
       "offset_y": 0
     }
   ],
-  "resources": [
-    {
-      "name": "KeyA",
-      "file": "resources/left-keys/KeyA.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:KeyA"
-      ],
-      "audio": ""
-    },
-    {
-      "name": "KeyD",
-      "file": "resources/left-keys/KeyD.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:KeyD"
-      ],
-      "audio": ""
-    },
-    {
-      "name": "KeyE",
-      "file": "resources/left-keys/KeyE.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:KeyE"
-      ],
-      "audio": ""
-    },
-    {
-      "name": "KeyR",
-      "file": "resources/left-keys/KeyR.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:KeyR"
-      ],
-      "audio": ""
-    },
-    {
-      "name": "KeyQ",
-      "file": "resources/left-keys/KeyQ.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:KeyQ"
-      ],
-      "audio": ""
-    },
-    {
-      "name": "Num4",
-      "file": "resources/left-keys/Num4.png",
-      "dir": "resources/left-keys",
-      "audio": "4.F(fa)",
-      "events": [
-        "keydown:Digit4"
-      ]
-    },
-    {
-      "name": "Num1",
-      "file": "resources/left-keys/Num1.png",
-      "dir": "resources/left-keys",
-      "audio": "1.C(do)",
-      "events": [
-        "keydown:Digit1"
-      ]
-    },
-    {
-      "name": "Num3",
-      "file": "resources/left-keys/Num3.png",
-      "dir": "resources/left-keys",
-      "audio": "3.E(mi)",
-      "events": [
-        "keydown:Digit3"
-      ]
-    },
-    {
-      "name": "KeyS",
-      "file": "resources/left-keys/KeyS.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:KeyS"
-      ],
-      "audio": ""
-    },
-    {
-      "name": "Num6",
-      "file": "resources/left-keys/Num6.png",
-      "dir": "resources/left-keys",
-      "audio": "6.A(la)",
-      "events": [
-        "keydown:Digit6"
-      ]
-    },
-    {
-      "name": "Num7",
-      "file": "resources/left-keys/Num7.png",
-      "dir": "resources/left-keys",
-      "audio": "7.B(si)",
-      "events": [
-        "keydown:Digit7"
-      ]
-    },
-    {
-      "name": "Num5",
-      "file": "resources/left-keys/Num5.png",
-      "dir": "resources/left-keys",
-      "audio": "5.G(sol)",
-      "events": [
-        "keydown:Digit5"
-      ]
-    },
-    {
-      "name": "Num2",
-      "file": "resources/left-keys/Num2.png",
-      "dir": "resources/left-keys",
-      "audio": "2.D(re)",
-      "events": [
-        "keydown:Digit2"
-      ]
-    },
-    {
-      "name": "Space",
-      "file": "resources/left-keys/Space.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:Space"
-      ],
-      "audio": ""
-    },
-    {
-      "name": "KeyW",
-      "file": "resources/left-keys/KeyW.png",
-      "dir": "resources/left-keys",
-      "events": [
-        "keydown:KeyW"
-      ],
-      "audio": ""
-    }
-  ],
   "background_layers": [
     {
       "name": "background",
@@ -210,7 +73,9 @@
       "scale": 1,
       "offset_x": 0,
       "offset_y": 0,
-      "events": []
+      "events": [],
+      "audio": "",
+      "dir": "resources"
     },
     {
       "name": "KeyA",
@@ -221,7 +86,9 @@
       "offset_y": 0,
       "events": [
         "keydown:KeyA"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "KeyD",
@@ -232,7 +99,9 @@
       "offset_y": 0,
       "events": [
         "keydown:KeyD"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "KeyE",
@@ -243,7 +112,9 @@
       "offset_y": 0,
       "events": [
         "keydown:KeyE"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "KeyR",
@@ -254,7 +125,9 @@
       "offset_y": 0,
       "events": [
         "keydown:KeyR"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "KeyQ",
@@ -265,7 +138,9 @@
       "offset_y": 0,
       "events": [
         "keydown:KeyQ"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "KeyS",
@@ -276,7 +151,9 @@
       "offset_y": 0,
       "events": [
         "keydown:KeyS"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "KeyW",
@@ -287,7 +164,9 @@
       "offset_y": 0,
       "events": [
         "keydown:KeyW"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Space",
@@ -298,7 +177,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Space"
-      ]
+      ],
+      "audio": "",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Num1",
@@ -309,7 +190,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Digit1"
-      ]
+      ],
+      "audio": "1.C(do)",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Num2",
@@ -320,7 +203,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Digit2"
-      ]
+      ],
+      "audio": "2.D(re)",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Num3",
@@ -331,7 +216,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Digit3"
-      ]
+      ],
+      "audio": "3.E(mi)",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Num4",
@@ -342,7 +229,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Digit4"
-      ]
+      ],
+      "audio": "4.F(fa)",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Num5",
@@ -353,7 +242,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Digit5"
-      ]
+      ],
+      "audio": "5.G(sol)",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Num6",
@@ -364,7 +255,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Digit6"
-      ]
+      ],
+      "audio": "6.A(la)",
+      "dir": "resources/left-keys"
     },
     {
       "name": "Num7",
@@ -375,7 +268,9 @@
       "offset_y": 0,
       "events": [
         "keydown:Digit7"
-      ]
+      ],
+      "audio": "7.B(si)",
+      "dir": "resources/left-keys"
     }
   ]
 }

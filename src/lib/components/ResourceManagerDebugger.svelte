@@ -1762,21 +1762,21 @@
 
                 <details open class="live2d-section">
                   <summary>
-                    {_("resource.live2dResources")} ({currentModInfo.live2d.resources?.length ?? 0})
+                    {_("resource.live2dBgLayers")} ({currentModInfo.live2d.background_layers?.length ?? 0})
                   </summary>
                   <div class="state-list">
-                    {#each currentModInfo.live2d.resources as res}
+                    {#each currentModInfo.live2d.background_layers ?? [] as lyr}
                       <div class="state-card">
                         <div class="state-header">
-                          <span class="state-name">{res.name}</span>
+                          <span class="state-name">{lyr.name}</span>
                           <div class="state-actions">
-                            {#if res.file}
+                            {#if lyr.file}
                               <button
                                 class="thumbnail-btn"
                                 onclick={() =>
                                   openImageViewer(
-                                    getLive2dAssetSrc(res.file),
-                                    `live2d resource: ${res.name}`,
+                                    getLive2dAssetSrc(lyr.file),
+                                    `live2d layer: ${lyr.name}`,
                                   )}
                                 title={_("resource.preview")}
                               >
@@ -1788,17 +1788,17 @@
                         <div class="state-detail">
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.file")}</span>
-                            {res.file}
+                            {lyr.file}
                           </div>
                           <div class="detail-item">
-                            <span class="detail-label">{_("resource.dir")}</span>
-                            {res.dir || "-"}
+                            <span class="detail-label">{_("resource.layer")}</span>
+                            {lyr.layer || "behind"}
                           </div>
                           <div class="detail-item">
                             <span class="detail-label">{_("resource.events")}</span>
-                            {#if res.events && res.events.length > 0}
+                            {#if lyr.events && lyr.events.length > 0}
                               <div class="tag-list">
-                                {#each res.events as ev}
+                                {#each lyr.events as ev}
                                   <span class="tag state-tag">{ev}</span>
                                 {/each}
                               </div>
@@ -1807,20 +1807,20 @@
                             {/if}
                           </div>
 
-                          {#if res.audio}
-                            {@const ap = resolveAudioPathByName(res.audio)}
+                          {#if lyr.audio}
+                            {@const ap = resolveAudioPathByName(lyr.audio)}
                             <div class="detail-item">
-                              <span class="detail-label">{_("resource.live2dResourceAudio")}</span>
-                              <span>{res.audio}</span>
+                              <span class="detail-label">{_("resource.bgLayerAudio")}</span>
+                              <span>{lyr.audio}</span>
                               {#if ap}
                                 <button
                                   class="play-btn"
-                                  onclick={() => playAudio(ap.path, `${ap.lang}/${res.audio}`)}
-                                  title={playingAudioName === `${ap.lang}/${res.audio}`
+                                  onclick={() => playAudio(ap.path, `${ap.lang}/${lyr.audio}`)}
+                                  title={playingAudioName === `${ap.lang}/${lyr.audio}`
                                     ? _("common.stop")
                                     : _("common.play")}
                                 >
-                                  {playingAudioName === `${ap.lang}/${res.audio}` ? "⏹" : "▶"}
+                                  {playingAudioName === `${ap.lang}/${lyr.audio}` ? "⏹" : "▶"}
                                 </button>
                               {/if}
                             </div>

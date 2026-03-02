@@ -18,7 +18,7 @@ Live2D 渲染层暂为空占位。
   import type {
     Live2DConfig,
     Live2DParameterSetting,
-    Live2DResource,
+    Live2DBackgroundLayer,
     ModData,
     ModType,
     UserSettings,
@@ -150,19 +150,19 @@ Live2D 渲染层暂为空占位。
   // 按键叠加层音效：避免按住按键时重复触发
   const pressedKeysForSfx = new Set<string>();
 
-  function findLive2dResourceAudioByEvent(eventName: string): string | null {
-    const resources: Live2DResource[] = live2dConfig?.resources ?? [];
-    for (const r of resources) {
-      if (!r?.audio) continue;
-      if (Array.isArray(r.events) && r.events.includes(eventName)) {
-        return r.audio;
+  function findBgLayerAudioByEvent(eventName: string): string | null {
+    const layers: Live2DBackgroundLayer[] = live2dConfig?.background_layers ?? [];
+    for (const lyr of layers) {
+      if (!lyr?.audio) continue;
+      if (Array.isArray(lyr.events) && lyr.events.includes(eventName)) {
+        return lyr.audio;
       }
     }
     return null;
   }
 
-  function triggerLive2dResourceAudioByKeyEvent(code: string): void {
-    const audioName = findLive2dResourceAudioByEvent(`keydown:${code}`);
+  function triggerBgLayerAudioByKeyEvent(code: string): void {
+    const audioName = findBgLayerAudioByEvent(`keydown:${code}`);
     if (!audioName) return;
 
     // 复用全局 AudioManager（与 WindowCore 共用同一个单例）
@@ -209,7 +209,7 @@ Live2D 渲染层暂为空占位。
         if (pressed) {
           if (!pressedKeysForSfx.has(code)) {
             pressedKeysForSfx.add(code);
-            triggerLive2dResourceAudioByKeyEvent(code);
+            triggerBgLayerAudioByKeyEvent(code);
           }
         } else {
           pressedKeysForSfx.delete(code);
