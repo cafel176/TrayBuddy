@@ -5368,6 +5368,85 @@ async function _resolveLive2dBaseDir() {
 }
 
 /**
+ * 导入文件夹到 asset/live2d 目录
+ * 让用户选择一个文件夹，将其中所有内容复制到 Mod 的 asset/live2d/ 目录下
+ */
+async function importLive2dFolder() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_live2d_folder_need_folder'), 'warning');
+    return;
+  }
+
+  if (!('showDirectoryPicker' in window)) {
+    showToast(window.i18n.t('msg_browser_not_support'), 'error');
+    return;
+  }
+
+  let sourceDirHandle;
+  try {
+    sourceDirHandle = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (e) {
+    if (e.name === 'AbortError') return; // 用户取消
+    showToast(window.i18n.t('msg_import_live2d_folder_failed').replace('{error}', e.message || String(e)), 'error');
+    return;
+  }
+
+  // 确认操作
+  const folderName = sourceDirHandle.name || '';
+  if (!confirm(window.i18n.t('msg_import_live2d_folder_confirm').replace('{folder}', folderName))) {
+    return;
+  }
+
+  try {
+    showToast(window.i18n.t('msg_import_live2d_folder_copying'), 'info');
+
+    // 确保 asset/live2d 目录存在
+    const assetDir = await safeGetDirectoryHandle(modFolderHandle, 'asset', { create: true, overwriteFile: true });
+    const live2dDir = await safeGetDirectoryHandle(assetDir, 'live2d', { create: true, overwriteFile: true });
+
+    // 收集源文件夹中所有文件
+    const files = await collectAllFilesFromDirectory(sourceDirHandle);
+    if (files.length === 0) {
+      showToast(window.i18n.t('msg_import_live2d_folder_empty'), 'warning');
+      return;
+    }
+
+    // 逐个复制到 asset/live2d/ 目录
+    let copiedCount = 0;
+    let failedCount = 0;
+    for (const { relPath, file } of files) {
+      try {
+        const { dir, fileName } = await ensureDirectoryForPath(live2dDir, relPath);
+        const fileHandle = await safeGetFileHandle(dir, fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(file);
+        await writable.close();
+        copiedCount++;
+      } catch (e) {
+        console.warn('[importLive2dFolder] Skip copying file:', relPath, e);
+        failedCount++;
+      }
+    }
+
+    const msg = window.i18n.t('msg_import_live2d_folder_success')
+      .replace('{count}', String(copiedCount))
+      .replace('{folder}', folderName);
+    showToast(msg, 'success');
+
+    if (failedCount > 0) {
+      showToast(window.i18n.t('msg_import_live2d_folder_partial_fail').replace('{count}', String(failedCount)), 'warning');
+    }
+  } catch (err) {
+    console.error('importLive2dFolder error:', err);
+    showToast(window.i18n.t('msg_import_live2d_folder_failed').replace('{error}', err.message || String(err)), 'error');
+  }
+}
+
+/**
  * 从文件同步 Live2D 模型配置
  * 自动扫描 base_dir 下的 .model3.json，推断并填充模型配置字段
  */
