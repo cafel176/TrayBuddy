@@ -25,7 +25,6 @@ use crate::modules::storage::{
     MemoItem, ModData, ReminderItem, ReminderSchedule, UserInfo, UserSettings,
 };
 use crate::modules::system_observer::SystemDebugInfo;
-use crate::modules::trigger::TriggerManager;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
@@ -534,9 +533,7 @@ pub fn trigger_event(
     force: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
-    let rm = state.resource_manager.lock().unwrap();
-    let mut sm = state.state_manager.lock().unwrap();
-    TriggerManager::trigger_event(&event_name, force.unwrap_or(false), &rm, &mut sm)
+    state.trigger_event(&event_name, force.unwrap_or(false))
 }
 
 // ========================================================================= //

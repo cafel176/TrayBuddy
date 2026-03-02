@@ -38,7 +38,6 @@ use crate::modules::storage::{
     MemoItem, ModData, ReminderItem, ReminderSchedule, Storage, UserInfo, UserSettings,
 };
 use crate::modules::system_observer::{SystemDebugInfo, SystemObserver};
-use crate::modules::trigger::TriggerManager;
 use crate::modules::utils::i18n::get_i18n_text as get_i18n_text_cached;
 use crate::app_state::*;
 use crate::commands::*;
@@ -482,14 +481,10 @@ fn start_media_observer(app_handle: tauri::AppHandle, skip_delay: bool) {
 
             match event.status {
                 MediaPlaybackStatus::Playing => {
-                    let rm = app_state.resource_manager.lock().unwrap();
-                    let mut sm = app_state.state_manager.lock().unwrap();
-                    let _ = TriggerManager::trigger_event(EVENT_MUSIC_START, false, &rm, &mut sm);
+                    let _ = app_state.trigger_event(EVENT_MUSIC_START, false);
                 }
                 MediaPlaybackStatus::Paused | MediaPlaybackStatus::Stopped | MediaPlaybackStatus::Unknown => {
-                    let rm = app_state.resource_manager.lock().unwrap();
-                    let mut sm = app_state.state_manager.lock().unwrap();
-                    let _ = TriggerManager::trigger_event(EVENT_MUSIC_END, false, &rm, &mut sm);
+                    let _ = app_state.trigger_event(EVENT_MUSIC_END, false);
                 }
                 _ => {}
             }
@@ -562,9 +557,7 @@ fn start_process_observer(app_handle: tauri::AppHandle) {
                 pid, process_name, matched_keyword
             );
 
-            let rm = app_state.resource_manager.lock().unwrap();
-            let mut sm = app_state.state_manager.lock().unwrap();
-            let _ = TriggerManager::trigger_event(EVENT_WORK, false, &rm, &mut sm);
+            let _ = app_state.trigger_event(EVENT_WORK, false);
         }
     });
 }
@@ -671,9 +664,7 @@ fn trigger_event_with_state_manager(event_name: &str) {
     let Some(app_state) = ctx.app_handle.try_state::<AppState>() else {
         return;
     };
-    let rm = app_state.resource_manager.lock().unwrap();
-    let mut sm = app_state.state_manager.lock().unwrap();
-    let _ = TriggerManager::trigger_event(event_name, false, &rm, &mut sm);
+    let _ = app_state.trigger_event(event_name, false);
 }
 
 #[cfg(target_os = "windows")]
@@ -2367,18 +2358,12 @@ pub(crate) fn trigger_login_events(app_handle: &tauri::AppHandle) {
     // 触发事件（获取资源管理器和状态管理器锁）
     println!("[SessionObserver] 触发事件: {}", event_name);
 
-    let rm = app_state.resource_manager.lock().unwrap();
-    let mut sm = app_state.state_manager.lock().unwrap();
-
-    match TriggerManager::trigger_event(&event_name, false, &rm, &mut sm) {
+    // 使用辅助方法，自动保证锁序安全：storage → rm → sm
+    match app_state.trigger_event(&event_name, false) {
         Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
         Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
         Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),
     }
-
-    // 释放锁
-    drop(rm);
-    drop(sm);
 
     // 结束锁屏后，触发 login 时弹出备忘录窗口
     // 若用户没有任何备忘录，则不弹出
@@ -2512,18 +2497,12 @@ pub(crate) fn trigger_login_events_non_windows(app_handle: &tauri::AppHandle) {
 
     println!("[SessionObserver] 触发事件: {}", event_name);
 
-    let rm = app_state.resource_manager.lock().unwrap();
-    let mut sm = app_state.state_manager.lock().unwrap();
-
-    match TriggerManager::trigger_event(&event_name, false, &rm, &mut sm) {
+    // 使用辅助方法，自动保证锁序安全：storage → rm → sm
+    match app_state.trigger_event(&event_name, false) {
         Ok(true) => println!("[SessionObserver] {}事件触发成功", event_name),
         Ok(false) => println!("[SessionObserver] {}事件未触发（无对应状态）", event_name),
         Err(e) => eprintln!("[SessionObserver] {}事件触发失败: {}", event_name, e),
     }
-
-    // 释放锁
-    drop(rm);
-    drop(sm);
 }
 
 #[cfg(test)]

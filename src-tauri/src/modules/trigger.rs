@@ -9,7 +9,7 @@
 
 use super::constants::{EVENT_LOGIN, EVENT_MUSIC_END, EVENT_MUSIC_START};
 use super::resource::{ResourceManager, StateInfo};
-use super::state::StateManager;
+use super::state::{StateLimitsContext, StateManager};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 
@@ -86,6 +86,12 @@ impl TriggerManager {
     /// - `force`: true 时使用强制模式切换（忽略优先级与锁定检查）
     /// - `resource_manager`: 资源管理器引用
     /// - `state_manager`: 状态管理器可变引用
+    /// - `limits_ctx`: 预取的状态限制上下文（在获取 rm/sm 锁之前构造，避免死锁）
+    ///
+    /// # 锁序安全
+    /// 调用者必须在获取 `resource_manager` / `state_manager` 锁**之前**通过
+    /// `StateLimitsContext::prefetch()` 预取 storage 数据，以保证锁序：
+    /// `storage → resource_manager → state_manager`。
     ///
     /// # 返回
     /// - `Ok(true)`: 成功触发状态切换
@@ -96,6 +102,7 @@ impl TriggerManager {
         force: bool,
         resource_manager: &ResourceManager,
         state_manager: &mut StateManager,
+        limits_ctx: &StateLimitsContext,
     ) -> Result<bool, String> {
         #[cfg(debug_assertions)]
         println!("[TriggerManager] 处理事件: '{}'", event_name);
@@ -154,7 +161,7 @@ impl TriggerManager {
             return Ok(false);
         }
 
-        // 从 ResourceManager 获取状态信息，并过滤不可用状态
+        // 从 ResourceManager 获取状态信息，并使用预取的 limits 上下文过滤不可用状态
         let mut candidates: Vec<(StateInfo, u64)> = weight_map
             .into_iter()
             .filter_map(|(name, w)| {
@@ -162,7 +169,7 @@ impl TriggerManager {
                     .get_state_by_name(&name)
                     .cloned()
                     .and_then(|st| {
-                        if st.is_enable() && state_manager.is_state_allowed_by_limits(&st) {
+                        if st.is_enable() && limits_ctx.is_allowed(&st) {
                             Some((st, w))
                         } else {
                             None

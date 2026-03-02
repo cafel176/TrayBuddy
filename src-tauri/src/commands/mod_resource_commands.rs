@@ -349,8 +349,11 @@ pub(crate) fn unload_mod(app: AppHandle, state: State<'_, AppState>) -> bool {
         })
     };
 
-    let mut rm = state.resource_manager.lock().unwrap();
-    let result = rm.unload_mod();
+    let result = {
+        let mut rm = state.resource_manager.lock().unwrap();
+        rm.unload_mod()
+    };
+    // rm 锁已释放
 
     // 卸载后主动淘汰该 archive 的已加载字节（保留 source 映射，后续需要可再加载）
     if result {
@@ -387,16 +390,25 @@ pub(crate) fn get_mod_path(state: State<'_, AppState>) -> Option<String> {
 ///
 /// 对于 archive mod：检查 archive 内文件是否存在
 /// 对于文件夹 mod：检查磁盘文件系统
+///
+/// # 锁序安全
+/// 先从 `resource_manager` 提取 mod 路径信息并释放锁，再按需获取 `archive_store` 锁，
+/// 避免同时持有两把锁。
 #[tauri::command]
 pub(crate) fn path_exists(path: String, state: State<'_, AppState>) -> bool {
     use std::path::PathBuf;
 
-    let rm = state.resource_manager.lock().unwrap();
-    let Some(mod_info) = rm.current_mod.as_ref() else {
-        return false;
+    // 从 rm 提取所需信息后立即释放锁
+    let mod_path = {
+        let rm = state.resource_manager.lock().unwrap();
+        let Some(mod_info) = rm.current_mod.as_ref() else {
+            return false;
+        };
+        mod_info.path.clone()
     };
+    // rm 锁已释放
 
-    let mod_path_str = mod_info.path.to_string_lossy();
+    let mod_path_str = mod_path.to_string_lossy();
 
     // archive mod：tbuddy-archive://{mod_id}
     if mod_path_str.starts_with("tbuddy-archive://") {
@@ -413,7 +425,7 @@ pub(crate) fn path_exists(path: String, state: State<'_, AppState>) -> bool {
     }
 
     // 文件夹 mod：原有逻辑
-    let Ok(base) = dunce::canonicalize(&mod_info.path) else {
+    let Ok(base) = dunce::canonicalize(&mod_path) else {
         return false;
     };
 

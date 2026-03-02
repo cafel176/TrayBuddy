@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use traybuddy_lib::modules::resource::ResourceManager;
-use traybuddy_lib::modules::state::StateManager;
+use traybuddy_lib::modules::state::{StateLimitsContext, StateManager};
 use traybuddy_lib::modules::trigger::TriggerManager;
 
 fn mods_test_dir() -> PathBuf {
@@ -77,6 +77,7 @@ fn trigger_manager_can_run_against_loaded_mod() {
 
     let event = triggers[0].event.clone();
     let mut sm = StateManager::new();
-    let result = TriggerManager::trigger_event(event.as_ref(), false, &rm, &mut sm);
+    let limits_ctx = StateLimitsContext::default_unlimited();
+    let result = TriggerManager::trigger_event(event.as_ref(), false, &rm, &mut sm, &limits_ctx);
     assert!(result.is_ok());
 }

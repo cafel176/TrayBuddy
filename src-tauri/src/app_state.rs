@@ -76,6 +76,28 @@ pub const DAY_MAX: u32 = 31;
 /// 该结构体被封装在 `Arc` 中并通过 Tauri 的 `manage` 系统进行管理，
 /// 允许在所有的 `tauri::command` 处理函数中通过 `State<AppState>` 安全地共享访问。
 /// 所有内部成员都使用同步锁（Mutex/Atomic）以保证在多线程环境下的数据安全。
+///
+/// # 锁序规范（Lock Ordering Convention）
+///
+/// 当需要同时持有多把锁时，**必须**按以下顺序获取，以防止死锁：
+///
+/// ```text
+/// storage → resource_manager → state_manager
+///                               ↓
+///                          archive_store
+/// ```
+///
+/// 即：
+/// 1. `storage` 优先级最高，必须最先获取（并在获取其他锁之前释放）
+/// 2. `resource_manager` 次之
+/// 3. `state_manager` 最后获取
+/// 4. `archive_store` 可在 `resource_manager` 之后获取（但不可在持有 `archive_store` 时反向获取 rm）
+///
+/// **关键规则**：
+/// - 绝不可在持有 `state_manager` 锁时获取 `storage` 锁
+/// - 绝不可在持有 `archive_store` 锁时获取 `resource_manager` 锁
+/// - 在需要 storage 数据来过滤状态的场景，使用 `StateLimitsContext::prefetch()` 在获取 rm/sm 之前预取
+/// - 各全局静态 Mutex（`CACHED_MEDIA_STATE` 等）互不嵌套，可独立获取释放
 pub struct AppState {
     /// 资源管理器：负责 Mod 的扫描、加载、卸载及资源路径的解析与查询
     pub resource_manager: Arc<Mutex<ResourceManager>>,
@@ -101,6 +123,30 @@ pub struct AppState {
 
     /// Mod 包内存存储：管理从 .tbuddy 加载到内存中的 archive 实例
     pub archive_store: Arc<Mutex<ModArchiveStore>>,
+}
+
+impl AppState {
+    /// 安全地触发事件（封装正确的锁获取顺序）
+    ///
+    /// 按照锁序规范 `storage → resource_manager → state_manager` 的顺序获取锁，
+    /// 避免调用者手动管理锁顺序时出错。
+    ///
+    /// # 参数
+    /// - `event_name`: 触发器事件名称
+    /// - `force`: 是否强制切换（忽略优先级与锁定检查）
+    pub(crate) fn trigger_event(&self, event_name: &str, force: bool) -> Result<bool, String> {
+        use crate::modules::state::StateLimitsContext;
+        use crate::modules::trigger::TriggerManager;
+
+        // 1. 先从 storage 预取限制判断数据（获取并立即释放 storage 锁）
+        let limits_ctx = StateLimitsContext::prefetch(self);
+        // 2. 获取 resource_manager 锁
+        let rm = self.resource_manager.lock().unwrap();
+        // 3. 获取 state_manager 锁
+        let mut sm = self.state_manager.lock().unwrap();
+        // 4. 执行触发
+        TriggerManager::trigger_event(event_name, force, &rm, &mut sm, &limits_ctx)
+    }
 }
 
 // ========================================================================= //

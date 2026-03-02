@@ -77,6 +77,85 @@ pub struct StateChangeEvent {
     pub play_once: bool,
 }
 
+/// 状态限制判断的预取上下文
+///
+/// 封装了判断状态触发限制所需的数据（mod_data_value、session_uptime 等）。
+/// 设计目的：在获取 `resource_manager` / `state_manager` 锁**之前**先从 `storage` 读取数据，
+/// 避免在持有 rm/sm 锁时再获取 storage 锁，从而消除 `rm → sm → storage` 的嵌套死锁风险。
+///
+/// # 锁序规范
+///
+/// 全项目的锁获取顺序必须为：
+/// ```text
+/// storage → resource_manager → state_manager
+/// ```
+/// 各全局静态 Mutex（CACHED_MEDIA_STATE、CACHED_WEATHER 等）互不嵌套，可独立获取。
+pub struct StateLimitsContext {
+    pub mod_data_value: i32,
+    pub session_uptime_minutes: i32,
+    pub current_weather: Option<WeatherInfo>,
+}
+
+impl StateLimitsContext {
+    /// 创建不受限的默认上下文（所有限制条件都通过）
+    ///
+    /// 适用于测试或不需要限制判断的场景。
+    pub fn default_unlimited() -> Self {
+        Self {
+            mod_data_value: 0,
+            session_uptime_minutes: 0,
+            current_weather: None,
+        }
+    }
+
+    /// 从 `AppState` 中预取状态限制数据（获取并立即释放 `storage` 锁）
+    ///
+    /// 必须在获取 `resource_manager` / `state_manager` 锁之前调用。
+    pub fn prefetch(app_state: &AppState) -> Self {
+        let (mod_data_value, session_uptime_minutes) = {
+            let storage = app_state.storage.lock().unwrap();
+            let mod_id = storage.data.info.current_mod.to_string();
+            let value = storage
+                .data
+                .info
+                .mod_data
+                .get(&mod_id)
+                .map(|m| m.value)
+                .unwrap_or(0);
+            let secs = storage.get_session_uptime_seconds_now();
+            let mins = i32::try_from(secs / 60).unwrap_or(i32::MAX);
+            (value, mins)
+        };
+        // storage 锁已释放
+
+        let current_weather = get_cached_weather();
+
+        Self {
+            mod_data_value,
+            session_uptime_minutes,
+            current_weather,
+        }
+    }
+
+    /// 获取当前温度
+    #[inline]
+    pub fn current_temp(&self) -> Option<f64> {
+        self.current_weather.as_ref().map(|w| w.temperature)
+    }
+
+    /// 使用预取数据判断状态是否满足触发限制
+    #[inline]
+    pub fn is_allowed(&self, state: &StateInfo) -> bool {
+        StateManager::is_state_allowed_by_limits_static(
+            state,
+            self.mod_data_value,
+            self.session_uptime_minutes,
+            self.current_temp(),
+            self.current_weather.as_ref(),
+        )
+    }
+}
+
 // ========================================================================= //
 // 状态管理器
 // ========================================================================= //
@@ -513,6 +592,7 @@ impl StateManager {
     /// # 参数
     /// - `states`: 候选状态列表
     /// - `rm`: ResourceManager 引用（**调用者必须在调用前锁定 ResourceManager**）
+    /// - `limits_ctx`: 预取的状态限制上下文（调用者必须在获取 rm/sm 锁之前构造）
     ///
     /// # 返回
     /// - `Ok(true)`: 成功触发
@@ -521,15 +601,16 @@ impl StateManager {
         &mut self,
         states: &[StateInfo],
         rm: &ResourceManager,
+        limits_ctx: &StateLimitsContext,
     ) -> Result<bool, String> {
         if states.is_empty() {
             return Ok(false);
         }
 
-        // 筛选可用状态（使用引用避免克隆）
+        // 使用预取的上下文进行限制判断，不再在持有 sm 锁时获取 storage 锁
         let enabled_states: Vec<&StateInfo> = states
             .iter()
-            .filter(|s| s.is_enable() && self.is_state_allowed_by_limits(s))
+            .filter(|s| s.is_enable() && limits_ctx.is_allowed(s))
             .collect();
 
 
@@ -973,8 +1054,10 @@ impl StateManager {
 
 
     /// 静态限制聚合判断：计数器范围 + 启动时长 + 气温 + 天气。
+    ///
+    /// 此方法不访问任何锁，所有数据通过参数传入，适合在已持有其他锁的上下文中调用。
     #[inline]
-    fn is_state_allowed_by_limits_static(
+    pub(crate) fn is_state_allowed_by_limits_static(
 
         state: &StateInfo,
         mod_data_value: i32,
@@ -992,6 +1075,13 @@ impl StateManager {
 
 
     /// 判断当前状态是否满足触发限制（ModData 触发计数范围 + 启动时长 + 气温范围 + 天气精确匹配）
+    ///
+    /// ⚠️ **死锁风险说明**：此方法内部会获取 `storage` 锁来读取 mod_data_value 和 session_uptime。
+    /// 如果调用者已持有 `state_manager`（sm）锁，就会形成 `sm → storage` 的锁序。
+    /// 为避免死锁，**在同时持有 rm 和 sm 锁的上下文中**（如 `trigger_event`、`trigger_random_state`），
+    /// 应使用 `is_state_allowed_by_limits_static()` 替代，并在获取 rm/sm 锁之前预先读取 storage 数据。
+    ///
+    /// 此方法仅适用于**调用者未持有其他锁**的安全场景。
     #[inline]
     pub(crate) fn is_state_allowed_by_limits(&self, state: &StateInfo) -> bool {
         let value = self.get_current_mod_data_value();
