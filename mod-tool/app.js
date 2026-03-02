@@ -5656,6 +5656,62 @@ async function syncLive2dAssetsFromFiles() {
     if (motionsDir) excludeDirs.add(motionsDir.replace(/\\/g, '/').split('/')[0]);
     if (expressionsDir) excludeDirs.add(expressionsDir.replace(/\\/g, '/').split('/')[0]);
 
+    // 根据图片文件名推断键盘事件 keydown:KeyCode
+    function inferKeyEventFromName(name) {
+      // Key+字母: KeyA, KeyB, ... → keydown:KeyA
+      const keyLetterMatch = name.match(/^Key([A-Z])$/i);
+      if (keyLetterMatch) return `keydown:Key${keyLetterMatch[1].toUpperCase()}`;
+
+      // Num+数字: Num0, Num1, ... → keydown:Digit0
+      const numMatch = name.match(/^Num(\d)$/i);
+      if (numMatch) return `keydown:Digit${numMatch[1]}`;
+
+      // Digit+数字: Digit0, Digit1, ... → keydown:Digit0
+      const digitMatch = name.match(/^Digit(\d)$/i);
+      if (digitMatch) return `keydown:Digit${digitMatch[1]}`;
+
+      // F+数字: F1, F2, ... → keydown:F1
+      const fKeyMatch = name.match(/^F(\d{1,2})$/i);
+      if (fKeyMatch && parseInt(fKeyMatch[1]) >= 1 && parseInt(fKeyMatch[1]) <= 12) return `keydown:F${fKeyMatch[1]}`;
+
+      // Numpad+数字/操作: Numpad0, NumpadAdd, ... → keydown:Numpad0
+      const numpadMatch = name.match(/^Numpad(\w+)$/i);
+      if (numpadMatch) {
+        const suffix = numpadMatch[1];
+        const numpadKeys = ['0','1','2','3','4','5','6','7','8','9','Add','Subtract','Multiply','Divide','Decimal','Enter'];
+        const found = numpadKeys.find(k => k.toLowerCase() === suffix.toLowerCase());
+        if (found) return `keydown:Numpad${found}`;
+      }
+
+      // Arrow+方向: ArrowUp, ArrowDown, ... → keydown:ArrowUp
+      const arrowMatch = name.match(/^Arrow(Up|Down|Left|Right)$/i);
+      if (arrowMatch) {
+        const dir = arrowMatch[1].charAt(0).toUpperCase() + arrowMatch[1].slice(1).toLowerCase();
+        return `keydown:Arrow${dir}`;
+      }
+
+      // 其他已知单一键名的直接匹配
+      const DIRECT_MAP = {
+        'space': 'Space', 'enter': 'Enter', 'tab': 'Tab',
+        'escape': 'Escape', 'esc': 'Escape',
+        'backspace': 'Backspace', 'delete': 'Delete', 'insert': 'Insert',
+        'shiftleft': 'ShiftLeft', 'shiftright': 'ShiftRight',
+        'controlleft': 'ControlLeft', 'controlright': 'ControlRight',
+        'altleft': 'AltLeft', 'altright': 'AltRight',
+        'metaleft': 'MetaLeft', 'metaright': 'MetaRight',
+        'capslock': 'CapsLock', 'numlock': 'NumLock', 'scrolllock': 'ScrollLock',
+        'home': 'Home', 'end': 'End', 'pageup': 'PageUp', 'pagedown': 'PageDown',
+        'semicolon': 'Semicolon', 'equal': 'Equal', 'comma': 'Comma',
+        'minus': 'Minus', 'period': 'Period', 'slash': 'Slash',
+        'backquote': 'Backquote', 'bracketleft': 'BracketLeft',
+        'backslash': 'Backslash', 'bracketright': 'BracketRight', 'quote': 'Quote',
+      };
+      const directKey = DIRECT_MAP[name.toLowerCase()];
+      if (directKey) return `keydown:${directKey}`;
+
+      return null;
+    }
+
     // 递归扫描图片文件
     async function scanImagesRecursive(handle, prefix) {
       for await (const entry of handle.values()) {
@@ -5665,12 +5721,18 @@ async function syncLive2dAssetsFromFiles() {
             const filePath = prefix ? `${prefix}/${entry.name}` : entry.name;
             const baseName = entry.name.replace(/\.[^.]+$/, '');
             const existing = existingResMap[filePath];
+            // 为新资源自动推断键盘事件
+            let events = existing?.events || (existing?.event ? [existing.event] : []);
+            if (!existing && events.length === 0) {
+              const inferred = inferKeyEventFromName(baseName);
+              if (inferred) events = [inferred];
+            }
             newResources.push({
               name: existing?.name || baseName,
               file: filePath,
               dir: prefix || '',
               audio: existing?.audio || '',
-              events: existing?.events || (existing?.event ? [existing.event] : []),
+              events: events,
             });
           }
         } else if (entry.kind === 'directory') {
@@ -5687,10 +5749,54 @@ async function syncLive2dAssetsFromFiles() {
       }
     }
 
-    // 覆盖动作、表情和资源
+    // 覆盖动作和表情
     live2d.motions = newMotions;
     live2d.expressions = newExpressions;
-    live2d.resources = newResources;
+
+    // --- 为名称为 background 的图片资源生成 background_layers ---
+    // 保留已有 background_layers 的自定义字段
+    const existingBgMap = {};
+    if (Array.isArray(live2d.background_layers)) {
+      for (const bg of live2d.background_layers) {
+        if (bg.file) existingBgMap[bg.file] = bg;
+      }
+    }
+
+    // 收集本次资源中匹配的文件路径
+    const resourceFileSet = new Set(newResources.map(r => r.file));
+
+    const newBgLayers = [];
+    // 保留已有的、但不在本次资源列表中的 background_layers（手动添加的）
+    for (const bg of (live2d.background_layers || [])) {
+      if (bg.file && !resourceFileSet.has(bg.file)) {
+        newBgLayers.push(bg);
+      }
+    }
+    // 遍历资源：已有的保留，新的只为 background 生成
+    for (const res of newResources) {
+      const existing = existingBgMap[res.file];
+      const resName = res.name || '';
+      if (existing) {
+        newBgLayers.push(existing);
+      } else if (resName.toLowerCase() === 'background') {
+        newBgLayers.push({
+          name: resName,
+          file: res.file,
+          layer: 'behind',
+          scale: 1,
+          offset_x: 0,
+          offset_y: 0,
+          events: [],
+        });
+      }
+    }
+    live2d.background_layers = newBgLayers;
+
+    // 从 resources 中移除名称为 background 或 cover 的图片（它们不属于普通资源）
+    live2d.resources = newResources.filter(r => {
+      const n = (r.name || '').toLowerCase();
+      return n !== 'background' && n !== 'cover';
+    });
 
     // --- 同步状态-动画映射 (states) ---
     const existingStatesMap = {};
@@ -5724,7 +5830,8 @@ async function syncLive2dAssetsFromFiles() {
     const msg = window.i18n.t('msg_sync_assets_success')
       .replace('{motions}', newMotions.length)
       .replace('{expressions}', newExpressions.length)
-      .replace('{resources}', newResources.length);
+      .replace('{resources}', newResources.length)
+      .replace('{bg_layers}', newBgLayers.length);
     showToast(msg, 'success');
   } catch (err) {
     console.error('syncLive2dAssetsFromFiles error:', err);
@@ -5908,10 +6015,17 @@ async function generateKeyboardEventsFromFiles() {
     }
 
     // ======== 确认操作 ========
-    const paramNames = keyParams.map(k => `${k.paramId} → ${k.eventName}`).join('\n');
+    const paramLines = [];
+    for (const kp of keyParams) {
+      paramLines.push(`${kp.paramId} → ${kp.eventName} / ${kp.upEventName}`);
+    }
+    for (const gp of genericKeyboardParams) {
+      paramLines.push(`${gp} → global_keydown / global_keyup`);
+    }
+    const totalCount = keyParams.length + genericKeyboardParams.length;
     const confirmMsg = window.i18n.t('msg_gen_keyboard_confirm')
-      .replace('{count}', keyParams.length)
-      .replace('{params}', paramNames);
+      .replace('{count}', totalCount)
+      .replace('{params}', paramLines.join('\n'));
     if (!confirm(confirmMsg)) return;
 
     // ======== 生成状态和触发器 ========
@@ -6090,7 +6204,7 @@ async function generateKeyboardEventsFromFiles() {
     const msg = window.i18n.t('msg_gen_keyboard_success')
       .replace('{states}', addedStates)
       .replace('{triggers}', addedTriggers)
-      .replace('{params}', keyParams.length);
+      .replace('{params}', keyParams.length + genericKeyboardParams.length);
     showToast(msg, 'success');
 
   } catch (err) {

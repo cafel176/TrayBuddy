@@ -560,7 +560,7 @@
   "msg_sync_config_confirm": "This will auto-detect and fill model configuration (name, base_dir, physics, pose, textures, motions_dir, expressions_dir, eye_blink, lip_sync) from the Live2D directory. Current model config will be overwritten. Continue?",
   "msg_sync_assets_confirm": "This will re-read motions and expressions from model3.json based on the current model config. Current motion/expression lists will be overwritten (state mappings will be preserved). Continue?",
   "msg_sync_config_success": "Model configuration synced successfully",
-  "msg_sync_assets_success": "Assets synced: {motions} motions, {expressions} expressions, {resources} resources",
+  "msg_sync_assets_success": "Assets synced: {motions} motions, {expressions} expressions, {resources} resources, {bg_layers} background layers",
   "msg_sync_failed": "Sync failed: {error}",
   "msg_sync_model_not_found": "Model file not found. Please check base_dir settings",
   "msg_sync_no_model3_found": "No .model3.json file found in the base_dir directory",
@@ -584,7 +584,7 @@
   "msg_gen_keyboard_live2d_only": "This feature is only available for Live2D type Mods",
   "msg_gen_keyboard_no_cdi": "No DisplayInfo (cdi3.json) reference found in model file, cannot identify parameter names",
   "msg_gen_keyboard_no_params": "No keyboard/key-related parameters found in cdi3.json",
-  "msg_gen_keyboard_confirm": "Identified {count} input parameters from cdi3.json. This will auto-generate corresponding states and triggers (including down/up events):\n\n{params}\n\nGlobal keyboard listening will be enabled. Continue?",
+  "msg_gen_keyboard_confirm": "Identified {count} input parameters from cdi3.json. This will auto-generate corresponding states and triggers (including down/up events):\n\n{params}\n\nGlobal keyboard and mouse listening will be enabled as needed. Continue?",
   "msg_gen_keyboard_success": "Input events generated: {states} new states, {triggers} new triggers ({params} input parameters total)",
 
   "section_live2d_bg_layers": "Background / Overlay Layers (background_layers)",

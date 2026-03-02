@@ -560,7 +560,7 @@
   "msg_sync_config_confirm": "Live2D ディレクトリからモデル設定（name、base_dir、physics、pose、textures、motions_dir、expressions_dir、eye_blink、lip_sync）を自動検出して入力します。現在のモデル設定は上書きされます。続行しますか？",
   "msg_sync_assets_confirm": "現在のモデル設定に基づいて、model3.json からモーションと表情リストを再読み込みします。現在のモーション/表情リストは上書きされます（状態マッピングは保持されます）。続行しますか？",
   "msg_sync_config_success": "モデル設定の同期が完了しました",
-  "msg_sync_assets_success": "アセット同期完了：モーション {motions} 件、表情 {expressions} 件、リソース {resources} 件",
+  "msg_sync_assets_success": "アセット同期完了：モーション {motions} 件、表情 {expressions} 件、リソース {resources} 件、背景レイヤー {bg_layers} 件",
   "msg_sync_failed": "同期に失敗しました：{error}",
   "msg_sync_model_not_found": "モデルファイルが見つかりません。base_dir の設定を確認してください",
   "msg_sync_no_model3_found": "base_dir ディレクトリに .model3.json ファイルが見つかりません",
@@ -584,7 +584,7 @@
   "msg_gen_keyboard_live2d_only": "この機能は Live2D タイプの Mod でのみ使用できます",
   "msg_gen_keyboard_no_cdi": "モデルファイルに DisplayInfo (cdi3.json) の参照が見つかりません。パラメータ名を識別できません",
   "msg_gen_keyboard_no_params": "cdi3.json にキーボード/キー関連のパラメータが見つかりませんでした",
-  "msg_gen_keyboard_confirm": "cdi3.json から {count} 個の入力パラメータを識別しました。対応するステートとトリガー（down/upイベント含む）を自動生成します：\n\n{params}\n\nグローバルキーボードリスニングを有効にします。続行しますか？",
+  "msg_gen_keyboard_confirm": "cdi3.json から {count} 個の入力パラメータを識別しました。対応するステートとトリガー（down/upイベント含む）を自動生成します：\n\n{params}\n\nグローバルキーボードおよびマウスリスニングを必要に応じて有効にします。続行しますか？",
   "msg_gen_keyboard_success": "入力イベント生成完了：{states} 個の新しいステート、{triggers} 個の新しいトリガー（{params} 個の入力パラメータ）",
 
   "section_live2d_bg_layers": "背景/オーバーレイレイヤー (background_layers)",
