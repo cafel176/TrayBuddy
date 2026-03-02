@@ -72,7 +72,7 @@ use tauri::{AppHandle, Manager};
 #[derive(Debug, Serialize, Clone)]
 pub struct StateChangeEvent {
     /// 切换到的状态信息
-    pub state: StateInfo,
+    pub state: Arc<StateInfo>,
     /// true: 播放一次后回到持久状态, false: 循环播放
     pub play_once: bool,
 }
@@ -179,11 +179,11 @@ impl StateLimitsContext {
 ///   定时随机触发的状态具有更高的优先级。
 pub struct StateManager {
     /// 当前正在播放的状态（决定前端 Canvas 渲染哪个资产）
-    current_state: Option<StateInfo>,
+    current_state: Option<Arc<StateInfo>>,
     /// 下一个待切换的状态（当前动画帧序列播放完毕后的衔接状态）
-    next_state: Option<StateInfo>,
+    next_state: Option<Arc<StateInfo>>,
     /// 当前记录的基准持久状态（作为临时状态结束后的回退目标）
-    persistent_state: Option<StateInfo>,
+    persistent_state: Option<Arc<StateInfo>>,
     /// Tauri 应用句柄：用于通过 IPC 向前端发送 `state_change` 指令
     app_handle: Option<AppHandle>,
     /// 状态锁定标记：为 true 时，除非使用 `force` 模式，否则不接受新的切换请求
@@ -349,7 +349,7 @@ impl StateManager {
     /// 获取当前持久状态的引用
     #[inline]
     pub fn get_persistent_state(&self) -> Option<&StateInfo> {
-        self.persistent_state.as_ref()
+        self.persistent_state.as_deref()
     }
 
     /// 设置持久状态
@@ -392,7 +392,8 @@ impl StateManager {
         }
 
         // 更新持久状态
-        self.persistent_state = Some(state.clone());
+        let state = Arc::new(state);
+        self.persistent_state = Some(Arc::clone(&state));
 
         // 被锁定时只更新数据，不切换当前状态
         if self.locked && !force {
@@ -412,7 +413,7 @@ impl StateManager {
 
 
         // 切换当前状态并通知前端
-        self.current_state = Some(state.clone());
+        self.current_state = Some(Arc::clone(&state));
         self.emit_state_change(&state, false);
         self.apply_mod_data_counter_async(&state);
 
@@ -434,7 +435,7 @@ impl StateManager {
     /// 获取当前状态的引用
     #[inline]
     pub fn get_current_state(&self) -> Option<&StateInfo> {
-        self.current_state.as_ref()
+        self.current_state.as_deref()
     }
 
     /// 设置临时状态
@@ -486,7 +487,8 @@ impl StateManager {
         }
 
         // 切换到临时状态并锁定
-        self.current_state = Some(state.clone());
+        let state = Arc::new(state);
+        self.current_state = Some(Arc::clone(&state));
         self.emit_state_change(&state, true);
         self.apply_mod_data_counter_async(&state);
         self.locked = true;
@@ -523,14 +525,14 @@ impl StateManager {
 
         // 使用传入的引用
         if let Some(next_info) = rm.get_state_by_name(next_state_name) {
-            self.next_state = Some(next_info.clone());
+            self.next_state = Some(Arc::new(next_info.clone()));
         }
     }
 
     /// 获取下一个待切换状态的引用
     #[inline]
     pub fn get_next_state(&self) -> Option<&StateInfo> {
-        self.next_state.as_ref()
+        self.next_state.as_deref()
     }
 
     /// 设置下一个待切换状态
@@ -538,7 +540,7 @@ impl StateManager {
     /// 当前状态播放完毕后会自动切换到此状态
     #[inline]
     pub fn set_next_state(&mut self, state: StateInfo) {
-        self.next_state = Some(state);
+        self.next_state = Some(Arc::new(state));
     }
 
     /// 清除下一个待切换状态
@@ -566,12 +568,14 @@ impl StateManager {
         // 优先切换到 next_state（使用 take 避免额外 clone）
 
         if let Some(next) = self.next_state.take() {
-            let _ = self.change_state(next, rm);
+            // take 后为唯一持有者，try_unwrap 可避免 clone；失败时回退到 clone
+            let next_state = Arc::try_unwrap(next).unwrap_or_else(|arc| (*arc).clone());
+            let _ = self.change_state(next_state, rm);
             return;
         }
 
-        // 否则回到持久状态（需要 clone 因为持久状态需保留）
-        if let Some(persistent) = self.persistent_state.clone() {
+        // 否则回到持久状态（需要 clone，因为 persistent_state 需保留）
+        if let Some(persistent) = self.persistent_state.as_ref().map(|a| (**a).clone()) {
             let _ = self.change_state(persistent, rm);
         }
     }
@@ -920,10 +924,10 @@ impl StateManager {
     }
 
     /// 发送状态切换事件到前端
-    fn emit_state_change(&self, state: &StateInfo, play_once: bool) {
+    fn emit_state_change(&self, state: &Arc<StateInfo>, play_once: bool) {
         if let Some(ref app_handle) = self.app_handle {
             let event = StateChangeEvent {
-                state: state.clone(),
+                state: Arc::clone(state),
                 play_once,
             };
 
@@ -1105,7 +1109,7 @@ impl StateManager {
     /// 设计目标：
     /// - 该方法不应阻塞状态切换主流程
     /// - 不应持有 ResourceManager 锁（避免锁顺序死锁）
-    fn apply_mod_data_counter_async(&self, state: &StateInfo) {
+    fn apply_mod_data_counter_async(&self, state: &Arc<StateInfo>) {
         let Some(cfg) = state.mod_data_counter.clone() else {
             return;
         };

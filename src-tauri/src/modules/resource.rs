@@ -2198,6 +2198,13 @@ impl ResourceManager {
                 }
             }
         }
+
+        // 清理 archive_store 中磁盘已不存在的 sources 条目
+        if let Some(store_arc) = &self.archive_store {
+            if let Ok(mut store) = store_arc.lock() {
+                store.cleanup_stale_sources();
+            }
+        }
     }
 
 

@@ -246,7 +246,9 @@ pub const WEATHER_API_TIMEOUT_SECS: u64 = 30;
 /// 内存中最多保留的 Mod archive 数量（LRU 缓存上限）
 ///
 /// **用途**: 避免长期驻留过多 ZIP 数据导致内存上涨。
-pub const MOD_ARCHIVE_CACHE_MAX: usize = 4;
+/// 用户同一时间只使用 1 个 Mod，被淘汰的 archive 会通过
+/// `ensure_loaded()` 按需从磁盘重新加载，因此设为 1 即可。
+pub const MOD_ARCHIVE_CACHE_MAX: usize = 1;
 
 
 /// 地理位置 API 请求超时（秒）

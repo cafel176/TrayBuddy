@@ -505,9 +505,11 @@ impl SbuddyArchiveReader {
     }
 
     /// 从内存字节加载（处理 + 解析 ZIP）
-
+    ///
+    /// 解密完成后立即释放加密数据，避免加密 + 解密两份数据同时驻留内存。
     pub fn from_bytes(encrypted_data: Vec<u8>) -> Result<Self, String> {
         let zip_data = decrypt_sbuddy(&encrypted_data)?;
+        drop(encrypted_data); // 显式释放加密数据，减少峰值内存占用
         let inner = ZipArchiveReader::from_bytes(zip_data)?;
         Ok(Self { inner })
     }
@@ -777,6 +779,9 @@ impl ModArchiveStore {
     }
 
     /// 按 LRU 策略移除最久未使用的 archive
+    ///
+    /// 注意：仅移除内存中的 archive 数据，保留 sources 映射以支持 `ensure_loaded()` 按需恢复。
+    /// 过期的 sources 条目由 `cleanup_stale_sources()` 清理。
     fn enforce_limit(&mut self) {
         while self.archives.len() > crate::modules::constants::MOD_ARCHIVE_CACHE_MAX {
 
@@ -784,6 +789,28 @@ impl ModArchiveStore {
                 self.archives.remove(&oldest);
             } else {
                 break;
+            }
+        }
+    }
+
+    /// 清理过期的 sources 条目（磁盘上已不存在的 archive 文件）。
+    ///
+    /// 用途：在 Mod 索引重建后调用，移除那些磁盘文件已删除/不再可达的 sources 映射，
+    /// 避免 sources HashMap 随着用户反复导入/删除 Mod 而无限增长。
+    pub fn cleanup_stale_sources(&mut self) {
+        let stale_ids: Vec<String> = self
+            .sources
+            .iter()
+            .filter(|(_, src)| !src.file_path.exists())
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        for id in &stale_ids {
+            self.sources.remove(id);
+            // 如果内存中也有对应 archive，一并清除
+            self.archives.remove(id);
+            if let Some(pos) = self.access_order.iter().position(|x| x == id) {
+                self.access_order.remove(pos);
             }
         }
     }
