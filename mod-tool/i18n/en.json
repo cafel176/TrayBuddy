@@ -717,6 +717,15 @@
   "msg_confirm_delete_threed_state": "Are you sure you want to delete this mapping?",
   "msg_state_created_from_threed": "Created state from 3D animation",
 
+  "btn_import_threed_folder": "Import Folder",
+  "msg_import_threed_folder_need_folder": "Please open the Mod from a folder to import files",
+  "msg_import_threed_folder_confirm": "All contents of folder \"{folder}\" will be copied to asset/3d/. Existing files with the same name will be overwritten. Continue?",
+  "msg_import_threed_folder_copying": "Copying files...",
+  "msg_import_threed_folder_empty": "The selected folder is empty, no files to copy",
+  "msg_import_threed_folder_success": "Imported {count} files from \"{folder}\" to asset/3d/",
+  "msg_import_threed_folder_partial_fail": "{count} files failed to copy (skipped)",
+  "msg_import_threed_folder_failed": "Failed to import folder: {error}",
+
   "btn_sync_threed_config": "Sync Config from Files",
   "btn_sync_threed_assets": "Sync Assets from Files",
   "msg_sync_threed_config_confirm": "This will auto-detect .vrm/.pmx model files in the asset/3d/ directory and fill model configuration (name, type, file). Current model config will be overwritten. Continue?",

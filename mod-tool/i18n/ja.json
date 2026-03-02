@@ -717,6 +717,15 @@
   "msg_confirm_delete_threed_state": "このマッピングを削除してもよろしいですか？",
   "msg_state_created_from_threed": "3D アニメーションから同名の状態を作成しました",
 
+  "btn_import_threed_folder": "フォルダをインポート",
+  "msg_import_threed_folder_need_folder": "ファイルをインポートするにはフォルダから Mod を開いてください",
+  "msg_import_threed_folder_confirm": "フォルダ \"{folder}\" のすべての内容を asset/3d/ ディレクトリにコピーします。同名のファイルは上書きされます。続行しますか？",
+  "msg_import_threed_folder_copying": "ファイルをコピー中...",
+  "msg_import_threed_folder_empty": "選択したフォルダは空です。コピーするファイルがありません",
+  "msg_import_threed_folder_success": "\"{folder}\" から {count} 個のファイルを asset/3d/ にインポートしました",
+  "msg_import_threed_folder_partial_fail": "{count} 個のファイルのコピーに失敗しました（スキップ済み）",
+  "msg_import_threed_folder_failed": "フォルダのインポートに失敗しました：{error}",
+
   "btn_sync_threed_config": "ファイルから設定を同期",
   "btn_sync_threed_assets": "ファイルからアセットを同期",
   "msg_sync_threed_config_confirm": "asset/3d/ ディレクトリから .vrm/.pmx モデルファイルを自動検出し、モデル設定（name、type、file）に反映します。現在のモデル設定は上書きされます。続行しますか？",

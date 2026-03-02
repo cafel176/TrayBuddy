@@ -7801,6 +7801,85 @@ function populateThreeDModelForm() {
 }
 
 /**
+ * 导入文件夹到 asset/3d/ 目录
+ * 仿照 importLive2dFolder()，让用户选择一个源文件夹，将其内容递归复制到 asset/3d/
+ */
+async function importThreeDFolder() {
+  if (!currentMod) {
+    showToast(window.i18n.t('msg_load_mod_first'), 'warning');
+    return;
+  }
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_threed_folder_need_folder'), 'warning');
+    return;
+  }
+
+  if (!('showDirectoryPicker' in window)) {
+    showToast(window.i18n.t('msg_browser_not_support'), 'error');
+    return;
+  }
+
+  let sourceDirHandle;
+  try {
+    sourceDirHandle = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (e) {
+    if (e.name === 'AbortError') return; // 用户取消
+    showToast(window.i18n.t('msg_import_threed_folder_failed').replace('{error}', e.message || String(e)), 'error');
+    return;
+  }
+
+  // 确认操作
+  const folderName = sourceDirHandle.name || '';
+  if (!confirm(window.i18n.t('msg_import_threed_folder_confirm').replace('{folder}', folderName))) {
+    return;
+  }
+
+  try {
+    showToast(window.i18n.t('msg_import_threed_folder_copying'), 'info');
+
+    // 确保 asset/3d 目录存在
+    const assetDir = await safeGetDirectoryHandle(modFolderHandle, 'asset', { create: true, overwriteFile: true });
+    const threeDDir = await safeGetDirectoryHandle(assetDir, '3d', { create: true, overwriteFile: true });
+
+    // 收集源文件夹中所有文件
+    const files = await collectAllFilesFromDirectory(sourceDirHandle);
+    if (files.length === 0) {
+      showToast(window.i18n.t('msg_import_threed_folder_empty'), 'warning');
+      return;
+    }
+
+    // 逐个复制到 asset/3d/ 目录
+    let copiedCount = 0;
+    let failedCount = 0;
+    for (const { relPath, file } of files) {
+      try {
+        const { dir, fileName } = await ensureDirectoryForPath(threeDDir, relPath);
+        const fileHandle = await safeGetFileHandle(dir, fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(file);
+        await writable.close();
+        copiedCount++;
+      } catch (e) {
+        console.warn('[importThreeDFolder] Skip copying file:', relPath, e);
+        failedCount++;
+      }
+    }
+
+    const msg = window.i18n.t('msg_import_threed_folder_success')
+      .replace('{count}', String(copiedCount))
+      .replace('{folder}', folderName);
+    showToast(msg, 'success');
+
+    if (failedCount > 0) {
+      showToast(window.i18n.t('msg_import_threed_folder_partial_fail').replace('{count}', String(failedCount)), 'warning');
+    }
+  } catch (err) {
+    console.error('importThreeDFolder error:', err);
+    showToast(window.i18n.t('msg_import_threed_folder_failed').replace('{error}', err.message || String(err)), 'error');
+  }
+}
+
+/**
  * 从文件同步 3D 模型配置
  * 自动扫描 asset/3d/ 目录，推断并填充模型配置、纹理目录、动画目录
  */
