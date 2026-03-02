@@ -10,7 +10,10 @@ dist/
 coverage/
 test_logs/
 /package
-/sbuddy
+/tbuddy_release
+/tbuddy_test
+/sbuddy_release
+/sbuddy_test
 
 .env
 .env.*
