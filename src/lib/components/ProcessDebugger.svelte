@@ -105,16 +105,16 @@
     const mins = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
     if (hours > 0) {
-      return `${hours}h ${mins}m ${s}s`;
+      return `${hours}${_("debug.timeH")} ${mins}${_("debug.timeM")} ${s}${_("debug.timeS")}`;
     } else if (mins > 0) {
-      return `${mins}m ${s}s`;
+      return `${mins}${_("debug.timeM")} ${s}${_("debug.timeS")}`;
     }
-    return `${s}s`;
+    return `${s}${_("debug.timeS")}`;
   }
 
   function formatPollInterval(ms: number): string {
-    if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${ms}ms`;
+    if (ms >= 1000) return `${(ms / 1000).toFixed(1)}${_("debug.timeS")}`;
+    return `${ms}${_("debug.timeMs")}`;
   }
 
   // ======================================================================= //

@@ -228,7 +228,7 @@
         const { state, play_once } = event.payload;
         addLog(
           _("state.logStateChange") +
-            ` ${state.name} (play_once: ${play_once})`,
+            ` ${state.name} (${_("debug.playOnce")} ${play_once})`,
         );
         loadStates();
       });

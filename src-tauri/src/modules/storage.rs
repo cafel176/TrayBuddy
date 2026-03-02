@@ -374,8 +374,8 @@ impl Storage {
         self.usage_checkpoint_time = std::time::Instant::now();
 
         let content = serde_json::to_string_pretty(&self.data)
-            .map_err(|e| format!("序列化存储数据失败: {}", e))?;
-        fs::write(&self.storage_path, content).map_err(|e| format!("写入存储文件失败: {}", e))?;
+            .map_err(|e| format!("Failed to serialize storage data: {}", e))?;
+        fs::write(&self.storage_path, content).map_err(|e| format!("Failed to write storage file: {}", e))?;
         Ok(())
     }
 

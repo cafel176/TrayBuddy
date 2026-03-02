@@ -300,7 +300,7 @@
             try {
                 const quick = (await invoke("get_mod_summaries_fast")) as unknown;
                 if (!Array.isArray(quick)) {
-                    throw new Error("Invalid fast summaries");
+                    throw new Error(_("modWindow.invalidFastSummaries"));
                 }
                 mods = quick as ModInfo[];
             } catch {
@@ -439,7 +439,7 @@
             const info = (await invoke("get_mod_details", { modId: requestedId })) as ModInfo | null;
             if (req !== selectSeq) return;
             if (!info || !info.manifest?.id) {
-                throw new Error("Invalid mod summary");
+                throw new Error(_("modWindow.invalidModSummary"));
             }
 
             const actualId = info.manifest.id;

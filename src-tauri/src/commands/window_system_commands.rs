@@ -2,6 +2,7 @@
 
 use crate::app_state::AppState;
 use crate::set_drag_tracking_enabled;
+use crate::get_i18n_text;
 
 use crate::modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, BUBBLE_AREA_HEIGHT, BUBBLE_AREA_WIDTH,
@@ -123,7 +124,7 @@ pub(crate) fn is_cursor_in_interact_area(
 
     // 获取窗口位置和尺寸（同时适配 animation、live2d、pngremix 和 threed 窗口）
     let window = crate::get_render_window(&app)
-        .ok_or("No render window found")?;
+        .ok_or_else(|| get_i18n_text(&app, "backend.error.windowNotFound"))?;
 
     let position = window.outer_position().map_err(|e| e.to_string())?;
     let scale_factor = window.scale_factor().unwrap_or(1.0);

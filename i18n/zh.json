@@ -744,6 +744,8 @@
 
     "loadListFailed": "加载 Mod 列表失败:",
     "loadDetailsFailed": "加载详情失败:",
+    "invalidFastSummaries": "无效的快速摘要数据",
+    "invalidModSummary": "无效的 Mod 摘要数据",
 
     "conflictTitle": "检测到同 ID 的 Mod 已加载",
     "conflictId": "ID",
@@ -802,13 +804,27 @@
     "weibo": "微博：_Cafel_",
     "close": "关闭"
   },
+  "debug": {
+    "live2dTitle": "Live2D 调试",
+    "scale": "缩放:",
+    "offset": "偏移:",
+    "baseFit": "基础适配:",
+    "debugControls": "方向键: 平移 | +/-: 缩放 | 0: 重置 | Shift: 加速",
+    "pid": "PID:",
+    "timeH": "时",
+    "timeM": "分",
+    "timeS": "秒",
+    "timeMs": "毫秒",
+    "playOnce": "play_once:"
+  },
   "backend": {
     "error": {
       "noIdleState": "新 Mod 缺少 'idle' 状态",
       "configDirFailed": "获取配置目录失败",
       "invalidModPath": "无效的 Mod 路径: {path}",
       "platformNotSupported": "当前平台不支持此操作",
-      "windowNotFound": "未找到窗口"
+      "windowNotFound": "未找到窗口",
+      "monitorNotFound": "无法获取主显示器信息"
     },
     "log": {
       "autostartDev": "[TrayBuddy] 开发模式下不支持开机自启动，请使用 Release 版本",

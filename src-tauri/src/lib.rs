@@ -308,14 +308,14 @@ pub fn run() {
                     let _ = autostart_manager.enable();
                 } else {
                     // 开发模式下禁用自启动
-                    eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，已禁用");
+                    eprintln!("{}", get_i18n_text(app.handle(), "backend.log.autostartDisabled"));
                 }
             } else {
                 if is_release_build() {
                     let _ = autostart_manager.disable();
                 } else {
                     // 开发模式下禁用自启动
-                    eprintln!("[TrayBuddy] 开发模式下不支持开机自启动，已禁用");
+                    eprintln!("{}", get_i18n_text(app.handle(), "backend.log.autostartDisabled"));
                 }
             }
 
@@ -328,7 +328,9 @@ pub fn run() {
 
                 match load_result {
                     Err(e) => {
-                        eprintln!("[TrayBuddy] 自动加载 Mod '{}' 失败: {}", last_mod, e);
+                        eprintln!("{}", get_i18n_text(app.handle(), "backend.log.modLoadFailed")
+                            .replace("{name}", &last_mod)
+                            .replace("{error}", &e.to_string()));
                     }
                     Ok(mod_info) => {
                         // 自动加载成功后更新托盘图标（同步版本，初始化阶段）

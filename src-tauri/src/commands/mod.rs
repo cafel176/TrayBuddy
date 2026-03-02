@@ -787,7 +787,7 @@ pub fn reset_animation_window_position(
 ) -> Result<(), String> {
     // 1. 获取渲染窗口（animation、live2d、pngremix 或 threed）
     let window = crate::get_render_window(&app)
-        .ok_or_else(|| "No render window found".to_string())?;
+        .ok_or_else(|| get_i18n_text(&app, "backend.error.windowNotFound"))?;
 
     // 2. 获取当前的缩放比例
     let (_scale, window_width, window_height) = {
@@ -832,7 +832,7 @@ pub fn reset_animation_window_position(
 
         Ok(())
     } else {
-        Err("Failed to get primary monitor".to_string())
+        Err(get_i18n_text(&app, "backend.error.monitorNotFound"))
     }
 }
 

@@ -894,7 +894,7 @@ pub(crate) fn save_animation_window_position(window: &tauri::Window) {
             storage.data.info.animation_window_y = Some(window_y + bubble_area_height);
 
             if let Err(e) = storage.save() {
-                eprintln!("[TrayBuddy] 保存窗口位置失败: {}", e);
+                eprintln!("[TrayBuddy] {}: {}", get_i18n_text(app, "common.saveFailed"), e);
             }
         }
     }

@@ -47,7 +47,7 @@
   let showBorder = $state(true);
   let silenceMode = $state(false);
   let animationScale = $state(0.4);
-  let userNickname = $state("User");
+  let userNickname = $state(t("common.defaultUserName"));
 
   let showModDataPanel = $state(false);
   let currentModData = $state<ModData | null>(null);

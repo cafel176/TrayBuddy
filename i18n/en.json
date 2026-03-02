@@ -746,6 +746,8 @@
 
     "loadListFailed": "Failed to load mod list:",
     "loadDetailsFailed": "Failed to load details:",
+    "invalidFastSummaries": "Invalid fast summaries",
+    "invalidModSummary": "Invalid mod summary",
 
     "conflictTitle": "A Mod with the same ID is already loaded",
     "conflictId": "ID",
@@ -803,13 +805,27 @@
     "weibo": "微博：_Cafel_",
     "close": "Close"
   },
+  "debug": {
+    "live2dTitle": "Live2D Debug",
+    "scale": "Scale:",
+    "offset": "Offset:",
+    "baseFit": "BaseFit:",
+    "debugControls": "Arrow: pan | +/-: zoom | 0: reset | Shift: fast",
+    "pid": "PID:",
+    "timeH": "h",
+    "timeM": "m",
+    "timeS": "s",
+    "timeMs": "ms",
+    "playOnce": "play_once:"
+  },
   "backend": {
     "error": {
       "noIdleState": "New mod does not have an 'idle' state",
       "configDirFailed": "Failed to get config dir",
       "invalidModPath": "Invalid mod path: {path}",
       "platformNotSupported": "Platform not supported for this action",
-      "windowNotFound": "Window not found"
+      "windowNotFound": "Window not found",
+      "monitorNotFound": "Failed to get primary monitor"
     },
     "log": {
       "autostartDev": "[TrayBuddy] Autostart is not supported in dev mode, please use Release version",

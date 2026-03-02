@@ -115,11 +115,11 @@
     const mins = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
     if (hours > 0) {
-      return `${hours}h ${mins}m ${s}s`;
+      return `${hours}${_("debug.timeH")} ${mins}${_("debug.timeM")} ${s}${_("debug.timeS")}`;
     } else if (mins > 0) {
-      return `${mins}m ${s}s`;
+      return `${mins}${_("debug.timeM")} ${s}${_("debug.timeS")}`;
     }
-    return `${s}s`;
+    return `${s}${_("debug.timeS")}`;
   }
 
   function getStatusColor(status: string): string {
@@ -312,7 +312,7 @@
             >
               <div class="session-header">
                 <span class="process-name">{session.process_name}</span>
-                <span class="pid">PID: {session.pid}</span>
+                <span class="pid">{_("debug.pid")} {session.pid}</span>
               </div>
               <div class="session-info">
                 <div class="audio-meter">

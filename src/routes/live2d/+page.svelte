@@ -97,7 +97,7 @@ Live2D 渲染层暂为空占位。
   let showBorder = $state(true);
   let silenceMode = $state(false);
   let animationScale = $state(0.4);
-  let userNickname = $state("User");
+  let userNickname = $state(t("common.defaultUserName"));
 
   let showModDataPanel = $state(false);
   let currentModData = $state<ModData | null>(null);
@@ -595,12 +595,12 @@ Live2D 渲染层暂为空占位。
 
     {#if debugBordersEnabled}
       <div class="debug-hud">
-        <div class="debug-hud-title">Live2D Debug</div>
-        <div>Scale: {debugHud.finalScale.toFixed(3)} (debug: {debugHud.scale.toFixed(2)}x)</div>
-        <div>Offset: {debugHud.offsetX.toFixed(0)}, {debugHud.offsetY.toFixed(0)}</div>
-        <div>BaseFit: {debugHud.baseFitScale.toFixed(4)}</div>
+        <div class="debug-hud-title">{_("debug.live2dTitle")}</div>
+        <div>{_("debug.scale")} {debugHud.finalScale.toFixed(3)} (debug: {debugHud.scale.toFixed(2)}x)</div>
+        <div>{_("debug.offset")} {debugHud.offsetX.toFixed(0)}, {debugHud.offsetY.toFixed(0)}</div>
+        <div>{_("debug.baseFit")} {debugHud.baseFitScale.toFixed(4)}</div>
         <div class="debug-hud-help">
-          Arrow: pan | +/-: zoom | 0: reset | Shift: fast
+          {_("debug.debugControls")}
         </div>
       </div>
     {/if}

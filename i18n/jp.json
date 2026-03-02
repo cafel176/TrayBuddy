@@ -746,6 +746,8 @@
 
     "loadListFailed": "Modリストの読み込みに失敗しました:",
     "loadDetailsFailed": "詳細の読み込みに失敗しました:",
+    "invalidFastSummaries": "無効なクイックサマリーデータ",
+    "invalidModSummary": "無効なModサマリーデータ",
 
     "conflictTitle": "同じ ID の Mod がすでに読み込まれています",
     "conflictId": "ID",
@@ -803,13 +805,27 @@
     "weibo": "微博：_Cafel_",
     "close": "閉じる"
   },
+  "debug": {
+    "live2dTitle": "Live2D デバッグ",
+    "scale": "スケール:",
+    "offset": "オフセット:",
+    "baseFit": "基本フィット:",
+    "debugControls": "矢印: パン | +/-: ズーム | 0: リセット | Shift: 高速",
+    "pid": "PID:",
+    "timeH": "時",
+    "timeM": "分",
+    "timeS": "秒",
+    "timeMs": "ミリ秒",
+    "playOnce": "play_once:"
+  },
   "backend": {
     "error": {
       "noIdleState": "新しいModに 'idle' 状態がありません",
       "configDirFailed": "設定ディレクトリの取得に失敗しました",
       "invalidModPath": "無効なModパス：{path}",
       "platformNotSupported": "このプラットフォームではサポートされていません",
-      "windowNotFound": "ウィンドウが見つかりません"
+      "windowNotFound": "ウィンドウが見つかりません",
+      "monitorNotFound": "プライマリモニターの取得に失敗しました"
     },
     "log": {
       "autostartDev": "[TrayBuddy] 開発モードでは自動起動がサポートされていません。リリース版を使用してください",

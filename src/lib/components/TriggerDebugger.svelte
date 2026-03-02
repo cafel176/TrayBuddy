@@ -213,7 +213,9 @@
           _("trigger.logStateChange") +
             " " +
             state.name +
-            " (play_once: " +
+            " (" +
+            _("debug.playOnce") +
+            " " +
             play_once +
             ")",
         );
