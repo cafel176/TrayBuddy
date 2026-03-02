@@ -650,3 +650,115 @@ export interface DateTimeInfo {
   /** Unix 时间戳 (秒) */
   timestamp: number;
 }
+
+// ============================================================================
+// Mod 清单与信息接口
+// ============================================================================
+
+/**
+ * Mod 清单接口
+ *
+ * 对应后端 Rust 的 `ModManifest` 结构体。
+ * 包含 Mod 的元信息和配置，字段按使用场景可选。
+ */
+export interface ModManifest {
+  /** Mod 唯一标识 */
+  id: string;
+  /** Mod 版本号 */
+  version: string;
+  /** Mod 作者 */
+  author: string;
+  /** Mod 类型 */
+  mod_type?: ModType;
+  /** 默认音频语言 ID */
+  default_audio_lang_id: string;
+  /** 默认文本语言 ID */
+  default_text_lang_id: string;
+  /** 角色渲染配置 */
+  character: CharacterConfig;
+  /** 边框配置 */
+  border: BorderConfig;
+  /** 是否显示 Mod 数据面板 */
+  show_mod_data_panel: boolean;
+  /** Mod 数据计数器默认值 */
+  mod_data_default_int: number;
+  /** 是否启用贴图降采样 */
+  enable_texture_downsample: boolean;
+  /** 贴图降采样起始维度 */
+  texture_downsample_start_dim: number;
+  /** 是否启用全局键盘监听 */
+  global_keyboard: boolean;
+  /** 是否启用全局鼠标监听 */
+  global_mouse: boolean;
+  /** 重要状态映射 */
+  important_states: Record<string, StateInfo>;
+  /** 所有状态列表 */
+  states: StateInfo[];
+  /** 所有触发器列表 */
+  triggers: TriggerInfo[];
+}
+
+/**
+ * 文本信息接口
+ *
+ * 对应后端 Mod 的文本条目。
+ */
+export interface TextInfo {
+  /** 文本名称 */
+  name: string;
+  /** 文本内容 */
+  text: string;
+  /** 显示时长 */
+  duration: number;
+}
+
+/**
+ * 角色本地化信息
+ *
+ * 对应后端 Mod 的 info.json 条目。
+ */
+export interface CharacterInfo {
+  /** 角色名称 */
+  name: string;
+  /** 语言代码 */
+  lang: string;
+  /** 角色 ID */
+  id?: string;
+  /** 角色描述 */
+  description: string;
+}
+
+/**
+ * Mod 完整信息接口
+ *
+ * 对应后端 load_mod / get_mod_info 返回的完整 Mod 数据。
+ */
+export interface ModInfo {
+  /** Mod 文件系统路径 */
+  path: string;
+  /** 气泡样式名称 */
+  bubble_style?: string;
+  /** 图标路径 */
+  icon_path?: string | null;
+  /** 预览图路径 */
+  preview_path?: string | null;
+  /** Mod 清单 */
+  manifest: ModManifest;
+  /** 静态图资产列表 */
+  imgs: AssetInfo[];
+  /** 序列帧资产列表 */
+  sequences: AssetInfo[];
+  /** Live2D 配置 */
+  live2d?: Live2DConfig;
+  /** PngRemix 配置 */
+  pngremix?: PngRemixConfig;
+  /** 3D 配置 */
+  threed?: ThreeDConfig;
+  /** 音频资源（按语言分组） */
+  audios: Record<string, AudioInfo[]>;
+  /** 文本资源（按语言分组） */
+  texts: Record<string, TextInfo[]>;
+  /** 角色信息（按语言分组） */
+  info: Record<string, CharacterInfo>;
+}
+

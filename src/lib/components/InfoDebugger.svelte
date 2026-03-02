@@ -17,6 +17,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
   import { t, onLangChange } from "$lib/i18n";
+  import { isError } from "$lib/utils/statusMessage";
   import type { ModData, UserInfo } from "$lib/types/asset";
 
 
@@ -31,11 +32,6 @@
   function _(key: string, params?: Record<string, string | number>): string {
     void _langVersion;
     return t(key, params);
-  }
-
-  /** 检查状态消息是否包含错误信息 */
-  function isError(msg: string): boolean {
-    return msg.includes(_("common.failed"));
   }
 
 

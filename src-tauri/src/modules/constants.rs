@@ -31,6 +31,17 @@ pub const WINDOW_LABEL_PNGREMIX: &str = "pngremix";
 /// 3D 窗口标签
 pub const WINDOW_LABEL_THREED: &str = "threed";
 
+/// 所有渲染窗口标签（animation、live2d、pngremix、threed）
+///
+/// **用途**: 统一遍历所有渲染窗口的场景（如设置 skip_taskbar、缩放、鼠标穿透等），
+/// 避免在多处硬编码 4 个标签数组。
+pub const RENDER_WINDOW_LABELS: [&str; 4] = [
+    WINDOW_LABEL_ANIMATION,
+    WINDOW_LABEL_LIVE2D,
+    WINDOW_LABEL_PNGREMIX,
+    WINDOW_LABEL_THREED,
+];
+
 /// 设置窗口标签
 pub const WINDOW_LABEL_SETTINGS: &str = "settings";
 

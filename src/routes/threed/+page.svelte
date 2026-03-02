@@ -13,7 +13,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
-  import type { ThreeDConfig, ModData, ModType } from "$lib/types/asset";
+  import type { ThreeDConfig, ModData, ModType, ModManifest, ModInfo } from "$lib/types/asset";
   import type { Live2DParameterSetting, PngRemixParameterSetting } from "$lib/types/asset";
 
   import {
@@ -21,20 +21,6 @@
     type ModDataToast,
   } from "$lib/animation/WindowCore";
   import { ThreeDPlayer } from "$lib/animation/ThreeDPlayer";
-
-  interface ModManifest {
-    mod_type?: ModType;
-    global_keyboard?: boolean;
-    global_mouse?: boolean;
-    enable_texture_downsample?: boolean;
-    texture_downsample_start_dim?: number;
-  }
-
-  interface ModInfo {
-    path: string;
-    manifest: ModManifest;
-    threed?: ThreeDConfig;
-  }
 
   // =========================================================================
   // DOM 引用

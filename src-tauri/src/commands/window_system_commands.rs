@@ -5,6 +5,7 @@ use crate::set_drag_tracking_enabled;
 
 use crate::modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, BUBBLE_AREA_HEIGHT, BUBBLE_AREA_WIDTH,
+    RENDER_WINDOW_LABELS,
     WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED,
 };
 use crate::modules::event_manager::{emit, events};
@@ -24,12 +25,7 @@ use std::os::windows::process::CommandExt;
 /// 同时适配 animation 窗口和 live2d 窗口
 #[tauri::command]
 pub(crate) fn set_ignore_cursor_events(ignore: bool, app: AppHandle) -> Result<(), String> {
-    for label in [
-        WINDOW_LABEL_ANIMATION,
-        WINDOW_LABEL_LIVE2D,
-        WINDOW_LABEL_PNGREMIX,
-        WINDOW_LABEL_THREED,
-    ] {
+    for label in RENDER_WINDOW_LABELS {
         if let Some(window) = app.get_webview_window(label) {
             window
                 .set_ignore_cursor_events(ignore)
@@ -125,12 +121,8 @@ pub(crate) fn is_cursor_in_interact_area(
     let scale = storage.data.settings.animation_scale as f64;
     drop(storage);
 
-    // 获取窗口位置和尺寸（同时适配 animation、live2d 和 pngremix 窗口）
-    let window = app
-        .get_webview_window(WINDOW_LABEL_ANIMATION)
-        .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
-        .or_else(|| app.get_webview_window(WINDOW_LABEL_PNGREMIX))
-        .or_else(|| app.get_webview_window(WINDOW_LABEL_THREED))
+    // 获取窗口位置和尺寸（同时适配 animation、live2d、pngremix 和 threed 窗口）
+    let window = crate::get_render_window(&app)
         .ok_or("No render window found")?;
 
     let position = window.outer_position().map_err(|e| e.to_string())?;
@@ -275,12 +267,7 @@ pub(crate) fn set_animation_scale(
     let (new_width, new_height) = compute_window_size_for_scale(scale);
 
 
-    for label in [
-        WINDOW_LABEL_ANIMATION,
-        WINDOW_LABEL_LIVE2D,
-        WINDOW_LABEL_PNGREMIX,
-        WINDOW_LABEL_THREED,
-    ] {
+    for label in RENDER_WINDOW_LABELS {
         if let Some(window) = app.get_webview_window(label) {
             window
                 .set_size(LogicalSize::new(new_width, new_height))
@@ -322,86 +309,47 @@ pub(crate) fn open_path(path: String) -> Result<(), String> {
 // 窗口重建命令
 // ========================================================================= //
 
-/// 重新创建动画窗口
+/// 重建渲染窗口的统一实现
 ///
-/// 用于在 Mod 加载或比例调整后刷新窗口资源
-#[tauri::command]
-pub(crate) async fn recreate_animation_window(app: AppHandle) -> Result<(), String> {
-    // 1. 关闭现有窗口
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL_ANIMATION) {
-        // 先移除关闭拦截事件，否则 close() 可能会因为 API 拦截而不生效
-        // 注意：Tauri v2 中无法直接移除之前闭包注册的事件，但我们可以尝试销毁它
+/// 销毁指定标签的现有窗口，等待 OS 释放资源后调用对应的创建函数重建。
+/// 所有 `recreate_*_window` 命令均委托给此函数。
+async fn recreate_render_window_impl(
+    app: &AppHandle,
+    label: &str,
+    create_fn: fn(&tauri::AppHandle) -> Result<(), String>,
+) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(label) {
         let _ = window.destroy();
-
-        // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
-        // 如果立即创建，会报错 "already exists"
         tokio::time::sleep(std::time::Duration::from_millis(
-            crate::modules::constants::WINDOW_RESIZE_DELAY_MS + 200, // 增加一点缓冲时间
+            crate::modules::constants::WINDOW_RESIZE_DELAY_MS + 200,
         ))
         .await;
     }
+    create_fn(app)
+}
 
-    // 2. 创建新窗口
-    crate::inner_create_animation_window(&app)
+/// 重新创建动画窗口
+#[tauri::command]
+pub(crate) async fn recreate_animation_window(app: AppHandle) -> Result<(), String> {
+    recreate_render_window_impl(&app, WINDOW_LABEL_ANIMATION, crate::inner_create_animation_window).await
 }
 
 /// 重新创建 Live2D 窗口
-///
-/// 用于在 Mod 加载后刷新窗口资源
 #[tauri::command]
 pub(crate) async fn recreate_live2d_window(app: AppHandle) -> Result<(), String> {
-    // 1. 关闭现有窗口
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL_LIVE2D) {
-        let _ = window.destroy();
-
-        // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
-        tokio::time::sleep(std::time::Duration::from_millis(
-            crate::modules::constants::WINDOW_RESIZE_DELAY_MS + 200,
-        ))
-        .await;
-    }
-
-    // 2. 创建新窗口
-    crate::inner_create_live2d_window(&app)
+    recreate_render_window_impl(&app, WINDOW_LABEL_LIVE2D, crate::inner_create_live2d_window).await
 }
 
 /// 重新创建 3D 窗口
-///
-/// 用于在 Mod 加载后刷新窗口资源
 #[tauri::command]
 pub(crate) async fn recreate_threed_window(app: AppHandle) -> Result<(), String> {
-    // 1. 关闭现有窗口
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL_THREED) {
-        let _ = window.destroy();
-
-        tokio::time::sleep(std::time::Duration::from_millis(
-            crate::modules::constants::WINDOW_RESIZE_DELAY_MS + 200,
-        ))
-        .await;
-    }
-
-    // 2. 创建新窗口
-    crate::inner_create_threed_window(&app)
+    recreate_render_window_impl(&app, WINDOW_LABEL_THREED, crate::inner_create_threed_window).await
 }
 
 /// 重新创建 PngRemix 窗口
-///
-/// 用于在 Mod 加载后刷新窗口资源
 #[tauri::command]
 pub(crate) async fn recreate_pngremix_window(app: AppHandle) -> Result<(), String> {
-    // 1. 关闭现有窗口
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL_PNGREMIX) {
-        let _ = window.destroy();
-
-        // 给 Tauri 一点时间在主事件循环中彻底销毁窗口并释放 label
-        tokio::time::sleep(std::time::Duration::from_millis(
-            crate::modules::constants::WINDOW_RESIZE_DELAY_MS + 200,
-        ))
-        .await;
-    }
-
-    // 2. 创建新窗口
-    crate::inner_create_pngremix_window(&app)
+    recreate_render_window_impl(&app, WINDOW_LABEL_PNGREMIX, crate::inner_create_pngremix_window).await
 }
 
 // ========================================================================= //

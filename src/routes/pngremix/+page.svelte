@@ -13,7 +13,7 @@ PngRemix 渲染层暂为空占位。
   import { invoke } from "@tauri-apps/api/core";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
-  import type { PngRemixConfig, ModData, ModType, PngRemixParameterSetting } from "$lib/types/asset";
+  import type { PngRemixConfig, ModData, ModType, ModManifest, ModInfo, PngRemixParameterSetting } from "$lib/types/asset";
   import type { Live2DParameterSetting } from "$lib/types/asset";
 
   import {
@@ -21,20 +21,6 @@ PngRemix 渲染层暂为空占位。
     type ModDataToast,
   } from "$lib/animation/WindowCore";
   import { PngRemixPlayer } from "$lib/animation/PngRemixPlayer";
-
-  interface ModManifest {
-    mod_type?: ModType;
-    global_keyboard?: boolean;
-    global_mouse?: boolean;
-    enable_texture_downsample?: boolean;
-    texture_downsample_start_dim?: number;
-  }
-
-  interface ModInfo {
-    path: string;
-    manifest: ModManifest;
-    pngremix?: PngRemixConfig;
-  }
 
   // =========================================================================
   // DOM 引用

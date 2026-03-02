@@ -23,15 +23,21 @@
   import { onMount, onDestroy } from "svelte";
   import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
   import { t, onLangChange } from "$lib/i18n";
+  import { isError } from "$lib/utils/statusMessage";
+  import { formatTriggerCounterRange, formatTempRange } from "$lib/utils/stateFormatters";
   import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
   import type {
     AssetInfo,
     AudioInfo,
     BorderConfig,
     CharacterConfig,
+    CharacterInfo,
     Live2DConfig,
+    ModManifest,
+    ModInfo,
     ModType,
     PngRemixConfig,
+    TextInfo,
     ThreeDConfig,
     StateInfo,
     TriggerInfo,
@@ -45,60 +51,9 @@
 
 
 
-  interface ModManifest {
-    id: string;
-    version: string;
-    author: string;
-    mod_type?: ModType;
-    default_audio_lang_id: string;
-    default_text_lang_id: string;
-    character: CharacterConfig;
-    border: BorderConfig;
-    show_mod_data_panel: boolean;
-    mod_data_default_int: number;
-    enable_texture_downsample: boolean;
-    texture_downsample_start_dim: number;
-    global_keyboard: boolean;
-    global_mouse: boolean;
-    important_states: Record<string, StateInfo>;
-    states: StateInfo[];
-    triggers: TriggerInfo[];
-  }
 
 
-  interface TextInfo {
-
-    name: string;
-    text: string;
-    duration: number;
-  }
-
-  interface CharacterInfo {
-    name: string;
-    lang: string;
-    id: string;
-    description: string;
-  }
-
-  interface ModInfo {
-    path: string;
-    bubble_style?: string;
-    icon_path?: string;
-    preview_path?: string;
-    manifest: ModManifest;
-    imgs: AssetInfo[];
-    sequences: AssetInfo[];
-    live2d?: Live2DConfig;
-    pngremix?: PngRemixConfig;
-    threed?: ThreeDConfig;
-    audios: Record<string, AudioInfo[]>;
-    texts: Record<string, TextInfo[]>;
-    info: Record<string, CharacterInfo>;
-  }
-
-
-
-  // ======================================================================= //
+  // ======================================================================= // //
   // 闂傚倸鍊风粈渚€骞夐敍鍕床闁稿本绮庨惌鎾绘倵閸偆鎽冨┑顔藉▕閺岀喓绱掑Ο杞板垔闂佹悶鍊栧ú鐔兼偂椤愶箑鐐婇柕濠忓椤︺儳绱掑Δ浣哥伌婵?
   // ======================================================================= //
 
@@ -117,31 +72,6 @@
 
     void _langVersion;
     return t(key, params);
-  }
-  function isError(msg: string): boolean {
-
-    return msg.includes(_("common.failed"));
-  }
-
-
-
-  const I32_MIN = -2147483648;
-  const I32_MAX = 2147483647;
-
-  function formatTriggerCounterRange(start?: number, end?: number): string {
-    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
-    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
-
-    const sText = s <= I32_MIN ? "*" : String(s);
-    const eText = e >= I32_MAX ? "*" : String(e);
-    return `[${sText}, ${eText}]`;
-  }
-
-  function formatTempRange(start?: number, end?: number): string {
-    const sText = start != null ? `${start}°C` : "*";
-    const eText = end != null ? `${end}°C` : "*";
-
-    return `[${sText}, ${eText}]`;
   }
 
 

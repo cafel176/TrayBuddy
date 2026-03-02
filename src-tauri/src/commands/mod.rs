@@ -9,8 +9,7 @@ use crate::get_i18n_text;
 use crate::modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
-    SHORT_TEXT_THRESHOLD, TRAY_ID_MAIN, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D,
-    WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED,
+    SHORT_TEXT_THRESHOLD, TRAY_ID_MAIN,
 };
 
 use crate::modules::environment::{
@@ -196,7 +195,7 @@ pub fn update_settings(
     // 0. 主播模式副作用：用于窗口捕捉
     // 开启时让渲染窗口进入任务栏/可枚举窗口列表（skip_taskbar = false）
     let should_skip_taskbar = !settings.streamer_mode;
-    for label in [WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED] {
+    for label in crate::modules::constants::RENDER_WINDOW_LABELS {
         if let Some(window) = app.get_webview_window(label) {
             if let Err(e) = window.set_skip_taskbar(should_skip_taskbar) {
                 eprintln!(
@@ -639,26 +638,7 @@ pub fn open_storage_dir(app_handle: AppHandle) -> Result<(), String> {
         .app_config_dir()
         .map_err(|e| e.to_string())?;
 
-    let dir_path = storage_dir.to_string_lossy().to_string();
-
-    // 使用 open_path 逻辑打开目录
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        std::process::Command::new("explorer")
-            .arg(&dir_path)
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-
-    /// macOS: open; Linux: xdg-open
-    #[cfg(not(target_os = "windows"))]
-    {
-        open_dir_non_windows(&dir_path)?;
-    }
-
-    Ok(())
+    open_dir(storage_dir.to_string_lossy().to_string())
 }
 
 /// 获取 tbuddy archive mod 的 .tbuddy 文件实际磁盘路径
@@ -806,11 +786,7 @@ pub fn reset_animation_window_position(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     // 1. 获取渲染窗口（animation、live2d、pngremix 或 threed）
-    let window = app
-        .get_webview_window(WINDOW_LABEL_ANIMATION)
-        .or_else(|| app.get_webview_window(WINDOW_LABEL_LIVE2D))
-        .or_else(|| app.get_webview_window(WINDOW_LABEL_PNGREMIX))
-        .or_else(|| app.get_webview_window(WINDOW_LABEL_THREED))
+    let window = crate::get_render_window(&app)
         .ok_or_else(|| "No render window found".to_string())?;
 
     // 2. 获取当前的缩放比例

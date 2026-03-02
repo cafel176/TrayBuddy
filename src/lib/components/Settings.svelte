@@ -21,7 +21,8 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
-  import type { ModType } from "$lib/types/asset";
+  import type { ModType, ModManifest, ModInfo } from "$lib/types/asset";
+  import { isError } from "$lib/utils/statusMessage";
   import {
     t,
     onLangChange,
@@ -75,14 +76,6 @@
     threed_cross_fade_duration: number;
   }
 
-  interface ModManifest {
-    mod_type?: ModType;
-  }
-
-  interface ModInfo {
-    manifest: ModManifest;
-  }
-
 
   // ======================================================================= //
   // 响应式状态
@@ -114,11 +107,6 @@
     // 依赖 _langVersion 使 Svelte 能追踪变化
     void _langVersion;
     return t(key, params);
-  }
-
-  /** 检查状态消息是否包含错误信息 */
-  function isError(msg: string): boolean {
-    return msg.includes(_("common.failed")) || msg.includes(_("common.failed_alt") || "failed");
   }
 
   // ======================================================================= //

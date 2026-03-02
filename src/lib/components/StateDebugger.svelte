@@ -29,6 +29,20 @@
     PngRemixParameterSetting,
   } from "$lib/types/asset";
   import { t, onLangChange } from "$lib/i18n";
+  import { isError } from "$lib/utils/statusMessage";
+  import {
+    I32_MIN,
+    I32_MAX,
+    formatTriggerCounterRange,
+    isTriggerCounterRangeLimited,
+    formatTempRange,
+    isTempRangeLimited,
+    formatWeather,
+    formatUptimeMinutes,
+    formatTriggerableStates,
+    formatLive2dParams,
+    formatPngRemixParams,
+  } from "$lib/utils/stateFormatters";
 
   // ======================================================================= //
   // 响应式状态
@@ -74,60 +88,6 @@
     return t(key, params);
   }
 
-  /** 检查状态消息是否包含错误信息 */
-  function isError(msg: string): boolean {
-    return msg.includes(_("common.failed"));
-  }
-
-
-  const I32_MIN = -2147483648;
-  const I32_MAX = 2147483647;
-
-  function formatTriggerCounterRange(start?: number, end?: number): string {
-    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
-    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
-
-    const sText = s <= I32_MIN ? "*" : String(s);
-    const eText = e >= I32_MAX ? "*" : String(e);
-    return `[${sText}, ${eText}]`;
-  }
-
-  function isTriggerCounterRangeLimited(state: StateInfo): boolean {
-    const s = Number.isFinite(Number(state.trigger_counter_start))
-      ? Number(state.trigger_counter_start)
-      : I32_MIN;
-    const e = Number.isFinite(Number(state.trigger_counter_end))
-      ? Number(state.trigger_counter_end)
-      : I32_MAX;
-    return s > I32_MIN || e < I32_MAX;
-  }
-
-  function formatTempRange(start?: number, end?: number): string {
-    const s = Number.isFinite(Number(start)) ? Number(start) : I32_MIN;
-    const e = Number.isFinite(Number(end)) ? Number(end) : I32_MAX;
-
-    const sText = s <= I32_MIN ? "*" : `${s}°C`;
-    const eText = e >= I32_MAX ? "*" : `${e}°C`;
-    return `[${sText}, ${eText}]`;
-  }
-
-  function isTempRangeLimited(state: StateInfo): boolean {
-    const s = Number.isFinite(Number(state.trigger_temp_start))
-      ? Number(state.trigger_temp_start)
-      : I32_MIN;
-    const e = Number.isFinite(Number(state.trigger_temp_end))
-      ? Number(state.trigger_temp_end)
-      : I32_MAX;
-    return s > I32_MIN || e < I32_MAX;
-  }
-
-  function formatWeather(weather?: string[]): string {
-    return weather && weather.length > 0 ? weather.join(", ") : "";
-  }
-
-  function formatUptimeMinutes(minutes?: number): string {
-    return _("state.uptimeMinutes", { minutes: minutes ?? 0 });
-  }
 
   function isModDataCounterEffective(counter?: {
     op: string;
@@ -148,29 +108,6 @@
     return counter?.op ?? "";
   }
 
-
-  function formatTriggerableStates(states?: CanTriggerState[]): string {
-    if (!states || states.length === 0) return "";
-    return states
-      .map((s) => `${s.state}${(s.weight ?? 1) !== 1 ? `(${s.weight})` : ""}`)
-      .join(", ");
-  }
-
-
-  function formatLive2dParams(params?: Live2DParameterSetting[]): string {
-    if (!params || params.length === 0) return "";
-    return params
-      .map((p) => {
-        const target = p.target || "Parameter";
-        return `${p.id}=${p.value} (${target})`;
-      })
-      .join(", ");
-  }
-
-  function formatPngRemixParams(params?: PngRemixParameterSetting[]): string {
-    if (!params || params.length === 0) return "";
-    return params.map((p) => `${p.type}:${p.name}`).join(", ");
-  }
 
   // ======================================================================= //
   // 前端播放状态 (来自 animation 窗口)

@@ -23,74 +23,6 @@ pub struct ModTbuddyPreflight {
     pub version: String,
 }
 
-fn get_tbuddy_root_folder(
-    archive: &mut zip::ZipArchive<std::fs::File>,
-) -> Result<String, String> {
-    use std::path::Component;
-
-    let mut root: Option<String> = None;
-
-    for i in 0..archive.len() {
-        let file = archive.by_index(i).map_err(|e| e.to_string())?;
-        let Some(enclosed) = file.enclosed_name() else {
-            continue;
-        };
-
-        let Some(Component::Normal(first)) = enclosed.components().next() else {
-            continue;
-        };
-
-        let first = first.to_string_lossy().into_owned();
-        match root.as_ref() {
-            None => root = Some(first),
-            Some(existing) if existing == &first => {}
-            Some(existing) => {
-                return Err(format!(
-                    "Invalid .tbuddy file (multiple root folders: '{}' and '{}')",
-                    existing, first
-                ));
-            }
-        }
-    }
-
-    root.ok_or_else(|| "Invalid .tbuddy file (missing root folder)".into())
-}
-
-fn read_tbuddy_manifest(
-    archive: &mut zip::ZipArchive<std::fs::File>,
-    root_folder: &str,
-) -> Result<ModManifest, String> {
-    use std::io::Read;
-
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-        let Some(enclosed) = file.enclosed_name() else {
-            continue;
-        };
-
-        let Some(first) = enclosed.components().next() else {
-            continue;
-        };
-        if first.as_os_str() != std::ffi::OsStr::new(root_folder) {
-            continue;
-        }
-
-        if enclosed
-            .file_name()
-            .map(|n| n == std::ffi::OsStr::new("manifest.json"))
-            .unwrap_or(false)
-        {
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf).map_err(|e| e.to_string())?;
-            let content = String::from_utf8(buf).map_err(|e| e.to_string())?;
-            return serde_json::from_str::<ModManifest>(&content)
-                .map_err(|e| format!("Failed to parse manifest: {}", e));
-        }
-    }
-
-    Err("Invalid .tbuddy file (manifest.json not found)".into())
-}
-
 struct ImportedModResult {
     pub id: String,
     /// 复制到 mods 目录后的包文件路径（.tbuddy 或 .sbuddy）
@@ -128,31 +60,9 @@ fn copy_archive_to_mods_dir(
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
     }
 
-    // 2) 读取 manifest.id（纯内存操作）
-    let manifest_id = if ext == "sbuddy" {
-        // 先检查外部工具是否可用
-        if !crate::modules::mod_archive::is_sbuddy_supported() {
-            return Err("sbuddy tool not found (sbuddy not supported)".into());
-        }
-        // .sbuddy: 先处理再读取 manifest
-        let data = fs::read(src_path).map_err(|e| e.to_string())?;
-        let zip_data = crate::modules::mod_archive::decrypt_sbuddy(&data)?;
-        let cursor = std::io::Cursor::new(&zip_data);
-        let mut archive = zip::ZipArchive::new(cursor)
-            .map_err(|_| "Invalid .sbuddy file (processed data is not valid zip)".to_string())?;
-
-        let root_folder = get_zip_root_folder(&mut archive)?;
-        let manifest = read_zip_manifest(&mut archive, &root_folder)?;
-        manifest.id.to_string()
-    } else {
-        // .tbuddy: 直接按 ZIP 读取 manifest
-        let file = fs::File::open(src_path).map_err(|e| e.to_string())?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
-        let root_folder = get_tbuddy_root_folder(&mut archive)?;
-        let manifest = read_tbuddy_manifest(&mut archive, &root_folder)?;
-        manifest.id.to_string()
-    };
+    // 2) 读取 manifest.id
+    let manifest = read_manifest_from_archive_file(src_path)?;
+    let manifest_id = manifest.id.to_string();
 
     // 3) 构造目标文件名: {manifest.id}.{ext}
     let target_name = format!("{}.{}", manifest_id, ext);
@@ -259,14 +169,11 @@ fn read_zip_manifest<R: std::io::Read + std::io::Seek>(
     Err("Invalid archive (manifest.json not found)".into())
 }
 
-/// 预解析 Mod (.tbuddy / .sbuddy 文件) 的 manifest（不落盘，用于前端冲突提示）
-#[tauri::command]
-pub(crate) fn inspect_mod_tbuddy(file_path: String) -> Result<ModTbuddyPreflight, String> {
-    use std::fs;
-    use std::path::PathBuf;
-
-    let p = PathBuf::from(&file_path);
-    let ext = p
+/// 从 .tbuddy / .sbuddy 文件路径读取 manifest（不落盘）
+///
+/// 统一处理 .tbuddy（ZIP 格式）和 .sbuddy（处理后再按 ZIP 读取）两种格式。
+fn read_manifest_from_archive_file(path: &std::path::Path) -> Result<ModManifest, String> {
+    let ext = path
         .extension()
         .map(|e| e.to_string_lossy().to_lowercase())
         .unwrap_or_default();
@@ -275,29 +182,30 @@ pub(crate) fn inspect_mod_tbuddy(file_path: String) -> Result<ModTbuddyPreflight
         if !crate::modules::mod_archive::is_sbuddy_supported() {
             return Err("sbuddy tool not found (sbuddy not supported)".into());
         }
-        let data = fs::read(&p).map_err(|e| e.to_string())?;
-
+        let data = std::fs::read(path).map_err(|e| e.to_string())?;
         let zip_data = crate::modules::mod_archive::decrypt_sbuddy(&data)?;
         let cursor = std::io::Cursor::new(&zip_data);
         let mut archive = zip::ZipArchive::new(cursor)
             .map_err(|_| "Invalid .sbuddy file".to_string())?;
         let root = get_zip_root_folder(&mut archive)?;
-        let manifest = read_zip_manifest(&mut archive, &root)?;
-        Ok(ModTbuddyPreflight {
-            id: manifest.id.to_string(),
-            version: manifest.version.to_string(),
-        })
+        read_zip_manifest(&mut archive, &root)
     } else {
-        let file = fs::File::open(&p).map_err(|e| e.to_string())?;
+        let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
         let mut archive = zip::ZipArchive::new(file)
             .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
-        let root = get_tbuddy_root_folder(&mut archive)?;
-        let manifest = read_tbuddy_manifest(&mut archive, &root)?;
-        Ok(ModTbuddyPreflight {
-            id: manifest.id.to_string(),
-            version: manifest.version.to_string(),
-        })
+        let root = get_zip_root_folder(&mut archive)?;
+        read_zip_manifest(&mut archive, &root)
     }
+}
+
+/// 预解析 Mod (.tbuddy / .sbuddy 文件) 的 manifest（不落盘，用于前端冲突提示）
+#[tauri::command]
+pub(crate) fn inspect_mod_tbuddy(file_path: String) -> Result<ModTbuddyPreflight, String> {
+    let manifest = read_manifest_from_archive_file(std::path::Path::new(&file_path))?;
+    Ok(ModTbuddyPreflight {
+        id: manifest.id.to_string(),
+        version: manifest.version.to_string(),
+    })
 }
 
 /// 选择并预解析 Mod (.tbuddy / .sbuddy 文件) 的 manifest（不落盘）
@@ -338,34 +246,8 @@ pub(crate) async fn pick_mod_tbuddy(app: AppHandle) -> Result<ModTbuddyPick, Str
 
     let selected_path_clone = selected_path.clone();
     let (id, version) = tokio::task::spawn_blocking(move || -> Result<(String, String), String> {
-        let ext = selected_path_clone
-            .extension()
-            .map(|e| e.to_string_lossy().to_lowercase())
-            .unwrap_or_default();
-
-        if ext == "sbuddy" {
-            // 先检查外部工具是否可用
-            let supported = crate::modules::mod_archive::is_sbuddy_supported();
-            if !supported {
-                return Err("sbuddy tool not found (sbuddy not supported)".into());
-            }
-
-            let data = std::fs::read(&selected_path_clone).map_err(|e| e.to_string())?;
-            let zip_data = crate::modules::mod_archive::decrypt_sbuddy(&data)?;
-            let cursor = std::io::Cursor::new(&zip_data);
-            let mut archive = zip::ZipArchive::new(cursor)
-                .map_err(|_| "Invalid .sbuddy file".to_string())?;
-            let root = get_zip_root_folder(&mut archive)?;
-            let manifest = read_zip_manifest(&mut archive, &root)?;
-            Ok((manifest.id.to_string(), manifest.version.to_string()))
-        } else {
-            let file = std::fs::File::open(&selected_path_clone).map_err(|e| e.to_string())?;
-            let mut archive = zip::ZipArchive::new(file)
-                .map_err(|_| "Invalid .tbuddy file (not a valid zip)".to_string())?;
-            let root = get_tbuddy_root_folder(&mut archive)?;
-            let manifest = read_tbuddy_manifest(&mut archive, &root)?;
-            Ok((manifest.id.to_string(), manifest.version.to_string()))
-        }
+        let manifest = read_manifest_from_archive_file(&selected_path_clone)?;
+        Ok((manifest.id.to_string(), manifest.version.to_string()))
     })
     .await
     .map_err(|e| format!("Parse mod failed: {}", e))??;
@@ -384,19 +266,18 @@ pub struct ImportModResult {
     pub extracted_path: String,
 }
 
-/// 从指定路径导入 Mod (.tbuddy / .sbuddy 文件)
+/// 导入 archive 并加载到内存 store 的公共逻辑
 ///
-/// 将文件复制到 mods 目录下，然后加载到内存中的 archive store
-#[tauri::command]
-pub(crate) async fn import_mod_from_path(
-    app: AppHandle,
-    state: State<'_, AppState>,
+/// 返回 `ImportedModResult` 供调用方组装不同的返回值。
+async fn import_and_load_archive(
+    app: &AppHandle,
+    state: &State<'_, AppState>,
     file_path: String,
-) -> Result<String, String> {
+) -> Result<ImportedModResult, String> {
     use std::path::PathBuf;
 
     let src_path = PathBuf::from(file_path);
-    let imported = copy_archive_to_mods_dir(&app, &src_path)?;
+    let imported = copy_archive_to_mods_dir(app, &src_path)?;
 
     // 将新复制的包文件加载到内存 archive store
     {
@@ -414,8 +295,21 @@ pub(crate) async fn import_mod_from_path(
         }
     }
 
-    let _ = emit(&app, events::REFRESH_MODS, imported.id.as_str());
+    let _ = emit(app, events::REFRESH_MODS, imported.id.as_str());
 
+    Ok(imported)
+}
+
+/// 从指定路径导入 Mod (.tbuddy / .sbuddy 文件)
+///
+/// 将文件复制到 mods 目录下，然后加载到内存中的 archive store
+#[tauri::command]
+pub(crate) async fn import_mod_from_path(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    file_path: String,
+) -> Result<String, String> {
+    let imported = import_and_load_archive(&app, &state, file_path).await?;
     Ok(imported.id)
 }
 
@@ -426,29 +320,7 @@ pub(crate) async fn import_mod_from_path_detailed(
     state: State<'_, AppState>,
     file_path: String,
 ) -> Result<ImportModResult, String> {
-    use std::path::PathBuf;
-
-    let src_path = PathBuf::from(file_path);
-    let imported = copy_archive_to_mods_dir(&app, &src_path)?;
-
-    // 将新复制的包文件加载到内存 archive store
-    {
-        let archive_store = {
-            let rm = state.resource_manager.lock().unwrap();
-            rm.get_archive_store().cloned()
-        };
-        if let Some(store) = archive_store {
-            let mut s = store.lock().unwrap();
-            if imported.ext == "sbuddy" {
-                let _ = s.load_sbuddy(&imported.archive_path);
-            } else {
-                let _ = s.load_tbuddy(&imported.archive_path);
-            }
-        }
-    }
-
-    let _ = emit(&app, events::REFRESH_MODS, imported.id.as_str());
-
+    let imported = import_and_load_archive(&app, &state, file_path).await?;
     Ok(ImportModResult {
         id: imported.id,
         extracted_path: imported.archive_path.to_string_lossy().into_owned(),
@@ -651,7 +523,7 @@ mod tests {
 
         let file = File::open(&path).expect("open zip");
         let mut archive = zip::ZipArchive::new(file).expect("read zip");
-        let root = get_tbuddy_root_folder(&mut archive).expect("root");
+        let root = get_zip_root_folder(&mut archive).expect("root");
         assert_eq!(root, "mod1");
 
         let _ = std::fs::remove_file(&path);
@@ -667,7 +539,7 @@ mod tests {
 
         let file = File::open(&path).expect("open zip");
         let mut archive = zip::ZipArchive::new(file).expect("read zip");
-        let err = get_tbuddy_root_folder(&mut archive).unwrap_err();
+        let err = get_zip_root_folder(&mut archive).unwrap_err();
         assert!(err.contains("multiple root folders"));
 
         let _ = std::fs::remove_file(&path);
@@ -686,8 +558,8 @@ mod tests {
 
         let file = File::open(&path).expect("open zip");
         let mut archive = zip::ZipArchive::new(file).expect("read zip");
-        let root = get_tbuddy_root_folder(&mut archive).expect("root");
-        let manifest = read_tbuddy_manifest(&mut archive, &root).expect("manifest");
+        let root = get_zip_root_folder(&mut archive).expect("root");
+        let manifest = read_zip_manifest(&mut archive, &root).expect("manifest");
         assert_eq!(&*manifest.id, "m1");
         assert_eq!(&*manifest.version, "1.0");
 

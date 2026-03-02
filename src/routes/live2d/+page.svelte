@@ -20,6 +20,8 @@ Live2D 渲染层暂为空占位。
     Live2DParameterSetting,
     Live2DBackgroundLayer,
     ModData,
+    ModManifest,
+    ModInfo,
     ModType,
     UserSettings,
   } from "$lib/types/asset";
@@ -33,20 +35,6 @@ Live2D 渲染层暂为空占位。
     Live2DPlayer,
     type Live2DFeatureFlags,
   } from "$lib/animation/Live2DPlayer";
-
-  interface ModManifest {
-    mod_type?: ModType;
-    global_keyboard?: boolean;
-    global_mouse?: boolean;
-    enable_texture_downsample?: boolean;
-    texture_downsample_start_dim?: number;
-  }
-
-  interface ModInfo {
-    path: string;
-    manifest: ModManifest;
-    live2d?: Live2DConfig;
-  }
 
   let userSettings = $state<UserSettings | null>(null);
 

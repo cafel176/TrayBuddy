@@ -46,7 +46,7 @@ use std::os::windows::process::CommandExt;
 use modules::constants::{
     ANIMATION_AREA_HEIGHT, ANIMATION_AREA_WIDTH, ANIMATION_BORDER, BUBBLE_AREA_HEIGHT,
     BUBBLE_AREA_WIDTH, MAX_BUTTONS_PER_ROW, MAX_CHARS_PER_BUTTON, MAX_CHARS_PER_LINE,
-    MOD_LOGIN_EVENT_DELAY_SECS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
+    MOD_LOGIN_EVENT_DELAY_SECS, RENDER_WINDOW_LABELS, SHORT_TEXT_THRESHOLD, STATE_IDLE, STATE_MUSIC_END,
     STATE_MUSIC_START,     STATE_SILENCE, STATE_SILENCE_END, STATE_SILENCE_START, TRAY_ID_MAIN,
     WINDOW_LABEL_ABOUT, WINDOW_LABEL_ANIMATION, WINDOW_LABEL_LIVE2D, WINDOW_LABEL_MAIN,
     WINDOW_LABEL_MEMO, WINDOW_LABEL_MODS, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_REMINDER, WINDOW_LABEL_REMINDER_ALERT,
@@ -543,22 +543,14 @@ pub fn run() {
                     if window.label() == WINDOW_LABEL_MAIN {
                         // 主窗口销毁时，强制关闭所有可能开启的局部调试状态
                         let _ = emit(&window.app_handle(), events::LAYOUT_DEBUGGER_STATUS, false);
-                    } else if window.label() == WINDOW_LABEL_ANIMATION
-                        || window.label() == WINDOW_LABEL_LIVE2D
-                        || window.label() == WINDOW_LABEL_PNGREMIX
-                        || window.label() == WINDOW_LABEL_THREED
-                    {
+                    } else if RENDER_WINDOW_LABELS.contains(&window.label()) {
                         let app_state: State<AppState> = window.state();
                         let mut storage = app_state.storage.lock().unwrap();
                         storage.save();
                     }
                 }
                 tauri::WindowEvent::Moved(_) => {
-                    if window.label() == WINDOW_LABEL_ANIMATION
-                        || window.label() == WINDOW_LABEL_LIVE2D
-                        || window.label() == WINDOW_LABEL_PNGREMIX
-                        || window.label() == WINDOW_LABEL_THREED
-                    {
+                    if RENDER_WINDOW_LABELS.contains(&window.label()) {
                         // 发送窗口位置更新事件（发送动画区域顶部位置，与保存一致）
                         if let Ok(position) = window.outer_position() {
                             let scale_factor = window.scale_factor().unwrap_or(1.0);

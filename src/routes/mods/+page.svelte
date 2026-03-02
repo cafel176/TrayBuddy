@@ -31,6 +31,7 @@
         setupI18nWithUpdate,
         currentLang,
     } from "$lib/i18n";
+    import type { ModManifest, ModInfo, ModType, CharacterInfo } from "$lib/types/asset";
 
     import { message } from "@tauri-apps/plugin-dialog";
 
@@ -48,29 +49,6 @@
     // ======================================================================= //
     // Data Types
     // ======================================================================= //
-    interface CharacterInfo {
-        name: string;
-        lang: string;
-        description: string;
-    }
-
-    type ModType = "sequence" | "live2d" | "pngremix" | "3d" | "threed" | "unknown" | (string & {});
-
-    interface ModManifest {
-        id: string;
-        version: string;
-        author: string;
-        default_text_lang_id: string;
-        mod_type?: ModType;
-    }
-
-    interface ModInfo {
-        path: string;
-        manifest: ModManifest;
-        info: Record<string, CharacterInfo>;
-        icon_path?: string | null;
-        preview_path?: string | null;
-    }
 
     interface ModTbuddyPick {
         filePath: string;
@@ -139,7 +117,7 @@
     // UI Helpers
     // ======================================================================= //
 
-    function formatModType(modType?: ModType): string {
+    function formatModType(modType?: ModType | string): string {
         const t = (modType || "unknown").toLowerCase();
         if (t === "sequence") return _("modWindow.modTypeSequence");
         if (t === "live2d") return _("modWindow.modTypeLive2D");
@@ -338,12 +316,12 @@
                         version: "",
                         author: "",
                         default_text_lang_id: "zh",
-                        mod_type: "unknown",
+                        mod_type: "unknown" as string,
                     },
                     info: {},
                     icon_path: null,
                     preview_path: null,
-                }) as ModInfo);
+                }) as unknown as ModInfo);
             }
 
 
