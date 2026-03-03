@@ -63,7 +63,7 @@ describe("constants", () => {
 
     it("has FPS limit settings", () => {
       expect(RENDER_TUNING.FPS_LIMIT_ENABLED).toBe(true);
-      expect(RENDER_TUNING.FPS_LIMIT_MAX).toBe(60);
+      expect(RENDER_TUNING.FPS_LIMIT_MAX).toBe(30);
     });
   });
 

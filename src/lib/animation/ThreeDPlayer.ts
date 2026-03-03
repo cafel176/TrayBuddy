@@ -10,7 +10,7 @@ import type { VRM } from "@pixiv/three-vrm";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { buildModAssetUrlFor3D } from "../utils/modAssetUrl";
 import type { ThreeDConfig, ThreeDAnimation, ThreeDState } from "$lib/types/asset";
-import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled } from "./render_tuning";
+import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled, IdleThrottle } from "./render_tuning";
 import { computeTexDownsampleTarget, type ThreeDTexturePolicy } from "./animation_utils";
 // @ts-ignore — vendored JS module without TS declarations
 import { MMDLoader } from "./mmd/MMDLoader.js";
@@ -1124,6 +1124,9 @@ export class ThreeDPlayer {
 
   private isRendering = false;
 
+  // Idle throttle — 无交互时自动降低渲染帧率
+  private idleThrottle = new IdleThrottle();
+
   /** PMX/MMD 专用运行时（IK、Grant、骨骼备份/恢复） */
   private mmdRuntime: MmdRuntime | null = null;
   /** PMX 模型的 SkinnedMesh 引用（用于 MMDLoader.loadAnimation） */
@@ -1497,6 +1500,7 @@ export class ThreeDPlayer {
     assetName: string,
     options: PlayOptions,
   ): Promise<boolean> {
+    this.idleThrottle.poke();
     dbg("playFromAnima", "assetName:", assetName, "playOnce:", options.playOnce);
     if (!this.config || !this.model || !this.mixer) {
       dbg("playFromAnima", "not ready");
@@ -1853,6 +1857,11 @@ export class ThreeDPlayer {
     const animate = (ts: number) => {
       if (!this.isRendering) return;
       this.animationFrameId = requestAnimationFrame(animate);
+
+      // idle 降频：无交互时大幅降低渲染频率以节省 GPU
+      if (this.idleThrottle.shouldSkipFrame(ts)) {
+        return;
+      }
 
       if (minDeltaMs > 0 && lastTs > 0 && ts - lastTs < minDeltaMs) {
         return;

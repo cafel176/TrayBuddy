@@ -190,8 +190,15 @@ export const RENDER_TUNING = {
 
   /** 是否启用渲染 FPS 上限。 */
   FPS_LIMIT_ENABLED: true,
-  /** 全局 FPS 上限（例如 60 可避免 144/240Hz 显示器导致 rAF 过高）。 */
-  FPS_LIMIT_MAX: 60,
+  /** 全局 FPS 上限（30 对桌面宠物足够流畅，可显著降低 GPU 占用）。 */
+  FPS_LIMIT_MAX: 30,
+
+  /** 是否启用 idle 降频（无交互/无状态切换时自动降低渲染帧率）。 */
+  IDLE_THROTTLE_ENABLED: true,
+  /** idle 降频后的帧率（FPS）。值越低 GPU 越省电，但画面更新越慢。 */
+  IDLE_THROTTLE_FPS: 15,
+  /** 最后一次交互/状态变化后，等待多少毫秒进入 idle 降频。 */
+  IDLE_THROTTLE_DELAY_MS: 3000,
 } as const;
 
 // ========================================================================= //

@@ -77,9 +77,9 @@ describe("render_tuning", () => {
 
   describe("getRenderMaxFps", () => {
     it("returns clamped FPS_LIMIT_MAX when FPS_LIMIT_ENABLED is true", () => {
-      // FPS_LIMIT_ENABLED is true, FPS_LIMIT_MAX is 60
+      // FPS_LIMIT_ENABLED is true, FPS_LIMIT_MAX is 30
       const fps = getRenderMaxFps();
-      expect(fps).toBe(60);
+      expect(fps).toBe(30);
     });
   });
 

@@ -6,7 +6,7 @@ import {
   normalizePath,
   parseArchiveVirtualPath,
 } from "../utils/modAssetUrl";
-import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled } from "./render_tuning";
+import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled, IdleThrottle } from "./render_tuning";
 import {
   getMotionPriority,
   buildNameKey,
@@ -584,6 +584,8 @@ export class Live2DPlayer {
   private pinnedTextureKeys = new Set<string>();
   private bgTextureKeys = new Set<string>();
 
+  // Idle throttle — 无交互时自动降低渲染帧率
+  private idleThrottle = new IdleThrottle();
 
   // 贴图优化：全局 Loader middleware 是否已安装
   private static texOptInstalled = false;
@@ -955,7 +957,7 @@ export class Live2DPlayer {
    * - 表情必须在 startMotion 后应用，避免被 stopAllMotions 清空
    */
   async playFromAnima(assetName: string, options: PlayOptions): Promise<boolean> {
-
+    this.idleThrottle.poke();
     dbg("playFromAnima", "assetName:", assetName, "playOnce:", options.playOnce, "scale:", options.animationScale);
     if (!this.model || !this.config) {
       dbg("playFromAnima", "SKIP: model=", !!this.model, "config=", !!this.config);
@@ -1066,6 +1068,21 @@ export class Live2DPlayer {
     this.lastResizeWidth = width;
     this.lastResizeHeight = height;
     this.lastResizeDpr = dpr;
+
+    // idle 降频：通过动态调整 ticker.maxFPS 实现
+    if (this.app?.ticker) {
+      const normalMaxFps = maxFps || 60;
+      const throttle = this.idleThrottle;
+      this.app.ticker.add(() => {
+        const isIdle = throttle.shouldSkipFrame(performance.now());
+        const target = isIdle ? 5 : normalMaxFps;
+        if (this.app && this.app.ticker.maxFPS !== target) {
+          this.app.ticker.maxFPS = target;
+          const shared = window.PIXI?.Ticker?.shared;
+          if (shared) shared.maxFPS = target;
+        }
+      });
+    }
 
     dbg("initPixiApp", "renderer size:", this.app.renderer.width, "x", this.app.renderer.height);
 
@@ -1227,6 +1244,7 @@ export class Live2DPlayer {
    */
   updateGlobalMouseFollow(localX: number, localY: number): void {
     if (!this.model || !this.featureFlags.mouseFollow || !this.hasMouseParams) return;
+    this.idleThrottle.poke();
 
     // 将窗口坐标转换为 canvas 内坐标
     const rect = this.canvas.getBoundingClientRect();

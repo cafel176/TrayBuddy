@@ -60,10 +60,75 @@ export function getRenderMaxFps(): number | null {
 }
 
 /**
- * 将某个“播放器自身的 FPS 上限”再叠加全局上限（若开启）。
+ * 将某个"播放器自身的 FPS 上限"再叠加全局上限（若开启）。
  */
 export function capFps(perPlayerMaxFps: number): number {
   const safe = clampNumber(Number(perPlayerMaxFps) || 60, 1, 240);
   const globalCap = getRenderMaxFps();
   return globalCap ? Math.min(safe, globalCap) : safe;
+}
+
+// =========================================================================
+// Idle Throttle — 无交互/无状态切换时自动降低渲染帧率
+// =========================================================================
+
+/**
+ * 通用 idle 降频控制器。
+ *
+ * 用法：
+ * 1. 在状态切换、鼠标交互、动画切换等事件中调用 `poke()`
+ * 2. 在 rAF 回调中调用 `shouldSkipFrame(ts)` 判断是否应跳过本帧渲染
+ *
+ * 原理：最后一次 `poke()` 后超过 `delayMs` 毫秒未收到新活动，
+ * 即进入 idle 状态，此时帧间隔切换为 `1000/idleFps`（远大于正常帧间隔），
+ * 大幅降低 GPU 绘制频率。
+ */
+export class IdleThrottle {
+  private lastActivityTs = 0;
+  private lastRenderTs = 0;
+  private _idle = false;
+  private readonly enabled: boolean;
+  private readonly delayMs: number;
+  private readonly idleMinDeltaMs: number;
+
+  constructor() {
+    this.enabled = !!RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+    this.delayMs = Math.max(500, Number(RENDER_TUNING.IDLE_THROTTLE_DELAY_MS) || 3000);
+    const idleFps = clampNumber(Number(RENDER_TUNING.IDLE_THROTTLE_FPS) || 5, 1, 30);
+    this.idleMinDeltaMs = 1000 / idleFps;
+    this.lastActivityTs = performance.now();
+  }
+
+  /** 标记一次"活动"，立即退出 idle 状态。 */
+  poke(): void {
+    this.lastActivityTs = performance.now();
+    this._idle = false;
+  }
+
+  /** 当前是否处于 idle 降频状态。 */
+  get idle(): boolean {
+    return this._idle;
+  }
+
+  /**
+   * 在 rAF 回调开头调用。返回 `true` 表示本帧应跳过渲染。
+   * @param ts requestAnimationFrame 传入的时间戳
+   */
+  shouldSkipFrame(ts: number): boolean {
+    if (!this.enabled) return false;
+
+    // 判断是否进入 idle
+    if (!this._idle && ts - this.lastActivityTs > this.delayMs) {
+      this._idle = true;
+    }
+
+    if (!this._idle) return false;
+
+    // idle 状态：按 idleMinDeltaMs 限频
+    if (this.lastRenderTs > 0 && ts - this.lastRenderTs < this.idleMinDeltaMs) {
+      return true; // 跳过
+    }
+    this.lastRenderTs = ts;
+    return false;
+  }
 }

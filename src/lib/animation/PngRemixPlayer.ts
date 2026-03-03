@@ -13,7 +13,7 @@ import type {
 } from "$lib/types/asset";
 import { invoke } from "@tauri-apps/api/core";
 import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
-import { capFps, getRenderDpr } from "./render_tuning";
+import { capFps, getRenderDpr, isAntialiasEnabled, IdleThrottle } from "./render_tuning";
 import {
   normalizeFsPath,
   normalizeStartDim,
@@ -1714,7 +1714,7 @@ class WebGLSceneRenderer {
     this.canvas = canvas;
     const gl = (canvas.getContext("webgl", {
       alpha: true,
-      antialias: true,
+      antialias: isAntialiasEnabled(),
       premultipliedAlpha: false,
       preserveDrawingBuffer: true,
       stencil: true,
@@ -2262,6 +2262,9 @@ export class PngRemixPlayer {
   // WebGL renderer
   private renderer: WebGLSceneRenderer;
 
+  // Idle throttle — 无交互时自动降低渲染帧率
+  private idleThrottle = new IdleThrottle();
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.renderer = new WebGLSceneRenderer(canvas);
@@ -2536,6 +2539,7 @@ export class PngRemixPlayer {
     if (!this.scene || !this.config) return;
     const features = this.config.features;
     if (!features.click_bounce) return;
+    this.idleThrottle.poke();
     this.scene._clickBounce.active = true;
     this.scene._clickBounce.t = 0;
     this.scene._clickBounce.dur = features.click_bounce_duration || 0.5;
@@ -2558,7 +2562,7 @@ export class PngRemixPlayer {
    * 触发指定动作（可附带快捷键驱动）
    */
   playMotion(name: string): void {
-
+    this.idleThrottle.poke();
     if (!this.scene || !this.config) return;
     const motion = this.config.motions.find((m) => m.name === name);
     if (!motion) { console.warn("[PngRemixPlayer] Motion not found:", name); return; }
@@ -2613,6 +2617,7 @@ export class PngRemixPlayer {
   }
 
   private applyPngRemixStateMapping(state: PngRemixConfig["states"][number]): void {
+    this.idleThrottle.poke();
     const scene = this.scene;
     if (!scene) return;
 
@@ -2786,6 +2791,7 @@ export class PngRemixPlayer {
 
   private recordMouseCssPosition(cssX: number, cssY: number, source: string): void {
     if (!this.scene) return;
+    this.idleThrottle.poke();
     this.hasMouse = true;
     const dpr = getRenderDpr();
     this.mouseCanvas.x = cssX * dpr;
@@ -2900,6 +2906,12 @@ export class PngRemixPlayer {
     const frame = (ts: number) => {
       if (this.destroyed || !this.scene) return;
       if (!this.scene.playing) return;
+
+      // idle 降频：无交互时大幅降低渲染频率以节省 GPU
+      if (this.idleThrottle.shouldSkipFrame(ts)) {
+        this.scene._rafId = requestAnimationFrame(frame);
+        return;
+      }
 
       const last = this.scene._lastTs || 0;
       if (last && ts - last < minDeltaMs) {
