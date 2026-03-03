@@ -34,6 +34,12 @@ rmdir /s /q "%~dp0src-tauri\target\release\mods"
 :: mods 文件夹：跳过，不进行任何打包
 :: ================================================================
 
+:: 确保输出目录存在
+if not exist "%~dp0tbuddy_release" mkdir "%~dp0tbuddy_release"
+if not exist "%~dp0tbuddy_test" mkdir "%~dp0tbuddy_test"
+if not exist "%~dp0sbuddy_release" mkdir "%~dp0sbuddy_release"
+if not exist "%~dp0sbuddy_test" mkdir "%~dp0sbuddy_test"
+
 :: ================================================================
 :: mods_release -> tbuddy_release/ -> sbuddy_release/
 :: ================================================================

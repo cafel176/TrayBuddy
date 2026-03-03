@@ -31,6 +31,9 @@ rmdir /s /q "%~dp0src-tauri\target\debug\mods"
 :_tb_after_clean
 
 
+:: 确保 tauri.conf.json 引用的 resource 目录存在
+if not exist "%~dp0tbuddy_release" mkdir "%~dp0tbuddy_release"
+
 echo Starting Tauri dev server...
 call pnpm tauri dev --verbose
 @REM pnpm tauri dev --verbose > tauri-dev.log 2>&1

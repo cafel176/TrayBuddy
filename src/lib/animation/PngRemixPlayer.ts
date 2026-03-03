@@ -626,6 +626,8 @@ class SpriteTextureManager {
 
   // 当前帧正在使用的 drawable 集合（用于可见性保护）
   private usedThisFrame = new Set<any>();
+  // 上一帧使用的 drawable 集合（帧间异步 trim 时的保护依据）
+  private lastFrameUsed = new Set<any>();
   private disposed = false;
 
   constructor(
@@ -723,9 +725,13 @@ class SpriteTextureManager {
     this.usedThisFrame.add(drawable);
   }
 
-  /** 标记一帧开始，清空"本帧使用"集合 */
+  /** 标记一帧开始，将上一帧的使用集合保存到 lastFrameUsed，再清空当前帧集合 */
   beginFrame(): void {
     if (this.disposed) return;
+    // 保留上一帧的使用记录，供帧间异步 trim 使用
+    const tmp = this.lastFrameUsed;
+    this.lastFrameUsed = this.usedThisFrame;
+    this.usedThisFrame = tmp;
     this.usedThisFrame.clear();
   }
 
@@ -738,17 +744,18 @@ class SpriteTextureManager {
 
     const targetBytes = Math.floor(this.maxBytes * TEXTURE_LRU_TRIM_GUARD_RATIO);
 
+    // 合并当前帧与上一帧的使用集合——确保帧间异步 trim 也能识别正在显示的贴图
+    const inUseSet = new Set<any>(this.usedThisFrame);
+    for (const d of this.lastFrameUsed) inUseSet.add(d);
+
     while ((this.lruByDrawable.size > this.maxItems) || (this.totalBytes > this.maxBytes)) {
       let victim: any = null;
       let victimEntry: TextureLruEntry | null = null;
       let bestTs = Infinity;
 
-      // 优先当前帧未使用"的贴图中选择回收目标
-      // 如果所有贴图都在使用，则选择最久未使用的（即使正在显示
+      // 仅从当前帧未使用的贴图中选择回收目标（硬保护：绝不淘汰正在显示的贴图）
       for (const [d, e] of this.lruByDrawable.entries()) {
-        const inUse = this.usedThisFrame.has(d);
-        // 跳过当前帧正在使用的贴图（除非没有其他选择
-        if (inUse && this.lruByDrawable.size > this.usedThisFrame.size) continue;
+        if (inUseSet.has(d)) continue;
         if (e.lastUsed < bestTs) {
           bestTs = e.lastUsed;
           victim = d;
@@ -756,27 +763,16 @@ class SpriteTextureManager {
         }
       }
 
-      // 如果没有找到"未使的贴图，强制回收最久未使用
-      if (!victim) {
-        bestTs = Infinity;
-        for (const [d, e] of this.lruByDrawable.entries()) {
-          if (e.lastUsed < bestTs) {
-            bestTs = e.lastUsed;
-            victim = d;
-            victimEntry = e;
-          }
-        }
-      }
-
+      // 所有贴图都在使用 → 无法安全回收，放弃 trim（宁可暂时超预算也不闪烁）
       if (!victim || !victimEntry) break;
 
-      // 从所index 解绑
+      // 从所有 index 解绑
       for (const idx of victimEntry.indices) {
         const cur = this.scene.spriteDrawableByIndex.get(idx);
         if (cur === victim) this.scene.spriteDrawableByIndex.delete(idx);
       }
 
-      // 清理去重缓存 key（否Map 会一直强引用 drawable，LRU 失效
+      // 清理去重缓存 key（否则 Map 会一直强引用 drawable，LRU 失效）
       for (const k of victimEntry.cacheKeys) this.decodedCache.delete(k);
 
       // 释放像素资源

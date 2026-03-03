@@ -655,7 +655,30 @@ export class Live2DPlayer {
     // 避免切换 Mod 后旧模型的 GPU 纹理残留。
     this.cleanupPixiGlobalCaches();
 
+    // 在 PIXI.Application.destroy() 之前，先获取底层 WebGL context 的引用
+    // （destroy 之后 renderer 就不可访问了）。
+    let glContext: WebGLRenderingContext | WebGL2RenderingContext | null = null;
+    try {
+      glContext = this.app?.renderer?.gl
+        ?? this.canvas?.getContext("webgl2")
+        ?? this.canvas?.getContext("webgl");
+    } catch { /* ignore */ }
+
     this.app?.destroy(true, { children: true });
+
+    // 显式释放 WebGL 上下文，确保 GPU 资源立即回收
+    // （PIXI 的 destroy() 不调用 loseContext，某些 GPU 驱动下会导致显存残留）
+    try {
+      const ext = glContext?.getExtension("WEBGL_lose_context");
+      ext?.loseContext();
+    } catch { /* ignore */ }
+
+    // 清零 canvas 缓冲区，协助浏览器回收显存
+    try {
+      this.canvas.width = 0;
+      this.canvas.height = 0;
+    } catch { /* ignore */ }
+
     this.app = null;
     this.world = null;
     this.config = null;

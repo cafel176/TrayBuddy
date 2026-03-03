@@ -918,11 +918,12 @@ pub(crate) fn save_animation_window_position(window: &tauri::Window) {
 /// 使用缓存版本，避免每次调用都重新读取和解析 JSON 文件
 pub(crate) fn get_i18n_text(app: &tauri::AppHandle, key: &str) -> String {
 
-    let app_state: State<AppState> = app.state();
-    let lang = {
-        let storage = app_state.storage.lock().unwrap();
-        storage.data.settings.lang.clone()
-    };
+    let lang = app.try_state::<AppState>()
+        .map(|s| {
+            let storage = s.storage.lock().unwrap();
+            storage.data.settings.lang.clone()
+        })
+        .unwrap_or_else(|| "en".to_string().into());
     get_i18n_text_cached(app, &lang, key)
 }
 
