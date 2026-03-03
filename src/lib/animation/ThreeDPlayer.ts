@@ -11,6 +11,7 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { buildModAssetUrlFor3D } from "../utils/modAssetUrl";
 import type { ThreeDConfig, ThreeDAnimation, ThreeDState } from "$lib/types/asset";
 import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled } from "./render_tuning";
+import { computeTexDownsampleTarget, type ThreeDTexturePolicy } from "./animation_utils";
 // @ts-ignore — vendored JS module without TS declarations
 import { MMDLoader } from "./mmd/MMDLoader.js";
 
@@ -38,19 +39,7 @@ const TEX_OPT_NO_RESIZE_EPS = 0.999;
 /** 降采样画布品质 */
 const TEX_OPT_RESIZE_QUALITY: ImageSmoothingQuality = "high";
 
-/** 纹理优化 manifest 参数 */
-type ThreeDTextureManifest = {
-  enable_texture_downsample?: boolean;
-  texture_downsample_start_dim?: number;
-};
-
-/** 纹理降采样策略 */
-type ThreeDTexturePolicy = {
-  enabled: boolean;
-  startDim: number;  // 触发阈值（贴图最长边 >= 此值才降采样）
-  maxDim: number;    // 降采样目标上限（像素）
-  scale: number;     // 额外缩放倍率 (0-1)
-};
+// computeTexDownsampleTarget, ThreeDTexturePolicy 已提取到 animation_utils.ts
 
 
 function dbg(tag: string, ...args: unknown[]) {
@@ -61,34 +50,7 @@ function dbg(tag: string, ...args: unknown[]) {
 // 纹理优化工具函数
 // ============================================================================
 
-/**
- * 计算降采样目标尺寸。
- * 与 Live2D 的 computeDecodeTarget 逻辑一致。
- */
-function computeTexDownsampleTarget(w0: number, h0: number, policy: ThreeDTexturePolicy): { w: number; h: number; scale: number } {
-  if (!policy.enabled || w0 <= 0 || h0 <= 0) return { w: w0, h: h0, scale: 1 };
-
-  const maxSide = Math.max(w0, h0);
-
-  // 小于阈值的贴图不降采样
-  if (policy.startDim > 0 && maxSide < policy.startDim) return { w: w0, h: h0, scale: 1 };
-
-  let s = policy.scale;
-
-  // 如果设置了 maxDim，进一步限制
-  if (policy.maxDim > 0 && maxSide * s > policy.maxDim) {
-    s = policy.maxDim / maxSide;
-  }
-
-  s = Math.max(TEX_OPT_MIN_SCALE, Math.min(1, s));
-  if (s >= TEX_OPT_NO_RESIZE_EPS) return { w: w0, h: h0, scale: 1 };
-
-  return {
-    w: Math.max(1, Math.round(w0 * s)),
-    h: Math.max(1, Math.round(h0 * s)),
-    scale: s,
-  };
-}
+// computeTexDownsampleTarget 已提取到 animation_utils.ts
 
 /**
  * 将图片/画布降采样到指定尺寸，返回新 canvas。

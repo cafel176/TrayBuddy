@@ -14,6 +14,32 @@ import type {
 import { invoke } from "@tauri-apps/api/core";
 import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
 import { capFps, getRenderDpr } from "./render_tuning";
+import {
+  normalizeFsPath,
+  normalizeStartDim,
+  Mat2D,
+  clamp,
+  toRad,
+  lerp,
+  wrapAngleRad,
+  lerpAngle,
+  moveToward,
+  wrap01,
+  quantize01,
+  mulColor,
+  rgbToHsv,
+  hsvToRgb,
+  compositeForBlendMode,
+  bytesToHex,
+  simpleBytesSignature,
+  isGifBytes,
+  isPngBytes,
+  pngHasChunk,
+  tryReadPngSize,
+  tryReadGifSize,
+  type RGBA,
+  type PngRemixBlendMode,
+} from "./animation_utils";
 
 
 type BackendModInfo = {
@@ -24,9 +50,7 @@ type BackendModInfo = {
   };
 } | null;
 
-function normalizeFsPath(p: string): string {
-  return String(p || "").replace(/\\/g, "/").trim().toLowerCase();
-}
+// normalizeFsPath, normalizeStartDim 已提取到 animation_utils.ts
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -36,12 +60,6 @@ type TextureDownsampleSettings = {
   enabled: boolean;
   startDim: number;
 };
-
-function normalizeStartDim(v: any): number | null {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.floor(n));
-}
 
 /**
  * 从后端读取当Mod 的贴图降采样设置
@@ -180,118 +198,13 @@ function getPngRemixTextureFilter(gl: WebGLRenderingContext): number {
   return getPngRemixUpscaleMode() === "pixelated" ? gl.NEAREST : gl.LINEAR;
 }
 
-// ============================================================================
-// Mat2D 2D 仿射矩阵
-// ============================================================================
-
-class Mat2D {
-  a: number; b: number; c: number; d: number; e: number; f: number;
-  constructor(a = 1, b = 0, c = 0, d = 1, e = 0, f = 0) {
-    this.a = a; this.b = b; this.c = c; this.d = d; this.e = e; this.f = f;
-  }
-  static identity() { return new Mat2D(); }
-  static translate(x: number, y: number) { return new Mat2D(1, 0, 0, 1, x, y); }
-  static scale(x: number, y: number) { return new Mat2D(x, 0, 0, y, 0, 0); }
-  static rotate(rad: number) {
-    const cos = Math.cos(rad); const sin = Math.sin(rad);
-    return new Mat2D(cos, sin, -sin, cos, 0, 0);
-  }
-  multiply(m: Mat2D): Mat2D {
-    return new Mat2D(
-      this.a * m.a + this.c * m.b, this.b * m.a + this.d * m.b,
-      this.a * m.c + this.c * m.d, this.b * m.c + this.d * m.d,
-      this.a * m.e + this.c * m.f + this.e, this.b * m.e + this.d * m.f + this.f,
-    );
-  }
-  invert(): Mat2D {
-    const det = this.a * this.d - this.b * this.c;
-    if (!Number.isFinite(det) || Math.abs(det) < 1e-12) return Mat2D.identity();
-    const id = 1 / det;
-    return new Mat2D(
-      this.d * id, -this.b * id, -this.c * id, this.a * id,
-      (this.c * this.f - this.d * this.e) * id, (this.b * this.e - this.a * this.f) * id,
-    );
-  }
-  applyToPoint(x: number, y: number) {
-    return { x: this.a * x + this.c * y + this.e, y: this.b * x + this.d * y + this.f };
-  }
-}
+// Mat2D 已提取到 animation_utils.ts
 
 // ============================================================================
-// 数学 / 颜色 / 混合工具
+// 数学 / 颜色 / 混合工具（已提取到 animation_utils.ts）
 // ============================================================================
 
 interface Vec2 { x: number; y: number }
-interface RGBA { r: number; g: number; b: number; a: number }
-
-function clamp(n: number, a: number, b: number) {
-  const x = Number(n); if (!Number.isFinite(x)) return a;
-  return x < a ? a : x > b ? b : x;
-}
-function toRad(deg: number) { return (Number(deg) || 0) * Math.PI / 180; }
-function lerp(a: number, b: number, t: number) {
-  const x = Number(a) || 0; const y = Number(b) || 0;
-  return x + (y - x) * clamp(t, 0, 1);
-}
-function wrapAngleRad(a: number) {
-  const twoPi = Math.PI * 2; let x = (Number(a) || 0) % twoPi;
-  if (x > Math.PI) x -= twoPi; if (x < -Math.PI) x += twoPi; return x;
-}
-function lerpAngle(a: number, b: number, t: number) {
-  return (Number(a) || 0) + wrapAngleRad((Number(b) || 0) - (Number(a) || 0)) * clamp(t, 0, 1);
-}
-function moveToward(current: number, target: number, delta: number) {
-  const c = Number(current) || 0; const t0 = Number(target) || 0; const d = Number(delta) || 0;
-  if (d <= 0) return c;
-  if (c < t0) return Math.min(t0, c + d);
-  if (c > t0) return Math.max(t0, c - d);
-  return c;
-}
-function wrap01(x: number) { const n = Number(x); if (!Number.isFinite(n)) return 0; const t = n % 1; return t < 0 ? t + 1 : t; }
-function quantize01(x: number, steps: number) { return Math.round(clamp(x, 0, 1) * Math.max(1, steps)) / Math.max(1, steps); }
-
-function mulColor(a: any, b: any): RGBA {
-  return {
-    r: clamp(a?.r ?? 1, 0, 1) * clamp(b?.r ?? 1, 0, 1),
-    g: clamp(a?.g ?? 1, 0, 1) * clamp(b?.g ?? 1, 0, 1),
-    b: clamp(a?.b ?? 1, 0, 1) * clamp(b?.b ?? 1, 0, 1),
-    a: clamp(a?.a ?? 1, 0, 1) * clamp(b?.a ?? 1, 0, 1),
-  };
-}
-function rgbToHsv(r: number, g: number, b: number) {
-  const rr = clamp(r, 0, 1), gg = clamp(g, 0, 1), bb = clamp(b, 0, 1);
-  const max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb), d = max - min;
-  let h = 0;
-  if (d > 1e-12) {
-    if (max === rr) h = ((gg - bb) / d) % 6;
-    else if (max === gg) h = (bb - rr) / d + 2;
-    else h = (rr - gg) / d + 4;
-    h = wrap01(h / 6);
-  }
-  return { h, s: max <= 1e-12 ? 0 : d / max, v: max };
-}
-function hsvToRgb(h: number, s: number, v: number) {
-  const hh = wrap01(h), ss = clamp(s, 0, 1), vv = clamp(v, 0, 1);
-  const i = Math.floor(hh * 6), f = hh * 6 - i;
-  const p = vv * (1 - ss), q = vv * (1 - f * ss), t = vv * (1 - (1 - f) * ss);
-  switch (i % 6) {
-    case 0: return { r: vv, g: t, b: p }; case 1: return { r: q, g: vv, b: p };
-    case 2: return { r: p, g: vv, b: t }; case 3: return { r: p, g: q, b: vv };
-    case 4: return { r: t, g: p, b: vv }; default: return { r: vv, g: p, b: q };
-  }
-}
-
-type PngRemixBlendMode = "normal" | "add" | "multiply" | "difference";
-
-function compositeForBlendMode(mode: string): PngRemixBlendMode {
-  switch (String(mode || "Normal")) {
-    case "Add": return "add";
-    case "Multiply": return "multiply";
-    case "Subtract": return "difference";
-    case "Burn": return "multiply";
-    default: return "normal";
-  }
-}
 
 // ============================================================================
 // 图像解码（支持解码期降采封顶：逻辑尺寸=原图，像素数据可更小
@@ -317,30 +230,8 @@ const TEXTURE_LRU_MAX_ITEMS_DEFAULT = 10;
 const TEXTURE_LRU_TRIM_GUARD_RATIO = 0.92; // 超预算后尽量裁到预算92%
 
 
-function bytesToHex(bytes: Uint8Array): string {
-  let out = "";
-  for (let i = 0; i < bytes.length; i++) {
-    out += bytes[i].toString(16).padStart(2, "0");
-  }
-  return out;
-}
-
-function simpleBytesSignature(bytes: Uint8Array): string {
-  // 仅用于极端情况下（无 SubtleCrypto）的去重 key，尽量降低碰撞概
-  const len = bytes.byteLength;
-  const n = Math.min(TEXTURE_DEDUP_FALLBACK_SAMPLE_BYTES, len);
-
-  let h = 2166136261 >>> 0; // FNV-1a 32
-  const step = Math.max(1, Math.floor(len / 2048));
-  for (let i = 0; i < len; i += step) {
-    h ^= bytes[i];
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-
-  const head = bytesToHex(bytes.subarray(0, n));
-  const tail = bytesToHex(bytes.subarray(Math.max(0, len - n), len));
-  return `${len}:${h.toString(16)}:${head}:${tail}`;
-}
+// bytesToHex, simpleBytesSignature, isGifBytes, isPngBytes, pngHasChunk, tryReadPngSize, tryReadGifSize
+// 已提取到 animation_utils.ts
 
 async function getBytesHashKey(bytes: Uint8Array): Promise<string> {
   const cached = _bytesHashKeyCache.get(bytes);
@@ -368,53 +259,7 @@ type TextureDecodePolicy = {
   startDim: number;
 };
 
-function isGifBytes(b: Uint8Array) {
-  return b.length >= 6 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38 && (b[4] === 0x37 || b[4] === 0x39) && b[5] === 0x61;
-}
-function isPngBytes(b: Uint8Array) {
-  return b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 && b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A;
-}
-function pngHasChunk(b: Uint8Array, chunk: string) {
-  if (!isPngBytes(b) || chunk.length !== 4) return false;
-  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  let off = 8;
-  while (off + 12 <= b.length) {
-    const len = dv.getUint32(off, false);
-    const type = String.fromCharCode(b[off + 4], b[off + 5], b[off + 6], b[off + 7]);
-    if (type === chunk) return true;
-    off += 12 + len; if (len < 0 || off > b.length) break;
-  }
-  return false;
-}
-
-function tryReadPngSize(bytes: Uint8Array): { w: number; h: number } | null {
-  // PNG signature(8) + IHDR length(4) + "IHDR"(4) + w(4) + h(4)
-  if (!isPngBytes(bytes) || bytes.length < 24) return null;
-  if (bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null;
-  try {
-    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    const w = dv.getUint32(16, false);
-    const h = dv.getUint32(20, false);
-    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
-    return { w, h };
-  } catch {
-    return null;
-  }
-}
-
-function tryReadGifSize(bytes: Uint8Array): { w: number; h: number } | null {
-  // GIF logical screen descriptor: width/height are little-endian uint16 at offset 6/8
-  if (!isGifBytes(bytes) || bytes.length < 10) return null;
-  try {
-    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    const w = dv.getUint16(6, true);
-    const h = dv.getUint16(8, true);
-    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
-    return { w, h };
-  } catch {
-    return null;
-  }
-}
+// isGifBytes, isPngBytes, pngHasChunk, tryReadPngSize, tryReadGifSize 已提取到 animation_utils.ts
 
 function getImageSize(d: any): { w: number; h: number } {
   // 实际像素尺寸（解码后drawable 尺寸

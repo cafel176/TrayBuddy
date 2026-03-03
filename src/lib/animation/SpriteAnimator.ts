@@ -28,6 +28,11 @@ import { LRUCache } from "../utils/LRUCache";
 import { getModPath, clearModPathCache } from "../utils/modPath";
 import { buildModAssetUrl } from "../utils/modAssetUrl";
 import type { AssetInfo, AnimationConfig } from "../types/asset";
+import {
+  computeSpriteDownsampleTarget,
+  isBorderImage,
+  type SpriteTexturePolicy,
+} from "./animation_utils";
 
 // ============================================================================
 // Canvas 显示适配（仅影响元素显示尺寸，不改变内部绘制逻辑）
@@ -65,47 +70,10 @@ const MEMORY_DEBUG_MODE = false;
 // 贴图降采样（与 Live2D/ThreeD 对齐）
 // ============================================================================
 
-/** 降采样策略 */
-type SpriteTexturePolicy = {
-  enabled: boolean;
-  /** 触发降采样的起始贴图尺寸阈值（像素；最长边）；<=0 表示不限制 */
-  startDim: number;
-  /** 降采样目标尺寸阈值（像素；最长边）；与 startDim 保持一致 */
-  maxDim: number;
-  /** 额外缩放倍率（0-1），默认 1 */
-  scale: number;
-};
+// 降采样策略和计算函数已提取到 animation_utils.ts
 
-const SPRITE_TEX_OPT_MIN_SCALE = 0.05;
 const SPRITE_TEX_OPT_NO_RESIZE_EPS = 0.999;
 const SPRITE_TEX_OPT_RESIZE_QUALITY: ImageSmoothingQuality = "high";
-
-/**
- * 计算降采样目标尺寸（与 Live2D/ThreeD 的 computeDecodeTarget 逻辑一致）。
- */
-function computeSpriteDownsampleTarget(
-  w0: number, h0: number, policy: SpriteTexturePolicy,
-): { w: number; h: number; scale: number } {
-  if (!policy.enabled || w0 <= 0 || h0 <= 0) return { w: w0, h: h0, scale: 1 };
-
-  const denom0 = Math.max(w0, h0);
-  const startDim = Number(policy.startDim);
-  if (Number.isFinite(startDim) && startDim > 0 && denom0 > 0 && denom0 < startDim) {
-    return { w: w0, h: h0, scale: 1 };
-  }
-
-  let s = Math.max(SPRITE_TEX_OPT_MIN_SCALE, Math.min(1, Number(policy.scale) || 1));
-  const maxDim = Number(policy.maxDim);
-  if (Number.isFinite(maxDim) && maxDim > 0) {
-    const denom = Math.max(w0, h0);
-    if (denom > 0) s = Math.min(s, maxDim / denom);
-  }
-  s = Math.max(SPRITE_TEX_OPT_MIN_SCALE, Math.min(1, s));
-
-  const tw = Math.max(1, Math.round(w0 * s));
-  const th = Math.max(1, Math.round(h0 * s));
-  return { w: tw, h: th, scale: s };
-}
 
 /**
  * 将精灵图降采样到较小的 Canvas 上。
@@ -312,14 +280,7 @@ alwaysImageCache.setOnEvict((url, img) => {
 
 
 
-/**
- * 判断是否为边框动画图片
- * @param imgSrc - 图片 URL
- * @returns 如果是边框动画返回 true
- */
-function isBorderImage(imgSrc: string): boolean {
-  return imgSrc.toLowerCase().includes('border');
-}
+// isBorderImage 已提取到 animation_utils.ts
 
 /**
  * 清除图片缓存

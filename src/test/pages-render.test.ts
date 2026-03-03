@@ -936,6 +936,18 @@ describe("pages render detailed", () => {
     const messageMock = vi.mocked(message);
     const originalImpl = invokeMock.getMockImplementation();
 
+    // Patch Image.src to auto-fire onerror so loadPreview doesn't hang
+    const origSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src");
+    Object.defineProperty(HTMLImageElement.prototype, "src", {
+      set(this: HTMLImageElement, value: string) {
+        if (origSrcDesc?.set) origSrcDesc.set.call(this, value);
+        const img = this;
+        setTimeout(() => { if (typeof img.onerror === "function") img.onerror(new Event("error")); }, 0);
+      },
+      get(this: HTMLImageElement) { return origSrcDesc?.get ? origSrcDesc.get.call(this) : ""; },
+      configurable: true,
+    });
+
     invokeMock.mockImplementation(async (command: string, args?: unknown) => {
       if (command === "get_current_mod") {
         return {
@@ -967,12 +979,16 @@ describe("pages render detailed", () => {
 
     const keepIncoming = container.querySelector(".modal .load-btn") as HTMLButtonElement | null;
     await fireEvent.click(keepIncoming as HTMLButtonElement);
-    await flushAsync();
+    // keepIncomingAndContinue has 5+ sequential awaits:
+    // doImportSilent → load_mod_from_path → loadModList(get_mod_summaries_fast catch → get_available_mods → selectMod → loadPreview) → message
+    for (let i = 0; i < 10; i++) await flushAsync();
 
     expect(invokeMock).toHaveBeenCalledWith("import_mod_from_path_detailed", { filePath: "C:/mods/demo.tbuddy" });
     expect(invokeMock).toHaveBeenCalledWith("load_mod_from_path", { modPath: "C:/mods/demo" });
     expect(messageMock).toHaveBeenCalled();
 
+    // Restore original Image.src descriptor
+    if (origSrcDesc) Object.defineProperty(HTMLImageElement.prototype, "src", origSrcDesc);
     invokeMock.mockImplementation(originalImpl ?? (async () => null));
   });
 

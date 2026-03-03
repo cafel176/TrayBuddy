@@ -7,6 +7,14 @@ import {
   parseArchiveVirtualPath,
 } from "../utils/modAssetUrl";
 import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled } from "./render_tuning";
+import {
+  getMotionPriority,
+  buildNameKey,
+  computeLive2DDecodeTarget as computeDecodeTarget,
+  normalizeFsPath,
+  normalizeStartDim,
+  type Live2DTextureDecodePolicy,
+} from "./animation_utils";
 
 import type {
   Live2DConfig,
@@ -170,29 +178,7 @@ function applyCubism4Config(): void {
   }
 }
 
-/**
- * 将 motion priority 映射为数值级别，便于排序与比较。
- * 约定：idle < normal < high < force
- */
-function getMotionPriority(priority?: string): number {
-
-  const map: Record<string, number> = {
-    idle: 1,
-    normal: 2,
-    high: 3,
-    force: 4,
-  };
-  const key = String(priority || "").toLowerCase();
-  return map[key] ?? 2;
-}
-
-/**
- * 将名称归一化为可用于 Map 键的形式。
- */
-function buildNameKey(name: string): string {
-
-  return String(name || "").trim().toLowerCase();
-}
+// getMotionPriority, buildNameKey 已提取到 animation_utils.ts
 
 function dbg(_tag: string, ..._args: any[]) {}
 
@@ -204,9 +190,7 @@ type BackendModInfo = {
   };
 } | null;
 
-function normalizeFsPath(p: string): string {
-  return String(p || "").replace(/\\/g, "/").trim().toLowerCase();
-}
+// normalizeFsPath, normalizeStartDim 已提取到 animation_utils.ts
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -217,11 +201,7 @@ type TextureDownsampleSettings = {
   startDim: number;
 };
 
-function normalizeStartDim(v: any): number | null {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.floor(n));
-}
+// normalizeStartDim 已提取到 animation_utils.ts
 
 /**
  * 从后端读取当前 Mod 的贴图降采样设置：
@@ -309,13 +289,7 @@ const LIVE2D_TEX_LRU_MAX_MB_DEFAULT = 512;
 const LIVE2D_TEX_LRU_MIN_ITEMS = 32;
 const LIVE2D_TEX_LRU_MIN_MB = 16;
 
-type Live2DTextureDecodePolicy = {
-  enabled: boolean;
-  maxDim: number;
-  scale: number;
-  /** 触发降采样的起始贴图尺寸阈值（像素；最长边）；<=0 表示不限制 */
-  startDim: number;
-};
+// Live2DTextureDecodePolicy, computeDecodeTarget 已提取到 animation_utils.ts
 
 function readLocalStorageNumber(key: string, defaultValue: number): number {
   try {
@@ -384,30 +358,7 @@ function applyLive2DBaseTextureScaleMode(bt: any): void {
 }
 
 
-function computeDecodeTarget(w: number, h: number, policy: Live2DTextureDecodePolicy): { w: number; h: number; scale: number } {
-  const w0 = Math.max(1, Math.floor(Number(w) || 1));
-  const h0 = Math.max(1, Math.floor(Number(h) || 1));
-  if (!policy.enabled) return { w: w0, h: h0, scale: 1 };
-
-  const denom0 = Math.max(w0, h0);
-  const startDim = Number(policy.startDim);
-  if (Number.isFinite(startDim) && startDim > 0 && denom0 > 0 && denom0 < startDim) {
-    // 未达到阈值：不触发降采样
-    return { w: w0, h: h0, scale: 1 };
-  }
-
-  let s = Math.max(LIVE2D_TEX_OPT_MIN_SCALE, Math.min(1, Number(policy.scale) || 1));
-  const maxDim = Number(policy.maxDim);
-  if (Number.isFinite(maxDim) && maxDim > 0) {
-    const denom = Math.max(w0, h0);
-    if (denom > 0) s = Math.min(s, maxDim / denom);
-  }
-  s = Math.max(LIVE2D_TEX_OPT_MIN_SCALE, Math.min(1, s));
-
-  const tw = Math.max(1, Math.round(w0 * s));
-  const th = Math.max(1, Math.round(h0 * s));
-  return { w: tw, h: th, scale: s };
-}
+// computeDecodeTarget 已提取到 animation_utils.ts
 
 function getDrawableSize(src: any): { w: number; h: number } {
   if (!src) return { w: 0, h: 0 };

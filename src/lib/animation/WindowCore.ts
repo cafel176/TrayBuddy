@@ -24,6 +24,10 @@ import {
   CURSOR_POLL_INTERVAL_MS,
   TRAY_ADAPTIVE_OFFSET_Y,
 } from "$lib/constants";
+import {
+  formatDurationHms as _formatDurationHms,
+  calcDaysUsed,
+} from "./animation_utils";
 
 /** ModData 变化提示（用于 +1/-1 浮层）。 */
 export type ModDataToast = { id: number; delta: number };
@@ -245,36 +249,10 @@ export function createWindowCore(options: {
     return Math.max(0, Math.floor(sessionUptimeBaseSeconds + delta));
   }
 
-  function formatDurationHms(totalSeconds: number): string {
-    const s = Math.max(0, Math.floor(totalSeconds));
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    const pad2 = (n: number) => String(n).padStart(2, "0");
-    return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
-  }
+  const formatDurationHms = _formatDurationHms;
 
   function getDaysUsedNow(): number {
-    if (!firstLoginTs) return 0;
-
-    const first = new Date(firstLoginTs * 1000);
-    const today = new Date();
-
-    const firstMidnight = new Date(
-      first.getFullYear(),
-      first.getMonth(),
-      first.getDate(),
-    );
-    const todayMidnight = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-    );
-
-    const diffDays = Math.floor(
-      (todayMidnight.getTime() - firstMidnight.getTime()) / 86400000,
-    );
-    return Math.max(1, diffDays + 1);
+    return calcDaysUsed(firstLoginTs);
   }
 
   function getTotalUsageHoursNow(): number {

@@ -43,7 +43,7 @@ export default defineConfig({
       provider: "v8",
       reportsDirectory: "src/test/coverage",
 
-      reporter: ["text-summary", "json-summary", "html"],
+      reporter: ["text", "text-summary", "json-summary", "html"],
 
       include: [
         "src/routes/**",
@@ -51,6 +51,10 @@ export default defineConfig({
         "src/lib/bubble/**",
         "src/lib/i18n/**",
         "src/lib/trigger/**",
+        "src/lib/components/**",
+        "src/lib/animation/**",
+        "src/lib/audio/**",
+        "src/lib/constants.ts",
       ],
       exclude: [
         "**/node_modules/**",
@@ -68,10 +72,12 @@ export default defineConfig({
         "**/提示词/**",
         "**/test_logs/**",
         "**/*.d.ts",
-        "src/routes/animation/**",
-        "src/routes/live2d/**",
-        "src/routes/threed/**",
-        "src/routes/pngremix/**",
+        "src/lib/animation/mmd/**",
+        "src/lib/animation/Live2DPlayer.ts",
+        "src/lib/animation/PngRemixPlayer.ts",
+        "src/lib/animation/SpriteAnimator.ts",
+        "src/lib/animation/ThreeDPlayer.ts",
+        "src/lib/animation/WindowCore.ts",
       ],
     },
     server: {
