@@ -22,6 +22,9 @@ use tokio::sync::mpsc;
 
 const PROCESS_OBSERVER_KEYWORDS_CONFIG_FILENAME: &str = "process_observer_keywords.json";
 
+/// 进程监测关键字配置文件的反序列化结构
+///
+/// 对应 JSON 格式: `{ "process_keywords": ["chrome", "code", ...] }`
 #[derive(Debug, Deserialize)]
 struct ProcessObserverKeywordsConfig {
     #[serde(default)]
@@ -33,6 +36,9 @@ lazy_static::lazy_static! {
     static ref PROCESS_KEYWORDS: RwLock<Vec<Box<str>>> = RwLock::new(Vec::new());
 }
 
+/// 从指定文件路径加载进程监测关键字列表
+///
+/// 将每个关键字 trim + 转小写后收集；文件不存在或解析失败时返回 `None`。
 fn load_process_keywords_from_file(path: &Path) -> Option<Vec<Box<str>>> {
     if !path.exists() {
         return None;
@@ -52,6 +58,11 @@ fn load_process_keywords_from_file(path: &Path) -> Option<Vec<Box<str>>> {
     Some(keywords)
 }
 
+/// 获取关键字配置文件的候选路径列表（按优先级排列）
+///
+/// 搜索策略：从 exe 所在目录开始，向上回退最多 6 层（兼容开发模式的
+/// `target/debug/` 嵌套），每层检查 `config/process_observer_keywords.json`。
+/// 最后追加工作目录下的 `config/` 路径作为兜底。
 fn get_keywords_config_candidates() -> Vec<PathBuf> {
     // 优先：exe 同目录 / config
     let mut candidates = Vec::new();

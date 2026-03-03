@@ -11,6 +11,10 @@ use std::process::Command;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
+/// 判断当前 Windows 版本是否应优先使用 curl 发起 HTTP 请求
+///
+/// Windows 10 1803 (Build 17134) 起系统自带 curl.exe，
+/// 比 PowerShell 的 `Invoke-WebRequest` 更快且更可靠。
 #[cfg(windows)]
 fn should_try_curl(win_ver: &super::os_version::WindowsVersion) -> bool {
     win_ver.is_at_least(&super::os_version::WindowsVersion {
@@ -20,6 +24,12 @@ fn should_try_curl(win_ver: &super::os_version::WindowsVersion) -> bool {
     })
 }
 
+/// 构建 PowerShell 版 HTTP GET 命令字符串
+///
+/// 当 `use_tls` 为 `true` 时，在命令开头启用 TLS 1.2/1.1/1.0
+/// （兼容 Windows 7 默认未启用 TLS 1.2 的情况）。
+/// URL 和超时通过环境变量 `TRAYBUDDY_URL` / `TRAYBUDDY_TIMEOUT` 传入，
+/// 避免参数注入风险。
 #[cfg(windows)]
 fn build_powershell_command(use_tls: bool) -> String {
     if use_tls {
@@ -44,7 +54,6 @@ fn build_powershell_command(use_tls: bool) -> String {
 }
 
 /// 执行 HTTP GET 请求并返回响应体
-
 ///
 /// 优先使用 curl（Windows 10+ 自带，更可靠），失败时回退到 PowerShell
 ///

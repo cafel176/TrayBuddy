@@ -1,4 +1,11 @@
 //! lib.rs 中拆出的非命令辅助函数
+//!
+//! 包含不属于 IPC 命令（`commands/`）但与应用核心流程紧密相关的辅助逻辑：
+//! - 渲染窗口（animation / live2d / pngremix / threed）的创建与重建
+//! - 托盘菜单构建与交互处理
+//! - 全局键盘/鼠标输入钩子（Windows）
+//! - 窗口图标管理
+//! - 应用初始化流程
 
 #![allow(unused)]
 
@@ -62,17 +69,23 @@ use tauri_plugin_autostart::ManagerExt;
 // 全局输入状态（Windows）
 // ========================================================================= //
 
+/// 全局输入钩子是否已启动（防止重复安装）
 #[cfg(target_os = "windows")]
 static GLOBAL_INPUT_HOOK_STARTED: AtomicBool = AtomicBool::new(false);
 
+/// 全局输入上下文（包含 AppHandle 和回调通道），用于钩子回调访问应用状态
 #[cfg(target_os = "windows")]
 static GLOBAL_INPUT_CONTEXT: OnceLock<GlobalInputContext> = OnceLock::new();
+/// 全局键盘按键状态表，索引为虚拟键码 (0–255)，`true` 表示当前按下
 #[cfg(target_os = "windows")]
 static GLOBAL_KEY_STATES: OnceLock<Mutex<[bool; 256]>> = OnceLock::new();
+/// 全局鼠标按键状态，`[0]` = 左键，`[1]` = 右键
 #[cfg(target_os = "windows")]
 static GLOBAL_MOUSE_STATES: OnceLock<Mutex<[bool; 2]>> = OnceLock::new();
+/// 上一次轮询周期键盘监听是否启用（用于检测启用/禁用切换）
 #[cfg(target_os = "windows")]
 static GLOBAL_KEYBOARD_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
+/// 上一次轮询周期鼠标监听是否启用（用于检测启用/禁用切换）
 #[cfg(target_os = "windows")]
 static GLOBAL_MOUSE_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
 

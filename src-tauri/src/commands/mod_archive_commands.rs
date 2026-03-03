@@ -1,4 +1,11 @@
-//! Mod 导入导出
+//! Mod 包导入/导出命令
+//!
+//! 提供 `.tbuddy` / `.sbuddy` 格式 Mod 包的生命周期管理：
+//! - 预检（读取 manifest 信息）
+//! - 导入（复制到 mods 目录 + 通知前端刷新）
+//! - 导出（暂未实现）
+//!
+//! 安全说明：`.sbuddy` 包为加密格式，导入后不解压，保留原始 archive。
 
 use crate::app_state::AppState;
 use crate::modules::event_manager::{emit, events};
@@ -23,6 +30,7 @@ pub struct ModTbuddyPreflight {
     pub version: String,
 }
 
+/// Mod 导入操作的返回结果
 struct ImportedModResult {
     pub id: String,
     /// 复制到 mods 目录后的包文件路径（.tbuddy 或 .sbuddy）

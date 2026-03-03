@@ -1,4 +1,13 @@
-//! IPC 命令（集中在单一文件）
+//! Tauri IPC 命令入口模块
+//!
+//! 集中注册所有前端可调用的 `#[tauri::command]` 命令。
+//! 按功能拆分到子模块：
+//! - [`mod_archive_commands`] — Mod 包导入/导出/预检
+//! - [`mod_resource_commands`] — Mod 资源加载/切换/卸载
+//! - [`open_with_commands`] — 系统文件关联（双击 `.tbuddy` 打开）
+//! - [`window_system_commands`] — 窗口控制、拖拽、锁定与系统交互
+//!
+//! 本文件自身包含：环境查询、存储读写、触发器、提醒等通用命令。
 
 use crate::app_state::{
     get_reminder_scheduler_notify, is_release_build, AppState, PENDING_REMINDER_ALERTS,

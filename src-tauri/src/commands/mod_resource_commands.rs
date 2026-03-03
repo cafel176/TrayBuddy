@@ -1,4 +1,9 @@
 //! Mod 资源管理命令
+//!
+//! 提供前端调用的 Mod 资源加载、切换、卸载等 IPC 命令：
+//! - 加载/切换当前 Mod（读取资源清单、初始化状态机、重建渲染窗口）
+//! - 卸载 Mod（清理资源、关闭渲染窗口）
+//! - 查询 Mod 列表与资源详情
 
 use crate::app_state::AppState;
 use crate::get_i18n_text;

@@ -1,4 +1,8 @@
-//! Open-with / file association integration
+//! 系统文件关联集成
+//!
+//! 处理用户通过系统"打开方式"（双击 `.tbuddy` / `.sbuddy` 文件）
+//! 启动应用时的待导入 Mod 包队列。前端 Mods 页面 mount 后调用
+//! [`take_pending_open_mod_archives`] 取出队列并执行自动导入。
 
 use crate::app_state::AppState;
 use tauri::State;
