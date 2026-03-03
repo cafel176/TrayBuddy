@@ -89,30 +89,33 @@ describe("render_tuning", () => {
 
   describe("capFps", () => {
     it("returns the player fps when less than global cap", () => {
-      expect(capFps(30)).toBe(30);
+      // 20 < 30(global cap) → 20
+      expect(capFps(20)).toBe(20);
     });
 
     it("caps to global fps limit when player fps exceeds it", () => {
-      // global is 60
-      expect(capFps(120)).toBe(60);
+      // global cap is 30, min(120, 30) = 30
+      expect(capFps(120)).toBe(30);
     });
 
-    it("falls back to 60 for zero input (0 || 60 = 60), then caps to global 60", () => {
-      expect(capFps(0)).toBe(60);
+    it("falls back to 60 for zero input, then caps to global 30", () => {
+      // 0 || 60 = 60, min(60, 30) = 30
+      expect(capFps(0)).toBe(30);
     });
 
     it("falls back to 60 for negative input (-10 is clamped to 1, but -10||60 = 60 first)", () => {
-      // Number(-10) || 60 → -10 (truthy), then clampNumber(-10, 1, 240) = 1, min(1, 60) = 1
+      // Number(-10) || 60 → -10 (truthy), then clampNumber(-10, 1, 240) = 1, min(1, 30) = 1
       expect(capFps(-10)).toBe(1);
     });
 
-    it("clamps NaN to 60 then caps to global", () => {
-      // NaN → fallback 60, global is 60 → 60
-      expect(capFps(NaN)).toBe(60);
+    it("clamps NaN to 60 then caps to global 30", () => {
+      // NaN → fallback 60, min(60, 30) = 30
+      expect(capFps(NaN)).toBe(30);
     });
 
-    it("clamps to 240 for very large input then caps to global 60", () => {
-      expect(capFps(999)).toBe(60);
+    it("clamps to 240 for very large input then caps to global 30", () => {
+      // clamp(999, 1, 240) = 240, min(240, 30) = 30
+      expect(capFps(999)).toBe(30);
     });
   });
 });

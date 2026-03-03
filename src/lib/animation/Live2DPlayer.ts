@@ -478,6 +478,18 @@ class Live2DTextureLRU {
     }
   }
 
+  /**
+   * 清空所有 LRU 条目并销毁对应的 PIXI 缓存。
+   * 在 mod 切换 / WebView 销毁时调用，确保无内存残留。
+   */
+  static clearAll(): void {
+    for (const key of this.lru.keys()) {
+      this.evictFromPixiCaches(key);
+    }
+    this.lru.clear();
+    this.totalBytes = 0;
+  }
+
   private static evictFromPixiCaches(key: string): void {
     const PIXI = (window as any).PIXI;
     if (!PIXI) return;
@@ -661,6 +673,11 @@ export class Live2DPlayer {
     // 清理 PIXI 全局 TextureCache / BaseTextureCache 中当前模型的贴图资源，
     // 避免切换 Mod 后旧模型的 GPU 纹理残留。
     this.cleanupPixiGlobalCaches();
+
+    // 当前已无活跃 Live2DPlayer 时，清空全局 LRU 缓存
+    if (Live2DPlayer.texOptPlayers.size === 0) {
+      Live2DTextureLRU.clearAll();
+    }
 
     // 在 PIXI.Application.destroy() 之前，先获取底层 WebGL context 的引用
     // （destroy 之后 renderer 就不可访问了）。

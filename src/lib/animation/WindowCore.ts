@@ -2,9 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow, cursorPosition, LogicalPosition } from "@tauri-apps/api/window";
 import { initI18n, destroyI18n, onLangChange } from "$lib/i18n";
-import { getAudioManager, type AudioManager } from "$lib/audio/AudioManager";
+import { getAudioManager, clearAudioCache, resetAudioManagerInstance, type AudioManager } from "$lib/audio/AudioManager";
 import {
   getTriggerManager,
+  resetTriggerManagerInstance,
   type TriggerManager,
 } from "$lib/trigger/TriggerManager";
 import type {
@@ -1286,6 +1287,11 @@ export function createWindowCore(options: {
 
     audioManager?.destroy();
     triggerManager?.destroy();
+    // 重置单例，确保下次 getXxxManager() 不会返回已销毁的实例
+    resetAudioManagerInstance();
+    resetTriggerManagerInstance();
+    // 清除音频 URL 缓存和 mod 路径缓存
+    clearAudioCache();
     unlistenState?.();
     unlistenSettings?.();
     unlistenPlaybackReq?.();

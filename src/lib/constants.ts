@@ -194,7 +194,7 @@ export const RENDER_TUNING = {
   FPS_LIMIT_MAX: 30,
 
   /** 是否启用 idle 降频（无交互/无状态切换时自动降低渲染帧率）。 */
-  IDLE_THROTTLE_ENABLED: true,
+  IDLE_THROTTLE_ENABLED: false,
   /** idle 降频后的帧率（FPS）。值越低 GPU 越省电，但画面更新越慢。 */
   IDLE_THROTTLE_FPS: 20,
   /** 最后一次交互/状态变化后，等待多少毫秒进入 idle 降频。 */

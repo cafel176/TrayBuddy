@@ -470,3 +470,13 @@ export async function getAudioManager(): Promise<AudioManager> {
   }
   return audioManagerInstance;
 }
+
+/**
+ * 重置音频管理器单例
+ *
+ * 在 mod 切换时调用，配合 destroy() 使用。
+ * 确保旧实例不会被 getAudioManager() 再次返回。
+ */
+export function resetAudioManagerInstance(): void {
+  audioManagerInstance = null;
+}

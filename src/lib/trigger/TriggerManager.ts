@@ -154,3 +154,12 @@ export function getTriggerManager(): TriggerManager {
   }
   return triggerManagerInstance;
 }
+
+/**
+ * 重置触发器管理器单例
+ *
+ * 在 mod 切换时调用，配合 destroy() 使用。
+ */
+export function resetTriggerManagerInstance(): void {
+  triggerManagerInstance = null;
+}
