@@ -4428,6 +4428,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
+ "tempfile",
  "tokio",
  "windows 0.58.0",
  "zip",

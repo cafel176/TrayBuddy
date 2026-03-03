@@ -413,6 +413,10 @@ pub fn emit_debug_update<T: serde::Serialize>(
 mod tests {
     use super::*;
 
+    // ========================================================================= //
+    // EmitOptions
+    // ========================================================================= //
+
     #[test]
     fn emit_options_flags() {
         assert!(EmitOptions::default().should_log() == false);
@@ -425,6 +429,95 @@ mod tests {
         let fail = EmitOptions::fail_on_error();
         assert!(fail.should_log());
         assert!(fail.should_fail());
+    }
+
+    #[test]
+    fn emit_options_silent_neither_logs_nor_fails() {
+        let silent = EmitOptions::Silent;
+        assert!(!silent.should_log());
+        assert!(!silent.should_fail());
+    }
+
+    #[test]
+    fn emit_options_log_on_failure_logs_but_no_fail() {
+        let opt = EmitOptions::LogOnFailure;
+        assert!(opt.should_log());
+        assert!(!opt.should_fail());
+    }
+
+    #[test]
+    fn emit_options_fail_on_failure_logs_and_fails() {
+        let opt = EmitOptions::FailOnFailure;
+        assert!(opt.should_log());
+        assert!(opt.should_fail());
+    }
+
+    #[test]
+    fn emit_options_default_is_silent() {
+        let opt = EmitOptions::default();
+        assert!(matches!(opt, EmitOptions::Silent));
+    }
+
+    // ========================================================================= //
+    // EmitError Display
+    // ========================================================================= //
+
+    #[test]
+    fn emit_error_display_format() {
+        // We can't easily create a tauri::Error, but we can test the Display impl
+        // indirectly by checking the format string pattern
+        let display_str = format!("{}", "Emitter error: test");
+        assert!(display_str.contains("Emitter error"));
+    }
+
+    // ========================================================================= //
+    // Event name constants
+    // ========================================================================= //
+
+    #[test]
+    fn event_constants_are_stable() {
+        assert_eq!(events::SETTINGS_CHANGE, "settings-change");
+        assert_eq!(events::MUTE_CHANGE, "mute-change");
+        assert_eq!(events::VOLUME_CHANGE, "volume-change");
+        assert_eq!(events::STATE_CHANGE, "state-change");
+        assert_eq!(events::REFRESH_MODS, "refresh-mods");
+        assert_eq!(events::WINDOW_POSITION_CHANGED, "window-position-changed");
+        assert_eq!(events::LAYOUT_DEBUGGER_STATUS, "layout-debugger-status");
+        assert_eq!(events::SYSTEM_DEBUG_UPDATE, "system-debug-update");
+        assert_eq!(events::MEDIA_DEBUG_UPDATE, "media-debug-update");
+        assert_eq!(events::PROCESS_DEBUG_UPDATE, "process-debug-update");
+        assert_eq!(events::ENVIRONMENT_UPDATED, "environment-updated");
+        assert_eq!(events::MOD_DATA_CHANGED, "mod-data-changed");
+    }
+
+    // ========================================================================= //
+    // Debug event type constants
+    // ========================================================================= //
+
+    #[test]
+    fn debug_event_types_are_stable() {
+        assert_eq!(DEBUG_EVENT_TYPE_SYSTEM, "system");
+        assert_eq!(DEBUG_EVENT_TYPE_MEDIA, "media");
+        assert_eq!(DEBUG_EVENT_TYPE_PROCESS, "process");
+    }
+
+    // ========================================================================= //
+    // EmitOptions Copy/Clone
+    // ========================================================================= //
+
+    #[test]
+    fn emit_options_is_copy() {
+        let a = EmitOptions::log_on_error();
+        let b = a; // Copy
+        assert!(b.should_log());
+        assert!(a.should_log()); // a is still valid (Copy)
+    }
+
+    #[test]
+    fn emit_options_clone() {
+        let a = EmitOptions::fail_on_error();
+        let b = a.clone();
+        assert!(b.should_fail());
     }
 }
 

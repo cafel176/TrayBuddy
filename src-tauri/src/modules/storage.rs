@@ -303,16 +303,6 @@ impl Storage {
     }
 
 
-    /// 初始化存储管理器
-    /// 会自动定位到应用配置目录，如果 storage.json 存在则加载，
-    /// 否则创建一个包含默认值的初始环境。
-    pub fn new(app_handle: &tauri::AppHandle) -> Self {
-
-        let storage_dir = Self::get_storage_dir(app_handle);
-        let storage_path = storage_dir.join("storage.json");
-        Self::new_with_path(storage_path)
-    }
-
     /// 使用指定路径初始化存储管理器（用于测试或工具场景）
     pub fn new_with_path(storage_path: PathBuf) -> Self {
         let data = Self::load(&storage_path);
@@ -330,26 +320,6 @@ impl Storage {
         }
     }
 
-
-    // ========================================================================= //
-
-    /// 获取应用配置存储目录路径
-    fn get_storage_dir(app_handle: &tauri::AppHandle) -> PathBuf {
-        let storage_dir = app_handle
-            .path()
-            .app_config_dir()
-            .unwrap_or_else(|_| PathBuf::from("."));
-
-        // 确保目录存在
-        if !storage_dir.exists() {
-            let _ = fs::create_dir_all(&storage_dir);
-        }
-
-        #[cfg(debug_assertions)]
-        println!("storage path: {:?}", storage_dir);
-
-        storage_dir
-    }
 
     // ========================================================================= //
 
@@ -392,6 +362,9 @@ impl Storage {
     }
 }
 
+// 运行时函数（依赖 AppHandle），拆分到独立文件以便排除覆盖率统计
+include!("storage_runtime.rs");
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -417,7 +390,7 @@ mod tests {
 
         let data = Storage::load(&path);
         assert_eq!(data.settings.lang.as_ref(), "zh");
-        assert_eq!(data.info.current_mod.as_ref(), "ema");
+        assert_eq!(data.info.current_mod.as_ref(), "tutorial");
     }
 
     #[test]
@@ -427,7 +400,7 @@ mod tests {
 
         let data = Storage::load(&path);
         assert_eq!(data.settings.lang.as_ref(), "zh");
-        assert_eq!(data.info.current_mod.as_ref(), "ema");
+        assert_eq!(data.info.current_mod.as_ref(), "tutorial");
 
         let _ = fs::remove_file(&path);
     }
@@ -455,7 +428,7 @@ mod tests {
 
         let loaded = Storage::load(&path);
         assert_eq!(loaded.settings.lang.as_ref(), "zh");
-        assert_eq!(loaded.info.current_mod.as_ref(), "ema");
+        assert_eq!(loaded.info.current_mod.as_ref(), "tutorial");
 
         let _ = fs::remove_dir_all(&path);
     }
@@ -556,7 +529,7 @@ mod tests {
         assert_eq!(mod_data.value, 0);
 
         let info = UserInfo::default();
-        assert_eq!(info.current_mod.as_ref(), "ema");
+        assert_eq!(info.current_mod.as_ref(), "tutorial");
     }
 
     #[test]
@@ -572,9 +545,226 @@ mod tests {
         };
 
         let err = storage.save().unwrap_err();
-        assert!(err.contains("写入存储文件失败"));
+        assert!(err.contains("Failed to write storage file"));
 
         let _ = fs::remove_dir_all(&path);
+    }
+
+    // ========================================================================= //
+    // ReminderSchedule serde edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn reminder_schedule_absolute_serde_roundtrip() {
+        let schedule = ReminderSchedule::Absolute { timestamp: 1700000000 };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"kind\":\"absolute\""));
+        let parsed: ReminderSchedule = serde_json::from_str(&json).unwrap();
+        match parsed {
+            ReminderSchedule::Absolute { timestamp } => assert_eq!(timestamp, 1700000000),
+            _ => panic!("expected Absolute"),
+        }
+    }
+
+    #[test]
+    fn reminder_schedule_after_serde_roundtrip() {
+        let schedule = ReminderSchedule::After { seconds: 300, created_at: Some(1000) };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"kind\":\"after\""));
+        let parsed: ReminderSchedule = serde_json::from_str(&json).unwrap();
+        match parsed {
+            ReminderSchedule::After { seconds, created_at } => {
+                assert_eq!(seconds, 300);
+                assert_eq!(created_at, Some(1000));
+            }
+            _ => panic!("expected After"),
+        }
+    }
+
+    #[test]
+    fn reminder_schedule_weekly_serde_roundtrip() {
+        let schedule = ReminderSchedule::Weekly { days: vec![1, 3, 5], hour: 9, minute: 30 };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"kind\":\"weekly\""));
+        let parsed: ReminderSchedule = serde_json::from_str(&json).unwrap();
+        match parsed {
+            ReminderSchedule::Weekly { days, hour, minute } => {
+                assert_eq!(days, vec![1, 3, 5]);
+                assert_eq!(hour, 9);
+                assert_eq!(minute, 30);
+            }
+            _ => panic!("expected Weekly"),
+        }
+    }
+
+    // ========================================================================= //
+    // ModData serde
+    // ========================================================================= //
+
+    #[test]
+    fn mod_data_serde_roundtrip() {
+        let md = ModData { mod_id: "test_mod".into(), value: 42 };
+        let json = serde_json::to_string(&md).unwrap();
+        let parsed: ModData = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.mod_id, "test_mod");
+        assert_eq!(parsed.value, 42);
+    }
+
+    #[test]
+    fn mod_data_from_empty_json() {
+        let parsed: ModData = serde_json::from_str("{}").unwrap();
+        assert_eq!(parsed.mod_id, "");
+        assert_eq!(parsed.value, 0);
+    }
+
+    // ========================================================================= //
+    // MemoItem serde
+    // ========================================================================= //
+
+    #[test]
+    fn memo_item_serde_roundtrip() {
+        let memo = MemoItem {
+            id: "uuid1".into(),
+            category: "工作".into(),
+            content: "完成任务".into(),
+            pinned: true,
+            order: 1,
+        };
+        let json = serde_json::to_string(&memo).unwrap();
+        let parsed: MemoItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.id, "uuid1");
+        assert!(parsed.pinned);
+    }
+
+    #[test]
+    fn memo_item_from_empty_json() {
+        let parsed: MemoItem = serde_json::from_str("{}").unwrap();
+        assert_eq!(parsed.category.as_ref(), "默认");
+        assert!(!parsed.pinned);
+    }
+
+    // ========================================================================= //
+    // ReminderItem serde
+    // ========================================================================= //
+
+    #[test]
+    fn reminder_item_serde_roundtrip() {
+        let item = ReminderItem {
+            id: "r1".into(),
+            text: "提醒".into(),
+            enabled: false,
+            schedule: ReminderSchedule::Absolute { timestamp: 9999 },
+            next_trigger_at: 9999,
+            last_trigger_at: Some(5000),
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        let parsed: ReminderItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.id, "r1");
+        assert!(!parsed.enabled);
+        assert_eq!(parsed.last_trigger_at, Some(5000));
+    }
+
+    // ========================================================================= //
+    // AppStorageData serde
+    // ========================================================================= //
+
+    #[test]
+    fn app_storage_data_from_empty_json() {
+        let parsed: AppStorageData = serde_json::from_str("{}").unwrap();
+        assert_eq!(parsed.settings.lang.as_ref(), "zh");
+        assert_eq!(parsed.info.current_mod.as_ref(), "tutorial");
+    }
+
+    #[test]
+    fn app_storage_data_roundtrip() {
+        let mut data = AppStorageData::default();
+        data.settings.lang = "en".into();
+        data.info.launch_count = 5;
+        data.info.mod_data.insert("mod1".into(), ModData { mod_id: "mod1".into(), value: 10 });
+
+        let json = serde_json::to_string(&data).unwrap();
+        let parsed: AppStorageData = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.settings.lang.as_ref(), "en");
+        assert_eq!(parsed.info.launch_count, 5);
+        assert_eq!(parsed.info.mod_data.get("mod1").unwrap().value, 10);
+    }
+
+    // ========================================================================= //
+    // UserSettings defaults
+    // ========================================================================= //
+
+    #[test]
+    fn user_settings_all_defaults() {
+        let s = UserSettings::default();
+        assert_eq!(s.nickname.as_ref(), "User");
+        assert!(s.birthday.is_none());
+        assert_eq!(s.lang.as_ref(), "zh");
+        assert!(s.auto_start);
+        assert!(!s.no_audio_mode);
+        assert_eq!(s.volume, 1.0);
+        assert!(!s.silence_mode);
+        assert!(s.auto_silence_when_fullscreen);
+        assert!(!s.streamer_mode);
+        assert!(s.show_character);
+        assert!(s.show_border);
+        assert_eq!(s.animation_scale, 0.4);
+        assert!(s.live2d_mouse_follow);
+        assert!(s.live2d_auto_interact);
+        assert_eq!(s.threed_cross_fade_duration, 0.3);
+    }
+
+    // ========================================================================= //
+    // UserInfo defaults
+    // ========================================================================= //
+
+    #[test]
+    fn user_info_all_defaults() {
+        let info = UserInfo::default();
+        assert!(info.first_login.is_none());
+        assert!(info.last_login.is_none());
+        assert_eq!(info.current_mod.as_ref(), "tutorial");
+        assert!(info.animation_window_x.is_none());
+        assert!(info.animation_window_y.is_none());
+        assert_eq!(info.launch_count, 0);
+        assert_eq!(info.total_usage_seconds, 0);
+        assert_eq!(info.total_click_count, 0);
+        assert!(info.mod_data.is_empty());
+        assert!(info.memos.is_empty());
+        assert!(info.reminders.is_empty());
+    }
+
+    // ========================================================================= //
+    // new_with_path creates file on first save
+    // ========================================================================= //
+
+    #[test]
+    fn new_with_path_nonexistent_creates_default() {
+        let path = temp_path("new_with_path");
+        let storage = Storage::new_with_path(path.clone());
+        assert_eq!(storage.data.settings.lang.as_ref(), "zh");
+        assert!(!path.exists()); // not saved yet
+    }
+
+    // ========================================================================= //
+    // save accumulates usage time
+    // ========================================================================= //
+
+    #[test]
+    fn save_accumulates_usage_and_resets_checkpoint() {
+        let path = temp_path("usage_accum");
+        let mut storage = Storage {
+            data: AppStorageData::default(),
+            storage_path: path.clone(),
+            app_start_time: Instant::now() - Duration::from_secs(10),
+            usage_checkpoint_time: Instant::now() - Duration::from_secs(5),
+        };
+        storage.data.info.total_usage_seconds = 100;
+
+        storage.save().unwrap();
+        // After save, usage should have been accumulated
+        assert!(storage.data.info.total_usage_seconds >= 105);
+
+        let _ = fs::remove_file(&path);
     }
 }
 

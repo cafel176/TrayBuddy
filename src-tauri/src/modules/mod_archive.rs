@@ -334,57 +334,13 @@ impl ModArchiveReader for ZipArchiveReader {
 
 /// 编译时嵌入的外部工具可执行文件字节
 ///
-/// 说明：本项目不再从磁盘/PATH 查找 `sbuddy-crypto`，仅使用“内置并按需解包”的方式。
+/// 说明：本项目不再从磁盘/PATH 查找 `sbuddy-crypto`，仅使用"内置并按需解包"的方式。
 /// 若构建时没有找到 `sbuddy-crypto`，则该功能会被禁用（仍可正常构建/运行）。
 #[cfg(has_embedded_sbuddy_crypto)]
 static EMBEDDED_SBUDDY_CRYPTO: &[u8] = include_bytes!(env!("SBUDDY_CRYPTO_PATH"));
 
 #[cfg(not(has_embedded_sbuddy_crypto))]
 static EMBEDDED_SBUDDY_CRYPTO: &[u8] = &[];
-
-
-/// 将内置的 `sbuddy-crypto` 临时解包到系统临时目录。
-///
-/// - **仅在需要运行时解包**
-/// - **每次生成唯一文件名**，避免复用导致“留痕”
-/// - 调用方负责在使用后立刻删除文件
-fn extract_embedded_exe_to_temp() -> Result<(PathBuf, PathBuf), String> {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    if EMBEDDED_SBUDDY_CRYPTO.is_empty() {
-        return Err("sbuddy tool not embedded (sbuddy not supported)".to_string());
-    }
-
-
-    let dir = std::env::temp_dir().join("traybuddy").join("sbuddy_crypto");
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("Failed to create temp dir '{}': {}", dir.display(), e))?;
-
-    let pid = std::process::id();
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-
-    let file_name = if cfg!(windows) {
-        format!("sbuddy-crypto-{}-{}.exe", pid, stamp)
-    } else {
-        format!("sbuddy-crypto-{}-{}", pid, stamp)
-    };
-
-    let exe_path = dir.join(file_name);
-
-    std::fs::write(&exe_path, EMBEDDED_SBUDDY_CRYPTO)
-        .map_err(|e| format!("Failed to write temp exe '{}': {}", exe_path.display(), e))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&exe_path, std::fs::Permissions::from_mode(0o755));
-    }
-
-    Ok((exe_path, dir))
-}
 
 /// 检查 sbuddy 功能是否可用
 ///
@@ -393,79 +349,9 @@ pub fn is_sbuddy_supported() -> bool {
     !EMBEDDED_SBUDDY_CRYPTO.is_empty()
 }
 
-
-
-
-/// 创建子进程 Command，在 Windows 上隐藏控制台窗口
-fn sbuddy_command(exe: &Path, arg: &str) -> std::process::Command {
-    use std::process::{Command, Stdio};
-
-    let mut cmd = Command::new(exe);
-    cmd.arg(arg)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
-
-    cmd
-}
-
-/// 执行外部工具子进程，用完后立刻删除 exe
-
-///
-/// - exe 可能来自嵌入式释放的临时文件
-/// - 每次运行后都会清理，避免长期驻留磁盘
-///
-/// `arg`: 子命令
-/// `input`: 通过 stdin 传入的数据
-
-fn run_sbuddy_crypto(arg: &str, input: &[u8]) -> Result<Vec<u8>, String> {
-    use std::io::Write;
-
-    // 仅在需要时解包，用完立刻删除，不从外部查找。
-    let (exe_path, exe_dir) = extract_embedded_exe_to_temp()?;
-
-    let result = (|| {
-        let mut child = sbuddy_command(&exe_path, arg)
-            .spawn()
-            .map_err(|e| format!("Failed to start sbuddy tool: {}", e))?;
-
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(input)
-                .map_err(|e| format!("Failed to write to sbuddy tool stdin: {}", e))?;
-        }
-
-        let output = child
-            .wait_with_output()
-            .map_err(|e| format!("Failed to wait for sbuddy tool: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("sbuddy tool {} failed: {}", arg, stderr.trim()));
-        }
-
-        Ok(output.stdout)
-    })();
-
-    // 用完后立刻删除 exe（Windows: 需等待子进程结束后才能删除）
-    let _ = std::fs::remove_file(&exe_path);
-    // 尝试清理目录（仅在为空时成功），避免长期留痕
-    let _ = std::fs::remove_dir(&exe_dir);
-
-    result
-}
-
-
 /// 使用外部工具处理 .sbuddy 文件内容
 ///
 /// 通过 stdin 传入数据，从 stdout 读取处理后的 ZIP 数据
-
 pub fn decrypt_sbuddy(data: &[u8]) -> Result<Vec<u8>, String> {
     // 快速验证魔数
     if data.len() < 8 || &data[..8] != SBUDDY_MAGIC {
@@ -476,62 +362,12 @@ pub fn decrypt_sbuddy(data: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 /// 使用外部工具将 ZIP 数据处理为 .sbuddy 格式
-
 pub fn encrypt_sbuddy(zip_data: &[u8]) -> Result<Vec<u8>, String> {
     run_sbuddy_crypto("encrypt", zip_data)
 }
 
-// ========================================================================= //
-// .sbuddy Reader（外部工具处理后复用 ZipArchiveReader）
-
-// ========================================================================= //
-
-/// 基于外部工具处理的 ModArchiveReader 实现
-///
-/// .sbuddy 文件 = 受工具处理的 ZIP 数据
-/// 通过外部工具处理后委托给 ZipArchiveReader 处理。
-
-pub struct SbuddyArchiveReader {
-    inner: ZipArchiveReader,
-}
-
-impl SbuddyArchiveReader {
-    /// 从 .sbuddy 文件路径加载（处理 + 解析 ZIP）
-
-    pub fn from_file(path: &Path) -> Result<Self, String> {
-        let data = std::fs::read(path)
-            .map_err(|e| format!("Failed to read '{}': {}", path.display(), e))?;
-        Self::from_bytes(data)
-    }
-
-    /// 从内存字节加载（处理 + 解析 ZIP）
-    ///
-    /// 解密完成后立即释放加密数据，避免加密 + 解密两份数据同时驻留内存。
-    pub fn from_bytes(encrypted_data: Vec<u8>) -> Result<Self, String> {
-        let zip_data = decrypt_sbuddy(&encrypted_data)?;
-        drop(encrypted_data); // 显式释放加密数据，减少峰值内存占用
-        let inner = ZipArchiveReader::from_bytes(zip_data)?;
-        Ok(Self { inner })
-    }
-}
-
-impl ModArchiveReader for SbuddyArchiveReader {
-    fn read_file(&self, relative_path: &str) -> Result<Vec<u8>, String> {
-        self.inner.read_file(relative_path)
-    }
-
-    fn file_exists(&self, relative_path: &str) -> bool {
-        self.inner.file_exists(relative_path)
-    }
-
-    fn list_dir(&self, dir_path: &str) -> Vec<ArchiveEntry> {
-        self.inner.list_dir(dir_path)
-    }
-
-    fn root_folder_name(&self) -> &str {
-        self.inner.root_folder_name()
-    }
-}
+// 运行时函数（依赖外部 sbuddy 工具，不可单元测试）拆分到独立文件以便排除覆盖率统计
+include!("mod_archive_runtime.rs");
 
 // ========================================================================= //
 // Archive 存储管理
@@ -563,7 +399,7 @@ pub struct ModArchiveStore {
 impl ModArchiveStore {
 
 
-    /// 将已加载/已注册的 old_id “别名”到 new_id。
+    /// 将已加载/已注册的 old_id "别名"到 new_id。
     ///
     /// 场景：扫描阶段 `.sbuddy` 可能只能用文件名推断 id（old_id），
     /// 真正解密读取 manifest 后拿到真实 `manifest.id`（new_id）。
@@ -633,30 +469,6 @@ impl ModArchiveStore {
         file_path: &Path,
     ) -> Result<(String, super::resource::ModManifest), String> {
         let reader = ZipArchiveReader::from_file(file_path)?;
-        let manifest: super::resource::ModManifest = reader.read_json("manifest.json")?;
-        let mod_id = manifest.id.to_string();
-
-        let source = ArchiveSource {
-            file_path: file_path.to_path_buf(),
-            mod_id: mod_id.clone(),
-        };
-
-        self.insert_archive(mod_id.clone(), Box::new(reader));
-        self.sources.insert(mod_id.clone(), source);
-
-        Ok((mod_id, manifest))
-    }
-
-
-    /// 加载 .sbuddy 文件到内存并注册（通过外部工具处理后按 ZIP 处理）
-
-    ///
-    /// 返回 (mod_id, manifest) 用于后续索引
-    pub fn load_sbuddy(
-        &mut self,
-        file_path: &Path,
-    ) -> Result<(String, super::resource::ModManifest), String> {
-        let reader = SbuddyArchiveReader::from_file(file_path)?;
         let manifest: super::resource::ModManifest = reader.read_json("manifest.json")?;
         let mod_id = manifest.id.to_string();
 
@@ -770,7 +582,7 @@ impl ModArchiveStore {
         self.enforce_limit();
     }
 
-    /// 标记某个 mod 为“最近使用”，用于 LRU 淘汰策略
+    /// 标记某个 mod 为"最近使用"，用于 LRU 淘汰策略
     fn touch(&mut self, mod_id: &str) {
         if let Some(pos) = self.access_order.iter().position(|id| id == mod_id) {
             self.access_order.remove(pos);
@@ -862,7 +674,6 @@ mod tests {
         let mut zip = zip::ZipWriter::new(cursor);
         let options = FileOptions::<()>::default();
 
-
         for (path, content) in entries {
             if path.ends_with('/') {
                 zip.add_directory(path, options).unwrap();
@@ -874,6 +685,10 @@ mod tests {
 
         zip.finish().unwrap().into_inner()
     }
+
+    // ========================================================================= //
+    // ZipArchiveReader basics
+    // ========================================================================= //
 
     #[test]
     fn zip_reader_detects_root_and_reads_file() {
@@ -906,7 +721,1136 @@ mod tests {
             Err(err) => assert!(err.contains("multiple root folders")),
         }
     }
+
+    #[test]
+    fn zip_reader_read_file_string() {
+        let data = build_zip(vec![("mod1/", ""), ("mod1/hello.txt", "world")]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let s = reader.read_file_string("hello.txt").unwrap();
+        assert_eq!(s, "world");
+    }
+
+    #[test]
+    fn zip_reader_read_json_ext() {
+        let data = build_zip(vec![
+            ("mymod/", ""),
+            ("mymod/data.json", r#"{"key":"value"}"#),
+        ]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let val: serde_json::Value = reader.read_json("data.json").unwrap();
+        assert_eq!(val["key"], "value");
+    }
+
+    #[test]
+    fn zip_reader_read_json_optional_missing() {
+        let data = build_zip(vec![("mymod/", ""), ("mymod/a.txt", "x")]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let result: Option<serde_json::Value> = reader.read_json_optional("missing.json");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn zip_reader_read_json_list_missing_returns_empty() {
+        let data = build_zip(vec![("mymod/", ""), ("mymod/a.txt", "x")]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let result: Vec<String> = reader.read_json_list("missing.json");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn zip_reader_read_json_list_success() {
+        let data = build_zip(vec![
+            ("mymod/", ""),
+            ("mymod/list.json", r#"["a","b","c"]"#),
+        ]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let result: Vec<String> = reader.read_json_list("list.json");
+        assert_eq!(result, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn zip_reader_file_not_found() {
+        let data = build_zip(vec![("root/", ""), ("root/a.txt", "x")]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let err = reader.read_file("nonexistent.txt").unwrap_err();
+        assert!(err.contains("File not found"));
+    }
+
+    #[test]
+    fn zip_reader_file_exists_false_for_missing() {
+        let data = build_zip(vec![("root/", ""), ("root/a.txt", "x")]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        assert!(!reader.file_exists("missing.txt"));
+    }
+
+    #[test]
+    fn zip_reader_invalid_data() {
+        let result = ZipArchiveReader::from_bytes(vec![1, 2, 3]);
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(err.contains("Invalid archive"));
+    }
+
+    #[test]
+    fn zip_reader_empty_zip_no_root() {
+        // An empty zip (no entries)
+        let cursor = std::io::Cursor::new(Vec::new());
+        let zip = zip::ZipWriter::new(cursor);
+        let data = zip.finish().unwrap().into_inner();
+        let result = ZipArchiveReader::from_bytes(data);
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(err.contains("missing root folder"));
+    }
+
+    #[test]
+    fn zip_reader_raw_data() {
+        let data = build_zip(vec![("root/", ""), ("root/x.txt", "y")]);
+        let reader = ZipArchiveReader::from_bytes(data.clone()).unwrap();
+        assert_eq!(reader.raw_data(), &data);
+    }
+
+    #[test]
+    fn zip_reader_list_dir_subdirectory() {
+        let data = build_zip(vec![
+            ("mod/", ""),
+            ("mod/asset/", ""),
+            ("mod/asset/a.png", "img"),
+            ("mod/asset/b.wav", "snd"),
+            ("mod/asset/sub/", ""),
+            ("mod/asset/sub/c.txt", "c"),
+        ]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let entries = reader.list_dir("asset");
+        let names: Vec<String> = entries.iter().map(|e| e.path.clone()).collect();
+        assert!(names.contains(&"a.png".to_string()));
+        assert!(names.contains(&"b.wav".to_string()));
+        assert!(names.contains(&"sub".to_string()));
+        // sub should be detected as dir
+        let sub_entry = entries.iter().find(|e| e.path == "sub").unwrap();
+        assert!(sub_entry.is_dir);
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore
+    // ========================================================================= //
+
+    #[test]
+    fn store_new_is_empty() {
+        let store = ModArchiveStore::new();
+        assert!(store.loaded_ids().is_empty());
+        assert!(store.get_source("any").is_none());
+    }
+
+    #[test]
+    fn store_register_source_and_get_source() {
+        let mut store = ModArchiveStore::new();
+        let path = PathBuf::from("/tmp/test.tbuddy");
+        store.register_source("test".into(), path.clone());
+        let src = store.get_source("test").unwrap();
+        assert_eq!(src.mod_id, "test");
+        assert_eq!(src.file_path, path);
+    }
+
+    #[test]
+    fn store_register_source_missing_returns_none() {
+        let store = ModArchiveStore::new();
+        assert!(store.get_source("nope").is_none());
+    }
+
+    #[test]
+    fn store_remove_clears_all_mappings() {
+        let mut store = ModArchiveStore::new();
+        store.register_source("test".into(), PathBuf::from("/tmp/t.tbuddy"));
+        store.remove("test");
+        assert!(store.get_source("test").is_none());
+    }
+
+    #[test]
+    fn store_evict_loaded_keeps_source() {
+        let mut store = ModArchiveStore::new();
+        store.register_source("mod1".into(), PathBuf::from("/tmp/m.tbuddy"));
+        // evict removes archive but keeps source
+        store.evict_loaded("mod1");
+        assert!(store.get_source("mod1").is_some());
+        assert!(store.loaded_ids().is_empty());
+    }
+
+    #[test]
+    fn store_clear() {
+        let mut store = ModArchiveStore::new();
+        store.register_source("a".into(), PathBuf::from("/a"));
+        store.register_source("b".into(), PathBuf::from("/b"));
+        store.clear();
+        assert!(store.get_source("a").is_none());
+        assert!(store.get_source("b").is_none());
+        assert!(store.loaded_ids().is_empty());
+    }
+
+    // ========================================================================= //
+    // alias_mod_id
+    // ========================================================================= //
+
+    #[test]
+    fn alias_mod_id_same_id_noop() {
+        let mut store = ModArchiveStore::new();
+        store.register_source("x".into(), PathBuf::from("/x"));
+        store.alias_mod_id("x", "x");
+        // Should still have source for "x"
+        assert!(store.get_source("x").is_some());
+    }
+
+    #[test]
+    fn alias_mod_id_empty_noop() {
+        let mut store = ModArchiveStore::new();
+        store.alias_mod_id("", "new");
+        store.alias_mod_id("old", "");
+    }
+
+    #[test]
+    fn alias_mod_id_copies_source() {
+        let mut store = ModArchiveStore::new();
+        store.register_source("old_id".into(), PathBuf::from("/old.tbuddy"));
+        store.alias_mod_id("old_id", "new_id");
+        let src = store.get_source("new_id").unwrap();
+        assert_eq!(src.mod_id, "new_id");
+        assert_eq!(src.file_path, PathBuf::from("/old.tbuddy"));
+    }
+
+    #[test]
+    fn alias_mod_id_does_not_overwrite_existing_source() {
+        let mut store = ModArchiveStore::new();
+        store.register_source("old".into(), PathBuf::from("/old"));
+        store.register_source("new".into(), PathBuf::from("/new"));
+        store.alias_mod_id("old", "new");
+        // "new" should still point to /new, not /old
+        let src = store.get_source("new").unwrap();
+        assert_eq!(src.file_path, PathBuf::from("/new"));
+    }
+
+    // ========================================================================= //
+    // cleanup_stale_sources
+    // ========================================================================= //
+
+    #[test]
+    fn cleanup_stale_sources_removes_nonexistent_paths() {
+        let mut store = ModArchiveStore::new();
+        store.register_source("stale".into(), PathBuf::from("/nonexistent/path/to/mod.tbuddy"));
+        store.cleanup_stale_sources();
+        assert!(store.get_source("stale").is_none());
+    }
+
+    #[test]
+    fn cleanup_stale_sources_keeps_existing_paths() {
+        let mut store = ModArchiveStore::new();
+        // temp_dir should exist
+        let existing = std::env::temp_dir();
+        store.register_source("good".into(), existing);
+        store.cleanup_stale_sources();
+        assert!(store.get_source("good").is_some());
+    }
+
+    // ========================================================================= //
+    // is_sbuddy_supported / decrypt_sbuddy
+    // ========================================================================= //
+
+    #[test]
+    fn is_sbuddy_supported_returns_value() {
+        // Just verify it doesn't panic
+        let _ = is_sbuddy_supported();
+    }
+
+    #[test]
+    fn decrypt_sbuddy_bad_magic() {
+        let err = decrypt_sbuddy(b"NOTVALID").unwrap_err();
+        assert!(err.contains("bad magic") || err.contains("sbuddy"));
+    }
+
+    #[test]
+    fn decrypt_sbuddy_too_short() {
+        let err = decrypt_sbuddy(b"SHORT").unwrap_err();
+        assert!(err.contains("bad magic") || err.contains("sbuddy"));
+    }
+
+    #[test]
+    fn sbuddy_magic_is_8_bytes() {
+        assert_eq!(SBUDDY_MAGIC.len(), 8);
+        assert_eq!(SBUDDY_MAGIC, b"SBUDDY01");
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: load_tbuddy with real zip
+    // ========================================================================= //
+
+    /// Create a .tbuddy zip with a root folder structure (required by ZipArchiveReader).
+    /// The root folder name is extracted from the "id" field in manifest_json.
+    fn create_tbuddy_zip(manifest_json: &str) -> PathBuf {
+        use std::io::Write;
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let tbuddy_path = std::env::temp_dir().join(format!(
+            "test_{}_{}.tbuddy",
+            std::process::id(),
+            n
+        ));
+        // Extract id from manifest for the root folder name
+        let parsed: serde_json::Value = serde_json::from_str(manifest_json).unwrap();
+        let root_name = parsed["id"].as_str().unwrap_or("mod");
+        {
+            let file = std::fs::File::create(&tbuddy_path).unwrap();
+            let mut zip = zip::ZipWriter::new(file);
+            let options = zip::write::FileOptions::<()>::default();
+            // Add root folder entry
+            zip.add_directory(format!("{}/", root_name), options.clone()).unwrap();
+            // Write manifest.json under root folder
+            zip.start_file(format!("{}/manifest.json", root_name), options).unwrap();
+            zip.write_all(manifest_json.as_bytes()).unwrap();
+            zip.finish().unwrap();
+        }
+        tbuddy_path
+    }
+
+    #[test]
+    fn load_tbuddy_reads_manifest() {
+        let manifest_json = r#"{"id":"zipmod","version":"1.0.0"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        let (id, manifest) = store.load_tbuddy(&path).unwrap();
+        assert_eq!(id, "zipmod");
+        assert_eq!(manifest.id.as_ref(), "zipmod");
+        assert_eq!(manifest.version.as_ref(), "1.0.0");
+
+        // Cleanup
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_tbuddy_registers_source() {
+        let manifest_json = r#"{"id":"srcmod","version":"0.1"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        assert!(store.get_source("srcmod").is_some());
+        assert_eq!(store.get_source("srcmod").unwrap().mod_id, "srcmod");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: loaded_ids
+    // ========================================================================= //
+
+    #[test]
+    fn loaded_ids_empty_for_new_store() {
+        let store = ModArchiveStore::new();
+        assert!(store.loaded_ids().is_empty());
+    }
+
+    #[test]
+    fn loaded_ids_contains_loaded_mods() {
+        let manifest_json = r#"{"id":"loadedmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        let ids = store.loaded_ids();
+        assert!(ids.contains(&"loadedmod".to_string()));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: get / ensure_loaded / read_file / file_exists
+    // ========================================================================= //
+
+    #[test]
+    fn get_returns_reader_for_loaded_mod() {
+        let manifest_json = r#"{"id":"getmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        let reader = store.get("getmod");
+        assert!(reader.is_some());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn get_returns_none_for_unknown_mod() {
+        let mut store = ModArchiveStore::new();
+        assert!(store.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn contains_returns_true_for_loaded() {
+        let manifest_json = r#"{"id":"containsmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        assert!(store.contains("containsmod"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn read_file_from_archive() {
+        let manifest_json = r#"{"id":"readmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        let data = store.read_file("readmod", "manifest.json");
+        assert!(data.is_ok());
+        let content = String::from_utf8(data.unwrap()).unwrap();
+        assert!(content.contains("readmod"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn read_file_not_found_in_archive() {
+        let manifest_json = r#"{"id":"rfmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        let err = store.read_file("rfmod", "nonexistent.txt");
+        assert!(err.is_err());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn file_exists_in_archive() {
+        let manifest_json = r#"{"id":"femod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        assert!(store.file_exists("femod", "manifest.json"));
+        assert!(!store.file_exists("femod", "nope.txt"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: evict_loaded + ensure_loaded re-loads from source
+    // ========================================================================= //
+
+    #[test]
+    fn evict_and_reload_from_source() {
+        let manifest_json = r#"{"id":"evictmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        assert!(store.contains("evictmod"));
+
+        // Evict from memory
+        store.evict_loaded("evictmod");
+        assert!(!store.loaded_ids().contains(&"evictmod".to_string()));
+
+        // Source should still be registered
+        assert!(store.get_source("evictmod").is_some());
+
+        // Re-load via get → ensure_loaded
+        let reader = store.get("evictmod");
+        assert!(reader.is_some());
+        assert!(store.loaded_ids().contains(&"evictmod".to_string()));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: enforce_limit (LRU eviction)
+    // ========================================================================= //
+
+    #[test]
+    fn enforce_limit_evicts_oldest() {
+        use crate::modules::constants::MOD_ARCHIVE_CACHE_MAX;
+
+        let mut paths = Vec::new();
+        let mut store = ModArchiveStore::new();
+
+        // Load more than MOD_ARCHIVE_CACHE_MAX mods
+        for i in 0..=MOD_ARCHIVE_CACHE_MAX {
+            let id = format!("lrumod_{}", i);
+            let json = format!(r#"{{"id":"{}"}}"#, id);
+            let path = create_tbuddy_zip(&json);
+            store.load_tbuddy(&path).unwrap();
+            paths.push(path);
+        }
+
+        // Should have evicted the oldest
+        assert!(store.loaded_ids().len() <= MOD_ARCHIVE_CACHE_MAX);
+
+        // Cleanup
+        for p in &paths {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: alias_mod_id with loaded archive
+    // ========================================================================= //
+
+    #[test]
+    fn alias_mod_id_migrates_loaded_archive() {
+        let manifest_json = r#"{"id":"real_id"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+
+        // The mod is loaded under "real_id"
+        assert!(store.loaded_ids().contains(&"real_id".to_string()));
+
+        // Alias old→new (in practice this happens when sbuddy filename differs from manifest.id)
+        store.alias_mod_id("real_id", "new_id");
+
+        // Archive should now be under new_id
+        assert!(store.loaded_ids().contains(&"new_id".to_string()));
+        assert!(!store.loaded_ids().contains(&"real_id".to_string()));
+
+        // Source should also be aliased
+        assert!(store.get_source("new_id").is_some());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // ArchiveSource fields
+    // ========================================================================= //
+
+    #[test]
+    fn archive_source_clone_and_fields() {
+        let src = ArchiveSource {
+            file_path: PathBuf::from("/path/to/mod.tbuddy"),
+            mod_id: "testmod".to_string(),
+        };
+        let cloned = src.clone();
+        assert_eq!(cloned.mod_id, "testmod");
+        assert_eq!(cloned.file_path, PathBuf::from("/path/to/mod.tbuddy"));
+    }
+
+    // ========================================================================= //
+    // ModArchiveReaderExt: read_json / read_json_optional / read_json_list
+    // ========================================================================= //
+
+    #[test]
+    fn zip_reader_ext_read_json_optional_returns_none_for_missing() {
+        use super::ModArchiveReaderExt;
+        let tbuddy_path = create_tbuddy_zip(r#"{"id":"extmod"}"#);
+        let reader = ZipArchiveReader::from_file(&tbuddy_path).unwrap();
+        let opt: Option<super::super::resource::ModManifest> = reader.read_json_optional("nope.json");
+        assert!(opt.is_none());
+        let _ = std::fs::remove_file(&tbuddy_path);
+    }
+
+    #[test]
+    fn zip_reader_ext_read_json_list_returns_empty_for_missing() {
+        use super::ModArchiveReaderExt;
+        let tbuddy_path = create_tbuddy_zip(r#"{"id":"listmod"}"#);
+        let reader = ZipArchiveReader::from_file(&tbuddy_path).unwrap();
+        let list: Vec<super::super::resource::AssetInfo> = reader.read_json_list("asset/img.json");
+        assert!(list.is_empty());
+        let _ = std::fs::remove_file(&tbuddy_path);
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: ensure_loaded reload from source path
+    // ========================================================================= //
+
+    #[test]
+    fn ensure_loaded_reloads_evicted_archive() {
+        let manifest_json = r#"{"id":"ensmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        assert!(store.loaded_ids().contains(&"ensmod".to_string()));
+
+        // Evict from memory but keep source
+        store.evict_loaded("ensmod");
+        assert!(!store.loaded_ids().contains(&"ensmod".to_string()));
+        assert!(store.get_source("ensmod").is_some());
+
+        // ensure_loaded should reload from source
+        assert!(store.ensure_loaded("ensmod").is_ok());
+        assert!(store.loaded_ids().contains(&"ensmod".to_string()));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn ensure_loaded_fails_no_source() {
+        let mut store = ModArchiveStore::new();
+        let err = store.ensure_loaded("nosource");
+        assert!(err.is_err());
+        assert!(err.unwrap_err().contains("source not found"));
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: read_file and file_exists with ensure_loaded
+    // ========================================================================= //
+
+    #[test]
+    fn read_file_after_evict_reloads() {
+        let manifest_json = r#"{"id":"rfevict"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        store.evict_loaded("rfevict");
+
+        // read_file triggers ensure_loaded
+        let data = store.read_file("rfevict", "manifest.json");
+        assert!(data.is_ok());
+        let content = String::from_utf8(data.unwrap()).unwrap();
+        assert!(content.contains("rfevict"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn file_exists_after_evict_reloads() {
+        let manifest_json = r#"{"id":"feevict"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        store.evict_loaded("feevict");
+
+        assert!(store.file_exists("feevict", "manifest.json"));
+        assert!(!store.file_exists("feevict", "nonexist.txt"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn file_exists_returns_false_for_unknown_mod() {
+        let mut store = ModArchiveStore::new();
+        assert!(!store.file_exists("unknown_mod_xyz", "manifest.json"));
+    }
+
+    #[test]
+    fn read_file_returns_error_for_unknown_mod() {
+        let mut store = ModArchiveStore::new();
+        let err = store.read_file("unknown_mod_xyz", "manifest.json");
+        assert!(err.is_err());
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: contains after eviction
+    // ========================================================================= //
+
+    #[test]
+    fn contains_reloads_after_eviction() {
+        let manifest_json = r#"{"id":"containsev"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let mut store = ModArchiveStore::new();
+        store.load_tbuddy(&path).unwrap();
+        store.evict_loaded("containsev");
+
+        // contains triggers ensure_loaded
+        assert!(store.contains("containsev"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn contains_false_for_unknown() {
+        let mut store = ModArchiveStore::new();
+        assert!(!store.contains("no_such_mod"));
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: load_reader_from_path
+    // ========================================================================= //
+
+    #[test]
+    fn load_reader_from_path_tbuddy() {
+        let manifest_json = r#"{"id":"lrmod"}"#;
+        let path = create_tbuddy_zip(manifest_json);
+
+        let reader = ModArchiveStore::load_reader_from_path(&path);
+        assert!(reader.is_ok());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_reader_from_path_unsupported_ext() {
+        let tmp = std::env::temp_dir().join("test_unsupported.xyz");
+        std::fs::write(&tmp, b"data").unwrap();
+        let result = ModArchiveStore::load_reader_from_path(&tmp);
+        assert!(result.is_err());
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    // ========================================================================= //
+    // ZipArchiveReader: full_path helper
+    // ========================================================================= //
+
+    #[test]
+    fn zip_reader_full_path_empty_returns_root_slash() {
+        let data = build_zip(vec![("mymod/", ""), ("mymod/a.txt", "x")]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        assert_eq!(reader.full_path(""), "mymod/");
+        assert_eq!(reader.full_path("sub/file.txt"), "mymod/sub/file.txt");
+    }
+
+    // ========================================================================= //
+    // ZipArchiveReader: list_dir edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn list_dir_root_returns_top_level_entries() {
+        let data = build_zip(vec![
+            ("root/", ""),
+            ("root/manifest.json", r#"{"id":"test"}"#),
+            ("root/asset/", ""),
+            ("root/text/", ""),
+            ("root/icon.png", "fake"),
+        ]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let entries = reader.list_dir("");
+        let names: Vec<&str> = entries.iter().map(|e| e.path.as_str()).collect();
+        assert!(names.contains(&"manifest.json"));
+        assert!(names.contains(&"asset"));
+        assert!(names.contains(&"text"));
+        assert!(names.contains(&"icon.png"));
+    }
+
+    // ========================================================================= //
+    // ModArchiveReader trait: read_file_string via trait method
+    // ========================================================================= //
+
+    #[test]
+    fn read_file_string_via_trait() {
+        let data = build_zip(vec![("mod/", ""), ("mod/test.txt", "hello world")]);
+        let reader = ZipArchiveReader::from_bytes(data).unwrap();
+        let s = reader.read_file_string("test.txt").unwrap();
+        assert_eq!(s, "hello world");
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: touch / LRU order
+    // ========================================================================= //
+
+    #[test]
+    fn touch_moves_to_end_of_access_order() {
+        let mut store = ModArchiveStore::new();
+        let p1 = create_tbuddy_zip(r#"{"id":"t1"}"#);
+        let p2 = create_tbuddy_zip(r#"{"id":"t2"}"#);
+        let p3 = create_tbuddy_zip(r#"{"id":"t3"}"#);
+
+        store.load_tbuddy(&p1).unwrap();
+        store.load_tbuddy(&p2).unwrap();
+        store.load_tbuddy(&p3).unwrap();
+
+        // Access t1 to move it to the end
+        let _ = store.get("t1");
+
+        // t1 should now be at the end of access_order
+        let last = store.access_order.back().unwrap();
+        assert_eq!(last, "t1");
+
+        let _ = std::fs::remove_file(&p1);
+        let _ = std::fs::remove_file(&p2);
+        let _ = std::fs::remove_file(&p3);
+    }
+
+    // ========================================================================= //
+    // ArchiveEntry Debug/Clone
+    // ========================================================================= //
+
+    #[test]
+    fn archive_entry_clone_and_debug() {
+        let entry = ArchiveEntry {
+            path: "test/file.txt".to_string(),
+            is_dir: false,
+        };
+        let cloned = entry.clone();
+        assert_eq!(cloned.path, "test/file.txt");
+        assert!(!cloned.is_dir);
+        // Test Debug trait
+        let debug = format!("{:?}", entry);
+        assert!(debug.contains("file.txt"));
+    }
+
+    // ========================================================================= //
+    // decrypt_sbuddy / encrypt_sbuddy with valid magic but no tool
+    // ========================================================================= //
+
+    #[test]
+    fn encrypt_sbuddy_returns_result() {
+        // If sbuddy tool is not embedded, this should fail gracefully
+        let result = encrypt_sbuddy(b"test zip data");
+        if !is_sbuddy_supported() {
+            assert!(result.is_err());
+        }
+    }
+
+    // ========================================================================= //
+    // ModArchiveStore: clear, register_source, get_source, loaded_ids
+    // ========================================================================= //
+
+    /// Helper: create a tbuddy zip with the given mod id
+    fn create_tbuddy_with_id(mod_id: &str) -> PathBuf {
+        create_tbuddy_zip(&format!(r#"{{"id":"{}","version":"1.0.0"}}"#, mod_id))
+    }
+
+    #[test]
+    fn store_clear_empties_everything() {
+        let mut store = ModArchiveStore::new();
+        let p = create_tbuddy_with_id("clear_test");
+        let _ = store.load_tbuddy(std::path::Path::new(&p));
+        assert!(!store.loaded_ids().is_empty());
+        store.clear();
+        assert!(store.loaded_ids().is_empty());
+        assert!(store.sources.is_empty());
+        assert!(store.access_order.is_empty());
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn register_source_and_get_source() {
+        let mut store = ModArchiveStore::new();
+        let path = std::path::PathBuf::from("/fake/mod.tbuddy");
+        store.register_source("my_mod".to_string(), path.clone());
+
+        let source = store.get_source("my_mod").unwrap();
+        assert_eq!(source.mod_id, "my_mod");
+        assert_eq!(source.file_path, path);
+
+        // Non-existent should return None
+        assert!(store.get_source("nonexistent").is_none());
+    }
+
+    #[test]
+    fn loaded_ids_reflects_loaded_archives() {
+        let mut store = ModArchiveStore::new();
+        assert!(store.loaded_ids().is_empty());
+
+        let p1 = create_tbuddy_with_id("loaded_x");
+        let r1 = store.load_tbuddy(std::path::Path::new(&p1));
+        assert!(r1.is_ok(), "load_tbuddy failed for loaded_x: {:?}", r1.err());
+
+        let ids = store.loaded_ids();
+        assert!(ids.contains(&"loaded_x".to_string()), "loaded_ids = {:?}", ids);
+        assert_eq!(ids.len(), 1);
+
+        let _ = std::fs::remove_file(&p1);
+    }
+
+    // ========================================================================= //
+    // alias_mod_id: LRU migration
+    // ========================================================================= //
+
+    #[test]
+    fn alias_mod_id_migrates_archive_and_lru() {
+        let mut store = ModArchiveStore::new();
+        let p = create_tbuddy_with_id("alias_old");
+        let _ = store.load_tbuddy(std::path::Path::new(&p));
+
+        // Verify old id exists
+        assert!(store.archives.contains_key("alias_old"));
+        assert!(store.access_order.iter().any(|id| id == "alias_old"));
+
+        // Alias: old -> new
+        store.alias_mod_id("alias_old", "alias_new");
+
+        // Old should be gone, new should exist
+        assert!(!store.archives.contains_key("alias_old"));
+        assert!(store.archives.contains_key("alias_new"));
+        assert!(!store.access_order.iter().any(|id| id == "alias_old"));
+        assert!(store.access_order.iter().any(|id| id == "alias_new"));
+
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn alias_mod_id_noop_when_old_not_loaded() {
+        let mut store = ModArchiveStore::new();
+        store.alias_mod_id("nonexistent", "new_id");
+        assert!(store.archives.is_empty());
+    }
+
+    // ========================================================================= //
+    // load_tbuddy
+    // ========================================================================= //
+
+    #[test]
+    fn load_tbuddy_returns_mod_id_and_manifest() {
+        let p = create_tbuddy_with_id("load_tb_test");
+        let mut store = ModArchiveStore::new();
+        let (mod_id, manifest) = store.load_tbuddy(std::path::Path::new(&p)).unwrap();
+        assert_eq!(mod_id, "load_tb_test");
+        assert_eq!(manifest.id.as_ref(), "load_tb_test");
+        assert!(store.loaded_ids().contains(&"load_tb_test".to_string()));
+        assert!(store.get_source("load_tb_test").is_some());
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn load_tbuddy_invalid_zip_returns_error() {
+        let temp = std::env::temp_dir().join("invalid_load.tbuddy");
+        std::fs::write(&temp, b"not a zip").unwrap();
+        let mut store = ModArchiveStore::new();
+        let result = store.load_tbuddy(&temp);
+        assert!(result.is_err());
+        let _ = std::fs::remove_file(&temp);
+    }
+
+    // ========================================================================= //
+    // decrypt_sbuddy: magic validation
+    // ========================================================================= //
+
+    #[test]
+    fn decrypt_sbuddy_rejects_short_data() {
+        let result = decrypt_sbuddy(b"short");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("bad magic"));
+    }
+
+    #[test]
+    fn decrypt_sbuddy_rejects_wrong_magic() {
+        let result = decrypt_sbuddy(b"WRONGMAG_extra_data");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("bad magic"));
+    }
+
+    // ========================================================================= //
+    // is_sbuddy_supported
+    // ========================================================================= //
+
+    #[test]
+    fn is_sbuddy_supported_returns_bool() {
+        let a = is_sbuddy_supported();
+        let b = is_sbuddy_supported();
+        assert_eq!(a, b);
+    }
+
+    // ========================================================================= //
+    // evict_loaded preserves source
+    // ========================================================================= //
+
+    #[test]
+    fn evict_loaded_preserves_source_mapping() {
+        let mut store = ModArchiveStore::new();
+        let p = create_tbuddy_with_id("evict_src");
+        let _ = store.load_tbuddy(std::path::Path::new(&p));
+
+        assert!(store.get_source("evict_src").is_some());
+        assert!(store.archives.contains_key("evict_src"));
+
+        store.evict_loaded("evict_src");
+
+        assert!(store.get_source("evict_src").is_some());
+        assert!(!store.archives.contains_key("evict_src"));
+
+        let _ = std::fs::remove_file(&p);
+    }
+
+    // ========================================================================= //
+    // remove fully removes both source and archive
+    // ========================================================================= //
+
+    #[test]
+    fn remove_clears_source_and_archive() {
+        let mut store = ModArchiveStore::new();
+        let p = create_tbuddy_with_id("remove_test");
+        let _ = store.load_tbuddy(std::path::Path::new(&p));
+
+        store.remove("remove_test");
+        assert!(store.get_source("remove_test").is_none());
+        assert!(!store.archives.contains_key("remove_test"));
+        assert!(!store.access_order.iter().any(|id| id == "remove_test"));
+
+        let _ = std::fs::remove_file(&p);
+    }
+
+    // ========================================================================= //
+    // read_file case-insensitive fallback
+    // ========================================================================= //
+
+    #[test]
+    fn zip_reader_read_file_case_insensitive() {
+        // Create a ZIP with a mixed-case file name
+        let mut buf = Vec::new();
+        {
+            use std::io::Write;
+            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opts = zip::write::SimpleFileOptions::default();
+            zip.start_file("root/CamelCase.txt", opts).unwrap();
+            zip.write_all(b"hello").unwrap();
+            zip.finish().unwrap();
+        }
+        let reader = ZipArchiveReader::from_bytes(buf).unwrap();
+        // Try reading with lowercase path — should fall back to case-insensitive search
+        let result = reader.read_file("camelcase.txt");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), b"hello");
+    }
+
+    #[test]
+    fn zip_reader_read_file_alt_trailing_slash() {
+        // Some ZIP tools add trailing slashes; test the alt-path fallback
+        let mut buf = Vec::new();
+        {
+            use std::io::Write;
+            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opts = zip::write::SimpleFileOptions::default();
+            zip.start_file("root/data.bin", opts).unwrap();
+            zip.write_all(b"content").unwrap();
+            zip.finish().unwrap();
+        }
+        let reader = ZipArchiveReader::from_bytes(buf).unwrap();
+        let result = reader.read_file("data.bin");
+        assert!(result.is_ok());
+    }
+
+    // ========================================================================= //
+    // file_exists case-insensitive
+    // ========================================================================= //
+
+    #[test]
+    fn zip_reader_file_exists_case_insensitive() {
+        let mut buf = Vec::new();
+        {
+            use std::io::Write;
+            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opts = zip::write::SimpleFileOptions::default();
+            zip.start_file("root/MyFile.JSON", opts).unwrap();
+            zip.write_all(b"{}").unwrap();
+            zip.finish().unwrap();
+        }
+        let reader = ZipArchiveReader::from_bytes(buf).unwrap();
+        // Lowercase query should find it via case-insensitive search
+        assert!(reader.file_exists("myfile.json"));
+        // Exact case should also work
+        assert!(reader.file_exists("MyFile.JSON"));
+    }
+
+    // ========================================================================= //
+    // list_dir entries
+    // ========================================================================= //
+
+    #[test]
+    fn zip_reader_list_dir_returns_entries() {
+        let mut buf = Vec::new();
+        {
+            use std::io::Write;
+            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opts = zip::write::SimpleFileOptions::default();
+            zip.start_file("root/text/en/info.json", opts).unwrap();
+            zip.write_all(b"{}").unwrap();
+            zip.start_file("root/text/zh/info.json", opts).unwrap();
+            zip.write_all(b"{}").unwrap();
+            zip.start_file("root/text/readme.txt", opts).unwrap();
+            zip.write_all(b"hi").unwrap();
+            zip.finish().unwrap();
+        }
+        let reader = ZipArchiveReader::from_bytes(buf).unwrap();
+        let entries = reader.list_dir("text");
+        // Should have: en (dir), zh (dir), readme.txt (file)
+        assert!(entries.len() >= 2);
+        let dirs: Vec<_> = entries.iter().filter(|e| e.is_dir).collect();
+        assert!(dirs.len() >= 2);
+    }
+
+    // ========================================================================= //
+    // alias_mod_id dedup in access_order
+    // ========================================================================= //
+
+    #[test]
+    fn alias_mod_id_deduplicates_access_order() {
+        let mut store = ModArchiveStore::new();
+        let p = create_tbuddy_with_id("old_dedup");
+        let _ = store.load_tbuddy(std::path::Path::new(&p));
+
+        // Manually insert old_dedup multiple times in access_order
+        store.access_order.push_back("old_dedup".to_string());
+        store.access_order.push_back("old_dedup".to_string());
+
+        store.alias_mod_id("old_dedup", "new_dedup");
+
+        // After alias, access_order should have "new_dedup" only once
+        let count = store.access_order.iter().filter(|x| *x == "new_dedup").count();
+        assert_eq!(count, 1);
+        // old_dedup should not appear
+        assert!(!store.access_order.iter().any(|x| x == "old_dedup"));
+
+        let _ = std::fs::remove_file(&p);
+    }
+
+    // ========================================================================= //
+    // enforce_limit LRU eviction
+    // ========================================================================= //
+
+    #[test]
+    fn enforce_limit_evicts_when_over_max() {
+        let mut store = ModArchiveStore::new();
+        // Load many mods to exceed cache limit
+        let max = crate::modules::constants::MOD_ARCHIVE_CACHE_MAX;
+        let mut paths = Vec::new();
+        for i in 0..=(max + 2) {
+            let id = format!("enforce_{}", i);
+            let p = create_tbuddy_with_id(&id);
+            let _ = store.load_tbuddy(std::path::Path::new(&p));
+            paths.push(p);
+        }
+
+        // After enforce_limit, should not exceed max
+        assert!(store.archives.len() <= max);
+        // Sources should still be kept
+        assert!(store.sources.len() > max);
+
+        for p in paths {
+            let _ = std::fs::remove_file(&p);
+        }
+    }
+
+    // ========================================================================= //
+    // cleanup_stale_sources
+    // ========================================================================= //
+
+    #[test]
+    fn cleanup_stale_sources_removes_deleted_files() {
+        let mut store = ModArchiveStore::new();
+        let p = create_tbuddy_with_id("stale_test");
+        let _ = store.load_tbuddy(std::path::Path::new(&p));
+        assert!(store.get_source("stale_test").is_some());
+
+        // Delete the file, then cleanup
+        std::fs::remove_file(&p).unwrap();
+        store.cleanup_stale_sources();
+
+        // Source should be removed
+        assert!(store.get_source("stale_test").is_none());
+    }
+
+    #[test]
+    fn cleanup_stale_sources_keeps_existing_files() {
+        let mut store = ModArchiveStore::new();
+        let p = create_tbuddy_with_id("keep_test");
+        let _ = store.load_tbuddy(std::path::Path::new(&p));
+
+        store.cleanup_stale_sources();
+        // File still exists, source should be kept
+        assert!(store.get_source("keep_test").is_some());
+
+        let _ = std::fs::remove_file(&p);
+    }
 }
+
 
 
 

@@ -161,6 +161,63 @@ mod tests {
         );
         assert_eq!(get_nested_value(&data, "menu.missing"), None);
     }
+
+    #[test]
+    fn get_nested_value_top_level_key() {
+        let data = json!({ "hello": "world" });
+        assert_eq!(get_nested_value(&data, "hello"), Some("world".to_string()));
+    }
+
+    #[test]
+    fn get_nested_value_returns_none_for_non_string() {
+        let data = json!({ "count": 42 });
+        assert_eq!(get_nested_value(&data, "count"), None);
+    }
+
+    #[test]
+    fn get_nested_value_returns_none_for_null() {
+        let data = json!({ "key": null });
+        assert_eq!(get_nested_value(&data, "key"), None);
+    }
+
+    #[test]
+    fn get_nested_value_returns_none_for_array() {
+        let data = json!({ "list": [1, 2, 3] });
+        assert_eq!(get_nested_value(&data, "list"), None);
+    }
+
+    #[test]
+    fn get_nested_value_returns_none_for_object() {
+        let data = json!({ "obj": { "inner": "val" } });
+        assert_eq!(get_nested_value(&data, "obj"), None);
+    }
+
+    #[test]
+    fn get_nested_value_deeply_nested() {
+        let data = json!({ "a": { "b": { "c": { "d": "deep" } } } });
+        assert_eq!(get_nested_value(&data, "a.b.c.d"), Some("deep".to_string()));
+    }
+
+    #[test]
+    fn get_nested_value_empty_key() {
+        let data = json!({ "": "empty_key" });
+        assert_eq!(get_nested_value(&data, ""), Some("empty_key".to_string()));
+    }
+
+    #[test]
+    fn clear_i18n_cache_does_not_panic() {
+        // Just verify it doesn't panic when called multiple times
+        clear_i18n_cache();
+        clear_i18n_cache();
+    }
+
+    #[test]
+    fn get_cache_returns_same_instance() {
+        let cache1 = get_cache();
+        let cache2 = get_cache();
+        // Both should point to the same static
+        assert!(std::ptr::eq(cache1, cache2));
+    }
 }
 
 

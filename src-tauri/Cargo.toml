@@ -83,3 +83,6 @@ strip = true
 # 启用 panic abort 减少 unwind 代码体积
 panic = "abort"
 
+[dev-dependencies]
+tempfile = "3"
+

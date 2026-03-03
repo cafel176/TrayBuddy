@@ -42,15 +42,15 @@ fn main() {
     tauri_build::build();
 
 
-    // 为集成测试嵌入 Windows Application Manifest（声明 Common Controls v6 依赖）
+    // 为测试嵌入 Windows Application Manifest（声明 Common Controls v6 依赖）
     //
     // tauri_build 通过 `cargo:rustc-link-arg-bins` 仅为 bin 目标嵌入包含
-    // Common Controls v6 声明的 manifest 资源。集成测试 exe 没有该 manifest，
+    // Common Controls v6 声明的 manifest 资源。lib 单元测试 exe 没有该 manifest，
     // 导致 Windows 加载 comctl32.dll v5.82（不含 TaskDialogIndirect），
     // 进程启动时报 STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139)。
     //
-    // 这里单独编译一份 manifest 资源，仅通过 `cargo:rustc-link-arg-tests` 链接给测试目标，
-    // 避免与 tauri_build 为 bin 目标生成的资源冲突。
+    // 策略：尝试通过 rustc-link-arg-tests 嵌入资源（针对 integration test），
+    // 同时将 .manifest 文件写入 deps 目录（External Manifest，作为 lib 单元测试的后备方案）。
     //
     // 仅在 debug profile 下执行（release 构建不会运行测试，无需生成）。
     #[cfg(windows)]
@@ -58,6 +58,7 @@ fn main() {
         let profile = std::env::var("PROFILE").unwrap_or_default();
         if profile == "debug" {
             embed_manifest_for_tests();
+            deploy_external_manifest_for_lib_tests();
         }
     }
 }
@@ -135,6 +136,39 @@ fn embed_manifest_for_tests() {
     }
 }
 
+/// 将 .manifest 文件写入 deps 目录（External Manifest），
+/// 作为 lib 单元测试的后备方案（`rustc-link-arg-tests` 对 `cargo test --lib` 可能不生效）。
+#[cfg(windows)]
+fn deploy_external_manifest_for_lib_tests() {
+    use std::path::Path;
+
+    let manifest_content = r#"<?xml version='1.0' encoding='UTF-8' standalone='yes'?><assembly xmlns='urn:schemas-microsoft-com:asm.v1' manifestVersion='1.0'><dependency><dependentAssembly><assemblyIdentity type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'/></dependentAssembly></dependency></assembly>"#;
+
+    // 获取 target dir: OUT_DIR 通常为 target/debug/build/<pkg>/out
+    // 上溯到 target/debug/deps
+    let out_dir = std::env::var("OUT_DIR").unwrap_or_default();
+    let out = Path::new(&out_dir);
+
+    // target/debug/build/<hash>/out -> target/debug/build/<hash> -> target/debug/build -> target/debug
+    if let Some(debug_dir) = out.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
+        let deps_dir = debug_dir.join("deps");
+        if deps_dir.is_dir() {
+            // 遍历找到 traybuddy_lib-*.exe
+            if let Ok(entries) = std::fs::read_dir(&deps_dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().into_owned();
+                    if name.starts_with("traybuddy_lib-") && name.ends_with(".exe") && !name.contains(".exe.") {
+                        let manifest_path = deps_dir.join(format!("{}.manifest", name));
+                        if !manifest_path.exists() {
+                            let _ = std::fs::write(&manifest_path, manifest_content);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[cfg(windows)]
 fn find_windows_sdk_tool(name: &str) -> Option<std::path::PathBuf> {
     // 常见 Windows SDK 路径
@@ -170,6 +204,7 @@ fn find_msvc_tool(name: &str) -> Option<std::path::PathBuf> {
         r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC",
         r"C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\MSVC",
         r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC",
+        r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC",
         r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC",
     ];
 

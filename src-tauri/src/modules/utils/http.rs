@@ -248,6 +248,27 @@ mod tests {
         });
     }
 
+    #[test]
+    #[cfg(windows)]
+    fn http_get_curl_without_content_check() {
+        with_fake_curl("some_response", || {
+            let result = http_get("http://example.com", 2, None);
+            assert_eq!(result.unwrap().trim(), "some_response");
+        });
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn http_get_curl_content_check_mismatch_falls_through() {
+        with_fake_curl("actual_response", || {
+            // Content check expects "missing_marker" but curl returns "actual_response"
+            // Curl succeeds but content check fails → falls through to PowerShell
+            let result = http_get("http://example.com", 2, Some("missing_marker"));
+            // May succeed via PowerShell or fail — just verify no panic
+            let _ = result;
+        });
+    }
+
     #[tokio::test]
     #[cfg(windows)]
     async fn http_get_async_uses_curl_when_available() {

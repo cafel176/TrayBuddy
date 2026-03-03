@@ -1581,6 +1581,364 @@ mod tests {
         };
         assert!(state.has_changed(&changed_status));
     }
+
+    // ========================================================================= //
+    // MediaObserver
+    // ========================================================================= //
+
+    #[test]
+    fn media_observer_new_defaults() {
+        let obs = MediaObserver::new();
+        assert!(obs.event_tx.is_none());
+        assert!(!obs.running.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[test]
+    fn media_observer_default_equals_new() {
+        let a = MediaObserver::new();
+        let b = MediaObserver::default();
+        assert_eq!(
+            a.running.load(std::sync::atomic::Ordering::SeqCst),
+            b.running.load(std::sync::atomic::Ordering::SeqCst)
+        );
+    }
+
+    // ========================================================================= //
+    // MediaObserverState
+    // ========================================================================= //
+
+    #[test]
+    fn media_observer_state_initial() {
+        let state = MediaObserverState::new();
+        assert_eq!(state.last_status, MediaPlaybackStatus::Unknown);
+        assert!(state.last_app_id.is_none());
+        assert!(state.last_title.is_none());
+        assert!(!state.has_played);
+    }
+
+    #[test]
+    fn media_observer_state_update_sets_has_played_only_on_playing() {
+        let mut state = MediaObserverState::new();
+
+        // Paused does not set has_played
+        let paused_event = MediaStateEvent {
+            status: MediaPlaybackStatus::Paused,
+            title: None,
+            artist: None,
+            app_id: Some("app".into()),
+        };
+        state.update(&paused_event);
+        assert!(!state.has_played);
+
+        // Playing sets has_played
+        let playing_event = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: None,
+            artist: None,
+            app_id: Some("app".into()),
+        };
+        state.update(&playing_event);
+        assert!(state.has_played);
+    }
+
+    #[test]
+    fn media_observer_state_has_changed_on_app_id_change() {
+        let mut state = MediaObserverState::new();
+        let event1 = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: None,
+            artist: None,
+            app_id: Some("app1".into()),
+        };
+        state.update(&event1);
+
+        let event2 = MediaStateEvent {
+            app_id: Some("app2".into()),
+            ..event1.clone()
+        };
+        assert!(state.has_changed(&event2));
+    }
+
+    // ========================================================================= //
+    // MediaPlaybackStatus
+    // ========================================================================= //
+
+    #[test]
+    fn media_playback_status_equality() {
+        assert_eq!(MediaPlaybackStatus::Playing, MediaPlaybackStatus::Playing);
+        assert_ne!(MediaPlaybackStatus::Playing, MediaPlaybackStatus::Paused);
+        assert_ne!(MediaPlaybackStatus::Stopped, MediaPlaybackStatus::Unknown);
+    }
+
+    // ========================================================================= //
+    // MediaStateEvent serialization
+    // ========================================================================= //
+
+    #[test]
+    fn media_state_event_serializes() {
+        let event = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: Some("Test Song".into()),
+            artist: Some("Artist".into()),
+            app_id: Some("player".into()),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"title\":\"Test Song\""));
+        assert!(json.contains("\"artist\":\"Artist\""));
+    }
+
+    // ========================================================================= //
+    // is_music_app with various inputs
+    // ========================================================================= //
+
+    #[test]
+    fn is_music_app_case_insensitive() {
+        if let Ok(mut guard) = MUSIC_KEYWORDS.write() {
+            *guard = vec!["music".into()];
+        }
+        assert!(is_music_app("MUSIC"));
+        assert!(is_music_app("Music Player"));
+        assert!(is_music_app("myMusicApp"));
+    }
+
+    #[test]
+    fn is_music_app_with_spaces() {
+        if let Ok(mut guard) = MUSIC_KEYWORDS.write() {
+            *guard = vec!["cloudmusic".into()];
+        }
+        assert!(is_music_app("Cloud Music"));
+        assert!(is_music_app("cloudmusic.exe"));
+    }
+
+    // ========================================================================= //
+    // load_music_keywords_from_file edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn load_music_keywords_nonexistent_returns_none() {
+        let path = PathBuf::from("/nonexistent/path.json");
+        assert!(load_music_keywords_from_file(&path).is_none());
+    }
+
+    #[test]
+    fn load_music_keywords_empty_array_returns_none() {
+        let path = temp_path("empty_kw");
+        std::fs::write(&path, r#"{ "music_keywords": [] }"#).unwrap();
+        assert!(load_music_keywords_from_file(&path).is_none());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_music_keywords_all_whitespace_returns_none() {
+        let path = temp_path("whitespace_kw");
+        std::fs::write(&path, r#"{ "music_keywords": ["  ", "", "\t"] }"#).unwrap();
+        assert!(load_music_keywords_from_file(&path).is_none());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_music_keywords_invalid_json_returns_none() {
+        let path = temp_path("invalid_kw");
+        std::fs::write(&path, "not json").unwrap();
+        assert!(load_music_keywords_from_file(&path).is_none());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // default_music_keywords
+    // ========================================================================= //
+
+    #[test]
+    fn default_music_keywords_not_empty() {
+        let defaults = default_music_keywords();
+        assert!(!defaults.is_empty());
+        assert!(defaults.iter().any(|k| k.as_ref() == "music"));
+        assert!(defaults.iter().any(|k| k.as_ref() == "qqmusic"));
+        assert!(defaults.iter().any(|k| k.as_ref() == "cloudmusic"));
+    }
+
+    // ========================================================================= //
+    // get/update cached media debug info
+    // ========================================================================= //
+
+    #[test]
+    fn cached_media_debug_info_roundtrip() {
+        let info = MediaDebugInfo {
+            observer_running: true,
+            uptime_secs: 100,
+            last_check_time: "12:00:00".into(),
+            gsmtc_available: true,
+            core_audio_available: true,
+            gsmtc_sessions: vec![],
+            core_audio_sessions: vec![],
+            combined_state: MediaStateEvent {
+                status: MediaPlaybackStatus::Stopped,
+                title: None,
+                artist: None,
+                app_id: None,
+            },
+            state_source: "None".into(),
+            registered_session_events: 0,
+        };
+        update_cached_debug_info(info);
+        let cached = get_cached_debug_info().expect("expected cached");
+        assert!(cached.observer_running);
+        assert_eq!(cached.uptime_secs, 100);
+    }
+
+    // ========================================================================= //
+    // String constants
+    // ========================================================================= //
+
+    #[test]
+    fn playback_status_constants() {
+        assert_eq!(PLAYBACK_STATUS_PLAYING, "Playing");
+        assert_eq!(PLAYBACK_STATUS_PAUSED, "Paused");
+        assert_eq!(PLAYBACK_STATUS_STOPPED, "Stopped");
+        assert_eq!(PLAYBACK_STATUS_UNKNOWN, "Unknown");
+    }
+
+    // ========================================================================= //
+    // MediaObserver: stop
+    // ========================================================================= //
+
+    #[test]
+    fn media_observer_stop_clears_state() {
+        let mut obs = MediaObserver::new();
+        obs.stop();
+        assert!(!obs.running.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(obs.event_tx.is_none());
+    }
+
+    // ========================================================================= //
+    // get_music_keywords_config_candidates
+    // ========================================================================= //
+
+    #[test]
+    fn music_keywords_config_candidates_not_empty() {
+        let candidates = get_music_keywords_config_candidates();
+        assert!(!candidates.is_empty());
+        // All should contain the config filename
+        for c in &candidates {
+            assert!(
+                c.to_string_lossy().contains(MEDIA_OBSERVER_KEYWORDS_CONFIG_FILENAME),
+                "Candidate {:?} should contain config filename",
+                c
+            );
+        }
+    }
+
+    // ========================================================================= //
+    // init_music_keywords_from_config
+    // ========================================================================= //
+
+    #[test]
+    fn init_music_keywords_does_not_panic() {
+        init_music_keywords_from_config();
+        // Should use defaults or loaded config
+        let guard = MUSIC_KEYWORDS.read().unwrap();
+        assert!(!guard.is_empty());
+    }
+
+    // ========================================================================= //
+    // load_music_keywords valid file
+    // ========================================================================= //
+
+    #[test]
+    fn load_music_keywords_valid_file_returns_keywords() {
+        let path = temp_path("valid_kw");
+        std::fs::write(
+            &path,
+            r#"{ "music_keywords": ["spotify", "foobar"] }"#,
+        )
+        .unwrap();
+        let result = load_music_keywords_from_file(&path);
+        assert!(result.is_some());
+        let kw = result.unwrap();
+        assert!(kw.iter().any(|k| k.as_ref() == "spotify"));
+        assert!(kw.iter().any(|k| k.as_ref() == "foobar"));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // get_cached_media_state
+    // ========================================================================= //
+
+    #[test]
+    fn get_cached_media_state_returns_option() {
+        let _ = get_cached_media_state();
+    }
+
+    // ========================================================================= //
+    // MediaObserverState: additional edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn media_observer_state_no_change_on_same_event() {
+        let mut state = MediaObserverState::new();
+        let event = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: Some("Song".into()),
+            artist: None,
+            app_id: None,
+        };
+        state.update(&event);
+        assert!(!state.has_changed(&event));
+    }
+
+    #[test]
+    fn media_observer_state_change_on_title_change() {
+        let mut state = MediaObserverState::new();
+        let event1 = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: Some("Song A".into()),
+            artist: None,
+            app_id: None,
+        };
+        state.update(&event1);
+
+        let event2 = MediaStateEvent {
+            title: Some("Song B".into()),
+            ..event1.clone()
+        };
+        assert!(state.has_changed(&event2));
+    }
+
+    #[test]
+    fn media_observer_state_change_on_status_change() {
+        let mut state = MediaObserverState::new();
+        let event1 = MediaStateEvent {
+            status: MediaPlaybackStatus::Playing,
+            title: None,
+            artist: None,
+            app_id: None,
+        };
+        state.update(&event1);
+
+        let event2 = MediaStateEvent {
+            status: MediaPlaybackStatus::Paused,
+            ..event1.clone()
+        };
+        assert!(state.has_changed(&event2));
+    }
+
+    // ========================================================================= //
+    // MediaPlaybackStatus: from string constant
+    // ========================================================================= //
+
+    #[test]
+    fn media_playback_status_serde_serializes() {
+        let statuses = vec![
+            MediaPlaybackStatus::Playing,
+            MediaPlaybackStatus::Paused,
+            MediaPlaybackStatus::Stopped,
+            MediaPlaybackStatus::Unknown,
+        ];
+        for s in statuses {
+            let json = serde_json::to_string(&s).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
 }
 
 

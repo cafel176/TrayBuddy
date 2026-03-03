@@ -108,34 +108,7 @@ impl StateLimitsContext {
         }
     }
 
-    /// 从 `AppState` 中预取状态限制数据（获取并立即释放 `storage` 锁）
-    ///
-    /// 必须在获取 `resource_manager` / `state_manager` 锁之前调用。
-    pub fn prefetch(app_state: &AppState) -> Self {
-        let (mod_data_value, session_uptime_minutes) = {
-            let storage = app_state.storage.lock().unwrap();
-            let mod_id = storage.data.info.current_mod.to_string();
-            let value = storage
-                .data
-                .info
-                .mod_data
-                .get(&mod_id)
-                .map(|m| m.value)
-                .unwrap_or(0);
-            let secs = storage.get_session_uptime_seconds_now();
-            let mins = i32::try_from(secs / 60).unwrap_or(i32::MAX);
-            (value, mins)
-        };
-        // storage 锁已释放
-
-        let current_weather = get_cached_weather();
-
-        Self {
-            mod_data_value,
-            session_uptime_minutes,
-            current_weather,
-        }
-    }
+    // prefetch() 已移至 state_runtime.rs（依赖 AppState）
 
     /// 获取当前温度
     #[inline]
@@ -737,244 +710,10 @@ impl StateManager {
         }
     }
 
-    /// 启动定时触发器线程
-    ///
-    /// 在独立线程中运行，定期检查持久状态的 `trigger_time` 和 `trigger_rate`，
-    /// 按配置的概率触发 `can_trigger_states` 中的随机状态。
-    ///
-    /// # 性能说明
-    /// - 使用短暂的锁获取，避免长时间持有锁
-    /// - 先检查轻量条件（开关、时间间隔）再获取锁
-    pub fn start_timer_loop(&mut self, app_handle: tauri::AppHandle) {
-        let timer_enabled = Arc::new(AtomicBool::new(false));
-        self.timer_enabled = Some(timer_enabled.clone());
+    // start_timer_loop, set_app_handle, emit_state_change,
+    // get_current_mod_data_value, get_session_uptime_minutes_now
+    // -> state_runtime.rs
 
-        // 启动线程前：同步一次当前状态对应的启停开关。
-        // 否则会出现“启动阶段已进入 idle（持久状态）但 timer_enabled 尚未初始化”，
-        // 导致后续一直处于禁用状态，无法按 trigger_time 定时触发子状态。
-        let should_enable = match self.current_state.as_ref() {
-            Some(s) => s.persistent,
-            None => self.persistent_state.is_some(),
-        };
-        self.set_timer_enabled(should_enable);
-
-        tauri::async_runtime::spawn(async move {
-            #[cfg(debug_assertions)]
-            println!("[StateManager] 定时触发器线程启动");
-
-            let mut last_trigger_time = SystemTime::now();
-            let mut ticker = tokio::time::interval(Duration::from_secs(
-                crate::modules::constants::TIMER_TRIGGER_CHECK_INTERVAL_SECS,
-            ));
-
-            loop {
-                // 定期检查
-                ticker.tick().await;
-
-
-                // 快速检查开关（无锁操作）
-                if !timer_enabled.load(Ordering::Relaxed) {
-                    last_trigger_time = SystemTime::now();
-                    continue;
-                }
-
-                // 获取持久状态信息（短暂持有锁）
-                use tauri::Manager;
-                let app_state: tauri::State<crate::AppState> = app_handle.state();
-
-                // 从 state_manager 获取必要信息后立即释放锁
-                let (trigger_time, trigger_rate, state_candidates) = {
-                    let sm = app_state.state_manager.lock().unwrap();
-                    match sm.get_persistent_state() {
-                        Some(s) => (s.trigger_time, s.trigger_rate, s.can_trigger_states.clone()),
-                        None => continue,
-                    }
-                };
-
-                // 检查触发间隔（无锁操作）
-                if trigger_time <= 0.0 {
-                    continue;
-                }
-
-                let elapsed = last_trigger_time.elapsed().unwrap_or_default();
-                if elapsed.as_secs_f32() < trigger_time {
-                    continue;
-                }
-
-                // 重置计时器
-                last_trigger_time = SystemTime::now();
-
-                // 检查触发概率（无锁操作）
-                if trigger_rate <= 0.0 || state_candidates.is_empty() {
-                    continue;
-                }
-
-                let random_value = Self::random_float();
-                if random_value > trigger_rate {
-                    continue;
-                }
-
-                // 执行触发（分步获取锁，减少死锁风险）
-                // 关键：保持锁顺序一致性：ResourceManager → StateManager
-                // 这与 trigger_login_events、get_force_change_handler 等处的锁顺序一致
-                
-                // 先读取当前 ModData 值与会话启动时长，避免在持有 ResourceManager 锁时再加锁
-                let (mod_data_value, session_uptime_minutes) = {
-                    let storage = app_state.storage.lock().unwrap();
-                    let mod_id = storage.data.info.current_mod.to_string();
-
-                    let mod_data_value = storage
-                        .data
-                        .info
-                        .mod_data
-                        .get(&mod_id)
-                        .map(|m| m.value)
-                        .unwrap_or(0);
-
-                    let secs = storage.get_session_uptime_seconds_now();
-                    let mins = secs / 60;
-                    let session_uptime_minutes = i32::try_from(mins).unwrap_or(i32::MAX);
-
-                    (mod_data_value, session_uptime_minutes)
-                };
-
-                // 读取一次当前天气（来自 environment 缓存），避免在过滤时重复取锁
-                let current_weather = get_cached_weather();
-                let current_temp = current_weather.as_ref().map(|w| w.temperature);
-
-
-                // 第一步：获取 ResourceManager 锁
-                // - 筛选可用状态的名称和权重（避免克隆完整的 StateInfo 列表）
-                let rm = app_state.resource_manager.lock().unwrap();
-                
-                let candidate_names: Vec<(&str, u64)> = state_candidates
-                    .iter()
-                    .filter_map(|c| {
-                        if c.weight == 0 {
-                            return None;
-                        }
-                        // 检查状态是否存在且当前可用
-                        rm.get_state_by_name(c.state.as_ref())
-                            .and_then(|s| {
-                                if s.is_enable()
-                                    && Self::is_state_allowed_by_limits_static(
-                                        s,
-                                        mod_data_value,
-                                        session_uptime_minutes,
-                                        current_temp,
-                                        current_weather.as_ref(),
-                                    )
-
-                                {
-                                    Some((c.state.as_ref(), c.weight as u64))
-                                } else {
-                                    None
-                                }
-                            })
-                    })
-                    .collect();
-
-
-                if candidate_names.is_empty() {
-                    drop(rm);
-                    continue;
-                }
-
-                // 随机选择一个名称
-                let total_weight: u64 = candidate_names.iter().map(|(_, w)| *w).sum();
-                let mut pick = Self::random_u64(total_weight);
-                let mut selected_name = None;
-                for (name, weight) in candidate_names {
-                    if pick < weight {
-                        selected_name = Some(name);
-                        break;
-                    }
-                    pick -= weight;
-                }
-
-                let Some(name) = selected_name else {
-                    drop(rm);
-                    continue;
-                };
-
-                // 只克隆最终选中的那一个状态
-                let Some(selected) = rm.get_state_by_name(name).cloned() else {
-                    drop(rm);
-                    continue;
-                };
-
-                // 第二步：获取 StateManager 锁（在持有 rm 的情况下）
-                let mut sm = app_state.state_manager.lock().unwrap();
-                let _ = sm.change_state(selected, &rm);
-                
-                // 显式释放锁
-                drop(sm);
-                drop(rm);
-            }
-        });
-    }
-
-    // ========================================================================= //
-    // 初始化和事件
-    // ========================================================================= //
-
-    /// 设置 AppHandle，用于发送事件到前端
-    pub fn set_app_handle(&mut self, app_handle: AppHandle) {
-        self.app_handle = Some(app_handle);
-    }
-
-    /// 发送状态切换事件到前端
-    fn emit_state_change(&self, state: &Arc<StateInfo>, play_once: bool) {
-        if let Some(ref app_handle) = self.app_handle {
-            let event = StateChangeEvent {
-                state: Arc::clone(state),
-                play_once,
-            };
-
-            // 发送状态切换事件
-            let _ = emit(&app_handle, events::STATE_CHANGE, event);
-        }
-    }
-
-    /// 获取当前 ModData 的数值（若不存在则返回 0）
-    pub(crate) fn get_current_mod_data_value(&self) -> i32 {
-        let Some(app_handle) = &self.app_handle else {
-            return 0;
-        };
-        let Some(app_state) = app_handle.try_state::<AppState>() else {
-            return 0;
-        };
-        let storage = match app_state.storage.lock() {
-            Ok(s) => s,
-            Err(_) => return 0,
-        };
-        let mod_id = storage.data.info.current_mod.to_string();
-        storage
-            .data
-            .info
-            .mod_data
-            .get(&mod_id)
-            .map(|m| m.value)
-            .unwrap_or(0)
-    }
-
-    /// 获取“本次程序启动已运行分钟数”（若取不到则返回 0）
-    pub(crate) fn get_session_uptime_minutes_now(&self) -> i32 {
-        let Some(app_handle) = &self.app_handle else {
-            return 0;
-        };
-        let Some(app_state) = app_handle.try_state::<AppState>() else {
-            return 0;
-        };
-        let storage = match app_state.storage.lock() {
-            Ok(s) => s,
-            Err(_) => return 0,
-        };
-
-        let secs = storage.get_session_uptime_seconds_now();
-        let mins = secs / 60;
-        i32::try_from(mins).unwrap_or(i32::MAX)
-    }
 
 
     /// 根据气温范围限制判断状态是否允许触发。
@@ -1078,130 +817,14 @@ impl StateManager {
 
 
 
-    /// 判断当前状态是否满足触发限制（ModData 触发计数范围 + 启动时长 + 气温范围 + 天气精确匹配）
-    ///
-    /// ⚠️ **死锁风险说明**：此方法内部会获取 `storage` 锁来读取 mod_data_value 和 session_uptime。
-    /// 如果调用者已持有 `state_manager`（sm）锁，就会形成 `sm → storage` 的锁序。
-    /// 为避免死锁，**在同时持有 rm 和 sm 锁的上下文中**（如 `trigger_event`、`trigger_random_state`），
-    /// 应使用 `is_state_allowed_by_limits_static()` 替代，并在获取 rm/sm 锁之前预先读取 storage 数据。
-    ///
-    /// 此方法仅适用于**调用者未持有其他锁**的安全场景。
-    #[inline]
-    pub(crate) fn is_state_allowed_by_limits(&self, state: &StateInfo) -> bool {
-        let value = self.get_current_mod_data_value();
-        let uptime_minutes = self.get_session_uptime_minutes_now();
-        let current_weather = get_cached_weather();
-        let current_temp = current_weather.as_ref().map(|w| w.temperature);
-        Self::is_state_allowed_by_limits_static(
-            state,
-            value,
-            uptime_minutes,
-            current_temp,
-            current_weather.as_ref(),
-        )
-    }
+    // is_state_allowed_by_limits() 已移至 state_runtime.rs（依赖 AppHandle）
 
 
-
-
-    /// 进入状态时，按配置异步更新当前 Mod 的数据计数器，并立即落盘
-    ///
-    /// 设计目标：
-    /// - 该方法不应阻塞状态切换主流程
-    /// - 不应持有 ResourceManager 锁（避免锁顺序死锁）
-    fn apply_mod_data_counter_async(&self, state: &Arc<StateInfo>) {
-        let Some(cfg) = state.mod_data_counter.clone() else {
-            return;
-        };
-
-        // 过滤“无效操作”，避免频繁触发保存/广播：
-        // - +0 / -0 / *1 / /1 这些不会改变值
-        match cfg.op {
-            ModDataCounterOp::Add | ModDataCounterOp::Sub if cfg.value == 0 => return,
-            ModDataCounterOp::Mul | ModDataCounterOp::Div if cfg.value == 1 => return,
-            _ => {}
-        }
-
-        let Some(app_handle) = self.app_handle.clone() else {
-            return;
-        };
-
-        let _ = std::thread::Builder::new()
-            .name("traybuddy-mod-data".to_string())
-            .spawn(move || {
-                crate::modules::utils::thread::set_current_thread_description("traybuddy: mod-data-counter");
-                let Some(app_state) = app_handle.try_state::<AppState>() else {
-                    return;
-                };
-
-            let mut storage = app_state.storage.lock().unwrap();
-            let mod_id = storage.data.info.current_mod.to_string();
-
-            let current = storage
-                .data
-                .info
-                .mod_data
-                .get(&mod_id)
-                .map(|m| m.value)
-                .unwrap_or(0);
-
-            let next_opt = match cfg.op {
-                ModDataCounterOp::Add => current.checked_add(cfg.value),
-                ModDataCounterOp::Sub => current.checked_sub(cfg.value),
-                ModDataCounterOp::Mul => current.checked_mul(cfg.value),
-                ModDataCounterOp::Div => {
-                    if cfg.value == 0 {
-                        None
-                    } else {
-                        current.checked_div(cfg.value)
-                    }
-                }
-                ModDataCounterOp::Set => Some(cfg.value),
-            };
-
-            let Some(next) = next_opt else {
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "[StateManager] mod_data_counter 计算失败（可能溢出/除 0），已跳过：mod='{}' current={} op={:?} value={} ",
-                    mod_id, current, cfg.op, cfg.value
-                );
-                return;
-            };
-
-            if next == current {
-                return;
-            }
-
-            // 写入并立即落盘
-            {
-                let entry = storage.data.info.mod_data.entry(mod_id.clone()).or_insert(ModData {
-                    mod_id: mod_id.clone(),
-                    value: current,
-                });
-                entry.value = next;
-            }
-
-            if storage.save().is_err() {
-                return;
-            }
-
-            // 广播更新事件（供前端 HUD 同步）
-            let data = storage
-                .data
-                .info
-                .mod_data
-                .get(&mod_id)
-                .cloned()
-                .unwrap_or(ModData {
-                    mod_id,
-                    value: next,
-                });
-            drop(storage);
-            let _ = emit(&app_handle, events::MOD_DATA_CHANGED, data);
-
-        });
-    }
+    // apply_mod_data_counter_async -> state_runtime.rs
 }
+
+// 运行时方法（依赖 AppHandle，不可单元测试）拆分到独立文件以便排除覆盖率统计
+include!("state_runtime.rs");
 
 #[cfg(test)]
 mod tests {
@@ -1278,6 +901,945 @@ mod tests {
             Some(&weather("100", "晴")),
         );
         assert!(!bad_counter);
+    }
+
+    // ================================================================
+    // StateManager 基本操作测试
+    // ================================================================
+
+    #[test]
+    fn new_state_manager_is_empty() {
+        let sm = StateManager::new();
+        assert!(sm.get_current_state().is_none());
+        assert!(sm.get_persistent_state().is_none());
+        assert!(sm.get_next_state().is_none());
+        assert!(!sm.is_locked());
+    }
+
+    #[test]
+    fn set_next_state_and_clear() {
+        let mut sm = StateManager::new();
+        let mut s = StateInfo::default();
+        s.name = "wait".into();
+        sm.set_next_state(s);
+        assert!(sm.get_next_state().is_some());
+        assert_eq!(sm.get_next_state().unwrap().name.as_ref(), "wait");
+
+        sm.clear_next_state();
+        assert!(sm.get_next_state().is_none());
+    }
+
+    // ================================================================
+    // StateLimitsContext 测试
+    // ================================================================
+
+    #[test]
+    fn state_limits_context_default_unlimited() {
+        let ctx = StateLimitsContext::default_unlimited();
+        assert_eq!(ctx.mod_data_value, 0);
+        assert_eq!(ctx.session_uptime_minutes, 0);
+        assert!(ctx.current_weather.is_none());
+        assert!(ctx.current_temp().is_none());
+    }
+
+    #[test]
+    fn state_limits_context_is_allowed_no_restrictions() {
+        let ctx = StateLimitsContext::default_unlimited();
+        let s = StateInfo::default();
+        assert!(ctx.is_allowed(&s));
+    }
+
+    #[test]
+    fn state_limits_context_current_temp() {
+        let ctx = StateLimitsContext {
+            mod_data_value: 0,
+            session_uptime_minutes: 0,
+            current_weather: Some(weather("100", "晴")),
+        };
+        assert_eq!(ctx.current_temp(), Some(20.0));
+    }
+
+    // ================================================================
+    // set_persistent_state 测试
+    // ================================================================
+
+    #[test]
+    fn set_persistent_state_rejects_non_persistent() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let mut s = StateInfo::default();
+        s.name = "temp".into();
+        s.persistent = false;
+        let result = sm.set_persistent_state(s, false, &rm);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn set_persistent_state_succeeds() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let mut s = StateInfo::default();
+        s.name = "idle".into();
+        s.persistent = true;
+        let result = sm.set_persistent_state(s, true, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_persistent_state().unwrap().name.as_ref(), "idle");
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "idle");
+    }
+
+    #[test]
+    fn set_persistent_state_skips_same_state() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let mut s = StateInfo::default();
+        s.name = "idle".into();
+        s.persistent = true;
+        sm.set_persistent_state(s.clone(), true, &rm).unwrap();
+
+        // same state, non-force -> skip
+        let result = sm.set_persistent_state(s, false, &rm);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn set_persistent_state_respects_priority() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s1 = StateInfo::default();
+        s1.name = "high".into();
+        s1.persistent = true;
+        s1.priority = 10;
+        sm.set_persistent_state(s1, true, &rm).unwrap();
+
+        let mut s2 = StateInfo::default();
+        s2.name = "low".into();
+        s2.persistent = true;
+        s2.priority = 1;
+        let result = sm.set_persistent_state(s2, false, &rm);
+        assert!(!result.unwrap());
+        assert_eq!(sm.get_persistent_state().unwrap().name.as_ref(), "high");
+    }
+
+    #[test]
+    fn set_persistent_state_when_locked_only_updates_data() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        // set initial persistent
+        let mut idle = StateInfo::default();
+        idle.name = "idle".into();
+        idle.persistent = true;
+        sm.set_persistent_state(idle, true, &rm).unwrap();
+
+        // lock by setting a temp state
+        let mut tmp = StateInfo::default();
+        tmp.name = "click".into();
+        tmp.persistent = false;
+        sm.set_current_state(tmp, true, &rm).unwrap();
+        assert!(sm.is_locked());
+
+        // set new persistent while locked
+        let mut idle2 = StateInfo::default();
+        idle2.name = "music".into();
+        idle2.persistent = true;
+        let result = sm.set_persistent_state(idle2, false, &rm);
+        // should return false (not switched current) but persistent data updated
+        assert!(!result.unwrap());
+        assert_eq!(sm.get_persistent_state().unwrap().name.as_ref(), "music");
+        // current should still be the temp state
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "click");
+    }
+
+    // ================================================================
+    // set_current_state 测试
+    // ================================================================
+
+    #[test]
+    fn set_current_state_rejects_persistent() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let mut s = StateInfo::default();
+        s.name = "idle".into();
+        s.persistent = true;
+        let result = sm.set_current_state(s, false, &rm);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn set_current_state_succeeds_and_locks() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let mut s = StateInfo::default();
+        s.name = "click".into();
+        s.persistent = false;
+        let result = sm.set_current_state(s, true, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "click");
+        assert!(sm.is_locked());
+    }
+
+    #[test]
+    fn set_current_state_skips_when_locked() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s1 = StateInfo::default();
+        s1.name = "first".into();
+        s1.persistent = false;
+        sm.set_current_state(s1, true, &rm).unwrap();
+        assert!(sm.is_locked());
+
+        let mut s2 = StateInfo::default();
+        s2.name = "second".into();
+        s2.persistent = false;
+        let result = sm.set_current_state(s2, false, &rm);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn set_current_state_force_overrides_lock() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s1 = StateInfo::default();
+        s1.name = "first".into();
+        s1.persistent = false;
+        sm.set_current_state(s1, true, &rm).unwrap();
+
+        let mut s2 = StateInfo::default();
+        s2.name = "forced".into();
+        s2.persistent = false;
+        let result = sm.set_current_state(s2, true, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "forced");
+    }
+
+    #[test]
+    fn set_current_state_respects_priority() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s1 = StateInfo::default();
+        s1.name = "high".into();
+        s1.persistent = false;
+        s1.priority = 10;
+        sm.set_current_state(s1, true, &rm).unwrap();
+
+        // unlock to test priority (lock would block first)
+        sm.locked = false;
+
+        let mut s2 = StateInfo::default();
+        s2.name = "low".into();
+        s2.persistent = false;
+        s2.priority = 1;
+        let result = sm.set_current_state(s2, false, &rm);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn set_current_state_skips_same_non_force() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s = StateInfo::default();
+        s.name = "anim".into();
+        s.persistent = false;
+        sm.set_current_state(s.clone(), true, &rm).unwrap();
+
+        sm.locked = false;
+        let result = sm.set_current_state(s, false, &rm);
+        assert!(!result.unwrap());
+    }
+
+    // ================================================================
+    // prepare_next_state 测试
+    // ================================================================
+
+    #[test]
+    fn prepare_next_state_sets_from_current() {
+        let mut sm = StateManager::new();
+        let dir = std::env::temp_dir().join("tbuddy_test_prepare_next");
+        let _ = std::fs::remove_dir_all(&dir);
+        let mod_dir = dir.join("pnmod");
+        std::fs::create_dir_all(mod_dir.join("asset")).unwrap();
+        std::fs::write(
+            mod_dir.join("manifest.json"),
+            r#"{"id":"pnmod","version":"1","mod_type":"sequence","important_states":{},"states":[{"name":"a","persistent":false,"next_state":"b","can_trigger_states":[]},{"name":"b","persistent":false,"can_trigger_states":[]}],"triggers":[]}"#,
+        ).unwrap();
+
+        let mut rm = ResourceManager::new_with_search_paths(vec![dir.clone()]);
+        let _ = rm.load_mod("pnmod");
+
+        // Manually set current with next_state
+        let mut s = StateInfo::default();
+        s.name = "a".into();
+        s.next_state = "b".into();
+        sm.current_state = Some(Arc::new(s));
+
+        sm.prepare_next_state(&rm);
+        assert!(sm.get_next_state().is_some());
+        assert_eq!(sm.get_next_state().unwrap().name.as_ref(), "b");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn prepare_next_state_noop_when_no_next() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let s = StateInfo::default();
+        sm.current_state = Some(Arc::new(s));
+        sm.prepare_next_state(&rm);
+        assert!(sm.get_next_state().is_none());
+    }
+
+    // ================================================================
+    // on_state_complete 测试
+    // ================================================================
+
+    #[test]
+    fn on_state_complete_unlocks_and_goes_to_next() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        // Set initial persistent state
+        let mut idle = StateInfo::default();
+        idle.name = "idle".into();
+        idle.persistent = true;
+        sm.set_persistent_state(idle, true, &rm).unwrap();
+
+        // Set a temp state and lock
+        let mut tmp = StateInfo::default();
+        tmp.name = "click".into();
+        tmp.persistent = false;
+        sm.set_current_state(tmp, true, &rm).unwrap();
+        assert!(sm.is_locked());
+
+        // Set next state as persistent so on_state_complete won't re-lock
+        let mut next = StateInfo::default();
+        next.name = "react_idle".into();
+        next.persistent = true;
+        sm.set_next_state(next);
+
+        sm.on_state_complete(&rm);
+        // on_state_complete unlocks, then change_state routes persistent -> no re-lock
+        assert!(!sm.is_locked());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "react_idle");
+    }
+
+    #[test]
+    fn on_state_complete_returns_to_persistent() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut idle = StateInfo::default();
+        idle.name = "idle".into();
+        idle.persistent = true;
+        sm.set_persistent_state(idle, true, &rm).unwrap();
+
+        let mut tmp = StateInfo::default();
+        tmp.name = "click".into();
+        tmp.persistent = false;
+        sm.set_current_state(tmp, true, &rm).unwrap();
+
+        // No next state set
+        sm.on_state_complete(&rm);
+        assert!(!sm.is_locked());
+        // Should return to persistent "idle"
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "idle");
+    }
+
+    // ================================================================
+    // change_state / change_state_ex 测试
+    // ================================================================
+
+    #[test]
+    fn change_state_auto_routes_persistent() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s = StateInfo::default();
+        s.name = "idle".into();
+        s.persistent = true;
+        let result = sm.change_state(s, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_persistent_state().unwrap().name.as_ref(), "idle");
+    }
+
+    #[test]
+    fn change_state_auto_routes_temporary() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s = StateInfo::default();
+        s.name = "click".into();
+        s.persistent = false;
+        let result = sm.change_state(s, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "click");
+        assert!(sm.is_locked());
+    }
+
+    #[test]
+    fn change_state_ex_force() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s1 = StateInfo::default();
+        s1.name = "high".into();
+        s1.persistent = false;
+        s1.priority = 99;
+        sm.change_state(s1, &rm).unwrap();
+
+        let mut s2 = StateInfo::default();
+        s2.name = "low".into();
+        s2.persistent = false;
+        s2.priority = 0;
+        // force=true should override
+        let result = sm.change_state_ex(s2, true, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "low");
+    }
+
+    #[test]
+    fn change_state_blocks_music_start_during_music() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut music = StateInfo::default();
+        music.name = STATE_MUSIC.into();
+        music.persistent = true;
+        sm.set_persistent_state(music, true, &rm).unwrap();
+
+        let mut ms = StateInfo::default();
+        ms.name = STATE_MUSIC_START.into();
+        ms.persistent = false;
+        let result = sm.change_state(ms, &rm);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn change_state_blocks_silence_start_during_silence() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut silence = StateInfo::default();
+        silence.name = STATE_SILENCE.into();
+        silence.persistent = true;
+        sm.set_persistent_state(silence, true, &rm).unwrap();
+
+        let mut ss = StateInfo::default();
+        ss.name = STATE_SILENCE_START.into();
+        ss.persistent = false;
+        let result = sm.change_state(ss, &rm);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn change_state_blocks_drag_start_during_dragging() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut drag = StateInfo::default();
+        drag.name = STATE_DRAGGING.into();
+        drag.persistent = true;
+        sm.set_persistent_state(drag, true, &rm).unwrap();
+
+        let mut ds = StateInfo::default();
+        ds.name = STATE_DRAG_START.into();
+        ds.persistent = false;
+        let result = sm.change_state(ds, &rm);
+        assert!(!result.unwrap());
+    }
+
+    // ================================================================
+    // set_timer_enabled 测试
+    // ================================================================
+
+    #[test]
+    fn set_timer_enabled_with_no_timer() {
+        let sm = StateManager::new();
+        // should not panic
+        sm.set_timer_enabled(true);
+        sm.set_timer_enabled(false);
+    }
+
+    #[test]
+    fn set_timer_enabled_with_timer() {
+        let mut sm = StateManager::new();
+        let flag = Arc::new(AtomicBool::new(false));
+        sm.timer_enabled = Some(flag.clone());
+
+        sm.set_timer_enabled(true);
+        assert!(flag.load(Ordering::Relaxed));
+
+        sm.set_timer_enabled(false);
+        assert!(!flag.load(Ordering::Relaxed));
+    }
+
+    // ================================================================
+    // 温度范围测试（补充）
+    // ================================================================
+
+    #[test]
+    fn temp_range_invalid_interval() {
+        let mut state = StateInfo::default();
+        state.trigger_temp_start = 30;
+        state.trigger_temp_end = 10; // start > end
+        assert!(!StateManager::is_state_allowed_by_temp_range(&state, Some(20.0)));
+    }
+
+    #[test]
+    fn temp_range_boundary_values() {
+        let mut state = StateInfo::default();
+        state.trigger_temp_start = 10;
+        state.trigger_temp_end = 20;
+        assert!(StateManager::is_state_allowed_by_temp_range(&state, Some(10.0)));
+        assert!(StateManager::is_state_allowed_by_temp_range(&state, Some(20.0)));
+        assert!(!StateManager::is_state_allowed_by_temp_range(&state, Some(9.99)));
+        assert!(!StateManager::is_state_allowed_by_temp_range(&state, Some(20.01)));
+    }
+
+    // ================================================================
+    // uptime 测试（补充）
+    // ================================================================
+
+    #[test]
+    fn uptime_zero_means_no_restriction() {
+        let mut state = StateInfo::default();
+        state.trigger_uptime = 0;
+        assert!(StateManager::is_state_allowed_by_uptime_min(&state, 0));
+        assert!(StateManager::is_state_allowed_by_uptime_min(&state, 100));
+    }
+
+    #[test]
+    fn uptime_negative_means_no_restriction() {
+        let mut state = StateInfo::default();
+        state.trigger_uptime = -5;
+        assert!(StateManager::is_state_allowed_by_uptime_min(&state, 0));
+    }
+
+    // ================================================================
+    // 天气测试（补充）
+    // ================================================================
+
+    #[test]
+    fn weather_empty_array_allows_any() {
+        let state = StateInfo::default();
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, None));
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("100", "晴"))));
+    }
+
+    #[test]
+    fn weather_whitespace_only_items_ignored() {
+        let mut state = StateInfo::default();
+        state.trigger_weather = vec!["  ".into(), "".into()];
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, None));
+    }
+
+    #[test]
+    fn weather_code_match_returns_true() {
+        let mut state = StateInfo::default();
+        state.trigger_weather = vec!["100".into()];
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("100", "晴"))));
+        assert!(!StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("101", "多云"))));
+    }
+
+    #[test]
+    fn weather_text_case_insensitive() {
+        let mut state = StateInfo::default();
+        state.trigger_weather = vec!["sunny".into()];
+        let w = WeatherInfo {
+            condition: "Sunny".into(),
+            condition_code: "100".into(),
+            temperature: 25.0,
+            feels_like: None,
+            humidity: None,
+            wind_speed: None,
+        };
+        assert!(StateManager::is_state_allowed_by_weather_any(&state, Some(&w)));
+    }
+
+    // ================================================================
+    // is_state_allowed_by_limits_static 组合测试
+    // ================================================================
+
+    #[test]
+    fn limits_static_counter_range() {
+        let mut state = StateInfo::default();
+        state.trigger_counter_start = 5;
+        state.trigger_counter_end = 10;
+
+        assert!(StateManager::is_state_allowed_by_limits_static(&state, 5, 0, None, None));
+        assert!(StateManager::is_state_allowed_by_limits_static(&state, 10, 0, None, None));
+        assert!(!StateManager::is_state_allowed_by_limits_static(&state, 4, 0, None, None));
+        assert!(!StateManager::is_state_allowed_by_limits_static(&state, 11, 0, None, None));
+    }
+
+    #[test]
+    fn limits_static_all_default_passes() {
+        let state = StateInfo::default();
+        assert!(StateManager::is_state_allowed_by_limits_static(&state, 0, 0, None, None));
+    }
+
+    #[test]
+    fn limits_static_fails_on_any_check() {
+        let mut state = StateInfo::default();
+        state.trigger_uptime = 100;
+        // uptime too low
+        assert!(!StateManager::is_state_allowed_by_limits_static(&state, 0, 50, None, None));
+        // uptime ok
+        assert!(StateManager::is_state_allowed_by_limits_static(&state, 0, 100, None, None));
+    }
+
+    // ================================================================
+    // trigger_random_state 测试
+    // ================================================================
+
+    #[test]
+    fn trigger_random_state_empty_list() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let ctx = StateLimitsContext::default_unlimited();
+        let result = sm.trigger_random_state(&[], &rm, &ctx);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn trigger_random_state_single_candidate() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let ctx = StateLimitsContext::default_unlimited();
+
+        let mut s = StateInfo::default();
+        s.name = "react".into();
+        s.persistent = false;
+        let result = sm.trigger_random_state(&[s], &rm, &ctx);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "react");
+    }
+
+    #[test]
+    fn trigger_random_state_filters_by_limits() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let ctx = StateLimitsContext {
+            mod_data_value: 100,
+            session_uptime_minutes: 0,
+            current_weather: None,
+        };
+
+        let mut s = StateInfo::default();
+        s.name = "limited".into();
+        s.persistent = false;
+        s.trigger_counter_start = 0;
+        s.trigger_counter_end = 10;
+        // mod_data_value=100 is outside [0,10]
+
+        let result = sm.trigger_random_state(&[s], &rm, &ctx);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn trigger_random_state_multiple_candidates() {
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let ctx = StateLimitsContext::default_unlimited();
+
+        let mut s1 = StateInfo::default();
+        s1.name = "a".into();
+        s1.persistent = false;
+        let mut s2 = StateInfo::default();
+        s2.name = "b".into();
+        s2.persistent = false;
+        let mut s3 = StateInfo::default();
+        s3.name = "c".into();
+        s3.persistent = false;
+
+        // Run multiple times to exercise the random_index branch (len > 1)
+        for _ in 0..10 {
+            let mut sm = StateManager::new();
+            let result = sm.trigger_random_state(&[s1.clone(), s2.clone(), s3.clone()], &rm, &ctx);
+            assert!(result.unwrap());
+            let name = sm.get_current_state().unwrap().name.to_string();
+            assert!(name == "a" || name == "b" || name == "c");
+        }
+    }
+
+    // ================================================================
+    // pick_weighted_state 测试
+    // ================================================================
+
+    #[test]
+    fn pick_weighted_state_empty() {
+        let result = StateManager::pick_weighted_state(vec![]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn pick_weighted_state_single() {
+        let mut s = StateInfo::default();
+        s.name = "only".into();
+        let result = StateManager::pick_weighted_state(vec![(s, 5)]);
+        assert_eq!(result.unwrap().name.as_ref(), "only");
+    }
+
+    #[test]
+    fn pick_weighted_state_filters_zero_weight() {
+        let mut s1 = StateInfo::default();
+        s1.name = "zero".into();
+        let mut s2 = StateInfo::default();
+        s2.name = "ok".into();
+        let result = StateManager::pick_weighted_state(vec![(s1, 0), (s2, 1)]);
+        assert_eq!(result.unwrap().name.as_ref(), "ok");
+    }
+
+    #[test]
+    fn pick_weighted_state_filters_empty_name() {
+        let mut s = StateInfo::default();
+        s.name = "".into();
+        let result = StateManager::pick_weighted_state(vec![(s, 5)]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn pick_weighted_state_multiple_returns_one() {
+        let mut s1 = StateInfo::default();
+        s1.name = "a".into();
+        let mut s2 = StateInfo::default();
+        s2.name = "b".into();
+        // run multiple times to ensure no panic
+        for _ in 0..20 {
+            let candidates = vec![(s1.clone(), 1), (s2.clone(), 1)];
+            let result = StateManager::pick_weighted_state(candidates);
+            assert!(result.is_some());
+            let name = result.unwrap().name.to_string();
+            assert!(name == "a" || name == "b");
+        }
+    }
+
+    // ================================================================
+    // random_index / random_u64 / random_float 测试
+    // ================================================================
+
+    #[test]
+    fn random_index_within_range() {
+        for _ in 0..100 {
+            let idx = StateManager::random_index(10);
+            assert!(idx < 10);
+        }
+    }
+
+    #[test]
+    fn random_u64_within_range() {
+        for _ in 0..100 {
+            let val = StateManager::random_u64(1000);
+            assert!(val < 1000);
+        }
+    }
+
+    #[test]
+    fn random_float_in_unit_range() {
+        for _ in 0..100 {
+            let val = StateManager::random_float();
+            assert!(val >= 0.0 && val < 1.0);
+        }
+    }
+
+    // ================================================================
+    // StateChangeEvent 结构体测试
+    // ================================================================
+
+    #[test]
+    fn state_change_event_serializes() {
+        let mut s = StateInfo::default();
+        s.name = "idle".into();
+        let event = StateChangeEvent {
+            state: Arc::new(s),
+            play_once: true,
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("idle"));
+        assert!(json.contains("play_once"));
+    }
+
+    // ================================================================
+    // change_state music/silence/drag 状态机补充测试
+    // ================================================================
+
+    #[test]
+    fn change_state_blocks_music_start_during_music_end() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut me = StateInfo::default();
+        me.name = STATE_MUSIC_END.into();
+        me.persistent = false;
+        sm.set_current_state(me, true, &rm).unwrap();
+
+        let mut ms = StateInfo::default();
+        ms.name = STATE_MUSIC_START.into();
+        ms.persistent = false;
+        sm.locked = false; // unlock to test the music guard
+        let result = sm.change_state(ms, &rm);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn change_state_blocks_silence_start_during_silence_end() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut se = StateInfo::default();
+        se.name = STATE_SILENCE_END.into();
+        se.persistent = false;
+        sm.set_current_state(se, true, &rm).unwrap();
+
+        let mut ss = StateInfo::default();
+        ss.name = STATE_SILENCE_START.into();
+        ss.persistent = false;
+        sm.locked = false;
+        let result = sm.change_state(ss, &rm);
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn change_state_blocks_drag_start_during_drag_end() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut de = StateInfo::default();
+        de.name = STATE_DRAG_END.into();
+        de.persistent = false;
+        sm.set_current_state(de, true, &rm).unwrap();
+
+        let mut ds = StateInfo::default();
+        ds.name = STATE_DRAG_START.into();
+        ds.persistent = false;
+        sm.locked = false;
+        let result = sm.change_state(ds, &rm);
+        assert!(!result.unwrap());
+    }
+
+    // ================================================================
+    // change_state_internal 成功切换后 timer_enabled 更新
+    // ================================================================
+
+    #[test]
+    fn change_state_updates_timer_on_success() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+        let flag = Arc::new(AtomicBool::new(false));
+        sm.timer_enabled = Some(flag.clone());
+
+        // persistent -> timer enabled
+        let mut idle = StateInfo::default();
+        idle.name = "idle".into();
+        idle.persistent = true;
+        sm.change_state(idle, &rm).unwrap();
+        assert!(flag.load(Ordering::Relaxed));
+
+        // temp -> timer disabled
+        let mut click = StateInfo::default();
+        click.name = "click".into();
+        click.persistent = false;
+        sm.change_state_ex(click, true, &rm).unwrap();
+        assert!(!flag.load(Ordering::Relaxed));
+    }
+
+    // ================================================================
+    // change_state_internal: music/silence/drag 外层 if 通过分支
+    // ================================================================
+
+    #[test]
+    fn change_state_allows_non_music_start_during_music() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        // current = music (persistent)
+        let mut music = StateInfo::default();
+        music.name = STATE_MUSIC.into();
+        music.persistent = true;
+        sm.set_persistent_state(music, true, &rm).unwrap();
+
+        // target = click (non-music_start) → should pass through music guard
+        let mut click = StateInfo::default();
+        click.name = "click".into();
+        click.persistent = false;
+        let result = sm.change_state(click, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "click");
+    }
+
+    #[test]
+    fn change_state_allows_non_silence_start_during_silence() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut silence = StateInfo::default();
+        silence.name = STATE_SILENCE.into();
+        silence.persistent = true;
+        sm.set_persistent_state(silence, true, &rm).unwrap();
+
+        let mut click = StateInfo::default();
+        click.name = "click".into();
+        click.persistent = false;
+        let result = sm.change_state(click, &rm);
+        assert!(result.unwrap());
+    }
+
+    #[test]
+    fn change_state_allows_non_drag_start_during_dragging() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut drag = StateInfo::default();
+        drag.name = STATE_DRAGGING.into();
+        drag.persistent = true;
+        sm.set_persistent_state(drag, true, &rm).unwrap();
+
+        let mut click = StateInfo::default();
+        click.name = "click".into();
+        click.persistent = false;
+        let result = sm.change_state(click, &rm);
+        assert!(result.unwrap());
+    }
+
+    // ================================================================
+    // set_persistent_state / set_current_state: 同状态 + force=true
+    // ================================================================
+
+    #[test]
+    fn set_persistent_state_same_state_force_succeeds() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s = StateInfo::default();
+        s.name = "idle".into();
+        s.persistent = true;
+        sm.set_persistent_state(s.clone(), true, &rm).unwrap();
+
+        // same state, force=true → should NOT skip, should succeed
+        let result = sm.set_persistent_state(s, true, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_persistent_state().unwrap().name.as_ref(), "idle");
+    }
+
+    #[test]
+    fn set_current_state_same_state_force_succeeds() {
+        let mut sm = StateManager::new();
+        let rm = ResourceManager::new_with_search_paths(vec![]);
+
+        let mut s = StateInfo::default();
+        s.name = "click".into();
+        s.persistent = false;
+        sm.set_current_state(s.clone(), true, &rm).unwrap();
+
+        // same state, force=true → should NOT skip
+        let result = sm.set_current_state(s, true, &rm);
+        assert!(result.unwrap());
+        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "click");
     }
 }
 

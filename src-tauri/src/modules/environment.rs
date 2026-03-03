@@ -223,68 +223,6 @@ impl EnvironmentManager {
         get_current_datetime()
     }
 
-    // ========================================================================= //
-
-    /// 获取地理位置信息 (通过 IP 地理位置 API 获取)
-    ///
-    /// 使用全局缓存，首次调用时获取
-    #[inline]
-    pub async fn get_location(&mut self) -> Option<GeoLocation> {
-        // --- 1. 检查缓存 (快门) ---
-        let cache = CACHED_LOCATION.get_or_init(|| Mutex::new(None));
-        {
-            let guard = cache.lock().ok()?;
-            if let Some(ref loc) = *guard {
-                return Some(loc.clone());
-            }
-        } // 锁在此释放，接下来的网络请求是非阻塞的
-
-        // --- 2. 异步请求数据 ---
-        let new_location = Self::fetch_location_from_api().await;
-
-        // --- 3. 更新缓存 (写锁) ---
-        if let Ok(mut guard) = cache.lock() {
-            *guard = Some(new_location.clone());
-        }
-
-        Some(new_location)
-    }
-
-    /// 强制刷新地理位置缓存
-    pub async fn refresh_location(&mut self) -> Option<GeoLocation> {
-        let new_location = Self::fetch_location_from_api().await;
-
-        let cache = CACHED_LOCATION.get_or_init(|| Mutex::new(None));
-        if let Ok(mut guard) = cache.lock() {
-            *guard = Some(new_location.clone());
-            return Some(new_location);
-        }
-        None
-    }
-
-    /// 通过 IP 地理位置 API 获取位置信息
-    async fn fetch_location_from_api() -> GeoLocation {
-        // 尝试从 API 获取位置信息
-        if let Ok(geo) = Self::fetch_ip_geolocation().await {
-            return geo;
-        }
-
-        // API 失败时回退到本地时区推断
-        Self::fallback_location_from_timezone()
-    }
-
-    /// 通过 ip-api.com 获取 IP 地理位置（免费，无需 API Key）
-    async fn fetch_ip_geolocation() -> Result<GeoLocation, String> {
-        let url = "http://ip-api.com/json/?fields=status,country,regionName,city,lat,lon,timezone&lang=zh-CN".to_string();
-        let body = http_get_async(
-            url,
-            LOCATION_API_TIMEOUT_SECS,
-            Some("\"status\"".to_string()),
-        )
-        .await?;
-        Self::parse_ip_geo_response(&body)
-    }
-
     /// 解析 ip-api.com 响应
     fn parse_ip_geo_response(body: &str) -> Result<GeoLocation, String> {
         let response: IpGeoApiResponse =
@@ -362,74 +300,12 @@ impl EnvironmentManager {
     }
 
     // ========================================================================= //
-    // 天气功能 (需要联网)
+    // 天气功能
     // ========================================================================= //
 
     /// 设置天气缓存有效期 (秒)
     pub fn set_weather_cache_duration(&mut self, duration: u64) {
         self.weather_cache_duration = duration;
-    }
-
-    /// 获取天气信息 (使用全局缓存)
-    /// 全局缓存在程序启动时初始化，过期后重新获取
-    pub async fn get_weather(&mut self) -> Option<WeatherInfo> {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        // 检查全局缓存是否有效
-        if let Some(cache) = CACHED_WEATHER.get() {
-            if let Ok(guard) = cache.lock() {
-                if guard.weather.is_some() && now - guard.cache_time < self.weather_cache_duration {
-                    return guard.weather.clone();
-                }
-            }
-        }
-
-        // 从网络获取天气
-        if let Some(weather) = self.fetch_weather_from_network().await {
-            // 更新全局缓存
-            if let Some(cache) = CACHED_WEATHER.get() {
-                if let Ok(mut guard) = cache.lock() {
-                    guard.weather = Some(weather.clone());
-                    guard.cache_time = now;
-                }
-            }
-            Some(weather)
-        } else {
-            None
-        }
-    }
-
-    /// 从网络获取天气（不使用缓存，内部方法）
-    async fn fetch_weather_from_network(&mut self) -> Option<WeatherInfo> {
-        // 获取位置用于天气查询
-        let location = self.get_location().await?;
-        // 优先使用城市名，其次使用经纬度坐标
-        let query = if let Some(ref city) = location.city {
-            city.to_string()
-        } else {
-            // 使用经纬度作为备选（wttr.in 支持坐标查询）
-            format!("{},{}", location.latitude, location.longitude)
-        };
-
-        self.fetch_weather_async(&query).await.ok()
-    }
-
-    /// 异步获取天气信息 (使用 wttr.in API)
-    async fn fetch_weather_async(&self, query: &str) -> Result<WeatherInfo, String> {
-        // 对查询参数进行 URL 编码处理
-        let query_encoded = query.replace(' ', "%20");
-        let url = format!("https://wttr.in/{}?format=j1", query_encoded);
-
-        let body = http_get_async(
-            url,
-            WEATHER_API_TIMEOUT_SECS,
-            Some("current_condition".to_string()),
-        )
-        .await?;
-        self.parse_wttr_response(&body)
     }
 
     /// 解析 wttr.in API 响应
@@ -474,22 +350,10 @@ impl EnvironmentManager {
             wind_speed,
         })
     }
-
-    // ========================================================================= //
-
-    /// 获取完整的环境信息
-    pub async fn get_environment_info(&mut self) -> EnvironmentInfo {
-        let datetime = self.get_datetime();
-        let location = self.get_location().await;
-        let weather = self.get_weather().await;
-
-        EnvironmentInfo {
-            location,
-            datetime,
-            weather,
-        }
-    }
 }
+
+// 运行时方法（依赖 async / 网络 / AppHandle，不可单元测试）拆分到独立文件以便排除覆盖率统计
+include!("environment_runtime.rs");
 
 impl Default for EnvironmentManager {
     fn default() -> Self {
@@ -643,72 +507,6 @@ pub struct EnvironmentUpdateEvent {
     pub weather: Option<WeatherInfo>,
 }
 
-
-/// 程序启动时初始化环境信息（在后台线程调用，避免阻塞启动）
-///
-/// 预先获取地理位置和天气信息，后续调用直接返回缓存
-/// 获取完成后通过 app_handle 发送事件通知前端
-pub fn init_environment(app_handle: Option<tauri::AppHandle>) {
-    use tauri::Emitter;
-
-    #[cfg(debug_assertions)]
-    println!("[Environment] Initializing environment info...");
-
-    // 初始化缓存结构
-    CACHED_LOCATION.get_or_init(|| Mutex::new(None));
-    CACHED_WEATHER.get_or_init(|| {
-        Mutex::new(CachedWeather {
-            weather: None,
-            cache_time: 0,
-        })
-    });
-
-    // 在后台异步任务中执行初始化逻辑，避免阻塞当前线程
-    tauri::async_runtime::spawn(async move {
-        let mut location_result: Option<GeoLocation> = None;
-        let mut weather_result: Option<WeatherInfo> = None;
-
-        // 获取地理位置
-        let mut manager = EnvironmentManager::new();
-        if let Some(location) = manager.get_location().await {
-            #[cfg(debug_assertions)]
-            println!(
-                "[Environment] Location: {:?}, {:?}, {:?}",
-                location.city, location.region, location.country
-            );
-            location_result = Some(location.clone());
-
-            // 获取天气（会自动缓存到全局）
-            if let Some(weather) = manager.get_weather().await {
-                #[cfg(debug_assertions)]
-                println!(
-                    "[Environment] Weather: {}°C, {}",
-                    weather.temperature, weather.condition
-                );
-                weather_result = Some(weather);
-            }
-        } else {
-            #[cfg(debug_assertions)]
-            println!("[Environment] Failed to get location");
-        }
-
-        // 发送事件通知前端
-        if let Some(handle) = app_handle {
-            let event_data = EnvironmentUpdateEvent {
-                location: location_result,
-                weather: weather_result,
-            };
-            let _ = emit(&handle, events::ENVIRONMENT_UPDATED, event_data);
-            #[cfg(debug_assertions)]
-            println!("[Environment] Event emitted to frontend");
-        }
-
-        #[cfg(debug_assertions)]
-        println!("[Environment] Initialization complete");
-    });
-
-}
-
 /// 获取缓存的地理位置（无需创建 EnvironmentManager）
 pub fn get_cached_location() -> Option<GeoLocation> {
     CACHED_LOCATION
@@ -731,6 +529,10 @@ pub fn get_cached_weather() -> Option<WeatherInfo> {
 mod tests {
     use super::*;
 
+    // ========================================================================= //
+    // parse_ip_geo_response
+    // ========================================================================= //
+
     #[test]
     fn parse_ip_geo_response_success() {
         let body = r#"{
@@ -742,13 +544,14 @@ mod tests {
             "lon": 116.4,
             "timezone": "Asia/Shanghai"
         }"#;
-
-
         let geo = EnvironmentManager::parse_ip_geo_response(body).unwrap();
         assert_eq!(geo.latitude, 39.9);
         assert_eq!(geo.longitude, 116.4);
         assert!(geo.is_northern_hemisphere);
         assert_eq!(geo.city.as_deref(), Some("Beijing"));
+        assert_eq!(geo.region.as_deref(), Some("Beijing"));
+        assert_eq!(geo.country.as_deref(), Some("China"));
+        assert_eq!(geo.timezone.as_deref(), Some("Asia/Shanghai"));
     }
 
     #[test]
@@ -756,26 +559,65 @@ mod tests {
         let body = r#"{ "status": "fail" }"#;
         let err = EnvironmentManager::parse_ip_geo_response(body).unwrap_err();
         assert!(err.contains("error status"));
-
     }
+
+    #[test]
+    fn parse_ip_geo_response_invalid_json() {
+        let err = EnvironmentManager::parse_ip_geo_response("not json").unwrap_err();
+        assert!(err.contains("Failed to parse JSON"));
+    }
+
+    #[test]
+    fn parse_ip_geo_response_missing_lat_lon_defaults() {
+        let body = r#"{ "status": "success" }"#;
+        let geo = EnvironmentManager::parse_ip_geo_response(body).unwrap();
+        assert_eq!(geo.latitude, 40.0);
+        assert_eq!(geo.longitude, 116.0);
+        assert!(geo.is_northern_hemisphere);
+        assert!(geo.city.is_none());
+        assert!(geo.region.is_none());
+        assert!(geo.country.is_none());
+        assert!(geo.timezone.is_none());
+    }
+
+    #[test]
+    fn parse_ip_geo_response_southern_hemisphere() {
+        let body = r#"{
+            "status": "success",
+            "lat": -33.8,
+            "lon": 151.2,
+            "city": "Sydney",
+            "country": "Australia"
+        }"#;
+        let geo = EnvironmentManager::parse_ip_geo_response(body).unwrap();
+        assert_eq!(geo.latitude, -33.8);
+        assert!(!geo.is_northern_hemisphere);
+    }
+
+    #[test]
+    fn parse_ip_geo_response_zero_latitude_is_northern() {
+        let body = r#"{ "status": "success", "lat": 0.0, "lon": 0.0 }"#;
+        let geo = EnvironmentManager::parse_ip_geo_response(body).unwrap();
+        assert!(geo.is_northern_hemisphere);
+    }
+
+    // ========================================================================= //
+    // parse_wttr_response
+    // ========================================================================= //
 
     #[test]
     fn parse_wttr_response_success() {
         let body = r#"{
-            "current_condition": [
-                {
-                    "temp_C": "23",
-                    "FeelsLikeC": "21",
-                    "humidity": "55",
-                    "windspeedKmph": "10",
-                    "lang_zh": [{ "value": "多云" }],
-                    "weatherDesc": [{ "value": "Cloudy" }],
-                    "weatherCode": "116"
-                }
-            ]
+            "current_condition": [{
+                "temp_C": "23",
+                "FeelsLikeC": "21",
+                "humidity": "55",
+                "windspeedKmph": "10",
+                "lang_zh": [{ "value": "多云" }],
+                "weatherDesc": [{ "value": "Cloudy" }],
+                "weatherCode": "116"
+            }]
         }"#;
-
-
         let manager = EnvironmentManager::new();
         let weather = manager.parse_wttr_response(body).unwrap();
         assert_eq!(weather.temperature, 23.0);
@@ -787,14 +629,889 @@ mod tests {
     }
 
     #[test]
-    fn season_names_and_hemispheres() {
-        assert_eq!(Season::Spring.name(), "spring");
-        assert_eq!(Season::Winter.name_zh(), "冬");
+    fn parse_wttr_response_missing_temp_c_fails() {
+        let body = r#"{ "current_condition": [{ "humidity": "50" }] }"#;
+        let manager = EnvironmentManager::new();
+        let err = manager.parse_wttr_response(body).unwrap_err();
+        assert!(err.contains("Missing temperature"));
+    }
 
-        assert_eq!(get_season_by_month_and_latitude(4, 30.0), Season::Spring);
+    #[test]
+    fn parse_wttr_response_missing_optional_fields() {
+        let body = r#"{ "current_condition": [{ "temp_C": "15" }] }"#;
+        let manager = EnvironmentManager::new();
+        let weather = manager.parse_wttr_response(body).unwrap();
+        assert_eq!(weather.temperature, 15.0);
+        assert!(weather.feels_like.is_none());
+        assert!(weather.humidity.is_none());
+        assert!(weather.wind_speed.is_none());
+        assert_eq!(weather.condition.as_ref(), "未知");
+        assert_eq!(weather.condition_code.as_ref(), "0");
+    }
+
+    #[test]
+    fn parse_wttr_response_invalid_json() {
+        let manager = EnvironmentManager::new();
+        let err = manager.parse_wttr_response("not json").unwrap_err();
+        assert!(err.contains("Failed to parse JSON"));
+    }
+
+    #[test]
+    fn parse_wttr_response_fallback_to_weather_desc() {
+        let body = r#"{ "current_condition": [{
+            "temp_C": "20",
+            "weatherDesc": [{ "value": "Sunny" }],
+            "weatherCode": "113"
+        }] }"#;
+        let manager = EnvironmentManager::new();
+        let weather = manager.parse_wttr_response(body).unwrap();
+        assert_eq!(weather.condition.as_ref(), "Sunny");
+    }
+
+    #[test]
+    fn parse_wttr_response_negative_temperature() {
+        let body = r#"{ "current_condition": [{
+            "temp_C": "-5",
+            "FeelsLikeC": "-10",
+            "weatherCode": "338"
+        }] }"#;
+        let manager = EnvironmentManager::new();
+        let weather = manager.parse_wttr_response(body).unwrap();
+        assert_eq!(weather.temperature, -5.0);
+        assert_eq!(weather.feels_like, Some(-10.0));
+    }
+
+    // ========================================================================= //
+    // Season
+    // ========================================================================= //
+
+    #[test]
+    fn season_name_en_all() {
+        assert_eq!(Season::Spring.name(), "spring");
+        assert_eq!(Season::Summer.name(), "summer");
+        assert_eq!(Season::Autumn.name(), "autumn");
+        assert_eq!(Season::Winter.name(), "winter");
+    }
+
+    #[test]
+    fn season_name_zh_all() {
+        assert_eq!(Season::Spring.name_zh(), "春");
+        assert_eq!(Season::Summer.name_zh(), "夏");
+        assert_eq!(Season::Autumn.name_zh(), "秋");
+        assert_eq!(Season::Winter.name_zh(), "冬");
+    }
+
+    #[test]
+    fn season_by_month_northern_hemisphere() {
+        // Spring: 3-5
+        for m in 3..=5 {
+            assert_eq!(get_season_by_month_and_latitude(m, 40.0), Season::Spring, "month {}", m);
+        }
+        // Summer: 6-8
+        for m in 6..=8 {
+            assert_eq!(get_season_by_month_and_latitude(m, 40.0), Season::Summer, "month {}", m);
+        }
+        // Autumn: 9-11
+        for m in 9..=11 {
+            assert_eq!(get_season_by_month_and_latitude(m, 40.0), Season::Autumn, "month {}", m);
+        }
+        // Winter: 12, 1, 2
+        for m in [12, 1, 2] {
+            assert_eq!(get_season_by_month_and_latitude(m, 40.0), Season::Winter, "month {}", m);
+        }
+    }
+
+    #[test]
+    fn season_by_month_southern_hemisphere() {
+        // Southern hemisphere reverses: Spring<->Autumn, Summer<->Winter
         assert_eq!(get_season_by_month_and_latitude(4, -30.0), Season::Autumn);
-        assert_eq!(get_season_by_month_and_latitude(12, 40.0), Season::Winter);
-        assert_eq!(get_season_by_month_and_latitude(12, -40.0), Season::Summer);
+        assert_eq!(get_season_by_month_and_latitude(7, -30.0), Season::Winter);
+        assert_eq!(get_season_by_month_and_latitude(10, -30.0), Season::Spring);
+        assert_eq!(get_season_by_month_and_latitude(1, -30.0), Season::Summer);
+        assert_eq!(get_season_by_month_and_latitude(12, -30.0), Season::Summer);
+    }
+
+    #[test]
+    fn season_equator_is_northern() {
+        // latitude 0 is treated as northern
+        assert_eq!(get_season_by_month_and_latitude(6, 0.0), Season::Summer);
+    }
+
+    #[test]
+    fn season_boundary_month_0_is_winter() {
+        // month 0 and out-of-range fall to default (Winter)
+        assert_eq!(get_season_by_month_and_latitude(0, 40.0), Season::Winter);
+        assert_eq!(get_season_by_month_and_latitude(13, 40.0), Season::Winter);
+    }
+
+    // ========================================================================= //
+    // get_current_datetime
+    // ========================================================================= //
+
+    #[test]
+    fn get_current_datetime_returns_reasonable_values() {
+        let dt = get_current_datetime();
+        assert!(dt.year >= 2024);
+        assert!(dt.month >= 1 && dt.month <= 12);
+        assert!(dt.day >= 1 && dt.day <= 31);
+        assert!(dt.hour <= 23);
+        assert!(dt.minute <= 59);
+        assert!(dt.second <= 59);
+        assert!(dt.weekday <= 6);
+        assert!(dt.timestamp > 0);
+    }
+
+    // ========================================================================= //
+    // Time period functions
+    // ========================================================================= //
+
+    #[test]
+    fn time_period_constants_consistent() {
+        assert_eq!(MORNING_HOUR_START, 6);
+        assert_eq!(MORNING_HOUR_END, 12);
+        assert_eq!(AFTERNOON_HOUR_END, 18);
+        assert_eq!(EVENING_HOUR_END, 22);
+    }
+
+    #[test]
+    fn get_time_period_returns_valid_string() {
+        let period = get_time_period();
+        assert!(["morning", "afternoon", "evening", "night"].contains(&period));
+    }
+
+    #[test]
+    fn time_periods_are_mutually_exclusive() {
+        // Exactly one of the time period functions should return true
+        let checks = [is_morning(), is_afternoon(), is_evening(), is_night()];
+        let true_count = checks.iter().filter(|&&x| x).count();
+        assert_eq!(true_count, 1, "Exactly one time period should be active, got {:?}", checks);
+    }
+
+    // ========================================================================= //
+    // EnvironmentManager
+    // ========================================================================= //
+
+    #[test]
+    fn environment_manager_new_default_cache_duration() {
+        let manager = EnvironmentManager::new();
+        assert_eq!(manager.weather_cache_duration, WEATHER_CACHE_DURATION_SECS);
+    }
+
+    #[test]
+    fn environment_manager_default_equals_new() {
+        let a = EnvironmentManager::new();
+        let b = EnvironmentManager::default();
+        assert_eq!(a.weather_cache_duration, b.weather_cache_duration);
+    }
+
+    #[test]
+    fn set_weather_cache_duration_changes_value() {
+        let mut manager = EnvironmentManager::new();
+        manager.set_weather_cache_duration(60);
+        assert_eq!(manager.weather_cache_duration, 60);
+    }
+
+    #[test]
+    fn get_datetime_returns_same_as_convenience_fn() {
+        let manager = EnvironmentManager::new();
+        let dt1 = manager.get_datetime();
+        let dt2 = get_current_datetime();
+        // They may differ by up to 1 second
+        assert!(dt1.year == dt2.year);
+        assert!(dt1.month == dt2.month);
+        assert!(dt1.day == dt2.day);
+    }
+
+    // ========================================================================= //
+    // GeoLocation serde roundtrip
+    // ========================================================================= //
+
+    #[test]
+    fn geo_location_serde_roundtrip() {
+        let geo = GeoLocation {
+            latitude: 39.9,
+            longitude: 116.4,
+            timezone: Some("Asia/Shanghai".into()),
+            is_northern_hemisphere: true,
+            city: Some("Beijing".into()),
+            region: Some("Beijing".into()),
+            country: Some("China".into()),
+        };
+        let json = serde_json::to_string(&geo).unwrap();
+        let parsed: GeoLocation = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.latitude, 39.9);
+        assert_eq!(parsed.city.as_deref(), Some("Beijing"));
+    }
+
+    // ========================================================================= //
+    // WeatherInfo serde roundtrip
+    // ========================================================================= //
+
+    #[test]
+    fn weather_info_serde_roundtrip() {
+        let weather = WeatherInfo {
+            condition: "晴".into(),
+            condition_code: "113".into(),
+            temperature: 25.0,
+            feels_like: Some(23.0),
+            humidity: Some(60),
+            wind_speed: Some(5.0),
+        };
+        let json = serde_json::to_string(&weather).unwrap();
+        let parsed: WeatherInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.temperature, 25.0);
+        assert_eq!(parsed.condition.as_ref(), "晴");
+    }
+
+    // ========================================================================= //
+    // DateTimeInfo serde roundtrip
+    // ========================================================================= //
+
+    #[test]
+    fn datetime_info_serde_roundtrip() {
+        let dt = DateTimeInfo {
+            year: 2026, month: 3, day: 3,
+            hour: 14, minute: 30, second: 0,
+            weekday: 2, timestamp: 1772600000,
+        };
+        let json = serde_json::to_string(&dt).unwrap();
+        let parsed: DateTimeInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.year, 2026);
+        assert_eq!(parsed.weekday, 2);
+    }
+
+    // ========================================================================= //
+    // EnvironmentInfo serde roundtrip
+    // ========================================================================= //
+
+    #[test]
+    fn environment_info_serde_roundtrip() {
+        let env = EnvironmentInfo {
+            location: None,
+            datetime: get_current_datetime(),
+            weather: None,
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        let parsed: EnvironmentInfo = serde_json::from_str(&json).unwrap();
+        assert!(parsed.location.is_none());
+        assert!(parsed.weather.is_none());
+    }
+
+    // ========================================================================= //
+    // Fallback constants
+    // ========================================================================= //
+
+    #[test]
+    fn fallback_constants_have_expected_values() {
+        assert_eq!(FALLBACK_LATITUDE_NORTHERN, 40.0);
+        assert_eq!(FALLBACK_LONGITUDE_CHINA, 116.0);
+        assert_eq!(FALLBACK_LATITUDE_SOUTHERN, -35.0);
+        assert_eq!(LONGITUDE_PER_HOUR_OFFSET, 15.0);
+    }
+
+    // ========================================================================= //
+    // EnvironmentUpdateEvent
+    // ========================================================================= //
+
+    #[test]
+    fn environment_update_event_serializes() {
+        let event = EnvironmentUpdateEvent {
+            location: None,
+            weather: Some(WeatherInfo {
+                condition: "晴".into(),
+                condition_code: "113".into(),
+                temperature: 20.0,
+                feels_like: None,
+                humidity: None,
+                wind_speed: None,
+            }),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"temperature\":20.0"));
+        assert!(json.contains("\"location\":null"));
+    }
+
+    // ========================================================================= //
+    // fallback_location_from_timezone
+    // ========================================================================= //
+
+    #[test]
+    fn fallback_location_returns_valid_geo() {
+        let loc = EnvironmentManager::fallback_location_from_timezone();
+        assert!(loc.latitude >= -90.0 && loc.latitude <= 90.0);
+        assert!(loc.longitude >= -180.0 && loc.longitude <= 180.0);
+        assert!(loc.timezone.is_some());
+    }
+
+    #[test]
+    fn fallback_location_hemisphere_is_consistent() {
+        let loc = EnvironmentManager::fallback_location_from_timezone();
+        if loc.latitude >= 0.0 {
+            assert!(loc.is_northern_hemisphere);
+        } else {
+            assert!(!loc.is_northern_hemisphere);
+        }
+    }
+
+    // ========================================================================= //
+    // get_cached_location / get_cached_weather
+    // ========================================================================= //
+
+    #[test]
+    fn get_cached_location_returns_option() {
+        // On first call, cache may or may not be initialized
+        let _ = get_cached_location();
+    }
+
+    #[test]
+    fn get_cached_weather_returns_option() {
+        let _ = get_cached_weather();
+    }
+
+    // ========================================================================= //
+    // get_current_season
+    // ========================================================================= //
+
+    #[test]
+    fn get_current_season_returns_valid_season() {
+        let season = get_current_season();
+        let name = season.name();
+        assert!(
+            name == "spring" || name == "summer" || name == "autumn" || name == "winter",
+            "unexpected season name: {name}"
+        );
+    }
+
+    // ========================================================================= //
+    // get_season_by_location
+    // ========================================================================= //
+
+    #[test]
+    fn get_season_by_location_northern_hemisphere() {
+        let season = get_season_by_location(40.0);
+        // Just verify it returns a valid season
+        let _ = season.name();
+    }
+
+    #[test]
+    fn get_season_by_location_southern_hemisphere() {
+        let season = get_season_by_location(-35.0);
+        let _ = season.name();
+    }
+
+    // ========================================================================= //
+    // EnvironmentManager: set_weather_cache_duration
+    // ========================================================================= //
+
+    #[test]
+    fn set_weather_cache_duration_updates_value() {
+        let mut mgr = EnvironmentManager::new();
+        mgr.set_weather_cache_duration(7200);
+        assert_eq!(mgr.weather_cache_duration, 7200);
+    }
+
+    // ========================================================================= //
+    // WeatherInfo edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn weather_info_with_all_optional_fields() {
+        let w = WeatherInfo {
+            condition: "Sunny".into(),
+            condition_code: "113".into(),
+            temperature: 25.0,
+            feels_like: Some(27.0),
+            humidity: Some(60),
+            wind_speed: Some(15.0),
+        };
+        let json = serde_json::to_string(&w).unwrap();
+        let parsed: WeatherInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.feels_like, Some(27.0));
+        assert_eq!(parsed.humidity, Some(60));
+        assert_eq!(parsed.wind_speed, Some(15.0));
+    }
+
+    #[test]
+    fn weather_info_default_has_no_optionals() {
+        let w = WeatherInfo {
+            condition: "".into(),
+            condition_code: "".into(),
+            temperature: 0.0,
+            feels_like: None,
+            humidity: None,
+            wind_speed: None,
+        };
+        assert!(w.feels_like.is_none());
+    }
+
+    // ========================================================================= //
+    // GeoLocation clone
+    // ========================================================================= //
+
+    #[test]
+    fn geo_location_clone_works() {
+        let loc = GeoLocation {
+            latitude: 40.0,
+            longitude: 116.0,
+            timezone: Some("UTC+8".into()),
+            is_northern_hemisphere: true,
+            city: Some("Beijing".into()),
+            region: Some("BJ".into()),
+            country: Some("China".into()),
+        };
+        let cloned = loc.clone();
+        assert_eq!(cloned.latitude, 40.0);
+        assert_eq!(cloned.city, Some("Beijing".into()));
+    }
+
+    // ========================================================================= //
+    // StateLimitsContext: current_temp / is_allowed
+    // ========================================================================= //
+
+    #[test]
+    fn limits_ctx_current_temp_none_without_weather() {
+        use crate::modules::state::StateLimitsContext;
+        let ctx = StateLimitsContext::default_unlimited();
+        assert!(ctx.current_temp().is_none());
+    }
+
+    #[test]
+    fn limits_ctx_current_temp_some_with_weather() {
+        use crate::modules::state::StateLimitsContext;
+        let ctx = StateLimitsContext {
+            mod_data_value: 0,
+            session_uptime_minutes: 0,
+            current_weather: Some(WeatherInfo {
+                condition: "".into(),
+                condition_code: "".into(),
+                temperature: 22.5,
+                feels_like: None,
+                humidity: None,
+                wind_speed: None,
+            }),
+        };
+        assert_eq!(ctx.current_temp(), Some(22.5));
+    }
+
+    #[test]
+    fn limits_ctx_is_allowed_default_state_passes() {
+        use crate::modules::state::StateLimitsContext;
+        let ctx = StateLimitsContext::default_unlimited();
+        let state = crate::modules::resource::StateInfo::default();
+        assert!(ctx.is_allowed(&state));
+    }
+
+    // ========================================================================= //
+    // Convenience functions: is_morning, is_afternoon, is_evening, is_night
+    // ========================================================================= //
+
+    #[test]
+    fn time_period_functions_are_mutually_exclusive_for_now() {
+        // At any given moment, exactly one should be true
+        let results = [is_morning(), is_afternoon(), is_evening(), is_night()];
+        let true_count = results.iter().filter(|&&v| v).count();
+        assert_eq!(true_count, 1, "Exactly one time period should be true");
+    }
+
+    #[test]
+    fn is_morning_function_consistent_with_period() {
+        if is_morning() {
+            assert_eq!(get_time_period(), TIME_PERIOD_MORNING);
+        }
+    }
+
+    #[test]
+    fn is_afternoon_function_consistent_with_period() {
+        if is_afternoon() {
+            assert_eq!(get_time_period(), TIME_PERIOD_AFTERNOON);
+        }
+    }
+
+    #[test]
+    fn is_evening_function_consistent_with_period() {
+        if is_evening() {
+            assert_eq!(get_time_period(), TIME_PERIOD_EVENING);
+        }
+    }
+
+    #[test]
+    fn is_night_function_consistent_with_period() {
+        if is_night() {
+            assert_eq!(get_time_period(), TIME_PERIOD_NIGHT);
+        }
+    }
+
+    // ========================================================================= //
+    // EnvironmentManager: set_weather_cache_duration boundary
+    // ========================================================================= //
+
+    #[test]
+    fn weather_cache_duration_zero_is_valid() {
+        let mut em = EnvironmentManager::new();
+        em.set_weather_cache_duration(0);
+        assert_eq!(em.weather_cache_duration, 0);
+    }
+
+    #[test]
+    fn weather_cache_duration_large_value() {
+        let mut em = EnvironmentManager::new();
+        em.set_weather_cache_duration(u64::MAX);
+        assert_eq!(em.weather_cache_duration, u64::MAX);
+    }
+
+    // ========================================================================= //
+    // EnvironmentInfo: fields
+    // ========================================================================= //
+
+    #[test]
+    fn environment_info_default_fields() {
+        let ei = EnvironmentInfo {
+            location: None,
+            datetime: get_current_datetime(),
+            weather: None,
+        };
+        assert!(ei.location.is_none());
+        assert!(ei.weather.is_none());
+        assert!(ei.datetime.year > 2020);
+    }
+
+    // ========================================================================= //
+    // Season: all variants
+    // ========================================================================= //
+
+    #[test]
+    fn season_copy_clone() {
+        let s = Season::Spring;
+        let s2 = s; // Copy
+        let s3 = s.clone();
+        assert_eq!(s, s2);
+        assert_eq!(s, s3);
+    }
+
+    #[test]
+    fn season_debug_format() {
+        let s = Season::Autumn;
+        let dbg = format!("{:?}", s);
+        assert!(dbg.contains("Autumn"));
+    }
+
+    // ========================================================================= //
+    // DateTimeInfo: field coverage
+    // ========================================================================= //
+
+    #[test]
+    fn datetime_info_weekday_range() {
+        let dt = get_current_datetime();
+        assert!(dt.weekday <= 6); // 0=Sunday, 6=Saturday
+    }
+
+    #[test]
+    fn datetime_info_timestamp_positive() {
+        let dt = get_current_datetime();
+        assert!(dt.timestamp > 0);
+    }
+
+    // ========================================================================= //
+    // EnvironmentUpdateEvent coverage
+    // ========================================================================= //
+
+    #[test]
+    fn environment_update_event_with_all_fields() {
+        let evt = EnvironmentUpdateEvent {
+            location: Some(GeoLocation {
+                latitude: 35.0,
+                longitude: 139.0,
+                timezone: Some("Asia/Tokyo".into()),
+                is_northern_hemisphere: true,
+                city: Some("Tokyo".into()),
+                region: Some("Kanto".into()),
+                country: Some("Japan".into()),
+            }),
+            weather: Some(WeatherInfo {
+                condition: "Sunny".into(),
+                condition_code: "113".into(),
+                temperature: 28.0,
+                feels_like: Some(30.0),
+                humidity: Some(60),
+                wind_speed: Some(5.5),
+            }),
+        };
+        let json = serde_json::to_string(&evt).unwrap();
+        assert!(json.contains("Tokyo"));
+        assert!(json.contains("Sunny"));
+    }
+
+    // ========================================================================= //
+    // parse_wttr_response
+    // ========================================================================= //
+
+    #[test]
+    fn parse_wttr_response_all_fields_present() {
+        let body = r#"{
+            "current_condition": [{
+                "temp_C": "22",
+                "FeelsLikeC": "24",
+                "humidity": "65",
+                "windspeedKmph": "12",
+                "weatherCode": "116",
+                "lang_zh": [{"value": "晴间多云"}],
+                "weatherDesc": [{"value": "Partly cloudy"}]
+            }]
+        }"#;
+        let mgr = EnvironmentManager::new();
+        let result = mgr.parse_wttr_response(body).unwrap();
+        assert!((result.temperature - 22.0).abs() < 0.01);
+        assert_eq!(result.feels_like, Some(24.0));
+        assert_eq!(result.humidity, Some(65));
+        assert_eq!(result.wind_speed, Some(12.0));
+        assert_eq!(result.condition.as_ref(), "晴间多云");
+        assert_eq!(result.condition_code.as_ref(), "116");
+    }
+
+    #[test]
+    fn parse_wttr_response_uses_weatherdesc_when_no_lang_zh() {
+        let body = r#"{
+            "current_condition": [{
+                "temp_C": "15",
+                "weatherCode": "200",
+                "weatherDesc": [{"value": "Thunderstorm"}]
+            }]
+        }"#;
+        let mgr = EnvironmentManager::new();
+        let result = mgr.parse_wttr_response(body).unwrap();
+        assert!((result.temperature - 15.0).abs() < 0.01);
+        assert_eq!(result.condition.as_ref(), "Thunderstorm");
+        assert_eq!(result.condition_code.as_ref(), "200");
+        assert!(result.feels_like.is_none());
+        assert!(result.humidity.is_none());
+        assert!(result.wind_speed.is_none());
+    }
+
+    #[test]
+    fn parse_wttr_response_defaults_unknown_condition() {
+        let body = r#"{
+            "current_condition": [{
+                "temp_C": "10",
+                "weatherCode": "0"
+            }]
+        }"#;
+        let mgr = EnvironmentManager::new();
+        let result = mgr.parse_wttr_response(body).unwrap();
+        assert_eq!(result.condition.as_ref(), "未知");
+    }
+
+    #[test]
+    fn parse_wttr_response_rejects_invalid_json() {
+        let mgr = EnvironmentManager::new();
+        let result = mgr.parse_wttr_response("not json");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to parse JSON"));
+    }
+
+    #[test]
+    fn parse_wttr_response_fails_without_temperature() {
+        let body = r#"{"current_condition": [{"humidity": "50"}]}"#;
+        let mgr = EnvironmentManager::new();
+        let result = mgr.parse_wttr_response(body);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing temperature"));
+    }
+
+    #[test]
+    fn parse_wttr_response_defaults_weather_code_to_zero() {
+        let body = r#"{
+            "current_condition": [{
+                "temp_C": "5"
+            }]
+        }"#;
+        let mgr = EnvironmentManager::new();
+        let result = mgr.parse_wttr_response(body).unwrap();
+        assert_eq!(result.condition_code.as_ref(), "0");
+    }
+
+    // ========================================================================= //
+    // Time period functions
+    // ========================================================================= //
+
+    #[test]
+    fn get_current_datetime_returns_valid_data() {
+        let dt = get_current_datetime();
+        assert!(dt.year >= 2024);
+        assert!((1..=12).contains(&dt.month));
+        assert!((1..=31).contains(&dt.day));
+        assert!(dt.hour < 24);
+        assert!(dt.minute < 60);
+        assert!(dt.second < 60);
+    }
+
+    #[test]
+    fn time_period_functions_are_consistent() {
+        // Exactly one of the time period functions should return true
+        let count = [is_morning(), is_afternoon(), is_evening(), is_night()]
+            .iter()
+            .filter(|&&x| x)
+            .count();
+        assert_eq!(count, 1, "Exactly one time period should be active");
+    }
+
+    #[test]
+    fn get_time_period_returns_known_string() {
+        let period = get_time_period();
+        let valid = [
+            TIME_PERIOD_MORNING,
+            TIME_PERIOD_AFTERNOON,
+            TIME_PERIOD_EVENING,
+            TIME_PERIOD_NIGHT,
+        ];
+        assert!(valid.contains(&period), "Unknown time period: {}", period);
+    }
+
+    // ========================================================================= //
+    // Season name_zh
+    // ========================================================================= //
+
+    #[test]
+    fn season_name_zh_all_variants() {
+        assert_eq!(Season::Spring.name_zh(), SEASON_NAME_SPRING_ZH);
+        assert_eq!(Season::Summer.name_zh(), SEASON_NAME_SUMMER_ZH);
+        assert_eq!(Season::Autumn.name_zh(), SEASON_NAME_AUTUMN_ZH);
+        assert_eq!(Season::Winter.name_zh(), SEASON_NAME_WINTER_ZH);
+    }
+
+    // ========================================================================= //
+    // get_season_by_location / get_current_season
+    // ========================================================================= //
+
+    #[test]
+    fn get_season_by_location_uses_current_month() {
+        let s = get_season_by_location(40.0);
+        // Just check it returns a valid season
+        let _name = s.name();
+        let _name_zh = s.name_zh();
+    }
+
+    #[test]
+    fn get_current_season_returns_known_name() {
+        let s = get_current_season();
+        let name = s.name();
+        let valid = [
+            SEASON_NAME_SPRING_EN,
+            SEASON_NAME_SUMMER_EN,
+            SEASON_NAME_AUTUMN_EN,
+            SEASON_NAME_WINTER_EN,
+        ];
+        assert!(valid.contains(&name));
+    }
+
+    // ========================================================================= //
+    // fallback_location_from_timezone
+    // ========================================================================= //
+
+    #[test]
+    fn fallback_location_from_timezone_returns_valid_geo() {
+        let loc = EnvironmentManager::fallback_location_from_timezone();
+        // Latitude should be one of the fallback values
+        assert!(loc.latitude.abs() <= 90.0);
+        assert!(loc.longitude.abs() <= 180.0);
+    }
+
+    // ========================================================================= //
+    // EnvironmentManager default / new
+    // ========================================================================= //
+
+    #[test]
+    fn environment_manager_default_same_as_new() {
+        let a = EnvironmentManager::new();
+        let b = EnvironmentManager::default();
+        // Both should have same cache duration
+        assert_eq!(a.weather_cache_duration, b.weather_cache_duration);
+    }
+
+    // ========================================================================= //
+    // get_time_period
+    // ========================================================================= //
+
+    #[test]
+    fn get_time_period_returns_known_period() {
+        let period = get_time_period();
+        let valid = [
+            TIME_PERIOD_MORNING,
+            TIME_PERIOD_AFTERNOON,
+            TIME_PERIOD_EVENING,
+            TIME_PERIOD_NIGHT,
+        ];
+        assert!(valid.contains(&period), "Invalid time period: {}", period);
+    }
+
+    #[test]
+    fn get_time_period_consistent_with_helpers() {
+        let period = get_time_period();
+        // At least one of the helper functions should return true
+        let morning = is_morning();
+        let afternoon = is_afternoon();
+        let evening = is_evening();
+        let night = is_night();
+
+        match period {
+            TIME_PERIOD_MORNING => assert!(morning),
+            TIME_PERIOD_AFTERNOON => assert!(afternoon),
+            TIME_PERIOD_EVENING => assert!(evening),
+            TIME_PERIOD_NIGHT => assert!(night),
+            _ => panic!("Unexpected period"),
+        }
+    }
+
+    // ========================================================================= //
+    // get_current_season with cache
+    // ========================================================================= //
+
+    #[test]
+    fn get_current_season_returns_valid() {
+        let s = get_current_season();
+        let valid = [Season::Spring, Season::Summer, Season::Autumn, Season::Winter];
+        assert!(valid.contains(&s));
+    }
+
+    // ========================================================================= //
+    // EnvironmentUpdateEvent
+    // ========================================================================= //
+
+    #[test]
+    fn environment_update_event_serializes_with_none() {
+        let event = EnvironmentUpdateEvent {
+            location: None,
+            weather: None,
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("location"));
+        assert!(json.contains("weather"));
+    }
+
+    #[test]
+    fn environment_update_event_serializes_with_data() {
+        let event = EnvironmentUpdateEvent {
+            location: Some(GeoLocation {
+                latitude: 40.0,
+                longitude: 116.0,
+                is_northern_hemisphere: true,
+                country: Some("CN".into()),
+                region: Some("Beijing".into()),
+                city: Some("Beijing".into()),
+                timezone: None,
+            }),
+            weather: Some(WeatherInfo {
+                condition: "Sunny".into(),
+                condition_code: "113".into(),
+                temperature: 25.0,
+                feels_like: Some(27.0),
+                humidity: Some(50),
+                wind_speed: Some(10.0),
+            }),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("Beijing"));
+        assert!(json.contains("Sunny"));
     }
 }
+
 

@@ -560,6 +560,63 @@ mod tests {
         assert!(cached.is_fullscreen_busy);
         assert!(cached.is_auto_dnd_active);
     }
+
+    // ========================================================================= //
+    // SystemObserver: new / stop
+    // ========================================================================= //
+
+    #[test]
+    fn system_observer_new_not_running() {
+        let obs = SystemObserver::new();
+        assert!(!obs.running.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[test]
+    fn system_observer_stop_sets_false() {
+        let obs = SystemObserver::new();
+        obs.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        obs.stop();
+        assert!(!obs.running.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    // ========================================================================= //
+    // SystemDebugInfo serialization fields
+    // ========================================================================= //
+
+    #[test]
+    fn system_debug_info_serializes_all_fields() {
+        let info = SystemDebugInfo {
+            observer_running: true,
+            last_check_time: "15:30:00".into(),
+            is_fullscreen_busy: true,
+            auto_dnd_enabled: true,
+            is_auto_dnd_active: false,
+            current_silence_mode: true,
+            session_locked: false,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"observer_running\":true"));
+        assert!(json.contains("\"is_fullscreen_busy\":true"));
+        assert!(json.contains("\"auto_dnd_enabled\":true"));
+        assert!(json.contains("\"is_auto_dnd_active\":false"));
+        assert!(json.contains("\"current_silence_mode\":true"));
+        assert!(json.contains("\"session_locked\":false"));
+    }
+
+    #[test]
+    fn system_debug_info_default_values() {
+        let info = SystemDebugInfo {
+            observer_running: false,
+            last_check_time: "".into(),
+            is_fullscreen_busy: false,
+            auto_dnd_enabled: false,
+            is_auto_dnd_active: false,
+            current_silence_mode: false,
+            session_locked: false,
+        };
+        assert!(!info.observer_running);
+        assert!(!info.session_locked);
+    }
 }
 
 // ========================================================================= //

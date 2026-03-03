@@ -675,5 +675,249 @@ mod tests {
         );
         assert!(should_trigger_for_process_name("UnknownApp").is_none());
     }
+
+    // ========================================================================= //
+    // load_process_keywords_from_file edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn load_process_keywords_nonexistent_returns_none() {
+        let path = PathBuf::from("/nonexistent/path.json");
+        assert!(load_process_keywords_from_file(&path).is_none());
+    }
+
+    #[test]
+    fn load_process_keywords_empty_array_returns_some_empty() {
+        let path = temp_path("empty_kw");
+        std::fs::write(&path, r#"{ "process_keywords": [] }"#).unwrap();
+        let result = load_process_keywords_from_file(&path);
+        // empty vec is still Some(vec![]) per the code
+        assert!(result.is_some());
+        assert!(result.unwrap().is_empty());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_process_keywords_invalid_json_returns_none() {
+        let path = temp_path("invalid_kw");
+        std::fs::write(&path, "not json").unwrap();
+        assert!(load_process_keywords_from_file(&path).is_none());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_process_keywords_all_whitespace_filtered() {
+        let path = temp_path("ws_kw");
+        std::fs::write(&path, r#"{ "process_keywords": ["  ", "\t", "valid"] }"#).unwrap();
+        let keywords = load_process_keywords_from_file(&path).unwrap();
+        // whitespace entries filtered, "valid" remains
+        assert!(keywords.iter().any(|k| k.as_ref() == "valid"));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ========================================================================= //
+    // should_trigger_for_process_name edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn should_trigger_strips_exe_suffix() {
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec!["notepad".into()];
+        }
+        assert!(should_trigger_for_process_name("Notepad.exe").is_some());
+        assert!(should_trigger_for_process_name("Notepad").is_some());
+    }
+
+    #[test]
+    fn should_trigger_empty_keywords_returns_none() {
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec![];
+        }
+        assert!(should_trigger_for_process_name("anything").is_none());
+    }
+
+    #[test]
+    fn should_trigger_case_insensitive() {
+        // Set keywords and immediately test — single assertion to avoid race
+        // with other parallel tests that also modify PROCESS_KEYWORDS.
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec!["vscode".into()];
+        }
+        // "VSCODE" → lowercase "vscode" → contains keyword "vscode"
+        assert!(should_trigger_for_process_name("VSCODE").is_some());
+    }
+
+    // ========================================================================= //
+    // ProcessObserver
+    // ========================================================================= //
+
+    #[test]
+    fn process_observer_new_defaults() {
+        let obs = ProcessObserver::new();
+        assert!(obs.event_tx.is_none());
+        assert!(!obs.running.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[test]
+    fn process_observer_default_equals_new() {
+        let a = ProcessObserver::new();
+        let b = ProcessObserver::default();
+        assert_eq!(
+            a.running.load(std::sync::atomic::Ordering::SeqCst),
+            b.running.load(std::sync::atomic::Ordering::SeqCst)
+        );
+    }
+
+    // ========================================================================= //
+    // ProcessStartEvent serialization
+    // ========================================================================= //
+
+    #[test]
+    fn process_start_event_serializes() {
+        let event = ProcessStartEvent {
+            pid: 1234,
+            process_name: "chrome.exe".into(),
+            matched_keyword: "chrome".into(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"pid\":1234"));
+        assert!(json.contains("\"process_name\":\"chrome.exe\""));
+    }
+
+    // ========================================================================= //
+    // ProcessDebugInfo serialization
+    // ========================================================================= //
+
+    #[test]
+    fn process_debug_info_serializes() {
+        let info = ProcessDebugInfo {
+            observer_running: true,
+            uptime_secs: 60,
+            last_check_time: "10:00:00".into(),
+            poll_interval_ms: 3000,
+            keywords: vec!["chrome".into()],
+            last_new_processes: vec![],
+            last_matched: None,
+            seen_pid_count: 100,
+            current_pid_count: 105,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"observer_running\":true"));
+        assert!(json.contains("\"poll_interval_ms\":3000"));
+    }
+
+    // ========================================================================= //
+    // get/update cached debug info
+    // ========================================================================= //
+
+    #[test]
+    fn cached_process_debug_info_roundtrip() {
+        let info = ProcessDebugInfo {
+            observer_running: false,
+            uptime_secs: 0,
+            last_check_time: "00:00:00".into(),
+            poll_interval_ms: 3000,
+            keywords: vec![],
+            last_new_processes: vec![],
+            last_matched: None,
+            seen_pid_count: 0,
+            current_pid_count: 0,
+        };
+        update_cached_debug_info(info);
+        let cached = get_cached_process_debug_info().expect("expected cached");
+        assert!(!cached.observer_running);
+    }
+
+    // ========================================================================= //
+    // ProcessObserver: stop
+    // ========================================================================= //
+
+    #[test]
+    fn process_observer_stop_clears_state() {
+        let mut obs = ProcessObserver::new();
+        obs.stop();
+        assert!(!obs.running.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(obs.event_tx.is_none());
+    }
+
+    // ========================================================================= //
+    // get_keywords_config_candidates
+    // ========================================================================= //
+
+    #[test]
+    fn process_keywords_config_candidates_not_empty() {
+        let candidates = get_keywords_config_candidates();
+        assert!(!candidates.is_empty());
+        for c in &candidates {
+            assert!(
+                c.to_string_lossy().contains(PROCESS_OBSERVER_KEYWORDS_CONFIG_FILENAME),
+                "Candidate {:?} should contain config filename",
+                c
+            );
+        }
+    }
+
+    // ========================================================================= //
+    // init_process_keywords_from_config
+    // ========================================================================= //
+
+    #[test]
+    fn init_process_keywords_does_not_panic() {
+        init_process_keywords_from_config();
+        // Keywords may or may not be loaded depending on config file presence
+    }
+
+    // ========================================================================= //
+    // should_trigger edge cases
+    // ========================================================================= //
+
+    #[test]
+    fn should_trigger_empty_name_returns_none() {
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec!["chrome".into()];
+        }
+        assert!(should_trigger_for_process_name("").is_none());
+    }
+
+    #[test]
+    fn should_trigger_empty_keywords_returns_none_v2() {
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec![];
+        }
+        assert!(should_trigger_for_process_name("chrome.exe").is_none());
+    }
+
+    #[test]
+    fn should_trigger_with_exe_suffix_matched() {
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec!["chrome".into()];
+        }
+        assert!(should_trigger_for_process_name("chrome.exe").is_some());
+    }
+
+    #[test]
+    fn should_trigger_case_insensitive_v2() {
+        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
+            *guard = vec!["vscode".into()];
+        }
+        assert!(should_trigger_for_process_name("VSCode.exe").is_some());
+    }
+
+    // ========================================================================= //
+    // ProcessStartEvent: additional fields
+    // ========================================================================= //
+
+    #[test]
+    fn process_start_event_clone() {
+        let event = ProcessStartEvent {
+            pid: 999,
+            process_name: "test.exe".into(),
+            matched_keyword: "test".into(),
+        };
+        let cloned = event.clone();
+        assert_eq!(cloned.pid, 999);
+        assert_eq!(cloned.process_name.as_ref(), "test.exe");
+        assert_eq!(cloned.matched_keyword.as_ref(), "test");
+    }
 }
 
