@@ -1707,6 +1707,8 @@ class WebGLSceneRenderer {
   private whiteTexture: WebGLTexture;
   private textures = new Map<any, GlTextureRecord>();
   private quadData = new Float32Array(16);
+  private matArray = new Float32Array(9);          // 预分配矩阵缓冲区，避免每帧 new
+  private readPixelsBuf = new Uint8Array(3 * 3 * 4); // 预分配 readPixels 缓冲区（最大 3×3）
   private frameId = 0;
   private blendMode: PngRemixBlendMode | null = null;
 
@@ -1901,13 +1903,14 @@ class WebGLSceneRenderer {
     const rh = Math.max(1, Math.min(3, h - y0));
     const readY = h - y0 - rh;
 
-    const data = new Uint8Array(rw * rh * 4);
+    const len = rw * rh * 4;
+    const data = this.readPixelsBuf;
     try {
       gl.readPixels(x0, readY, rw, rh, gl.RGBA, gl.UNSIGNED_BYTE, data);
     } catch {
       return false;
     }
-    for (let i = 3; i < data.length; i += 4) {
+    for (let i = 3; i < len; i += 4) {
       if (data[i] >= alphaThreshold) return true;
     }
     return false;
@@ -2086,11 +2089,11 @@ class WebGLSceneRenderer {
     gl.bufferData(gl.ARRAY_BUFFER, this.quadData, gl.DYNAMIC_DRAW);
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniformMatrix3fv(this.uMat, false, new Float32Array([
-      mat.a, mat.b, 0,
-      mat.c, mat.d, 0,
-      mat.e, mat.f, 1,
-    ]));
+    const m = this.matArray;
+    m[0] = mat.a; m[1] = mat.b; m[2] = 0;
+    m[3] = mat.c; m[4] = mat.d; m[5] = 0;
+    m[6] = mat.e; m[7] = mat.f; m[8] = 1;
+    gl.uniformMatrix3fv(this.uMat, false, m);
     gl.uniform4f(
       this.uColor,
       clamp(tint.r, 0, 1),

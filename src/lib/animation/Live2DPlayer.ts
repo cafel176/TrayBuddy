@@ -417,6 +417,8 @@ class Live2DTextureLRU {
 
   static touch(key: string, bytes: number): void {
     if (!key) return;
+    // LRU 关闭时不写入 Map，避免无限增长
+    if (!this.enabled()) return;
     const now = performance.now();
     let e = this.lru.get(key);
     if (!e) {
@@ -583,6 +585,9 @@ export class Live2DPlayer {
   private assetUrlPrefix = "";
   private pinnedTextureKeys = new Set<string>();
   private bgTextureKeys = new Set<string>();
+
+  // 预分配 readPixels 缓冲区，避免每次轮询 new Uint8Array
+  private readPixelsBuf = new Uint8Array(4);
 
   // Idle throttle — 无交互时自动降低渲染帧率
   private idleThrottle = new IdleThrottle();

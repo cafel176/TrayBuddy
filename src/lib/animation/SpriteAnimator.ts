@@ -298,14 +298,7 @@ export function clearImageCache(): void {
   // 清除普通 LRU 缓存
   imageCache.clear();
   
-  // 提示浏览器进行垃圾回收（通过创建临时大对象触发）
-  // 注意：这不是强制 GC，只是提示
-  try {
-    // 创建并立即释放临时数组，提示 GC
-    const _ = new ArrayBuffer(1024 * 1024);
-  } catch {
-    // 忽略可能的内存分配失败
-  }
+
 }
 
 // 导出路径缓存清除函数和类型定义
