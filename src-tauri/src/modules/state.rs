@@ -1097,6 +1097,7 @@ mod tests {
         let mut s2 = StateInfo::default();
         s2.name = "second".into();
         s2.persistent = false;
+        s2.anima = "some_anim".into(); // has media, so lock should block it
         let result = sm.set_current_state(s2, false, &rm);
         assert!(!result.unwrap());
     }

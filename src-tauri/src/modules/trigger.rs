@@ -366,6 +366,9 @@ mod tests {
             let mut s = StateInfo::default();
             s.name = (*name).into();
             s.persistent = *persistent;
+            if !*persistent {
+                s.anima = "anim".into(); // give non-persistent states media so lock works
+            }
             if *persistent {
                 manifest.important_states.insert((*name).into(), s);
             } else {
