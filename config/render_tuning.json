@@ -1,0 +1,6 @@
+{
+  "fps_limit_max": 30,
+  "idle_throttle_enabled": true,
+  "idle_throttle_fps": 15,
+  "idle_throttle_delay_ms": 1500
+}

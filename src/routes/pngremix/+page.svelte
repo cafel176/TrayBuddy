@@ -13,6 +13,7 @@ PngRemix 渲染层暂为空占位。
   import { invoke } from "@tauri-apps/api/core";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
+  import { initRenderTuning } from "$lib/animation/render_tuning";
   import type { PngRemixConfig, ModData, ModType, ModManifest, ModInfo, PngRemixParameterSetting } from "$lib/types/asset";
   import type { Live2DParameterSetting } from "$lib/types/asset";
 
@@ -234,6 +235,8 @@ PngRemix 渲染层暂为空占位。
     window.addEventListener("beforeunload", _onBeforeUnload);
     console.log("[PngRemix Page] onMount: window.innerWidth:", window.innerWidth, "window.innerHeight:", window.innerHeight);
     const init = async () => {
+      // 从 config/render_tuning.json 加载渲染调优参数（在播放器创建前）
+      await initRenderTuning();
       await initPngRemixPlayer();
       await core.init();
 

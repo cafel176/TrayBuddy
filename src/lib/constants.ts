@@ -174,8 +174,10 @@ export const DEBUG_CLOCK_UPDATE_INTERVAL_MS = 3000;
  * 渲染性能调参总开关集合。
  *
  * 说明：
- * - 这些值主要影响 `ThreeDPlayer` / `Live2DPlayer` / `PngRemixPlayer` 的渲染负载。
- * - 修改后需要重新构建/重启 dev server 才会生效。
+ * - 这些值主要影响 `ThreeDPlayer` / `Live2DPlayer` / `PngRemixPlayer` / `SpriteAnimator` 的渲染负载。
+ * - 其中 FPS_LIMIT_MAX / IDLE_THROTTLE_* 四项在程序启动时会从 `config/render_tuning.json` 加载覆盖，
+ *   若配置文件不存在则使用此处的内置默认值。
+ * - DPR / ANTIALIAS 仍为编译期常量，修改后需要重新构建。
  */
 export const RENDER_TUNING = {
   /** 是否对 `window.devicePixelRatio` 做钳制（clamp）。 */
@@ -190,16 +192,16 @@ export const RENDER_TUNING = {
 
   /** 是否启用渲染 FPS 上限。 */
   FPS_LIMIT_ENABLED: true,
-  /** 全局 FPS 上限（30 对桌面宠物足够流畅，可显著降低 GPU 占用）。 */
-  FPS_LIMIT_MAX: 30,
+  /** 全局 FPS 上限（30 对桌面宠物足够流畅，可显著降低 GPU 占用）。可由 config/render_tuning.json 覆盖。 */
+  FPS_LIMIT_MAX: 30 as number,
 
-  /** 是否启用 idle 降频（无交互/无状态切换时自动降低渲染帧率）。 */
-  IDLE_THROTTLE_ENABLED: false,
-  /** idle 降频后的帧率（FPS）。值越低 GPU 越省电，但画面更新越慢。 */
-  IDLE_THROTTLE_FPS: 20,
-  /** 最后一次交互/状态变化后，等待多少毫秒进入 idle 降频。 */
-  IDLE_THROTTLE_DELAY_MS: 3000,
-} as const;
+  /** 是否启用 idle 降频（无交互/无状态切换时自动降低渲染帧率）。可由 config/render_tuning.json 覆盖。 */
+  IDLE_THROTTLE_ENABLED: false as boolean,
+  /** idle 降频后的帧率（FPS）。值越低 GPU 越省电，但画面更新越慢。可由 config/render_tuning.json 覆盖。 */
+  IDLE_THROTTLE_FPS: 20 as number,
+  /** 最后一次交互/状态变化后，等待多少毫秒进入 idle 降频。可由 config/render_tuning.json 覆盖。 */
+  IDLE_THROTTLE_DELAY_MS: 3000 as number,
+};
 
 // ========================================================================= //
 // 日志工具

@@ -33,6 +33,7 @@ import {
   isBorderImage,
   type SpriteTexturePolicy,
 } from "./animation_utils";
+import { getRenderMaxFps, IdleThrottle } from "./render_tuning";
 
 // ============================================================================
 // Canvas 显示适配（仅影响元素显示尺寸，不改变内部绘制逻辑）
@@ -417,6 +418,11 @@ export class SpriteAnimator {
   private isVisible = true;
   /** 可见性变化监听器 */
   private visibilityHandler: (() => void) | null = null;
+
+  /** 全局 FPS 上限对应的最小帧间隔（ms），0 表示不限 */
+  private readonly globalMinDeltaMs: number;
+  /** idle 降频控制器 */
+  private readonly idleThrottle = new IdleThrottle();
   /** 隐藏前保存的图片 URL（用于恢复） */
   private hiddenImgSrc: string | null = null;
 
@@ -431,6 +437,10 @@ export class SpriteAnimator {
       alpha: true,             // 需要透明背景
       willReadFrequently: false // 不频繁读取像素数据
     });
+
+    // 全局 FPS 上限
+    const maxFps = getRenderMaxFps();
+    this.globalMinDeltaMs = maxFps ? 1000 / Math.max(1, maxFps) : 0;
     
     // 监听窗口可见性变化
     this.visibilityHandler = () => {
@@ -611,6 +621,7 @@ export class SpriteAnimator {
    * @returns 切换成功返回 true
    */
   async switchToState(stateName: string, playOnce: boolean, onComplete?: () => void): Promise<boolean> {
+    this.idleThrottle.poke();
     logMemoryEvent('SWITCH_STATE', `切换状态: ${stateName}, playOnce=${playOnce}`);
     try {
       const state: { anima: string } | null = await invoke("get_state_by_name", { name: stateName });
@@ -886,6 +897,7 @@ export class SpriteAnimator {
    */
   play(): void {
     if (!this.isSequence || this.isPlaying) return;
+    this.idleThrottle.poke();
     this.isPlaying = true;
     this.isPlayOnce = false;
     this.onCompleteCallback = null;
@@ -902,6 +914,7 @@ export class SpriteAnimator {
    * @param onComplete - 播放完成回调
    */
   playOnce(onComplete?: () => void): void {
+    this.idleThrottle.poke();
     // 静态图：直接绘制并触发回调
     if (!this.isSequence) {
       this.drawCurrentFrame();
@@ -1060,8 +1073,9 @@ export class SpriteAnimator {
    * 1. **可见性检查**：当 `isVisible` 为 false（窗口最小化或完全遮挡）时，立即跳出循环，
    *    此时 `animationId` 被置为 null，完全停止 JavaScript 线程的计算开销。
    * 2. **异步等待**：如果图片尚未加载完成或 Context 丢失，会进入等待模式，不执行绘制。
-   * 3. **频率控制**：通过对比 `time` 与 `lastTime`，确保动画按照 `frameTime`（Mod 定义的帧率）播放，
-   *    而非无限制地以 144Hz 或更高频率渲染，从而大幅节省 CPU/GPU 资源。
+   * 3. **频率控制**：通过全局 FPS 上限和 Mod 定义的 `frameTime` 双重节流，
+   *    避免以 144Hz 或更高频率空转 rAF 回调，大幅节省 CPU/GPU 资源。
+   * 4. **idle 降频**：无交互时由 `IdleThrottle` 进一步降低回调频率。
    *
    * @param time - requestAnimationFrame 自动传入的高精度时间戳（毫秒）
    */
@@ -1071,6 +1085,18 @@ export class SpriteAnimator {
     // 窗口不可见时暂停动画循环，减少 GPU 占用
     if (!this.isVisible) {
       this.animationId = null;
+      return;
+    }
+
+    // idle 降频：无交互时大幅降低渲染频率以节省 CPU/GPU
+    if (this.idleThrottle.shouldSkipFrame(time)) {
+      this.animationId = requestAnimationFrame(this.animate);
+      return;
+    }
+
+    // 全局 FPS 上限：避免 rAF 以显示器刷新率（60/144Hz）空转
+    if (this.globalMinDeltaMs > 0 && this.lastTime > 0 && time - this.lastTime < this.globalMinDeltaMs) {
+      this.animationId = requestAnimationFrame(this.animate);
       return;
     }
 
@@ -1090,7 +1116,6 @@ export class SpriteAnimator {
       }
       return;
     }
-
 
     // 检查是否到达帧切换时间
     if (time - this.lastTime > this.frameTime) {

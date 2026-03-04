@@ -28,6 +28,7 @@ use crate::modules::environment::{
 use crate::modules::event_manager::{emit, events};
 use crate::modules::media_observer::{get_cached_debug_info, MediaDebugInfo};
 use crate::modules::process_observer::{get_cached_process_debug_info, ProcessDebugInfo};
+use crate::modules::render_tuning_config::{self, RenderTuningConfig};
 use crate::modules::resource::{StateInfo, TriggerInfo};
 use crate::modules::storage::{
     MemoItem, ModData, ReminderItem, ReminderSchedule, UserInfo, UserSettings,
@@ -140,6 +141,15 @@ pub fn get_build_mode() -> String {
     } else {
         "debug".to_string()
     }
+}
+
+/// 获取渲染调优配置（从 config/render_tuning.json 加载）
+///
+/// 前端在初始化渲染引擎前调用，用于覆盖硬编码的 RENDER_TUNING 默认值。
+/// 配置在程序启动时从 `config/render_tuning.json` 读取并缓存。
+#[tauri::command]
+pub fn get_render_tuning() -> RenderTuningConfig {
+    render_tuning_config::get_render_tuning_config()
 }
 
 // ========================================================================= //

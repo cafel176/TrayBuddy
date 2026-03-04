@@ -231,6 +231,8 @@ pub fn run() {
             modules::media_observer::init_music_keywords_from_config();
             // 进程监测关键字（ProcessObserver）
             modules::process_observer::init_process_keywords_from_config();
+            // 渲染调优参数（前端 FPS / idle 降频等）
+            modules::render_tuning_config::init_render_tuning_from_config();
 
 
 
@@ -578,6 +580,8 @@ pub fn run() {
             // 系统工具
             get_env_var,
             get_build_mode,
+            // 渲染调优配置
+            get_render_tuning,
             // 用户设置
             get_settings,
             get_usage_stats,

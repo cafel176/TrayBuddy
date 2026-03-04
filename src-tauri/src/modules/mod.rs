@@ -18,6 +18,7 @@ pub mod event_manager;
 pub mod media_observer;
 pub mod mod_archive;
 pub mod process_observer;
+pub mod render_tuning_config;
 pub mod resource;
 pub mod state;
 pub mod storage;

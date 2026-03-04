@@ -6,7 +6,7 @@ import {
   normalizePath,
   parseArchiveVirtualPath,
 } from "../utils/modAssetUrl";
-import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled, IdleThrottle } from "./render_tuning";
+import { getRenderDpr, getRenderMaxFps, isAntialiasEnabled, IdleThrottle, getIdleThrottleFps } from "./render_tuning";
 import {
   getMotionPriority,
   buildNameKey,
@@ -1097,7 +1097,7 @@ export class Live2DPlayer {
       const throttle = this.idleThrottle;
       this.app.ticker.add(() => {
         const isIdle = throttle.shouldSkipFrame(performance.now());
-        const target = isIdle ? 5 : normalMaxFps;
+        const target = isIdle ? getIdleThrottleFps() : normalMaxFps;
         if (this.app && this.app.ticker.maxFPS !== target) {
           this.app.ticker.maxFPS = target;
           const shared = window.PIXI?.Ticker?.shared;

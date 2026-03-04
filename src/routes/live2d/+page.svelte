@@ -15,6 +15,7 @@ Live2D 渲染层暂为空占位。
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
   import { getAudioManager } from "$lib/audio/AudioManager";
+  import { initRenderTuning } from "$lib/animation/render_tuning";
   import type {
     Live2DConfig,
     Live2DParameterSetting,
@@ -481,6 +482,8 @@ Live2D 渲染层暂为空占位。
     bindDebugControls();
     bindOverlayKeyListeners();
     const init = async () => {
+      // 从 config/render_tuning.json 加载渲染调优参数（在播放器创建前）
+      await initRenderTuning();
       unlistenSettings = await listen<UserSettings>(
         "settings-change",
         (event) => {

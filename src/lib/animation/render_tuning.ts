@@ -5,9 +5,54 @@
  * 渲染参数的运行时计算。所有动画引擎（Sprite / Live2D / PngRemix / 3D）
  * 共用这些参数，确保全局渲染策略一致。
  *
+ * 启动时调用 `initRenderTuning()` 从后端加载 `config/render_tuning.json`
+ * 覆盖 `RENDER_TUNING` 中的 FPS / idle 相关默认值。
+ *
  * @module render_tuning
  */
 import { RENDER_TUNING } from "$lib/constants";
+import { invoke } from "@tauri-apps/api/core";
+
+/** 标记是否已完成初始化，避免重复调用 */
+let _initialized = false;
+
+/**
+ * 从后端加载 `config/render_tuning.json` 配置并覆盖 `RENDER_TUNING` 中的可变字段。
+ *
+ * 应在各窗口页面创建播放器实例**之前**调用一次。
+ * 多次调用是安全的（仅首次生效）。
+ */
+export async function initRenderTuning(): Promise<void> {
+  if (_initialized) return;
+  _initialized = true;
+
+  try {
+    const cfg = await invoke<{
+      fps_limit_max: number;
+      idle_throttle_enabled: boolean;
+      idle_throttle_fps: number;
+      idle_throttle_delay_ms: number;
+    }>("get_render_tuning");
+
+    if (cfg) {
+      if (typeof cfg.fps_limit_max === "number" && cfg.fps_limit_max > 0) {
+        RENDER_TUNING.FPS_LIMIT_MAX = cfg.fps_limit_max;
+      }
+      if (typeof cfg.idle_throttle_enabled === "boolean") {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = cfg.idle_throttle_enabled;
+      }
+      if (typeof cfg.idle_throttle_fps === "number" && cfg.idle_throttle_fps > 0) {
+        RENDER_TUNING.IDLE_THROTTLE_FPS = cfg.idle_throttle_fps;
+      }
+      if (typeof cfg.idle_throttle_delay_ms === "number" && cfg.idle_throttle_delay_ms > 0) {
+        RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = cfg.idle_throttle_delay_ms;
+      }
+    }
+  } catch (e) {
+    // 后端命令不可用（如测试环境），静默使用默认值
+    console.warn("[render_tuning] initRenderTuning failed, using defaults:", e);
+  }
+}
 
 /**
  * 将数值限制在 `[min, max]` 范围内。
@@ -68,6 +113,16 @@ export function capFps(perPlayerMaxFps: number): number {
   return globalCap ? Math.min(safe, globalCap) : safe;
 }
 
+/**
+ * 获取 idle 降频后的帧率（FPS）。
+ *
+ * 返回 `RENDER_TUNING.IDLE_THROTTLE_FPS` 经安全钳制后的值（范围 `[1, 30]`）。
+ * 供各播放器在 idle 状态下统一使用，避免硬编码。
+ */
+export function getIdleThrottleFps(): number {
+  return clampNumber(Number(RENDER_TUNING.IDLE_THROTTLE_FPS) || 5, 1, 30);
+}
+
 // =========================================================================
 // Idle Throttle — 无交互/无状态切换时自动降低渲染帧率
 // =========================================================================
@@ -94,8 +149,7 @@ export class IdleThrottle {
   constructor() {
     this.enabled = !!RENDER_TUNING.IDLE_THROTTLE_ENABLED;
     this.delayMs = Math.max(500, Number(RENDER_TUNING.IDLE_THROTTLE_DELAY_MS) || 3000);
-    const idleFps = clampNumber(Number(RENDER_TUNING.IDLE_THROTTLE_FPS) || 5, 1, 30);
-    this.idleMinDeltaMs = 1000 / idleFps;
+    this.idleMinDeltaMs = 1000 / getIdleThrottleFps();
     this.lastActivityTs = performance.now();
   }
 

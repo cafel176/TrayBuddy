@@ -36,6 +36,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
+  import { initRenderTuning } from "$lib/animation/render_tuning";
   import {
     SpriteAnimator,
     type CanvasFitPreference,
@@ -306,6 +307,8 @@
     void initSequenceMemoryDebug();
 
     const init = async () => {
+      // 从 config/render_tuning.json 加载渲染调优参数（在播放器创建前）
+      await initRenderTuning();
       // 从 mod manifest 读取贴图降采样配置（在 core.init 之前，确保 playAnimation 回调时策略已就绪）
       try {
         const mod = (await invoke("get_current_mod")) as any;
