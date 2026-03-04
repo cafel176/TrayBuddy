@@ -443,9 +443,13 @@ impl StateManager {
         // 非强制模式下的检查
         if !force {
             if self.locked {
-                #[cfg(debug_assertions)]
-                println!("[StateManager] 状态锁定中，禁止变更状态 '{}'", state.name);
-                return Ok(false);
+                // 没有动画/语音/文本的状态可以无视锁定
+                let has_no_media = state.anima.is_empty() && state.audio.is_empty() && state.text.is_empty();
+                if !has_no_media {
+                    #[cfg(debug_assertions)]
+                    println!("[StateManager] 状态锁定中，禁止变更状态 '{}'", state.name);
+                    return Ok(false);
+                }
             }
 
             let current_priority = self.current_state.as_ref().map_or(0, |s| s.priority);
