@@ -403,17 +403,82 @@ fn map_vk_code(vk: u32) -> Option<&'static str> {
         0x30 => Some("Digit0"), 0x31 => Some("Digit1"), 0x32 => Some("Digit2"), 0x33 => Some("Digit3"),
         0x34 => Some("Digit4"), 0x35 => Some("Digit5"), 0x36 => Some("Digit6"), 0x37 => Some("Digit7"),
         0x38 => Some("Digit8"), 0x39 => Some("Digit9"),
-        // 功能键
-        0x0D => Some("Enter"), 0x20 => Some("Space"), 0x1B => Some("Escape"), 0x08 => Some("Backspace"),
-        0x09 => Some("Tab"),
-        // 修饰键
-        0x10 => Some("Shift"), 0x11 => Some("Control"), 0x12 => Some("Alt"),
-        // 方向键
-        0x25 => Some("ArrowLeft"), 0x26 => Some("ArrowUp"), 0x27 => Some("ArrowRight"), 0x28 => Some("ArrowDown"),
+        // 常用控制键
+        0x08 => Some("Backspace"),  // VK_BACK
+        0x09 => Some("Tab"),        // VK_TAB
+        0x0D => Some("Enter"),      // VK_RETURN
+        0x13 => Some("Pause"),      // VK_PAUSE
+        0x14 => Some("CapsLock"),   // VK_CAPITAL
+        0x1B => Some("Escape"),     // VK_ESCAPE
+        0x20 => Some("Space"),      // VK_SPACE
+        // 导航键
+        0x21 => Some("PageUp"),     // VK_PRIOR
+        0x22 => Some("PageDown"),   // VK_NEXT
+        0x23 => Some("End"),        // VK_END
+        0x24 => Some("Home"),       // VK_HOME
+        0x25 => Some("ArrowLeft"),  // VK_LEFT
+        0x26 => Some("ArrowUp"),    // VK_UP
+        0x27 => Some("ArrowRight"), // VK_RIGHT
+        0x28 => Some("ArrowDown"),  // VK_DOWN
+        0x2C => Some("PrintScreen"),// VK_SNAPSHOT
+        0x2D => Some("Insert"),     // VK_INSERT
+        0x2E => Some("Delete"),     // VK_DELETE
+        // 修饰键（通用）
+        0x10 => Some("Shift"),   // VK_SHIFT
+        0x11 => Some("Control"), // VK_CONTROL
+        0x12 => Some("Alt"),     // VK_MENU
+        // 修饰键（左右区分）— 低级键盘钩子会发送具体的左/右键码
+        0xA0 => Some("Shift"),   // VK_LSHIFT
+        0xA1 => Some("Shift"),   // VK_RSHIFT
+        0xA2 => Some("Control"), // VK_LCONTROL
+        0xA3 => Some("Control"), // VK_RCONTROL
+        0xA4 => Some("Alt"),     // VK_LMENU
+        0xA5 => Some("Alt"),     // VK_RMENU
+        // Windows 键与应用键
+        0x5B => Some("MetaLeft"),    // VK_LWIN
+        0x5C => Some("MetaRight"),   // VK_RWIN
+        0x5D => Some("ContextMenu"), // VK_APPS
+        // 数字小键盘
+        0x60 => Some("Numpad0"), 0x61 => Some("Numpad1"), 0x62 => Some("Numpad2"),
+        0x63 => Some("Numpad3"), 0x64 => Some("Numpad4"), 0x65 => Some("Numpad5"),
+        0x66 => Some("Numpad6"), 0x67 => Some("Numpad7"), 0x68 => Some("Numpad8"),
+        0x69 => Some("Numpad9"),
+        0x6A => Some("NumpadMultiply"),  // VK_MULTIPLY
+        0x6B => Some("NumpadAdd"),       // VK_ADD
+        0x6D => Some("NumpadSubtract"),  // VK_SUBTRACT
+        0x6E => Some("NumpadDecimal"),   // VK_DECIMAL
+        0x6F => Some("NumpadDivide"),    // VK_DIVIDE
         // F 键
-        0x70 => Some("F1"), 0x71 => Some("F2"), 0x72 => Some("F3"), 0x73 => Some("F4"),
-        0x74 => Some("F5"), 0x75 => Some("F6"), 0x76 => Some("F7"), 0x77 => Some("F8"),
-        0x78 => Some("F9"), 0x79 => Some("F10"), 0x7A => Some("F11"), 0x7B => Some("F12"),
+        0x70 => Some("F1"),  0x71 => Some("F2"),  0x72 => Some("F3"),  0x73 => Some("F4"),
+        0x74 => Some("F5"),  0x75 => Some("F6"),  0x76 => Some("F7"),  0x77 => Some("F8"),
+        0x78 => Some("F9"),  0x79 => Some("F10"), 0x7A => Some("F11"), 0x7B => Some("F12"),
+        0x7C => Some("F13"), 0x7D => Some("F14"), 0x7E => Some("F15"), 0x7F => Some("F16"),
+        0x80 => Some("F17"), 0x81 => Some("F18"), 0x82 => Some("F19"), 0x83 => Some("F20"),
+        0x84 => Some("F21"), 0x85 => Some("F22"), 0x86 => Some("F23"), 0x87 => Some("F24"),
+        // 锁定键
+        0x90 => Some("NumLock"),    // VK_NUMLOCK
+        0x91 => Some("ScrollLock"), // VK_SCROLL
+        // OEM 键（美式键盘布局）
+        0xBA => Some("Semicolon"),    // VK_OEM_1  ;:
+        0xBB => Some("Equal"),        // VK_OEM_PLUS  =+
+        0xBC => Some("Comma"),        // VK_OEM_COMMA  ,<
+        0xBD => Some("Minus"),        // VK_OEM_MINUS  -_
+        0xBE => Some("Period"),       // VK_OEM_PERIOD  .>
+        0xBF => Some("Slash"),        // VK_OEM_2  /?
+        0xC0 => Some("Backquote"),    // VK_OEM_3  `~
+        0xDB => Some("BracketLeft"),  // VK_OEM_4  [{
+        0xDC => Some("Backslash"),    // VK_OEM_5  \|
+        0xDD => Some("BracketRight"), // VK_OEM_6  ]}
+        0xDE => Some("Quote"),        // VK_OEM_7  '"
+        0xE2 => Some("IntlBackslash"), // VK_OEM_102 (ISO 键盘额外键)
+        // 多媒体键
+        0xAD => Some("AudioVolumeMute"),     // VK_VOLUME_MUTE
+        0xAE => Some("AudioVolumeDown"),     // VK_VOLUME_DOWN
+        0xAF => Some("AudioVolumeUp"),       // VK_VOLUME_UP
+        0xB0 => Some("MediaTrackNext"),      // VK_MEDIA_NEXT_TRACK
+        0xB1 => Some("MediaTrackPrevious"),  // VK_MEDIA_PREV_TRACK
+        0xB2 => Some("MediaStop"),           // VK_MEDIA_STOP
+        0xB3 => Some("MediaPlayPause"),      // VK_MEDIA_PLAY_PAUSE
         _ => None,
     }
 }

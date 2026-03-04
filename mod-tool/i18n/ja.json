@@ -87,6 +87,7 @@
   "section_idle_state": "重要状態 (Idle)",
   "section_state_list": "通常状態リスト",
   "btn_add_state": "状態を追加",
+  "btn_delete_all": "すべて削除",
   "section_triggers": "トリガー (イベント応答)",
   "btn_add_trigger": "トリガーを追加",
   "section_event_docs": "イベントタイプの説明",
@@ -347,6 +348,10 @@
 
   "msg_export_failed": "エクスポートに失敗しました: {error}",
   "msg_confirm_delete_state": "この状態を削除してもよろしいですか？",
+  "msg_confirm_delete_all_states": "すべての通常状態を削除してもよろしいですか？この操作は元に戻せません。",
+  "msg_deleted_all_states": "すべての通常状態が削除されました",
+  "msg_confirm_delete_all_triggers": "すべてのトリガーを削除してもよろしいですか？この操作は元に戻せません。",
+  "msg_deleted_all_triggers": "すべてのトリガーが削除されました",
   "msg_state_saved": "状態が保存されました",
   "msg_state_deleted": "状態が削除されました",
   "msg_enter_state_name": "状態名を入力してください",

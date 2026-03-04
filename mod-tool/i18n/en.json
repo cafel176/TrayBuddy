@@ -87,6 +87,7 @@
   "section_idle_state": "Important State (Idle)",
   "section_state_list": "State List",
   "btn_add_state": "Add State",
+  "btn_delete_all": "Delete All",
   "section_triggers": "Triggers (Event Response)",
   "btn_add_trigger": "Add Trigger",
   "section_event_docs": "Event Type Guide",
@@ -347,6 +348,10 @@
 
   "msg_export_failed": "Export failed: {error}",
   "msg_confirm_delete_state": "Are you sure you want to delete this state?",
+  "msg_confirm_delete_all_states": "Are you sure you want to delete ALL states? This action cannot be undone.",
+  "msg_deleted_all_states": "All states deleted",
+  "msg_confirm_delete_all_triggers": "Are you sure you want to delete ALL triggers? This action cannot be undone.",
+  "msg_deleted_all_triggers": "All triggers deleted",
   "msg_state_saved": "State saved",
   "msg_state_deleted": "State deleted",
   "msg_enter_state_name": "Please enter state name",

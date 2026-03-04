@@ -88,6 +88,7 @@
   "section_idle_state": "重要状态 (Idle)",
   "section_state_list": "普通状态列表",
   "btn_add_state": "添加状态",
+  "btn_delete_all": "全部删除",
   "section_triggers": "触发器 (事件响应)",
   "btn_add_trigger": "添加触发器",
   "section_event_docs": "事件类型说明",
@@ -348,6 +349,10 @@
 
   "msg_export_failed": "导出失败: {error}",
   "msg_confirm_delete_state": "确定要删除这个状态吗？",
+  "msg_confirm_delete_all_states": "确定要删除所有普通状态吗？此操作不可撤销。",
+  "msg_deleted_all_states": "已删除所有普通状态",
+  "msg_confirm_delete_all_triggers": "确定要删除所有触发器吗？此操作不可撤销。",
+  "msg_deleted_all_triggers": "已删除所有触发器",
   "msg_state_saved": "状态已保存",
   "msg_state_deleted": "状态已删除",
   "msg_enter_state_name": "请输入状态名称",

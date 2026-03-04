@@ -1620,6 +1620,22 @@ function stringifyForSave(obj) {
 function getManifestForSave() {
   const m = deepClone(currentMod.manifest);
   if (m.mod_type === 'threed') m.mod_type = '3d';
+
+  // 确保所有 state 的 live2d_params 都包含 target 字段
+  const allStates = [
+    ...(m.states || []),
+    ...(m.important_states ? Object.values(m.important_states) : [])
+  ];
+  for (const state of allStates) {
+    if (Array.isArray(state.live2d_params)) {
+      state.live2d_params = state.live2d_params.map(p => ({
+        id: p.id,
+        value: p.value ?? 0,
+        target: p.target || 'Parameter'
+      }));
+    }
+  }
+
   return m;
 }
 
@@ -3354,6 +3370,7 @@ function renderStates() {
   footer.innerHTML = `
     <button class="btn btn-sm btn-ghost" onclick="pasteStateFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">${window.i18n.t('btn_paste_from_clipboard')}</span></button>
     <button class="btn btn-sm btn-primary" onclick="addState()">➕ <span data-i18n="btn_add_state">${window.i18n.t('btn_add_state')}</span></button>
+    <button class="btn btn-sm btn-danger" onclick="deleteAllStates()">🗑️ <span data-i18n="btn_delete_all">${window.i18n.t('btn_delete_all')}</span></button>
   `;
   stateList.appendChild(footer);
 
@@ -3613,6 +3630,20 @@ function addState() {
   editingStateIndex = -2; // -2 表示新建状态
   editingImportantStateKey = null;
   openStateModal(window.i18n.t('modal_add_state'), createDefaultState('new_state'));
+}
+
+/**
+ * 全部删除普通状态
+ */
+function deleteAllStates() {
+  if (!currentMod) return;
+  const states = currentMod.manifest.states || [];
+  if (states.length === 0) return;
+  if (!confirm(window.i18n.t('msg_confirm_delete_all_states'))) return;
+  currentMod.manifest.states = [];
+  markUnsaved();
+  renderStates();
+  showToast(window.i18n.t('msg_deleted_all_states'), 'success');
 }
 
 /**
@@ -4265,6 +4296,7 @@ function renderTriggers() {
   footer.innerHTML = `
     <button class="btn btn-sm btn-ghost" onclick="pasteTriggerFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">${window.i18n.t('btn_paste_from_clipboard')}</span></button>
     <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ <span data-i18n="btn_add_trigger">${window.i18n.t('btn_add_trigger')}</span></button>
+    <button class="btn btn-sm btn-danger" onclick="deleteAllTriggers()">🗑️ <span data-i18n="btn_delete_all">${window.i18n.t('btn_delete_all')}</span></button>
   `;
   triggerList.appendChild(footer);
 
@@ -4394,6 +4426,20 @@ function addTrigger() {
     event: '',
     can_trigger_states: []
   });
+}
+
+/**
+ * 全部删除触发器
+ */
+function deleteAllTriggers() {
+  if (!currentMod) return;
+  const triggers = currentMod.manifest.triggers || [];
+  if (triggers.length === 0) return;
+  if (!confirm(window.i18n.t('msg_confirm_delete_all_triggers'))) return;
+  currentMod.manifest.triggers = [];
+  markUnsaved();
+  renderTriggers();
+  showToast(window.i18n.t('msg_deleted_all_triggers'), 'success');
 }
 
 /**
@@ -5685,7 +5731,7 @@ async function syncLive2dAssetsFromFiles() {
 
       // F+数字: F1, F2, ... → keydown:F1
       const fKeyMatch = name.match(/^F(\d{1,2})$/i);
-      if (fKeyMatch && parseInt(fKeyMatch[1]) >= 1 && parseInt(fKeyMatch[1]) <= 12) return `keydown:F${fKeyMatch[1]}`;
+      if (fKeyMatch && parseInt(fKeyMatch[1]) >= 1 && parseInt(fKeyMatch[1]) <= 24) return `keydown:F${fKeyMatch[1]}`;
 
       // Numpad+数字/操作: Numpad0, NumpadAdd, ... → keydown:Numpad0
       const numpadMatch = name.match(/^Numpad(\w+)$/i);
@@ -5708,16 +5754,24 @@ async function syncLive2dAssetsFromFiles() {
         'space': 'Space', 'enter': 'Enter', 'tab': 'Tab',
         'escape': 'Escape', 'esc': 'Escape',
         'backspace': 'Backspace', 'delete': 'Delete', 'insert': 'Insert',
+        'pause': 'Pause', 'printscreen': 'PrintScreen',
         'shiftleft': 'ShiftLeft', 'shiftright': 'ShiftRight',
+        'shift': 'Shift', 'control': 'Control', 'alt': 'Alt',
         'controlleft': 'ControlLeft', 'controlright': 'ControlRight',
         'altleft': 'AltLeft', 'altright': 'AltRight',
         'metaleft': 'MetaLeft', 'metaright': 'MetaRight',
+        'contextmenu': 'ContextMenu',
         'capslock': 'CapsLock', 'numlock': 'NumLock', 'scrolllock': 'ScrollLock',
         'home': 'Home', 'end': 'End', 'pageup': 'PageUp', 'pagedown': 'PageDown',
         'semicolon': 'Semicolon', 'equal': 'Equal', 'comma': 'Comma',
         'minus': 'Minus', 'period': 'Period', 'slash': 'Slash',
         'backquote': 'Backquote', 'bracketleft': 'BracketLeft',
         'backslash': 'Backslash', 'bracketright': 'BracketRight', 'quote': 'Quote',
+        'intlbackslash': 'IntlBackslash',
+        'audiovolumemute': 'AudioVolumeMute', 'audiovolumedown': 'AudioVolumeDown',
+        'audiovolumeup': 'AudioVolumeUp',
+        'mediatracknext': 'MediaTrackNext', 'mediatrackprevious': 'MediaTrackPrevious',
+        'mediastop': 'MediaStop', 'mediaplaypause': 'MediaPlayPause',
       };
       const directKey = DIRECT_MAP[name.toLowerCase()];
       if (directKey) return `keydown:${directKey}`;
@@ -5915,7 +5969,8 @@ async function generateKeyboardEventsFromFiles() {
       'alt': 'Alt', 'ctrl': 'Control', 'control': 'Control',
       'shift': 'Shift', 'enter': 'Enter', 'tab': 'Tab',
       'escape': 'Escape', 'esc': 'Escape',
-      'backspace': 'Backspace',
+      'backspace': 'Backspace', 'delete': 'Delete', 'insert': 'Insert',
+      'capslock': 'CapsLock', 'pause': 'Pause', 'printscreen': 'PrintScreen',
       'a': 'KeyA', 'b': 'KeyB', 'c': 'KeyC', 'd': 'KeyD',
       'e': 'KeyE', 'f': 'KeyF', 'g': 'KeyG', 'h': 'KeyH',
       'i': 'KeyI', 'j': 'KeyJ', 'k': 'KeyK', 'l': 'KeyL',
@@ -5927,9 +5982,31 @@ async function generateKeyboardEventsFromFiles() {
       '4': 'Digit4', '5': 'Digit5', '6': 'Digit6', '7': 'Digit7',
       '8': 'Digit8', '9': 'Digit9',
       'up': 'ArrowUp', 'down': 'ArrowDown', 'left': 'ArrowLeft', 'right': 'ArrowRight',
+      'home': 'Home', 'end': 'End', 'pageup': 'PageUp', 'pagedown': 'PageDown',
       'f1': 'F1', 'f2': 'F2', 'f3': 'F3', 'f4': 'F4',
       'f5': 'F5', 'f6': 'F6', 'f7': 'F7', 'f8': 'F8',
       'f9': 'F9', 'f10': 'F10', 'f11': 'F11', 'f12': 'F12',
+      'f13': 'F13', 'f14': 'F14', 'f15': 'F15', 'f16': 'F16',
+      'f17': 'F17', 'f18': 'F18', 'f19': 'F19', 'f20': 'F20',
+      'f21': 'F21', 'f22': 'F22', 'f23': 'F23', 'f24': 'F24',
+      'numlock': 'NumLock', 'scrolllock': 'ScrollLock',
+      'numpad0': 'Numpad0', 'numpad1': 'Numpad1', 'numpad2': 'Numpad2',
+      'numpad3': 'Numpad3', 'numpad4': 'Numpad4', 'numpad5': 'Numpad5',
+      'numpad6': 'Numpad6', 'numpad7': 'Numpad7', 'numpad8': 'Numpad8',
+      'numpad9': 'Numpad9',
+      'numpadadd': 'NumpadAdd', 'numpadsubtract': 'NumpadSubtract',
+      'numpadmultiply': 'NumpadMultiply', 'numpaddivide': 'NumpadDivide',
+      'numpaddecimal': 'NumpadDecimal',
+      'semicolon': 'Semicolon', 'equal': 'Equal', 'comma': 'Comma',
+      'minus': 'Minus', 'period': 'Period', 'slash': 'Slash',
+      'backquote': 'Backquote', 'bracketleft': 'BracketLeft',
+      'backslash': 'Backslash', 'bracketright': 'BracketRight', 'quote': 'Quote',
+      'intlbackslash': 'IntlBackslash',
+      'metaleft': 'MetaLeft', 'metaright': 'MetaRight', 'contextmenu': 'ContextMenu',
+      'audiovolumemute': 'AudioVolumeMute', 'audiovolumedown': 'AudioVolumeDown',
+      'audiovolumeup': 'AudioVolumeUp',
+      'mediatracknext': 'MediaTrackNext', 'mediatrackprevious': 'MediaTrackPrevious',
+      'mediastop': 'MediaStop', 'mediaplaypause': 'MediaPlayPause',
     };
 
     // ======== Id 特殊匹配规则 ========
