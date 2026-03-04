@@ -617,32 +617,45 @@ The displayed Mods are for demonstration purposes only; please see the correspon
 
 More examples will be added in the future
 
-<table>
-<tr>
-<td align="center"><b>Sprite Sheet Half-body</b></td>
-<td align="center"><b>Sprite Sheet Full-body</b></td>
-</tr>
-<tr>
-<td><img src="https://github.com/user-attachments/assets/a9be1963-3ac6-46ea-82e1-1c3c9543b5a8"/></td>
-<td><img src="https://github.com/user-attachments/assets/209e9368-a991-46c4-b602-bebdad07f821"/></td>
-</tr>
-<tr>
-<td align="center"><a href="https://github.com/MMmmmoko/Bongo-Cat-Mver" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat</b></a></td>
-<td align="center"><a href="https://www.live2d.com/zh-CHS/learn/sample/" target="_blank" rel="noopener noreferrer"><b>Live2D Character</b></a></td>
-</tr>
-<tr>
-<td><img src="https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479"/></td>
-<td><img src="https://github.com/user-attachments/assets/180419f4-1567-4a44-85e1-29fdb8e8bde0"/></td>
-</tr>
-<tr>
-<td align="center"><a href="https://www.bilibili.com/video/BV1pbxnz5EvD/?share_source=copy_web&vd_source=83959be6660f3ec16d301ccce33457e7" target="_blank" rel="noopener noreferrer"><b>PngRemix</b></a></td>
-<td align="center"><b>3D Model (VRM)</b></td>
-</tr>
-<tr>
-<td><img src="https://github.com/user-attachments/assets/bea1138b-0468-40e5-b116-fd5c13b8c6e6"/></td>
-<td><img src="https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b"/></td>
-</tr>
-</table>
+<a href="" target="_blank" rel="noopener noreferrer"><b>Sprite Sheet Half-body</b></a>
+
+**Please turn on sound**
+
+https://github.com/user-attachments/assets/a9be1963-3ac6-46ea-82e1-1c3c9543b5a8
+
+<br>
+
+<a href="" target="_blank" rel="noopener noreferrer"><b>Sprite Sheet Full-body</b></a>
+
+https://github.com/user-attachments/assets/209e9368-a991-46c4-b602-bebdad07f821
+
+<br>
+
+<a href="https://github.com/MMmmmoko/Bongo-Cat-Mver" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat</b></a>
+
+**Please turn on sound**
+
+https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
+
+<br>
+
+<a href="https://www.live2d.com/zh-CHS/learn/sample/" target="_blank" rel="noopener noreferrer"><b>Live2D Character</b></a>
+
+https://github.com/user-attachments/assets/180419f4-1567-4a44-85e1-29fdb8e8bde0
+
+<br>
+
+<a href="https://www.bilibili.com/video/BV1pbxnz5EvD/?share_source=copy_web&vd_source=83959be6660f3ec16d301ccce33457e7" target="_blank" rel="noopener noreferrer"><b>PngRemix</b></a>
+
+**Please turn on sound**
+
+https://github.com/user-attachments/assets/bea1138b-0468-40e5-b116-fd5c13b8c6e6
+
+<br>
+
+<a href="https://booth.pm/en/items/3226395" target="_blank" rel="noopener noreferrer"><b>3D Model (VRM)</b></a>
+
+https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 <br>
 
@@ -684,7 +697,7 @@ More examples will be added in the future
 
 TrayBuddy manages 4 different animation formats in a unified way:
 
-<img src="docs/imgs/newmod.png"/>
+<img src="docs/imgs/newmod.png" width="540" />
 
 <br>
 
@@ -705,7 +718,7 @@ We provide a complete <a href="#en-auxiliary-tools">**toolchain**</a> to process
 
 Our application supports packaging your work into an **encrypted file sbuddy**. This format can only be used by the application itself — the editor cannot open it, and resources inside cannot be easily extracted
 
-<img src="docs/imgs/sbuddy1.png"/>
+<img src="docs/imgs/sbuddy1.png" width="540"/>
 <img src="docs/imgs/sbuddy2.png"/>
 
 If you discover any vulnerabilities in our encryption/decryption, please let us know — we would be very grateful
@@ -732,7 +745,7 @@ To minimize memory usage, we support texture downsampling during WebGL rendering
 Simply configure appropriate downsampling sizes in the mod based on common scaling values to enable texture downsampling<br>
 With proper size settings, you can effectively reduce memory usage while maintaining adequate clarity
 
-<img src="docs/imgs/profile2.png"/>
+<img src="docs/imgs/profile2.png" width="540"/>
 <img src="docs/imgs/profile3.png"/>
 
 <br>
@@ -810,8 +823,8 @@ Our application supports a comprehensive form-based Mod Editor. You can complete
 
 The application has built-in Mod switching and multi-version management. You can conveniently switch between multiple Mods, and also import different versions of the same Mod
 
-<img src="docs/imgs/mod1.png"/>
-<img src="docs/imgs/mod2.png"/>
+<img src="docs/imgs/mod1.png" width="540"/>
+<img src="docs/imgs/mod2.png" width="540"/>
 
 <br>
 
@@ -820,9 +833,9 @@ The application has built-in Mod switching and multi-version management. You can
 ### 8. Utility Features
 
 - **Memo** — Auto-popup on screen unlock, also viewable manually
-  - <img src="docs/imgs/other1.png"/>
+  - <img src="docs/imgs/other1.png" width="540"/>
 - **Timed Reminders** — Set popup reminders for specific times
-  - <img src="docs/imgs/other2.png"/>
+  - <img src="docs/imgs/other2.png" width="540"/>
 
 <br>
 
@@ -846,7 +859,7 @@ The lite version only includes the tutorial Mod; the standard version includes s
 - **Double-click `.tbuddy` or `.sbuddy` files** to auto-import (file associations registered)
   - <img src="docs/imgs/import1.png"/>
 - Or manually browse and import via the **plus button** in the top-left of the Mod Manager
-  - <img src="docs/imgs/import2.png"/>
+  - <img src="docs/imgs/import2.png" width="540"/>
 
 <br>
 
@@ -1145,31 +1158,45 @@ TrayBuddy/
 
 今後さらに多くのサンプルを追加予定です
 
-**シーケンスフレーム 半身**
+<a href="" target="_blank" rel="noopener noreferrer"><b>シーケンスフレーム 半身</b></a>
+
+**音声をオンにしてください**
 
 https://github.com/user-attachments/assets/a9be1963-3ac6-46ea-82e1-1c3c9543b5a8
 
-**シーケンスフレーム 全身**
+<br>
+
+<a href="" target="_blank" rel="noopener noreferrer"><b>シーケンスフレーム 全身</b></a>
 
 https://github.com/user-attachments/assets/209e9368-a991-46c4-b602-bebdad07f821
 
+<br>
+
 <a href="https://github.com/MMmmmoko/Bongo-Cat-Mver" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat</b></a>
 
+**音声をオンにしてください**
+
 https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
+
+<br>
 
 <a href="https://www.live2d.com/zh-CHS/learn/sample/" target="_blank" rel="noopener noreferrer"><b>Live2D キャラクター</b></a>
 
 https://github.com/user-attachments/assets/180419f4-1567-4a44-85e1-29fdb8e8bde0
 
+<br>
+
 <a href="https://www.bilibili.com/video/BV1pbxnz5EvD/?share_source=copy_web&vd_source=83959be6660f3ec16d301ccce33457e7" target="_blank" rel="noopener noreferrer"><b>PngRemix</b></a>
+
+**音声をオンにしてください**
 
 https://github.com/user-attachments/assets/bea1138b-0468-40e5-b116-fd5c13b8c6e6
 
-**3Dモデル (VRM)**
+<br>
+
+<a href="https://booth.pm/en/items/3226395" target="_blank" rel="noopener noreferrer"><b>3Dモデル (VRM)</b></a>
 
 https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
-</tr>
-</table>
 
 <br>
 
@@ -1211,7 +1238,7 @@ https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 TrayBuddyは4種類の異なるアニメーション形式を統合管理します：
 
-<img src="docs/imgs/newmod.png"/>
+<img src="docs/imgs/newmod.png" width="540" />
 
 <br>
 
@@ -1232,7 +1259,7 @@ TrayBuddyは4種類の異なるアニメーション形式を統合管理しま�
 
 本アプリケーションは作品を**暗号化ファイルsbuddy**にパッケージングすることをサポートしています。この形式はアプリケーション本体でのみ使用でき、エディターでは開けず、内部のリソースを簡単に取り出すこともできません
 
-<img src="docs/imgs/sbuddy1.png"/>
+<img src="docs/imgs/sbuddy1.png" width="540"/>
 <img src="docs/imgs/sbuddy2.png"/>
 
 暗号化/復号化に脆弱性を発見された場合は、ぜひフィードバックをお願いします。大変感謝いたします
@@ -1259,7 +1286,7 @@ WebGLベースのプログラムでは、テクスチャリソースのサイズ
 Mod内で一般的なスケーリング値に基づいて適切なダウンサンプリングサイズを設定するだけで、テクスチャダウンサンプリングを有効にできます<br>
 適切なサイズ設定により、十分な鮮明度を維持しながらメモリ使用量を効果的に削減できます
 
-<img src="docs/imgs/profile2.png"/>
+<img src="docs/imgs/profile2.png" width="540"/>
 <img src="docs/imgs/profile3.png"/>
 
 <br>
@@ -1337,8 +1364,8 @@ Mod内で一般的なスケーリング値に基づいて適切なダウンサ�
 
 アプリにはMod切り替えとマルチバージョン管理機能が内蔵されています。複数のMod間で簡単に切り替えができ、同じModの異なるバージョンをインポートすることも可能です
 
-<img src="docs/imgs/mod1.png"/>
-<img src="docs/imgs/mod2.png"/>
+<img src="docs/imgs/mod1.png" width="540"/>
+<img src="docs/imgs/mod2.png" width="540"/>
 
 <br>
 
@@ -1347,9 +1374,9 @@ Mod内で一般的なスケーリング値に基づいて適切なダウンサ�
 ### 8. 便利機能
 
 - **メモ** — 画面ロック解除時に自動ポップアップ、手動表示も可能
-  - <img src="docs/imgs/other1.png"/>
+  - <img src="docs/imgs/other1.png" width="540"/>
 - **タイマーリマインダー** — 指定時刻のポップアップリマインダー設定
-  - <img src="docs/imgs/other2.png"/>
+  - <img src="docs/imgs/other2.png" width="540"/>
 
 <br>
 
@@ -1373,7 +1400,7 @@ Mod内で一般的なスケーリング値に基づいて適切なダウンサ�
 - **`.tbuddy` または `.sbuddy` ファイルをダブルクリック**で自動インポート（ファイル関連付け済み）
   - <img src="docs/imgs/import1.png"/>
 - またはModマネージャー左上の**プラスボタン**から手動でブラウズしてインポート
-  - <img src="docs/imgs/import2.png"/>
+  - <img src="docs/imgs/import2.png" width="540"/>
 
 <br>
 
