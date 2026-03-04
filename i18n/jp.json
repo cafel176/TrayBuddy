@@ -38,7 +38,7 @@
     "failed": "失敗",
     "on": "オン",
     "off": "オフ",
-    "style": "デザイン",
+    "style": "スタイル",
     "action": "アクション",
     "close": "閉じる",
     "noModHint": "キャラクターが読み込まれていないか、Modが無効です。右クリックメニューからModを読み込んでください。"
@@ -771,7 +771,7 @@
     "reminder": "リマインダー",
     "mute": "ミュートモード",
 
-    "silence": "集中モード",
+    "silence": "おやすみモード",
     "streamerMode": "配信者モード",
     "showCharacter": "キャラクターを表示",
 
@@ -783,17 +783,18 @@
     "appShortName": "TB",
     "appVersion": "バージョン: {version}",
 
-    "description": "かわいいデスクトップペットアプリ。高度にカスタマイズ可能なModとインタラクション機能をサポートします。",
+    "description": "暗号化対応のマルチモデルデスクトップペット",
     "featuresTitle": "主な機能",
-    "featureWidget": "✨ かわいいデスクトップキャラクター",
-    "featureEngine": "⚙️ 詳細なインタラクションイベント連携",
-    "featureMedia": "🛠️ 充実したMod作成サポート",
-    "featureEnv": "🎵 低メモリでずっと寄り添う",
-    "featureMod": "",
-    "featureStats": "",
+    "featureWidget": "✨ 多様なアニメーション形式をサポート、1つのアプリで多くのデスクトップペットを管理",
+    "featureEngine": "🎨 高度にカスタマイズ可能なテキストと効果音、キャラクターに豊かな感情を付与",
+    "featureMedia": "🎵 Modリソースのパッケージ暗号化、作品の不正利用を防止",
+    "featureEnv": "🛠️ シンプルなMod編集ツール、コード不要のフォーム式作成",
+    "featureMod": "⚙️ 便利なModアップデートシステム、マルチバージョンの管理が簡単",
+    "featureStats": "🔔 充実したサポートツール群、各種アニメーションの変換とインポートに対応",
     "specialThanksTitle": "特別な感謝",
     "specialThanksNames": [
-      "（ここに名前を追加）"
+      "INORGANIC_盐",
+      "Snoworld_"
     ],
     "authorLabel": "著者",
     "authorName": "cafel",

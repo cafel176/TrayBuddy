@@ -771,7 +771,7 @@
     "reminder": "Reminders",
     "mute": "Mute Mode",
 
-    "silence": "Silence Mode",
+    "silence": "Do Not Disturb Mode",
     "streamerMode": "Streamer Mode",
     "showCharacter": "Show Character",
 
@@ -783,17 +783,18 @@
     "appShortName": "TB",
     "appVersion": "Version: {version}",
 
-    "description": "A cute desktop pet app with highly customizable Mods and interactive features.",
+    "description": "An encrypted multi-model desktop pet",
     "featuresTitle": "Key Features",
-    "featureWidget": "✨ Cute desktop character widget",
-    "featureEngine": "⚙️ Detailed interaction event workflow",
-    "featureMedia": "🛠️ Complete Mod creation support",
-    "featureEnv": "🎵 Low-memory, always-on companion",
-    "featureMod": "",
-    "featureStats": "",
+    "featureWidget": "✨ Support for multiple animation types, many desktop pets in one app",
+    "featureEngine": "🎨 Highly customizable text and sound effects, giving characters rich emotions",
+    "featureMedia": "🎵 Encrypted mod resource packages, protecting your work from misuse",
+    "featureEnv": "🛠️ Simple mod editing tools, form-based creation without coding",
+    "featureMod": "⚙️ Convenient mod update system, easily manage multi-version iterations",
+    "featureStats": "🔔 Complete suite of supporting tools, supporting various animation conversions and imports",
     "specialThanksTitle": "Special Thanks",
     "specialThanksNames": [
-      "(Add names here)"
+      "INORGANIC_盐",
+      "Snoworld_"
     ],
     "authorLabel": "Author",
     "authorName": "cafel",
