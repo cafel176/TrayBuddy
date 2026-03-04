@@ -7,7 +7,7 @@
 <h1 align="center">TrayBuddy</h1>
 
 <p align="center">
-  <a href="#zh-适用人群">简体中文</a> ｜ <a href="#en-target-audience">English</a> ｜ <a href="#jp-対象ユーザー">日本語</a>
+  <a href="#简体中文">简体中文</a> ｜ <a href="#en-target-audience">English</a> ｜ <a href="#jp-対象ユーザー">日本語</a>
 </p>
 
 <p align="center">
@@ -24,6 +24,26 @@
 <!-- ======================================================= -->
 <!-- 简体中文-->
 <!-- ======================================================= -->
+
+<a id="简体中文"></a>
+
+**TrayBuddy**是一款支持 **多种动画类型、包加密、高度自定义** 的桌宠应用，致力于让用户和创作者都能获得出色的体验
+
+> [!WARNING]<br>
+> 当前项目仅支持Windows<br>
+> 理论上Tauri是支持跨平台的，代码内也预留了其他平台的占位函数<br>
+> 但是作者既没有Mac也没有Linux设备，所以没法做，以后再看<br>
+> 如果有大佬有对应的设备愿意补齐对应平台的支持，我们会感激不尽 **orz**
+
+下载：
+<a href="https://pan.baidu.com/s/5xPn--lWTiKHAfBCB5gta3Q">百度网盘</a>
+<a href="https://pan.quark.cn/s/6c6c08b57fba?pwd=CiSm">夸克网盘</a>
+
+鸣谢：
+<a href="https://b23.tv/K9ceDZ8">INORGANIC_盐</a>
+<a href="https://b23.tv/cTCT0hn">Snoworld_</a>
+
+<br>
 
 <a id="zh-适用人群"></a>
 
@@ -47,7 +67,44 @@
 
 ## 效果展示
 
+陈列的Mod仅用于效果演示，来源请见对应链接
 
+后续会增加更多的样例
+
+<table>
+<tr>
+<td align="center"><a><b>序列帧 半身</b></a></td>
+<td align="center"><a><b>序列帧 全身</b></a></td>
+</tr>
+<tr>
+<td><video src="docs/Video/img1.mp4" controls width="360"></video></td>
+<td><video src="docs/Video/img2.mp4" controls width="360"></video></td>
+</tr>
+<tr>
+<td align="center"><a href="https://github.com/MMmmmoko/Bongo-Cat-Mver"><b>Live2D BongoCat</b></a></td>
+<td align="center"><a href="https://www.live2d.com/zh-CHS/learn/sample/"><b>Live2D 人物</b></a></td>
+</tr>
+<tr>
+<td><video src="docs/Video/live2d1.mp4" controls width="360"></video></td>
+<td><video src="docs/Video/live2d2.mp4" controls width="360"></video></td>
+</tr>
+<tr>
+<td align="center"><a href="https://www.bilibili.com/video/BV1pbxnz5EvD/?share_source=copy_web&vd_source=83959be6660f3ec16d301ccce33457e7"><b>PngRemix</b></a></td>
+<td align="center"><a><b>PngRemix</b></a></td>
+</tr>
+<tr>
+<td><video src="docs/Video/pngremix1.mp4" controls width="360"></video></td>
+<td></td>
+</tr>
+<tr>
+<td align="center"><a href="https://booth.pm/en/items/3226395"><b>3D 模型 (VRM)</b></a></td>
+<td align="center"><a><b>3D 模型 (PMX)</b></a></td>
+</tr>
+<tr>
+<td><video src="docs/Video/3d1.mp4" controls width="360"></video></td>
+<td></td>
+</tr>
+</table>
 
 <br>
 
@@ -55,32 +112,27 @@
 
 ## 简介
 
-**TrayBuddy**是一款支持 **多种动画类型、包加密、高度自定义** 的桌宠应用，致力于让用户和创作者都能获得出色的体验
+1. 支持 4 种动画格式：<a href="#zh-动画格式">**序列帧(差分图，gif，spritesheet)、Live2D、PngRemix、3D模型(vrm/pmx)**</a>
 
-1. 支持 4 种动画格式：**序列帧(差分图，gif，spritesheet)、Live2D、PngRemix、3D模型(vrm/pmx)**
+2. 支持对mod进行 <a href="#zh-包加密">**包加密**</a>
 
-2. 支持对mod进行包加密
+3. 内存占用优化：<a href="#zh-内存占用优化">**纹理降采样、帧率限制 等**</a>
 
-3. 支持复杂的对话事件链和语音配置
+4. 支持复杂的 <a href="#zh-对话事件链">**对话事件链**</a> 和语音配置
 
-4. 支持多种事件：键盘鼠标、播放音乐、电脑解锁、工作程序启动、拖拽、全屏应用启动、天气变换、时间变化、长时间使用电脑、生日问候 等
+5. 支持多种事件：<a href="#zh-系统事件">**键盘鼠标、播放音乐、电脑解锁、工作程序启动、拖拽、全屏应用启动、天气变换、时间变化、长时间使用电脑、生日问候 等**</a>
 
-5. 完整的 Mod 创作工具链，填表式编辑器不需要写代码
+6. 完整的<a href="#zh-Mod编辑器">**Mod 创作工具链**</a>，填表式编辑器不需要写代码
 
-6. 支持多种 Mod 切换和单一 Mod 的多版本管理
+7. 支持<a href="#zh-Mod切换和多版本管理">**多种 Mod 切换和单一 Mod 的多版本管理**</a>
 
-7. 辅助功能：备忘录和定时提醒
+8. 辅助功能：<a href="#zh-辅助功能">**备忘录和定时提醒**</a>
 
 <br>
 
 > [!TIP]<br>
 > 本项目仍处于早期阶段，如果您发现问题，欢迎反馈给我们<br>
-> 联系我们：QQ群: 578258773   Bilibili: _Cafel_
-
-> [!WARNING]<br>
-> 当前项目仅支持Windows<br>
-> 理论上Tauri是支持跨平台的，代码内也预留了其他平台的占位函数<br>
-> 但是作者既没有Mac也没有Linux设备，所以没法做
+> 联系我们：QQ群：<a href="docs/imgs/QQ群.jpg">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0">_Cafel_</a>
 
 <br>
 
@@ -88,11 +140,17 @@
 
 ## 功能特性
 
-### 动画格式
+<a id="zh-动画格式"></a>
+
+### 1. 动画格式
 
 TrayBuddy 统一管理 4 种不同的动画格式：
 
-我们提供一整套工具链用于将 差分图/gif/视频 处理成spritesheet用于程序内动画，其他三种格式直接使用原本文件，编辑器内支持对文件进行解析
+<img src="docs/imgs/newmod.png" width="360" />
+
+<br>
+
+我们提供一整套 <a href="#zh-辅助工具集">**工具链**</a> 用于将 差分图/gif/视频 处理成spritesheet用于程序内动画，其他三种格式直接使用原本文件，编辑器内支持对文件进行解析
 
 | 格式         | 资源类型               | 说明                                                       |
 | ------------ | ---------------------- | ---------------------------------------------------------- |
@@ -103,11 +161,18 @@ TrayBuddy 统一管理 4 种不同的动画格式：
 
 <br>
 
-### 包加密
+<a id="zh-包加密"></a>
 
-我们的程序支持将您的作品打包为一个加密文件sbuddy，这种格式只能被程序本身使用，编辑器无法打开，也无法被简单的解包拿到内部的资源
+### 2. 包加密
+
+我们的程序支持将您的作品打包为一个 **加密文件sbuddy**，这种格式只能被程序本身使用，编辑器无法打开，也无法被简单的解包拿到内部的资源
+
+<img src="docs/imgs/sbuddy1.png" width="360" />
+<img src="docs/imgs/sbuddy2.png" width="360" />
 
 如果您发现我们的加密解密存在漏洞，欢迎反馈给我们，我们将会非常感激
+
+<br>
 
 > [!TIP]<br>
 > 开源代码内不包括加密解密的部分，因此使用源码版将无法打包和加载sbuddy<br>
@@ -115,17 +180,52 @@ TrayBuddy 统一管理 4 种不同的动画格式：
 
 <br>
 
-### 对话事件链
+<a id="zh-内存占用优化"></a>
 
-我们的程序支持复杂的对话事件链和每句对话的语音配置，您可以使用我们的 Mod编辑器轻易的填表式完成这一目标
+### 3. 内存占用优化
 
-- **文本语音** — 支持配置复杂的文本和语音，支持多语言
-- **对话事件链** — 支持文本事件链，包括直接链接，对话分支，随机触发等
-- **条件触发** — 按日期/时间/计数器/气温/天气/运行时长等条件限制触发
+基于webgl的程序，贴图资源如果尺寸过大，会占用大量内存，这一直以来都是一个难以解决的问题
+
+<img src="docs/imgs/profile1.png" width="360" />
 
 <br>
 
-### 系统事件
+为了尽量减少内存占用，我们支持webgl渲染时贴图降采样<br>
+只要在mod内根据常用的缩放值配置合适的降采样尺寸，即可开启贴图降采样<br>
+尺寸合适的话，就可以在保证合适清晰度的前提下，有效减少内存占用
+
+<img src="docs/imgs/profile2.png" width="360" />
+<img src="docs/imgs/profile3.png" width="360" />
+
+<br>
+
+同时，我们支持在设置面板调整最大帧率<br>
+过高的帧率会导致GPU占用增加，适当降低帧率可以减少GPU占用
+
+<img src="docs/imgs/profile4.png" width="360" />
+
+<br>
+
+<a id="zh-对话事件链"></a>
+
+### 4. 对话事件链
+
+我们的程序支持复杂的对话事件链和每句对话的语音配置，您可以使用我们的 Mod编辑器 轻易的填表式完成这一目标
+
+- **文本语音** — 支持配置复杂的文本和语音，支持多语言
+  - <img src="docs/imgs/state1.png" width="360" />
+
+- **对话事件链** — 支持文本事件链，包括直接链接，对话分支，随机触发等
+  - <img src="docs/imgs/state2.png" width="360" />
+
+- **条件触发** — 按日期/时间/计数器/气温/天气/运行时长等条件限制触发
+  - <img src="docs/imgs/state3.png" width="360" />
+
+<br>
+
+<a id="zh-系统事件"></a>
+
+### 5. 系统事件
 
 我们的程序支持多种系统事件，桌宠会根据您当前的行为或您现实中的日期或天气做出不同的反应，为您的桌宠营造更好的陪伴感。您可以使用我们的 Mod编辑器轻易的填表式完成这一目标
 
@@ -147,31 +247,167 @@ TrayBuddy 统一管理 4 种不同的动画格式：
 
 <br>
 
-### Mod编辑器
+<a id="zh-Mod编辑器"></a>
 
+### 6. Mod编辑器
 
+我们的程序支持完善的填表式Mod编辑器，您可以在不写任何代码的情况下完成大部分的配置
+
+<img src="docs/imgs/editor1.png" width="360" />
+<img src="docs/imgs/editor2.png" width="360" />
+<img src="docs/imgs/editor3.png" width="360" />
+<img src="docs/imgs/editor4.png" width="360" />
+<img src="docs/imgs/state1.png" width="360" />
 
 <br>
 
-### Mod切换和多版本管理
-
-
+> [!TIP]<br>
+> 工具仍处于早期阶段，如果您发现问题，欢迎反馈给我们<br>
+> 联系我们：QQ群：<a href="docs/imgs/QQ群.jpg">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0">_Cafel_</a>
 
 <br>
 
-### 辅助功能
+<a id="zh-Mod切换和多版本管理"></a>
+
+### 7. Mod切换和多版本管理
+
+程序内置了Mod切换和多版本管理功能，您可以便捷的在多个Mod之间切换，同时，您也可以为程序导入同一个Mod的不同版本
+
+<img src="docs/imgs/mod1.png" width="360" />
+<img src="docs/imgs/mod2.png" width="360" />
+
+<br>
+
+<a id="zh-辅助功能"></a>
+
+### 8. 辅助功能
 
 - **备忘录** — 每次解锁屏幕时自动弹出，也可手动查看
+  - <img src="docs/imgs/other1.png" width="360" />
 - **定时提醒** — 设置指定时间的弹窗提醒
-
-
-
+  - <img src="docs/imgs/other2.png" width="360" />
 
 <br>
 
-<a id="zh-技术栈"></a>
+<a id="zh-安装"></a>
 
-## 技术栈
+## 安装
+
+### 1. 安装主程序
+
+纯净版仅包含教程Mod，标准版则包含一些默认Mod
+
+1. 下载最新版安装程序
+2. 运行安装程序，选择安装语言和目录
+3. 安装完成后启动 TrayBuddy，角色将出现在桌面上
+4. 右键系统托盘图标可访问设置和功能菜单
+
+<br>
+
+### 2. 安装 Mod
+
+- **双击 `.tbuddy` 或 `.sbuddy` 文件**即可自动导入（已关联文件类型）
+  - <img src="docs/imgs/import1.png" width="360" />
+- 或通过 Mod 管理器左上角的**加号按钮**手动浏览、导入
+  - <img src="docs/imgs/import2.png" width="360" />
+
+<br>
+
+> [!TIP]<br>
+> 有时在切换Mod时会出现角色状态卡住的情况，此时请重新加载Mod
+
+<br>
+
+### 3. 自定义配置
+
+应用安装后，用户可修改安装目录内以下配置文件来自定义行为：
+
+| 配置文件                               | 说明                                               |
+|----------------------------------------|----------------------------------------------------|
+| `config/media_observer_keywords.json`  | 媒体应用进程名关键词（Spotify、QQ 音乐、网易云等）  |
+| `config/process_observer_keywords.json` | 工作应用进程名关键词（VS Code、Photoshop、Unity 等） |
+
+<br>
+
+<a id="zh-工具链"></a>
+
+## 工具链
+
+TrayBuddy 提供完整的 Mod 创作工具链：
+
+<br>
+
+### 1. Mod 打包格式
+
+| 格式   | 扩展名    | 说明                     |
+|--------|-----------|--------------------------|
+| tbuddy | `.tbuddy` | ZIP 归档，双击自动导入   |
+| sbuddy | `.sbuddy` | 加密归档，保护 Mod 资源  |
+
+系统通过 `tbuddy-asset://` 自定义协议从内存中的归档流式加载资源，无需解压到磁盘。
+
+详细的 Mod 开发指南请参阅 `mods/mod-guide.md`
+
+<br>
+
+### 2. Mod 编辑器 (`mod-tool/`)
+
+可视化编辑 Mod 配置的独立 Web 应用：
+- 动画/文本/音频 配置和组合
+- 事件触发配置
+- 内置教程
+
+直接双击启动：
+
+```bash
+打开-mod编辑器.bat
+```
+
+<br>
+
+> [!TIP]<br>
+> 工具仍处于早期阶段，如果您发现问题，欢迎反馈给我们<br>
+> 联系我们：QQ群：<a href="docs/imgs/QQ群.jpg">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0">_Cafel_</a>
+
+<br>
+
+<a id="zh-辅助工具集"></a>
+
+### 3. 辅助工具集 (`other-tool/`)
+
+13 个独立 Web 工具，覆盖 Mod 制作全流程：
+
+| 工具 | 功能 |
+|------|------|
+| GIF 提取序列帧 | 从 GIF 动图提取帧序列 |
+| 视频提取序列帧 | 从视频文件提取帧序列 |
+| Spritesheet 生成 | 将差分图组合并为精灵图 |
+| Spritesheet 切分 | 将精灵图拆分为单帧 |
+| Spritesheet 压缩 | 精灵图体积优化 |
+| 序列帧预览 | 预览 差分图组/Spritesheet 动画效果 |
+| 序列帧对齐工具 | 帧对齐和偏移调整 |
+| 批量裁切缩放 | 批量图片处理 |
+| PNG 转 ICO | 图标格式转换 |
+| Live2D 预览 | Live2D 模型预览 |
+| PngRemix 预览 | PngRemix 模型预览与调试 |
+| 模型预览 | 3D VRM/PMX 模型预览 |
+
+直接双击启动对应的bat即可
+
+<br>
+
+<a id="zh-从源码构建"></a>
+
+## 从源码构建
+
+> [!WARNING]<br>
+> 因为工作繁忙时间不多，作者在编写本项目时大量使用了Claude-Opus和GPT-Codex<br>
+> 如果您发现项目中存在任何代码问题，请反馈给我们，我们深表感谢<br>
+> 如果您不喜欢AI相关内容，请直接忽略本项目，我们也表示抱歉
+
+<br>
+
+### 1. 技术栈
 
 | 层级       | 技术                        | 说明                                          |
 |------------|-----------------------------|-----------------------------------------------|
@@ -185,44 +421,9 @@ TrayBuddy 统一管理 4 种不同的动画格式：
 
 <br>
 
-<a id="zh-安装"></a>
+### 2. 环境准备
 
-## 安装
-
-### 安装主程序
-
-1. 从 [Releases](../../releases) 下载最新版 `.exe` 安装程序
-2. 纯净版仅包含教程Mod，普通版则包含一些默认Mod
-3. 运行安装程序，选择安装语言和目录
-4. 安装完成后启动 TrayBuddy，角色将出现在桌面上
-5. 右键系统托盘图标可访问设置和功能菜单
-
-<br>
-
-### 安装 Mod
-
-- **双击 `.tbuddy` 或 `.sbuddy` 文件**即可自动导入（已关联文件类型）
-- 或通过 Mod 管理器左上角的**加号按钮**手动浏览、导入
-
-> [!TIP]<br>
-> 有时在切换Mod时会出现角色状态卡住的情况，此时请重新加载Mod
-
-<br>
-
-<a id="zh-从源码构建"></a>
-
-## 从源码构建
-
-> [!WARNING]<br>
-> 因为工作繁忙，作者在编写本项目时大量使用了Claude-Opus和GPT-Codex<br>
-> 如果您发现项目中存在任何代码问题，请反馈给我们，我们深表感谢<br>
-> 如果您不喜欢相关内容，请直接忽略本项目，我们也表示抱歉
-
-<br>
-
-### 环境准备
-
-运行一键环境安装脚本（需要管理员权限）：
+直接双击运行一键环境安装脚本（需要管理员权限）：
 
 ```bash
 setup-windows-build-env.bat
@@ -246,21 +447,27 @@ setup-windows-build-env.bat
 
 <br>
 
-### 开发模式
+### 3. 开发模式
 
 ```bash
 # 安装前端依赖
 pnpm install
 
-# 一键启动开发模式（含热更新）
-dev.bat
-# 或手动执行
+# 手动执行
 pnpm tauri dev
+```
+
+或者直接双击运行一键开发脚本（需要管理员权限）：
+
+```bash
+dev.bat
 ```
 
 <br>
 
-### 构建发布版
+### 4. 构建发布版
+
+直接双击运行一键打包脚本（需要管理员权限）：
 
 ```bash
 release.bat
@@ -275,83 +482,30 @@ release.bat
 
 <br>
 
-<a id="zh-mod-系统"></a>
-
-## Mod 系统
-
-### Mod 打包格式
-
-| 格式   | 扩展名    | 说明                     |
-|--------|-----------|--------------------------|
-| tbuddy | `.tbuddy` | ZIP 归档，双击自动导入   |
-| sbuddy | `.sbuddy` | 加密归档，保护 Mod 资源  |
-
-系统通过 `tbuddy-asset://` 自定义协议从内存中的归档流式加载资源，无需解压到磁盘。
-
-详细的 Mod 开发指南请参阅 `mods/mod-guide.md`
-
-<br>
-
-> [!TIP]<br>
-> 本项目仍处于早期阶段，如果您发现问题，欢迎反馈给我们<br>
-> 联系我们：QQ群: 578258773   Bilibili: _Cafel_
-
-<br>
-
-<a id="zh-工具链"></a>
-
-## 工具链
-
-TrayBuddy 提供完整的 Mod 创作工具链：
-
-<br>
-
-### Mod 编辑器 (`mod-tool/`)
-
-可视化编辑 Mod 配置的独立 Web 应用：
-- 动画/文本/音频 配置和组合
-- 事件触发配置
-- 内置教程
+### 5. 自动化测试
 
 ```bash
-# 启动 Mod 编辑器
-cd mod-tool && 打开-mod编辑器.bat
+# 运行全部前端测试
+pnpm test:run
+
+# 前端测试（Watch 模式）
+pnpm test:watch
+
+# 前端测试覆盖率
+pnpm test:coverage
+
+# 运行后端 Rust 测试
+cd src-tauri && cargo test
 ```
 
-> [!TIP]<br>
-> 工具仍处于早期阶段，如果您发现问题，欢迎反馈给我们<br>
-> 联系我们：QQ群: 578258773   Bilibili: _Cafel_
+一键全部测试（前端 + 后端 + 覆盖率）
 
+```bash
+test.bat
+```
 <br>
 
-### 辅助工具集 (`other-tool/`)
-
-13 个独立 Web 工具，覆盖 Mod 制作全流程：
-
-| 工具 | 功能 |
-|------|------|
-| GIF 提取序列帧 | 从 GIF 动图提取帧序列 |
-| 视频提取序列帧 | 从视频文件提取帧序列 |
-| Spritesheet 生成 | 将差分图组合并为精灵图 |
-| Spritesheet 切分 | 将精灵图拆分为单帧 |
-| Spritesheet 压缩 | 精灵图体积优化 |
-| 序列帧预览 | 预览 差分图组/Spritesheet 动画效果 |
-| 序列帧对齐工具 | 帧对齐和偏移调整 |
-| 批量裁切缩放 | 批量图片处理 |
-| PNG 转 ICO | 图标格式转换 |
-| Live2D 预览 | Live2D 模型预览 |
-| PngRemix 预览 | PngRemix 模型预览与调试 |
-| 模型预览 | 3D VRM/PMX 模型预览 |
-
-> [!TIP]<br>
-> 工具仍处于早期阶段，如果您发现问题，欢迎反馈给我们<br>
-> 联系我们：QQ群: 578258773   Bilibili: _Cafel_
-
-<br>
-
-<a id="zh-项目结构"></a>
-
-## 项目结构
+### 6. 项目结构
 
 ```
 TrayBuddy/
@@ -398,40 +552,6 @@ TrayBuddy/
 ├── mod-tool/                   # Mod 编辑器
 ├── other-tool/                 # 辅助工具集（13 个）
 └── tools-common/               # 工具共享代码
-```
-
-<br>
-
-### 自定义配置
-
-应用安装后，用户可修改以下配置文件来自定义行为：
-
-| 配置文件                               | 说明                                               |
-|----------------------------------------|----------------------------------------------------|
-| `config/media_observer_keywords.json`  | 媒体应用进程名关键词（Spotify、QQ 音乐、网易云等）  |
-| `config/process_observer_keywords.json` | 工作应用进程名关键词（VS Code、Photoshop、Unity 等） |
-
-<br>
-
-<a id="zh-测试"></a>
-
-## 测试
-
-```bash
-# 运行全部前端测试
-pnpm test:run
-
-# 前端测试（Watch 模式）
-pnpm test:watch
-
-# 前端测试覆盖率
-pnpm test:coverage
-
-# 运行后端 Rust 测试
-cd src-tauri && cargo test
-
-# 一键全部测试（前端 + 后端 + 覆盖率）
-test.bat
 ```
 
 <br>
