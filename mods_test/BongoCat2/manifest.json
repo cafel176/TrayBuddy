@@ -42,7 +42,23 @@
       "trigger_weather": [],
       "branch_show_bubble": true,
       "mod_data_counter": null,
-      "live2d_params": null,
+      "live2d_params": [
+        {
+          "id": "Param6",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "Param2",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "Param66",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ],
       "pngremix_params": null,
       "branch": []
     },
@@ -352,7 +368,23 @@
       "trigger_weather": [],
       "branch_show_bubble": true,
       "mod_data_counter": null,
-      "live2d_params": null,
+      "live2d_params": [
+        {
+          "id": "Param6",
+          "value": 1,
+          "target": "Parameter"
+        },
+        {
+          "id": "Param2",
+          "value": 1,
+          "target": "Parameter"
+        },
+        {
+          "id": "Param66",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ],
       "pngremix_params": null,
       "branch": []
     },
@@ -2815,6 +2847,51 @@
           "states": [
             {
               "state": "key_any_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "login_silence",
+      "can_trigger_states": [
+        {
+          "persistent_state": "idle",
+          "states": [
+            {
+              "state": "silence_start",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "music_start",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "music_start",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "music_end",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "music_end",
               "weight": 1
             }
           ],
