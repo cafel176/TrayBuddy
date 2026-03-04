@@ -168,7 +168,7 @@
 
       <h4 data-i18n="section_texture_downsample">贴图降采样</h4>
       <p data-i18n="texture_downsample_desc">通过 manifest.enable_texture_downsample 控制是否允许贴图在解码阶段降采样/封顶（对 Live2D/PngRemix 生效）。开启可降低内存占用，关闭可保留原始清晰度。</p>
-      <p data-i18n="texture_downsample_start_dim_desc">通过 manifest.texture_downsample_start_dim 设置“开始降采样的贴图尺寸阈值”（像素；最长边）。0 表示不限制；>0 表示仅当贴图尺寸达到阈值时才允许触发降采样。</p>
+      <p data-i18n="texture_downsample_start_dim_desc">通过 manifest.texture_downsample_start_dim 设置"开始降采样的贴图尺寸阈值"（像素；最长边）。0 表示不限制；>0 表示仅当贴图尺寸达到阈值时才允许触发降采样。</p>
 
 
       <h4 data-i18n="section_global_keyboard">全局键盘监听</h4>
@@ -223,16 +223,20 @@
         <tr><td data-i18n="field_trigger_temp_end">气温触发终点</td><td data-i18n="field_trigger_temp_end_desc">仅当当前 environment.temperature (°C) 落在 [起点, 终点] 区间内时，该状态才允许触发</td></tr>
         <tr><td data-i18n="field_trigger_uptime">启动时长触发</td><td data-i18n="field_trigger_uptime_desc">仅当当前距离程序启动已过分钟数 >= trigger_uptime 时，该状态才允许触发（分钟；0 表示不限制）</td></tr>
         <tr><td data-i18n="field_trigger_weather">触发天气</td><td data-i18n="field_trigger_weather_desc">仅当当前 environment.condition（或 condition_code）与 trigger_weather 任意一项精确匹配时，该状态才允许触发（数组）</td></tr>
+        <tr><td data-i18n="field_date_start">日期范围起点</td><td data-i18n="field_date_start_desc">环境约束 - 日期范围 (MM-DD)，用于节日特效（如 12-25 圣诞节）</td></tr>
+        <tr><td data-i18n="field_date_end">日期范围终点</td><td data-i18n="field_date_end_desc">环境约束 - 日期范围终点 (MM-DD)</td></tr>
+        <tr><td data-i18n="field_time_start">时间范围起点</td><td data-i18n="field_time_start_desc">环境约束 - 时间范围 (HH:MM)，用于早晚问候（如 06:00 - 09:00）</td></tr>
+        <tr><td data-i18n="field_time_end">时间范围终点</td><td data-i18n="field_time_end_desc">环境约束 - 时间范围终点 (HH:MM)</td></tr>
         <tr><td data-i18n="field_live2d_params">Live2D 参数覆写</td><td data-i18n="field_live2d_params_desc">进入状态时覆写 Live2D 参数，元素结构为 {id,value,target}，target 可选：Parameter/PartOpacity</td></tr>
 
-        <tr><td data-i18n="field_can_trigger">可触发子状态</td><td data-i18n="field_can_trigger_desc">在编辑器内以“状态 + 权重”列表配置（权重越大越容易被选中）</td></tr>
+        <tr><td data-i18n="field_can_trigger">可触发子状态</td><td data-i18n="field_can_trigger_desc">在编辑器内以"状态 + 权重"列表配置（权重越大越容易被选中）</td></tr>
 
 
       </table>
 
       <h3 data-i18n="section_branches">对话分支</h3>
       <p data-i18n="branches_desc">对话分支允许用户通过点击选项来决定对话走向。每个分支包含显示文本和跳转目标状态。</p>
-      <p data-i18n="branch_show_bubble_desc">“显示气泡”(branch_show_bubble) 用于控制分支选项是否以气泡形式展示；该选项位于「对话分支」折叠区内。</p>
+      <p data-i18n="branch_show_bubble_desc">"显示气泡"(branch_show_bubble) 用于控制分支选项是否以气泡形式展示；该选项位于「对话分支」折叠区内。</p>
 
       <h3 data-i18n="section_triggers">触发器配置</h3>
       <p data-i18n="triggers_desc">触发器定义事件与状态的关联。常用事件（支持 <code>keydown:&lt;Key&gt;</code>/<code>keyup:&lt;Key&gt;</code>）：</p>
@@ -274,6 +278,14 @@
       <p data-i18n="trigger_uptime_desc">此外，你也可以通过 trigger_uptime 限制该状态仅在程序启动后已运行达到一定分钟数时才允许触发（0 表示不限制）。</p>
       <p data-i18n="trigger_weather_desc">此外，你也可以通过 trigger_weather 限制该状态仅在天气满足条件时才允许触发：若填纯数字则匹配 weatherCode（condition_code），否则匹配天气描述（condition）。</p>
 
+      <h3 data-i18n="section_list_operations">列表操作</h3>
+      <p data-i18n="list_operations_desc">状态列表和触发器列表提供多种便捷操作：</p>
+      <ul>
+        <li data-i18n="list_op_filter"><strong>筛选器</strong>：支持按名称、关联动画、关联音频、关联文本等字段过滤列表内容</li>
+        <li data-i18n="list_op_clipboard"><strong>复制/粘贴</strong>：可将状态或触发器复制到剪切板，在不同 Mod 之间快速迁移数据</li>
+        <li data-i18n="list_op_drag"><strong>拖拽排序</strong>：拖拽列表条目可重新排列顺序（使用筛选器时需先清空条件）</li>
+        <li data-i18n="list_op_delete_all"><strong>全部删除</strong>：一键清空所有普通状态或所有触发器</li>
+      </ul>
 
 
     </section>
@@ -395,6 +407,12 @@
         <li data-i18n="live2d_sync_auto_states"><strong>自动生成状态映射</strong>：为每个动作创建对应的状态-动画映射条目（已有映射会保留用户自定义的参数）</li>
       </ul>
 
+      <h3 data-i18n="section_live2d_gen_keyboard">从文件生成输入事件</h3>
+      <p data-i18n="live2d_gen_keyboard_desc">仅适用于 Live2D Mod。点击「⌨️ 从文件生成输入事件」按钮，可从 cdi3.json（DisplayInfo）中识别键盘/鼠标相关参数，自动批量生成对应的状态和触发器（含 keydown/keyup 事件），并自动开启全局键盘/鼠标监听。适用于需要实时响应键盘输入的桌面宠物模型（如 BongoCat）。</p>
+
+      <h3 data-i18n="section_live2d_params_browser">模型参数浏览器</h3>
+      <p data-i18n="live2d_params_browser_desc">Live2D 动画标签页内的可折叠面板。点击「从文件读取」可加载并展示 cdi3.json 中定义的所有模型参数，按分组折叠显示，支持组合参数识别。方便查看可用的参数 ID，用于配置 live2d_params 覆写。</p>
+
       <h3 data-i18n="section_live2d_add_state">新增同名状态</h3>
       <p data-i18n="live2d_add_state_desc">每个状态映射条目右侧的「新增同名状态」按钮可快速在 manifest 中创建对应的状态，并自动联动：</p>
       <ul>
@@ -427,6 +445,7 @@
         <tr><td data-i18n="pngremix_field_file">pngremix_file</td><td data-i18n="pngremix_field_file_desc">.pngRemix 模型文件路径（相对于 asset/ 目录）</td></tr>
         <tr><td data-i18n="pngremix_field_default_state">default_state_index</td><td data-i18n="pngremix_field_default_state_desc">模型加载后的初始显示状态索引（从 0 开始）</td></tr>
         <tr><td data-i18n="pngremix_field_max_fps">max_fps</td><td data-i18n="pngremix_field_max_fps_desc">PngRemix 渲染的最大帧率（0 表示不限制）</td></tr>
+        <tr><td data-i18n="pngremix_field_model_scale">model_scale</td><td data-i18n="pngremix_field_model_scale_desc">模型整体缩放比例</td></tr>
       </table>
 
 
@@ -563,12 +582,21 @@
         <li><code>[文本](链接)</code> → <span data-i18n="md_link">超链接</span></li>
         <li><code>\n</code> → <span data-i18n="md_newline">换行</span></li>
       </ul>
+
+      <h4 data-i18n="texts_lang_operations_title">语言管理操作</h4>
+      <p data-i18n="texts_lang_operations_desc">每种语言支持以下操作：</p>
+      <ul>
+        <li data-i18n="texts_lang_op_copy"><strong>复制语言</strong>：将整种语言的所有数据复制到剪切板</li>
+        <li data-i18n="texts_lang_op_paste"><strong>粘贴语言</strong>：从剪切板粘贴语言数据，可新建语言或覆盖已有语言</li>
+        <li data-i18n="texts_lang_op_delete"><strong>删除语言</strong>：删除指定语言（至少保留一种语言）</li>
+      </ul>
     </section>
 
     <!-- 音频管理 -->
     <section id="audio">
       <h2 data-i18n="section_audio">🔊 多语言音频</h2>
       <p data-i18n="audio_desc">配置多语言的语音资源。音频文件支持 .wav 格式，需要手动放置到对应目录。</p>
+      <p data-i18n="audio_import_desc">点击「一键导入」按钮可自动扫描音频目录中的 .wav 文件并批量导入为音频条目，省去逐个手动添加的步骤。</p>
     </section>
 
     <!-- 保存与导出 -->
@@ -578,6 +606,8 @@
       <p data-i18n="save_folder_desc">点击「💾 保存」（或「📦 导出」→「📂 到文件夹」），选择目标文件夹后写入。当前版本每次保存都会弹出文件夹选择器。</p>
       <h4 data-i18n="export_tbuddy_title">导出为 .tbuddy</h4>
       <p data-i18n="export_tbuddy_desc">点击「📦 导出」→「📦 到 .tbuddy」生成压缩包（包内会以 Mod ID 作为根目录）。</p>
+      <h4 data-i18n="export_sbuddy_title">导出为 .sbuddy</h4>
+      <p data-i18n="export_sbuddy_desc">当同目录下存在 sbuddy-crypto.exe 时，会显示「🔒 到 .sbuddy」按钮。点击后先导出 .tbuddy 再由外部工具转换为加密的 .sbuddy 格式。</p>
       <h4 data-i18n="saved_files_title">保存/导出的文件</h4>
       <ul>
         <li><code>manifest.json</code></li>
