@@ -1,7 +1,7 @@
 {
   "id": "BongoCat2",
   "version": "1.0.0",
-  "author": "Cafel",
+  "author": "宇痕冫",
   "default_audio_lang_id": "zh",
   "default_text_lang_id": "zh",
   "character": {
@@ -42,138 +42,8 @@
       "trigger_weather": [],
       "branch_show_bubble": true,
       "mod_data_counter": null,
-      "live2d_params": [
-        {
-          "id": "ParamMouseLeftDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param85",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param86",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param87",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param88",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param92",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param93",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param94",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param95",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param96",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param97",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param98",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param99",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param100",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param101",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param102",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param103",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param104",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param105",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param106",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param107",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "ParamMouseRightDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "CatParamLeftHandDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param6",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param2",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param66",
-          "value": 0,
-          "target": "Parameter"
-        }
-      ],
+      "live2d_params": null,
+      "pngremix_params": null,
       "branch": []
     },
     "silence": {
@@ -191,15 +61,14 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "mod_data_counter": null,
       "branch_show_bubble": true,
+      "mod_data_counter": null,
       "live2d_params": [
         {
           "id": "ParamMouseLeftDown",
@@ -331,7 +200,9 @@
           "value": 1,
           "target": "Parameter"
         }
-      ]
+      ],
+      "pngremix_params": null,
+      "branch": []
     },
     "silence_start": {
       "name": "silence_start",
@@ -473,147 +344,17 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0.1,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "mod_data_counter": null,
       "branch_show_bubble": true,
-      "live2d_params": [
-        {
-          "id": "ParamMouseLeftDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param85",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param86",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param87",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param88",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param92",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param93",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param94",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param95",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param96",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param97",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param98",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param99",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param100",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param101",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param102",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param103",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param104",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param105",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param106",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param107",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "ParamMouseRightDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "CatParamLeftHandDown",
-          "value": 0,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param6",
-          "value": 1,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param2",
-          "value": 1,
-          "target": "Parameter"
-        },
-        {
-          "id": "Param66",
-          "value": 0,
-          "target": "Parameter"
-        }
-      ]
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
     },
     "music_start": {
       "name": "music_start",
@@ -718,11 +459,11 @@
   },
   "states": [
     {
-      "name": "key_mouse_left",
+      "name": "key_mouse_right",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -732,34 +473,125 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "ParamMouseRightDown",
+          "value": 1,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_mouse_right_up",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "ParamMouseRightDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_mouse_left",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "ParamMouseLeftDown",
           "value": 1,
           "target": "Parameter"
-        },
+        }
+      ]
+    },
+    {
+      "name": "key_mouse_left_up",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
         {
-          "id": "CatParamLeftHandDown",
-          "value": 1,
+          "id": "ParamMouseLeftDown",
+          "value": 0,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
       "name": "key_空格",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -769,14 +601,15 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param85",
@@ -788,15 +621,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_alt",
+      "name": "key_空格_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -806,14 +638,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param85",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_alt",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param86",
@@ -825,15 +695,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_ctrl",
+      "name": "key_alt_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -843,14 +712,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param86",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_ctrl",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param87",
@@ -862,15 +769,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_shift",
+      "name": "key_ctrl_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -880,14 +786,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param87",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_shift",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param88",
@@ -899,15 +843,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_b",
+      "name": "key_shift_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -917,14 +860,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param88",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_b",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param92",
@@ -936,15 +917,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_v",
+      "name": "key_b_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -954,14 +934,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param92",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_v",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param93",
@@ -973,15 +991,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_c",
+      "name": "key_v_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -991,14 +1008,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param93",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_c",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param94",
@@ -1010,15 +1065,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_x",
+      "name": "key_c_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1028,14 +1082,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param94",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_x",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param95",
@@ -1047,15 +1139,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_z",
+      "name": "key_x_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1065,14 +1156,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param95",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_z",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param96",
@@ -1084,15 +1213,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_enter",
+      "name": "key_z_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1102,14 +1230,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param96",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_enter",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param97",
@@ -1121,15 +1287,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_g",
+      "name": "key_enter_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1139,14 +1304,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param97",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_g",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param98",
@@ -1158,15 +1361,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_f",
+      "name": "key_g_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1176,14 +1378,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param98",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_f",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param99",
@@ -1195,15 +1435,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_d",
+      "name": "key_f_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1213,14 +1452,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param99",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_d",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param100",
@@ -1232,15 +1509,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_s",
+      "name": "key_d_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1250,14 +1526,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param100",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_s",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param101",
@@ -1269,15 +1583,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_a",
+      "name": "key_s_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1287,14 +1600,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param101",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_a",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param102",
@@ -1306,15 +1657,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_t",
+      "name": "key_a_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1324,14 +1674,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param102",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_t",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param103",
@@ -1343,15 +1731,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_r",
+      "name": "key_t_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1361,14 +1748,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param103",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_r",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param104",
@@ -1380,15 +1805,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_e",
+      "name": "key_r_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1398,14 +1822,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param104",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_e",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param105",
@@ -1417,15 +1879,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_w",
+      "name": "key_e_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1435,14 +1896,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param105",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_w",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param106",
@@ -1454,15 +1953,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_q",
+      "name": "key_w_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1472,14 +1970,52 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "Param106",
+          "value": 0,
+          "target": "Parameter"
+        },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_q",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
           "id": "Param107",
@@ -1491,15 +2027,14 @@
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
     },
     {
-      "name": "key_mouse_right",
+      "name": "key_q_up",
       "persistent": false,
       "anima": "",
       "audio": "",
-      "text": "wait",
+      "text": "",
       "priority": 3,
       "date_start": "",
       "date_end": "",
@@ -1509,33 +2044,153 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
+      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "branch_show_bubble": false,
       "mod_data_counter": null,
+      "branch_show_bubble": true,
       "live2d_params": [
         {
-          "id": "ParamMouseRightDown",
-          "value": 1,
+          "id": "Param107",
+          "value": 0,
           "target": "Parameter"
         },
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
+    },
+    {
+      "name": "key_any",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
         {
           "id": "CatParamLeftHandDown",
           "value": 1,
           "target": "Parameter"
         }
-      ],
-      "branch": []
+      ]
+    },
+    {
+      "name": "key_any_up",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 3,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true,
+      "live2d_params": [
+        {
+          "id": "CatParamLeftHandDown",
+          "value": 0,
+          "target": "Parameter"
+        }
+      ]
     }
   ],
   "triggers": [
     {
-      "event": "click",
-      "can_trigger_states": []
+      "event": "global_right_click",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_mouse_right",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "global_right_click_up",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_mouse_right_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "global_click",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_mouse_left",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "global_click_up",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_mouse_left_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
     },
     {
       "event": "keydown:Space",
@@ -1553,77 +2208,13 @@
       ]
     },
     {
-      "event": "login",
-      "can_trigger_states": []
-    },
-    {
-      "event": "login_silence",
-      "can_trigger_states": [
-        {
-          "persistent_state": "idle",
-          "states": [
-            {
-              "state": "silence_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "music_start",
+      "event": "keyup:Space",
       "can_trigger_states": [
         {
           "persistent_state": "",
           "states": [
             {
-              "state": "music_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "music_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "music_end",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "drag_start",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_start",
-              "weight": 1
-            }
-          ],
-          "allow_repeat": true
-        }
-      ]
-    },
-    {
-      "event": "drag_end",
-      "can_trigger_states": [
-        {
-          "persistent_state": "",
-          "states": [
-            {
-              "state": "drag_end",
+              "state": "key_空格_up",
               "weight": 1
             }
           ],
@@ -1647,6 +2238,21 @@
       ]
     },
     {
+      "event": "keyup:Alt",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_alt_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:Control",
       "can_trigger_states": [
         {
@@ -1654,6 +2260,21 @@
           "states": [
             {
               "state": "key_ctrl",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:Control",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_ctrl_up",
               "weight": 1
             }
           ],
@@ -1677,6 +2298,21 @@
       ]
     },
     {
+      "event": "keyup:Shift",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_shift_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyB",
       "can_trigger_states": [
         {
@@ -1684,6 +2320,21 @@
           "states": [
             {
               "state": "key_b",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyB",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_b_up",
               "weight": 1
             }
           ],
@@ -1707,6 +2358,21 @@
       ]
     },
     {
+      "event": "keyup:KeyV",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_v_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyC",
       "can_trigger_states": [
         {
@@ -1714,6 +2380,21 @@
           "states": [
             {
               "state": "key_c",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyC",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_c_up",
               "weight": 1
             }
           ],
@@ -1737,6 +2418,21 @@
       ]
     },
     {
+      "event": "keyup:KeyX",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_x_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyZ",
       "can_trigger_states": [
         {
@@ -1744,6 +2440,21 @@
           "states": [
             {
               "state": "key_z",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyZ",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_z_up",
               "weight": 1
             }
           ],
@@ -1767,6 +2478,21 @@
       ]
     },
     {
+      "event": "keyup:Enter",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_enter_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyG",
       "can_trigger_states": [
         {
@@ -1774,6 +2500,21 @@
           "states": [
             {
               "state": "key_g",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyG",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_g_up",
               "weight": 1
             }
           ],
@@ -1797,6 +2538,21 @@
       ]
     },
     {
+      "event": "keyup:KeyF",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_f_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyD",
       "can_trigger_states": [
         {
@@ -1804,6 +2560,21 @@
           "states": [
             {
               "state": "key_d",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyD",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_d_up",
               "weight": 1
             }
           ],
@@ -1827,6 +2598,21 @@
       ]
     },
     {
+      "event": "keyup:KeyS",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_s_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyA",
       "can_trigger_states": [
         {
@@ -1834,6 +2620,21 @@
           "states": [
             {
               "state": "key_a",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyA",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_a_up",
               "weight": 1
             }
           ],
@@ -1857,6 +2658,21 @@
       ]
     },
     {
+      "event": "keyup:KeyT",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_t_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyR",
       "can_trigger_states": [
         {
@@ -1864,6 +2680,21 @@
           "states": [
             {
               "state": "key_r",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyR",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_r_up",
               "weight": 1
             }
           ],
@@ -1887,6 +2718,21 @@
       ]
     },
     {
+      "event": "keyup:KeyE",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_e_up",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
       "event": "keydown:KeyW",
       "can_trigger_states": [
         {
@@ -1894,6 +2740,21 @@
           "states": [
             {
               "state": "key_w",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keyup:KeyW",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_w_up",
               "weight": 1
             }
           ],
@@ -1917,17 +2778,13 @@
       ]
     },
     {
-      "event": "right_click",
-      "can_trigger_states": []
-    },
-    {
-      "event": "global_click",
+      "event": "keyup:KeyQ",
       "can_trigger_states": [
         {
           "persistent_state": "",
           "states": [
             {
-              "state": "key_mouse_left",
+              "state": "key_q_up",
               "weight": 1
             }
           ],
@@ -1936,13 +2793,28 @@
       ]
     },
     {
-      "event": "global_right_click",
+      "event": "global_keydown",
       "can_trigger_states": [
         {
           "persistent_state": "",
           "states": [
             {
-              "state": "key_mouse_right",
+              "state": "key_any",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "global_keyup",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "key_any_up",
               "weight": 1
             }
           ],
