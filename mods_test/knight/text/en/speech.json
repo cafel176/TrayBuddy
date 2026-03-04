@@ -1,17 +1,17 @@
 [
   {
     "name": "login_1",
-    "text": "You opened this mod.\nIt shows that you are a true warrior.",
+    "text": "You opened this mod.\nThat proves you are a warrior.",
     "duration": 3
   },
   {
     "name": "login_2",
-    "text": "But the game ends here.\nI shall play Rock-Paper-Scissors with you **personally**.",
+    "text": "But the game is over now.\nI'm going to play rock-paper-scissors with you **personally**.",
     "duration": 3
   },
   {
     "name": "click",
-    "text": "What are you going to throw?",
+    "text": "What will you choose?",
     "duration": 3
   },
   {
@@ -31,42 +31,42 @@
   },
   {
     "name": "knight_s",
-    "text": "The Knight Captain used **Rock**.",
+    "text": "The Knight Captain used **Rock**",
     "duration": 3
   },
   {
     "name": "knight_j",
-    "text": "The Knight Captain used **Scissors**.",
+    "text": "The Knight Captain used **Scissors**",
     "duration": 3
   },
   {
     "name": "knight_b",
-    "text": "The Knight Captain used **Paper**.",
+    "text": "The Knight Captain used **Paper**",
     "duration": 3
   },
   {
     "name": "win_1",
-    "text": "Do you think you have become powerful?\n**Heh, you're wrong.**",
+    "text": "You think you're already that strong?\n**Heh heh, wrong!**",
     "duration": 3
   },
   {
     "name": "win_2",
-    "text": "It's just that I'm not in my best form today.\nI'm leaving. Come back and play again if you have the guts.",
+    "text": "I was just not in top form today.\nI'm leaving. Come challenge me to rock-paper-scissors again if you dare.",
     "duration": 3
   },
   {
     "name": "lose",
-    "text": "To you, I am like a god—invincible.",
+    "text": "To you, I am like a god — invincible.",
     "duration": 3
   },
   {
     "name": "none",
-    "text": "How dare you run away in the middle of a battle!",
+    "text": "You dare flee from battle!",
     "duration": 3
   },
   {
     "name": "ping",
-    "text": "I'll let you off this time. Next time we meet, I'll duel you formally. You'd better surrender.",
+    "text": "I'll let you off this time. Next time we meet, I'll duel you for real. You'd better surrender.",
     "duration": 3
   }
 ]

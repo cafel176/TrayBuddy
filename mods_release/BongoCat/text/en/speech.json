@@ -1,1 +1,7 @@
-[]
+[
+  {
+    "name": "Wait",
+    "text": "",
+    "duration": 0.3
+  }
+]

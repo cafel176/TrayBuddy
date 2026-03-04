@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Wait",
+    "text": "",
+    "duration": 1
+  },
+  {
+    "name": "apple1",
+    "text": "Is it a magic showcase?!\nThen let me show you something amazing too!",
+    "duration": 5
+  },
+  {
+    "name": "apple2",
+    "text": "Shocking!\nSherry's magic turns out to be [Super Strength]!",
+    "duration": 5
+  },
+  {
+    "name": "cry",
+    "text": "No matter how hard I try, I can never pretend to be normal...\nIsn't that sad?\nWaah waah waah...",
+    "duration": 5
+  },
+  {
+    "name": "serious",
+    "text": "Hey hey~! I'm Tachibana Sherry.\nWherever there's a case, there I'll be!\nJust leave everything to this great detective!",
+    "duration": 5
+  },
+  {
+    "name": "think_point1",
+    "text": "Let's all cheer up and start the trial!",
+    "duration": 3
+  },
+  {
+    "name": "think_point2",
+    "text": "...After all, moping around won't help.",
+    "duration": 3
+  }
+]

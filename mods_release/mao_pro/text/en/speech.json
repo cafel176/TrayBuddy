@@ -1,0 +1,32 @@
+[
+  {
+    "name": "mtn_02",
+    "text": "Now playing animation: mtn_02",
+    "duration": 3
+  },
+  {
+    "name": "mtn_03",
+    "text": "Now playing animation: mtn_03",
+    "duration": 3
+  },
+  {
+    "name": "special_01",
+    "text": "Now playing animation: special_01",
+    "duration": 3
+  },
+  {
+    "name": "mtn_04",
+    "text": "Now playing animation: mtn_04",
+    "duration": 3
+  },
+  {
+    "name": "special_02",
+    "text": "Now playing animation: special_02",
+    "duration": 3
+  },
+  {
+    "name": "special_03",
+    "text": "Now playing animation: special_03",
+    "duration": 3
+  }
+]

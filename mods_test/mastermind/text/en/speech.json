@@ -1,0 +1,17 @@
+[
+  {
+    "name": "random1",
+    "text": "I am the Mastermind.",
+    "duration": 3
+  },
+  {
+    "name": "random2",
+    "text": "Brainwave overload!",
+    "duration": 3
+  },
+  {
+    "name": "random3",
+    "text": "Let's make some friends.",
+    "duration": 3
+  }
+]

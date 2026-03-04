@@ -1,0 +1,32 @@
+[
+  {
+    "name": "mtn_02",
+    "text": "アニメーション再生中：mtn_02",
+    "duration": 3
+  },
+  {
+    "name": "mtn_03",
+    "text": "アニメーション再生中：mtn_03",
+    "duration": 3
+  },
+  {
+    "name": "special_01",
+    "text": "アニメーション再生中：special_01",
+    "duration": 3
+  },
+  {
+    "name": "mtn_04",
+    "text": "アニメーション再生中：mtn_04",
+    "duration": 3
+  },
+  {
+    "name": "special_02",
+    "text": "アニメーション再生中：special_02",
+    "duration": 3
+  },
+  {
+    "name": "special_03",
+    "text": "アニメーション再生中：special_03",
+    "duration": 3
+  }
+]

@@ -213,5 +213,20 @@
     "name": "snow",
     "text": "外、雪だよ……\n足元すべりやすいから気をつけて。転んだらダメだよ？",
     "duration": 3
+  },
+  {
+    "name": "test1",
+    "text": "テスト1",
+    "duration": 3
+  },
+  {
+    "name": "test2",
+    "text": "テスト2",
+    "duration": 3
+  },
+  {
+    "name": "test3",
+    "text": "テスト3",
+    "duration": 3
   }
 ]
