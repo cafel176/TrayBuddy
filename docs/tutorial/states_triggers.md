@@ -1,4 +1,4 @@
-﻿<a id="top"></a>
+<a id="top"></a>
 
 <p align="center">
   <img src="../../src-tauri/icons/icon.ico" alt="TrayBuddy Logo" width="80" height="80">
@@ -20,7 +20,7 @@
 
 > [!WARNING]<br>
 > 本项目仍处于早期阶段，如果您有任何疑问，欢迎联系我们<br>
-> 联系我们：QQ群：<a href="docs/imgs/QQ群.jpg" target="_blank" rel="noopener noreferrer">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0" target="_blank" rel="noopener noreferrer">_Cafel_</a>
+> 联系我们：QQ群：<a href="mod-tool/imgs/QQ群.jpg" target="_blank" rel="noopener noreferrer">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0" target="_blank" rel="noopener noreferrer">_Cafel_</a>
 
 <br>
 
@@ -30,7 +30,7 @@
 
 状态一共分为3类，**核心状态**，**重要状态**，**普通状态**
 
-<img src="../imgs/zh/states_triggers1.png" width="360"/>
+<img src="../../mod-tool/imgs/zh/states_triggers1.png" width="360"/>
 
 <br>
 
@@ -38,13 +38,13 @@
 
 这三类状态的配置都是一样的，每个状态都可以绑定 **关联音频** **关联动画** **关联文本**
 
-<img src="../imgs/zh/states_triggers2.png"/>
+<img src="../../mod-tool/imgs/zh/states_triggers2.png"/>
 
 <br>
 
 当你在 **多语言文本** **多语言音频** **动画**，界面内添加了对应内容后，下拉菜单就可以将添加的内容和状态绑定到一起
 
-<img src="../imgs/zh/states_triggers3.png"/>
+<img src="../../mod-tool/imgs/zh/states_triggers3.png"/>
 
 <br>
 
@@ -58,26 +58,26 @@
 
 您可以从 **触发器 (事件响应)** 分类签内找到 **click** 事件，该事件对应的就是鼠标左键点击角色挂件，点击编辑该事件
 
-<img src="../imgs/zh/states_triggers4.png" width="540"/>
+<img src="../../mod-tool/imgs/zh/states_triggers4.png" width="540"/>
 
 <br>
 
 请点击 **添加状态组** 按钮
 
-<img src="../imgs/zh/states_triggers5.png"/>
+<img src="../../mod-tool/imgs/zh/states_triggers5.png"/>
 
 <br>
 
 请不要管 选择状态 下拉菜单，不提供持久状态意味着任何持久状态下都可以触发<br>
 直接点击 **添加状态** 按钮
 
-<img src="../imgs/zh/states_triggers6.png"/>
+<img src="../../mod-tool/imgs/zh/states_triggers6.png"/>
 
 <br>
 
 在新添加的项的下拉菜单内选择状态，即可将该状态加入点击可触发的状态列表内，之后点击保存
 
-<img src="../imgs/zh/states_triggers7.png"/>
+<img src="../../mod-tool/imgs/zh/states_triggers7.png"/>
 
 <br>
 
@@ -85,7 +85,7 @@
 
 不要忘记点击 **保存** 将修改保存到您的文件夹
 
-<img src="../imgs/zh/tutorial_new5.png" width="180" />
+<img src="../../mod-tool/imgs/zh/tutorial_new5.png" width="180" />
 
 <br>
 
@@ -110,7 +110,7 @@
 
 > [!WARNING]<br>
 > This project is still in its early stages. If you have any questions, feel free to contact us<br>
-> Contact: QQ Group: <a href="docs/imgs/QQ群.jpg" target="_blank" rel="noopener noreferrer">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0" target="_blank" rel="noopener noreferrer">_Cafel_</a>
+> Contact: QQ Group: <a href="mod-tool/imgs/QQ群.jpg" target="_blank" rel="noopener noreferrer">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0" target="_blank" rel="noopener noreferrer">_Cafel_</a>
 
 <br>
 
@@ -120,7 +120,7 @@ This application is essentially a finite state machine — states and triggers a
 
 States are divided into 3 categories: **Core States**, **Important States**, and **Normal States**
 
-<img src="../imgs/en/states_triggers1.png" width="360"/>
+<img src="../../mod-tool/imgs/en/states_triggers1.png" width="360"/>
 
 <br>
 
@@ -128,13 +128,13 @@ Core states and important states cannot be added or deleted — they are hardcod
 
 All three categories share the same configuration. Each state can bind **Associated Audio**, **Associated Animation**, and **Associated Text**
 
-<img src="../imgs/en/states_triggers2.png"/>
+<img src="../../mod-tool/imgs/en/states_triggers2.png"/>
 
 <br>
 
 After adding content in **Multilingual Text**, **Multilingual Audio**, or **Animation** panels, you can use the dropdown menus to bind the added content to a state
 
-<img src="../imgs/en/states_triggers3.png"/>
+<img src="../../mod-tool/imgs/en/states_triggers3.png"/>
 
 <br>
 
@@ -148,26 +148,26 @@ Here we introduce the most common one: **Mouse Click**
 
 You can find the **click** event under the **Triggers (Event Response)** category — it corresponds to left-clicking the character widget. Click to edit this event
 
-<img src="../imgs/en/states_triggers4.png" width="540"/>
+<img src="../../mod-tool/imgs/en/states_triggers4.png" width="540"/>
 
 <br>
 
 Click the **Add State Group** button
 
-<img src="../imgs/en/states_triggers5.png"/>
+<img src="../../mod-tool/imgs/en/states_triggers5.png"/>
 
 <br>
 
 Ignore the "Select State" dropdown — leaving the persistent state empty means this can be triggered under any persistent state<br>
 Click the **Add State** button directly
 
-<img src="../imgs/en/states_triggers6.png"/>
+<img src="../../mod-tool/imgs/en/states_triggers6.png"/>
 
 <br>
 
 Select a state from the dropdown in the newly added entry to add it to the list of click-triggerable states, then click Save
 
-<img src="../imgs/en/states_triggers7.png"/>
+<img src="../../mod-tool/imgs/en/states_triggers7.png"/>
 
 <br>
 
@@ -175,7 +175,7 @@ Now when you click your pet, it will play the new animation, audio, and text
 
 Don't forget to click **Save** to save changes to your folder
 
-<img src="../imgs/en/tutorial_new5.png" width="180" />
+<img src="../../mod-tool/imgs/en/tutorial_new5.png" width="180" />
 
 <br>
 
@@ -200,7 +200,7 @@ If your Mod is saved in the **mods folder inside the application installation di
 
 > [!WARNING]<br>
 > 本プロジェクトはまだ初期段階です。ご質問がございましたら、お気軽にお問い合わせください<br>
-> お問い合わせ：QQグループ：<a href="docs/imgs/QQ群.jpg" target="_blank" rel="noopener noreferrer">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0" target="_blank" rel="noopener noreferrer">_Cafel_</a>
+> お問い合わせ：QQグループ：<a href="mod-tool/imgs/QQ群.jpg" target="_blank" rel="noopener noreferrer">578258773</a>   Bilibili: <a href="https://b23.tv/ZKVKHH0" target="_blank" rel="noopener noreferrer">_Cafel_</a>
 
 <br>
 
@@ -210,7 +210,7 @@ If your Mod is saved in the **mods folder inside the application installation di
 
 状態は **コア状態**、**重要状態**、**通常状態** の3種類に分かれます
 
-<img src="../imgs/jp/states_triggers1.png" width="360"/>
+<img src="../../mod-tool/imgs/jp/states_triggers1.png" width="360"/>
 
 <br>
 
@@ -218,13 +218,13 @@ If your Mod is saved in the **mods folder inside the application installation di
 
 3種類の状態の設定は共通です。各状態には **関連音声**、**関連アニメーション**、**関連テキスト** をバインドできます
 
-<img src="../imgs/jp/states_triggers2.png"/>
+<img src="../../mod-tool/imgs/jp/states_triggers2.png"/>
 
 <br>
 
 **多言語テキスト**、**多言語音声**、**アニメーション** パネルでコンテンツを追加すると、ドロップダウンメニューから追加したコンテンツを状態にバインドできます
 
-<img src="../imgs/jp/states_triggers3.png"/>
+<img src="../../mod-tool/imgs/jp/states_triggers3.png"/>
 
 <br>
 
@@ -238,26 +238,26 @@ If your Mod is saved in the **mods folder inside the application installation di
 
 **トリガー（イベント応答）** カテゴリ内の **click** イベントを見つけてください。これはキャラクターウィジェットの左クリックに対応します。クリックしてイベントを編集します
 
-<img src="../imgs/jp/states_triggers4.png" width="540"/>
+<img src="../../mod-tool/imgs/jp/states_triggers4.png" width="540"/>
 
 <br>
 
 **状態グループを追加** ボタンをクリックしてください
 
-<img src="../imgs/jp/states_triggers5.png"/>
+<img src="../../mod-tool/imgs/jp/states_triggers5.png"/>
 
 <br>
 
 「状態を選択」ドロップダウンは無視してください。永続状態を空にすると、どの永続状態でもトリガーできます<br>
 直接 **状態を追加** ボタンをクリックしてください
 
-<img src="../imgs/jp/states_triggers6.png"/>
+<img src="../../mod-tool/imgs/jp/states_triggers6.png"/>
 
 <br>
 
 新しく追加された項目のドロップダウンから状態を選択すると、クリックでトリガー可能な状態リストに追加されます。その後、保存をクリックしてください
 
-<img src="../imgs/jp/states_triggers7.png"/>
+<img src="../../mod-tool/imgs/jp/states_triggers7.png"/>
 
 <br>
 
@@ -265,7 +265,7 @@ If your Mod is saved in the **mods folder inside the application installation di
 
 **保存** をクリックして変更をフォルダに保存することを忘れないでください
 
-<img src="../imgs/jp/tutorial_new5.png" width="180" />
+<img src="../../mod-tool/imgs/jp/tutorial_new5.png" width="180" />
 
 <br>
 
