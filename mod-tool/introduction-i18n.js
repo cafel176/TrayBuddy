@@ -1,12 +1,15 @@
-// Tutorial i18n translations
-const tutorialTranslations = {
+// Introduction i18n translations
+const introductionTranslations = {
   zh: {
-    tutorial_title: "TrayBuddy Mod Editor 使用教程",
+    introduction_title: "TrayBuddy Mod Editor 说明",
     nav_brand: "TrayBuddy Mod Editor",
     footer_copyright: "TrayBuddy Mod Editor © 2024",
     nav_editor: "打开编辑器",
 
-    nav_tutorial: "使用教程",
+    nav_introduction: "说明",
+    lang_zh: "中文",
+    lang_en: "EN",
+    lang_ja: "JA",
     sidebar_toc: "目录",
     toc_intro: "简介",
     toc_requirements: "环境要求",
@@ -23,8 +26,8 @@ const tutorialTranslations = {
     toc_save_export: "保存与导出",
     toc_structure: "Mod 目录结构",
     toc_faq: "常见问题",
-    page_title: "📖 Mod Editor 使用教程",
-    page_lead: "本教程将指导你如何使用 TrayBuddy Mod Editor 创建和编辑角色 Mod 包。",
+    page_title: "📖 Mod Editor 说明",
+    page_lead: "本说明将指导你如何使用 TrayBuddy Mod Editor 创建和编辑角色 Mod 包。",
     section_intro: "简介",
     intro_desc: "TrayBuddy Mod Editor 是一个可视化的 Mod 编辑工具，让你更直观地管理角色的各种数据。",
     feature_manifest: "基础信息",
@@ -170,13 +173,13 @@ const tutorialTranslations = {
     threed_anim_field_speed: "speed",
     threed_anim_field_fps: "fps",
 
-    section_char_config_tutorial: "角色配置",
+    section_char_config_introduction: "角色配置",
 
     char_config_desc: "配置角色渲染相关参数（manifest.character）。",
     char_z_offset_desc: "角色画布的渲染层级偏移",
     char_canvas_fit_desc: "角色 Canvas 显示适配：short(短边优先)/long(长边优先)/legacy(旧版按高度缩放)",
 
-    section_border_config_tutorial: "边框配置",
+    section_border_config_introduction: "边框配置",
     border_config_desc: "配置边框开关、边框动画与层级（manifest.border）。",
     border_enable_desc: "是否启用边框",
     border_anima_desc: "边框使用的动画名称（从动画资源中选择）",
@@ -290,7 +293,7 @@ const tutorialTranslations = {
     event_firstday: "首次启动事件",
     event_login_silence: "启动后进入静默/无声状态",
     section_allow_repeat: "允许重复触发",
-    allow_repeat_tutorial_desc: "每个触发状态组都有一个\"允许重复触发\"(allow_repeat)选项。关闭后，同一状态不会连续触发两次（仅当该组状态数大于1时生效）。",
+    allow_repeat_introduction_desc: "每个触发状态组都有一个\"允许重复触发\"(allow_repeat)选项。关闭后，同一状态不会连续触发两次（仅当该组状态数大于1时生效）。",
     section_data_counter: "数据计数器",
     data_counter_desc: "状态激活时对 Mod 数据执行操作：set(设置)、add(加)、sub(减)、mul(乘)、div(除)。",
     trigger_counter_desc: "你也可以在编辑器的「状态限制」中，通过 trigger_counter_start / trigger_counter_end 限制该状态在特定 ModData.value 区间内才允许触发。", 
@@ -310,11 +313,11 @@ const tutorialTranslations = {
 
 
     bubble_desc: "可视化配置对话气泡外观，支持实时预览。",
-    bubble_main: "气泡主体：背景、边框、圆角、阴影、背景滤镜",
-    bubble_text: "文字样式：颜色、字体大小、行高、字体",
-    bubble_tail: "尾巴样式：大小、颜色、阴影",
-    bubble_deco: "装饰文字：上方/下方装饰字符",
-    bubble_branch: "分支按钮：正常/悬浮/点击状态样式",
+    bubble_main: "<strong>气泡主体</strong>：背景、边框、圆角、阴影、背景滤镜",
+    bubble_text: "<strong>文字样式</strong>：颜色、字体大小、行高、字体",
+    bubble_tail: "<strong>尾巴样式</strong>：大小、颜色、阴影",
+    bubble_deco: "<strong>装饰文字</strong>：上方/下方装饰字符",
+    bubble_branch: "<strong>分支按钮</strong>：正常/悬浮/点击状态样式",
     section_assets: "🖼️ 动画管理",
     assets_desc: "动画资源分为序列帧动画(sequence.json)和杂图(img.json)两类。",
     asset_name: "名称",
@@ -335,6 +338,10 @@ const tutorialTranslations = {
     asset_origin_reverse_desc: "图片序列本身为反向时可开启，用于纠正方向",
     asset_offset: "偏移",
     asset_offset_desc: "X/Y 偏移（像素），用于微调渲染位置",
+    section_assets_import: "资源导入",
+    assets_import_desc: "序列帧和杂图列表均提供便捷导入功能：",
+    assets_import_batch: "<strong>一键导入</strong>：点击「⬇️ 一键导入」按钮，可从文件系统批量选择图片文件并自动创建对应的资源条目",
+    assets_import_single: "<strong>单个导入</strong>：点击「📥 导入」按钮，可单独导入一个图片文件",
     callout_asset_warning_title: "⚠️ 注意",
     callout_asset_warning_desc: "动画图片需要手动放置到 asset/sequence/ 或 asset/img/ 目录。",
     section_live2d: "🎭 Live2D 动画",
@@ -393,10 +400,29 @@ const tutorialTranslations = {
     callout_live2d_tip_title: "💡 提示",
     callout_live2d_tip_desc: "Live2D 模型文件需要手动放置到对应目录。建议参考 mods/mao_pro 的结构组织文件。",
 
+    section_live2d_import_folder: "导入文件夹",
+    live2d_import_folder_desc: "点击「📂 导入文件夹」按钮，可选择一个外部文件夹，将其内容递归复制到 Mod 的 asset/live2d/ 目录下。适合从外部位置批量导入 Live2D 模型资源。",
+
+    section_live2d_sync: "从文件同步",
+    live2d_sync_desc: "点击「从文件同步」按钮，可从 Live2D 模型目录中自动读取配置：",
+    live2d_sync_auto_detect: "<strong>自动检测模型</strong>：若 base_dir 为空则自动使用 <code>asset/live2d/</code>，自动扫描 <code>.model3.json</code> 文件",
+    live2d_sync_auto_config: "<strong>自动填充配置</strong>：从 model3.json 的 FileReferences 自动推断 name、model_json、physics_json、pose_json、textures_dir、motions_dir、expressions_dir、eye_blink、lip_sync",
+    live2d_sync_auto_motions: "<strong>自动导入动作/表情</strong>：从 model3.json 解析完整的动作和表情列表",
+    live2d_sync_auto_states: "<strong>自动生成状态映射</strong>：为每个动作创建对应的状态-动画映射条目（已有映射会保留用户自定义的参数）",
+
     section_live2d_gen_keyboard: "从文件生成输入事件",
     live2d_gen_keyboard_desc: "仅适用于 Live2D Mod。点击「⌨️ 从文件生成输入事件」按钮，可从 cdi3.json（DisplayInfo）中识别键盘/鼠标相关参数，自动批量生成对应的状态和触发器（含 keydown/keyup 事件），并自动开启全局键盘/鼠标监听。适用于需要实时响应键盘输入的桌面宠物模型（如 BongoCat）。",
     section_live2d_params_browser: "模型参数浏览器",
     live2d_params_browser_desc: "Live2D 动画标签页内的可折叠面板。点击「从文件读取」可加载并展示 cdi3.json 中定义的所有模型参数，按分组折叠显示，支持组合参数识别。方便查看可用的参数 ID，用于配置 live2d_params 覆写。",
+
+    section_live2d_add_state: "新增同名状态",
+    live2d_add_state_desc: "每个状态映射条目右侧的「新增同名状态」按钮可快速在 manifest 中创建对应的状态，并自动联动：",
+    live2d_add_state_anima: "<strong>关联动画</strong>：自动设为当前映射名称",
+    live2d_add_state_text: "<strong>关联文本</strong>：若存在同名的对话文本条目，自动关联",
+    live2d_add_state_audio: "<strong>关联音频</strong>：若存在同名的音频条目，自动关联",
+    callout_live2d_export_title: "💡 导出说明",
+    callout_live2d_export_desc: "导出 Live2D Mod 时，<code>asset/live2d/</code> 目录下的所有文件（包括 .model3.json、.motion3.json、.exp3.json、.physics3.json 等）都会被完整打包。",
+
     section_pngremix: "🧩 PngRemix 动画",
     pngremix_desc: "PngRemix Mod 使用 PNGTuber Remix 编辑器创建的 .pngRemix 二进制模型文件。创建新 Mod 时选择 \"PngRemix\" 类型即可。",
     section_pngremix_model_config: "模型配置",
@@ -405,6 +431,8 @@ const tutorialTranslations = {
     pngremix_field_file_desc: ".pngRemix 模型文件路径（相对于 asset/ 目录）",
     pngremix_field_default_state_desc: "模型加载后的初始显示状态索引（从 0 开始）",
     pngremix_field_max_fps_desc: "PngRemix 渲染的最大帧率（0 表示不限制）",
+    pngremix_field_model_scale: "model_scale",
+    pngremix_field_model_scale_desc: "模型整体缩放比例",
     section_pngremix_features_config: "功能特性",
     pngremix_features_config_desc: "配置 PngRemix 模型的交互功能：鼠标跟随、自动眨眼、点击弹跳等。",
     pngremix_feature_mouse_follow_desc: "模型是否跟随鼠标方向",
@@ -435,6 +463,19 @@ const tutorialTranslations = {
 
     section_pngremix_params_config: "PngRemix 参数覆写",
     pngremix_params_config_desc: "在状态编辑面板中，PngRemix 类型的 Mod 可使用 pngremix_params 在进入状态时切换表情或触发动作。每条参数包含 type（expression 或 motion）和 name。",
+
+    section_pngremix_import: "导入文件",
+    pngremix_import_desc: "点击「📂 导入文件」按钮，可选择一个 .pngRemix 文件并自动复制到 Mod 的 asset/ 目录下，同时更新 pngremix_file 路径配置。",
+    section_pngremix_sync: "从文件同步",
+    pngremix_sync_desc: "点击同步按钮可从 .pngRemix 文件中自动读取配置：",
+    pngremix_sync_config: "<strong>从文件同步配置</strong>：从 .pngRemix 文件读取 blink_speed、blink_chance 等模型特性参数，自动填充到配置中",
+    pngremix_sync_assets: "<strong>从文件同步资产</strong>：从 .pngRemix 文件扫描所有 state/hotkey 信息，自动生成表情和动作列表",
+    section_pngremix_add_state: "新增同名状态",
+    pngremix_add_state_desc: "每个状态映射条目右侧的「新增同名状态」按钮可快速在 manifest 中创建对应的状态，并自动联动：",
+    pngremix_add_state_anima: "<strong>关联动画</strong>：自动设为当前映射名称",
+    pngremix_add_state_text: "<strong>关联文本</strong>：若存在同名的对话文本条目，自动关联",
+    pngremix_add_state_audio: "<strong>关联音频</strong>：若存在同名的音频条目，自动关联",
+
     callout_pngremix_tip_title: "💡 提示",
     callout_pngremix_tip_desc: ".pngRemix 模型文件需要使用 PNGTuber Remix 编辑器创建。将 .pngRemix 文件放置到 asset/ 目录下，然后在编辑器中配置路径。",
     structure_pngremix_title: "PngRemix Mod (mod_type: \"pngremix\")",
@@ -463,6 +504,8 @@ const tutorialTranslations = {
     threed_sync_assets: "<strong>从文件同步资源</strong>：扫描 .vrma/.vmd 动画文件，自动生成动画列表",
     section_threed_add_state: "新增同名状态",
     threed_add_state_desc: "每个动画条目右侧的「新增同名状态」按钮可快速在 manifest 中创建对应的状态，并自动设置关联动画名。",
+    section_threed_import_folder: "导入文件夹",
+    threed_import_folder_desc: "点击「📂 导入文件夹」按钮，可选择一个外部文件夹，将其内容递归复制到 Mod 的 asset/3d/ 目录下。适合从外部位置批量导入 3D 模型和动画资源。",
     callout_threed_tip_title: "💡 提示",
     callout_threed_tip_desc: "3D 模型文件（.vrm/.pmx）和动画文件（.vrma/.vmd）需要手动放置到 asset/3d/ 目录下。PMX 模型的纹理文件放置到 asset/3d/textures/ 目录。",
     callout_threed_format_title: "💡 支持的格式",
@@ -481,10 +524,19 @@ const tutorialTranslations = {
     texts_speech_title: "对话文本 (speech.json)",
     texts_speech_desc: "名称、内容(支持Markdown)、持续时间(秒)",
     texts_speech_placeholders_desc: "支持占位符：{nickname}（昵称）、{days_used}（使用天数）、{usage_hours}/{total_usage_hours}（总使用时长，小时）、{uptime}（本次启动已运行时长，HH:MM:SS）",
+
+    texts_add_state_title: "新增同名状态",
+    texts_add_state_desc: "每条对话文本右侧有「新增同名状态」按钮，点击后可快速在 manifest 中创建同名状态，并自动联动：",
+    texts_add_state_text: "<strong>关联文本</strong>：自动设为当前文本名称",
+    texts_add_state_anima: "<strong>关联动画</strong>：若 Live2D 状态映射中存在同名条目，自动关联",
+    texts_add_state_audio: "<strong>关联音频</strong>：若音频资源中存在同名条目，自动关联",
+
     texts_markdown_title: "Markdown 语法",
 
     md_bold: "加粗",
+    md_bold_example: "**文本**",
     md_link: "超链接",
+    md_link_example: "[文本](链接)",
     md_newline: "换行",
 
     texts_lang_operations_title: "语言管理操作",
@@ -496,6 +548,7 @@ const tutorialTranslations = {
     section_audio: "🔊 多语言音频",
     audio_desc: "配置多语言的语音资源。音频文件支持 .wav 格式，需要手动放置到对应目录。",
     audio_import_desc: "点击「一键导入」按钮可自动扫描音频目录中的 .wav 文件并批量导入为音频条目，省去逐个手动添加的步骤。",
+    audio_import_single_desc: "也可以点击「📥 导入」按钮单独导入一个音频文件。",
     section_save_export: "💾 保存与导出",
     save_folder_title: "保存到文件夹",
     save_folder_desc: "点击「💾 保存」（或「📦 导出」→「📂 到文件夹」），选择目标文件夹后写入。当前版本每次保存都会弹出文件夹选择器。", 
@@ -503,8 +556,21 @@ const tutorialTranslations = {
     export_tbuddy_desc: "点击「📦 导出」→「📦 到 .tbuddy」生成压缩包（包内会以 Mod ID 作为根目录）。",
     export_sbuddy_title: "导出为 .sbuddy",
     export_sbuddy_desc: "当同目录下存在 sbuddy-crypto.exe 时，会显示「🔒 到 .sbuddy」按钮。点击后先导出 .tbuddy 再由外部工具转换为加密的 .sbuddy 格式。",
-    saved_files_title: "保存/导出的文件", 
+    saved_files_title: "保存/导出的文件",
+    live2d_export_all_files: "下的所有文件（.model3.json、.moc3、贴图、.motion3.json、.exp3.json 等）将完整打包",
+    saved_files_bubble_note: "（开启气泡样式时生成）",
+    saved_files_sequence_note: "（序列帧 Mod）",
+    saved_files_live2d_note: "（Live2D Mod）",
+    saved_files_pngremix_note: "（PngRemix Mod）",
+    saved_files_3d_note: "（3D Mod）",
+    saved_files_live2d_mod_note: "（Live2D Mod）",
+    saved_files_pngremix_mod_note: "（PngRemix Mod）",
+    saved_files_3d_mod_note: "（3D Mod）",
+    saved_files_text_note: "（开启文本对话时生成）",
+    saved_files_audio_note: "（开启音频对话时生成）",
     section_structure: "📁 Mod 目录结构",
+    structure_sequence_title: "序列帧 Mod (mod_type: \"sequence\")",
+    structure_live2d_title: "Live2D Mod (mod_type: \"live2d\")",
     section_faq: "❓ 常见问题",
     faq_browser_q: "Q: 为什么无法打开文件夹？",
     faq_browser_a: "A: 请使用 Chrome 86+ 或 Edge 86+ 浏览器。",
@@ -519,12 +585,15 @@ const tutorialTranslations = {
     back_to_editor: "返回编辑器"
   },
   en: {
-    tutorial_title: "TrayBuddy Mod Editor Tutorial",
+    introduction_title: "TrayBuddy Mod Editor Introduction",
     nav_brand: "TrayBuddy Mod Editor",
     footer_copyright: "TrayBuddy Mod Editor © 2024",
     nav_editor: "Open Editor",
 
-    nav_tutorial: "Tutorial",
+    nav_introduction: "Introduction",
+    lang_zh: "中文",
+    lang_en: "EN",
+    lang_ja: "JA",
     sidebar_toc: "Table of Contents",
     toc_intro: "Introduction",
     toc_requirements: "Requirements",
@@ -541,8 +610,8 @@ const tutorialTranslations = {
     toc_save_export: "Save & Export",
     toc_structure: "Mod Structure",
     toc_faq: "FAQ",
-    page_title: "📖 Mod Editor Tutorial",
-    page_lead: "This tutorial will guide you through creating and editing character Mod packages with TrayBuddy Mod Editor.",
+    page_title: "📖 Mod Editor Introduction",
+    page_lead: "This introduction will guide you through creating and editing character Mod packages with TrayBuddy Mod Editor.",
     section_intro: "Introduction",
     intro_desc: "TrayBuddy Mod Editor is a visual tool for managing character data intuitively.",
     feature_manifest: "Basic Info",
@@ -688,13 +757,13 @@ const tutorialTranslations = {
     threed_anim_field_speed: "speed",
     threed_anim_field_fps: "fps",
 
-    section_char_config_tutorial: "Character Config",
+    section_char_config_introduction: "Character Config",
 
     char_config_desc: "Configure character rendering parameters (manifest.character).",
     char_z_offset_desc: "Z-offset for character canvas rendering",
     char_canvas_fit_desc: "Canvas fit: short(prefer short side)/long(prefer long side)/legacy(scale by height)",
 
-    section_border_config_tutorial: "Border Config",
+    section_border_config_introduction: "Border Config",
     border_config_desc: "Configure border enable flag, animation, and z-offset (manifest.border).",
     border_enable_desc: "Whether to enable border",
     border_anima_desc: "Border animation name (choose from animation assets)",
@@ -704,6 +773,7 @@ const tutorialTranslations = {
     mod_data_desc: "Display custom data (like affinity) in top-left corner. Configure show_mod_data_panel and mod_data_default_int.",
     section_texture_downsample: "Texture Downsampling",
     texture_downsample_desc: "Use manifest.enable_texture_downsample to allow downsampling/capping textures during decoding (effective for Live2D/PngRemix). Enabling reduces memory usage; disabling preserves original sharpness.",
+    texture_downsample_start_dim_desc: "Use manifest.texture_downsample_start_dim to set the threshold (pixels; longest edge) for downsampling to begin. 0 means no limit; >0 means downsampling only triggers when the texture size reaches the threshold.",
     section_global_keyboard: "Global Keyboard Listener",
     global_keyboard_desc: "Set global_keyboard to true to trigger keydown events even when the animation window is not focused. Useful for desktop pet models that need real-time keyboard input.",
     section_global_mouse: "Global Mouse Listener",
@@ -807,6 +877,8 @@ const tutorialTranslations = {
     event_birthday: "Birthday event",
     event_firstday: "First launch event",
     event_login_silence: "Enter silence state after launch",
+    section_allow_repeat: "Allow Repeat Trigger",
+    allow_repeat_introduction_desc: "Each trigger state group has an \"Allow Repeat\" (allow_repeat) option. When disabled, the same state won't trigger twice in a row (only effective when the group has more than 1 state).",
     section_data_counter: "Data Counter",
     data_counter_desc: "Operations on Mod data when state activates: set, add, sub, mul, div.",
     trigger_counter_desc: "You can also (in the editor's \"State Limits\") use trigger_counter_start / trigger_counter_end to limit when this state is allowed to trigger.",
@@ -825,11 +897,11 @@ const tutorialTranslations = {
 
 
     bubble_desc: "Visually configure dialogue bubble appearance with real-time preview.",
-    bubble_main: "Bubble body: background, border, radius, shadow, backdrop filter",
-    bubble_text: "Text style: color, font size, line height, font family",
-    bubble_tail: "Tail style: size, color, shadow",
-    bubble_deco: "Decoration: top/bottom decoration characters",
-    bubble_branch: "Branch buttons: normal/hover/active state styles",
+    bubble_main: "<strong>Bubble body</strong>: background, border, radius, shadow, backdrop filter",
+    bubble_text: "<strong>Text style</strong>: color, font size, line height, font family",
+    bubble_tail: "<strong>Tail style</strong>: size, color, shadow",
+    bubble_deco: "<strong>Decoration</strong>: top/bottom decoration characters",
+    bubble_branch: "<strong>Branch buttons</strong>: normal/hover/active state styles",
     section_assets: "🖼️ Animation Management",
     assets_desc: "Animation resources include sequence frames (sequence.json) and misc images (img.json).",
     asset_name: "Name",
@@ -850,6 +922,10 @@ const tutorialTranslations = {
     asset_origin_reverse_desc: "Enable if the source sequence is already reversed to correct direction",
     asset_offset: "Offset",
     asset_offset_desc: "X/Y offset (pixels) to fine-tune render position",
+    section_assets_import: "Asset Import",
+    assets_import_desc: "Both sequence frame and misc image lists provide convenient import features:",
+    assets_import_batch: "<strong>Batch Import</strong>: Click the \"⬇️ Batch Import\" button to select multiple image files from the file system and auto-create corresponding asset entries",
+    assets_import_single: "<strong>Single Import</strong>: Click the \"📥 Import\" button to import a single image file",
     callout_asset_warning_title: "⚠️ Note",
     callout_asset_warning_desc: "Animation images must be manually placed in asset/sequence/ or asset/img/.",
     section_live2d: "🎭 Live2D Animation",
@@ -908,10 +984,28 @@ const tutorialTranslations = {
     callout_live2d_tip_title: "💡 Tip",
     callout_live2d_tip_desc: "Live2D model files must be manually placed in the corresponding directory. Refer to mods/mao_pro for structure reference.",
 
+    section_live2d_import_folder: "Import Folder",
+    live2d_import_folder_desc: "Click the \"📂 Import Folder\" button to select an external folder and recursively copy its contents to the Mod's asset/live2d/ directory. Ideal for batch importing Live2D model assets from external locations.",
+
+    section_live2d_sync: "Sync from Files",
+    live2d_sync_desc: "Click the \"Sync from Files\" button to auto-read configuration from the Live2D model directory:",
+    live2d_sync_auto_detect: "<strong>Auto-detect Model</strong>: If base_dir is empty, automatically uses <code>asset/live2d/</code> and scans for <code>.model3.json</code> files",
+    live2d_sync_auto_config: "<strong>Auto-fill Config</strong>: Infer name, model_json, physics_json, pose_json, textures_dir, motions_dir, expressions_dir, eye_blink, lip_sync from model3.json FileReferences",
+    live2d_sync_auto_motions: "<strong>Auto-import Motions/Expressions</strong>: Parse the complete motion and expression lists from model3.json",
+    live2d_sync_auto_states: "<strong>Auto-generate State Mappings</strong>: Create a state-animation mapping entry for each motion (existing mappings preserve user-customized parameters)",
+
     section_live2d_gen_keyboard: "Generate Input Events from Files",
     live2d_gen_keyboard_desc: "Only for Live2D Mods. Click the \"⌨️ Generate Input Events from Files\" button to identify keyboard/mouse related parameters from cdi3.json (DisplayInfo), auto-generate corresponding states and triggers (including keydown/keyup events), and automatically enable global keyboard/mouse listeners. Ideal for desktop pet models that need real-time keyboard input response (e.g., BongoCat).",
     section_live2d_params_browser: "Model Parameters Browser",
     live2d_params_browser_desc: "A collapsible panel in the Live2D Animation tab. Click \"Load from File\" to display all model parameters defined in cdi3.json, grouped and collapsible, with combined parameter recognition. Useful for viewing available parameter IDs for configuring live2d_params overrides.",
+
+    section_live2d_add_state: "Create Same-Name State",
+    live2d_add_state_desc: "The \"Create Same-Name State\" button on the right side of each state mapping entry quickly creates a corresponding state in the manifest with automatic linking:",
+    live2d_add_state_anima: "<strong>Animation</strong>: Automatically set to the current mapping name",
+    live2d_add_state_text: "<strong>Text</strong>: Automatically linked if a dialogue text entry with the same name exists",
+    live2d_add_state_audio: "<strong>Audio</strong>: Automatically linked if an audio entry with the same name exists",
+    callout_live2d_export_title: "💡 Export Note",
+    callout_live2d_export_desc: "When exporting a Live2D Mod, all files under <code>asset/live2d/</code> (including .model3.json, .motion3.json, .exp3.json, .physics3.json, etc.) will be fully packaged.",
 
     section_pngremix: "🧩 PngRemix Animation",
     pngremix_desc: "PngRemix Mods use .pngRemix binary model files created with PNGTuber Remix editor. Select \"PngRemix\" type when creating a new Mod.",
@@ -953,6 +1047,19 @@ const tutorialTranslations = {
 
     section_pngremix_params_config: "PngRemix Parameter Override",
     pngremix_params_config_desc: "In the state edit panel, PngRemix Mods can use pngremix_params to switch expressions or trigger motions when entering a state. Each parameter has a type (expression or motion) and a name.",
+
+    section_pngremix_import: "Import File",
+    pngremix_import_desc: "Click the \"📂 Import File\" button to select a .pngRemix file and automatically copy it to the Mod's asset/ directory, updating the pngremix_file path configuration.",
+    section_pngremix_sync: "Sync from Files",
+    pngremix_sync_desc: "Click the sync buttons to auto-read configuration from the .pngRemix file:",
+    pngremix_sync_config: "<strong>Sync Config from Files</strong>: Read blink_speed, blink_chance and other feature parameters from the .pngRemix file and auto-fill them into the configuration",
+    pngremix_sync_assets: "<strong>Sync Assets from Files</strong>: Scan all state/hotkey info from the .pngRemix file and auto-generate expression and motion lists",
+    section_pngremix_add_state: "Create Same-Name State",
+    pngremix_add_state_desc: "The \"Create Same-Name State\" button on the right side of each state mapping entry quickly creates a corresponding state in the manifest with automatic linking:",
+    pngremix_add_state_anima: "<strong>Animation</strong>: Automatically set to the current mapping name",
+    pngremix_add_state_text: "<strong>Text</strong>: Automatically linked if a dialogue text entry with the same name exists",
+    pngremix_add_state_audio: "<strong>Audio</strong>: Automatically linked if an audio entry with the same name exists",
+
     callout_pngremix_tip_title: "💡 Tip",
     callout_pngremix_tip_desc: ".pngRemix model files must be created with PNGTuber Remix editor. Place the .pngRemix file in the asset/ directory, then configure the path in the editor.",
     structure_pngremix_title: "PngRemix Mod (mod_type: \"pngremix\")",
@@ -981,6 +1088,8 @@ const tutorialTranslations = {
     threed_sync_assets: "<strong>Sync Assets from Files</strong>: Scan .vrma/.vmd animation files and auto-generate the animation list",
     section_threed_add_state: "Create Same-Name State",
     threed_add_state_desc: "The \"Create Same-Name State\" button next to each animation entry quickly creates a corresponding state in the manifest with the animation name auto-linked.",
+    section_threed_import_folder: "Import Folder",
+    threed_import_folder_desc: "Click the \"📂 Import Folder\" button to select an external folder and recursively copy its contents to the Mod's asset/3d/ directory. Ideal for batch importing 3D model and animation assets from external locations.",
     callout_threed_tip_title: "💡 Tip",
     callout_threed_tip_desc: "3D model files (.vrm/.pmx) and animation files (.vrma/.vmd) must be manually placed in the asset/3d/ directory. PMX model textures go in asset/3d/textures/.",
     callout_threed_format_title: "💡 Supported Formats",
@@ -999,10 +1108,19 @@ const tutorialTranslations = {
     texts_speech_title: "Dialogue Text (speech.json)",
     texts_speech_desc: "Name, content (supports Markdown), duration (seconds)",
     texts_speech_placeholders_desc: "Supported placeholders: {nickname} (nickname), {days_used} (days since first use), {usage_hours}/{total_usage_hours} (total usage hours), {uptime} (session uptime, HH:MM:SS)",
+
+    texts_add_state_title: "Create Same-Name State",
+    texts_add_state_desc: "Each dialogue text entry has a \"Create Same-Name State\" button on the right. Clicking it creates a same-name state in the manifest with automatic linking:",
+    texts_add_state_text: "<strong>Text</strong>: Automatically set to the current text name",
+    texts_add_state_anima: "<strong>Animation</strong>: Automatically linked if a Live2D state mapping with the same name exists",
+    texts_add_state_audio: "<strong>Audio</strong>: Automatically linked if an audio entry with the same name exists",
+
     texts_markdown_title: "Markdown Syntax",
 
     md_bold: "Bold",
+    md_bold_example: "**text**",
     md_link: "Hyperlink",
+    md_link_example: "[text](url)",
     md_newline: "Line break",
 
     texts_lang_operations_title: "Language Management",
@@ -1014,6 +1132,7 @@ const tutorialTranslations = {
     section_audio: "🔊 Multilingual Audio",
     audio_desc: "Configure multilingual voice resources. Audio files support .wav format, must be manually placed.",
     audio_import_desc: "Click the \"Import\" button to auto-scan the audio directory for .wav files and batch import them as audio entries, saving the effort of adding them one by one.",
+    audio_import_single_desc: "You can also click the \"📥 Import\" button to import a single audio file.",
     section_save_export: "💾 Save & Export",
     save_folder_title: "Save to Folder",
     save_folder_desc: "Click \"💾 Save\" (or \"📦 Export → 📂 To Folder\"), then pick a target folder. The folder picker opens each time in this version.", 
@@ -1021,8 +1140,21 @@ const tutorialTranslations = {
     export_tbuddy_desc: "Click \"📦 Export\" → \"📦 To .tbuddy\" to generate a zip package (root folder is the Mod ID).",
     export_sbuddy_title: "Export to .sbuddy",
     export_sbuddy_desc: "When sbuddy-crypto.exe is present in the same directory, a \"🔒 To .sbuddy\" button appears. It first exports .tbuddy then converts it to the encrypted .sbuddy format via the external tool.",
-    saved_files_title: "Saved / Exported Files", 
+    saved_files_title: "Saved / Exported Files",
+    live2d_export_all_files: "All files under this directory (.model3.json, .moc3, textures, .motion3.json, .exp3.json, etc.) will be fully packaged",
+    saved_files_bubble_note: " (generated when bubble style is enabled)",
+    saved_files_sequence_note: " (Sequence Mod)",
+    saved_files_live2d_note: " (Live2D Mod)",
+    saved_files_pngremix_note: " (PngRemix Mod)",
+    saved_files_3d_note: " (3D Mod)",
+    saved_files_live2d_mod_note: " (Live2D Mod)",
+    saved_files_pngremix_mod_note: " (PngRemix Mod)",
+    saved_files_3d_mod_note: " (3D Mod)",
+    saved_files_text_note: " (generated when text dialogue is enabled)",
+    saved_files_audio_note: " (generated when audio dialogue is enabled)",
     section_structure: "📁 Mod Directory Structure",
+    structure_sequence_title: "Sequence Mod (mod_type: \"sequence\")",
+    structure_live2d_title: "Live2D Mod (mod_type: \"live2d\")",
     section_faq: "❓ FAQ",
     faq_browser_q: "Q: Can't open folder?",
     faq_browser_a: "A: Use Chrome 86+ or Edge 86+.",
@@ -1037,12 +1169,15 @@ const tutorialTranslations = {
     back_to_editor: "Back to Editor"
   },
   ja: {
-    tutorial_title: "TrayBuddy Mod Editor チュートリアル",
+    introduction_title: "TrayBuddy Mod Editor 説明",
     nav_brand: "TrayBuddy Mod Editor",
     footer_copyright: "TrayBuddy Mod Editor © 2024",
     nav_editor: "エディタを開く",
 
-    nav_tutorial: "チュートリアル",
+    nav_introduction: "説明",
+    lang_zh: "中文",
+    lang_en: "EN",
+    lang_ja: "JA",
     sidebar_toc: "目次",
     toc_intro: "はじめに",
     toc_requirements: "動作環境",
@@ -1206,13 +1341,13 @@ const tutorialTranslations = {
     threed_anim_field_speed: "speed",
     threed_anim_field_fps: "fps",
 
-    section_char_config_tutorial: "キャラクター設定",
+    section_char_config_introduction: "キャラクター設定",
 
     char_config_desc: "キャラクターの描画関連パラメータを設定します（manifest.character）。",
     char_z_offset_desc: "キャラクターキャンバスの描画レイヤーオフセット",
     char_canvas_fit_desc: "Canvas 適配：short(短辺優先)/long(長辺優先)/legacy(旧版・高さ基準)",
 
-    section_border_config_tutorial: "枠線設定",
+    section_border_config_introduction: "枠線設定",
     border_config_desc: "枠線の有効/アニメーション/レイヤーを設定します（manifest.border）。",
     border_enable_desc: "枠線を有効にするかどうか",
     border_anima_desc: "枠線に使用するアニメーション名（アニメーション資産から選択）",
@@ -1325,7 +1460,7 @@ const tutorialTranslations = {
     event_firstday: "初回起動イベント",
     event_login_silence: "起動後にサイレンス状態へ",
     section_allow_repeat: "連続トリガーを許可",
-    allow_repeat_tutorial_desc: "各トリガー状態グループには「連続トリガーを許可」(allow_repeat)オプションがあります。オフにすると、同じ状態が連続で2回トリガーされません（グループの状態数が2以上の場合のみ有効）。",
+    allow_repeat_introduction_desc: "各トリガー状態グループには「連続トリガーを許可」(allow_repeat)オプションがあります。オフにすると、同じ状態が連続で2回トリガーされません（グループの状態数が2以上の場合のみ有効）。",
     section_data_counter: "データカウンター",
     data_counter_desc: "状態がアクティブになったとき Mod データに対する操作：set、add、sub、mul、div。",
     trigger_counter_desc: "エディタの「状態制限」で trigger_counter_start / trigger_counter_end を使って、この状態がトリガー可能な ModData.value 範囲を制限できます。", 
@@ -1344,11 +1479,11 @@ const tutorialTranslations = {
 
 
     bubble_desc: "リアルタイムプレビューで対話吹き出しの外観を視覚的に設定。",
-    bubble_main: "吹き出し本体：背景、枠線、角丸、影、背景フィルター",
-    bubble_text: "テキストスタイル：色、フォントサイズ、行高、フォント",
-    bubble_tail: "尻尾スタイル：サイズ、色、影",
-    bubble_deco: "装飾：上部/下部の装飾文字",
-    bubble_branch: "分岐ボタン：通常/ホバー/アクティブ状態のスタイル",
+    bubble_main: "<strong>吹き出し本体</strong>：背景、枠線、角丸、影、背景フィルター",
+    bubble_text: "<strong>テキストスタイル</strong>：色、フォントサイズ、行高、フォント",
+    bubble_tail: "<strong>尻尾スタイル</strong>：サイズ、色、影",
+    bubble_deco: "<strong>装飾</strong>：上部/下部の装飾文字",
+    bubble_branch: "<strong>分岐ボタン</strong>：通常/ホバー/アクティブ状態のスタイル",
     section_assets: "🖼️ アニメーション管理",
     assets_desc: "アニメーションリソースはシーケンスフレーム(sequence.json)と雑画像(img.json)の2種類。",
     asset_name: "名前",
@@ -1369,6 +1504,10 @@ const tutorialTranslations = {
     asset_origin_reverse_desc: "元のシーケンスがすでに逆順の場合に有効化して向きを補正します",
     asset_offset: "オフセット",
     asset_offset_desc: "X/Y オフセット（ピクセル）。描画位置の微調整に使用",
+    section_assets_import: "リソースのインポート",
+    assets_import_desc: "シーケンスフレームと雑画像の両方のリストに便利なインポート機能があります：",
+    assets_import_batch: "<strong>一括インポート</strong>：「⬇️ 一括インポート」ボタンをクリックして、ファイルシステムから複数の画像ファイルを選択し、対応するリソースエントリを自動作成",
+    assets_import_single: "<strong>個別インポート</strong>：「📥 インポート」ボタンをクリックして、画像ファイルを1つずつインポート",
     callout_asset_warning_title: "⚠️ 注意",
     callout_asset_warning_desc: "アニメーション画像は asset/sequence/ または asset/img/ に手動で配置してください。",
     section_live2d: "🎭 Live2D アニメーション",
@@ -1427,10 +1566,28 @@ const tutorialTranslations = {
     callout_live2d_tip_title: "💡 ヒント",
     callout_live2d_tip_desc: "Live2D モデルファイルは対応するディレクトリに手動で配置する必要があります。mods/mao_pro の構造を参考にしてください。",
 
+    section_live2d_import_folder: "フォルダをインポート",
+    live2d_import_folder_desc: "「📂 フォルダをインポート」ボタンをクリックして外部フォルダを選択し、その内容を Mod の asset/live2d/ ディレクトリに再帰的にコピーします。外部から Live2D モデルリソースを一括インポートするのに最適です。",
+
+    section_live2d_sync: "ファイルから同期",
+    live2d_sync_desc: "「ファイルから同期」ボタンをクリックすると、Live2D モデルディレクトリから設定を自動読み取ります：",
+    live2d_sync_auto_detect: "<strong>モデルの自動検出</strong>：base_dir が空の場合、<code>asset/live2d/</code> を自動使用し、<code>.model3.json</code> ファイルをスキャン",
+    live2d_sync_auto_config: "<strong>設定の自動入力</strong>：model3.json の FileReferences から name、model_json、physics_json、pose_json、textures_dir、motions_dir、expressions_dir、eye_blink、lip_sync を自動推定",
+    live2d_sync_auto_motions: "<strong>モーション/表情の自動インポート</strong>：model3.json から完全なモーションと表情リストを解析",
+    live2d_sync_auto_states: "<strong>状態マッピングの自動生成</strong>：各モーションに対応する状態-アニメーションマッピングを作成（既存のマッピングはユーザー設定を保持）",
+
     section_live2d_gen_keyboard: "ファイルから入力イベントを生成",
     live2d_gen_keyboard_desc: "Live2D Mod 専用。「⌨️ ファイルから入力イベントを生成」ボタンをクリックすると、cdi3.json（DisplayInfo）からキーボード/マウス関連パラメータを識別し、対応する状態とトリガー（keydown/keyup イベント含む）を自動一括生成し、グローバルキーボード/マウスリスナーも自動的に有効にします。リアルタイムのキーボード入力応答が必要なデスクトップペットモデル（BongoCat など）に最適です。",
     section_live2d_params_browser: "モデルパラメーターブラウザ",
     live2d_params_browser_desc: "Live2D アニメーションタブ内の折りたたみパネル。「ファイルから読み込み」をクリックすると、cdi3.json に定義されたすべてのモデルパラメーターをグループ別に折りたたみ表示し、組み合わせパラメーターの認識にも対応。live2d_params 上書き設定に使用できるパラメーター ID の確認に便利です。",
+
+    section_live2d_add_state: "同名の状態を作成",
+    live2d_add_state_desc: "各状態マッピングエントリの右側にある「同名の状態を作成」ボタンで、manifest に対応する状態を素早く作成し、自動的にリンクします：",
+    live2d_add_state_anima: "<strong>アニメーション</strong>：現在のマッピング名を自動設定",
+    live2d_add_state_text: "<strong>テキスト</strong>：同名の対話テキストエントリがあれば自動リンク",
+    live2d_add_state_audio: "<strong>音声</strong>：同名の音声エントリがあれば自動リンク",
+    callout_live2d_export_title: "💡 エクスポートについて",
+    callout_live2d_export_desc: "Live2D Mod をエクスポートする際、<code>asset/live2d/</code> ディレクトリ下のすべてのファイル（.model3.json、.motion3.json、.exp3.json、.physics3.json など）が完全にパッケージされます。",
 
     section_pngremix: "🧩 PngRemix アニメーション",
     pngremix_desc: "PngRemix Mod は PNGTuber Remix エディタで作成された .pngRemix バイナリモデルファイルを使用します。新規 Mod 作成時に「PngRemix」タイプを選択してください。",
@@ -1472,6 +1629,19 @@ const tutorialTranslations = {
 
     section_pngremix_params_config: "PngRemix パラメーター上書き",
     pngremix_params_config_desc: "状態編集パネルで、PngRemix タイプの Mod は pngremix_params を使用して状態に入る時に表情を切り替えたり、モーションをトリガーしたりできます。各パラメータには type（expression または motion）と name があります。",
+
+    section_pngremix_import: "ファイルをインポート",
+    pngremix_import_desc: "「📂 ファイルをインポート」ボタンをクリックして .pngRemix ファイルを選択し、Mod の asset/ ディレクトリに自動コピーして pngremix_file パス設定を更新します。",
+    section_pngremix_sync: "ファイルから同期",
+    pngremix_sync_desc: "同期ボタンをクリックすると .pngRemix ファイルから設定を自動読み取ります：",
+    pngremix_sync_config: "<strong>ファイルから設定を同期</strong>：.pngRemix ファイルから blink_speed、blink_chance などの特性パラメータを読み取り、設定に自動入力",
+    pngremix_sync_assets: "<strong>ファイルからアセットを同期</strong>：.pngRemix ファイルからすべての state/hotkey 情報をスキャンし、表情とモーションリストを自動生成",
+    section_pngremix_add_state: "同名の状態を作成",
+    pngremix_add_state_desc: "各状態マッピングエントリの右側にある「同名の状態を作成」ボタンで、manifest に対応する状態を素早く作成し、自動的にリンクします：",
+    pngremix_add_state_anima: "<strong>アニメーション</strong>：現在のマッピング名を自動設定",
+    pngremix_add_state_text: "<strong>テキスト</strong>：同名の対話テキストエントリがあれば自動リンク",
+    pngremix_add_state_audio: "<strong>音声</strong>：同名の音声エントリがあれば自動リンク",
+
     callout_pngremix_tip_title: "💡 ヒント",
     callout_pngremix_tip_desc: ".pngRemix モデルファイルは PNGTuber Remix エディタで作成する必要があります。.pngRemix ファイルを asset/ ディレクトリに配置し、エディタでパスを設定してください。",
     structure_pngremix_title: "PngRemix Mod (mod_type: \"pngremix\")",
@@ -1500,6 +1670,8 @@ const tutorialTranslations = {
     threed_sync_assets: "<strong>ファイルからアセットを同期</strong>：.vrma/.vmd アニメーションファイルをスキャンし、アニメーションリストを自動生成",
     section_threed_add_state: "同名の状態を作成",
     threed_add_state_desc: "各アニメーション項目の横にある「同名の状態を作成」ボタンで、manifest にアニメーション名と紐づいた状態を素早く作成できます。",
+    section_threed_import_folder: "フォルダをインポート",
+    threed_import_folder_desc: "「📂 フォルダをインポート」ボタンをクリックして外部フォルダを選択し、その内容を Mod の asset/3d/ ディレクトリに再帰的にコピーします。外部から 3D モデルとアニメーションリソースを一括インポートするのに最適です。",
     callout_threed_tip_title: "💡 ヒント",
     callout_threed_tip_desc: "3D モデルファイル（.vrm/.pmx）とアニメーションファイル（.vrma/.vmd）は asset/3d/ ディレクトリに手動で配置する必要があります。PMX モデルのテクスチャは asset/3d/textures/ に配置してください。",
     callout_threed_format_title: "💡 対応フォーマット",
@@ -1518,10 +1690,19 @@ const tutorialTranslations = {
     texts_speech_title: "対話テキスト (speech.json)",
     texts_speech_desc: "名前、内容(Markdown対応)、持続時間(秒)",
     texts_speech_placeholders_desc: "対応プレースホルダー：{nickname}（ニックネーム）、{days_used}（初回利用からの日数）、{usage_hours}/{total_usage_hours}（総利用時間、時間）、{uptime}（本起動の稼働時間、HH:MM:SS）",
+
+    texts_add_state_title: "同名の状態を作成",
+    texts_add_state_desc: "各対話テキストの右側に「同名の状態を作成」ボタンがあります。クリックすると manifest に同名の状態を作成し、自動的にリンクします：",
+    texts_add_state_text: "<strong>テキスト</strong>：現在のテキスト名を自動設定",
+    texts_add_state_anima: "<strong>アニメーション</strong>：Live2D 状態マッピングに同名のエントリがあれば自動リンク",
+    texts_add_state_audio: "<strong>音声</strong>：音声リソースに同名のエントリがあれば自動リンク",
+
     texts_markdown_title: "Markdown 構文",
 
     md_bold: "太字",
+    md_bold_example: "**テキスト**",
     md_link: "ハイパーリンク",
+    md_link_example: "[テキスト](リンク)",
     md_newline: "改行",
     texts_lang_operations_title: "言語管理操作",
     texts_lang_operations_desc: "各言語に対して以下の操作が可能です：",
@@ -1532,6 +1713,7 @@ const tutorialTranslations = {
     section_audio: "🔊 多言語音声",
     audio_desc: "多言語音声リソースを設定。音声ファイルは .wav 形式対応、手動で配置が必要。",
     audio_import_desc: "「一括インポート」ボタンをクリックすると、音声ディレクトリ内の .wav ファイルを自動スキャンし、音声エントリとして一括インポートできます。個別に手動追加する手間が省けます。",
+    audio_import_single_desc: "「📥 インポート」ボタンをクリックして音声ファイルを1つずつインポートすることもできます。",
     section_save_export: "💾 保存とエクスポート",
     save_folder_title: "フォルダに保存",
     save_folder_desc: "「💾 保存」（または「📦 エクスポート → 📂 フォルダへ」）をクリックし、保存先フォルダを選択します。このバージョンでは毎回フォルダ選択が表示されます。", 
@@ -1539,8 +1721,21 @@ const tutorialTranslations = {
     export_tbuddy_desc: "「📦 エクスポート」→「📦 .tbuddy へ」で圧縮パッケージを生成します（ルートフォルダは Mod ID です）。", 
     export_sbuddy_title: ".sbuddy にエクスポート",
     export_sbuddy_desc: "同じディレクトリに sbuddy-crypto.exe がある場合、「🔒 .sbuddy へ」ボタンが表示されます。クリックするとまず .tbuddy をエクスポートし、外部ツールで暗号化された .sbuddy 形式に変換します。",
-    saved_files_title: "保存/エクスポートされるファイル", 
+    saved_files_title: "保存/エクスポートされるファイル",
+    live2d_export_all_files: "下のすべてのファイル（.model3.json、.moc3、テクスチャ、.motion3.json、.exp3.json など）が完全にパッケージされます",
+    saved_files_bubble_note: "（吹き出しスタイルが有効な場合に生成）",
+    saved_files_sequence_note: "（シーケンス Mod）",
+    saved_files_live2d_note: "（Live2D Mod）",
+    saved_files_pngremix_note: "（PngRemix Mod）",
+    saved_files_3d_note: "（3D Mod）",
+    saved_files_live2d_mod_note: "（Live2D Mod）",
+    saved_files_pngremix_mod_note: "（PngRemix Mod）",
+    saved_files_3d_mod_note: "（3D Mod）",
+    saved_files_text_note: "（テキスト対話が有効な場合に生成）",
+    saved_files_audio_note: "（音声対話が有効な場合に生成）",
     section_structure: "📁 Mod ディレクトリ構造",
+    structure_sequence_title: "シーケンス Mod (mod_type: \"sequence\")",
+    structure_live2d_title: "Live2D Mod (mod_type: \"live2d\")",
     section_faq: "❓ よくある質問",
     faq_browser_q: "Q: フォルダを開けない？",
     faq_browser_a: "A: Chrome 86+ または Edge 86+ を使用してください。",
@@ -1557,11 +1752,11 @@ const tutorialTranslations = {
 };
 
 // i18n system
-const tutorialI18n = {
+const introductionI18n = {
   currentLang: 'zh',
   
   t(key) {
-    return tutorialTranslations[this.currentLang]?.[key] || tutorialTranslations.zh[key] || key;
+    return introductionTranslations[this.currentLang]?.[key] || introductionTranslations.zh[key] || key;
   },
   
   updateDOM() {
@@ -1584,9 +1779,9 @@ const tutorialI18n = {
   },
   
   setLanguage(lang) {
-    if (tutorialTranslations[lang]) {
+    if (introductionTranslations[lang]) {
       this.currentLang = lang;
-      try { localStorage.setItem('tutorial-lang', lang); } catch(e) {}
+      try { localStorage.setItem('introduction-lang', lang); } catch(e) {}
       this.updateDOM();
     }
   },
@@ -1594,7 +1789,7 @@ const tutorialI18n = {
   init() {
     // Get stored or browser language
     let lang = 'zh';
-    try { lang = localStorage.getItem('tutorial-lang'); } catch(e) {}
+    try { lang = localStorage.getItem('introduction-lang'); } catch(e) {}
     if (!lang) {
       const browserLang = (navigator.language || 'zh').toLowerCase();
       if (browserLang.startsWith('en')) lang = 'en';
@@ -1616,9 +1811,9 @@ const tutorialI18n = {
 
 // Initialize on DOM ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => tutorialI18n.init());
+  document.addEventListener('DOMContentLoaded', () => introductionI18n.init());
 } else {
-  tutorialI18n.init();
+  introductionI18n.init();
 }
 
 // Section observer for sidebar highlighting
