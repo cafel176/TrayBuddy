@@ -71,7 +71,7 @@ impl Default for UserSettings {
             volume: 1.0,
 
             silence_mode: false,
-            auto_silence_when_fullscreen: true,
+            auto_silence_when_fullscreen: false,
             streamer_mode: false,
 
 
