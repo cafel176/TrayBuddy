@@ -183,7 +183,7 @@ https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 TrayBuddy 统一管理 4 种不同的动画格式：
 
-<img src="docs/imgs/zh/newmod.png" width="540" />
+<img src="mod-tool/imgs/zh/newmod.png" width="540" />
 
 <br>
 
@@ -773,7 +773,7 @@ https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 TrayBuddy manages 4 different animation formats in a unified way:
 
-<img src="docs/imgs/en/newmod.png" width="540" />
+<img src="mod-tool/imgs/en/newmod.png" width="540" />
 
 <br>
 
@@ -1363,7 +1363,7 @@ https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 TrayBuddyは4種類の異なるアニメーション形式を統合管理します：
 
-<img src="docs/imgs/jp/newmod.png" width="540" />
+<img src="mod-tool/imgs/jp/newmod.png" width="540" />
 
 <br>
 
