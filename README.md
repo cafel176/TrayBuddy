@@ -35,7 +35,7 @@
 
 <a id="简体中文"></a>
 
-**TrayBuddy**是一款支持 **多种动画类型、包加密、高度自定义** 的桌宠应用，致力于让用户和创作者都能获得出色的体验
+**TrayBuddy** 是一款支持 **多种动画类型、包加密、高度自定义** 的桌宠应用，致力于让用户 **用任何动画格式快速创建桌宠**
 
 > [!WARNING]<br>
 > 当前项目仅支持Windows<br>
@@ -69,6 +69,9 @@
 - **是专业桌宠作者，用惯用的工具做完后，可以顺手打个包给用户多一种选择**
 
 那么这个项目可能会适合你
+
+教程：
+<a href="docs/tutorial/NewMod.md" target="_blank" rel="noopener noreferrer">用多种动画格式快速创建桌宠</a>
 
 <br>
 
@@ -619,7 +622,7 @@ TrayBuddy/
 
 <a id="English"></a>
 
-**TrayBuddy** is a desktop pet application that supports **multiple animation types, package encryption, and high customizability**, dedicated to providing an excellent experience for both users and creators
+**TrayBuddy** is a desktop pet application that supports **multiple animation types, package encryption, and high customizability**, dedicated to enabling users to **quickly create desktop pets with any animation format**
 
 > [!WARNING]<br>
 > This project currently only supports Windows<br>
@@ -653,6 +656,9 @@ If you:
 - **Are a professional desktop pet creator and want to package your work as an extra option for users after finishing with your usual tools**
 
 Then this project might be for you
+
+Tutorial:
+<a href="docs/tutorial/NewMod.md" target="_blank" rel="noopener noreferrer">Quickly create desktop pets with multiple animation formats</a>
 
 <br>
 
@@ -1203,7 +1209,7 @@ TrayBuddy/
 
 <a id="日本語"></a>
 
-**TrayBuddy** は **複数のアニメーション形式、パッケージ暗号化、高度なカスタマイズ** に対応したデスクトップペットアプリケーションで、ユーザーとクリエイター双方に優れた体験を提供することを目指しています
+**TrayBuddy** は **複数のアニメーション形式、パッケージ暗号化、高度なカスタマイズ** に対応したデスクトップペットアプリケーションで、ユーザーが **あらゆるアニメーション形式で素早くデスクトップペットを作成** できることを目指しています
 
 > [!WARNING]<br>
 > 現在、本プロジェクトはWindowsのみサポートしています<br>
@@ -1237,6 +1243,9 @@ TrayBuddy/
 - **プロのデスクトップペットクリエイターで、いつものツールで制作した後、パッケージしてユーザーに選択肢を増やしたい**
 
 なら、このプロジェクトはあなたに合うかもしれません
+
+チュートリアル：
+<a href="docs/tutorial/NewMod.md" target="_blank" rel="noopener noreferrer">多種多様なアニメーション形式で素早くデスクトップペットを作成</a>
 
 <br>
 
