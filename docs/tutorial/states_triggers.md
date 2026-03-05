@@ -16,7 +16,7 @@
 
 <a id="简体中文"></a>
 
-<h1 align="center">如何快速创建pngremix Mod</h1>
+<h1 align="center">状态和触发</h1>
 
 > [!WARNING]<br>
 > 本项目仍处于早期阶段，如果您有任何疑问，欢迎联系我们<br>
