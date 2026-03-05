@@ -41,7 +41,8 @@
       "../mod-tool": "mod-tool",
       "../other-tool": "other-tool",
       "../tools-common": "tools-common",
-      "icons": "icons"
+      "icons": "icons",
+      "../static": "static"
     },
     "fileAssociations": [
       {

@@ -34,7 +34,7 @@
 
 请在顶部按钮中点击 **导入文件** 按钮，选择pngremix文件，并等待右下角出现导入成功的提示
 
-<img src="../imgs/zh/tutorial_pngremix1.png" width="360"/>
+<img src="../imgs/zh/tutorial_pngremix1.png" width="180"/>
 
 <br>
 
@@ -46,7 +46,7 @@
 
 请在顶部按钮中点击 **从文件同步资产** 按钮，并检查 **表情列表 (expressions) / 动作列表 (motions) / 状态映射 (states)** 分类签下的内容是否正确
 
-<img src="../imgs/zh/tutorial_pngremix3.png" width="360"/>
+<img src="../imgs/zh/tutorial_pngremix3.png"/>
 
 <br>
 
@@ -91,8 +91,8 @@
 
 <br>
 
-下一步：
-<a href="states_triggers.md" target="_blank" rel="noopener noreferrer">状态和触发</a>&nbsp;&nbsp;&nbsp;
+> [!TIP]<br>
+> **更多内容有待后续更新**
 
 <br>
 
