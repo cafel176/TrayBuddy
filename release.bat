@@ -37,8 +37,10 @@ rmdir /s /q "%~dp0src-tauri\target\release\mods"
 :: 确保输出目录存在
 if not exist "%~dp0tbuddy_release" mkdir "%~dp0tbuddy_release"
 if not exist "%~dp0tbuddy_test" mkdir "%~dp0tbuddy_test"
+if not exist "%~dp0tbuddy_secure" mkdir "%~dp0tbuddy_secure"
 if not exist "%~dp0sbuddy_release" mkdir "%~dp0sbuddy_release"
 if not exist "%~dp0sbuddy_test" mkdir "%~dp0sbuddy_test"
+if not exist "%~dp0sbuddy_secure" mkdir "%~dp0sbuddy_secure"
 
 :: ================================================================
 :: mods_release -> tbuddy_release/ -> sbuddy_release/
@@ -52,6 +54,13 @@ if errorlevel 1 goto :_tb_pack_failed
 :: ================================================================
 echo Packing mods_test to .tbuddy files...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1" -ModsDir "%~dp0mods_test" -OutputDir "%~dp0tbuddy_test"
+if errorlevel 1 goto :_tb_pack_failed
+
+:: ================================================================
+:: mods_secure -> tbuddy_secure/ -> sbuddy_secure/
+:: ================================================================
+echo Packing mods_secure to .tbuddy files...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-mods.ps1" -ModsDir "%~dp0mods_secure" -OutputDir "%~dp0tbuddy_secure"
 if errorlevel 1 goto :_tb_pack_failed
 
 :: ================================================================
@@ -82,6 +91,11 @@ if errorlevel 1 goto :_tb_sbuddy_failed
 :: --- sbuddy_test ---
 echo Packing .tbuddy to .sbuddy files (test)...
 call :_tb_encrypt_sbuddy "%~dp0tbuddy_test" "%~dp0sbuddy_test"
+if errorlevel 1 goto :_tb_sbuddy_failed
+
+:: --- sbuddy_secure ---
+echo Packing .tbuddy to .sbuddy files (secure)...
+call :_tb_encrypt_sbuddy "%~dp0tbuddy_secure" "%~dp0sbuddy_secure"
 if errorlevel 1 goto :_tb_sbuddy_failed
 
 :_tb_after_sbuddy

@@ -38,11 +38,12 @@
       "../i18n": "i18n",
       "../mods": "mods",  
       "../tbuddy_release": "mods",  
+      "../sbuddy_secure": "mods", 
       "../mod-tool": "mod-tool",
       "../other-tool": "other-tool",
       "../tools-common": "tools-common",
-      "icons": "icons",
-      "../static": "static"
+      "../static": "static",
+      "icons": "icons"
     },
     "fileAssociations": [
       {

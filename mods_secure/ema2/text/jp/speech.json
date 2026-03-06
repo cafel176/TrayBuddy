@@ -1,0 +1,217 @@
+[
+  {
+    "name": "morning",
+    "text": "**おはよう！** ちゃんと起きられたね。",
+    "duration": 3
+  },
+  {
+    "name": "noon",
+    "text": "**こんにちは！** 無理、してない？",
+    "duration": 3
+  },
+  {
+    "name": "evening",
+    "text": "こんばんは……。今日も、おつかれさま。",
+    "duration": 3
+  },
+  {
+    "name": "night",
+    "text": "えっ、もうこんな時間……？ ちゃんと休もうね。",
+    "duration": 3
+  },
+  {
+    "name": "birthday_1",
+    "text": "た、誕生日おめでとう……！**{nickname}**\nえへへ……今日は特別な日、だよね。",
+    "duration": 3
+  },
+  {
+    "name": "birthday_2",
+    "text": "ボクね……\n毎日、少しでも笑っていられたらいいなって思ってる。",
+    "duration": 3
+  },
+  {
+    "name": "firstday_1",
+    "text": "ね、ねえ……。\n今日が何の日か……覚えてる？{nickname}",
+    "duration": 3
+  },
+  {
+    "name": "firstday_2",
+    "text": "今日って、ボクたちがはじめて会った日、なんだよ。",
+    "duration": 3
+  },
+  {
+    "name": "firstday_3",
+    "text": "えっ……覚えてたの？\nボク、すごくうれしい……！",
+    "duration": 3
+  },
+  {
+    "name": "firstday_4",
+    "text": "こうして覚えていられるの……すごく、大切だなって思う。",
+    "duration": 3
+  },
+  {
+    "name": "firstday_button",
+    "text": "ボクたちがはじめて会った日",
+    "duration": 3
+  },
+  {
+    "name": "amazing",
+    "text": "あっ……。",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button1",
+    "text": "どうしたの？",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button2",
+    "text": "どうしたの？",
+    "duration": 3
+  },
+  {
+    "name": "amaz_cry",
+    "text": "ボクのリンゴ……。",
+    "duration": 3
+  },
+  {
+    "name": "cry",
+    "text": "きゃんっ……！？",
+    "duration": 1
+  },
+  {
+    "name": "random1_1",
+    "text": "ボ、ボクは、桜羽エマ！",
+    "duration": 3
+  },
+  {
+    "name": "music_random1_1",
+    "text": "この曲、なんだか心に残るね。ボク、好きかも。",
+    "duration": 3
+  },
+  {
+    "name": "random2_1",
+    "text": "ヒロちゃんが笑うときって、ほんの一瞬なんだ",
+    "duration": 3
+  },
+  {
+    "name": "random2_2",
+    "text": "すぐ、真顔に戻っちゃうの",
+    "duration": 3
+  },
+  {
+    "name": "random2_3",
+    "text": "でも……ボクは、その一瞬を見るのが、好きだった",
+    "duration": 3
+  },
+  {
+    "name": "random3_1",
+    "text": "シェリーちゃんって怖くても、笑おうとする人なんだ",
+    "duration": 3
+  },
+  {
+    "name": "random3_2",
+    "text": "たぶん……みんなを安心させたいんだと思う",
+    "duration": 3
+  },
+  {
+    "name": "random3_3",
+    "text": "だから……一番つらい気持ちは、いつも自分だけのところに、しまっちゃうんだと思う",
+    "duration": 3
+  },
+  {
+    "name": "random4_1",
+    "text": "ハンナちゃんが黙ってるときって",
+    "duration": 3
+  },
+  {
+    "name": "random4_2",
+    "text": "たぶん……何も考えてないんじゃなくて……",
+    "duration": 3
+  },
+  {
+    "name": "random4_3",
+    "text": "むしろ……考えすぎてるんだと思う",
+    "duration": 3
+  },
+  {
+    "name": "random4_4",
+    "text": "それに気づいてから……ボク、少しだけ……ハンナちゃんのそばにいたくなった",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_1",
+    "text": "え、えっと，なにかあったの？",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_2",
+    "text": "えっ、覚えててくれたの？",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_3",
+    "text": "あ、ありがとう！",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_4",
+    "text": "えへへ、本当にうれしい",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_button",
+    "text": "今日はあなたの誕生日です",
+    "duration": 3
+  },
+  {
+    "name": "work",
+    "text": "ねえ、これからお仕事するの？\nおつかれさま、無理しすぎないでね。",
+    "duration": 3
+  },
+  {
+    "name": "long_time",
+    "text": "今日、ちょっと疲れてるみたい……\n早めに休んでもいいんじゃないかな。",
+    "duration": 3
+  },
+  {
+    "name": "every_hour",
+    "text": "もうずいぶん長く頑張ってたよね、いったん立って背伸びしよ？",
+    "duration": 3
+  },
+  {
+    "name": "random5_1",
+    "text": "少しくらい力を抜いても大丈夫だよ、ボクがそばにいるから。",
+    "duration": 3
+  },
+  {
+    "name": "random6_1",
+    "text": "今日は、ボクたちが出会って{days_used}日目だよね……\nなんか嬉しいな。",
+    "duration": 3
+  },
+  {
+    "name": "random7_1",
+    "text": "おかえり……\nずっと待ってたんだ、会えてよかった。",
+    "duration": 3
+  },
+  {
+    "name": "cold",
+    "text": "ねえ、最近寒くなってきたよね……\nボクちょっと心配。ちゃんとあったかくしてね？",
+    "duration": 3
+  },
+  {
+    "name": "hot",
+    "text": "暑くなってきたね……\n無理しないで、水分とって涼しくしてね。",
+    "duration": 3
+  },
+  {
+    "name": "rain",
+    "text": "外、雨降ってるみたい……\n傘、忘れないでね。",
+    "duration": 3
+  },
+  {
+    "name": "snow",
+    "text": "外、雪だよ……\n足元すべりやすいから気をつけて。転んだらダメだよ？",
+    "duration": 3
+  }
+]

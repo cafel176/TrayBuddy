@@ -1,0 +1,217 @@
+[
+  {
+    "name": "morning",
+    "text": "**Good morning!** You got up successfully.",
+    "duration": 3
+  },
+  {
+    "name": "noon",
+    "text": "**Good afternoon!** You're not pushing yourself too hard, right?",
+    "duration": 3
+  },
+  {
+    "name": "evening",
+    "text": "Good evening... You've worked hard today.",
+    "duration": 3
+  },
+  {
+    "name": "night",
+    "text": "Huh, it's already this late... Make sure to get some rest.",
+    "duration": 3
+  },
+  {
+    "name": "birthday_1",
+    "text": "H-Happy birthday...! **{nickname}**\nHehe... Today is a very special day.",
+    "duration": 3
+  },
+  {
+    "name": "birthday_2",
+    "text": "I just...\nHope you can smile a little more every day.",
+    "duration": 3
+  },
+  {
+    "name": "firstday_1",
+    "text": "U-Um...\nDo you remember what day it is today? {nickname}",
+    "duration": 3
+  },
+  {
+    "name": "firstday_2",
+    "text": "Today is the day we first met.",
+    "duration": 3
+  },
+  {
+    "name": "firstday_3",
+    "text": "Huh... you remember?\nI'm so happy...!",
+    "duration": 3
+  },
+  {
+    "name": "firstday_4",
+    "text": "Being able to remember it like this... I think that's really precious.",
+    "duration": 3
+  },
+  {
+    "name": "firstday_button",
+    "text": "The day we first met",
+    "duration": 3
+  },
+  {
+    "name": "amazing",
+    "text": "Ah...",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button1",
+    "text": "What's wrong?",
+    "duration": 3
+  },
+  {
+    "name": "amazing_button2",
+    "text": "What happened?",
+    "duration": 3
+  },
+  {
+    "name": "amaz_cry",
+    "text": "My apple...",
+    "duration": 3
+  },
+  {
+    "name": "cry",
+    "text": "Kiang...!?",
+    "duration": 1
+  },
+  {
+    "name": "random1_1",
+    "text": "M-My name is Sakuraba Emma!",
+    "duration": 3
+  },
+  {
+    "name": "music_random1_1",
+    "text": "This song is really moving... I like it a lot.",
+    "duration": 3
+  },
+  {
+    "name": "random2_1",
+    "text": "When Hiro smiles, it's actually just for a brief moment.",
+    "duration": 3
+  },
+  {
+    "name": "random2_2",
+    "text": "He quickly returns to his calm expression.",
+    "duration": 3
+  },
+  {
+    "name": "random2_3",
+    "text": "But... I really like that brief moment.",
+    "duration": 3
+  },
+  {
+    "name": "random3_1",
+    "text": "Sherry... even when she's scared, she tries hard to smile.",
+    "duration": 3
+  },
+  {
+    "name": "random3_2",
+    "text": "Probably... she wants to put everyone at ease.",
+    "duration": 3
+  },
+  {
+    "name": "random3_3",
+    "text": "That's why... the most painful, most heartbreaking feelings, she always hides them away quietly by herself.",
+    "duration": 3
+  },
+  {
+    "name": "random4_1",
+    "text": "When Hanna is silent...",
+    "duration": 3
+  },
+  {
+    "name": "random4_2",
+    "text": "I think... it's not that she's thinking about nothing...",
+    "duration": 3
+  },
+  {
+    "name": "random4_3",
+    "text": "But rather... she's thinking too much.",
+    "duration": 3
+  },
+  {
+    "name": "random4_4",
+    "text": "Ever since I realized that... I've wanted to be a little closer to Hanna.",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_1",
+    "text": "U-Um, is there something you wanted to say?",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_2",
+    "text": "Eh, you actually remembered?",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_3",
+    "text": "Ah, thank you!",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_4",
+    "text": "Ehehe, I'm really happy.",
+    "duration": 3
+  },
+  {
+    "name": "ema_birthday_button",
+    "text": "Today is your birthday",
+    "duration": 3
+  },
+  {
+    "name": "work",
+    "text": "Oh, are you starting work now?\nTake care, and don't push yourself too hard.",
+    "duration": 3
+  },
+  {
+    "name": "long_time",
+    "text": "You look a bit tired today...\nMaybe it would be better to rest early?",
+    "duration": 3
+  },
+  {
+    "name": "every_hour",
+    "text": "You've been busy for a long time, right? How about standing up and stretching for a bit?",
+    "duration": 3
+  },
+  {
+    "name": "random5_1",
+    "text": "It's okay to relax a little, I'll be right here by your side.",
+    "duration": 3
+  },
+  {
+    "name": "random6_1",
+    "text": "Today is the {days_used}th day since we met...\nSomehow, I feel a little happy.",
+    "duration": 3
+  },
+  {
+    "name": "random7_1",
+    "text": "Welcome back...\nI've been waiting for you. It's so nice to see you.",
+    "duration": 3
+  },
+  {
+    "name": "cold",
+    "text": "It's getting cold...\nI'm a bit worried. Make sure to keep warm, okay?",
+    "duration": 3
+  },
+  {
+    "name": "hot",
+    "text": "It's getting hot...\nDon't push yourself. Remember to stay hydrated and cool.",
+    "duration": 3
+  },
+  {
+    "name": "rain",
+    "text": "It's raining outside...\nDon't forget to bring an umbrella.",
+    "duration": 3
+  },
+  {
+    "name": "snow",
+    "text": "It's snowing outside...\nThe roads might be slippery, so be careful not to fall, okay?",
+    "duration": 3
+  }
+]
