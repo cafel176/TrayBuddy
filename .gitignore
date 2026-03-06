@@ -12,8 +12,10 @@ test_logs/
 /package
 /tbuddy_release
 /tbuddy_test
+/tbuddy_secure
 /sbuddy_release
 /sbuddy_test
+/sbuddy_secure
 
 .env
 .env.*
