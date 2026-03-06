@@ -58,6 +58,7 @@
 
 演示素材作者：
 <a href="https://b23.tv/vuFXqCX" target="_blank" rel="noopener noreferrer">dazeroyuu</a>&nbsp;&nbsp;&nbsp;
+<a href="https://b23.tv/eOCGgIs" target="_blank" rel="noopener noreferrer">宇痕冫</a>&nbsp;&nbsp;&nbsp;
 
 <br>
 
@@ -121,6 +122,12 @@ https://github.com/user-attachments/assets/7309ee75-d941-432f-8123-ba25004da64b
 **请打开声音播放**
 
 https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
+
+<br>
+
+<a href="https://www.bilibili.com/video/BV1MM4m1z7Dy/?vd_source=1f5e08d6a2e054c354714c7090aed591" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat (@宇痕冫)</b></a>
+
+https://github.com/user-attachments/assets/9a804437-6597-4fb3-8d60-b958ab5ec740
 
 <br>
 
@@ -649,6 +656,7 @@ Credits:
 
 Demo material author:
 <a href="https://b23.tv/vuFXqCX" target="_blank" rel="noopener noreferrer">dazeroyuu</a>&nbsp;&nbsp;&nbsp;
+<a href="https://b23.tv/eOCGgIs" target="_blank" rel="noopener noreferrer">宇痕冫</a>&nbsp;&nbsp;&nbsp;
 
 <br>
 
@@ -712,6 +720,12 @@ https://github.com/user-attachments/assets/7309ee75-d941-432f-8123-ba25004da64b
 **Please turn on sound**
 
 https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
+
+<br>
+
+<a href="https://www.bilibili.com/video/BV1MM4m1z7Dy/?vd_source=1f5e08d6a2e054c354714c7090aed591" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat (@宇痕冫)</b></a>
+
+https://github.com/user-attachments/assets/9a804437-6597-4fb3-8d60-b958ab5ec740
 
 <br>
 
@@ -1240,6 +1254,7 @@ TrayBuddy/
 
 デモ素材の作者：
 <a href="https://b23.tv/vuFXqCX" target="_blank" rel="noopener noreferrer">dazeroyuu</a>&nbsp;&nbsp;&nbsp;
+<a href="https://b23.tv/eOCGgIs" target="_blank" rel="noopener noreferrer">宇痕冫</a>&nbsp;&nbsp;&nbsp;
 
 <br>
 
@@ -1303,6 +1318,12 @@ https://github.com/user-attachments/assets/7309ee75-d941-432f-8123-ba25004da64b
 **音声をオンにしてください**
 
 https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
+
+<br>
+
+<a href="https://www.bilibili.com/video/BV1MM4m1z7Dy/?vd_source=1f5e08d6a2e054c354714c7090aed591" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat (@宇痕冫)</b></a>
+
+https://github.com/user-attachments/assets/9a804437-6597-4fb3-8d60-b958ab5ec740
 
 <br>
 
