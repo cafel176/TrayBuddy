@@ -117,12 +117,6 @@ https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
 
 <br>
 
-<a href="https://www.bilibili.com/video/BV1MM4m1z7Dy/?vd_source=1f5e08d6a2e054c354714c7090aed591" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat</b></a>
-
-https://github.com/user-attachments/assets/9a804437-6597-4fb3-8d60-b958ab5ec740
-
-<br>
-
 <a href="https://www.live2d.com/zh-CHS/learn/sample/" target="_blank" rel="noopener noreferrer"><b>Live2D 人物</b></a>
 
 https://github.com/user-attachments/assets/180419f4-1567-4a44-85e1-29fdb8e8bde0
@@ -707,12 +701,6 @@ https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
 
 <br>
 
-<a href="https://www.bilibili.com/video/BV1MM4m1z7Dy/?vd_source=1f5e08d6a2e054c354714c7090aed591" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat</b></a>
-
-https://github.com/user-attachments/assets/9a804437-6597-4fb3-8d60-b958ab5ec740
-
-<br>
-
 <a href="https://www.live2d.com/zh-CHS/learn/sample/" target="_blank" rel="noopener noreferrer"><b>Live2D Character</b></a>
 
 https://github.com/user-attachments/assets/180419f4-1567-4a44-85e1-29fdb8e8bde0
@@ -1294,12 +1282,6 @@ https://github.com/user-attachments/assets/7309ee75-d941-432f-8123-ba25004da64b
 **音声をオンにしてください**
 
 https://github.com/user-attachments/assets/0b6ebd52-8cd1-4c37-8f86-1a9f6ba8a479
-
-<br>
-
-<a href="https://www.bilibili.com/video/BV1MM4m1z7Dy/?vd_source=1f5e08d6a2e054c354714c7090aed591" target="_blank" rel="noopener noreferrer"><b>Live2D BongoCat</b></a>
-
-https://github.com/user-attachments/assets/9a804437-6597-4fb3-8d60-b958ab5ec740
 
 <br>
 
