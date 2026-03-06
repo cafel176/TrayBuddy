@@ -155,7 +155,7 @@ https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 ## 简介
 
-1. 支持 4 种动画格式：<a href="#zh-动画格式">**序列帧(差分图，gif，spritesheet)、Live2D、PngRemix、3D模型(vrm/pmx)**</a>
+1. 支持 4 种动画格式：<a href="#zh-动画格式">**序列帧(视频，差分图，gif)、Live2D、PngRemix、3D模型(vrm/pmx)**</a>
 
 2. 支持对mod进行 <a href="#zh-包加密">**包加密**</a>
 
@@ -195,7 +195,7 @@ TrayBuddy 统一管理 4 种不同的动画格式：
 
 <br>
 
-我们提供一整套 <a href="#zh-辅助工具集">**工具链**</a> 用于将 差分图/gif/视频 处理成spritesheet用于程序内动画，其他三种格式直接使用原本文件，编辑器内支持对文件进行解析
+我们提供一整套 <a href="#zh-辅助工具集">**工具链**</a> 用于将 视频/差分图/gif 处理成spritesheet用于程序内动画，其他三种格式直接使用原本文件，编辑器内支持对文件进行解析
 
 | 格式         | 资源类型               | 说明                                                       |
 | ------------ | ---------------------- | ---------------------------------------------------------- |
@@ -753,7 +753,7 @@ https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 ## Introduction
 
-1. Supports 4 animation formats: <a href="#en-animation-formats">**Sprite Sheets (differential frames, GIF, spritesheet), Live2D, PngRemix, 3D Models (VRM/PMX)**</a>
+1. Supports 4 animation formats: <a href="#en-animation-formats">**Sprite Sheets (video, differential frames, GIF), Live2D, PngRemix, 3D Models (VRM/PMX)**</a>
 
 2. Supports <a href="#en-package-encryption">**package encryption**</a> for mods
 
@@ -1351,7 +1351,7 @@ https://github.com/user-attachments/assets/bbf1eda6-fe6b-4234-b364-d7daaf01c90b
 
 ## 紹介
 
-1. 4種類のアニメーション形式に対応：<a href="#jp-アニメーション形式">**シーケンスフレーム（差分画像、GIF、スプライトシート）、Live2D、PngRemix、3Dモデル（VRM/PMX）**</a>
+1. 4種類のアニメーション形式に対応：<a href="#jp-アニメーション形式">**シーケンスフレーム（動画、差分画像、GIF）、Live2D、PngRemix、3Dモデル（VRM/PMX）**</a>
 
 2. Modの<a href="#jp-パッケージ暗号化">**パッケージ暗号化**</a>に対応
 
