@@ -37,13 +37,17 @@
 
 **TrayBuddy** 是一款支持 **多种动画类型、包加密、高度自定义** 的桌宠应用，致力于让用户 **用任何动画格式快速创建桌宠**
 
+我们希望能提供一个通用的方案，类似于做桌宠的 Wallpaper Engine，使得更多的人能更简单的使用更丰富的桌宠
+
 > [!WARNING]<br>
 > 当前项目仅支持Windows<br>
 > 理论上Tauri是支持跨平台的，代码内也预留了其他平台的占位函数<br>
 > 但是作者既没有Mac也没有Linux设备，所以没法做，以后再看<br>
 > 如果有大佬有对应的设备愿意补齐对应平台的支持，我们会感激不尽 **orz**
 
-下载：
+下载：<br>
+纯净版（pure）仅包含教程mod，体积更小<br>
+标准版（standard）包含了所有默认mod，内容更多<br>
 <a href="https://pan.baidu.com/s/5xPn--lWTiKHAfBCB5gta3Q" target="_blank" rel="noopener noreferrer">百度网盘</a>&nbsp;&nbsp;&nbsp;
 <a href="https://pan.quark.cn/s/6c6c08b57fba?pwd=CiSm" target="_blank" rel="noopener noreferrer">夸克网盘</a>&nbsp;&nbsp;&nbsp;
 <a href="https://github.com/cafel176/TrayBuddy/releases" target="_blank" rel="noopener noreferrer">github releases</a>
@@ -621,13 +625,17 @@ TrayBuddy/
 
 **TrayBuddy** is a desktop pet application that supports **multiple animation types, package encryption, and high customizability**, dedicated to enabling users to **quickly create desktop pets with any animation format**
 
+We hope to provide a universal solution, like a Wallpaper Engine for desktop pets, so that more people can more easily enjoy a richer variety of desktop pets
+
 > [!WARNING]<br>
 > This project currently only supports Windows<br>
 > In theory, Tauri supports cross-platform, and placeholder functions for other platforms are included in the code<br>
 > However, the author has neither a Mac nor a Linux device, so it cannot be done for now<br>
 > If anyone with the corresponding devices is willing to add support for other platforms, we would be extremely grateful **orz**
 
-Download:
+Download:<br>
+Pure version includes only the tutorial mod, smaller in size<br>
+Standard version includes all default mods, more content<br>
 <a href="https://pan.baidu.com/s/5xPn--lWTiKHAfBCB5gta3Q" target="_blank" rel="noopener noreferrer">Baidu Netdisk</a>&nbsp;&nbsp;&nbsp;
 <a href="https://pan.quark.cn/s/6c6c08b57fba?pwd=CiSm" target="_blank" rel="noopener noreferrer">Quark Netdisk</a>&nbsp;&nbsp;&nbsp;
 <a href="https://github.com/cafel176/TrayBuddy/releases" target="_blank" rel="noopener noreferrer">github releases</a>&nbsp;&nbsp;&nbsp;
@@ -1205,13 +1213,17 @@ TrayBuddy/
 
 **TrayBuddy** は **複数のアニメーション形式、パッケージ暗号化、高度なカスタマイズ** に対応したデスクトップペットアプリケーションで、ユーザーが **あらゆるアニメーション形式で素早くデスクトップペットを作成** できることを目指しています
 
+デスクトップペット版の Wallpaper Engine のような汎用的なソリューションを提供し、より多くの人がより簡単に、より豊富なデスクトップペットを楽しめるようにしたいと考えています
+
 > [!WARNING]<br>
 > 現在、本プロジェクトはWindowsのみサポートしています<br>
 > 理論的にはTauriはクロスプラットフォームに対応しており、コード内にも他のプラットフォーム用のプレースホルダー関数があります<br>
 > しかし、著者はMacもLinuxデバイスも持っていないため、現時点では対応できません<br>
 > 対応デバイスをお持ちの方で他プラットフォームのサポートを追加していただける方がいれば、大変感謝いたします **orz**
 
-ダウンロード：
+ダウンロード：<br>
+ピュア版（pure）はチュートリアルmodのみを含み、サイズが小さいです<br>
+スタンダード版（standard）はすべてのデフォルトmodを含み、コンテンツが豊富です<br>
 <a href="https://pan.baidu.com/s/5xPn--lWTiKHAfBCB5gta3Q" target="_blank" rel="noopener noreferrer">百度網盤</a>&nbsp;&nbsp;&nbsp;
 <a href="https://pan.quark.cn/s/6c6c08b57fba?pwd=CiSm" target="_blank" rel="noopener noreferrer">夸克網盤</a>&nbsp;&nbsp;&nbsp;
 <a href="https://github.com/cafel176/TrayBuddy/releases" target="_blank" rel="noopener noreferrer">github releases</a>&nbsp;&nbsp;&nbsp;
