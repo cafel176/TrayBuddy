@@ -342,6 +342,7 @@ function initLanguageChangeListener() {
     renderTexts();
     renderAudio();
     populateBubbleStyle();
+    populateAiTools();
     populateManifestForm();
     
     // 如果状态编辑弹窗打开中，重新渲染弹窗内容
@@ -752,6 +753,10 @@ function switchTab(tab) {
       populateBubbleStyle();
     }
 
+    if (tab === 'aitools') {
+      populateAiTools();
+    }
+
     if (tab === 'texts') {
       populateTextSpeechToggle();
     }
@@ -884,6 +889,8 @@ async function loadModTbuddy() {
       audio: {},
       bubbleStyle: null,
       bubbleEnabled: false,
+      aiTools: null,
+      aiToolsEnabled: false,
       textSpeechEnabled: false,
       audioSpeechEnabled: false,
       previewData: null,
@@ -913,6 +920,12 @@ async function loadModTbuddy() {
     if (bubbleFile) {
       currentMod.bubbleStyle = JSON.parse(await bubbleFile.async('string'));
       currentMod.bubbleEnabled = true;
+    }
+
+    const aiToolsFile = getZipFile(`${rootPath}ai_tools.json`);
+    if (aiToolsFile) {
+      currentMod.aiTools = JSON.parse(await aiToolsFile.async('string'));
+      currentMod.aiToolsEnabled = true;
     }
     
     // 读取 text 和 audio
@@ -1003,6 +1016,7 @@ function finishLoading(manifest) {
   renderTexts();
   renderAudio();
   populateBubbleStyle();
+  populateAiTools();
   
   switchTab('manifest');
   document.querySelector('.nav-tab[data-tab="manifest"]').classList.add('active');
@@ -1050,6 +1064,8 @@ async function loadModFolder() {
       audio: {},
       bubbleStyle: null,
       bubbleEnabled: false,
+      aiTools: null,
+      aiToolsEnabled: false,
       textSpeechEnabled: false,
       audioSpeechEnabled: false,
       previewData: null,
@@ -1117,6 +1133,16 @@ async function loadModFolder() {
       currentMod.bubbleEnabled = true;
     } catch (e) {
       console.debug('No bubble_style.json found');
+    }
+
+    // 读取 ai_tools.json
+    try {
+      const aiToolsHandle = await modFolderHandle.getFileHandle('ai_tools.json');
+      const aiToolsFile = await aiToolsHandle.getFile();
+      currentMod.aiTools = JSON.parse(await aiToolsFile.text());
+      currentMod.aiToolsEnabled = true;
+    } catch (e) {
+      console.debug('No ai_tools.json found');
     }
     
     // 读取 text 目录
@@ -1303,6 +1329,11 @@ async function createModFromTemplate(modId, modName, modAuthor, modType = 'seque
     ? await fetchJsonSafe(`${base}/${structure.bubble_style}`)
     : null;
 
+  // 3.5 读取 ai_tools（可选）
+  const aiToolsData = structure.ai_tools
+    ? await fetchJsonSafe(`${base}/${structure.ai_tools}`)
+    : null;
+
   // 4. 动态读取 assets
   const assets = { sequence: [], img: [], live2d: null, pngremix: null, threed: null };
   if (structure.assets) {
@@ -1362,6 +1393,8 @@ async function createModFromTemplate(modId, modName, modAuthor, modType = 'seque
     audio,
     bubbleStyle: (bubbleStyle && typeof bubbleStyle === 'object') ? deepClone(bubbleStyle) : null,
     bubbleEnabled: !!(bubbleStyle && typeof bubbleStyle === 'object'),
+    aiTools: (aiToolsData && typeof aiToolsData === 'object') ? deepClone(aiToolsData) : null,
+    aiToolsEnabled: !!(aiToolsData && typeof aiToolsData === 'object'),
 
     // 与气泡样式类似：新建 Mod 默认关闭，未启用则不生成对应 speech.json
     textSpeechEnabled: false,
@@ -2114,6 +2147,7 @@ async function saveMod() {
   // 从表单收集数据
   collectManifestData();
   collectBubbleStyle();
+  collectAiTools();
 
   // 如果是从文件夹加载的 Mod，保存/导出时把该目录下的非 json 资源一并带上
   const sourceFolderHandle = modFolderHandle;
@@ -2166,6 +2200,18 @@ async function saveMod() {
       const bubbleWritable = await bubbleHandle.createWritable();
       await bubbleWritable.write(stringifyForSave(currentMod.bubbleStyle));
       await bubbleWritable.close();
+    } else {
+      try { await modFolderHandle.removeEntry('bubble_style.json'); } catch (_) {}
+    }
+
+    // 保存 ai_tools.json (仅当启用时)
+    if (currentMod.aiToolsEnabled && currentMod.aiTools) {
+      const aiToolsHandle = await safeGetFileHandle(modFolderHandle, 'ai_tools.json', { create: true, overwriteDirectory: true });
+      const aiToolsWritable = await aiToolsHandle.createWritable();
+      await aiToolsWritable.write(stringifyForSave(currentMod.aiTools));
+      await aiToolsWritable.close();
+    } else {
+      try { await modFolderHandle.removeEntry('ai_tools.json'); } catch (_) {}
     }
     
     // 创建 asset 目录并保存
@@ -2355,6 +2401,7 @@ async function exportMod() {
   
   collectManifestData();
   collectBubbleStyle();
+  collectAiTools();
   
   try {
     showToast(window.i18n.t('msg_exporting'), 'info');
@@ -2365,6 +2412,9 @@ async function exportMod() {
     root.file('manifest.json', stringifyForSave(getManifestForSave()));
     if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
       root.file('bubble_style.json', stringifyForSave(currentMod.bubbleStyle));
+    }
+    if (currentMod.aiToolsEnabled && currentMod.aiTools) {
+      root.file('ai_tools.json', stringifyForSave(currentMod.aiTools));
     }
     
     const asset = root.folder('asset');
@@ -2494,6 +2544,7 @@ async function exportModSbuddy() {
 
   collectManifestData();
   collectBubbleStyle();
+  collectAiTools();
 
   try {
     showToast(window.i18n.t('msg_exporting_sbuddy') || window.i18n.t('msg_exporting'), 'info');
@@ -2504,6 +2555,9 @@ async function exportModSbuddy() {
     root.file('manifest.json', stringifyForSave(getManifestForSave()));
     if (currentMod.bubbleEnabled && currentMod.bubbleStyle) {
       root.file('bubble_style.json', stringifyForSave(currentMod.bubbleStyle));
+    }
+    if (currentMod.aiToolsEnabled && currentMod.aiTools) {
+      root.file('ai_tools.json', stringifyForSave(currentMod.aiTools));
     }
 
     const asset = root.folder('asset');
@@ -2894,8 +2948,558 @@ function collectBubbleStyle() {
   if (Object.keys(s.branch.button_active).length === 0) delete s.branch.button_active;
 }
 
+// ============================================================================
+// AI 工具配置 (ai_tools.json)
+// ============================================================================
+
+/**
+ * 切换 AI 工具启用状态
+ */
+function toggleAiTools() {
+  const enabled = document.getElementById('aitools-enable').checked;
+  const fields = document.getElementById('aitools-fields');
+
+  if (enabled) {
+    fields.classList.remove('bubble-disabled');
+    fields.classList.add('bubble-enabled');
+  } else {
+    fields.classList.remove('bubble-enabled');
+    fields.classList.add('bubble-disabled');
+  }
+
+  if (currentMod) {
+    currentMod.aiToolsEnabled = enabled;
+    if (enabled && !currentMod.aiTools) {
+      currentMod.aiTools = { ai_tools: [] };
+    }
+    markUnsaved();
+  }
+}
+
+/**
+ * 填充 AI 工具编辑面板
+ */
+function populateAiTools() {
+  if (!currentMod) return;
+
+  const enabled = currentMod.aiToolsEnabled === true;
+  document.getElementById('aitools-enable').checked = enabled;
+
+  const fields = document.getElementById('aitools-fields');
+  if (enabled) {
+    fields.classList.remove('bubble-disabled');
+    fields.classList.add('bubble-enabled');
+  } else {
+    fields.classList.remove('bubble-enabled');
+    fields.classList.add('bubble-disabled');
+  }
+
+  const searchEl = document.getElementById('aitools-process-search');
+  if (searchEl) searchEl.value = '';
+
+  renderAiToolProcessList();
+}
+
+/**
+ * 进程搜索过滤
+ */
+function filterAiToolProcesses() {
+  const keyword = (document.getElementById('aitools-process-search')?.value || '').trim().toLowerCase();
+  const container = document.getElementById('aitools-process-list');
+  if (!container) return;
+  container.querySelectorAll('.aitools-process-card').forEach(card => {
+    const name = (card.dataset.processName || '').toLowerCase();
+    card.style.display = (!keyword || name.includes(keyword)) ? '' : 'none';
+  });
+}
+
+/**
+ * 工具搜索过滤
+ */
+function filterAiToolTools(pIdx) {
+  const input = document.getElementById(`aitools-tool-search-${pIdx}`);
+  const keyword = (input?.value || '').trim().toLowerCase();
+  const container = document.getElementById(`aitools-tools-${pIdx}`);
+  if (!container) return;
+  container.querySelectorAll('.aitools-tool-card').forEach(card => {
+    const name = (card.dataset.toolName || '').toLowerCase();
+    card.style.display = (!keyword || name.includes(keyword)) ? '' : 'none';
+  });
+}
+
+/**
+ * 渲染进程列表
+ */
+function renderAiToolProcessList() {
+  const container = document.getElementById('aitools-process-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const processes = currentMod?.aiTools?.ai_tools;
+  if (!Array.isArray(processes) || processes.length === 0) {
+    container.innerHTML = `<div class="empty-hint" style="padding:20px;text-align:center;color:#64748b;">${window.i18n?.t('aitools_no_processes') || '暂无进程配置，点击「添加进程」开始'}</div>`;
+    return;
+  }
+
+  processes.forEach((proc, pIdx) => {
+    const procEl = document.createElement('div');
+    procEl.className = 'card aitools-process-card tb-sort-item';
+    procEl.dataset.sortKey = String(pIdx);
+    procEl.dataset.processName = proc.process_name || '';
+    procEl.style.cssText = 'margin-bottom:16px;padding:16px;border:1px solid #334155;border-radius:8px;background:#1e293b;';
+
+    procEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        ${renderSortHandleHtml()}
+        <label style="white-space:nowrap;font-weight:600;color:#94a3b8;">${window.i18n?.t('aitools_process_name') || '进程名'}:</label>
+        <input type="text" class="aitools-process-name" data-pidx="${pIdx}" value="${escapeHtml(proc.process_name || '')}" style="flex:1;" placeholder="example_game.exe">
+        <button class="btn btn-sm btn-ghost" onclick="copyAiToolProcess(${pIdx})" title="${window.i18n?.t('btn_copy_to_clipboard') || '复制'}">📋</button>
+        <button class="btn btn-sm btn-danger" onclick="removeAiToolProcess(${pIdx})" title="${window.i18n?.t('btn_delete') || '删除'}">🗑️</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <h4 style="margin:0;color:#e2e8f0;">${window.i18n?.t('aitools_tool_data') || '工具列表'}</h4>
+        <div style="flex:1;"></div>
+        <input type="text" id="aitools-tool-search-${pIdx}" placeholder="${window.i18n?.t('aitools_search_tool_hint') || '搜索工具...'}" oninput="filterAiToolTools(${pIdx})" style="width:150px;padding:4px 8px;font-size:12px;">
+        <button class="btn btn-sm btn-ghost" onclick="pasteAiToolData(${pIdx})">📋 ${window.i18n?.t('btn_paste_from_clipboard') || '粘贴'}</button>
+        <button class="btn btn-sm btn-ghost" onclick="addAiToolData(${pIdx})">➕ ${window.i18n?.t('aitools_add_tool') || '添加工具'}</button>
+      </div>
+      <div class="aitools-tool-list" id="aitools-tools-${pIdx}"></div>
+    `;
+
+    container.appendChild(procEl);
+
+    // 监听进程名变化
+    const nameInput = procEl.querySelector('.aitools-process-name');
+    nameInput.addEventListener('change', () => {
+      procEl.dataset.processName = nameInput.value.trim();
+      collectAiTools();
+      markUnsaved();
+    });
+
+    // 渲染工具列表
+    const toolContainer = procEl.querySelector(`#aitools-tools-${pIdx}`);
+    if (Array.isArray(proc.tool_data)) {
+      proc.tool_data.forEach((tool, tIdx) => {
+        toolContainer.appendChild(renderAiToolDataItem(pIdx, tIdx, tool));
+      });
+    }
+
+    // 初始化工具拖拽排序
+    enableTbSortable(toolContainer, {
+      itemSelector: '.aitools-tool-card',
+      handleSelector: '.tb-drag-handle',
+      onSortedKeys(keys) {
+        collectAiTools();
+        const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+        if (!proc) return;
+        const oldTools = [...proc.tool_data];
+        proc.tool_data = keys.map(k => oldTools[parseInt(k, 10)]).filter(Boolean);
+        renderAiToolProcessList();
+        markUnsaved();
+      }
+    });
+  });
+
+  // 初始化进程拖拽排序
+  enableTbSortable(container, {
+    itemSelector: '.aitools-process-card',
+    handleSelector: '.tb-drag-handle',
+    onSortedKeys(keys) {
+      collectAiTools();
+      const oldProcs = [...currentMod.aiTools.ai_tools];
+      currentMod.aiTools.ai_tools = keys.map(k => oldProcs[parseInt(k, 10)]).filter(Boolean);
+      renderAiToolProcessList();
+      markUnsaved();
+    }
+  });
+}
+
+/**
+ * 渲染关键词可视化列表
+ */
+function renderAiToolKeywordsList(keywords, pIdx, tIdx) {
+  const id = `ait-keywords-list-${pIdx}-${tIdx}`;
+  let html = `<div id="${id}" class="tag-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">`;
+  (keywords || []).forEach((kw, i) => {
+    html += `<span class="tag-item" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#334155;border-radius:4px;font-size:12px;color:#e2e8f0;">
+      ${escapeHtml(kw)}
+      <button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;line-height:1;" onclick="removeAiToolKeyword(${pIdx},${tIdx},${i})">×</button>
+    </span>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+/**
+ * 渲染可触发状态可视化列表
+ */
+function renderAiToolStatesList(states, pIdx, tIdx) {
+  const id = `ait-states-list-${pIdx}-${tIdx}`;
+  let html = `<div id="${id}" class="tag-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">`;
+  (states || []).forEach((s, i) => {
+    html += `<span class="tag-item" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#1e3a5f;border-radius:4px;font-size:12px;color:#93c5fd;">
+      ${escapeHtml(s.state)}:<strong>${s.weight ?? 1}</strong>
+      <button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;line-height:1;" onclick="removeAiToolState(${pIdx},${tIdx},${i})">×</button>
+    </span>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+/**
+ * 渲染单个 AI 工具条目
+ */
+function renderAiToolDataItem(pIdx, tIdx, tool) {
+  const el = document.createElement('details');
+  el.className = 'ai-tool-item aitools-tool-card tb-sort-item';
+  el.dataset.sortKey = String(tIdx);
+  el.dataset.toolName = tool.name || '';
+  el.style.cssText = 'margin-bottom:8px;padding:12px;border:1px solid #475569;border-radius:6px;background:#0f172a;';
+  el.open = false;
+
+  const promptsStr = (tool.prompts || []).join('\n');
+
+  el.innerHTML = `
+    <summary style="cursor:pointer;display:flex;align-items:center;gap:8px;">
+      ${renderSortHandleHtml()}
+      <span style="font-weight:600;color:#e2e8f0;">${escapeHtml(tool.name || 'tool_' + tIdx)}</span>
+      <span style="color:#64748b;font-size:12px;">[${tool.tool_type || tool.type || 'manual'}]</span>
+      <span style="flex:1;"></span>
+      <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();copyAiToolData(${pIdx},${tIdx})" title="${window.i18n?.t('btn_copy_to_clipboard') || '复制'}">📋</button>
+      <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();removeAiToolData(${pIdx},${tIdx})" title="${window.i18n?.t('btn_delete') || '删除'}">🗑️</button>
+    </summary>
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+      <div class="form-group">
+        <label>${window.i18n?.t('aitools_field_name') || '名称'}</label>
+        <input type="text" class="ait-name" data-pidx="${pIdx}" data-tidx="${tIdx}" value="${escapeHtml(tool.name || '')}">
+      </div>
+      <div class="form-group">
+        <label>${window.i18n?.t('aitools_field_type') || '类型'}</label>
+        <select class="ait-type" data-pidx="${pIdx}" data-tidx="${tIdx}">
+          <option value="manual" ${(tool.tool_type || tool.type) === 'manual' ? 'selected' : ''}>manual</option>
+          <option value="auto" ${(tool.tool_type || tool.type) === 'auto' ? 'selected' : ''}>auto</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>${window.i18n?.t('aitools_field_auto_start') || '自动启动'}</label>
+        <label class="switch">
+          <input type="checkbox" class="ait-auto-start" data-pidx="${pIdx}" data-tidx="${tIdx}" ${tool.auto_start ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>${window.i18n?.t('aitools_field_capture_rect') || '截取区域'} (x, y, width, height)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
+          <input type="number" class="ait-rect-x" data-pidx="${pIdx}" data-tidx="${tIdx}" value="${tool.capture_rect?.x ?? 0}" placeholder="x">
+          <input type="number" class="ait-rect-y" data-pidx="${pIdx}" data-tidx="${tIdx}" value="${tool.capture_rect?.y ?? 0}" placeholder="y">
+          <input type="number" class="ait-rect-w" data-pidx="${pIdx}" data-tidx="${tIdx}" value="${tool.capture_rect?.width ?? 1920}" placeholder="width">
+          <input type="number" class="ait-rect-h" data-pidx="${pIdx}" data-tidx="${tIdx}" value="${tool.capture_rect?.height ?? 1080}" placeholder="height">
+        </div>
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>${window.i18n?.t('aitools_field_prompts') || '提示词'} <small style="color:#64748b;">(${window.i18n?.t('aitools_field_prompts_hint') || '每行一条'})</small></label>
+        <textarea class="ait-prompts" data-pidx="${pIdx}" data-tidx="${tIdx}" rows="3" style="font-size:13px;">${escapeHtml(promptsStr)}</textarea>
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>${window.i18n?.t('aitools_field_keywords') || '关键词'}</label>
+        <div style="display:flex;gap:4px;">
+          <input type="text" id="ait-keyword-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_keyword_add_hint') || '输入关键词后按 Enter 或点击添加'}" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addAiToolKeyword(${pIdx},${tIdx});}">
+          <button class="btn btn-sm btn-ghost" onclick="addAiToolKeyword(${pIdx},${tIdx})">➕</button>
+        </div>
+        ${renderAiToolKeywordsList(tool.keywords, pIdx, tIdx)}
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>${window.i18n?.t('aitools_field_can_trigger_states') || '可触发状态'}</label>
+        <div style="display:flex;gap:4px;">
+          <input type="text" id="ait-state-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_state_add_hint') || '状态名'}" style="flex:1;">
+          <input type="number" id="ait-state-weight-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('weight_label') || '权重'}" value="1" style="width:70px;" min="1">
+          <button class="btn btn-sm btn-ghost" onclick="addAiToolState(${pIdx},${tIdx})">➕</button>
+        </div>
+        ${renderAiToolStatesList(tool.can_trigger_states, pIdx, tIdx)}
+      </div>
+    </div>
+  `;
+
+  // 给所有输入元素添加 change 监听
+  setTimeout(() => {
+    el.querySelectorAll('input, textarea, select').forEach(inp => {
+      // 排除关键词和状态的输入框（这些有独立处理）
+      if (inp.id && (inp.id.startsWith('ait-keyword-input-') || inp.id.startsWith('ait-state-input-') || inp.id.startsWith('ait-state-weight-input-'))) return;
+      inp.addEventListener('change', () => {
+        collectAiTools();
+        // 同步工具名到 summary 和 dataset
+        if (inp.classList.contains('ait-name')) {
+          const summary = el.querySelector('summary span:first-of-type');
+          if (summary) summary.textContent = inp.value || 'tool_' + tIdx;
+          el.dataset.toolName = inp.value || '';
+        }
+        markUnsaved();
+      });
+    });
+    // Enter 添加状态
+    const stateInput = el.querySelector(`#ait-state-input-${pIdx}-${tIdx}`);
+    if (stateInput) {
+      stateInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); addAiToolState(pIdx, tIdx); }
+      });
+    }
+  }, 0);
+
+  return el;
+}
+
+/* ---- 关键词列表操作 ---- */
+
+function addAiToolKeyword(pIdx, tIdx) {
+  const input = document.getElementById(`ait-keyword-input-${pIdx}-${tIdx}`);
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) return;
+
+  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+  if (!proc?.tool_data?.[tIdx]) return;
+  if (!Array.isArray(proc.tool_data[tIdx].keywords)) proc.tool_data[tIdx].keywords = [];
+  proc.tool_data[tIdx].keywords.push(val);
+  input.value = '';
+
+  // 刷新标签列表
+  const listContainer = document.getElementById(`ait-keywords-list-${pIdx}-${tIdx}`);
+  if (listContainer) {
+    listContainer.outerHTML = renderAiToolKeywordsList(proc.tool_data[tIdx].keywords, pIdx, tIdx);
+  }
+  markUnsaved();
+}
+
+function removeAiToolKeyword(pIdx, tIdx, kwIdx) {
+  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+  if (!proc?.tool_data?.[tIdx]?.keywords) return;
+  proc.tool_data[tIdx].keywords.splice(kwIdx, 1);
+
+  const listContainer = document.getElementById(`ait-keywords-list-${pIdx}-${tIdx}`);
+  if (listContainer) {
+    listContainer.outerHTML = renderAiToolKeywordsList(proc.tool_data[tIdx].keywords, pIdx, tIdx);
+  }
+  markUnsaved();
+}
+
+/* ---- 可触发状态列表操作 ---- */
+
+function addAiToolState(pIdx, tIdx) {
+  const stateInput = document.getElementById(`ait-state-input-${pIdx}-${tIdx}`);
+  const weightInput = document.getElementById(`ait-state-weight-input-${pIdx}-${tIdx}`);
+  if (!stateInput) return;
+  const state = stateInput.value.trim();
+  if (!state) return;
+  const weight = parseInt(weightInput?.value, 10) || 1;
+
+  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+  if (!proc?.tool_data?.[tIdx]) return;
+  if (!Array.isArray(proc.tool_data[tIdx].can_trigger_states)) proc.tool_data[tIdx].can_trigger_states = [];
+  proc.tool_data[tIdx].can_trigger_states.push({ state, weight });
+  stateInput.value = '';
+  if (weightInput) weightInput.value = '1';
+
+  const listContainer = document.getElementById(`ait-states-list-${pIdx}-${tIdx}`);
+  if (listContainer) {
+    listContainer.outerHTML = renderAiToolStatesList(proc.tool_data[tIdx].can_trigger_states, pIdx, tIdx);
+  }
+  markUnsaved();
+}
+
+function removeAiToolState(pIdx, tIdx, sIdx) {
+  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+  if (!proc?.tool_data?.[tIdx]?.can_trigger_states) return;
+  proc.tool_data[tIdx].can_trigger_states.splice(sIdx, 1);
+
+  const listContainer = document.getElementById(`ait-states-list-${pIdx}-${tIdx}`);
+  if (listContainer) {
+    listContainer.outerHTML = renderAiToolStatesList(proc.tool_data[tIdx].can_trigger_states, pIdx, tIdx);
+  }
+  markUnsaved();
+}
+
+/* ---- 复制/粘贴进程 ---- */
+
+async function copyAiToolProcess(pIdx) {
+  collectAiTools();
+  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+  if (!proc) { showToast(window.i18n?.t('msg_no_data_to_copy') || 'No data', 'warning'); return; }
+  try {
+    await navigator.clipboard.writeText(JSON.stringify({ type: 'tbuddy_aitools_process', data: proc }, null, 2));
+    showToast(window.i18n?.t('msg_copied_to_clipboard') || 'Copied', 'success');
+  } catch (e) {
+    showToast(window.i18n?.t('msg_clipboard_read_failed') || 'Failed', 'error');
+  }
+}
+
+async function pasteAiToolProcess() {
+  if (!currentMod) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== 'tbuddy_aitools_process' || typeof parsed.data !== 'object') {
+      showToast(window.i18n?.t('msg_clipboard_empty') || 'Empty', 'warning');
+      return;
+    }
+    if (!currentMod.aiTools) currentMod.aiTools = { ai_tools: [] };
+    if (!Array.isArray(currentMod.aiTools.ai_tools)) currentMod.aiTools.ai_tools = [];
+    currentMod.aiTools.ai_tools.push(JSON.parse(JSON.stringify(parsed.data)));
+    renderAiToolProcessList();
+    markUnsaved();
+    showToast(window.i18n?.t('msg_pasted_from_clipboard') || 'Pasted', 'success');
+  } catch (e) {
+    showToast(window.i18n?.t('msg_clipboard_empty') || 'Empty', 'warning');
+  }
+}
+
+/* ---- 复制/粘贴工具 ---- */
+
+async function copyAiToolData(pIdx, tIdx) {
+  collectAiTools();
+  const tool = currentMod?.aiTools?.ai_tools?.[pIdx]?.tool_data?.[tIdx];
+  if (!tool) { showToast(window.i18n?.t('msg_no_data_to_copy') || 'No data', 'warning'); return; }
+  try {
+    await navigator.clipboard.writeText(JSON.stringify({ type: 'tbuddy_aitools_tool', data: tool }, null, 2));
+    showToast(window.i18n?.t('msg_copied_to_clipboard') || 'Copied', 'success');
+  } catch (e) {
+    showToast(window.i18n?.t('msg_clipboard_read_failed') || 'Failed', 'error');
+  }
+}
+
+async function pasteAiToolData(pIdx) {
+  if (!currentMod?.aiTools?.ai_tools?.[pIdx]) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = JSON.parse(text);
+    if (parsed.type !== 'tbuddy_aitools_tool' || typeof parsed.data !== 'object') {
+      showToast(window.i18n?.t('msg_clipboard_empty') || 'Empty', 'warning');
+      return;
+    }
+    currentMod.aiTools.ai_tools[pIdx].tool_data.push(JSON.parse(JSON.stringify(parsed.data)));
+    renderAiToolProcessList();
+    markUnsaved();
+    showToast(window.i18n?.t('msg_pasted_from_clipboard') || 'Pasted', 'success');
+  } catch (e) {
+    showToast(window.i18n?.t('msg_clipboard_empty') || 'Empty', 'warning');
+  }
+}
+
+/**
+ * 添加进程
+ */
+function addAiToolProcess() {
+  if (!currentMod) return;
+  if (!currentMod.aiTools) {
+    currentMod.aiTools = { ai_tools: [] };
+  }
+  currentMod.aiTools.ai_tools.push({
+    process_name: '',
+    tool_data: []
+  });
+  renderAiToolProcessList();
+  markUnsaved();
+}
+
+/**
+ * 删除进程
+ */
+function removeAiToolProcess(pIdx) {
+  if (!currentMod?.aiTools?.ai_tools) return;
+  currentMod.aiTools.ai_tools.splice(pIdx, 1);
+  renderAiToolProcessList();
+  markUnsaved();
+}
+
+/**
+ * 添加工具
+ */
+function addAiToolData(pIdx) {
+  if (!currentMod?.aiTools?.ai_tools?.[pIdx]) return;
+  currentMod.aiTools.ai_tools[pIdx].tool_data.push({
+    name: '',
+    auto_start: false,
+    type: 'manual',
+    capture_rect: { x: 0, y: 0, width: 1920, height: 1080 },
+    prompts: [],
+    keywords: [],
+    can_trigger_states: []
+  });
+  renderAiToolProcessList();
+  markUnsaved();
+}
+
+/**
+ * 删除工具
+ */
+function removeAiToolData(pIdx, tIdx) {
+  if (!currentMod?.aiTools?.ai_tools?.[pIdx]?.tool_data) return;
+  currentMod.aiTools.ai_tools[pIdx].tool_data.splice(tIdx, 1);
+  renderAiToolProcessList();
+  markUnsaved();
+}
+
+/**
+ * 从 DOM 收集 AI 工具数据到 currentMod.aiTools
+ */
+function collectAiTools() {
+  if (!currentMod) return;
+  if (!currentMod.aiTools) {
+    currentMod.aiTools = { ai_tools: [] };
+  }
+  if (!Array.isArray(currentMod.aiTools.ai_tools)) {
+    currentMod.aiTools.ai_tools = [];
+  }
+
+  // 收集每个进程
+  document.querySelectorAll('.aitools-process-name').forEach(el => {
+    const pIdx = parseInt(el.dataset.pidx, 10);
+    if (currentMod.aiTools.ai_tools[pIdx]) {
+      currentMod.aiTools.ai_tools[pIdx].process_name = el.value.trim();
+    }
+  });
+
+  // 收集每个工具（keywords 和 can_trigger_states 由独立操作管理，这里只收集其他字段）
+  document.querySelectorAll('.ait-name').forEach(el => {
+    const pIdx = parseInt(el.dataset.pidx, 10);
+    const tIdx = parseInt(el.dataset.tidx, 10);
+    const proc = currentMod.aiTools.ai_tools[pIdx];
+    if (!proc?.tool_data?.[tIdx]) return;
+    const tool = proc.tool_data[tIdx];
+
+    // name
+    tool.name = el.value.trim();
+
+    // type
+    const typeEl = document.querySelector(`.ait-type[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    if (typeEl) tool.type = typeEl.value;
+
+    // auto_start
+    const autoStartEl = document.querySelector(`.ait-auto-start[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    if (autoStartEl) tool.auto_start = autoStartEl.checked;
+
+    // capture_rect
+    const rx = document.querySelector(`.ait-rect-x[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    const ry = document.querySelector(`.ait-rect-y[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    const rw = document.querySelector(`.ait-rect-w[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    const rh = document.querySelector(`.ait-rect-h[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    tool.capture_rect = {
+      x: parseInt(rx?.value, 10) || 0,
+      y: parseInt(ry?.value, 10) || 0,
+      width: parseInt(rw?.value, 10) || 1920,
+      height: parseInt(rh?.value, 10) || 1080
+    };
+
+    // prompts
+    const promptsEl = document.querySelector(`.ait-prompts[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    if (promptsEl) {
+      tool.prompts = promptsEl.value.split('\n').map(s => s.trim()).filter(Boolean);
+    }
+  });
+}
+
 /**
  * 填充 Manifest 表单
+
 
  */
 function populateManifestForm() {

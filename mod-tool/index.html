@@ -55,6 +55,7 @@
         <li class="nav-tab" data-tab="assets">🖼️ <span data-i18n="tab_assets">动画</span></li>
         <li class="nav-tab" data-tab="states-triggers">🎭 <span data-i18n="tab_states_triggers">状态和触发</span></li>
         <li class="nav-tab" data-tab="bubble">💬 <span data-i18n="tab_bubble">气泡样式</span></li>
+        <li class="nav-tab" data-tab="aitools">🤖 <span data-i18n="tab_aitools">AI 工具</span></li>
       </ul>
     </nav>
 
@@ -1184,6 +1185,51 @@
                 </section>
               </div>
             </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI 工具配置 Tab -->
+        <div class="tab-content" id="tab-aitools">
+          <div class="panel-header">
+            <h2>🤖 <span data-i18n="aitools_title">AI 工具配置</span></h2>
+            <p class="panel-desc" data-i18n="aitools_desc">配置 AI 截图识别工具（ai_tools.json）</p>
+          </div>
+          <div class="panel-body">
+            <!-- AI 工具开关 -->
+            <section class="form-section">
+              <div class="form-group">
+                <label for="aitools-enable" data-i18n="aitools_enable_label">启用 AI 工具配置</label>
+                <label class="switch">
+                  <input type="checkbox" id="aitools-enable" onchange="toggleAiTools()">
+                  <span class="slider"></span>
+                </label>
+                <small data-i18n="aitools_enable_hint">关闭后将不会生成 ai_tools.json</small>
+              </div>
+            </section>
+
+            <div id="aitools-fields" class="bubble-disabled">
+
+            <!-- 进程列表 -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3 data-i18n="aitools_processes_title">进程配置</h3>
+                <div class="section-actions">
+                  <button class="btn btn-sm btn-ghost" onclick="pasteAiToolProcess()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                  <button class="btn btn-sm btn-primary" onclick="addAiToolProcess()">➕ <span data-i18n="aitools_add_process">添加进程</span></button>
+                </div>
+              </div>
+              <div class="list-filters" style="margin-bottom:8px;">
+                <div class="form-group">
+                  <label data-i18n="aitools_search_process">搜索进程</label>
+                  <input type="text" id="aitools-process-search" data-i18n-placeholder="aitools_search_process_hint" placeholder="按进程名搜索..." oninput="filterAiToolProcesses()">
+                </div>
+              </div>
+              <div id="aitools-process-list">
+                <!-- 由 JS 动态填充 -->
+              </div>
+            </section>
+
             </div>
           </div>
         </div>

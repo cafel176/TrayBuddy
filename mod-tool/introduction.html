@@ -35,6 +35,7 @@
       <li><a href="#manifest" data-i18n="toc_manifest">基础信息配置</a></li>
       <li><a href="#states-triggers" data-i18n="toc_states_triggers">状态和触发</a></li>
       <li><a href="#bubble" data-i18n="toc_bubble">气泡样式配置</a></li>
+      <li><a href="#aitools" data-i18n="toc_aitools">AI 工具配置</a></li>
       <li><a href="#assets" data-i18n="toc_assets">动画管理</a></li>
       <li><a href="#live2d" data-i18n="toc_live2d">Live2D 动画</a></li>
       <li><a href="#pngremix" data-i18n="toc_pngremix">PngRemix 动画</a></li>
@@ -72,6 +73,11 @@
           <div class="feature-icon">💬</div>
           <div class="feature-title" data-i18n="feature_bubble">气泡样式</div>
           <div class="feature-desc" data-i18n="feature_bubble_desc">自定义对话气泡样式，支持实时预览效果</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <div class="feature-title" data-i18n="feature_aitools">AI 工具</div>
+          <div class="feature-desc" data-i18n="feature_aitools_desc">配置 AI 截图识别工具，自动识别游戏画面触发状态</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🖼️</div>
@@ -301,6 +307,32 @@
         <li data-i18n="bubble_deco"><strong>装饰文字</strong>：上方/下方装饰字符</li>
         <li data-i18n="bubble_branch"><strong>分支按钮</strong>：正常/悬浮/点击状态样式</li>
       </ul>
+    </section>
+
+    <!-- AI 工具配置 -->
+    <section id="aitools">
+      <h2 data-i18n="section_aitools">🤖 AI 工具配置</h2>
+      <p data-i18n="aitools_intro_desc">配置 AI 截图识别工具，可以自动截取指定进程的屏幕区域，通过 AI 分析后触发角色状态变化。</p>
+
+      <h3 data-i18n="aitools_intro_process_title">进程配置</h3>
+      <p data-i18n="aitools_intro_process_desc">每个进程对应一个目标程序（如游戏 exe），可包含多个识别工具。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td data-i18n="aitools_intro_field_process_name">process_name</td><td data-i18n="aitools_intro_process_name_desc">目标进程名称（如 example_game.exe）</td></tr>
+      </table>
+
+      <h3 data-i18n="aitools_intro_tool_title">工具配置</h3>
+      <p data-i18n="aitools_intro_tool_desc">每个工具定义一组截图识别规则。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td data-i18n="aitools_intro_field_name">name</td><td data-i18n="aitools_intro_name_desc">工具名称</td></tr>
+        <tr><td data-i18n="aitools_intro_field_type">type</td><td data-i18n="aitools_intro_type_desc">类型：auto（自动定时截图）或 manual（手动触发）</td></tr>
+        <tr><td data-i18n="aitools_intro_field_auto_start">auto_start</td><td data-i18n="aitools_intro_auto_start_desc">是否在检测到目标进程时自动启动</td></tr>
+        <tr><td data-i18n="aitools_intro_field_capture_rect">capture_rect</td><td data-i18n="aitools_intro_capture_rect_desc">截取区域 (x, y, width, height)</td></tr>
+        <tr><td data-i18n="aitools_intro_field_prompts">prompts</td><td data-i18n="aitools_intro_prompts_desc">发送给 AI 的提示词列表</td></tr>
+        <tr><td data-i18n="aitools_intro_field_keywords">keywords</td><td data-i18n="aitools_intro_keywords_desc">AI 返回结果中的匹配关键词</td></tr>
+        <tr><td data-i18n="aitools_intro_field_can_trigger_states">can_trigger_states</td><td data-i18n="aitools_intro_states_desc">关键词匹配成功后可触发的状态列表（state + weight 加权随机）</td></tr>
+      </table>
     </section>
 
     <!-- 动画管理 -->
@@ -645,6 +677,7 @@
       <ul>
         <li><code>manifest.json</code></li>
         <li><code>bubble_style.json</code><span data-i18n="saved_files_bubble_note">（开启气泡样式时生成）</span></li>
+        <li><code>ai_tools.json</code><span data-i18n="saved_files_aitools_note">（开启 AI 工具时生成）</span></li>
         <li><code>asset/sequence.json</code>, <code>asset/img.json</code><span data-i18n="saved_files_sequence_note">（序列帧 Mod）</span></li>
         <li><code>asset/live2d.json</code><span data-i18n="saved_files_live2d_note">（Live2D Mod）</span></li>
         <li><code>asset/pngremix.json</code><span data-i18n="saved_files_pngremix_note">（PngRemix Mod）</span></li>
