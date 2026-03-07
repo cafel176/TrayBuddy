@@ -33,6 +33,9 @@ import {
 /** ModData 变化提示（用于 +1/-1 浮层）。 */
 export type ModDataToast = { id: number; delta: number };
 
+/** AI 工具面板项 */
+export type AiToolItem = { name: string; type: string; enabled: boolean };
+
 /** 调试边框颜色配置。 */
 export type DebugColors = {
   bubble: string;
@@ -81,6 +84,10 @@ export type WindowCoreBindings = {
   getDebugBordersEnabled: () => boolean;
   setDebugBordersEnabled: (value: boolean) => void;
   setDebugColors: (value: DebugColors) => void;
+
+  // AI 工具面板
+  setAiToolItems: (value: AiToolItem[]) => void;
+  setAiToolPanelAvailable: (value: boolean) => void;
 };
 
 /**
@@ -175,6 +182,7 @@ export function createWindowCore(options: {
   let unlistenGlobalMouseState: (() => void) | null = null;
   let unlistenDragMouseState: (() => void) | null = null;
   let unlistenAiToolActivated: (() => void) | null = null;
+  let unlistenAiToolData: (() => void) | null = null;
   let unsubLang: (() => void) | null = null;
 
 
@@ -310,6 +318,35 @@ export function createWindowCore(options: {
     }
   }
 
+  /**
+   * 检查窗口内坐标是否命中可交互的 UI overlay 元素（HUD 按钮、面板等）。
+   * 这些元素虽然设置了 CSS pointer-events: auto，但 OS 层穿透会覆盖 CSS，
+   * 因此需要在轮询中手动检测并阻止穿透。
+   */
+  const UI_OVERLAY_SELECTORS = [
+    ".ai-tool-toggle-btn",
+    ".ai-tool-panel",
+    ".mod-data-panel",
+    ".no-mod-hint",
+  ];
+
+  function isCursorOnUiOverlay(localX: number, localY: number): boolean {
+    for (const selector of UI_OVERLAY_SELECTORS) {
+      const el = document.querySelector(selector);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (
+        localX >= rect.left &&
+        localX <= rect.right &&
+        localY >= rect.top &&
+        localY <= rect.bottom
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function getBubbleBounds(): {
     left: number;
     top: number;
@@ -375,6 +412,12 @@ export function createWindowCore(options: {
             }
           }
 
+          // 检查 UI overlay 元素（HUD 按钮、面板等）
+          if (isCursorOnUiOverlay(localX, localY)) {
+            await setClickThrough(false);
+            return;
+          }
+
           // 像素级检测 canvas 不透明区域
           const opaque = callbacks.isPixelOpaqueAtWindowPos(localX, localY);
           await setClickThrough(!opaque);
@@ -396,6 +439,19 @@ export function createWindowCore(options: {
         }
 
         // animation 窗口：使用后端矩形区域判断
+        // 先检查 UI overlay（需要获取窗口内坐标）
+        {
+          const cursor = await cursorPosition();
+          const win = getCurrentWindow();
+          const scaleFactor = await win.scaleFactor();
+          const position = await win.outerPosition();
+          const lx = (cursor.x - position.x) / scaleFactor;
+          const ly = (cursor.y - position.y) / scaleFactor;
+          if (isCursorOnUiOverlay(lx, ly)) {
+            await setClickThrough(false);
+            return;
+          }
+        }
         const inInteractArea = await invoke<boolean>(
           "is_cursor_in_interact_area",
           {
@@ -1179,6 +1235,23 @@ export function createWindowCore(options: {
         },
       );
 
+      // 监听 AI 工具数据变更事件：更新面板工具列表
+      unlistenAiToolData = await listen<{
+        process_name: string | null;
+        tools: { name: string; type: string; enabled: boolean }[];
+      }>("ai-tool-data-changed", (event) => {
+        const { tools, process_name } = event.payload;
+        if (process_name && tools.length > 0) {
+          bindings.setAiToolItems(
+            tools.map((t) => ({ name: t.name, type: t.type, enabled: t.enabled })),
+          );
+          bindings.setAiToolPanelAvailable(true);
+        } else {
+          bindings.setAiToolItems([]);
+          bindings.setAiToolPanelAvailable(false);
+        }
+      });
+
       const currentState: StateInfo | null = await invoke("get_persistent_state");
       if (currentState) await playState(currentState, false);
 
@@ -1318,6 +1391,7 @@ export function createWindowCore(options: {
     unlistenGlobalMouseState?.();
     unlistenDragMouseState?.();
     unlistenAiToolActivated?.();
+    unlistenAiToolData?.();
     unsubLang?.();
 
     destroyI18n();

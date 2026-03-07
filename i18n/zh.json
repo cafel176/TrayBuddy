@@ -55,7 +55,8 @@
 
     "settings": "用户设置",
     "runtime": "运行状态",
-    "layout": "布局渲染"
+    "layout": "布局渲染",
+    "aiTool": "AI工具"
   },
   "layout": {
     "title": "渲染窗口布局调试",
@@ -179,7 +180,32 @@
     "storageDirOpenFailed": "打开存储目录失败"
   },
   "aiTool": {
-    "activated": "AI工具启动"
+    "activated": "AI工具启动",
+    "togglePanel": "AI工具面板"
+  },
+  "aiToolDebug": {
+    "title": "AI 工具管理器",
+    "autoUpdate": "自动刷新",
+    "statusReading": "正在读取...",
+    "statusUpdated": "已更新于",
+    "statusWaiting": "等待数据...",
+    "managerStatus": "管理器状态",
+    "matchedProcess": "匹配进程",
+    "noMatch": "无匹配",
+    "activeTaskCount": "活跃任务数",
+    "toolCount": "工具数",
+    "lastUpdate": "最后更新",
+    "toolList": "工具列表",
+    "toolName": "工具名称",
+    "enabled": "启用",
+    "hasTask": "后台任务",
+    "taskId": "任务ID",
+    "noTools": "暂无工具",
+    "overview": "总览",
+    "processMatch": "进程匹配",
+    "taskStatus": "任务状态",
+    "tasksRunning": "{count} 个任务运行中",
+    "noTasks": "无活跃任务"
   },
   "environment": {
     "title": "Environment 调试面板",

@@ -55,7 +55,8 @@
 
     "settings": "設定",
     "runtime": "実行状態",
-    "layout": "レイアウト"
+    "layout": "レイアウト",
+    "aiTool": "AIツール"
   },
   "layout": {
     "title": "レンダリングウィンドウレイアウトデバッガー",
@@ -179,7 +180,32 @@
     "storageDirOpenFailed": "ストレージディレクトリを開くことができませんでした"
   },
   "aiTool": {
-    "activated": "AIツール起動"
+    "activated": "AIツール起動",
+    "togglePanel": "AIツールパネル"
+  },
+  "aiToolDebug": {
+    "title": "AIツールマネージャー",
+    "autoUpdate": "自動更新",
+    "statusReading": "読み込み中...",
+    "statusUpdated": "更新時刻",
+    "statusWaiting": "データ待機中...",
+    "managerStatus": "マネージャー状態",
+    "matchedProcess": "マッチプロセス",
+    "noMatch": "マッチなし",
+    "activeTaskCount": "アクティブタスク数",
+    "toolCount": "ツール数",
+    "lastUpdate": "最終更新",
+    "toolList": "ツールリスト",
+    "toolName": "ツール名",
+    "enabled": "有効",
+    "hasTask": "バックグラウンドタスク",
+    "taskId": "タスクID",
+    "noTools": "ツールなし",
+    "overview": "概要",
+    "processMatch": "プロセスマッチ",
+    "taskStatus": "タスク状態",
+    "tasksRunning": "{count} タスク実行中",
+    "noTasks": "アクティブタスクなし"
   },
   "environment": {
     "title": "環境デバッグパネル",

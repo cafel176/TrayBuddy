@@ -337,21 +337,46 @@ impl SystemObserver {
         update_cached_focused_process_name(focused_process.clone());
 
         // 5. AI 工具进程匹配：检测焦点进程是否匹配当前 Mod 的 ai_tools 配置
+        //    如果焦点切换到 TrayBuddy 自身（例如点击浮窗按钮），跳过匹配，保持当前状态
         {
             use crate::modules::ai_tool_manager;
+            use crate::modules::resource::AiToolProcess;
+
+            // 判断焦点进程是否为 TrayBuddy 自身
+            let is_self = if !focused_process.is_empty() {
+                let fp_lower = focused_process.to_lowercase();
+                // 获取当前可执行文件名（兼容 release / debug 模式）
+                let self_exe_name = std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()));
+                if let Some(ref self_name) = self_exe_name {
+                    fp_lower == *self_name
+                } else {
+                    // 回退：通过产品名匹配
+                    fp_lower.starts_with("traybuddy")
+                }
+            } else {
+                false
+            };
+
+            if is_self {
+                #[cfg(debug_assertions)]
+                println!(
+                    "[SystemObserver] Focus is on TrayBuddy itself ({}), skipping AI tool match",
+                    focused_process,
+                );
+            } else {
 
             let app_state: tauri::State<AppState> = app_handle.state();
-            let matched = if !focused_process.is_empty() {
+
+            // 查找匹配的进程及其 tool_data
+            let matched_proc: Option<AiToolProcess> = if !focused_process.is_empty() {
                 let rm = app_state.resource_manager.lock().unwrap();
                 if let Some(ai_config) = rm.get_ai_tools() {
                     let fp_lower = focused_process.to_lowercase();
-                    ai_config.ai_tools.iter().find_map(|proc| {
+                    ai_config.ai_tools.into_iter().find(|proc| {
                         let pn_lower = proc.process_name.to_lowercase();
-                        if fp_lower.contains(&pn_lower) || pn_lower.contains(&fp_lower) {
-                            Some(proc.process_name.to_string())
-                        } else {
-                            None
-                        }
+                        fp_lower.contains(&pn_lower) || pn_lower.contains(&fp_lower)
                     })
                 } else {
                     None
@@ -360,25 +385,90 @@ impl SystemObserver {
                 None
             };
 
+            let matched_name = matched_proc.as_ref().map(|p| p.process_name.to_string());
             let prev = ai_tool_manager::get_matched_ai_tool_process();
-            ai_tool_manager::set_matched_ai_tool_process(matched.clone());
+            let changed = prev != matched_name;
 
-            // 仅当新匹配到（之前未匹配或匹配到不同进程）时，发送 AI 工具激活事件
-            if let Some(ref process_name) = matched {
-                if prev.as_ref() != Some(process_name) {
+            if changed {
+                if let Some(ref proc) = matched_proc {
+                    // 新匹配到进程：初始化工具管理器
+                    let tools: Vec<(String, bool)> = proc
+                        .tool_data
+                        .iter()
+                        .map(|td| (td.name.to_string(), td.auto_start))
+                        .collect();
+                    ai_tool_manager::initialize_tools(&tools).await;
+                    ai_tool_manager::set_matched_ai_tool_process(matched_name.clone());
+
+                    // 发送 AI 工具激活事件（气泡通知）
+                    let process_name = proc.process_name.to_string();
                     let _ = emit(
                         app_handle,
                         events::AI_TOOL_ACTIVATED,
-                        serde_json::json!({ "process_name": process_name }),
+                        serde_json::json!({ "process_name": &process_name }),
                     );
+
+                    // 发送 tool_data 到前端（含启用状态）
+                    let tool_items: Vec<serde_json::Value> = proc
+                        .tool_data
+                        .iter()
+                        .map(|td| {
+                            serde_json::json!({
+                                "name": td.name.as_ref(),
+                                "type": match td.tool_type {
+                                    crate::modules::resource::AiToolType::Auto => "auto",
+                                    crate::modules::resource::AiToolType::Manual => "manual",
+                                },
+                                "enabled": td.auto_start,
+                            })
+                        })
+                        .collect();
+                    let _ = emit(
+                        app_handle,
+                        events::AI_TOOL_DATA_CHANGED,
+                        serde_json::json!({
+                            "process_name": &process_name,
+                            "tools": tool_items,
+                        }),
+                    );
+
                     #[cfg(debug_assertions)]
                     println!(
-                        "[SystemObserver] AI tool activated for process: {}",
-                        process_name
+                        "[SystemObserver] AI tool activated for process: {} ({} tools)",
+                        process_name,
+                        proc.tool_data.len(),
                     );
+
+                    // 推送调试快照
+                    ai_tool_manager::emit_debug_snapshot(app_handle).await;
+                } else {
+                    // 不再匹配任何进程：清空管理器
+                    ai_tool_manager::clear_all().await;
+
+                    // 通知前端清空面板
+                    let null_name: Option<String> = None;
+                    let empty_tools: Vec<serde_json::Value> = vec![];
+                    let _ = emit(
+                        app_handle,
+                        events::AI_TOOL_DATA_CHANGED,
+                        serde_json::json!({
+                            "process_name": null_name,
+                            "tools": empty_tools,
+                        }),
+                    );
+
+                    #[cfg(debug_assertions)]
+                    println!("[SystemObserver] AI tool deactivated (no matching process)");
+
+                    // 推送调试快照
+                    ai_tool_manager::emit_debug_snapshot(app_handle).await;
                 }
             }
+            } // end else: not TrayBuddy self
         }
+
+
+
 
 
 

@@ -55,7 +55,8 @@
 
     "settings": "Settings",
     "runtime": "Runtime",
-    "layout": "Layout"
+    "layout": "Layout",
+    "aiTool": "AI Tool"
   },
   "layout": {
     "title": "Render Window Layout Debugger",
@@ -179,7 +180,32 @@
     "storageDirOpenFailed": "Failed to open storage directory"
   },
   "aiTool": {
-    "activated": "AI Tool Activated"
+    "activated": "AI Tool Activated",
+    "togglePanel": "AI Tool Panel"
+  },
+  "aiToolDebug": {
+    "title": "AI Tool Manager",
+    "autoUpdate": "Auto Refresh",
+    "statusReading": "Reading...",
+    "statusUpdated": "Updated at",
+    "statusWaiting": "Waiting for data...",
+    "managerStatus": "Manager Status",
+    "matchedProcess": "Matched Process",
+    "noMatch": "No match",
+    "activeTaskCount": "Active Tasks",
+    "toolCount": "Tool Count",
+    "lastUpdate": "Last Update",
+    "toolList": "Tool List",
+    "toolName": "Tool Name",
+    "enabled": "Enabled",
+    "hasTask": "Background Task",
+    "taskId": "Task ID",
+    "noTools": "No tools available",
+    "overview": "Overview",
+    "processMatch": "Process Match",
+    "taskStatus": "Task Status",
+    "tasksRunning": "{count} task(s) running",
+    "noTasks": "No active tasks"
   },
   "environment": {
     "title": "Environment Debug Panel",

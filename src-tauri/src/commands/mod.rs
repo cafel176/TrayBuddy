@@ -34,6 +34,7 @@ use crate::modules::storage::{
     MemoItem, ModData, ReminderItem, ReminderSchedule, UserInfo, UserSettings,
 };
 use crate::modules::system_observer::SystemDebugInfo;
+use crate::modules::ai_tool_manager::AiToolDebugInfo;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
@@ -631,6 +632,12 @@ pub fn get_process_debug_info() -> Option<ProcessDebugInfo> {
 #[tauri::command]
 pub fn get_system_debug_info() -> Option<SystemDebugInfo> {
     crate::modules::system_observer::get_cached_debug_info()
+}
+
+/// 获取 AI 工具管理器调试信息
+#[tauri::command]
+pub fn get_ai_tool_debug_info() -> Option<AiToolDebugInfo> {
+    crate::modules::ai_tool_manager::get_cached_debug_info()
 }
 
 /// 获取媒体状态（是否正在播放）

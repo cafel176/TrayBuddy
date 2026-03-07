@@ -526,6 +526,47 @@ pub(crate) fn get_ai_tools(state: State<'_, AppState>) -> Option<AiToolsConfig> 
     rm.get_ai_tools()
 }
 
+/// 切换单个 AI 工具的启用状态
+#[tauri::command]
+pub(crate) async fn toggle_ai_tool(
+    app: tauri::AppHandle,
+    name: String,
+    enabled: bool,
+) -> Result<bool, String> {
+    use crate::modules::ai_tool_manager;
+    use crate::modules::event_manager::{emit, events};
+
+    let result = ai_tool_manager::toggle_tool(&name, enabled).await;
+
+    // 发送更新后的工具状态到前端
+    if let Some(map) = ai_tool_manager::get_tool_enabled_map() {
+        let process_name = ai_tool_manager::get_matched_ai_tool_process();
+        let tool_items: Vec<serde_json::Value> = map
+            .iter()
+            .map(|(n, e)| {
+                serde_json::json!({
+                    "name": n,
+                    "type": "", // 前端已有完整 type 信息
+                    "enabled": e,
+                })
+            })
+            .collect();
+        let _ = emit(
+            &app,
+            events::AI_TOOL_DATA_CHANGED,
+            serde_json::json!({
+                "process_name": process_name,
+                "tools": tool_items,
+            }),
+        );
+    }
+
+    // 推送调试快照
+    ai_tool_manager::emit_debug_snapshot(&app).await;
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

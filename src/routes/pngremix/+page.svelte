@@ -13,6 +13,7 @@ PngRemix 渲染层暂为空占位。
   import { invoke } from "@tauri-apps/api/core";
   import { t } from "$lib/i18n";
   import BubbleManager from "$lib/bubble/BubbleManager.svelte";
+  import AiToolPanel from "$lib/components/AiToolPanel.svelte";
   import { initRenderTuning } from "$lib/animation/render_tuning";
   import type { PngRemixConfig, ModData, ModType, ModManifest, ModInfo, PngRemixParameterSetting } from "$lib/types/asset";
   import type { Live2DParameterSetting } from "$lib/types/asset";
@@ -20,6 +21,7 @@ PngRemix 渲染层暂为空占位。
   import {
     createWindowCore,
     type ModDataToast,
+    type AiToolItem,
   } from "$lib/animation/WindowCore";
   import { PngRemixPlayer } from "$lib/animation/PngRemixPlayer";
 
@@ -59,6 +61,10 @@ PngRemix 渲染层暂为空占位。
 
   let noMod = $state(false);
 
+  let aiToolItems = $state<AiToolItem[]>([]);
+  let aiToolPanelAvailable = $state(false);
+  let showAiToolPanel = $state(false);
+
   let debugBordersEnabled = $state(false);
   let debugColors = $state({
     bubble: "transparent",
@@ -74,6 +80,18 @@ PngRemix 渲染层暂为空占位。
   // =========================================================================
   // PngRemix Player 初始化
   // =========================================================================
+
+  function toggleAiToolPanel() {
+    showAiToolPanel = !showAiToolPanel;
+  }
+
+  async function handleAiToolToggle(name: string, enabled: boolean) {
+    try {
+      await invoke("toggle_ai_tool", { name, enabled });
+    } catch (e) {
+      console.error("[AiToolPanel] toggle failed:", e);
+    }
+  }
 
   async function initPngRemixPlayer() {
     try {
@@ -186,6 +204,13 @@ PngRemix 渲染层暂为空占位。
       },
       setDebugColors: (value) => {
         debugColors = value;
+      },
+      setAiToolItems: (value) => {
+        aiToolItems = value;
+      },
+      setAiToolPanelAvailable: (value) => {
+        aiToolPanelAvailable = value;
+        if (!value) showAiToolPanel = false;
       },
     },
     refs: {
@@ -319,6 +344,22 @@ PngRemix 渲染层暂为空占位。
             </div>
           {/each}
         </div>
+      </div>
+    {/if}
+
+    <!-- AI 工具面板 toggle 按钮 -->
+    {#if aiToolPanelAvailable}
+      <div class="ai-tool-hud" style:left={showModDataPanel ? "50px" : "8px"}>
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="ai-tool-toggle-btn" onclick={toggleAiToolPanel} title={_("aiTool.togglePanel")}>
+          🤖
+        </div>
+        <AiToolPanel
+          visible={showAiToolPanel}
+          tools={aiToolItems}
+          onToggle={handleAiToolToggle}
+        />
       </div>
     {/if}
 
@@ -463,6 +504,37 @@ PngRemix 渲染层暂为空占位。
       opacity: 0;
       transform: translate(-50%, -22px);
     }
+  }
+
+  /* AI 工具 HUD */
+  .ai-tool-hud {
+    position: absolute;
+    top: 8px;
+    z-index: 310;
+    pointer-events: none;
+  }
+
+  .ai-tool-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    pointer-events: auto;
+    font-size: 14px;
+    line-height: 1;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .ai-tool-toggle-btn:hover {
+    background: rgba(0, 0, 0, 0.55);
   }
 
   .no-mod-hint {

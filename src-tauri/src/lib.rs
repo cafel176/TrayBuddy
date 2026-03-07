@@ -621,6 +621,7 @@ pub fn run() {
             get_info_by_lang,
             get_bubble_style,
             get_ai_tools,
+            toggle_ai_tool,
             // 状态管理
             get_all_states,
             get_current_state,
@@ -667,6 +668,7 @@ pub fn run() {
             get_media_debug_info,
             get_process_debug_info,
             get_system_debug_info,
+            get_ai_tool_debug_info,
             get_media_status,
 
             open_storage_dir,

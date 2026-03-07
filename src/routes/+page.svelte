@@ -37,6 +37,7 @@
 
   import InfoDebugger from "$lib/components/InfoDebugger.svelte";
   import LayoutDebugger from "$lib/components/LayoutDebugger.svelte";
+  import AiToolDebugger from "$lib/components/AiToolDebugger.svelte";
   import { t, setupI18nWithUpdate } from "$lib/i18n";
 
 
@@ -120,6 +121,10 @@
       class:active={activeTab === "system"}
       onclick={() => (activeTab = "system")}>{_("tabs.system")}</button
     >
+    <button
+      class:active={activeTab === "aiTool"}
+      onclick={() => (activeTab = "aiTool")}>{_("tabs.aiTool")}</button
+    >
 
     <button
       class:active={activeTab === "info"}
@@ -147,6 +152,8 @@
       <ProcessDebugger />
     {:else if activeTab === "system"}
       <SystemDebugger />
+    {:else if activeTab === "aiTool"}
+      <AiToolDebugger />
 
     {:else if activeTab === "info"}
       <InfoDebugger />

@@ -42,6 +42,9 @@ pub const DEBUG_EVENT_TYPE_MEDIA: &str = "media";
 /// 调试事件类型：进程
 pub const DEBUG_EVENT_TYPE_PROCESS: &str = "process";
 
+/// 调试事件类型：AI 工具
+pub const DEBUG_EVENT_TYPE_AI_TOOL: &str = "ai-tool";
+
 
 /// 事件名称常量定义
 ///
@@ -77,6 +80,9 @@ pub mod events {
     /// 进程调试信息更新事件
     pub const PROCESS_DEBUG_UPDATE: &str = "process-debug-update";
 
+    /// AI 工具调试信息更新事件
+    pub const AI_TOOL_DEBUG_UPDATE: &str = "ai-tool-debug-update";
+
     /// 环境信息更新事件
     pub const ENVIRONMENT_UPDATED: &str = "environment-updated";
 
@@ -86,6 +92,9 @@ pub mod events {
 
     /// AI 工具激活事件（焦点窗口匹配到 ai_tools 进程时发出）
     pub const AI_TOOL_ACTIVATED: &str = "ai-tool-activated";
+
+    /// AI 工具数据变更事件（tool_data 列表及启用状态推送到前端）
+    pub const AI_TOOL_DATA_CHANGED: &str = "ai-tool-data-changed";
 }
 
 // ========================================================================= //
@@ -403,6 +412,7 @@ pub fn emit_debug_update<T: serde::Serialize>(
         DEBUG_EVENT_TYPE_SYSTEM => events::SYSTEM_DEBUG_UPDATE,
         DEBUG_EVENT_TYPE_MEDIA => events::MEDIA_DEBUG_UPDATE,
         DEBUG_EVENT_TYPE_PROCESS => events::PROCESS_DEBUG_UPDATE,
+        DEBUG_EVENT_TYPE_AI_TOOL => events::AI_TOOL_DEBUG_UPDATE,
         _ => {
             eprintln!("[EventManager] Unknown debug event type: {}", event_type);
             return Ok(());
