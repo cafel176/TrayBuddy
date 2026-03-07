@@ -12,7 +12,7 @@ use crate::modules::constants::{
     WINDOW_LABEL_MODS, WINDOW_LABEL_PNGREMIX, WINDOW_LABEL_THREED,
 };
 use crate::modules::resource::{
-    self, AssetInfo, AudioInfo, CharacterInfo, ModInfo, ModType, StateInfo, TextInfo, TriggerInfo,
+    self, AiToolsConfig, AssetInfo, AudioInfo, CharacterInfo, ModInfo, ModType, StateInfo, TextInfo, TriggerInfo,
 };
 use crate::modules::storage::{ModData, Storage};
 use crate::{
@@ -517,6 +517,13 @@ pub(crate) fn get_info_by_lang(lang: String, state: State<'_, AppState>) -> Opti
 pub(crate) fn get_bubble_style(state: State<'_, AppState>) -> Option<serde_json::Value> {
     let rm = state.resource_manager.lock().unwrap();
     rm.get_bubble_style()
+}
+
+/// 获取 AI 工具配置
+#[tauri::command]
+pub(crate) fn get_ai_tools(state: State<'_, AppState>) -> Option<AiToolsConfig> {
+    let rm = state.resource_manager.lock().unwrap();
+    rm.get_ai_tools()
 }
 
 #[cfg(test)]

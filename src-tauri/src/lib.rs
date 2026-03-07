@@ -620,6 +620,7 @@ pub fn run() {
             get_text_by_name,
             get_info_by_lang,
             get_bubble_style,
+            get_ai_tools,
             // 状态管理
             get_all_states,
             get_current_state,

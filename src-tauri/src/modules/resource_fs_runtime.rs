@@ -20,6 +20,7 @@
 // - `load_multilang_resources()` - 加载多语言资源
 // - `get_bubble_style()` - 获取气泡样式
 // - `load_default_bubble_style()` - 加载默认气泡样式
+// - `get_ai_tools()` - 获取 AI 工具配置
 
 impl ResourceManager {
     fn rebuild_mod_index(&mut self) {
@@ -680,5 +681,13 @@ impl ResourceManager {
         #[cfg(debug_assertions)]
         println!("[ResourceManager] 未找到默认 bubble_style.json");
         None
+    }
+
+    /// 获取当前加载 Mod 的 AI 工具配置
+    ///
+    /// 从当前加载的 Mod 缓存中获取，如果 Mod 未配置则返回 None。
+    pub fn get_ai_tools(&self) -> Option<AiToolsConfig> {
+        let mod_info = self.current_mod.as_ref()?;
+        mod_info.ai_tools.clone()
     }
 }

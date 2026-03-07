@@ -152,6 +152,8 @@ const mockInvoke = vi.fn(async (command: string) => {
       return {};
     case "get_bubble_style":
       return null;
+    case "get_ai_tools":
+      return null;
     default:
       return null;
   }

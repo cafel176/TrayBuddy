@@ -22,6 +22,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
   import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
+  import { loadAiTools } from "$lib/aiTools";
   import { t, onLangChange } from "$lib/i18n";
   import { isError } from "$lib/utils/statusMessage";
   import { formatTriggerCounterRange, isTriggerCounterRangeLimited, formatTempRange, isTempRangeLimited, isModDataCounterEffective } from "$lib/utils/stateFormatters";
@@ -144,6 +145,7 @@
         version: info.manifest.version,
       });
       await loadBubbleStyle();
+      await loadAiTools();
 
     } catch (e) {
       statusMsg = _("resource.statusLoadFailed") + " " + e;

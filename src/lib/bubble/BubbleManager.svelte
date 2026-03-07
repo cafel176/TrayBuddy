@@ -50,6 +50,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import Bubble from './Bubble.svelte';
   import { loadBubbleStyle } from './bubbleStyle';
+  import { loadAiTools } from '$lib/aiTools';
   import { BUBBLE_SWITCH_DELAY_MS } from '$lib/constants';
 
   // ======================================================================= //
@@ -85,6 +86,8 @@
   onMount(async () => {
     // 加载气泡样式
     await loadBubbleStyle();
+    // 加载 AI 工具配置
+    await loadAiTools();
     styleReady = true;
   });
 
