@@ -728,6 +728,56 @@ export interface CharacterInfo {
   description: string;
 }
 
+// ========================================================================= //
+// AI Tools 配置
+// ========================================================================= //
+
+/** AI 工具截取矩形区域 */
+export interface AiCaptureRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** 可触发状态（加权） */
+export interface AiCanTriggerState {
+  state: string;
+  weight: number;
+}
+
+/** 单个 AI 小工具配置 */
+export interface AiToolData {
+  /** 工具名称 */
+  name: string;
+  /** 是否自动启动 */
+  auto_start: boolean;
+  /** 类型：manual 或 auto */
+  tool_type: "manual" | "auto";
+  /** 屏幕截取矩形区域 */
+  capture_rect: AiCaptureRect;
+  /** 提示词组 */
+  prompts: string[];
+  /** 识别关键词 */
+  keywords: string[];
+  /** 识别成功后可触发的状态 */
+  can_trigger_states: AiCanTriggerState[];
+}
+
+/** 单个进程的 AI 工具配置 */
+export interface AiToolProcess {
+  /** 进程名 */
+  process_name: string;
+  /** AI 小工具列表 */
+  tool_data: AiToolData[];
+}
+
+/** AI 工具配置文件顶层结构 */
+export interface AiToolsConfig {
+  /** AI 工具列表（每项对应一个进程） */
+  ai_tools: AiToolProcess[];
+}
+
 /**
  * Mod 完整信息接口
  *
@@ -738,6 +788,8 @@ export interface ModInfo {
   path: string;
   /** 气泡样式名称 */
   bubble_style?: string;
+  /** AI 工具配置（从 ai_tools.json 加载） */
+  ai_tools?: AiToolsConfig | null;
   /** 图标路径 */
   icon_path?: string | null;
   /** 预览图路径 */

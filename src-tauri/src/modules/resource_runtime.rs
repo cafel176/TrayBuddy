@@ -549,6 +549,10 @@ impl ResourceManager {
         let bubble_style: Option<serde_json::Value> =
             reader.read_json_optional("bubble_style.json");
 
+        // 解析 AI 工具配置（可选）
+        let ai_tools: Option<AiToolsConfig> =
+            reader.read_json_optional("ai_tools.json");
+
         // 探测预览图和图标
         let mut icon_path_val = None;
         let mut preview_path_val = None;
@@ -586,6 +590,7 @@ impl ResourceManager {
             info,
             texts,
             bubble_style,
+            ai_tools,
             icon_path: icon_path_val.map(|s| s.into()),
             preview_path: preview_path_val.map(|s| s.into()),
             state_index: HashMap::new(),

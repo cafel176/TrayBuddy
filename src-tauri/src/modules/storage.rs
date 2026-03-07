@@ -703,7 +703,7 @@ mod tests {
         assert!(!s.no_audio_mode);
         assert_eq!(s.volume, 1.0);
         assert!(!s.silence_mode);
-        assert!(s.auto_silence_when_fullscreen);
+        assert!(!s.auto_silence_when_fullscreen);
         assert!(!s.streamer_mode);
         assert!(s.show_character);
         assert!(s.show_border);

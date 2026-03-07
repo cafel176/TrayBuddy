@@ -1468,6 +1468,74 @@ impl ModManifest {
 }
 
 // ========================================================================= //
+// AI Tools 配置
+// ========================================================================= //
+
+/// AI 工具截取矩形区域
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(default)]
+pub struct AiCaptureRect {
+    /// 左上角 X 坐标
+    pub x: i32,
+    /// 左上角 Y 坐标
+    pub y: i32,
+    /// 宽度
+    pub width: u32,
+    /// 高度
+    pub height: u32,
+}
+
+/// AI 工具类型
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum AiToolType {
+    /// 手动触发（用户主动截图）
+    #[default]
+    Manual,
+    /// 自动触发（定时截图）
+    Auto,
+}
+
+/// 单个 AI 小工具配置
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(default)]
+pub struct AiToolData {
+    /// 工具名称
+    pub name: Box<str>,
+    /// 是否自动启动
+    pub auto_start: bool,
+    /// 类型：手动 (manual) 或自动 (auto)
+    #[serde(rename = "type")]
+    pub tool_type: AiToolType,
+    /// 屏幕截取矩形区域
+    pub capture_rect: AiCaptureRect,
+    /// 提示词组，指导 AI 如何识别截图
+    pub prompts: Vec<Box<str>>,
+    /// 识别关键词
+    pub keywords: Vec<Box<str>>,
+    /// 识别成功后可触发的状态列表（加权随机）
+    pub can_trigger_states: Vec<CanTriggerState>,
+}
+
+/// 单个进程的 AI 工具配置
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(default)]
+pub struct AiToolProcess {
+    /// 进程名
+    pub process_name: Box<str>,
+    /// AI 小工具列表
+    pub tool_data: Vec<AiToolData>,
+}
+
+/// AI 工具配置文件顶层结构（对应 ai_tools.json）
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(default)]
+pub struct AiToolsConfig {
+    /// AI 工具列表（每项对应一个进程）
+    pub ai_tools: Vec<AiToolProcess>,
+}
+
+// ========================================================================= //
 // Mod 信息
 // ========================================================================= //
 
@@ -1498,6 +1566,8 @@ pub struct ModInfo {
     pub info: HashMap<Box<str>, CharacterInfo>,
     /// 气泡样式配置（从 bubble_style.json 加载）
     pub bubble_style: Option<serde_json::Value>,
+    /// AI 工具配置（从 ai_tools.json 加载，可选）
+    pub ai_tools: Option<AiToolsConfig>,
     /// 图标路径（相对路径，如 "icon.ico"）
     pub icon_path: Option<Box<str>>,
     /// 预览图路径（相对路径，如 "preview.png"）
@@ -3877,6 +3947,7 @@ pub(crate) fn build_test_mod_info(manifest: ModManifest) -> ModInfo {
         texts: HashMap::new(),
         info: HashMap::new(),
         bubble_style: None,
+        ai_tools: None,
         icon_path: None,
         preview_path: None,
         state_index: HashMap::new(),

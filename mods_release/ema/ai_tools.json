@@ -1,0 +1,61 @@
+{
+  "ai_tools": [
+    {
+      "process_name": "example_game.exe",
+      "tool_data": [
+        {
+          "name": "kill",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1920,
+            "height": 1080
+          },
+          "prompts": [
+            "识别图片是否带有骷髅头图案，是返回true，否则返回false"
+          ],
+          "keywords": [
+            "yes"
+          ],
+          "can_trigger_states": [
+            {
+              "state": "cry",
+              "weight": 2
+            }
+          ]
+        },
+        {
+          "name": "test",
+          "auto_start": false,
+          "type": "manual",
+          "capture_rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1920,
+            "height": 1080
+          },
+          "prompts": [
+            "识别当前游戏界面状态"
+          ],
+          "keywords": [
+            "战斗",
+            "HP",
+            "技能冷却"
+          ],
+          "can_trigger_states": [
+            {
+              "state": "amazing",
+              "weight": 2
+            },
+            {
+              "state": "cry",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

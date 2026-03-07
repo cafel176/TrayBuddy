@@ -22,6 +22,17 @@ exit /b
 
 cd /d "%~dp0"
 
+:: 检查是否已有 traybuddy.exe 在运行
+tasklist /FI "IMAGENAME eq traybuddy.exe" 2>nul | find /I "traybuddy.exe" >nul
+if not errorlevel 1 (
+    echo.
+    echo [WARNING] traybuddy.exe is already running!
+    echo Please close the existing instance before starting dev server.
+    echo.
+    pause
+    exit /b 1
+)
+
 :: 删除开发模式的 mods 目录（避免括号块，兼容路径中的 ()）
 if not exist "%~dp0src-tauri\target\debug\mods" goto :_tb_after_clean
 

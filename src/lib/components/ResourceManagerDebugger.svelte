@@ -578,7 +578,65 @@
                 <span class="info-value"
                   >{currentModInfo.manifest.global_mouse ? _("common.yes") : _("common.no")}</span>
               </div>
+              <div class="info-row">
+                <span class="info-label">{_("resource.aiTools")}</span>
+                <span class="info-value"
+                  >{currentModInfo.ai_tools ? currentModInfo.ai_tools.ai_tools.length + " process(es)" : _("resource.aiToolsNotSet")}</span>
+              </div>
             </div>
+
+            {#if currentModInfo.ai_tools && currentModInfo.ai_tools.ai_tools.length > 0}
+            <h5>{_("resource.aiTools")}</h5>
+            {#each currentModInfo.ai_tools.ai_tools as process}
+              <div class="info-grid compact" style="margin-bottom: 8px;">
+                <div class="info-row">
+                  <span class="info-label">{_("resource.aiToolsProcessName")}</span>
+                  <span class="info-value">{process.process_name}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">{_("resource.aiToolsToolCount")}</span>
+                  <span class="info-value">{process.tool_data.length}</span>
+                </div>
+              </div>
+              {#each process.tool_data as tool, toolIdx}
+                <details>
+                  <summary style="cursor: pointer; font-size: 0.85em; margin-left: 8px;">
+                    #{toolIdx + 1} {tool.name || "(unnamed)"} — {tool.tool_type === "auto" ? _("resource.aiToolsTypeAuto") : _("resource.aiToolsTypeManual")}
+                  </summary>
+                  <div class="info-grid compact" style="margin-left: 16px;">
+                    <div class="info-row">
+                      <span class="info-label">{_("resource.aiToolsToolName")}</span>
+                      <span class="info-value">{tool.name || "-"}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">{_("resource.aiToolsAutoStart")}</span>
+                      <span class="info-value">{tool.auto_start ? _("common.yes") : _("common.no")}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">{_("resource.aiToolsType")}</span>
+                      <span class="info-value">{tool.tool_type === "auto" ? _("resource.aiToolsTypeAuto") : _("resource.aiToolsTypeManual")}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">{_("resource.aiToolsCaptureRect")}</span>
+                      <span class="info-value">({tool.capture_rect.x}, {tool.capture_rect.y}) {tool.capture_rect.width}×{tool.capture_rect.height}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">{_("resource.aiToolsPrompts")}</span>
+                      <span class="info-value">{tool.prompts.join("; ") || "-"}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">{_("resource.aiToolsKeywords")}</span>
+                      <span class="info-value">{tool.keywords.join(", ") || "-"}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">{_("resource.aiToolsTriggerStates")}</span>
+                      <span class="info-value">{tool.can_trigger_states.map(s => `${s.state}(w:${s.weight})`).join(", ") || "-"}</span>
+                    </div>
+                  </div>
+                </details>
+              {/each}
+            {/each}
+            {/if}
 
 
             {#if isSequenceMod()}

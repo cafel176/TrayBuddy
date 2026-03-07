@@ -493,6 +493,11 @@ impl ResourceManager {
             &mod_path.join("bubble_style.json"),
         );
 
+        // 解析 AI 工具配置（可选）
+        let ai_tools = crate::modules::utils::fs::load_json_obj::<AiToolsConfig>(
+            &mod_path.join("ai_tools.json"),
+        );
+
         // 探测预览图和图标
         let mut icon_path = None;
         let mut preview_path = None;
@@ -526,6 +531,7 @@ impl ResourceManager {
 
             texts,
             bubble_style,
+            ai_tools,
             icon_path: icon_path.map(|s| s.into()),
             preview_path: preview_path.map(|s| s.into()),
             state_index: HashMap::new(),
