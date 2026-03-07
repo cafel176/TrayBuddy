@@ -359,7 +359,10 @@
     "inactive": "Inactive",
     "currentDnd": "Current DND",
     "dndOn": "ON",
-    "dndOff": "OFF"
+    "dndOff": "OFF",
+    "focusedProcess": "Focused process:",
+    "focusedWindow": "Focused Window",
+    "noProcess": "N/A"
   },
   "resource": {
     "title": "ResourceManager Debug Panel",

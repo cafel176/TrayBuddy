@@ -41,6 +41,7 @@
         is_auto_dnd_active: boolean;
         current_silence_mode: boolean;
         session_locked: boolean;
+        focused_process_name: string;
     }
 
 
@@ -161,6 +162,12 @@
                         {debugInfo.session_locked ? _("common.on") : _("common.off")}
                     </span>
                 </div>
+                <div class="info-item wide">
+                    <span class="label">{_("system.focusedProcess")}</span>
+                    <span class="value mono">
+                        {debugInfo.focused_process_name || _("system.noProcess")}
+                    </span>
+                </div>
 
             </div>
         </section>
@@ -218,6 +225,21 @@
                             {debugInfo.current_silence_mode
                                 ? _("system.dndOn")
                                 : _("system.dndOff")}
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="status-card"
+                    class:active={!!debugInfo.focused_process_name}
+                >
+                    <div class="card-icon">
+                        {debugInfo.focused_process_name ? "🎯" : "❓"}
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title">{_("system.focusedWindow")}</div>
+                        <div class="card-value mono">
+                            {debugInfo.focused_process_name || _("system.noProcess")}
                         </div>
                     </div>
                 </div>
@@ -312,6 +334,10 @@
         gap: 2px;
     }
 
+    .info-item.wide {
+        grid-column: 1 / -1;
+    }
+
     .info-item .label {
         font-size: 0.8em;
         color: #868e96;
@@ -320,6 +346,13 @@
     .info-item .value {
         font-weight: 600;
         color: #495057;
+    }
+
+    .info-item .value.mono,
+    .card-value.mono {
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+        font-size: 0.85em;
+        word-break: break-all;
     }
 
     .info-item .value.running {

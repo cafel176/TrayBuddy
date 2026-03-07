@@ -359,7 +359,10 @@
     "inactive": "無効",
     "currentDnd": "現在のおやすみモード",
     "dndOn": "オン",
-    "dndOff": "オフ"
+    "dndOff": "オフ",
+    "focusedProcess": "フォーカスプロセス:",
+    "focusedWindow": "フォーカスウィンドウ",
+    "noProcess": "なし"
   },
   "resource": {
     "title": "リソースマネージャー デバッグパネル",

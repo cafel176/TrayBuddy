@@ -34,6 +34,9 @@ const TIME_FORMAT_SHORT: &str = "%H:%M:%S";
 
 static CACHED_DEBUG_INFO: Mutex<Option<SystemDebugInfo>> = Mutex::new(None);
 
+/// 缓存的当前焦点窗口所属进程名
+static CACHED_FOCUSED_PROCESS_NAME: Mutex<Option<String>> = Mutex::new(None);
+
 /// 系统观察器调试信息
 #[derive(Debug, Clone, Serialize)]
 pub struct SystemDebugInfo {
@@ -51,6 +54,8 @@ pub struct SystemDebugInfo {
     pub current_silence_mode: bool,
     /// 会话是否锁定
     pub session_locked: bool,
+    /// 当前焦点窗口所属进程名
+    pub focused_process_name: String,
 }
 
 /// 获取缓存的调试信息
@@ -65,6 +70,22 @@ pub fn get_cached_debug_info() -> Option<SystemDebugInfo> {
 fn update_cached_debug_info(info: SystemDebugInfo) {
     if let Ok(mut guard) = CACHED_DEBUG_INFO.lock() {
         *guard = Some(info);
+    }
+}
+
+/// 获取缓存的焦点进程名
+pub fn get_cached_focused_process_name() -> String {
+    CACHED_FOCUSED_PROCESS_NAME
+        .lock()
+        .ok()
+        .and_then(|guard| guard.clone())
+        .unwrap_or_default()
+}
+
+/// 更新缓存的焦点进程名
+fn update_cached_focused_process_name(name: String) {
+    if let Ok(mut guard) = CACHED_FOCUSED_PROCESS_NAME.lock() {
+        *guard = Some(name);
     }
 }
 
@@ -309,6 +330,12 @@ impl SystemObserver {
             .await
             .unwrap_or(false);
 
+        // 4. 获取当前焦点窗口的进程名
+        let focused_process = tokio::task::spawn_blocking(|| Self::get_foreground_process_name())
+            .await
+            .unwrap_or_default();
+        update_cached_focused_process_name(focused_process.clone());
+
 
         // 更新调试信息
         let debug_info = SystemDebugInfo {
@@ -319,6 +346,7 @@ impl SystemObserver {
             is_auto_dnd_active: *we_enabled_dnd,
             current_silence_mode: is_silence_mode,
             session_locked,
+            focused_process_name: focused_process,
         };
         update_cached_debug_info(debug_info.clone());
 
@@ -451,6 +479,57 @@ impl SystemObserver {
         false
     }
 
+    /// 获取当前前台窗口所属进程的进程名
+    ///
+    /// 通过 GetForegroundWindow → GetWindowThreadProcessId → OpenProcess → QueryFullProcessImageNameW
+    /// 获取进程的完整路径，然后提取文件名部分。
+    fn get_foreground_process_name() -> String {
+        use windows::Win32::Foundation::{CloseHandle, HANDLE, MAX_PATH};
+        use windows::Win32::System::ProcessStatus::GetModuleFileNameExW;
+        use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_VM_READ};
+        use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.0.is_null() {
+                return String::new();
+            }
+
+            let mut pid: u32 = 0;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            if pid == 0 {
+                return String::new();
+            }
+
+            let process = OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ,
+                false,
+                pid,
+            );
+
+            let process = match process {
+                Ok(h) if !h.is_invalid() => h,
+                _ => return String::new(),
+            };
+
+            let mut buf = [0u16; MAX_PATH as usize];
+            let len = GetModuleFileNameExW(process, None, &mut buf);
+            let _ = CloseHandle(process);
+
+            if len == 0 {
+                return String::new();
+            }
+
+            let full_path = String::from_utf16_lossy(&buf[..len as usize]);
+            // 提取文件名（最后一个 \ 之后的部分）
+            full_path
+                .rsplit('\\')
+                .next()
+                .unwrap_or(&full_path)
+                .to_string()
+        }
+    }
+
     /// 更新免打扰设置
     fn set_dnd_mode(app_handle: &tauri::AppHandle, enable: bool) -> Result<(), String> {
         let app_state: tauri::State<AppState> = app_handle.state();
@@ -524,6 +603,7 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: false,
             session_locked: true,
+            focused_process_name: "code.exe".into(),
         };
 
         update_cached_debug_info(info.clone());
@@ -531,6 +611,7 @@ mod tests {
         assert_eq!(cached.last_check_time, "12:34:56");
         assert_eq!(cached.observer_running, info.observer_running);
         assert_eq!(cached.session_locked, info.session_locked);
+        assert_eq!(cached.focused_process_name, "code.exe");
     }
 
     #[test]
@@ -543,6 +624,7 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: false,
             session_locked: false,
+            focused_process_name: "".into(),
         });
 
         update_cached_debug_info(SystemDebugInfo {
@@ -553,12 +635,14 @@ mod tests {
             is_auto_dnd_active: true,
             current_silence_mode: true,
             session_locked: true,
+            focused_process_name: "chrome.exe".into(),
         });
 
         let cached = get_cached_debug_info().expect("expected cached info");
         assert_eq!(cached.last_check_time, "23:59:59");
         assert!(cached.is_fullscreen_busy);
         assert!(cached.is_auto_dnd_active);
+        assert_eq!(cached.focused_process_name, "chrome.exe");
     }
 
     // ========================================================================= //
@@ -593,6 +677,7 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: true,
             session_locked: false,
+            focused_process_name: "notepad.exe".into(),
         };
         let json = serde_json::to_string(&info).unwrap();
         assert!(json.contains("\"observer_running\":true"));
@@ -601,6 +686,7 @@ mod tests {
         assert!(json.contains("\"is_auto_dnd_active\":false"));
         assert!(json.contains("\"current_silence_mode\":true"));
         assert!(json.contains("\"session_locked\":false"));
+        assert!(json.contains("\"focused_process_name\":\"notepad.exe\""));
     }
 
     #[test]
@@ -613,9 +699,11 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: false,
             session_locked: false,
+            focused_process_name: "".into(),
         };
         assert!(!info.observer_running);
         assert!(!info.session_locked);
+        assert!(info.focused_process_name.is_empty());
     }
 }
 
@@ -671,5 +759,15 @@ impl SystemObserver {
     ///                        Linux — 通过 _NET_WM_STATE_FULLSCREEN 属性检测。
     fn is_fullscreen_busy_non_windows() -> bool {
         false
+    }
+
+    /// 非 Windows 平台的前台窗口进程名获取。
+    ///
+    /// TODO(cross-platform): macOS — 使用 NSWorkspace.frontmostApplication.localizedName 或
+    ///                        NSRunningApplication.bundleIdentifier；
+    ///                        Linux — 使用 X11 _NET_ACTIVE_WINDOW + /proc/[pid]/comm 或
+    ///                        Wayland 协议获取焦点窗口进程。
+    fn get_foreground_process_name_non_windows() -> String {
+        String::new()
     }
 }

@@ -19,6 +19,7 @@
 | `SystemObserver` 非 Windows 结构体 + impl | 待实现 | 非 Windows 平台独立的 struct + `new()`/`start()`/`stop()` 实现 |
 | `SystemObserver::event_loop_non_windows()` | 待实现 | 当前为轮询降级策略，已调用 `is_fullscreen_busy_non_windows()`。macOS: NSWorkspace 通知监听前台应用切换；Linux: X11/Wayland/D-Bus 监听窗口焦点变化 |
 | `SystemObserver::is_fullscreen_busy_non_windows()` | 待实现 | macOS: NSApplication.currentSystemPresentationOptions 检测全屏；Linux: _NET_WM_STATE_FULLSCREEN 属性检测 |
+| `SystemObserver::get_foreground_process_name_non_windows()` | 待实现 | macOS: NSWorkspace.frontmostApplication.localizedName 或 NSRunningApplication.bundleIdentifier；Linux: X11 _NET_ACTIVE_WINDOW + /proc/[pid]/comm 或 Wayland 协议获取焦点窗口进程 |
 
 ### 2. 进程启动监测 — `src/modules/process_observer.rs`
 

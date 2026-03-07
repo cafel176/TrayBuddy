@@ -359,7 +359,10 @@
     "inactive": "未生效",
     "currentDnd": "当前免打扰设置",
     "dndOn": "开启",
-    "dndOff": "关闭"
+    "dndOff": "关闭",
+    "focusedProcess": "焦点进程:",
+    "focusedWindow": "焦点窗口",
+    "noProcess": "无"
   },
   "resource": {
     "title": "ResourceManager 调试面板",

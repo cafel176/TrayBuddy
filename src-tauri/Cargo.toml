@@ -49,6 +49,7 @@ windows = { version = "0.58", features = [
     # 进程信息
     "Win32_System_Threading",
     "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_ProcessStatus",
     "Win32_Foundation",
     # 鼠标位置
     "Win32_UI_WindowsAndMessaging",
