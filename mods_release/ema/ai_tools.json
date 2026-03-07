@@ -1,7 +1,7 @@
 {
   "ai_tools": [
     {
-      "process_name": "example_game.exe",
+      "process_name": "codebuddy",
       "tool_data": [
         {
           "name": "kill",

@@ -178,6 +178,9 @@
     "storageDirOpened": "已打开存储目录",
     "storageDirOpenFailed": "打开存储目录失败"
   },
+  "aiTool": {
+    "activated": "AI工具启动"
+  },
   "environment": {
     "title": "Environment 调试面板",
     "statusLoaded": "环境信息已加载",

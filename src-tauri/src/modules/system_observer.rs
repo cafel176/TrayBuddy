@@ -336,6 +336,52 @@ impl SystemObserver {
             .unwrap_or_default();
         update_cached_focused_process_name(focused_process.clone());
 
+        // 5. AI 工具进程匹配：检测焦点进程是否匹配当前 Mod 的 ai_tools 配置
+        {
+            use crate::modules::ai_tool_manager;
+
+            let app_state: tauri::State<AppState> = app_handle.state();
+            let matched = if !focused_process.is_empty() {
+                let rm = app_state.resource_manager.lock().unwrap();
+                if let Some(ai_config) = rm.get_ai_tools() {
+                    let fp_lower = focused_process.to_lowercase();
+                    ai_config.ai_tools.iter().find_map(|proc| {
+                        let pn_lower = proc.process_name.to_lowercase();
+                        if fp_lower.contains(&pn_lower) || pn_lower.contains(&fp_lower) {
+                            Some(proc.process_name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let prev = ai_tool_manager::get_matched_ai_tool_process();
+            ai_tool_manager::set_matched_ai_tool_process(matched.clone());
+
+            // 仅当新匹配到（之前未匹配或匹配到不同进程）时，发送 AI 工具激活事件
+            if let Some(ref process_name) = matched {
+                if prev.as_ref() != Some(process_name) {
+                    let _ = emit(
+                        app_handle,
+                        events::AI_TOOL_ACTIVATED,
+                        serde_json::json!({ "process_name": process_name }),
+                    );
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[SystemObserver] AI tool activated for process: {}",
+                        process_name
+                    );
+                }
+            }
+        }
+
+
+
 
         // 更新调试信息
         let debug_info = SystemDebugInfo {

@@ -12,6 +12,7 @@
 //! - [`trigger`] - 事件触发处理
 //! - [`utils`] - 公共工具类 (HTTP, FS, Window)
 
+pub mod ai_tool_manager;
 pub mod constants;
 pub mod environment;
 pub mod event_manager;

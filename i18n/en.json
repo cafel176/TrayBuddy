@@ -178,6 +178,9 @@
     "storageDirOpened": "Storage directory opened",
     "storageDirOpenFailed": "Failed to open storage directory"
   },
+  "aiTool": {
+    "activated": "AI Tool Activated"
+  },
   "environment": {
     "title": "Environment Debug Panel",
     "statusLoaded": "Environment info loaded",

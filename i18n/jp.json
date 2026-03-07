@@ -178,6 +178,9 @@
     "storageDirOpened": "ストレージディレクトリを開きました",
     "storageDirOpenFailed": "ストレージディレクトリを開くことができませんでした"
   },
+  "aiTool": {
+    "activated": "AIツール起動"
+  },
   "environment": {
     "title": "環境デバッグパネル",
     "statusLoaded": "環境情報を読み込みました",

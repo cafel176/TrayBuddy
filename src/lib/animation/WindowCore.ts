@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow, cursorPosition, LogicalPosition } from "@tauri-apps/api/window";
-import { initI18n, destroyI18n, onLangChange } from "$lib/i18n";
+import { initI18n, destroyI18n, onLangChange, t as i18nT } from "$lib/i18n";
 import { getAudioManager, clearAudioCache, resetAudioManagerInstance, type AudioManager } from "$lib/audio/AudioManager";
 import {
   getTriggerManager,
@@ -174,6 +174,7 @@ export function createWindowCore(options: {
   let unlistenGlobalKeydown: (() => void) | null = null;
   let unlistenGlobalMouseState: (() => void) | null = null;
   let unlistenDragMouseState: (() => void) | null = null;
+  let unlistenAiToolActivated: (() => void) | null = null;
   let unsubLang: (() => void) | null = null;
 
 
@@ -1161,6 +1162,23 @@ export function createWindowCore(options: {
         emitPlaybackStatus();
       });
 
+      // 监听 AI 工具激活事件：焦点窗口匹配到 ai_tools 配置时弹气泡
+      unlistenAiToolActivated = await listen<{ process_name: string }>(
+        "ai-tool-activated",
+        (event) => {
+          const bm = refs.getBubbleManager();
+          if (bm && !bm.isShowing()) {
+            const processName = event.payload.process_name;
+            bm.show({
+              text: `${processName} ${i18nT("aiTool.activated")}`,
+              duration: 3000,
+              position: "top",
+              typeSpeed: 30,
+            });
+          }
+        },
+      );
+
       const currentState: StateInfo | null = await invoke("get_persistent_state");
       if (currentState) await playState(currentState, false);
 
@@ -1299,6 +1317,7 @@ export function createWindowCore(options: {
     unlistenGlobalKeydown?.();
     unlistenGlobalMouseState?.();
     unlistenDragMouseState?.();
+    unlistenAiToolActivated?.();
     unsubLang?.();
 
     destroyI18n();
