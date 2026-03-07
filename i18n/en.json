@@ -169,6 +169,11 @@
     "statusSaving": "Saving...",
     "statusSaved": "Settings saved",
     "advancedOptions": "Advanced Options",
+    "ai": "AI Settings",
+    "aiApiKey": "AI API Key",
+    "aiApiKeyPlaceholder": "Enter API Key",
+    "aiScreenshotInterval": "AI Screenshot Interval",
+    "aiToolHotkey": "AI Tool Hotkey",
     "openStorageDir": "Open Storage Directory",
     "storageDirOpened": "Storage directory opened",
     "storageDirOpenFailed": "Failed to open storage directory"

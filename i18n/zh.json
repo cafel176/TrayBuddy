@@ -169,6 +169,11 @@
     "statusSaving": "正在保存...",
     "statusSaved": "设置已保存",
     "advancedOptions": "高级选项",
+    "ai": "AI 设置",
+    "aiApiKey": "AI API Key",
+    "aiApiKeyPlaceholder": "请输入 API Key",
+    "aiScreenshotInterval": "AI 截图频率",
+    "aiToolHotkey": "AI 主动工具快捷键",
     "openStorageDir": "打开存储目录",
     "storageDirOpened": "已打开存储目录",
     "storageDirOpenFailed": "打开存储目录失败"

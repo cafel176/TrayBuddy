@@ -169,6 +169,11 @@
     "statusSaving": "保存中...",
     "statusSaved": "設定を保存しました",
     "advancedOptions": "高度なオプション",
+    "ai": "AI 設定",
+    "aiApiKey": "AI API Key",
+    "aiApiKeyPlaceholder": "API Keyを入力してください",
+    "aiScreenshotInterval": "AIスクリーンショット頻度",
+    "aiToolHotkey": "AIツールホットキー",
     "openStorageDir": "ストレージディレクトリを開く",
     "storageDirOpened": "ストレージディレクトリを開きました",
     "storageDirOpenFailed": "ストレージディレクトリを開くことができませんでした"

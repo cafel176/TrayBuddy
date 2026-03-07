@@ -74,6 +74,13 @@
 
     /** 3D 动画切换过渡时长（秒） */
     threed_cross_fade_duration: number;
+
+    /** AI API Key */
+    ai_api_key: string;
+    /** AI 截图频率（秒） */
+    ai_screenshot_interval: number;
+    /** 启动 AI 主动工具的快捷键 (F1-F12) */
+    ai_tool_hotkey: string;
   }
 
 
@@ -96,6 +103,9 @@
 
   /** 可用语言列表 */
   let availableLangs = $state<LangInfo[]>([]);
+
+  /** F1-F12 快捷键选项 */
+  const fKeys = Array.from({ length: 12 }, (_, i) => `F${i + 1}`);
 
   /** i18n 响应式翻译函数 - 使用版本号触发更新 */
   let _langVersion = $state(0);
@@ -268,6 +278,18 @@
     const duration = parseFloat(target.value);
     if (settings) {
       settings.threed_cross_fade_duration = duration;
+    }
+    await saveSettings();
+  }
+
+  /**
+   * 处理 AI 截图频率滑块变化
+   */
+  async function onAiScreenshotIntervalChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const interval = parseFloat(target.value);
+    if (settings) {
+      settings.ai_screenshot_interval = interval;
     }
     await saveSettings();
   }
@@ -638,6 +660,50 @@
     {/if}
 
     <!-- ================================================================= -->
+    <!-- AI 设置 -->
+    <!-- ================================================================= -->
+
+    <div class="divider">{_("settings.ai")}</div>
+
+    <!-- AI API Key -->
+    <div class="form-group">
+      <label for="ai_api_key">{_("settings.aiApiKey")}</label>
+      <input
+        id="ai_api_key"
+        type="password"
+        bind:value={settings.ai_api_key}
+        onchange={saveSettings}
+        placeholder={_("settings.aiApiKeyPlaceholder")}
+      />
+    </div>
+
+    <!-- AI 截图频率 -->
+    <div class="form-group">
+      <label for="ai_screenshot_interval"
+        >{_("settings.aiScreenshotInterval")} ({settings.ai_screenshot_interval.toFixed(1)}s)</label
+      >
+      <input
+        id="ai_screenshot_interval"
+        type="range"
+        min="0.1"
+        max="10.0"
+        step="0.1"
+        value={settings.ai_screenshot_interval}
+        oninput={onAiScreenshotIntervalChange}
+      />
+    </div>
+
+    <!-- AI 主动工具快捷键 -->
+    <div class="form-group">
+      <label for="ai_tool_hotkey">{_("settings.aiToolHotkey")}</label>
+      <select id="ai_tool_hotkey" bind:value={settings.ai_tool_hotkey} onchange={saveSettings}>
+        {#each fKeys as fk}
+          <option value={fk}>{fk}</option>
+        {/each}
+      </select>
+    </div>
+
+    <!-- ================================================================= -->
     <!-- 高级选项 -->
     <!-- ================================================================= -->
 
@@ -693,6 +759,7 @@
   }
 
   input[type="text"],
+  input[type="password"],
   select {
     padding: 10px;
     border: 1px solid #ddd;
@@ -703,6 +770,7 @@
   }
 
   input[type="text"]:focus,
+  input[type="password"]:focus,
   select:focus {
     border-color: #3498db;
   }
@@ -797,6 +865,7 @@
       color: #bdc3c7;
     }
     input[type="text"],
+    input[type="password"],
     select {
       background: #34495e;
       border-color: #455a64;

@@ -56,6 +56,13 @@ pub struct UserSettings {
     /// 3D 动画切换过渡时长（秒）
     pub threed_cross_fade_duration: f32,
 
+    /// AI API Key
+    pub ai_api_key: Box<str>,
+    /// AI 截图频率（秒）
+    pub ai_screenshot_interval: f32,
+    /// 启动 AI 主动工具的快捷键 (F1-F12)
+    pub ai_tool_hotkey: Box<str>,
+
 }
 
 impl Default for UserSettings {
@@ -83,6 +90,10 @@ impl Default for UserSettings {
             live2d_auto_interact: true,
 
             threed_cross_fade_duration: 0.3,
+
+            ai_api_key: "".into(),
+            ai_screenshot_interval: 1.0,
+            ai_tool_hotkey: "F1".into(),
 
         }
     }
@@ -711,6 +722,9 @@ mod tests {
         assert!(s.live2d_mouse_follow);
         assert!(s.live2d_auto_interact);
         assert_eq!(s.threed_cross_fade_duration, 0.3);
+        assert_eq!(s.ai_api_key.as_ref(), "");
+        assert_eq!(s.ai_screenshot_interval, 1.0);
+        assert_eq!(s.ai_tool_hotkey.as_ref(), "F1");
     }
 
     // ========================================================================= //
