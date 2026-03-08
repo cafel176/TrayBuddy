@@ -2011,7 +2011,7 @@
               "weight": 1
             }
           ],
-          "allow_repeat": true
+          "allow_repeat": false
         }
       ]
     },
@@ -2026,7 +2026,7 @@
               "weight": 1
             }
           ],
-          "allow_repeat": true
+          "allow_repeat": false
         }
       ]
     },
@@ -2045,7 +2045,7 @@
               "weight": 1
             }
           ],
-          "allow_repeat": true
+          "allow_repeat": false
         }
       ]
     },
@@ -2064,7 +2064,7 @@
               "weight": 1
             }
           ],
-          "allow_repeat": true
+          "allow_repeat": false
         }
       ]
     }

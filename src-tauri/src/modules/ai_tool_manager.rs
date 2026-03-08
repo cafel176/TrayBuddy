@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
@@ -64,6 +64,9 @@ static TOOL_CONFIGS: CachedValue<HashMap<String, Arc<AiToolTaskConfig>>> = Cache
 
 /// 截图保留模式：true=每张截图带时间戳后缀全部保留，false=同名覆盖
 static KEEP_SCREENSHOTS: AtomicBool = AtomicBool::new(false);
+
+use super::constants::MAX_AI_IN_FLIGHT;
+
 
 /// 信息窗口可见状态：工具名 -> 是否可见
 static INFO_WINDOW_VISIBLE: CachedValue<HashMap<String, bool>> = CachedValue::new();
@@ -1040,7 +1043,16 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
 
         match cfg.tool_type {
             ToolType::Auto => {
-                // 自动模式：按间隔不断截图 + AI 识别
+                // 自动模式：固定间隔截图 + AI 识别，请求与定时器互不阻塞
+                //
+                // 核心设计：
+                // - 使用 tokio::time::interval 保证截图发起间隔严格固定
+                // - AI 请求在独立 tokio::spawn 任务中执行，不阻塞定时器
+                // - 使用 AtomicBool 标记 in-flight 状态：
+                //   · 若上一个 AI 请求仍在进行中 → 跳过本次 AI 调用
+                //   · 保证任何时刻最多 1 个 AI 请求在飞，防止 API 限流和内存堆积
+                // - 实际请求间隔 = interval（固定），而非 interval + API 延迟
+                //
                 // 优化：每 10 次循环才重新读取 interval 设置，减少 spawn_blocking 开销
                 let mut cached_interval_secs: f64 =
                     crate::app_state::AppState::read_settings_async(
@@ -1052,7 +1064,18 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                 let mut loop_count: u32 = 0;
                 const REFRESH_INTERVAL_EVERY_N: u32 = 10;
 
+                // in-flight 计数器：当前正在进行的 AI 请求数
+                let ai_in_flight = Arc::new(AtomicU32::new(0));
+
+                let mut ticker = tokio::time::interval(
+                    std::time::Duration::from_secs_f64(cached_interval_secs),
+                );
+                // 第一次 tick 立即触发；后续若 tick 被延迟则跳过错过的 tick
+                ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
                 loop {
+                    ticker.tick().await;
+
                     // 定期刷新 interval 设置（避免每次循环都 spawn_blocking）
                     if loop_count > 0 && loop_count % REFRESH_INTERVAL_EVERY_N == 0 {
                         if let Ok(v) = tokio::task::spawn_blocking({
@@ -1066,21 +1089,50 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                         })
                         .await
                         {
-                            cached_interval_secs = v;
+                            if (cached_interval_secs - v).abs() > 0.001 {
+                                cached_interval_secs = v;
+                                ticker = tokio::time::interval(
+                                    std::time::Duration::from_secs_f64(cached_interval_secs),
+                                );
+                                ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+                                ticker.tick().await; // 消耗第一个立即触发的 tick
+                            }
                         }
                     }
                     loop_count = loop_count.wrapping_add(1);
 
-                    process_capture_with_ai(
-                        &cfg,
-                        &file_prefix,
-                        &screenshots_dir,
-                        &name_clone,
-                        &app,
-                    )
-                    .await;
+                    // 如果 in-flight 请求数已达上限，跳过本次，避免请求堆积
+                    if ai_in_flight.load(Ordering::Acquire) >= MAX_AI_IN_FLIGHT {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[AiToolManager] Skipping AI call for '{}': {} request(s) already in-flight (max {})",
+                            name_clone,
+                            ai_in_flight.load(Ordering::Relaxed),
+                            MAX_AI_IN_FLIGHT
+                        );
+                        continue;
+                    }
 
-                    tokio::time::sleep(std::time::Duration::from_secs_f64(cached_interval_secs)).await;
+                    // 递增 in-flight 计数，在独立 task 中执行截图 + AI 识别（不阻塞定时器）
+                    ai_in_flight.fetch_add(1, Ordering::Release);
+                    let in_flight_flag = ai_in_flight.clone();
+                    let cfg_clone = cfg.clone();
+                    let prefix_clone = file_prefix.clone();
+                    let dir_clone = screenshots_dir.clone();
+                    let tool_clone = name_clone.clone();
+                    let app_clone = app.clone();
+                    tokio::spawn(async move {
+                        process_capture_with_ai(
+                            &cfg_clone,
+                            &prefix_clone,
+                            &dir_clone,
+                            &tool_clone,
+                            &app_clone,
+                        )
+                        .await;
+                        // AI 请求完成，递减 in-flight 计数
+                        in_flight_flag.fetch_sub(1, Ordering::Release);
+                    });
                 }
             }
             ToolType::Manual => {

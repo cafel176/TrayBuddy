@@ -5,14 +5,20 @@
 //! - macOS/Linux: 占位函数，待后续实现
 
 use std::path::Path;
+use std::sync::Mutex;
 
 // ========================================================================= //
 // 屏幕区域截图 — Windows 实现
 // ========================================================================= //
 
+/// GDI 截图全局互斥锁，确保多线程不会并发调用 GDI API 导致堆损坏
+#[cfg(target_os = "windows")]
+static GDI_CAPTURE_LOCK: Mutex<()> = Mutex::new(());
+
 /// 内部公共函数：通过 GDI API 截取屏幕指定区域，返回 RGB `ImageBuffer`。
 ///
 /// 所有公开截图函数共享此实现，仅在最终输出格式上有差异。
+/// 通过 `GDI_CAPTURE_LOCK` 保证同一时刻只有一个线程执行 GDI 操作。
 #[cfg(target_os = "windows")]
 fn capture_screen_region_raw(
     x: i32,
@@ -25,6 +31,18 @@ fn capture_screen_region_raw(
         GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
         SRCCOPY,
     };
+
+    // 零尺寸保护：避免 GDI API 传入无效参数导致未定义行为
+    if width == 0 || height == 0 {
+        return Err("Cannot capture zero-size region".into());
+    }
+
+    // 每行字节数须 4 字节对齐（提前计算，用于 biSizeImage 和缓冲区分配）
+    let row_bytes = ((width as usize) * 3 + 3) / 4 * 4;
+    let image_size = row_bytes * (height as usize);
+
+    // 获取 GDI 互斥锁，防止多线程并发调用 GDI API 导致堆损坏
+    let _gdi_guard = GDI_CAPTURE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
     unsafe {
         let hdc_screen = GetDC(None);
@@ -67,7 +85,8 @@ fn capture_screen_region_raw(
         }
 
         // 准备 BITMAPINFO — 自顶向下，24 位 BGR
-        let bmi = BITMAPINFO {
+        // 注意：必须声明为 mut，因为 GetDIBits 会写入 biSizeImage 等字段
+        let mut bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
                 biWidth: width as i32,
@@ -75,7 +94,7 @@ fn capture_screen_region_raw(
                 biPlanes: 1,
                 biBitCount: 24,
                 biCompression: BI_RGB.0 as u32,
-                biSizeImage: 0,
+                biSizeImage: image_size as u32, // 显式指定，避免 GDI 自行计算
                 biXPelsPerMeter: 0,
                 biYPelsPerMeter: 0,
                 biClrUsed: 0,
@@ -84,9 +103,6 @@ fn capture_screen_region_raw(
             bmiColors: [Default::default()],
         };
 
-        // 每行字节数须 4 字节对齐
-        let row_bytes = ((width * 3 + 3) / 4) * 4;
-        let image_size = (row_bytes * height) as usize;
         let mut pixel_data = vec![0u8; image_size];
 
         let lines = GetDIBits(
@@ -95,7 +111,7 @@ fn capture_screen_region_raw(
             0,
             height,
             Some(pixel_data.as_mut_ptr() as *mut _),
-            &bmi as *const _ as *mut _,
+            &mut bmi,
             DIB_RGB_COLORS,
         );
 
@@ -110,11 +126,11 @@ fn capture_screen_region_raw(
         }
 
         // GDI 返回 BGR 格式，转换为 RGB 并去除行对齐填充
-        let mut rgb_data = Vec::with_capacity((width * height * 3) as usize);
-        for row in 0..height {
-            let start = (row * row_bytes) as usize;
-            for col in 0..width {
-                let px = start + (col * 3) as usize;
+        let mut rgb_data = Vec::with_capacity((width as usize) * (height as usize) * 3);
+        for row in 0..height as usize {
+            let start = row * row_bytes;
+            for col in 0..width as usize {
+                let px = start + col * 3;
                 rgb_data.push(pixel_data[px + 2]); // R
                 rgb_data.push(pixel_data[px + 1]); // G
                 rgb_data.push(pixel_data[px]);     // B
