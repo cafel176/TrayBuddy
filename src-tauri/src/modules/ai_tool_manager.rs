@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
@@ -57,9 +57,9 @@ fn get_task_map() -> &'static tokio::sync::Mutex<HashMap<String, JoinHandle<()>>
     TOOL_TASKS.get_or_init(|| tokio::sync::Mutex::new(HashMap::new()))
 }
 
-/// 工具任务配置缓存：工具名 -> 配置
+/// 工具任务配置缓存：工具名 -> 配置（Arc 包装，避免 clone 深拷贝）
 /// 在 initialize_tools 时填充，供 start_tool_task 读取
-static TOOL_CONFIGS: Mutex<Option<HashMap<String, AiToolTaskConfig>>> = Mutex::new(None);
+static TOOL_CONFIGS: Mutex<Option<HashMap<String, Arc<AiToolTaskConfig>>>> = Mutex::new(None);
 
 /// 截图保留模式：true=每张截图带时间戳后缀全部保留，false=同名覆盖
 static KEEP_SCREENSHOTS: AtomicBool = AtomicBool::new(false);
@@ -156,11 +156,11 @@ pub struct AiToolDebugItem {
     pub info_window_visible: bool,
 }
 
-/// 缓存的调试信息
-static CACHED_DEBUG_INFO: Mutex<Option<AiToolDebugInfo>> = Mutex::new(None);
+/// 缓存的调试信息（Arc 包装，get 时返回 Arc 引用而非深拷贝）
+static CACHED_DEBUG_INFO: Mutex<Option<Arc<AiToolDebugInfo>>> = Mutex::new(None);
 
 /// 获取缓存的调试信息（供 Tauri Command 首次拉取）
-pub fn get_cached_debug_info() -> Option<AiToolDebugInfo> {
+pub fn get_cached_debug_info() -> Option<Arc<AiToolDebugInfo>> {
     CACHED_DEBUG_INFO
         .lock()
         .ok()
@@ -170,12 +170,12 @@ pub fn get_cached_debug_info() -> Option<AiToolDebugInfo> {
 /// 更新缓存的调试信息
 fn update_cached_debug_info(info: AiToolDebugInfo) {
     if let Ok(mut guard) = CACHED_DEBUG_INFO.lock() {
-        *guard = Some(info);
+        *guard = Some(Arc::new(info));
     }
 }
 
-/// 生成当前调试快照并更新缓存，返回快照
-pub async fn snapshot_debug_info() -> AiToolDebugInfo {
+/// 生成当前调试快照并更新缓存，返回快照的 Arc 引用
+pub async fn snapshot_debug_info() -> Arc<AiToolDebugInfo> {
     let matched_window = get_matched_ai_tool_window();
     let enabled_map = get_tool_enabled_map();
 
@@ -227,8 +227,10 @@ pub async fn snapshot_debug_info() -> AiToolDebugInfo {
         keep_screenshots: KEEP_SCREENSHOTS.load(Ordering::Relaxed),
     };
 
-    update_cached_debug_info(info.clone());
-    info
+    update_cached_debug_info(info);
+
+    // 返回刚存入缓存的 Arc，避免额外 clone
+    get_cached_debug_info().unwrap()
 }
 
 /// 生成调试快照并通过事件推送到前端
@@ -360,8 +362,8 @@ pub fn build_tool_items_for_event() -> Option<(Option<String>, Vec<serde_json::V
 // 公共接口 — 工具配置
 // ========================================================================= //
 
-/// 获取指定工具的任务配置
-fn get_tool_config(name: &str) -> Option<AiToolTaskConfig> {
+/// 获取指定工具的任务配置（Arc 引用，避免深拷贝）
+fn get_tool_config(name: &str) -> Option<Arc<AiToolTaskConfig>> {
     TOOL_CONFIGS
         .lock()
         .ok()
@@ -764,8 +766,8 @@ fn emit_info_message(app: &tauri::AppHandle, tool_name: &str, message: &str) {
 /// - 若 `show_info_window=true`，推送到信息窗口显示
 /// - 若 `triggers` 非空，匹配触发器并执行对应事件
 ///
-/// 性能优化：当需要 AI 处理时，使用内存中截图→PNG→base64 的零磁盘 I/O 路径，
-/// 仅在 keep_screenshots 模式下才额外写磁盘保存。
+/// 性能优化：当需要 AI 处理时，使用内存中截图→PNG bytes 的零磁盘 I/O 路径，
+/// 按需编码 base64（给 AI）或直接写磁盘（keep_screenshots 模式），避免冗余编解码。
 async fn process_capture_with_ai(
     cfg: &AiToolTaskConfig,
     file_prefix: &str,
@@ -785,18 +787,18 @@ async fn process_capture_with_ai(
         return;
     }
 
-    // AI 路径：直接在内存中完成截图→PNG→base64，避免磁盘 I/O 和双重编解码
+    // AI 路径：直接在内存中完成截图→PNG bytes，避免磁盘 I/O
     let x = cfg.capture_x;
     let y = cfg.capture_y;
     let w = cfg.capture_width;
     let h = cfg.capture_height;
 
-    let image_b64 = match tokio::task::spawn_blocking(move || {
-        screenshot::capture_screen_region_as_png_base64(x, y, w, h)
+    let png_bytes = match tokio::task::spawn_blocking(move || {
+        screenshot::capture_screen_region_as_png_bytes(x, y, w, h)
     })
     .await
     {
-        Ok(Ok(b64)) => b64,
+        Ok(Ok(bytes)) => bytes,
         Ok(Err(e)) => {
             #[cfg(debug_assertions)]
             println!(
@@ -818,23 +820,24 @@ async fn process_capture_with_ai(
         }
     };
 
-    // 如果开启了截图保留模式，异步写入磁盘（不阻塞 AI 调用流程）
+    // 如果开启了截图保留模式，直接将 PNG bytes 写入磁盘（无需 base64 编解码）
     if KEEP_SCREENSHOTS.load(Ordering::Relaxed) {
         let screenshots_dir = screenshots_dir.to_path_buf();
         let prefix = file_prefix.to_string();
-        let b64_clone = image_b64.clone();
+        let bytes_clone = png_bytes.clone();
         tokio::task::spawn_blocking(move || {
             let ts = chrono::Local::now().format("%Y%m%d_%H%M%S_%3f");
             let filename = format!("{}_{}.png", prefix, ts);
             let save_path = screenshots_dir.join(&filename);
-            if let Ok(png_bytes) = base64::Engine::decode(
-                &base64::engine::general_purpose::STANDARD,
-                &b64_clone,
-            ) {
-                let _ = std::fs::write(&save_path, &png_bytes);
-            }
+            let _ = std::fs::write(&save_path, &bytes_clone);
         });
     }
+
+    // 按需编码 base64（仅 AI 调用需要）
+    let image_b64 = base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        &png_bytes,
+    );
 
     // 从 settings 读取 API 配置
     let (api_key, base_url, model) = {
@@ -1176,7 +1179,7 @@ pub async fn initialize_tools(tools: &[ToolInitInfo], app: &tauri::AppHandle) {
     let mut info_visible_map = HashMap::new();
     for info in tools {
         enabled_map.insert(info.name.clone(), info.auto_start);
-        config_map.insert(info.name.clone(), info.config.clone());
+        config_map.insert(info.name.clone(), Arc::new(info.config.clone()));
         // 初始可见状态：auto_start 且有 show_info_window 的默认可见
         info_visible_map.insert(
             info.name.clone(),

@@ -98,9 +98,12 @@ pub fn get_cached_focused_window_title() -> String {
         .unwrap_or_default()
 }
 
-/// 更新缓存的焦点窗口标题
+/// 更新缓存的焦点窗口标题（仅在标题变化时才写入，避免无意义的堆分配+释放）
 fn update_cached_focused_window_title(title: String) {
     if let Ok(mut guard) = CACHED_FOCUSED_WINDOW_TITLE.lock() {
+        if guard.as_deref() == Some(title.as_str()) {
+            return; // 未变化，跳过写入
+        }
         *guard = Some(title);
     }
 }
@@ -411,10 +414,10 @@ impl SystemObserver {
                     let rm = rm_arc.lock().unwrap();
                     if let Some(ai_config) = rm.get_ai_tools() {
                         let wt_lower = title.to_lowercase();
-                        ai_config.ai_tools.into_iter().find(|proc| {
+                        ai_config.ai_tools.iter().find(|proc| {
                             let wn_lower = proc.window_name.to_lowercase();
                             wt_lower.contains(&wn_lower) || wn_lower.contains(&wt_lower)
-                        })
+                        }).cloned()
                     } else {
                         None
                     }

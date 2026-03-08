@@ -549,9 +549,9 @@ impl ResourceManager {
         let bubble_style: Option<serde_json::Value> =
             reader.read_json_optional("bubble_style.json");
 
-        // 解析 AI 工具配置（可选）
-        let ai_tools: Option<AiToolsConfig> =
-            reader.read_json_optional("ai_tools.json");
+        // 解析 AI 工具配置（可选，包装为 Arc 避免后续频繁 clone）
+        let ai_tools: Option<std::sync::Arc<AiToolsConfig>> =
+            reader.read_json_optional::<AiToolsConfig>("ai_tools.json").map(std::sync::Arc::new);
 
         // 探测预览图和图标
         let mut icon_path_val = None;

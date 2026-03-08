@@ -521,7 +521,7 @@ pub(crate) fn get_bubble_style(state: State<'_, AppState>) -> Option<serde_json:
 
 /// 获取 AI 工具配置
 #[tauri::command]
-pub(crate) fn get_ai_tools(state: State<'_, AppState>) -> Option<AiToolsConfig> {
+pub(crate) fn get_ai_tools(state: State<'_, AppState>) -> Option<std::sync::Arc<AiToolsConfig>> {
     let rm = state.resource_manager.lock().unwrap();
     rm.get_ai_tools()
 }

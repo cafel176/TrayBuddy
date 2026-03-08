@@ -638,6 +638,7 @@ pub fn get_system_debug_info() -> Option<SystemDebugInfo> {
 #[tauri::command]
 pub fn get_ai_tool_debug_info() -> Option<AiToolDebugInfo> {
     crate::modules::ai_tool_manager::get_cached_debug_info()
+        .map(|arc| (*arc).clone())
 }
 
 /// 获取媒体状态（是否正在播放）

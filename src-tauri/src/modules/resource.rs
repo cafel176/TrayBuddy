@@ -1576,8 +1576,8 @@ pub struct ModInfo {
     pub info: HashMap<Box<str>, CharacterInfo>,
     /// 气泡样式配置（从 bubble_style.json 加载）
     pub bubble_style: Option<serde_json::Value>,
-    /// AI 工具配置（从 ai_tools.json 加载，可选）
-    pub ai_tools: Option<AiToolsConfig>,
+    /// AI 工具配置（从 ai_tools.json 加载，可选，Arc 包装避免频繁 clone）
+    pub ai_tools: Option<Arc<AiToolsConfig>>,
     /// 图标路径（相对路径，如 "icon.ico"）
     pub icon_path: Option<Box<str>>,
     /// 预览图路径（相对路径，如 "preview.png"）

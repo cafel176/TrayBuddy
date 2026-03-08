@@ -494,10 +494,11 @@ impl ResourceManager {
             &mod_path.join("bubble_style.json"),
         );
 
-        // 解析 AI 工具配置（可选）
+        // 解析 AI 工具配置（可选，包装为 Arc 避免后续频繁 clone）
         let ai_tools = crate::modules::utils::fs::load_json_obj::<AiToolsConfig>(
             &mod_path.join("ai_tools.json"),
-        );
+        )
+        .map(std::sync::Arc::new);
 
         // 探测预览图和图标
         let mut icon_path = None;
@@ -685,8 +686,8 @@ impl ResourceManager {
 
     /// 获取当前加载 Mod 的 AI 工具配置
     ///
-    /// 从当前加载的 Mod 缓存中获取，如果 Mod 未配置则返回 None。
-    pub fn get_ai_tools(&self) -> Option<AiToolsConfig> {
+    /// 返回 Arc 引用，避免克隆整棵配置树。
+    pub fn get_ai_tools(&self) -> Option<std::sync::Arc<AiToolsConfig>> {
         let mod_info = self.current_mod.as_ref()?;
         mod_info.ai_tools.clone()
     }

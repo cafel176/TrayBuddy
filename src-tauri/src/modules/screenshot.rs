@@ -153,14 +153,14 @@ pub fn capture_screen_region(
 /// - `width`, `height`: 截取区域的宽高（像素）
 ///
 /// # 返回
-/// 成功时返回 PNG 格式的 base64 编码字符串
+/// 成功时返回 PNG 格式的原始字节 (`Vec<u8>`)，由调用方按需编码为 base64 或直接写磁盘
 #[cfg(target_os = "windows")]
-pub fn capture_screen_region_as_png_base64(
+pub fn capture_screen_region_as_png_bytes(
     x: i32,
     y: i32,
     width: u32,
     height: u32,
-) -> Result<String, String> {
+) -> Result<Vec<u8>, String> {
     use windows::Win32::Graphics::Gdi::{
         BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits,
         GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
@@ -262,7 +262,7 @@ pub fn capture_screen_region_as_png_base64(
             }
         }
 
-        // 直接在内存中编码为 PNG → base64（不写磁盘）
+        // 直接在内存中编码为 PNG 字节（不写磁盘，不编码 base64）
         let img: image::ImageBuffer<image::Rgb<u8>, _> =
             image::ImageBuffer::from_raw(width, height, rgb_data)
                 .ok_or_else(|| "Failed to create image buffer".to_string())?;
@@ -274,22 +274,19 @@ pub fn capture_screen_region_as_png_base64(
         )
         .map_err(|e| format!("Failed to encode PNG: {}", e))?;
 
-        Ok(base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            &png_buf,
-        ))
+        Ok(png_buf)
     }
 }
 
 /// 非 Windows 平台占位
 #[cfg(not(target_os = "windows"))]
-pub fn capture_screen_region_as_png_base64(
+pub fn capture_screen_region_as_png_bytes(
     _x: i32,
     _y: i32,
     _width: u32,
     _height: u32,
-) -> Result<String, String> {
-    Err("capture_screen_region_as_png_base64 is not yet implemented on this platform".into())
+) -> Result<Vec<u8>, String> {
+    Err("capture_screen_region_as_png_bytes is not yet implemented on this platform".into())
 }
 
 // ========================================================================= //
