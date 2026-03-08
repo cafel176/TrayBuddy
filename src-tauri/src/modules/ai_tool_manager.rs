@@ -762,17 +762,22 @@ async fn process_capture_with_ai(
         return;
     }
 
-    // 3. 从 settings 读取 API 配置
+    // 3. 从 settings 读取 API 配置（通过 spawn_blocking 避免阻塞 tokio 线程）
     let (api_key, base_url, model) = {
-        use tauri::Manager;
-        let app_state: tauri::State<crate::app_state::AppState> = app.state();
-        let storage = app_state.storage.lock().unwrap();
-        let s = &storage.data.settings;
-        (
-            s.ai_api_key.to_string(),
-            s.ai_chat_base_url.to_string(),
-            s.ai_chat_model.to_string(),
-        )
+        let app_clone = app.clone();
+        tokio::task::spawn_blocking(move || {
+            use tauri::Manager;
+            let app_state: tauri::State<crate::app_state::AppState> = app_clone.state();
+            let storage = app_state.storage.lock().unwrap();
+            let s = &storage.data.settings;
+            (
+                s.ai_api_key.to_string(),
+                s.ai_chat_base_url.to_string(),
+                s.ai_chat_model.to_string(),
+            )
+        })
+        .await
+        .unwrap_or_else(|_| (String::new(), String::new(), String::new()))
     };
 
     if api_key.is_empty() {
@@ -873,6 +878,9 @@ async fn process_capture_with_ai(
         }
 
         // 8. 触发匹配到的事件
+        //    trigger_event 内部获取 storage → resource_manager → state_manager 三把
+        //    std::sync::Mutex，在 tokio async 任务中直接调用会阻塞工作线程，
+        //    因此将每次触发移到 spawn_blocking 执行。
         for trigger_event_name in &matched {
             #[cfg(debug_assertions)]
             println!(
@@ -881,32 +889,51 @@ async fn process_capture_with_ai(
             );
 
             use tauri::Manager;
-            if let Some(app_state) = app.try_state::<crate::app_state::AppState>() {
-                match app_state.trigger_event(trigger_event_name, false) {
-                    Ok(true) => {
-                        #[cfg(debug_assertions)]
-                        println!(
-                            "[AiToolManager] Trigger '{}' fired successfully",
-                            trigger_event_name
-                        );
-                        if cfg.show_info_window {
-                            emit_info_message(app, tool_name, &format!("[Trigger] '{}' fired", trigger_event_name));
-                        }
+            let app_clone = app.clone();
+            let event_name = trigger_event_name.clone();
+            let tool = tool_name.to_string();
+            let show_info = cfg.show_info_window;
+
+            let result = tokio::task::spawn_blocking(move || {
+                if let Some(app_state) = app_clone.try_state::<crate::app_state::AppState>() {
+                    app_state.trigger_event(&event_name, false)
+                } else {
+                    Ok(false)
+                }
+            })
+            .await;
+
+            match result {
+                Ok(Ok(true)) => {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[AiToolManager] Trigger '{}' fired successfully",
+                        trigger_event_name
+                    );
+                    if show_info {
+                        emit_info_message(app, tool_name, &format!("[Trigger] '{}' fired", trigger_event_name));
                     }
-                    Ok(false) => {
-                        #[cfg(debug_assertions)]
-                        println!(
-                            "[AiToolManager] Trigger '{}' did not match any state",
-                            trigger_event_name
-                        );
-                    }
-                    Err(e) => {
-                        #[cfg(debug_assertions)]
-                        println!(
-                            "[AiToolManager] Trigger '{}' error: {}",
-                            trigger_event_name, e
-                        );
-                    }
+                }
+                Ok(Ok(false)) => {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[AiToolManager] Trigger '{}' did not match any state",
+                        trigger_event_name
+                    );
+                }
+                Ok(Err(e)) => {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[AiToolManager] Trigger '{}' error: {}",
+                        trigger_event_name, e
+                    );
+                }
+                Err(e) => {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[AiToolManager] Trigger '{}' spawn_blocking join error: {}",
+                        trigger_event_name, e
+                    );
                 }
             }
         }
@@ -972,10 +999,15 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                 // 自动模式：按间隔不断截图 + AI 识别
                 loop {
                     let interval_secs = {
-                        use tauri::Manager;
-                        let app_state: tauri::State<crate::app_state::AppState> = app.state();
-                        let storage = app_state.storage.lock().unwrap();
-                        storage.data.settings.ai_screenshot_interval.max(0.1) as f64
+                        let app_clone = app.clone();
+                        tokio::task::spawn_blocking(move || {
+                            use tauri::Manager;
+                            let app_state: tauri::State<crate::app_state::AppState> = app_clone.state();
+                            let storage = app_state.storage.lock().unwrap();
+                            storage.data.settings.ai_screenshot_interval.max(0.1) as f64
+                        })
+                        .await
+                        .unwrap_or(1.0)
                     };
 
                     process_capture_with_ai(

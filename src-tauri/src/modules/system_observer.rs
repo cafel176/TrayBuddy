@@ -300,13 +300,19 @@ impl SystemObserver {
 
         let app_state: tauri::State<AppState> = app_handle.state();
 
-        // 1. 获取设置
+        // 1. 获取设置（通过 spawn_blocking 避免在 async 中阻塞 tokio 线程）
         let (auto_silence, is_silence_mode) = {
-            let storage = app_state.storage.lock().unwrap();
-            (
-                storage.data.settings.auto_silence_when_fullscreen,
-                storage.data.settings.silence_mode,
-            )
+            let app_clone = app_handle.clone();
+            tokio::task::spawn_blocking(move || {
+                let app_state: tauri::State<AppState> = app_clone.state();
+                let storage = app_state.storage.lock().unwrap();
+                (
+                    storage.data.settings.auto_silence_when_fullscreen,
+                    storage.data.settings.silence_mode,
+                )
+            })
+            .await
+            .unwrap_or((false, false))
         };
 
         // 如果未开启自动检测功能且我们没有处于自动开启状态，我们仍然通过 check_loop 更新调试信息
@@ -372,20 +378,26 @@ impl SystemObserver {
                 );
             } else {
 
-            let app_state: tauri::State<AppState> = app_handle.state();
-
             // 查找匹配的窗口名及其 tool_data（使用窗口标题而非进程名）
+            // resource_manager 锁可能在 load_mod_common 期间被长时间持有，
+            // 使用 spawn_blocking 避免阻塞 tokio 异步线程。
             let matched_proc: Option<AiToolProcess> = if !focused_window_title.is_empty() {
-                let rm = app_state.resource_manager.lock().unwrap();
-                if let Some(ai_config) = rm.get_ai_tools() {
-                    let wt_lower = focused_window_title.to_lowercase();
-                    ai_config.ai_tools.into_iter().find(|proc| {
-                        let wn_lower = proc.window_name.to_lowercase();
-                        wt_lower.contains(&wn_lower) || wn_lower.contains(&wt_lower)
-                    })
-                } else {
-                    None
-                }
+                let rm_arc = app_state.resource_manager.clone();
+                let title = focused_window_title.clone();
+                tokio::task::spawn_blocking(move || {
+                    let rm = rm_arc.lock().unwrap();
+                    if let Some(ai_config) = rm.get_ai_tools() {
+                        let wt_lower = title.to_lowercase();
+                        ai_config.ai_tools.into_iter().find(|proc| {
+                            let wn_lower = proc.window_name.to_lowercase();
+                            wt_lower.contains(&wn_lower) || wn_lower.contains(&wt_lower)
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .await
+                .unwrap_or(None)
             } else {
                 None
             };
@@ -541,12 +553,13 @@ impl SystemObserver {
             // 目标：开启 DND
             if !is_silence_mode {
                 println!("[SystemObserver] Detected Fullscreen/Busy. Auto-enabling DND.");
-                if let Ok(()) = Self::set_dnd_mode(app_handle, true) {
-                    if let Some(handler) =
-                        Self::get_force_change_handler(app_handle, STATE_SILENCE_START)
-                    {
-                        let _ = handler();
-                    }
+                let app_clone = app_handle.clone();
+                let dnd_result = tokio::task::spawn_blocking(move || {
+                    Self::set_dnd_mode_and_trigger(&app_clone, true, STATE_SILENCE_START)
+                })
+                .await
+                .unwrap_or(false);
+                if dnd_result {
                     *we_enabled_dnd = true;
                 }
             }
@@ -557,12 +570,13 @@ impl SystemObserver {
             if is_silence_mode && *we_enabled_dnd {
                 // 当前是 DND 且是我们开启的 -> 恢复正常
                 println!("[SystemObserver] Exiting Auto-DND state.");
-                if let Ok(()) = Self::set_dnd_mode(app_handle, false) {
-                    if let Some(handler) =
-                        Self::get_force_change_handler(app_handle, STATE_SILENCE_END)
-                    {
-                        let _ = handler();
-                    }
+                let app_clone = app_handle.clone();
+                let dnd_result = tokio::task::spawn_blocking(move || {
+                    Self::set_dnd_mode_and_trigger(&app_clone, false, STATE_SILENCE_END)
+                })
+                .await
+                .unwrap_or(false);
+                if dnd_result {
                     *we_enabled_dnd = false;
                 }
             } else if !is_silence_mode {
@@ -747,6 +761,26 @@ impl SystemObserver {
         // 发送设置变更事件到前端
         let _ = emit_settings(&app_handle, &settings);
         Ok(())
+    }
+
+    /// 合并 set_dnd_mode + get_force_change_handler + handler 调用，
+    /// 用于在 spawn_blocking 中一次性执行所有阻塞操作。
+    ///
+    /// 返回 true 表示操作成功完成。
+    fn set_dnd_mode_and_trigger(app_handle: &tauri::AppHandle, enable: bool, target_state: &str) -> bool {
+        if Self::set_dnd_mode(app_handle, enable).is_err() {
+            return false;
+        }
+
+        // 获取 resource_manager → state_manager 执行状态切换
+        let app_state: tauri::State<AppState> = app_handle.state();
+        let rm = app_state.resource_manager.lock().unwrap();
+        if let Some(state_info) = rm.get_state_by_name(target_state).cloned() {
+            let mut sm = app_state.state_manager.lock().unwrap();
+            let _ = sm.change_state_ex(state_info, true, &rm);
+        }
+
+        true
     }
 
     /// 获取强制状态切换的闭包（避免借用冲突）
