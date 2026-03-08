@@ -1,7 +1,7 @@
 //! AI 工具运行时管理模块
 //!
 //! 管理与 AI 工具相关的运行时状态：
-//! - 缓存焦点窗口匹配到的 ai_tools 进程名
+//! - 缓存焦点窗口匹配到的 ai_tools 窗口名
 //! - 为每个启用的工具维护一个独立的后台任务（按配置间隔截图）
 //! - 提供工具开关控制接口
 
@@ -25,9 +25,9 @@ pub struct AiToolTriggerConfig {
 // 全局缓存
 // ========================================================================= //
 
-/// 当前焦点窗口匹配到的 ai_tools 进程名（不区分大小写匹配后的原始 process_name）。
+/// 当前焦点窗口匹配到的 ai_tools 窗口名（不区分大小写匹配后的原始 window_name）。
 /// 当焦点窗口不匹配任何 ai_tools 配置时为 None。
-static MATCHED_AI_TOOL_PROCESS: Mutex<Option<String>> = Mutex::new(None);
+static MATCHED_AI_TOOL_WINDOW: Mutex<Option<String>> = Mutex::new(None);
 
 /// 工具运行时状态：工具名 -> 是否启用
 static TOOL_ENABLED_MAP: Mutex<Option<HashMap<String, bool>>> = Mutex::new(None);
@@ -85,8 +85,8 @@ impl Default for ToolType {
 /// 单个工具的任务配置（截图所需信息）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiToolTaskConfig {
-    /// 匹配到的进程名（用于截图文件名前缀）
-    pub process_name: String,
+    /// 匹配到的窗口名（用于截图文件名前缀）
+    pub window_name: String,
     /// 工具类型：auto 或 manual
     pub tool_type: ToolType,
     /// 截取矩形区域
@@ -109,8 +109,8 @@ pub struct AiToolTaskConfig {
 /// AI 工具管理器的调试快照
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiToolDebugInfo {
-    /// 当前匹配到的进程名
-    pub matched_process: Option<String>,
+    /// 当前匹配到的窗口名
+    pub matched_window: Option<String>,
     /// 各工具的运行时状态
     pub tools: Vec<AiToolDebugItem>,
     /// 活跃任务数
@@ -160,7 +160,7 @@ fn update_cached_debug_info(info: AiToolDebugInfo) {
 
 /// 生成当前调试快照并更新缓存，返回快照
 pub async fn snapshot_debug_info() -> AiToolDebugInfo {
-    let matched_process = get_matched_ai_tool_process();
+    let matched_window = get_matched_ai_tool_window();
     let enabled_map = get_tool_enabled_map();
 
     let tasks = get_task_map().lock().await;
@@ -204,7 +204,7 @@ pub async fn snapshot_debug_info() -> AiToolDebugInfo {
     drop(tasks);
 
     let info = AiToolDebugInfo {
-        matched_process,
+        matched_window,
         tools,
         active_task_count,
         last_update_time: chrono::Local::now().format("%H:%M:%S").to_string(),
@@ -240,20 +240,20 @@ pub fn set_keep_screenshots(keep: bool) {
 }
 
 // ========================================================================= //
-// 公共接口 — 进程匹配
+// 公共接口 — 窗口名匹配
 // ========================================================================= //
 
-/// 获取当前匹配到的 AI 工具进程名
-pub fn get_matched_ai_tool_process() -> Option<String> {
-    MATCHED_AI_TOOL_PROCESS
+/// 获取当前匹配到的 AI 工具窗口名
+pub fn get_matched_ai_tool_window() -> Option<String> {
+    MATCHED_AI_TOOL_WINDOW
         .lock()
         .ok()
         .and_then(|guard| guard.clone())
 }
 
-/// 更新当前匹配到的 AI 工具进程名
-pub fn set_matched_ai_tool_process(name: Option<String>) {
-    if let Ok(mut guard) = MATCHED_AI_TOOL_PROCESS.lock() {
+/// 更新当前匹配到的 AI 工具窗口名
+pub fn set_matched_ai_tool_window(name: Option<String>) {
+    if let Ok(mut guard) = MATCHED_AI_TOOL_WINDOW.lock() {
         *guard = name;
     }
 }
@@ -303,7 +303,7 @@ pub fn is_tool_enabled(name: &str) -> bool {
 /// 供 toggle_ai_tool / toggle_ai_tool_info_window 命令发送事件使用。
 pub fn build_tool_items_for_event() -> Option<(Option<String>, Vec<serde_json::Value>)> {
     let enabled_map = get_tool_enabled_map()?;
-    let process_name = get_matched_ai_tool_process();
+    let window_name = get_matched_ai_tool_window();
     let configs = TOOL_CONFIGS.lock().ok();
     let info_visible = INFO_WINDOW_VISIBLE.lock().ok();
 
@@ -337,7 +337,7 @@ pub fn build_tool_items_for_event() -> Option<(Option<String>, Vec<serde_json::V
         })
         .collect();
 
-    Some((process_name, items))
+    Some((window_name, items))
 }
 
 // ========================================================================= //
@@ -958,7 +958,7 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
             dir
         };
 
-        let file_prefix = format!("{}_{}", cfg.process_name, name_clone);
+        let file_prefix = format!("{}_{}", cfg.window_name, name_clone);
 
         match cfg.tool_type {
             ToolType::Auto => {
@@ -1047,8 +1047,8 @@ pub async fn clear_all(app: &tauri::AppHandle) {
     // 清空启用状态
     set_tool_enabled_map(None);
 
-    // 清空匹配进程
-    set_matched_ai_tool_process(None);
+    // 清空匹配窗口名
+    set_matched_ai_tool_window(None);
 
     // 清空工具配置
     if let Ok(mut guard) = TOOL_CONFIGS.lock() {
@@ -1125,18 +1125,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn matched_process_defaults_to_none() {
-        let _ = get_matched_ai_tool_process();
+    fn matched_window_defaults_to_none() {
+        let _ = get_matched_ai_tool_window();
     }
 
     #[test]
-    fn set_and_get_matched_process() {
-        set_matched_ai_tool_process(Some("chrome.exe".to_string()));
-        let val = get_matched_ai_tool_process();
-        assert_eq!(val, Some("chrome.exe".to_string()));
+    fn set_and_get_matched_window() {
+        set_matched_ai_tool_window(Some("Chrome".to_string()));
+        let val = get_matched_ai_tool_window();
+        assert_eq!(val, Some("Chrome".to_string()));
 
-        set_matched_ai_tool_process(None);
-        let val = get_matched_ai_tool_process();
+        set_matched_ai_tool_window(None);
+        let val = get_matched_ai_tool_window();
         assert_eq!(val, None);
     }
 

@@ -41,7 +41,7 @@
         is_auto_dnd_active: boolean;
         current_silence_mode: boolean;
         session_locked: boolean;
-        focused_process_name: string;
+        focused_window_title: string;
     }
 
 
@@ -163,9 +163,9 @@
                     </span>
                 </div>
                 <div class="info-item wide">
-                    <span class="label">{_("system.focusedProcess")}</span>
+                    <span class="label">{_("system.focusedWindow")}</span>
                     <span class="value mono">
-                        {debugInfo.focused_process_name || _("system.noProcess")}
+                        {debugInfo.focused_window_title || _("system.noWindow")}
                     </span>
                 </div>
 
@@ -231,15 +231,15 @@
 
                 <div
                     class="status-card"
-                    class:active={!!debugInfo.focused_process_name}
+                    class:active={!!debugInfo.focused_window_title}
                 >
                     <div class="card-icon">
-                        {debugInfo.focused_process_name ? "🎯" : "❓"}
+                        {debugInfo.focused_window_title ? "🎯" : "❓"}
                     </div>
                     <div class="card-info">
                         <div class="card-title">{_("system.focusedWindow")}</div>
                         <div class="card-value mono">
-                            {debugInfo.focused_process_name || _("system.noProcess")}
+                            {debugInfo.focused_window_title || _("system.noWindow")}
                         </div>
                     </div>
                 </div>

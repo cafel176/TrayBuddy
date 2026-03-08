@@ -530,13 +530,13 @@ fn emit_global_keyboard_event(code: &str, pressed: bool) {
     );
 }
 
-/// 检查按下的键是否为 AI 工具热键，如果是且当前有匹配进程，则触发 manual 截图
+/// 检查按下的键是否为 AI 工具热键，如果是且当前有匹配窗口，则触发 manual 截图
 #[cfg(target_os = "windows")]
 fn check_ai_tool_hotkey(code: &str, app: &tauri::AppHandle) {
     use crate::modules::ai_tool_manager;
 
-    // 必须当前有匹配的 AI 工具进程
-    if ai_tool_manager::get_matched_ai_tool_process().is_none() {
+    // 必须当前有匹配的 AI 工具窗口
+    if ai_tool_manager::get_matched_ai_tool_window().is_none() {
         return;
     }
 

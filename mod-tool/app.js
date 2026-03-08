@@ -3045,14 +3045,14 @@ function renderAiToolProcessList() {
     const procEl = document.createElement('div');
     procEl.className = 'card aitools-process-card tb-sort-item';
     procEl.dataset.sortKey = String(pIdx);
-    procEl.dataset.processName = proc.process_name || '';
+    procEl.dataset.processName = proc.window_name || '';
     procEl.style.cssText = 'margin-bottom:16px;padding:16px;border:1px solid #334155;border-radius:8px;background:#1e293b;';
 
     procEl.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         ${renderSortHandleHtml()}
-        <label style="white-space:nowrap;font-weight:600;color:#94a3b8;">${window.i18n?.t('aitools_process_name') || '进程名'}:</label>
-        <input type="text" class="aitools-process-name" data-pidx="${pIdx}" value="${escapeHtml(proc.process_name || '')}" style="flex:1;" placeholder="example_game.exe">
+        <label style="white-space:nowrap;font-weight:600;color:#94a3b8;">${window.i18n?.t('aitools_process_name') || '窗口名'}:</label>
+        <input type="text" class="aitools-process-name" data-pidx="${pIdx}" value="${escapeHtml(proc.window_name || '')}" style="flex:1;" placeholder="My Application">
         <button class="btn btn-sm btn-ghost" onclick="copyAiToolProcess(${pIdx})" title="${window.i18n?.t('btn_copy_to_clipboard') || '复制'}">📋</button>
         <button class="btn btn-sm btn-danger" onclick="removeAiToolProcess(${pIdx})" title="${window.i18n?.t('btn_delete') || '删除'}">🗑️</button>
       </div>
@@ -3351,7 +3351,7 @@ async function pasteAiToolData(pIdx) {
 }
 
 /**
- * 添加进程
+ * 添加窗口
  */
 function addAiToolProcess() {
   if (!currentMod) return;
@@ -3359,7 +3359,7 @@ function addAiToolProcess() {
     currentMod.aiTools = { ai_tools: [] };
   }
   currentMod.aiTools.ai_tools.push({
-    process_name: '',
+    window_name: '',
     tool_data: []
   });
   renderAiToolProcessList();
@@ -3416,11 +3416,11 @@ function collectAiTools() {
     currentMod.aiTools.ai_tools = [];
   }
 
-  // 收集每个进程
+  // 收集每个窗口名
   document.querySelectorAll('.aitools-process-name').forEach(el => {
     const pIdx = parseInt(el.dataset.pidx, 10);
     if (currentMod.aiTools.ai_tools[pIdx]) {
-      currentMod.aiTools.ai_tools[pIdx].process_name = el.value.trim();
+      currentMod.aiTools.ai_tools[pIdx].window_name = el.value.trim();
     }
   });
 

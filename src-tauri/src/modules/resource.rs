@@ -1527,12 +1527,12 @@ pub struct AiToolData {
     pub show_info_window: bool,
 }
 
-/// 单个进程的 AI 工具配置
+/// 单个窗口名的 AI 工具配置
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
 pub struct AiToolProcess {
-    /// 进程名
-    pub process_name: Box<str>,
+    /// 窗口名（用于与焦点窗口标题做匹配）
+    pub window_name: Box<str>,
     /// AI 小工具列表
     pub tool_data: Vec<AiToolData>,
 }
@@ -1541,7 +1541,7 @@ pub struct AiToolProcess {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
 pub struct AiToolsConfig {
-    /// AI 工具列表（每项对应一个进程）
+    /// AI 工具列表（每项对应一个窗口名）
     pub ai_tools: Vec<AiToolProcess>,
 }
 

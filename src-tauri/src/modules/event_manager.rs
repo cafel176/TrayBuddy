@@ -90,7 +90,7 @@ pub mod events {
     /// Mod 数据更新事件
     pub const MOD_DATA_CHANGED: &str = "mod-data-changed";
 
-    /// AI 工具激活事件（焦点窗口匹配到 ai_tools 进程时发出）
+    /// AI 工具激活事件（焦点窗口匹配到 ai_tools 窗口名时发出）
     pub const AI_TOOL_ACTIVATED: &str = "ai-tool-activated";
 
     /// AI 工具数据变更事件（tool_data 列表及启用状态推送到前端）

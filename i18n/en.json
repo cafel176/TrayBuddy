@@ -205,7 +205,7 @@
     "toolType": "Type",
     "noTools": "No tools available",
     "overview": "Overview",
-    "processMatch": "Process Match",
+    "windowMatch": "Window Match",
     "taskStatus": "Task Status",
     "tasksRunning": "{count} task(s) running",
     "noTasks": "No active tasks",
@@ -402,7 +402,8 @@
     "dndOff": "OFF",
     "focusedProcess": "Focused process:",
     "focusedWindow": "Focused Window",
-    "noProcess": "N/A"
+    "noProcess": "N/A",
+    "noWindow": "N/A"
   },
   "resource": {
     "title": "ResourceManager Debug Panel",

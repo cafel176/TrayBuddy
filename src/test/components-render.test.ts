@@ -54,11 +54,13 @@ describe("SystemDebugger", () => {
           is_auto_dnd_active: false,
           current_silence_mode: false,
           session_locked: false,
-          focused_process_name: "code.exe",
+          focused_window_title: "code.exe",
         };
       }
       return originalImpl ? originalImpl(command, args as never) : null;
     });
+
+
 
     const { container } = render(SystemDebugger);
     await flushAsync();
@@ -153,7 +155,7 @@ describe("SystemDebugger", () => {
           is_auto_dnd_active: false,
           current_silence_mode: false,
           session_locked: false,
-          focused_process_name: "",
+          focused_window_title: "",
         };
       }
       return originalImpl ? originalImpl(command, args as never) : null;
@@ -173,7 +175,7 @@ describe("SystemDebugger", () => {
           is_auto_dnd_active: true,
           current_silence_mode: true,
           session_locked: true,
-          focused_process_name: "chrome.exe",
+          focused_window_title: "chrome.exe",
         },
       });
     }

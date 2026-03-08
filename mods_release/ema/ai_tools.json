@@ -1,7 +1,7 @@
 {
   "ai_tools": [
     {
-      "process_name": "codebuddy",
+      "window_name": "codebuddy",
       "tool_data": [
         {
           "name": "kill",

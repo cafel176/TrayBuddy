@@ -205,7 +205,7 @@
     "toolType": "类型",
     "noTools": "暂无工具",
     "overview": "总览",
-    "processMatch": "进程匹配",
+    "windowMatch": "窗口匹配",
     "taskStatus": "任务状态",
     "tasksRunning": "{count} 个任务运行中",
     "noTasks": "无活跃任务",
@@ -402,7 +402,8 @@
     "dndOff": "关闭",
     "focusedProcess": "焦点进程:",
     "focusedWindow": "焦点窗口",
-    "noProcess": "无"
+    "noProcess": "无",
+    "noWindow": "无"
   },
   "resource": {
     "title": "ResourceManager 调试面板",

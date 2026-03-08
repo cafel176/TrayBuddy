@@ -1225,14 +1225,14 @@ export function createWindowCore(options: {
       });
 
       // 监听 AI 工具激活事件：焦点窗口匹配到 ai_tools 配置时弹气泡
-      unlistenAiToolActivated = await listen<{ process_name: string }>(
+      unlistenAiToolActivated = await listen<{ window_name: string }>(
         "ai-tool-activated",
         (event) => {
           const bm = refs.getBubbleManager();
           if (bm && !bm.isShowing()) {
-            const processName = event.payload.process_name;
+            const windowName = event.payload.window_name;
             bm.show({
-              text: `${processName} ${i18nT("aiTool.activated")}`,
+              text: `${windowName} ${i18nT("aiTool.activated")}`,
               duration: 3000,
               position: "top",
               typeSpeed: 30,
@@ -1243,11 +1243,11 @@ export function createWindowCore(options: {
 
       // 监听 AI 工具数据变更事件：更新面板工具列表
       unlistenAiToolData = await listen<{
-        process_name: string | null;
+        window_name: string | null;
         tools: { name: string; type: string; enabled: boolean; show_info_window: boolean; info_window_visible: boolean }[];
       }>("ai-tool-data-changed", (event) => {
-        const { tools, process_name } = event.payload;
-        if (process_name && tools.length > 0) {
+        const { tools, window_name } = event.payload;
+        if (window_name && tools.length > 0) {
           bindings.setAiToolItems(
             tools.map((t) => ({
               name: t.name,

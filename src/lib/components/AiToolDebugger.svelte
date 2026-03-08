@@ -42,7 +42,7 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
     }
 
     interface AiToolDebugInfo {
-        matched_process: string | null;
+        matched_window: string | null;
         tools: AiToolDebugItem[];
         active_task_count: number;
         last_update_time: string;
@@ -144,9 +144,9 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
             <h5>{_("aiToolDebug.managerStatus")}</h5>
             <div class="info-grid">
                 <div class="info-item">
-                    <span class="label">{_("aiToolDebug.matchedProcess")}</span>
+                    <span class="label">{_("aiToolDebug.matchedWindow")}</span>
                     <span class="value mono">
-                        {debugInfo.matched_process || _("aiToolDebug.noMatch")}
+                        {debugInfo.matched_window || _("aiToolDebug.noMatch")}
                     </span>
                 </div>
                 <div class="info-item">
@@ -227,14 +227,14 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
         <section class="section">
             <h5>{_("aiToolDebug.overview")}</h5>
             <div class="status-cards">
-                <div class="status-card" class:active={!!debugInfo.matched_process}>
+                <div class="status-card" class:active={!!debugInfo.matched_window}>
                     <div class="card-icon">
-                        {debugInfo.matched_process ? "🎯" : "❌"}
+                        {debugInfo.matched_window ? "🎯" : "❌"}
                     </div>
                     <div class="card-info">
-                        <div class="card-title">{_("aiToolDebug.processMatch")}</div>
+                        <div class="card-title">{_("aiToolDebug.windowMatch")}</div>
                         <div class="card-value mono">
-                            {debugInfo.matched_process || _("aiToolDebug.noMatch")}
+                            {debugInfo.matched_window || _("aiToolDebug.noMatch")}
                         </div>
                     </div>
                 </div>

@@ -34,8 +34,8 @@ const TIME_FORMAT_SHORT: &str = "%H:%M:%S";
 
 static CACHED_DEBUG_INFO: Mutex<Option<SystemDebugInfo>> = Mutex::new(None);
 
-/// 缓存的当前焦点窗口所属进程名
-static CACHED_FOCUSED_PROCESS_NAME: Mutex<Option<String>> = Mutex::new(None);
+/// 缓存的当前焦点窗口标题
+static CACHED_FOCUSED_WINDOW_TITLE: Mutex<Option<String>> = Mutex::new(None);
 
 /// 系统观察器调试信息
 #[derive(Debug, Clone, Serialize)]
@@ -54,8 +54,8 @@ pub struct SystemDebugInfo {
     pub current_silence_mode: bool,
     /// 会话是否锁定
     pub session_locked: bool,
-    /// 当前焦点窗口所属进程名
-    pub focused_process_name: String,
+    /// 当前焦点窗口标题
+    pub focused_window_title: String,
 }
 
 /// 获取缓存的调试信息
@@ -73,19 +73,19 @@ fn update_cached_debug_info(info: SystemDebugInfo) {
     }
 }
 
-/// 获取缓存的焦点进程名
-pub fn get_cached_focused_process_name() -> String {
-    CACHED_FOCUSED_PROCESS_NAME
+/// 获取缓存的焦点窗口标题
+pub fn get_cached_focused_window_title() -> String {
+    CACHED_FOCUSED_WINDOW_TITLE
         .lock()
         .ok()
         .and_then(|guard| guard.clone())
         .unwrap_or_default()
 }
 
-/// 更新缓存的焦点进程名
-fn update_cached_focused_process_name(name: String) {
-    if let Ok(mut guard) = CACHED_FOCUSED_PROCESS_NAME.lock() {
-        *guard = Some(name);
+/// 更新缓存的焦点窗口标题
+fn update_cached_focused_window_title(title: String) {
+    if let Ok(mut guard) = CACHED_FOCUSED_WINDOW_TITLE.lock() {
+        *guard = Some(title);
     }
 }
 
@@ -334,9 +334,14 @@ impl SystemObserver {
         let focused_process = tokio::task::spawn_blocking(|| Self::get_foreground_process_name())
             .await
             .unwrap_or_default();
-        update_cached_focused_process_name(focused_process.clone());
 
-        // 5. AI 工具进程匹配：检测焦点进程是否匹配当前 Mod 的 ai_tools 配置
+        // 4.1 获取当前焦点窗口的标题（用于 AI 工具匹配 + 调试信息）
+        let focused_window_title = tokio::task::spawn_blocking(|| Self::get_foreground_window_title())
+            .await
+            .unwrap_or_default();
+        update_cached_focused_window_title(focused_window_title.clone());
+
+        // 5. AI 工具窗口名匹配：检测焦点窗口标题是否匹配当前 Mod 的 ai_tools 配置
         //    如果焦点切换到 TrayBuddy 自身（例如点击浮窗按钮），跳过匹配，保持当前状态
         {
             use crate::modules::ai_tool_manager;
@@ -369,14 +374,14 @@ impl SystemObserver {
 
             let app_state: tauri::State<AppState> = app_handle.state();
 
-            // 查找匹配的进程及其 tool_data
-            let matched_proc: Option<AiToolProcess> = if !focused_process.is_empty() {
+            // 查找匹配的窗口名及其 tool_data（使用窗口标题而非进程名）
+            let matched_proc: Option<AiToolProcess> = if !focused_window_title.is_empty() {
                 let rm = app_state.resource_manager.lock().unwrap();
                 if let Some(ai_config) = rm.get_ai_tools() {
-                    let fp_lower = focused_process.to_lowercase();
+                    let wt_lower = focused_window_title.to_lowercase();
                     ai_config.ai_tools.into_iter().find(|proc| {
-                        let pn_lower = proc.process_name.to_lowercase();
-                        fp_lower.contains(&pn_lower) || pn_lower.contains(&fp_lower)
+                        let wn_lower = proc.window_name.to_lowercase();
+                        wt_lower.contains(&wn_lower) || wn_lower.contains(&wt_lower)
                     })
                 } else {
                     None
@@ -385,13 +390,13 @@ impl SystemObserver {
                 None
             };
 
-            let matched_name = matched_proc.as_ref().map(|p| p.process_name.to_string());
-            let prev = ai_tool_manager::get_matched_ai_tool_process();
+            let matched_name = matched_proc.as_ref().map(|p| p.window_name.to_string());
+            let prev = ai_tool_manager::get_matched_ai_tool_window();
             let changed = prev != matched_name;
 
             if changed {
                 if let Some(ref proc) = matched_proc {
-                    // 新匹配到进程：初始化工具管理器
+                    // 新匹配到窗口：初始化工具管理器
                     let tools: Vec<ai_tool_manager::ToolInitInfo> = proc
                         .tool_data
                         .iter()
@@ -408,7 +413,7 @@ impl SystemObserver {
                                 name: td.name.to_string(),
                                 auto_start: td.auto_start,
                                 config: ai_tool_manager::AiToolTaskConfig {
-                                    process_name: proc.process_name.to_string(),
+                                    window_name: proc.window_name.to_string(),
                                     tool_type,
                                     capture_x: td.capture_rect.x,
                                     capture_y: td.capture_rect.y,
@@ -427,14 +432,14 @@ impl SystemObserver {
                         })
                         .collect();
                     ai_tool_manager::initialize_tools(&tools, app_handle).await;
-                    ai_tool_manager::set_matched_ai_tool_process(matched_name.clone());
+                    ai_tool_manager::set_matched_ai_tool_window(matched_name.clone());
 
                     // 发送 AI 工具激活事件（气泡通知）
-                    let process_name = proc.process_name.to_string();
+                    let window_name = proc.window_name.to_string();
                     let _ = emit(
                         app_handle,
                         events::AI_TOOL_ACTIVATED,
-                        serde_json::json!({ "process_name": &process_name }),
+                        serde_json::json!({ "window_name": &window_name }),
                     );
 
                     // 发送 tool_data 到前端（含启用状态）
@@ -458,22 +463,22 @@ impl SystemObserver {
                         app_handle,
                         events::AI_TOOL_DATA_CHANGED,
                         serde_json::json!({
-                            "process_name": &process_name,
+                            "window_name": &window_name,
                             "tools": tool_items,
                         }),
                     );
 
                     #[cfg(debug_assertions)]
                     println!(
-                        "[SystemObserver] AI tool activated for process: {} ({} tools)",
-                        process_name,
+                        "[SystemObserver] AI tool activated for window: {} ({} tools)",
+                        window_name,
                         proc.tool_data.len(),
                     );
 
                     // 推送调试快照
                     ai_tool_manager::emit_debug_snapshot(app_handle).await;
                 } else {
-                    // 不再匹配任何进程：清空管理器
+                    // 不再匹配任何窗口：清空管理器
                     ai_tool_manager::clear_all(app_handle).await;
 
                     // 通知前端清空面板
@@ -483,13 +488,13 @@ impl SystemObserver {
                         app_handle,
                         events::AI_TOOL_DATA_CHANGED,
                         serde_json::json!({
-                            "process_name": null_name,
+                            "window_name": null_name,
                             "tools": empty_tools,
                         }),
                     );
 
                     #[cfg(debug_assertions)]
-                    println!("[SystemObserver] AI tool deactivated (no matching process)");
+                    println!("[SystemObserver] AI tool deactivated (no matching window)");
 
                     // 推送调试快照
                     ai_tool_manager::emit_debug_snapshot(app_handle).await;
@@ -513,7 +518,7 @@ impl SystemObserver {
             is_auto_dnd_active: *we_enabled_dnd,
             current_silence_mode: is_silence_mode,
             session_locked,
-            focused_process_name: focused_process,
+            focused_window_title: focused_window_title.clone(),
         };
         update_cached_debug_info(debug_info.clone());
 
@@ -697,6 +702,29 @@ impl SystemObserver {
         }
     }
 
+    /// 获取当前前台窗口的标题文本。
+    ///
+    /// 通过 GetForegroundWindow → GetWindowTextW 获取窗口标题。
+    fn get_foreground_window_title() -> String {
+        use windows::Win32::Foundation::MAX_PATH;
+        use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
+
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.0.is_null() {
+                return String::new();
+            }
+
+            let mut buf = [0u16; MAX_PATH as usize];
+            let len = GetWindowTextW(hwnd, &mut buf);
+            if len == 0 {
+                return String::new();
+            }
+
+            String::from_utf16_lossy(&buf[..len as usize])
+        }
+    }
+
     /// 更新免打扰设置
     fn set_dnd_mode(app_handle: &tauri::AppHandle, enable: bool) -> Result<(), String> {
         let app_state: tauri::State<AppState> = app_handle.state();
@@ -770,7 +798,7 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: false,
             session_locked: true,
-            focused_process_name: "code.exe".into(),
+            focused_window_title: "code.exe".into(),
         };
 
         update_cached_debug_info(info.clone());
@@ -778,7 +806,7 @@ mod tests {
         assert_eq!(cached.last_check_time, "12:34:56");
         assert_eq!(cached.observer_running, info.observer_running);
         assert_eq!(cached.session_locked, info.session_locked);
-        assert_eq!(cached.focused_process_name, "code.exe");
+        assert_eq!(cached.focused_window_title, "code.exe");
     }
 
     #[test]
@@ -791,7 +819,7 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: false,
             session_locked: false,
-            focused_process_name: "".into(),
+            focused_window_title: "".into(),
         });
 
         update_cached_debug_info(SystemDebugInfo {
@@ -802,14 +830,14 @@ mod tests {
             is_auto_dnd_active: true,
             current_silence_mode: true,
             session_locked: true,
-            focused_process_name: "chrome.exe".into(),
+            focused_window_title: "chrome.exe".into(),
         });
 
         let cached = get_cached_debug_info().expect("expected cached info");
         assert_eq!(cached.last_check_time, "23:59:59");
         assert!(cached.is_fullscreen_busy);
         assert!(cached.is_auto_dnd_active);
-        assert_eq!(cached.focused_process_name, "chrome.exe");
+        assert_eq!(cached.focused_window_title, "chrome.exe");
     }
 
     // ========================================================================= //
@@ -844,7 +872,7 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: true,
             session_locked: false,
-            focused_process_name: "notepad.exe".into(),
+            focused_window_title: "notepad.exe".into(),
         };
         let json = serde_json::to_string(&info).unwrap();
         assert!(json.contains("\"observer_running\":true"));
@@ -853,7 +881,7 @@ mod tests {
         assert!(json.contains("\"is_auto_dnd_active\":false"));
         assert!(json.contains("\"current_silence_mode\":true"));
         assert!(json.contains("\"session_locked\":false"));
-        assert!(json.contains("\"focused_process_name\":\"notepad.exe\""));
+        assert!(json.contains("\"focused_window_title\":\"notepad.exe\""));
     }
 
     #[test]
@@ -866,11 +894,11 @@ mod tests {
             is_auto_dnd_active: false,
             current_silence_mode: false,
             session_locked: false,
-            focused_process_name: "".into(),
+            focused_window_title: "".into(),
         };
         assert!(!info.observer_running);
         assert!(!info.session_locked);
-        assert!(info.focused_process_name.is_empty());
+        assert!(info.focused_window_title.is_empty());
     }
 }
 

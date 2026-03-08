@@ -205,7 +205,7 @@
     "toolType": "タイプ",
     "noTools": "ツールなし",
     "overview": "概要",
-    "processMatch": "プロセスマッチ",
+    "windowMatch": "ウィンドウマッチ",
     "taskStatus": "タスク状態",
     "tasksRunning": "{count} タスク実行中",
     "noTasks": "アクティブタスクなし",
@@ -402,7 +402,8 @@
     "dndOff": "オフ",
     "focusedProcess": "フォーカスプロセス:",
     "focusedWindow": "フォーカスウィンドウ",
-    "noProcess": "なし"
+    "noProcess": "なし",
+    "noWindow": "なし"
   },
   "resource": {
     "title": "リソースマネージャー デバッグパネル",
