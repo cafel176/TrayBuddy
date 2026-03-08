@@ -175,8 +175,6 @@
     "aiApiKeyPlaceholder": "请输入 API Key",
     "aiChatBaseUrl": "AI 识别 API 地址",
     "aiChatModel": "AI 识别模型",
-    "aiImageBaseUrl": "AI 生图 API 地址",
-    "aiImageModel": "AI 生图模型",
     "aiScreenshotInterval": "AI 截图频率",
     "aiToolHotkey": "AI 主动工具快捷键",
     "openStorageDir": "打开存储目录",

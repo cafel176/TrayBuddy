@@ -175,8 +175,6 @@
     "aiApiKeyPlaceholder": "Enter API Key",
     "aiChatBaseUrl": "AI Vision API URL",
     "aiChatModel": "AI Vision Model",
-    "aiImageBaseUrl": "AI Image API URL",
-    "aiImageModel": "AI Image Model",
     "aiScreenshotInterval": "AI Screenshot Interval",
     "aiToolHotkey": "AI Tool Hotkey",
     "openStorageDir": "Open Storage Directory",

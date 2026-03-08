@@ -175,8 +175,6 @@
     "aiApiKeyPlaceholder": "API Keyを入力してください",
     "aiChatBaseUrl": "AI認識APIアドレス",
     "aiChatModel": "AI認識モデル",
-    "aiImageBaseUrl": "AI画像生成APIアドレス",
-    "aiImageModel": "AI画像生成モデル",
     "aiScreenshotInterval": "AIスクリーンショット頻度",
     "aiToolHotkey": "AIツールホットキー",
     "openStorageDir": "ストレージディレクトリを開く",

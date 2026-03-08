@@ -541,12 +541,26 @@ async fn do_capture(
     }
 }
 
-/// 将图片文件读取为 base64 编码字符串
-fn read_image_as_base64(path: &std::path::Path) -> Result<String, String> {
-    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read image: {}", e))?;
+/// 将图片文件读取并转为 PNG base64 编码字符串
+///
+/// 无论原始格式（BMP/PNG 等），统一输出 PNG 格式的 base64，
+/// 以确保与 SiliconFlow 等 API 的兼容性。
+fn read_image_as_png_base64(path: &std::path::Path) -> Result<String, String> {
+    use image::ImageReader;
+    use std::io::Cursor;
+
+    let img = ImageReader::open(path)
+        .map_err(|e| format!("Failed to open image: {}", e))?
+        .decode()
+        .map_err(|e| format!("Failed to decode image: {}", e))?;
+
+    let mut png_buf = Vec::new();
+    img.write_to(&mut Cursor::new(&mut png_buf), image::ImageFormat::Png)
+        .map_err(|e| format!("Failed to encode PNG: {}", e))?;
+
     Ok(base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
-        &bytes,
+        &png_buf,
     ))
 }
 
@@ -580,7 +594,7 @@ async fn call_chat_vision_api(
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": format!("data:image/bmp;base64,{}", image_base64)
+                            "url": format!("data:image/png;base64,{}", image_base64)
                         }
                     }
                 ]
@@ -681,7 +695,7 @@ async fn process_capture_with_ai(
     // 4. 读取截图为 base64
     let image_b64 = match tokio::task::spawn_blocking({
         let path = screenshot_path.clone();
-        move || read_image_as_base64(&path)
+        move || read_image_as_png_base64(&path)
     })
     .await
     {

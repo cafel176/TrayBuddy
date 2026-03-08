@@ -678,7 +678,7 @@
       <label for="ai_api_key">{_("settings.aiApiKey")}</label>
       <input
         id="ai_api_key"
-        type="password"
+        type="text"
         bind:value={settings.ai_api_key}
         onchange={saveSettings}
         placeholder={_("settings.aiApiKeyPlaceholder")}
@@ -709,29 +709,6 @@
       />
     </div>
 
-    <!-- AI Image Base URL -->
-    <div class="form-group">
-      <label for="ai_image_base_url">{_("settings.aiImageBaseUrl")}</label>
-      <input
-        id="ai_image_base_url"
-        type="text"
-        bind:value={settings.ai_image_base_url}
-        onchange={saveSettings}
-        placeholder="https://api.siliconflow.cn/v1"
-      />
-    </div>
-
-    <!-- AI Image Model -->
-    <div class="form-group">
-      <label for="ai_image_model">{_("settings.aiImageModel")}</label>
-      <input
-        id="ai_image_model"
-        type="text"
-        bind:value={settings.ai_image_model}
-        onchange={saveSettings}
-        placeholder="black-forest-labs/FLUX.1-schnell"
-      />
-    </div>
 
     <!-- AI 截图频率 -->
     <div class="form-group">
@@ -815,7 +792,6 @@
   }
 
   input[type="text"],
-  input[type="password"],
   select {
     padding: 10px;
     border: 1px solid #ddd;
@@ -826,7 +802,6 @@
   }
 
   input[type="text"]:focus,
-  input[type="password"]:focus,
   select:focus {
     border-color: #3498db;
   }
@@ -921,7 +896,6 @@
       color: #bdc3c7;
     }
     input[type="text"],
-    input[type="password"],
     select {
       background: #34495e;
       border-color: #455a64;

@@ -62,10 +62,6 @@ pub struct UserSettings {
     pub ai_chat_base_url: Box<str>,
     /// AI 图像识别/理解模型（用于 chat completions + vision）
     pub ai_chat_model: Box<str>,
-    /// AI 生图 API Base URL（兼容 OpenAI 的 images/generations 端点）
-    pub ai_image_base_url: Box<str>,
-    /// AI 图像生成模型（用于 images/generations）
-    pub ai_image_model: Box<str>,
     /// AI 截图频率（秒）
     pub ai_screenshot_interval: f32,
     /// 启动 AI 主动工具的快捷键 (F1-F12)
@@ -101,9 +97,7 @@ impl Default for UserSettings {
 
             ai_api_key: "".into(),
             ai_chat_base_url: "https://api.siliconflow.cn/v1".into(),
-            ai_chat_model: "Qwen/Qwen2.5-VL-7B-Instruct".into(),
-            ai_image_base_url: "https://api.siliconflow.cn/v1".into(),
-            ai_image_model: "black-forest-labs/FLUX.1-schnell".into(),
+            ai_chat_model: "Pro/Qwen/Qwen2.5-VL-7B-Instruct".into(),
             ai_screenshot_interval: 1.0,
             ai_tool_hotkey: "F1".into(),
 
@@ -736,9 +730,7 @@ mod tests {
         assert_eq!(s.threed_cross_fade_duration, 0.3);
         assert_eq!(s.ai_api_key.as_ref(), "");
         assert_eq!(s.ai_chat_base_url.as_ref(), "https://api.siliconflow.cn/v1");
-        assert_eq!(s.ai_chat_model.as_ref(), "Qwen/Qwen2.5-VL-7B-Instruct");
-        assert_eq!(s.ai_image_base_url.as_ref(), "https://api.siliconflow.cn/v1");
-        assert_eq!(s.ai_image_model.as_ref(), "black-forest-labs/FLUX.1-schnell");
+        assert_eq!(s.ai_chat_model.as_ref(), "Pro/Qwen/Qwen2.5-VL-7B-Instruct");
         assert_eq!(s.ai_screenshot_interval, 1.0);
         assert_eq!(s.ai_tool_hotkey.as_ref(), "F1");
     }
