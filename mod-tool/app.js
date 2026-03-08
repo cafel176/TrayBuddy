@@ -3186,7 +3186,10 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
         </label>
       </div>
       <div class="form-group" style="grid-column:span 2;">
-        <label>${window.i18n?.t('aitools_field_capture_rect') || '截取区域'} (x, y, width, height)</label>
+        <label>
+          ${window.i18n?.t('aitools_field_capture_rect') || '截取区域'} (x, y, width, height)
+          <button type="button" class="capture-rect-edit-btn" onclick="openCaptureRectEditor(${pIdx},${tIdx})">📐 ${window.i18n?.t('capture_rect_visual_edit') || '可视化编辑'}</button>
+        </label>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
           <input type="number" class="ait-rect-x" data-pidx="${pIdx}" data-tidx="${tIdx}" value="${tool.capture_rect?.x ?? 0}" placeholder="x">
           <input type="number" class="ait-rect-y" data-pidx="${pIdx}" data-tidx="${tIdx}" value="${tool.capture_rect?.y ?? 0}" placeholder="y">
@@ -11323,4 +11326,396 @@ function showToast(message, type = 'info') {
     toast.style.animation = 'toast-in 0.3s ease reverse';
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+/* ============================================================================
+   Capture Rect 可视化编辑器
+   ============================================================================ */
+
+const _crEditor = {
+  pIdx: -1,
+  tIdx: -1,
+  img: null,         // 原始 Image 对象
+  imgW: 0,           // 原始图片宽
+  imgH: 0,           // 原始图片高
+  scale: 1,          // canvas 缩放比 = canvas显示尺寸 / 原始图片尺寸
+  // 选区（原始图片坐标）
+  rect: { x: 0, y: 0, w: 0, h: 0 },
+  // 交互状态
+  dragging: false,
+  dragType: '',      // 'create' | 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+  dragStart: { x: 0, y: 0 },
+  rectStart: { x: 0, y: 0, w: 0, h: 0 },
+  EDGE_HIT: 8,       // 边线命中像素阈值（canvas坐标）
+};
+
+function openCaptureRectEditor(pIdx, tIdx) {
+  _crEditor.pIdx = pIdx;
+  _crEditor.tIdx = tIdx;
+  _crEditor.img = null;
+
+  // 读取当前值
+  const rx = document.querySelector(`.ait-rect-x[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  const ry = document.querySelector(`.ait-rect-y[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  const rw = document.querySelector(`.ait-rect-w[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  const rh = document.querySelector(`.ait-rect-h[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  _crEditor.rect = {
+    x: parseInt(rx?.value, 10) || 0,
+    y: parseInt(ry?.value, 10) || 0,
+    w: parseInt(rw?.value, 10) || 0,
+    h: parseInt(rh?.value, 10) || 0,
+  };
+
+  // 同步到输入框
+  _crUpdateValInputs();
+
+  // 清空 canvas
+  const canvas = document.getElementById('capture-rect-canvas');
+  canvas.width = 0;
+  canvas.height = 0;
+  document.getElementById('capture-rect-placeholder').style.display = '';
+  document.getElementById('capture-rect-img-info').textContent = '';
+  document.getElementById('capture-rect-img-input').value = '';
+
+  // 显示弹窗
+  document.getElementById('capture-rect-modal').classList.add('show');
+}
+
+function closeCaptureRectModal() {
+  document.getElementById('capture-rect-modal').classList.remove('show');
+  _crCleanupEvents();
+}
+
+function confirmCaptureRect() {
+  const { pIdx, tIdx, rect } = _crEditor;
+  const rx = document.querySelector(`.ait-rect-x[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  const ry = document.querySelector(`.ait-rect-y[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  const rw = document.querySelector(`.ait-rect-w[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  const rh = document.querySelector(`.ait-rect-h[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+  if (rx) rx.value = Math.round(rect.x);
+  if (ry) ry.value = Math.round(rect.y);
+  if (rw) rw.value = Math.round(rect.w);
+  if (rh) rh.value = Math.round(rect.h);
+
+  // 触发 change 事件以同步数据
+  [rx, ry, rw, rh].forEach(el => {
+    if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  closeCaptureRectModal();
+}
+
+function onCaptureRectImageLoaded(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      _crEditor.img = img;
+      _crEditor.imgW = img.naturalWidth;
+      _crEditor.imgH = img.naturalHeight;
+      document.getElementById('capture-rect-img-info').textContent =
+        `${img.naturalWidth} × ${img.naturalHeight}`;
+      document.getElementById('capture-rect-placeholder').style.display = 'none';
+
+      _crFitCanvas();
+      _crBindCanvasEvents();
+      _crDraw();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/** 手动修改数值输入框 → 同步选区并重绘 */
+function onCaptureRectValChanged() {
+  const vx = parseInt(document.getElementById('capture-rect-val-x').value, 10) || 0;
+  const vy = parseInt(document.getElementById('capture-rect-val-y').value, 10) || 0;
+  const vw = parseInt(document.getElementById('capture-rect-val-w').value, 10) || 0;
+  const vh = parseInt(document.getElementById('capture-rect-val-h').value, 10) || 0;
+  _crEditor.rect = { x: vx, y: vy, w: vw, h: vh };
+  if (_crEditor.img) _crDraw();
+}
+
+/* ---- 内部函数 ---- */
+
+function _crUpdateValInputs() {
+  const r = _crEditor.rect;
+  document.getElementById('capture-rect-val-x').value = Math.round(r.x);
+  document.getElementById('capture-rect-val-y').value = Math.round(r.y);
+  document.getElementById('capture-rect-val-w').value = Math.round(r.w);
+  document.getElementById('capture-rect-val-h').value = Math.round(r.h);
+}
+
+function _crFitCanvas() {
+  const wrap = document.getElementById('capture-rect-canvas-wrap');
+  const canvas = document.getElementById('capture-rect-canvas');
+  const maxW = wrap.clientWidth - 2; // 减去 border
+  const ratio = _crEditor.imgW / _crEditor.imgH;
+  let cw = Math.min(maxW, _crEditor.imgW);
+  let ch = cw / ratio;
+  if (ch > 600) { ch = 600; cw = ch * ratio; }
+  canvas.width = Math.round(cw);
+  canvas.height = Math.round(ch);
+  canvas.style.width = Math.round(cw) + 'px';
+  canvas.style.height = Math.round(ch) + 'px';
+  _crEditor.scale = cw / _crEditor.imgW;
+}
+
+function _crDraw() {
+  const canvas = document.getElementById('capture-rect-canvas');
+  const ctx = canvas.getContext('2d');
+  const { img, scale, rect } = _crEditor;
+
+  // 底图
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  // 半透明遮罩（选区外部变暗）
+  if (rect.w > 0 && rect.h > 0) {
+    const sx = rect.x * scale;
+    const sy = rect.y * scale;
+    const sw = rect.w * scale;
+    const sh = rect.h * scale;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    // 上
+    ctx.fillRect(0, 0, canvas.width, sy);
+    // 下
+    ctx.fillRect(0, sy + sh, canvas.width, canvas.height - sy - sh);
+    // 左
+    ctx.fillRect(0, sy, sx, sh);
+    // 右
+    ctx.fillRect(sx + sw, sy, canvas.width - sx - sw, sh);
+
+    // 选区边框
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.strokeRect(sx, sy, sw, sh);
+
+    // 四角手柄
+    const hs = 6;
+    ctx.fillStyle = '#6366f1';
+    const corners = [
+      [sx, sy], [sx + sw, sy],
+      [sx, sy + sh], [sx + sw, sy + sh],
+    ];
+    for (const [cx, cy] of corners) {
+      ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
+    }
+
+    // 尺寸标注
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    const label = `${Math.round(rect.x)}, ${Math.round(rect.y)}  ${Math.round(rect.w)}×${Math.round(rect.h)}`;
+    const lx = sx + 4;
+    const ly = sy - 4;
+    // 背景
+    const tm = ctx.measureText(label);
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(lx - 2, ly - 14, tm.width + 4, 16);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, lx, ly);
+  }
+}
+
+/** 将 canvas 上的鼠标坐标转为原始图片坐标 */
+function _crCanvasToImg(ex, ey) {
+  const canvas = document.getElementById('capture-rect-canvas');
+  const br = canvas.getBoundingClientRect();
+  const cx = ex - br.left;
+  const cy = ey - br.top;
+  return {
+    cx, cy,
+    ix: cx / _crEditor.scale,
+    iy: cy / _crEditor.scale,
+  };
+}
+
+/** 检测鼠标在选区边/角/内部/外部 */
+function _crHitTest(cx, cy) {
+  const { rect, scale, EDGE_HIT } = _crEditor;
+  if (rect.w <= 0 || rect.h <= 0) return 'create';
+
+  const sx = rect.x * scale;
+  const sy = rect.y * scale;
+  const sw = rect.w * scale;
+  const sh = rect.h * scale;
+
+  const nearL = Math.abs(cx - sx) <= EDGE_HIT;
+  const nearR = Math.abs(cx - (sx + sw)) <= EDGE_HIT;
+  const nearT = Math.abs(cy - sy) <= EDGE_HIT;
+  const nearB = Math.abs(cy - (sy + sh)) <= EDGE_HIT;
+  const inX = cx >= sx - EDGE_HIT && cx <= sx + sw + EDGE_HIT;
+  const inY = cy >= sy - EDGE_HIT && cy <= sy + sh + EDGE_HIT;
+
+  // 四角
+  if (nearT && nearL && inX && inY) return 'nw';
+  if (nearT && nearR && inX && inY) return 'ne';
+  if (nearB && nearL && inX && inY) return 'sw';
+  if (nearB && nearR && inX && inY) return 'se';
+  // 四边
+  if (nearT && inX) return 'n';
+  if (nearB && inX) return 'b';
+  if (nearL && inY) return 'w';
+  if (nearR && inY) return 'e';
+  // 内部
+  if (cx >= sx && cx <= sx + sw && cy >= sy && cy <= sy + sh) return 'move';
+  return 'create';
+}
+
+function _crGetCursor(type) {
+  const map = {
+    'n': 'ns-resize', 'b': 'ns-resize',
+    'w': 'ew-resize', 'e': 'ew-resize',
+    'nw': 'nwse-resize', 'se': 'nwse-resize',
+    'ne': 'nesw-resize', 'sw': 'nesw-resize',
+    'move': 'move',
+    'create': 'crosshair',
+  };
+  return map[type] || 'crosshair';
+}
+
+function _crClampRect() {
+  const r = _crEditor.rect;
+  const { imgW, imgH } = _crEditor;
+  // 确保 w/h 不为负（交换方向）
+  if (r.w < 0) { r.x += r.w; r.w = -r.w; }
+  if (r.h < 0) { r.y += r.h; r.h = -r.h; }
+  // 限制在图片范围内
+  if (r.x < 0) { r.w += r.x; r.x = 0; }
+  if (r.y < 0) { r.h += r.y; r.y = 0; }
+  if (r.x + r.w > imgW) r.w = imgW - r.x;
+  if (r.y + r.h > imgH) r.h = imgH - r.y;
+  r.w = Math.max(0, r.w);
+  r.h = Math.max(0, r.h);
+}
+
+/* ---- Canvas 事件绑定 ---- */
+
+let _crBoundHandler = null;
+
+function _crCleanupEvents() {
+  if (_crBoundHandler) {
+    document.removeEventListener('mousemove', _crBoundHandler.onMouseMove);
+    document.removeEventListener('mouseup', _crBoundHandler.onMouseUp);
+    const canvas = document.getElementById('capture-rect-canvas');
+    if (canvas) {
+      canvas.removeEventListener('mousedown', _crBoundHandler.onMouseDown);
+      canvas.removeEventListener('mousemove', _crBoundHandler.onCanvasMove);
+    }
+    _crBoundHandler = null;
+  }
+}
+
+function _crBindCanvasEvents() {
+  _crCleanupEvents();
+
+  const canvas = document.getElementById('capture-rect-canvas');
+
+  function onMouseDown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const { cx, cy, ix, iy } = _crCanvasToImg(e.clientX, e.clientY);
+    const hit = _crHitTest(cx, cy);
+
+    _crEditor.dragging = true;
+    _crEditor.dragType = hit;
+    _crEditor.dragStart = { x: ix, y: iy };
+    _crEditor.rectStart = { ..._crEditor.rect };
+
+    if (hit === 'create') {
+      _crEditor.rect = { x: ix, y: iy, w: 0, h: 0 };
+    }
+  }
+
+  function onMouseMove(e) {
+    if (!_crEditor.dragging) return;
+    e.preventDefault();
+    const { ix, iy } = _crCanvasToImg(e.clientX, e.clientY);
+    const dx = ix - _crEditor.dragStart.x;
+    const dy = iy - _crEditor.dragStart.y;
+    const rs = _crEditor.rectStart;
+    const r = _crEditor.rect;
+
+    switch (_crEditor.dragType) {
+      case 'create':
+        r.x = _crEditor.dragStart.x;
+        r.y = _crEditor.dragStart.y;
+        r.w = dx;
+        r.h = dy;
+        break;
+      case 'move':
+        r.x = rs.x + dx;
+        r.y = rs.y + dy;
+        r.w = rs.w;
+        r.h = rs.h;
+        break;
+      case 'n':
+        r.y = rs.y + dy;
+        r.h = rs.h - dy;
+        break;
+      case 'b':
+        r.h = rs.h + dy;
+        break;
+      case 'w':
+        r.x = rs.x + dx;
+        r.w = rs.w - dx;
+        break;
+      case 'e':
+        r.w = rs.w + dx;
+        break;
+      case 'nw':
+        r.x = rs.x + dx;
+        r.y = rs.y + dy;
+        r.w = rs.w - dx;
+        r.h = rs.h - dy;
+        break;
+      case 'ne':
+        r.y = rs.y + dy;
+        r.w = rs.w + dx;
+        r.h = rs.h - dy;
+        break;
+      case 'sw':
+        r.x = rs.x + dx;
+        r.w = rs.w - dx;
+        r.h = rs.h + dy;
+        break;
+      case 'se':
+        r.w = rs.w + dx;
+        r.h = rs.h + dy;
+        break;
+    }
+
+    _crClampRect();
+    _crUpdateValInputs();
+    _crDraw();
+  }
+
+  function onMouseUp() {
+    if (!_crEditor.dragging) return;
+    _crEditor.dragging = false;
+    _crClampRect();
+    _crUpdateValInputs();
+    _crDraw();
+  }
+
+  function onCanvasMove(e) {
+    if (_crEditor.dragging) return;
+    const { cx, cy } = _crCanvasToImg(e.clientX, e.clientY);
+    const hit = _crHitTest(cx, cy);
+    canvas.style.cursor = _crGetCursor(hit);
+  }
+
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mousemove', onCanvasMove);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+
+  _crBoundHandler = { onMouseDown, onMouseMove, onMouseUp, onCanvasMove };
 }

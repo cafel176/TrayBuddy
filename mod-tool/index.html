@@ -1902,6 +1902,55 @@
     </div>
   </div>
 
+  <!-- 截取区域可视化编辑弹窗 -->
+  <div class="modal" id="capture-rect-modal">
+    <div class="modal-overlay" onclick="closeCaptureRectModal()"></div>
+    <div class="modal-content" style="max-width:900px;width:95%;">
+      <div class="modal-header">
+        <h3>📐 <span data-i18n="capture_rect_editor_title">截取区域编辑</span></h3>
+        <button class="modal-close" onclick="closeCaptureRectModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px;">
+        <!-- 导入图片 -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('capture-rect-img-input').click()">
+            🖼️ <span data-i18n="capture_rect_import_image">导入图片</span>
+          </button>
+          <input type="file" id="capture-rect-img-input" accept="image/*" style="display:none;" onchange="onCaptureRectImageLoaded(event)">
+          <span id="capture-rect-img-info" style="color:var(--text-muted);font-size:13px;"></span>
+        </div>
+        <!-- Canvas 编辑区 -->
+        <div id="capture-rect-canvas-wrap" style="position:relative;border:1px solid var(--border-color);border-radius:var(--border-radius);overflow:hidden;background:#111;min-height:300px;display:flex;align-items:center;justify-content:center;cursor:crosshair;">
+          <canvas id="capture-rect-canvas"></canvas>
+          <div id="capture-rect-placeholder" style="color:var(--text-muted);position:absolute;pointer-events:none;font-size:14px;" data-i18n="capture_rect_placeholder">请先导入一张图片</div>
+        </div>
+        <!-- 实时数值显示 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:12px;">
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:12px;margin-bottom:2px;">X</label>
+            <input type="number" id="capture-rect-val-x" value="0" onchange="onCaptureRectValChanged()">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:12px;margin-bottom:2px;">Y</label>
+            <input type="number" id="capture-rect-val-y" value="0" onchange="onCaptureRectValChanged()">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:12px;margin-bottom:2px;">Width</label>
+            <input type="number" id="capture-rect-val-w" value="0" onchange="onCaptureRectValChanged()">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:12px;margin-bottom:2px;">Height</label>
+            <input type="number" id="capture-rect-val-h" value="0" onchange="onCaptureRectValChanged()">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCaptureRectModal()" data-i18n="btn_cancel">取消</button>
+        <button class="btn btn-primary" onclick="confirmCaptureRect()" data-i18n="btn_confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast 通知 -->
   <div class="toast-container" id="toast-container"></div>
 

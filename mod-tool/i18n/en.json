@@ -38,6 +38,10 @@
   "aitools_field_type": "Type",
   "aitools_field_auto_start": "Auto Start",
   "aitools_field_capture_rect": "Capture Rect",
+  "capture_rect_editor_title": "Capture Rect Editor",
+  "capture_rect_import_image": "Import Image",
+  "capture_rect_placeholder": "Please import an image first",
+  "capture_rect_visual_edit": "Visual Edit",
   "aitools_field_prompts": "Prompts",
   "aitools_field_prompts_hint": "One per line",
   "aitools_field_triggers": "Trigger Mappings",
@@ -299,6 +303,7 @@
 
   "btn_add_branch": "Add Branch",
   "btn_cancel": "Cancel",
+  "btn_confirm": "Confirm",
   "btn_save": "Save",
   "btn_edit": "Edit",
   "btn_delete": "Delete",

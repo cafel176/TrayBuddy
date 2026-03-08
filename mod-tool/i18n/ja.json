@@ -39,6 +39,10 @@
   "aitools_field_type": "タイプ",
   "aitools_field_auto_start": "自動起動",
   "aitools_field_capture_rect": "キャプチャ領域",
+  "capture_rect_editor_title": "キャプチャ領域エディタ",
+  "capture_rect_import_image": "画像をインポート",
+  "capture_rect_placeholder": "まず画像をインポートしてください",
+  "capture_rect_visual_edit": "ビジュアル編集",
   "aitools_field_prompts": "プロンプト",
   "aitools_field_prompts_hint": "1行に1つ",
   "aitools_field_triggers": "トリガーマッピング",
@@ -299,6 +303,7 @@
 
   "btn_add_branch": "分岐を追加",
   "btn_cancel": "キャンセル",
+  "btn_confirm": "確認",
   "btn_save": "保存",
   "btn_edit": "編集",
   "btn_delete": "削除",
