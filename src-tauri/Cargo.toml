@@ -33,6 +33,8 @@ getrandom = "0.2"
 chrono = "0.4"
 lazy_static = "1.4"
 zip = "2.3.0"
+reqwest = { version = "0.12", features = ["json"] }
+base64 = "0.22"
 
 # Windows 媒体监听和鼠标位置
 [target.'cfg(windows)'.dependencies]

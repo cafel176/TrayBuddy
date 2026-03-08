@@ -415,6 +415,13 @@ impl SystemObserver {
                                     capture_width: td.capture_rect.width,
                                     capture_height: td.capture_rect.height,
                                     show_info_window: td.show_info_window,
+                                    prompts: td.prompts.iter().map(|p| p.to_string()).collect(),
+                                    triggers: td.triggers.iter().map(|t| {
+                                        ai_tool_manager::AiToolTriggerConfig {
+                                            keyword: t.keyword.to_string(),
+                                            trigger: t.trigger.to_string(),
+                                        }
+                                    }).collect(),
                                 },
                             }
                         })

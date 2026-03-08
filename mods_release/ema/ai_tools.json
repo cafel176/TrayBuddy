@@ -14,7 +14,7 @@
             "height": 300
           },
           "prompts": [
-            "识别图片是否带有骷髅头图案，是返回true，否则返回false"
+            "识别图片是否带有文本，是返回true，否则返回false"
           ],
           "triggers": [
             {

@@ -14,6 +14,13 @@ use tokio::task::JoinHandle;
 
 use super::screenshot;
 
+/// AI 工具触发器配置（从 ai_tools.json 传入）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiToolTriggerConfig {
+    pub keyword: String,
+    pub trigger: String,
+}
+
 // ========================================================================= //
 // 全局缓存
 // ========================================================================= //
@@ -89,6 +96,10 @@ pub struct AiToolTaskConfig {
     pub capture_height: u32,
     /// 是否需要信息窗口
     pub show_info_window: bool,
+    /// 提示词列表（发送给 AI 的 prompt）
+    pub prompts: Vec<String>,
+    /// 触发器列表（AI 返回文本中匹配 keyword 则触发对应 trigger）
+    pub triggers: Vec<AiToolTriggerConfig>,
 }
 
 // ========================================================================= //
@@ -471,15 +482,15 @@ fn destroy_all_info_windows(app: &tauri::AppHandle) {
 // 公共接口 — 任务管理
 // ========================================================================= //
 
-/// 执行一次截图并保存
+/// 执行一次截图并保存，返回保存路径（成功时）
 async fn do_capture(
     cfg: &AiToolTaskConfig,
     file_prefix: &str,
     screenshots_dir: &std::path::Path,
     tool_name: &str,
-) {
+) -> Option<std::path::PathBuf> {
     if cfg.capture_width == 0 || cfg.capture_height == 0 {
-        return;
+        return None;
     }
 
     let keep = KEEP_SCREENSHOTS.load(Ordering::Relaxed);
@@ -509,6 +520,7 @@ async fn do_capture(
                 "[AiToolManager] Screenshot saved: {}",
                 save_path.display()
             );
+            Some(save_path)
         }
         Ok(Err(e)) => {
             #[cfg(debug_assertions)]
@@ -516,6 +528,7 @@ async fn do_capture(
                 "[AiToolManager] Screenshot failed for {}: {}",
                 tool_name, e
             );
+            None
         }
         Err(e) => {
             #[cfg(debug_assertions)]
@@ -523,6 +536,259 @@ async fn do_capture(
                 "[AiToolManager] Screenshot task join error for {}: {}",
                 tool_name, e
             );
+            None
+        }
+    }
+}
+
+/// 将图片文件读取为 base64 编码字符串
+fn read_image_as_base64(path: &std::path::Path) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read image: {}", e))?;
+    Ok(base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        &bytes,
+    ))
+}
+
+/// 调用 OpenAI 兼容的 Chat Completions API（含 vision），返回 AI 回复文本
+async fn call_chat_vision_api(
+    base_url: &str,
+    api_key: &str,
+    model: &str,
+    prompts: &[String],
+    image_base64: &str,
+) -> Result<String, String> {
+    let url = format!(
+        "{}/chat/completions",
+        base_url.trim_end_matches('/')
+    );
+
+    // 构建 prompt 文本
+    let prompt_text = prompts.join("\n");
+
+    // 构建 messages: 一条 user message，包含 text + image_url (base64)
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt_text
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": format!("data:image/bmp;base64,{}", image_base64)
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 512,
+        "temperature": 0.1
+    });
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status = resp.status();
+    let resp_text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    if !status.is_success() {
+        return Err(format!("API returned {}: {}", status, resp_text));
+    }
+
+    // 解析返回的 JSON
+    let json: serde_json::Value = serde_json::from_str(&resp_text)
+        .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
+
+    // 提取 choices[0].message.content
+    let content = json
+        .get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("message"))
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(content)
+}
+
+/// 将 AI 回复文本与触发器列表匹配，返回所有匹配的 trigger 事件名
+fn match_triggers(ai_response: &str, triggers: &[AiToolTriggerConfig]) -> Vec<String> {
+    let response_lower = ai_response.to_lowercase();
+    triggers
+        .iter()
+        .filter(|t| response_lower.contains(&t.keyword.to_lowercase()))
+        .map(|t| t.trigger.clone())
+        .collect()
+}
+
+/// 截图后执行 AI 识别 + trigger 匹配的完整流程
+async fn process_capture_with_ai(
+    cfg: &AiToolTaskConfig,
+    file_prefix: &str,
+    screenshots_dir: &std::path::Path,
+    tool_name: &str,
+    app: &tauri::AppHandle,
+) {
+    // 1. 截图
+    let Some(screenshot_path) = do_capture(cfg, file_prefix, screenshots_dir, tool_name).await
+    else {
+        return;
+    };
+
+    // 2. 如果 triggers 为空，仅截图不调用 AI
+    if cfg.triggers.is_empty() {
+        return;
+    }
+
+    // 3. 从 settings 读取 API 配置
+    let (api_key, base_url, model) = {
+        use tauri::Manager;
+        let app_state: tauri::State<crate::app_state::AppState> = app.state();
+        let storage = app_state.storage.lock().unwrap();
+        let s = &storage.data.settings;
+        (
+            s.ai_api_key.to_string(),
+            s.ai_chat_base_url.to_string(),
+            s.ai_chat_model.to_string(),
+        )
+    };
+
+    if api_key.is_empty() {
+        #[cfg(debug_assertions)]
+        println!(
+            "[AiToolManager] Skipping AI call for {}: API key is empty",
+            tool_name
+        );
+        return;
+    }
+
+    // 4. 读取截图为 base64
+    let image_b64 = match tokio::task::spawn_blocking({
+        let path = screenshot_path.clone();
+        move || read_image_as_base64(&path)
+    })
+    .await
+    {
+        Ok(Ok(b64)) => b64,
+        Ok(Err(e)) => {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] Failed to encode screenshot for {}: {}",
+                tool_name, e
+            );
+            return;
+        }
+        Err(e) => {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] Encode task join error for {}: {}",
+                tool_name, e
+            );
+            return;
+        }
+    };
+
+    // 5. 调用 AI API
+    #[cfg(debug_assertions)]
+    println!(
+        "[AiToolManager] Calling AI API for tool '{}' (model: {}, prompts: {})",
+        tool_name,
+        model,
+        cfg.prompts.len()
+    );
+
+    let ai_response = match call_chat_vision_api(
+        &base_url,
+        &api_key,
+        &model,
+        &cfg.prompts,
+        &image_b64,
+    )
+    .await
+    {
+        Ok(text) => {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] AI response for '{}': {}",
+                tool_name,
+                if text.len() > 200 {
+                    format!("{}...", &text[..200])
+                } else {
+                    text.clone()
+                }
+            );
+            text
+        }
+        Err(e) => {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] AI API call failed for '{}': {}",
+                tool_name, e
+            );
+            return;
+        }
+    };
+
+    // 6. 匹配 triggers
+    let matched = match_triggers(&ai_response, &cfg.triggers);
+    if matched.is_empty() {
+        #[cfg(debug_assertions)]
+        println!(
+            "[AiToolManager] No trigger matched for '{}'",
+            tool_name
+        );
+        return;
+    }
+
+    // 7. 触发匹配到的事件
+    for trigger_event_name in &matched {
+        #[cfg(debug_assertions)]
+        println!(
+            "[AiToolManager] Triggering '{}' for tool '{}'",
+            trigger_event_name, tool_name
+        );
+
+        use tauri::Manager;
+        if let Some(app_state) = app.try_state::<crate::app_state::AppState>() {
+            match app_state.trigger_event(trigger_event_name, false) {
+                Ok(true) => {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[AiToolManager] Trigger '{}' fired successfully",
+                        trigger_event_name
+                    );
+                }
+                Ok(false) => {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[AiToolManager] Trigger '{}' did not match any state",
+                        trigger_event_name
+                    );
+                }
+                Err(e) => {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "[AiToolManager] Trigger '{}' error: {}",
+                        trigger_event_name, e
+                    );
+                }
+            }
         }
     }
 }
@@ -583,7 +849,7 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
 
         match cfg.tool_type {
             ToolType::Auto => {
-                // 自动模式：按间隔不断截图
+                // 自动模式：按间隔不断截图 + AI 识别
                 loop {
                     let interval_secs = {
                         use tauri::Manager;
@@ -592,13 +858,20 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                         storage.data.settings.ai_screenshot_interval.max(0.1) as f64
                     };
 
-                    do_capture(&cfg, &file_prefix, &screenshots_dir, &name_clone).await;
+                    process_capture_with_ai(
+                        &cfg,
+                        &file_prefix,
+                        &screenshots_dir,
+                        &name_clone,
+                        &app,
+                    )
+                    .await;
 
                     tokio::time::sleep(std::time::Duration::from_secs_f64(interval_secs)).await;
                 }
             }
             ToolType::Manual => {
-                // 手动模式：等待热键触发信号后截图一次
+                // 手动模式：等待热键触发信号后截图 + AI 识别
                 let notify = get_manual_notify();
                 loop {
                     notify.notified().await;
@@ -609,7 +882,14 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                         name_clone
                     );
 
-                    do_capture(&cfg, &file_prefix, &screenshots_dir, &name_clone).await;
+                    process_capture_with_ai(
+                        &cfg,
+                        &file_prefix,
+                        &screenshots_dir,
+                        &name_clone,
+                        &app,
+                    )
+                    .await;
                 }
             }
         }
