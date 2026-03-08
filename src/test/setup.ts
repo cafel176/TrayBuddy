@@ -153,7 +153,12 @@ const mockInvoke = vi.fn(async (command: string) => {
     case "get_bubble_style":
       return null;
     case "get_ai_tools":
+    case "get_ai_tool_debug_info":
       return null;
+    case "toggle_keep_screenshots":
+    case "toggle_ai_tool":
+    case "toggle_ai_tool_info_window":
+      return true;
     default:
       return null;
   }
@@ -184,6 +189,7 @@ vi.mock("@tauri-apps/api/window", () => ({
     setSize: vi.fn(),
     setPosition: vi.fn(),
     startDragging: vi.fn(),
+    startResizeDragging: vi.fn(),
     show: vi.fn(),
     hide: vi.fn(),
     isVisible: vi.fn(async () => true),

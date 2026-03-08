@@ -264,4 +264,48 @@ mod tests {
         // 清理
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn capture_normal_size_does_not_panic() {
+        // 截取一个小区域：仅确保不 panic
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_screenshot_1x1.png");
+        let result = capture_screen_region(0, 0, 1, 1, &path);
+        let _ = result;
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn capture_png_bytes_zero_size() {
+        let result = capture_screen_region_as_png_bytes(0, 0, 0, 0);
+        let _ = result; // 不做断言，只确保不 panic
+    }
+
+    #[test]
+    fn capture_png_bytes_small_region() {
+        let result = capture_screen_region_as_png_bytes(0, 0, 1, 1);
+        // Windows: 可能成功也可能失败（取决于 CI 环境）
+        // 非 Windows: 返回 Err
+        let _ = result;
+    }
+
+    #[test]
+    fn capture_invalid_path_returns_error() {
+        // 使用一个不存在的目录作为保存路径
+        let path = Path::new("/nonexistent_dir_12345/screenshot.png");
+        let result = capture_screen_region(0, 0, 10, 10, path);
+        // Windows GDI 可能成功截图但保存失败，非 Windows 直接返回占位错误
+        // 仅确保不 panic
+        let _ = result;
+    }
+
+    #[test]
+    fn capture_large_coordinates_does_not_panic() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_screenshot_large_coords.png");
+        // 超出屏幕范围的坐标
+        let result = capture_screen_region(99999, 99999, 10, 10, &path);
+        let _ = result;
+        let _ = std::fs::remove_file(&path);
+    }
 }

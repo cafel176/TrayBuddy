@@ -230,7 +230,7 @@ describe("pages render extended", () => {
     await flushAsync();
     expect(container.querySelector(".state-debugger")).toBeTruthy();
 
-    await fireEvent.click(buttons[8]);
+    await fireEvent.click(buttons[9]);
     await flushAsync();
     expect(container.querySelector(".layout-debugger")).toBeTruthy();
   });
@@ -263,6 +263,10 @@ describe("pages render extended", () => {
     expect(container.querySelector(".system-debugger")).toBeTruthy();
 
     await fireEvent.click(buttons[7]);
+    await flushAsync();
+    expect(container.querySelector(".ai-tool-debugger")).toBeTruthy();
+
+    await fireEvent.click(buttons[8]);
     await flushAsync();
     expect(container.querySelector(".info-debugger")).toBeTruthy();
   });
@@ -617,6 +621,13 @@ describe("pages render detailed", () => {
       live2d_mouse_follow: false,
       live2d_auto_interact: false,
       threed_cross_fade_duration: 0.5,
+      ai_api_key: "",
+      ai_chat_base_url: "https://api.test.com/v1",
+      ai_chat_model: "test-model",
+      ai_image_base_url: "",
+      ai_image_model: "",
+      ai_screenshot_interval: 1.0,
+      ai_tool_hotkey: "F1",
     };
 
     invokeMock.mockImplementation(async (command: string, args?: unknown) => {
@@ -670,6 +681,13 @@ describe("pages render detailed", () => {
       live2d_mouse_follow: false,
       live2d_auto_interact: false,
       threed_cross_fade_duration: 0.5,
+      ai_api_key: "",
+      ai_chat_base_url: "https://api.test.com/v1",
+      ai_chat_model: "test-model",
+      ai_image_base_url: "",
+      ai_image_model: "",
+      ai_screenshot_interval: 1.0,
+      ai_tool_hotkey: "F1",
     };
 
     invokeMock.mockImplementation(async (command: string, args?: unknown) => {
@@ -710,6 +728,13 @@ describe("pages render detailed", () => {
       live2d_mouse_follow: false,
       live2d_auto_interact: false,
       threed_cross_fade_duration: 0.5,
+      ai_api_key: "",
+      ai_chat_base_url: "https://api.test.com/v1",
+      ai_chat_model: "test-model",
+      ai_image_base_url: "",
+      ai_image_model: "",
+      ai_screenshot_interval: 1.0,
+      ai_tool_hotkey: "F1",
     };
 
     invokeMock.mockImplementation(async (command: string, args?: unknown) => {
@@ -768,6 +793,13 @@ describe("pages render detailed", () => {
       live2d_mouse_follow: false,
       live2d_auto_interact: false,
       threed_cross_fade_duration: 0.5,
+      ai_api_key: "",
+      ai_chat_base_url: "https://api.test.com/v1",
+      ai_chat_model: "test-model",
+      ai_image_base_url: "",
+      ai_image_model: "",
+      ai_screenshot_interval: 1.0,
+      ai_tool_hotkey: "F1",
     };
 
     invokeMock.mockImplementation(async (command: string, args?: unknown) => {

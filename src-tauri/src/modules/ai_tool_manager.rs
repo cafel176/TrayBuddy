@@ -1216,6 +1216,10 @@ pub async fn toggle_tool(tool_name: &str, enabled: bool, app: &tauri::AppHandle)
 mod tests {
     use super::*;
 
+    // ===================================================================== //
+    // 匹配窗口名
+    // ===================================================================== //
+
     #[test]
     fn matched_window_defaults_to_none() {
         let _ = get_matched_ai_tool_window();
@@ -1231,6 +1235,21 @@ mod tests {
         let val = get_matched_ai_tool_window();
         assert_eq!(val, None);
     }
+
+    #[test]
+    fn set_matched_window_overwrites_previous() {
+        set_matched_ai_tool_window(Some("Chrome".to_string()));
+        set_matched_ai_tool_window(Some("Firefox".to_string()));
+        assert_eq!(
+            get_matched_ai_tool_window(),
+            Some("Firefox".to_string())
+        );
+        set_matched_ai_tool_window(None);
+    }
+
+    // ===================================================================== //
+    // 工具启用状态
+    // ===================================================================== //
 
     #[test]
     fn tool_enabled_map_operations() {
@@ -1250,11 +1269,480 @@ mod tests {
     }
 
     #[test]
+    fn is_tool_enabled_returns_false_for_unknown_tool() {
+        set_tool_enabled_map(Some(HashMap::new()));
+        assert!(!is_tool_enabled("nonexistent"));
+        set_tool_enabled_map(None);
+    }
+
+    #[test]
+    fn is_tool_enabled_returns_false_when_map_is_none() {
+        set_tool_enabled_map(None);
+        assert!(!is_tool_enabled("any_tool"));
+    }
+
+    #[test]
+    fn set_tool_enabled_returns_false_for_missing_tool() {
+        set_tool_enabled_map(Some(HashMap::new()));
+        let changed = set_tool_enabled("nonexistent", true);
+        assert!(!changed);
+        set_tool_enabled_map(None);
+    }
+
+    #[test]
+    fn set_tool_enabled_returns_true_for_existing_tool() {
+        let mut map = HashMap::new();
+        map.insert("tool_a".to_string(), false);
+        set_tool_enabled_map(Some(map));
+        let changed = set_tool_enabled("tool_a", true);
+        assert!(changed);
+        assert!(is_tool_enabled("tool_a"));
+        set_tool_enabled_map(None);
+    }
+
+    #[test]
+    fn set_tool_enabled_returns_false_when_map_is_none() {
+        set_tool_enabled_map(None);
+        let changed = set_tool_enabled("tool_a", true);
+        assert!(!changed);
+    }
+
+    // ===================================================================== //
+    // 截图保留模式
+    // ===================================================================== //
+
+    #[test]
     fn keep_screenshots_toggle() {
         set_keep_screenshots(false);
         assert!(!get_keep_screenshots());
         set_keep_screenshots(true);
         assert!(get_keep_screenshots());
         set_keep_screenshots(false);
+    }
+
+    #[test]
+    fn keep_screenshots_default_is_false() {
+        // AtomicBool 初始化为 false
+        set_keep_screenshots(false);
+        assert!(!get_keep_screenshots());
+    }
+
+    // ===================================================================== //
+    // 信息窗口状态
+    // ===================================================================== //
+
+    #[test]
+    fn info_window_visible_defaults_to_false() {
+        INFO_WINDOW_VISIBLE.clear();
+        assert!(!is_info_window_visible("any_tool"));
+    }
+
+    #[test]
+    fn set_info_window_visible_updates_state() {
+        let mut map = HashMap::new();
+        map.insert("watcher".to_string(), false);
+        INFO_WINDOW_VISIBLE.set(map);
+
+        assert!(!is_info_window_visible("watcher"));
+        set_info_window_visible("watcher", true);
+        assert!(is_info_window_visible("watcher"));
+
+        set_info_window_visible("watcher", false);
+        assert!(!is_info_window_visible("watcher"));
+
+        INFO_WINDOW_VISIBLE.clear();
+    }
+
+    #[test]
+    fn info_window_visible_ignores_unknown_tool() {
+        let mut map = HashMap::new();
+        map.insert("known".to_string(), true);
+        INFO_WINDOW_VISIBLE.set(map);
+
+        // 对不存在的工具设置可见状态不会 panic
+        set_info_window_visible("unknown", true);
+        assert!(!is_info_window_visible("unknown"));
+
+        INFO_WINDOW_VISIBLE.clear();
+    }
+
+    // ===================================================================== //
+    // 信息窗口标签
+    // ===================================================================== //
+
+    #[test]
+    fn info_window_label_format() {
+        assert_eq!(
+            info_window_label("watcher"),
+            "ai_tool_info_watcher"
+        );
+        assert_eq!(info_window_label(""), "ai_tool_info_");
+        assert_eq!(
+            info_window_label("my-tool-123"),
+            "ai_tool_info_my-tool-123"
+        );
+    }
+
+    // ===================================================================== //
+    // ToolType 序列化/反序列化与默认值
+    // ===================================================================== //
+
+    #[test]
+    fn tool_type_default_is_manual() {
+        assert_eq!(ToolType::default(), ToolType::Manual);
+    }
+
+    #[test]
+    fn tool_type_serde_roundtrip() {
+        let auto_json = serde_json::to_string(&ToolType::Auto).unwrap();
+        assert_eq!(auto_json, "\"auto\"");
+
+        let manual_json = serde_json::to_string(&ToolType::Manual).unwrap();
+        assert_eq!(manual_json, "\"manual\"");
+
+        let parsed: ToolType = serde_json::from_str("\"auto\"").unwrap();
+        assert_eq!(parsed, ToolType::Auto);
+
+        let parsed: ToolType = serde_json::from_str("\"manual\"").unwrap();
+        assert_eq!(parsed, ToolType::Manual);
+    }
+
+    // ===================================================================== //
+    // AiToolTaskConfig 序列化
+    // ===================================================================== //
+
+    #[test]
+    fn ai_tool_task_config_serde() {
+        let config = AiToolTaskConfig {
+            window_name: "VS Code".to_string(),
+            tool_type: ToolType::Auto,
+            capture_x: 10,
+            capture_y: 20,
+            capture_width: 800,
+            capture_height: 600,
+            show_info_window: true,
+            prompts: vec!["What is on screen?".to_string()],
+            triggers: vec![AiToolTriggerConfig {
+                keyword: "error".to_string(),
+                trigger: "alert_state".to_string(),
+            }],
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"window_name\":\"VS Code\""));
+        assert!(json.contains("\"tool_type\":\"auto\""));
+        assert!(json.contains("\"capture_width\":800"));
+        assert!(json.contains("\"show_info_window\":true"));
+
+        let parsed: AiToolTaskConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.window_name, "VS Code");
+        assert_eq!(parsed.tool_type, ToolType::Auto);
+        assert_eq!(parsed.capture_width, 800);
+        assert!(parsed.show_info_window);
+        assert_eq!(parsed.prompts.len(), 1);
+        assert_eq!(parsed.triggers.len(), 1);
+        assert_eq!(parsed.triggers[0].keyword, "error");
+    }
+
+    // ===================================================================== //
+    // AiToolDebugInfo / AiToolDebugItem 序列化
+    // ===================================================================== //
+
+    #[test]
+    fn ai_tool_debug_info_serde() {
+        let info = AiToolDebugInfo {
+            matched_window: Some("Chrome".to_string()),
+            tools: vec![AiToolDebugItem {
+                name: "watcher".to_string(),
+                tool_type: ToolType::Auto,
+                enabled: true,
+                has_task: true,
+                task_id: Some("task-42".to_string()),
+                show_info_window: true,
+                info_window_visible: false,
+            }],
+            active_task_count: 1,
+            last_update_time: "12:00:00".to_string(),
+            keep_screenshots: false,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"matched_window\":\"Chrome\""));
+        assert!(json.contains("\"active_task_count\":1"));
+        assert!(json.contains("\"keep_screenshots\":false"));
+        assert!(json.contains("\"name\":\"watcher\""));
+        assert!(json.contains("\"has_task\":true"));
+        assert!(json.contains("\"task_id\":\"task-42\""));
+
+        let parsed: AiToolDebugInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.matched_window, Some("Chrome".to_string()));
+        assert_eq!(parsed.tools.len(), 1);
+        assert_eq!(parsed.tools[0].name, "watcher");
+        assert!(parsed.tools[0].enabled);
+    }
+
+    #[test]
+    fn ai_tool_debug_info_with_null_window() {
+        let info = AiToolDebugInfo {
+            matched_window: None,
+            tools: vec![],
+            active_task_count: 0,
+            last_update_time: "00:00:00".to_string(),
+            keep_screenshots: true,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"matched_window\":null"));
+        assert!(json.contains("\"keep_screenshots\":true"));
+    }
+
+    // ===================================================================== //
+    // AiToolTriggerConfig 序列化
+    // ===================================================================== //
+
+    #[test]
+    fn ai_tool_trigger_config_serde() {
+        let trigger = AiToolTriggerConfig {
+            keyword: "warning".to_string(),
+            trigger: "warn_state".to_string(),
+        };
+        let json = serde_json::to_string(&trigger).unwrap();
+        assert!(json.contains("\"keyword\":\"warning\""));
+        assert!(json.contains("\"trigger\":\"warn_state\""));
+
+        let parsed: AiToolTriggerConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.keyword, "warning");
+        assert_eq!(parsed.trigger, "warn_state");
+    }
+
+    // ===================================================================== //
+    // match_triggers
+    // ===================================================================== //
+
+    #[test]
+    fn match_triggers_returns_matching_triggers() {
+        let triggers = vec![
+            AiToolTriggerConfig {
+                keyword: "error".to_string(),
+                trigger: "alert".to_string(),
+            },
+            AiToolTriggerConfig {
+                keyword: "warning".to_string(),
+                trigger: "warn".to_string(),
+            },
+            AiToolTriggerConfig {
+                keyword: "success".to_string(),
+                trigger: "ok".to_string(),
+            },
+        ];
+
+        let result = match_triggers("There was an ERROR in the system", &triggers);
+        assert_eq!(result, vec!["alert"]);
+    }
+
+    #[test]
+    fn match_triggers_case_insensitive() {
+        let triggers = vec![AiToolTriggerConfig {
+            keyword: "Warning".to_string(),
+            trigger: "warn".to_string(),
+        }];
+
+        let result = match_triggers("THERE IS A WARNING", &triggers);
+        assert_eq!(result, vec!["warn"]);
+    }
+
+    #[test]
+    fn match_triggers_multiple_matches() {
+        let triggers = vec![
+            AiToolTriggerConfig {
+                keyword: "error".to_string(),
+                trigger: "alert".to_string(),
+            },
+            AiToolTriggerConfig {
+                keyword: "critical".to_string(),
+                trigger: "critical_alert".to_string(),
+            },
+        ];
+
+        let result = match_triggers("Critical error detected", &triggers);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&"alert".to_string()));
+        assert!(result.contains(&"critical_alert".to_string()));
+    }
+
+    #[test]
+    fn match_triggers_no_match() {
+        let triggers = vec![AiToolTriggerConfig {
+            keyword: "error".to_string(),
+            trigger: "alert".to_string(),
+        }];
+
+        let result = match_triggers("Everything is fine", &triggers);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn match_triggers_empty_triggers() {
+        let result = match_triggers("some text", &[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn match_triggers_empty_response() {
+        let triggers = vec![AiToolTriggerConfig {
+            keyword: "error".to_string(),
+            trigger: "alert".to_string(),
+        }];
+        let result = match_triggers("", &triggers);
+        assert!(result.is_empty());
+    }
+
+    // ===================================================================== //
+    // build_tool_items_for_event（合并为单测试避免并行全局状态竞争）
+    // ===================================================================== //
+
+    #[test]
+    fn build_tool_items_for_event_scenarios() {
+        // 场景 1: 无 enabled_map 时返回 None
+        set_tool_enabled_map(None);
+        TOOL_CONFIGS.clear();
+        INFO_WINDOW_VISIBLE.clear();
+        set_matched_ai_tool_window(None);
+        assert!(build_tool_items_for_event().is_none());
+
+        // 场景 2: 有 enabled_map，无 TOOL_CONFIGS 时使用默认值
+        let mut map = HashMap::new();
+        map.insert("tool1".to_string(), true);
+        map.insert("tool2".to_string(), false);
+        set_tool_enabled_map(Some(map));
+        set_matched_ai_tool_window(Some("TestWin".to_string()));
+        TOOL_CONFIGS.clear();
+        INFO_WINDOW_VISIBLE.clear();
+
+        let result = build_tool_items_for_event();
+        assert!(result.is_some());
+        let (window_name, items) = result.unwrap();
+        assert_eq!(window_name, Some("TestWin".to_string()));
+        assert_eq!(items.len(), 2);
+        for item in &items {
+            assert!(item.get("name").is_some());
+            assert!(item.get("type").is_some());
+            assert!(item.get("enabled").is_some());
+        }
+
+        // 场景 3: 有 TOOL_CONFIGS 和 INFO_WINDOW_VISIBLE 时使用配置值
+        let mut map2 = HashMap::new();
+        map2.insert("auto_tool".to_string(), true);
+        set_tool_enabled_map(Some(map2));
+
+        let mut config_map = HashMap::new();
+        config_map.insert("auto_tool".to_string(), Arc::new(AiToolTaskConfig {
+            window_name: "Test".to_string(),
+            tool_type: ToolType::Auto,
+            capture_x: 0,
+            capture_y: 0,
+            capture_width: 100,
+            capture_height: 100,
+            show_info_window: true,
+            prompts: vec![],
+            triggers: vec![],
+        }));
+        TOOL_CONFIGS.set(config_map);
+
+        let mut info_map = HashMap::new();
+        info_map.insert("auto_tool".to_string(), true);
+        INFO_WINDOW_VISIBLE.set(info_map);
+
+        let result2 = build_tool_items_for_event();
+        assert!(result2.is_some());
+        let (_, items2) = result2.unwrap();
+        assert_eq!(items2.len(), 1);
+        assert_eq!(items2[0]["type"], "auto");
+        assert_eq!(items2[0]["show_info_window"], true);
+        assert_eq!(items2[0]["info_window_visible"], true);
+
+        // 清理
+        set_tool_enabled_map(None);
+        set_matched_ai_tool_window(None);
+        TOOL_CONFIGS.clear();
+        INFO_WINDOW_VISIBLE.clear();
+    }
+
+    // ===================================================================== //
+    // 缓存的调试信息
+    // ===================================================================== //
+
+    #[test]
+    fn cached_debug_info_set_and_get() {
+        let info = AiToolDebugInfo {
+            matched_window: Some("Test".to_string()),
+            tools: vec![],
+            active_task_count: 0,
+            last_update_time: "10:00:00".to_string(),
+            keep_screenshots: false,
+        };
+        update_cached_debug_info(info.clone());
+
+        let cached = get_cached_debug_info();
+        assert!(cached.is_some());
+        let cached = cached.unwrap();
+        assert_eq!(cached.matched_window, Some("Test".to_string()));
+    }
+
+    // ===================================================================== //
+    // notify_manual_capture 不 panic
+    // ===================================================================== //
+
+    #[test]
+    fn notify_manual_capture_does_not_panic() {
+        notify_manual_capture();
+    }
+
+    // ===================================================================== //
+    // read_image_as_png_base64 (保留函数，不涉及文件系统依赖时的基本行为)
+    // ===================================================================== //
+
+    #[test]
+    fn read_image_as_png_base64_nonexistent_file() {
+        let result = read_image_as_png_base64(std::path::Path::new("/nonexistent/file.png"));
+        assert!(result.is_err());
+    }
+
+    // ===================================================================== //
+    // get_tool_config
+    // ===================================================================== //
+
+    #[test]
+    fn get_tool_config_returns_none_when_empty() {
+        TOOL_CONFIGS.clear();
+        assert!(get_tool_config("any").is_none());
+    }
+
+    #[test]
+    fn get_tool_config_returns_config_when_set() {
+        let mut config_map = HashMap::new();
+        config_map.insert("my_tool".to_string(), Arc::new(AiToolTaskConfig {
+            window_name: "TestApp".to_string(),
+            tool_type: ToolType::Manual,
+            capture_x: 0,
+            capture_y: 0,
+            capture_width: 200,
+            capture_height: 150,
+            show_info_window: false,
+            prompts: vec!["test prompt".to_string()],
+            triggers: vec![],
+        }));
+        TOOL_CONFIGS.set(config_map);
+
+        let cfg = get_tool_config("my_tool");
+        assert!(cfg.is_some());
+        let cfg = cfg.unwrap();
+        assert_eq!(cfg.window_name, "TestApp");
+        assert_eq!(cfg.tool_type, ToolType::Manual);
+        assert_eq!(cfg.capture_width, 200);
+        assert!(!cfg.show_info_window);
+
+        assert!(get_tool_config("nonexistent").is_none());
+
+        TOOL_CONFIGS.clear();
     }
 }

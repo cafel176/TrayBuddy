@@ -55,6 +55,8 @@ export default defineConfig({
         "src/lib/animation/**",
         "src/lib/audio/**",
         "src/lib/constants.ts",
+        "src/lib/aiTools.ts",
+        "src/lib/types/asset.ts",
       ],
       exclude: [
         "**/node_modules/**",

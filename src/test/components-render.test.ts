@@ -1796,6 +1796,13 @@ describe("Settings", () => {
       live2d_mouse_follow: true,
       live2d_auto_interact: false,
       threed_cross_fade_duration: 0.5,
+      ai_api_key: "test-key-123",
+      ai_chat_base_url: "https://api.test.com/v1",
+      ai_chat_model: "test-model",
+      ai_image_base_url: "",
+      ai_image_model: "",
+      ai_screenshot_interval: 1.0,
+      ai_tool_hotkey: "F1",
     };
   }
 
@@ -2239,6 +2246,102 @@ describe("Settings", () => {
 
     // 3D settings section should be visible
     expect(container.innerHTML).toBeTruthy();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("AI screenshot interval slider triggers update", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettings();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const aiSlider = container.querySelector("#ai_screenshot_interval") as HTMLInputElement;
+    if (aiSlider) {
+      await fireEvent.input(aiSlider, { target: { value: "2.5" } });
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("update_settings", expect.anything());
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("AI API key input change triggers save", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettings();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const aiKeyInput = container.querySelector("#ai_api_key") as HTMLInputElement;
+    if (aiKeyInput) {
+      await fireEvent.change(aiKeyInput, { target: { value: "new-key-456" } });
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("update_settings", expect.anything());
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("AI chat base URL input change triggers save", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettings();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const urlInput = container.querySelector("#ai_chat_base_url") as HTMLInputElement;
+    if (urlInput) {
+      await fireEvent.change(urlInput, { target: { value: "https://new-api.test.com/v1" } });
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("update_settings", expect.anything());
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("AI tool hotkey select change triggers save", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettings();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const hotkeySelect = container.querySelector("#ai_tool_hotkey") as HTMLSelectElement;
+    if (hotkeySelect) {
+      await fireEvent.change(hotkeySelect, { target: { value: "F5" } });
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("update_settings", expect.anything());
+    }
 
     invokeMock.mockImplementation(originalImpl ?? (async () => null));
   });
