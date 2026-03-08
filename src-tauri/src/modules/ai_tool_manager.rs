@@ -528,17 +528,26 @@ pub fn toggle_info_window(app: &tauri::AppHandle, tool_name: &str, visible: bool
 }
 
 /// 销毁所有 AI 工具信息窗口
+///
+/// 注意：先在锁内收集所有需要销毁的窗口标签，释放锁后再执行 destroy，
+/// 避免 window.destroy() 触发的事件回调重新获取 INFO_WINDOW_VISIBLE 锁导致死锁。
 fn destroy_all_info_windows(app: &tauri::AppHandle) {
     use tauri::Manager;
 
-    if let Ok(guard) = INFO_WINDOW_VISIBLE.lock() {
-        if let Some(ref map) = *guard {
-            for name in map.keys() {
-                let label = info_window_label(name);
-                if let Some(window) = app.get_webview_window(&label) {
-                    let _ = window.destroy();
-                }
-            }
+    let labels_to_destroy: Vec<String> = {
+        let guard = match INFO_WINDOW_VISIBLE.lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        match guard.as_ref() {
+            Some(map) => map.keys().map(|name| info_window_label(name)).collect(),
+            None => return,
+        }
+    }; // 锁已释放
+
+    for label in &labels_to_destroy {
+        if let Some(window) = app.get_webview_window(label) {
+            let _ = window.destroy();
         }
     }
 }
