@@ -3115,31 +3115,29 @@ function renderAiToolProcessList() {
 }
 
 /**
- * 渲染关键词可视化列表
+ * 生成 manifest 中已定义的 trigger event 名称的 <option> 列表 HTML
  */
-function renderAiToolKeywordsList(keywords, pIdx, tIdx) {
-  const id = `ait-keywords-list-${pIdx}-${tIdx}`;
-  let html = `<div id="${id}" class="tag-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">`;
-  (keywords || []).forEach((kw, i) => {
-    html += `<span class="tag-item" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#334155;border-radius:4px;font-size:12px;color:#e2e8f0;">
-      ${escapeHtml(kw)}
-      <button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;line-height:1;" onclick="removeAiToolKeyword(${pIdx},${tIdx},${i})">×</button>
-    </span>`;
+function getManifestTriggerOptions() {
+  const triggers = currentMod?.manifest?.triggers || [];
+  const placeholder = window.i18n?.t('aitools_trigger_name_hint') || '触发器名称';
+  let html = `<option value="" disabled selected>${placeholder}</option>`;
+  triggers.forEach(t => {
+    const ev = t.event || '';
+    if (ev) html += `<option value="${escapeHtml(ev)}">${escapeHtml(ev)}</option>`;
   });
-  html += `</div>`;
   return html;
 }
 
 /**
- * 渲染可触发状态可视化列表
+ * 渲染触发器映射可视化列表
  */
-function renderAiToolStatesList(states, pIdx, tIdx) {
-  const id = `ait-states-list-${pIdx}-${tIdx}`;
+function renderAiToolTriggersList(triggers, pIdx, tIdx) {
+  const id = `ait-triggers-list-${pIdx}-${tIdx}`;
   let html = `<div id="${id}" class="tag-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">`;
-  (states || []).forEach((s, i) => {
+  (triggers || []).forEach((t, i) => {
     html += `<span class="tag-item" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#1e3a5f;border-radius:4px;font-size:12px;color:#93c5fd;">
-      ${escapeHtml(s.state)}:<strong>${s.weight ?? 1}</strong>
-      <button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;line-height:1;" onclick="removeAiToolState(${pIdx},${tIdx},${i})">×</button>
+      ${escapeHtml(t.keyword)} → ${escapeHtml(t.trigger)}
+      <button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;line-height:1;" onclick="removeAiToolTrigger(${pIdx},${tIdx},${i})">×</button>
     </span>`;
   });
   html += `</div>`;
@@ -3201,21 +3199,20 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
         <textarea class="ait-prompts" data-pidx="${pIdx}" data-tidx="${tIdx}" rows="3" style="font-size:13px;">${escapeHtml(promptsStr)}</textarea>
       </div>
       <div class="form-group" style="grid-column:span 2;">
-        <label>${window.i18n?.t('aitools_field_keywords') || '关键词'}</label>
+        <label>${window.i18n?.t('aitools_field_triggers') || '触发器映射'}</label>
         <div style="display:flex;gap:4px;">
-          <input type="text" id="ait-keyword-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_keyword_add_hint') || '输入关键词后按 Enter 或点击添加'}" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addAiToolKeyword(${pIdx},${tIdx});}">
-          <button class="btn btn-sm btn-ghost" onclick="addAiToolKeyword(${pIdx},${tIdx})">➕</button>
+          <input type="text" id="ait-trigger-keyword-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_trigger_keyword_hint') || '关键词'}" style="flex:1;">
+          <select id="ait-trigger-name-input-${pIdx}-${tIdx}" style="flex:1;">${getManifestTriggerOptions()}</select>
+          <button class="btn btn-sm btn-ghost" onclick="addAiToolTrigger(${pIdx},${tIdx})">➕</button>
         </div>
-        ${renderAiToolKeywordsList(tool.keywords, pIdx, tIdx)}
+        ${renderAiToolTriggersList(tool.triggers, pIdx, tIdx)}
       </div>
-      <div class="form-group" style="grid-column:span 2;">
-        <label>${window.i18n?.t('aitools_field_can_trigger_states') || '可触发状态'}</label>
-        <div style="display:flex;gap:4px;">
-          <input type="text" id="ait-state-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_state_add_hint') || '状态名'}" style="flex:1;">
-          <input type="number" id="ait-state-weight-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('weight_label') || '权重'}" value="1" style="width:70px;" min="1">
-          <button class="btn btn-sm btn-ghost" onclick="addAiToolState(${pIdx},${tIdx})">➕</button>
-        </div>
-        ${renderAiToolStatesList(tool.can_trigger_states, pIdx, tIdx)}
+      <div class="form-group">
+        <label>${window.i18n?.t('aitools_field_show_info_window') || '显示信息窗口'}</label>
+        <label class="switch">
+          <input type="checkbox" class="ait-show-info-window" data-pidx="${pIdx}" data-tidx="${tIdx}" ${tool.show_info_window ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
       </div>
     </div>
   `;
@@ -3223,8 +3220,8 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
   // 给所有输入元素添加 change 监听
   setTimeout(() => {
     el.querySelectorAll('input, textarea, select').forEach(inp => {
-      // 排除关键词和状态的输入框（这些有独立处理）
-      if (inp.id && (inp.id.startsWith('ait-keyword-input-') || inp.id.startsWith('ait-state-input-') || inp.id.startsWith('ait-state-weight-input-'))) return;
+      // 排除触发器映射的输入框（这些有独立处理）
+      if (inp.id && (inp.id.startsWith('ait-trigger-keyword-input-') || inp.id.startsWith('ait-trigger-name-input-'))) return;
       inp.addEventListener('change', () => {
         collectAiTools();
         // 同步工具名到 summary 和 dataset
@@ -3236,11 +3233,11 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
         markUnsaved();
       });
     });
-    // Enter 添加状态
-    const stateInput = el.querySelector(`#ait-state-input-${pIdx}-${tIdx}`);
-    if (stateInput) {
-      stateInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); addAiToolState(pIdx, tIdx); }
+    // Enter 添加触发器映射
+    const triggerKeywordInput = el.querySelector(`#ait-trigger-keyword-input-${pIdx}-${tIdx}`);
+    if (triggerKeywordInput) {
+      triggerKeywordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); addAiToolTrigger(pIdx, tIdx); }
       });
     }
   }, 0);
@@ -3248,72 +3245,38 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
   return el;
 }
 
-/* ---- 关键词列表操作 ---- */
+/* ---- 触发器映射列表操作 ---- */
 
-function addAiToolKeyword(pIdx, tIdx) {
-  const input = document.getElementById(`ait-keyword-input-${pIdx}-${tIdx}`);
-  if (!input) return;
-  const val = input.value.trim();
-  if (!val) return;
-
-  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
-  if (!proc?.tool_data?.[tIdx]) return;
-  if (!Array.isArray(proc.tool_data[tIdx].keywords)) proc.tool_data[tIdx].keywords = [];
-  proc.tool_data[tIdx].keywords.push(val);
-  input.value = '';
-
-  // 刷新标签列表
-  const listContainer = document.getElementById(`ait-keywords-list-${pIdx}-${tIdx}`);
-  if (listContainer) {
-    listContainer.outerHTML = renderAiToolKeywordsList(proc.tool_data[tIdx].keywords, pIdx, tIdx);
-  }
-  markUnsaved();
-}
-
-function removeAiToolKeyword(pIdx, tIdx, kwIdx) {
-  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
-  if (!proc?.tool_data?.[tIdx]?.keywords) return;
-  proc.tool_data[tIdx].keywords.splice(kwIdx, 1);
-
-  const listContainer = document.getElementById(`ait-keywords-list-${pIdx}-${tIdx}`);
-  if (listContainer) {
-    listContainer.outerHTML = renderAiToolKeywordsList(proc.tool_data[tIdx].keywords, pIdx, tIdx);
-  }
-  markUnsaved();
-}
-
-/* ---- 可触发状态列表操作 ---- */
-
-function addAiToolState(pIdx, tIdx) {
-  const stateInput = document.getElementById(`ait-state-input-${pIdx}-${tIdx}`);
-  const weightInput = document.getElementById(`ait-state-weight-input-${pIdx}-${tIdx}`);
-  if (!stateInput) return;
-  const state = stateInput.value.trim();
-  if (!state) return;
-  const weight = parseInt(weightInput?.value, 10) || 1;
+function addAiToolTrigger(pIdx, tIdx) {
+  const keywordInput = document.getElementById(`ait-trigger-keyword-input-${pIdx}-${tIdx}`);
+  const nameInput = document.getElementById(`ait-trigger-name-input-${pIdx}-${tIdx}`);
+  if (!keywordInput || !nameInput) return;
+  const keyword = keywordInput.value.trim();
+  const trigger = nameInput.value.trim();
+  if (!keyword || !trigger) return;
 
   const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
   if (!proc?.tool_data?.[tIdx]) return;
-  if (!Array.isArray(proc.tool_data[tIdx].can_trigger_states)) proc.tool_data[tIdx].can_trigger_states = [];
-  proc.tool_data[tIdx].can_trigger_states.push({ state, weight });
-  stateInput.value = '';
-  if (weightInput) weightInput.value = '1';
+  if (!Array.isArray(proc.tool_data[tIdx].triggers)) proc.tool_data[tIdx].triggers = [];
+  proc.tool_data[tIdx].triggers.push({ keyword, trigger });
+  keywordInput.value = '';
+  nameInput.selectedIndex = 0;
 
-  const listContainer = document.getElementById(`ait-states-list-${pIdx}-${tIdx}`);
+  const listContainer = document.getElementById(`ait-triggers-list-${pIdx}-${tIdx}`);
   if (listContainer) {
-    listContainer.outerHTML = renderAiToolStatesList(proc.tool_data[tIdx].can_trigger_states, pIdx, tIdx);
+    listContainer.outerHTML = renderAiToolTriggersList(proc.tool_data[tIdx].triggers, pIdx, tIdx);
   }
   markUnsaved();
 }
 
-function removeAiToolState(pIdx, tIdx, sIdx) {
+function removeAiToolTrigger(pIdx, tIdx, trigIdx) {
   const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
-  if (!proc?.tool_data?.[tIdx]?.can_trigger_states) return;
-  proc.tool_data[tIdx].can_trigger_states.splice(sIdx, 1);
+  if (!proc?.tool_data?.[tIdx]?.triggers) return;
+  proc.tool_data[tIdx].triggers.splice(trigIdx, 1);
 
-  const listContainer = document.getElementById(`ait-states-list-${pIdx}-${tIdx}`);
+  const listContainer = document.getElementById(`ait-triggers-list-${pIdx}-${tIdx}`);
   if (listContainer) {
-    listContainer.outerHTML = renderAiToolStatesList(proc.tool_data[tIdx].can_trigger_states, pIdx, tIdx);
+    listContainer.outerHTML = renderAiToolTriggersList(proc.tool_data[tIdx].triggers, pIdx, tIdx);
   }
   markUnsaved();
 }
@@ -3421,8 +3384,8 @@ function addAiToolData(pIdx) {
     type: 'manual',
     capture_rect: { x: 0, y: 0, width: 1920, height: 1080 },
     prompts: [],
-    keywords: [],
-    can_trigger_states: []
+    triggers: [],
+    show_info_window: false
   });
   renderAiToolProcessList();
   markUnsaved();
@@ -3458,7 +3421,7 @@ function collectAiTools() {
     }
   });
 
-  // 收集每个工具（keywords 和 can_trigger_states 由独立操作管理，这里只收集其他字段）
+  // 收集每个工具（triggers 由独立操作管理，这里只收集其他字段）
   document.querySelectorAll('.ait-name').forEach(el => {
     const pIdx = parseInt(el.dataset.pidx, 10);
     const tIdx = parseInt(el.dataset.tidx, 10);
@@ -3476,6 +3439,10 @@ function collectAiTools() {
     // auto_start
     const autoStartEl = document.querySelector(`.ait-auto-start[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
     if (autoStartEl) tool.auto_start = autoStartEl.checked;
+
+    // show_info_window
+    const showInfoEl = document.querySelector(`.ait-show-info-window[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
+    if (showInfoEl) tool.show_info_window = showInfoEl.checked;
 
     // capture_rect
     const rx = document.querySelector(`.ait-rect-x[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);

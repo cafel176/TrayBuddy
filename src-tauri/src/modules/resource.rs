@@ -1496,6 +1496,16 @@ pub enum AiToolType {
     Auto,
 }
 
+/// AI 工具触发映射：关键词 → 触发器名称
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(default)]
+pub struct AiToolTrigger {
+    /// AI 识别结果中的关键词
+    pub keyword: Box<str>,
+    /// 匹配后要触发的 trigger name（对应 manifest 中的触发器事件名）
+    pub trigger: Box<str>,
+}
+
 /// 单个 AI 小工具配置
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
@@ -1511,10 +1521,10 @@ pub struct AiToolData {
     pub capture_rect: AiCaptureRect,
     /// 提示词组，指导 AI 如何识别截图
     pub prompts: Vec<Box<str>>,
-    /// 识别关键词
-    pub keywords: Vec<Box<str>>,
-    /// 识别成功后可触发的状态列表（加权随机）
-    pub can_trigger_states: Vec<CanTriggerState>,
+    /// 关键词 → 触发器映射列表：AI 识别结果命中关键词时触发对应的 trigger
+    pub triggers: Vec<AiToolTrigger>,
+    /// 是否显示信息窗口（截图结果/AI 回复等）
+    pub show_info_window: bool,
 }
 
 /// 单个进程的 AI 工具配置

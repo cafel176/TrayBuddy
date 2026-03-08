@@ -627,12 +627,12 @@
                       <span class="info-value">{tool.prompts.join("; ") || "-"}</span>
                     </div>
                     <div class="info-row">
-                      <span class="info-label">{_("resource.aiToolsKeywords")}</span>
-                      <span class="info-value">{tool.keywords.join(", ") || "-"}</span>
+                      <span class="info-label">{_("resource.aiToolsTriggers")}</span>
+                      <span class="info-value">{tool.triggers?.map(t => `${t.keyword}→${t.trigger}`).join(", ") || "-"}</span>
                     </div>
                     <div class="info-row">
-                      <span class="info-label">{_("resource.aiToolsTriggerStates")}</span>
-                      <span class="info-value">{tool.can_trigger_states.map(s => `${s.state}(w:${s.weight})`).join(", ") || "-"}</span>
+                      <span class="info-label">{_("resource.aiToolsShowInfoWindow")}</span>
+                      <span class="info-value">{tool.show_info_window ? _("common.yes") : _("common.no")}</span>
                     </div>
                   </div>
                 </details>

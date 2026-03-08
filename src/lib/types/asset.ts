@@ -740,10 +740,12 @@ export interface AiCaptureRect {
   height: number;
 }
 
-/** 可触发状态（加权） */
-export interface AiCanTriggerState {
-  state: string;
-  weight: number;
+/** AI 工具触发映射：关键词 → 触发器名称 */
+export interface AiToolTrigger {
+  /** AI 识别结果中的关键词 */
+  keyword: string;
+  /** 匹配后要触发的 trigger name（对应 manifest 中的触发器事件名） */
+  trigger: string;
 }
 
 /** 单个 AI 小工具配置 */
@@ -758,10 +760,10 @@ export interface AiToolData {
   capture_rect: AiCaptureRect;
   /** 提示词组 */
   prompts: string[];
-  /** 识别关键词 */
-  keywords: string[];
-  /** 识别成功后可触发的状态 */
-  can_trigger_states: AiCanTriggerState[];
+  /** 关键词 → 触发器映射列表 */
+  triggers: AiToolTrigger[];
+  /** 是否显示信息窗口 */
+  show_info_window: boolean;
 }
 
 /** 单个进程的 AI 工具配置 */

@@ -16,15 +16,13 @@
           "prompts": [
             "识别图片是否带有骷髅头图案，是返回true，否则返回false"
           ],
-          "keywords": [
-            "yes"
-          ],
-          "can_trigger_states": [
+          "triggers": [
             {
-              "state": "cry",
-              "weight": 2
+              "keyword": "yes",
+              "trigger": "cry"
             }
-          ]
+          ],
+          "show_info_window": false
         },
         {
           "name": "test",
@@ -39,19 +37,8 @@
           "prompts": [
             "识别当前游戏界面状态"
           ],
-          "keywords": [
-            "战斗"
-          ],
-          "can_trigger_states": [
-            {
-              "state": "amazing",
-              "weight": 2
-            },
-            {
-              "state": "cry",
-              "weight": 1
-            }
-          ]
+          "triggers": [],
+          "show_info_window": true
         }
       ]
     }
