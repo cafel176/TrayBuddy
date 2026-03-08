@@ -448,6 +448,9 @@ pub fn create_info_window(app: &tauri::AppHandle, tool_name: &str) {
     if let Ok(window) = builder.build() {
         crate::lib_helpers::apply_window_icon(app, &window);
 
+        // 设置 WS_EX_NOACTIVATE：防止拖拽信息窗口时全屏应用被最小化
+        crate::lib_helpers::set_window_no_activate(&window);
+
         // 定位到渲染窗口正上方
         position_info_window_above_render(app, &window, info_height);
 

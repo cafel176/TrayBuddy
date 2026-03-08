@@ -92,6 +92,45 @@ static GLOBAL_MOUSE_LAST_ENABLED: AtomicBool = AtomicBool::new(false);
 
 
 
+
+
+
+
+/// 为窗口设置 WS_EX_NOACTIVATE 扩展样式，防止窗口在被点击/拖拽时激活（夺取焦点）。
+///
+/// 这对于浮窗类窗口非常重要：当全屏应用（如游戏、视频播放器）运行时，
+/// 如果浮窗在拖拽时激活，会导致全屏应用失去焦点而最小化。
+/// 设置此样式后，浮窗不会抢夺焦点，全屏应用可以正常运行。
+#[cfg(target_os = "windows")]
+pub(crate) fn set_window_no_activate(window: &tauri::WebviewWindow) {
+    use raw_window_handle::HasWindowHandle;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+    };
+
+    let raw_handle = match window.window_handle() {
+        Ok(handle) => handle.as_raw(),
+        Err(_) => return,
+    };
+
+    if let raw_window_handle::RawWindowHandle::Win32(win32_handle) = raw_handle {
+        let hwnd = HWND(win32_handle.hwnd.get() as *mut _);
+        unsafe {
+            let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            SetWindowLongPtrW(
+                hwnd,
+                GWL_EXSTYLE,
+                ex_style | WS_EX_NOACTIVATE.0 as isize,
+            );
+        }
+    }
+}
+
+/// 非 Windows 平台的空操作占位。
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn set_window_no_activate(_window: &tauri::WebviewWindow) {}
+
 /// 内部函数：创建渲染窗口（统一逻辑）
 ///
 /// 所有渲染窗口（animation、live2d、pngremix、threed）共享完全相同的
@@ -142,6 +181,9 @@ fn inner_create_render_window(app: &tauri::AppHandle, label: &str, title_key: &s
 
     // 应用当前 Mod 的图标（用于 Alt-Tab / 任务管理器等显示）
     apply_window_icon(app, &render_window);
+
+    // 设置 WS_EX_NOACTIVATE：防止拖拽浮窗时全屏应用被最小化
+    set_window_no_activate(&render_window);
 
     // 渲染窗口拦截关闭事件，改为隐藏，以保持后台渲染进程常驻
     let w_clone = render_window.clone();
