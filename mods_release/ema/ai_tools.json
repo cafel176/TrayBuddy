@@ -8,13 +8,13 @@
           "auto_start": true,
           "type": "auto",
           "capture_rect": {
-            "x": 1237,
-            "y": 695,
-            "width": 1279,
-            "height": 211
+            "x": 1219,
+            "y": 1068,
+            "width": 1301,
+            "height": 181
           },
           "prompts": [
-            "识别图片是否带有高度接近或大于图片高度一半的数字，是返回true，否则返回false"
+            "分析这张游戏截图中的血条状态，判断血条上是否有橙色区域。是返回true，否返回false"
           ],
           "triggers": [
             {
@@ -23,22 +23,6 @@
             }
           ],
           "show_info_window": false
-        },
-        {
-          "name": "items",
-          "auto_start": true,
-          "type": "manual",
-          "capture_rect": {
-            "x": 3,
-            "y": 86,
-            "width": 2554,
-            "height": 111
-          },
-          "prompts": [
-            "识别图片是否带有文本，是返回文本，否返回空字符串"
-          ],
-          "triggers": [],
-          "show_info_window": true
         }
       ]
     }

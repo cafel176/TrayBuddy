@@ -1,7 +1,7 @@
 //! 屏幕截图模块
 //!
 //! 提供屏幕指定区域截图功能。
-//! - Windows: 使用 GDI API (BitBlt + GetDIBits) 截取并保存为 BMP
+//! - Windows: 使用 GDI API (BitBlt + GetDIBits) 截取并保存为 PNG
 //! - macOS/Linux: 占位函数，待后续实现
 
 use std::path::Path;
@@ -10,15 +10,15 @@ use std::path::Path;
 // 屏幕区域截图 — Windows 实现
 // ========================================================================= //
 
-/// 截取屏幕指定矩形区域并保存为 BMP 文件
+/// 截取屏幕指定矩形区域并保存为 PNG 文件
 ///
 /// # 参数
 /// - `x`, `y`: 截取区域左上角的屏幕坐标
 /// - `width`, `height`: 截取区域的宽高（像素）
-/// - `save_path`: BMP 文件保存路径
+/// - `save_path`: PNG 文件保存路径
 ///
 /// # 平台支持
-/// - **Windows**: 完整实现（GDI API）
+/// - **Windows**: 完整实现（GDI API + image crate PNG 编码）
 /// - **macOS**: 待实现（可用 CGWindowListCreateImage）
 /// - **Linux**: 待实现（可用 X11 XGetImage 或 PipeWire/Wayland 截图协议）
 #[cfg(target_os = "windows")]
@@ -29,7 +29,6 @@ pub fn capture_screen_region(
     height: u32,
     save_path: &Path,
 ) -> Result<(), String> {
-    use std::io::Write;
     use windows::Win32::Graphics::Gdi::{
         BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits,
         GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
@@ -76,7 +75,7 @@ pub fn capture_screen_region(
             return Err("BitBlt failed".into());
         }
 
-        // 准备 BITMAPINFO
+        // 准备 BITMAPINFO — 自顶向下，24 位 BGR
         let bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
@@ -119,54 +118,24 @@ pub fn capture_screen_region(
             return Err("GetDIBits failed".into());
         }
 
-        // 写 BMP 文件
-        let file_header_size = 14u32;
-        let info_header_size = 40u32;
-        let file_size = file_header_size + info_header_size + image_size as u32;
-        let pixel_offset = file_header_size + info_header_size;
-
-        let mut file =
-            std::fs::File::create(save_path).map_err(|e| format!("Create file failed: {}", e))?;
-
-        // BMP File Header (14 bytes)
-        file.write_all(b"BM").map_err(|e| e.to_string())?;
-        file.write_all(&file_size.to_le_bytes())
-            .map_err(|e| e.to_string())?;
-        file.write_all(&0u16.to_le_bytes())
-            .map_err(|e| e.to_string())?; // reserved
-        file.write_all(&0u16.to_le_bytes())
-            .map_err(|e| e.to_string())?; // reserved
-        file.write_all(&pixel_offset.to_le_bytes())
-            .map_err(|e| e.to_string())?;
-
-        // BMP Info Header (40 bytes) — 正向高度以便查看器正确显示
-        let info_header = BITMAPINFOHEADER {
-            biSize: info_header_size,
-            biWidth: width as i32,
-            biHeight: height as i32, // 正向：自底向上
-            biPlanes: 1,
-            biBitCount: 24,
-            biCompression: BI_RGB.0 as u32,
-            biSizeImage: image_size as u32,
-            biXPelsPerMeter: 0,
-            biYPelsPerMeter: 0,
-            biClrUsed: 0,
-            biClrImportant: 0,
-        };
-        let header_bytes: &[u8] = std::slice::from_raw_parts(
-            &info_header as *const _ as *const u8,
-            info_header_size as usize,
-        );
-        file.write_all(header_bytes).map_err(|e| e.to_string())?;
-
-        // 像素数据：GetDIBits 返回的是自顶向下的数据，BMP 需要自底向上
-        // 翻转行顺序
-        for row in (0..height).rev() {
+        // GDI 返回 BGR 格式，转换为 RGB 并去除行对齐填充
+        let mut rgb_data = Vec::with_capacity((width * height * 3) as usize);
+        for row in 0..height {
             let start = (row * row_bytes) as usize;
-            let end = start + row_bytes as usize;
-            file.write_all(&pixel_data[start..end])
-                .map_err(|e| e.to_string())?;
+            for col in 0..width {
+                let px = start + (col * 3) as usize;
+                rgb_data.push(pixel_data[px + 2]); // R
+                rgb_data.push(pixel_data[px + 1]); // G
+                rgb_data.push(pixel_data[px]);     // B
+            }
         }
+
+        // 使用 image crate 编码为 PNG 并保存
+        let img: image::ImageBuffer<image::Rgb<u8>, _> =
+            image::ImageBuffer::from_raw(width, height, rgb_data)
+                .ok_or_else(|| "Failed to create image buffer".to_string())?;
+        img.save(save_path)
+            .map_err(|e| format!("Failed to save PNG: {}", e))?;
 
         Ok(())
     }
@@ -247,7 +216,7 @@ mod tests {
     fn capture_zero_size_returns_error_or_ok() {
         // 零尺寸截图：Windows 上 GDI 会返回错误，其他平台返回占位错误
         let dir = std::env::temp_dir();
-        let path = dir.join("test_screenshot_zero.bmp");
+        let path = dir.join("test_screenshot_zero.png");
         let result = capture_screen_region(0, 0, 0, 0, &path);
         // 不做断言——零尺寸在不同平台行为不同，只确保不 panic
         let _ = result;

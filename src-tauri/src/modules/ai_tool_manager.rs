@@ -561,9 +561,9 @@ async fn do_capture(
     let keep = KEEP_SCREENSHOTS.load(Ordering::Relaxed);
     let filename = if keep {
         let ts = chrono::Local::now().format("%Y%m%d_%H%M%S_%3f");
-        format!("{}_{}.bmp", file_prefix, ts)
+        format!("{}_{}.png", file_prefix, ts)
     } else {
-        format!("{}.bmp", file_prefix)
+        format!("{}.png", file_prefix)
     };
 
     let save_path = screenshots_dir.join(&filename);
@@ -828,13 +828,8 @@ async fn process_capture_with_ai(
         Ok(text) => {
             #[cfg(debug_assertions)]
             println!(
-                "[AiToolManager] AI response for '{}': {}",
-                tool_name,
-                if text.len() > 200 {
-                    format!("{}...", &text[..200])
-                } else {
-                    text.clone()
-                }
+                "[AiToolManager] AI response for '{}': \n{}",
+                tool_name, text
             );
             text
         }
