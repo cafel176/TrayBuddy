@@ -170,5 +170,25 @@
   {
     "name": "kill4",
     "audio": "jp/speech/kill4.wav"
+  },
+  {
+    "name": "kill5",
+    "audio": "jp/speech/kill5.wav"
+  },
+  {
+    "name": "defend1",
+    "audio": "jp/speech/defend1.wav"
+  },
+  {
+    "name": "defend2",
+    "audio": "jp/speech/defend2.wav"
+  },
+  {
+    "name": "hurt1",
+    "audio": "jp/speech/hurt1.wav"
+  },
+  {
+    "name": "hurt2",
+    "audio": "jp/speech/hurt2.wav"
   }
 ]

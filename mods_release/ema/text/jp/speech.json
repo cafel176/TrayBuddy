@@ -217,21 +217,46 @@
   {
     "name": "kill1",
     "text": "あ、す、すごい…！ やったね…！",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill2",
     "text": "わぁ……今の一撃、最高だよ！",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill3",
     "text": "えへへ……ぴったり決まったね。完璧だよね。",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill4",
     "text": "え、命中……！ ま、まさにど真ん中だよ！",
-    "duration": 1
+    "duration": 3
+  },
+  {
+    "name": "defend1",
+    "text": "う、うん……今の、ちゃんと防げたね。よかった…！",
+    "duration": 3
+  },
+  {
+    "name": "defend2",
+    "text": "わぁっ……び、びっくりした……！ ボク、心臓跳ねた…！",
+    "duration": 3
+  },
+  {
+    "name": "hurt1",
+    "text": "こ、怖い……！ でも大丈夫、気をつけよう…ね。",
+    "duration": 3
+  },
+  {
+    "name": "hurt2",
+    "text": "い、痛っ……ごめん、ボクちょっと痛いかも……。",
+    "duration": 3
+  },
+  {
+    "name": "kill5",
+    "text": "え、か、確認……！ たぶん今ので倒せたよね…！",
+    "duration": 3
   }
 ]

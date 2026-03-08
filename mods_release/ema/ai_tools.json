@@ -4,7 +4,7 @@
       "window_name": "slay the spire",
       "tool_data": [
         {
-          "name": "kill",
+          "name": "check_damage",
           "auto_start": true,
           "type": "auto",
           "capture_rect": {
@@ -14,12 +14,41 @@
             "height": 181
           },
           "prompts": [
-            "分析这张游戏截图中的血条状态，判断血条上是否有 橙色区域 或“死亡”二字。是返回true，否返回false"
+            "请分析提供的游戏界面截图：1. 如果包含汉字“死亡”，输出 kill 结束判断。2. 如果血条中存在橙色区域，输出 damage 结束判断。3. 否则，输出 none。"
           ],
           "triggers": [
             {
-              "keyword": "true",
+              "keyword": "kill",
+              "trigger": "kill_real"
+            },
+            {
+              "keyword": "damage",
               "trigger": "kill"
+            }
+          ],
+          "show_info_window": false
+        },
+        {
+          "name": "check_defend",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 438,
+            "y": 757,
+            "width": 408,
+            "height": 447
+          },
+          "prompts": [
+            "请分析提供的游戏界面截图：1. 如果包含汉字“格挡”，输出 defend 结束判断。 2. 如果血条中存在橙色区域，输出 hurt 结束判断。3. 否则，输出 none。"
+          ],
+          "triggers": [
+            {
+              "keyword": "defend",
+              "trigger": "defend"
+            },
+            {
+              "keyword": "hurt",
+              "trigger": "hurt"
             }
           ],
           "show_info_window": false

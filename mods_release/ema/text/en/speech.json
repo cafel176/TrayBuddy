@@ -217,21 +217,46 @@
   {
     "name": "kill1",
     "text": "",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill2",
     "text": "",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill3",
     "text": "",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill4",
     "text": "",
-    "duration": 1
+    "duration": 3
+  },
+  {
+    "name": "kill5",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "defend1",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "defend2",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "hurt1",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "hurt2",
+    "text": "",
+    "duration": 3
   }
 ]

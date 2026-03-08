@@ -217,21 +217,46 @@
   {
     "name": "kill1",
     "text": "啊、好厉害……！干得漂亮！",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill2",
     "text": "哇……刚才那一击太棒了！",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill3",
     "text": "欸嘿嘿……打得刚刚好。真是完美呢。",
-    "duration": 1
+    "duration": 3
   },
   {
     "name": "kill4",
     "text": "咦、命中了……！正中靶心！",
-    "duration": 1
+    "duration": 3
+  },
+  {
+    "name": "kill5",
+    "text": "咦、确、确认……！应该刚刚那下就击杀了吧……！",
+    "duration": 3
+  },
+  {
+    "name": "defend1",
+    "text": "嗯、刚才那个，确实格挡住了呢。太好了……！",
+    "duration": 3
+  },
+  {
+    "name": "defend2",
+    "text": "哇……吓、吓我一跳……！我心脏都跳起来了……！",
+    "duration": 3
+  },
+  {
+    "name": "hurt1",
+    "text": "好、好危险……！但没事的，我们小心点……好吗。",
+    "duration": 3
+  },
+  {
+    "name": "hurt2",
+    "text": "好、好痛……对不起，我可能有点疼……。",
+    "duration": 3
   }
 ]
