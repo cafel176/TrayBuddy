@@ -397,6 +397,11 @@ fn set_info_window_visible(tool_name: &str, visible: bool) {
 }
 
 /// 创建 AI 工具信息窗口
+///
+/// 窗口特性：
+/// - 无标题栏（decorations=false）、透明背景、置顶
+/// - 宽度与渲染窗口一致，高度固定 120px
+/// - 初始位置在渲染窗口（角色）正上方
 pub fn create_info_window(app: &tauri::AppHandle, tool_name: &str) {
     use tauri::Manager;
     use tauri::WebviewWindowBuilder;
@@ -412,22 +417,79 @@ pub fn create_info_window(app: &tauri::AppHandle, tool_name: &str) {
         return;
     }
 
-    let title = format!("AI Tool Info - {}", tool_name);
     let url = format!("ai_tool_info?tool={}", tool_name);
 
+    // 计算与渲染窗口相同的宽度
+    let (window_width, info_height) = {
+        use crate::modules::constants::*;
+        let scale = {
+            if let Some(app_state) = app.try_state::<crate::app_state::AppState>() {
+                let storage = app_state.storage.lock().unwrap();
+                storage.data.settings.animation_scale as f64
+            } else {
+                1.0
+            }
+        };
+        let animation_area_width = ANIMATION_AREA_WIDTH * scale;
+        let w = BUBBLE_AREA_WIDTH.max(animation_area_width);
+        (w, 120.0_f64)
+    };
+
     let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(url.into()))
-        .title(&title)
-        .inner_size(420.0, 320.0)
+        .title("AI Tool Info")
+        .inner_size(window_width, info_height)
+        .transparent(true)
+        .decorations(false)
+        .always_on_top(true)
         .resizable(true)
-        .center();
+        .shadow(false)
+        .skip_taskbar(true);
 
     if let Ok(window) = builder.build() {
         crate::lib_helpers::apply_window_icon(app, &window);
+
+        // 定位到渲染窗口正上方
+        position_info_window_above_render(app, &window, info_height);
+
         set_info_window_visible(tool_name, true);
 
         #[cfg(debug_assertions)]
         println!("[AiToolManager] Info window created for tool: {}", tool_name);
     }
+}
+
+/// 将信息窗口定位到渲染窗口正上方
+fn position_info_window_above_render(
+    app: &tauri::AppHandle,
+    info_window: &tauri::WebviewWindow,
+    info_height: f64,
+) {
+    use crate::modules::constants::RENDER_WINDOW_LABELS;
+    use tauri::Manager;
+
+    // 尝试从任一活跃的渲染窗口获取位置
+    for label in RENDER_WINDOW_LABELS {
+        if let Some(render_win) = app.get_webview_window(label) {
+            if let (Ok(pos), Ok(size)) = (render_win.outer_position(), render_win.outer_size()) {
+                let scale_factor = render_win.scale_factor().unwrap_or(1.0);
+                let rx = pos.x as f64 / scale_factor;
+                let ry = pos.y as f64 / scale_factor;
+                let _rw = size.width as f64 / scale_factor;
+
+                // 信息窗口底部与气泡区域底部对齐
+                let info_x = rx;
+                let info_y = ry + crate::modules::constants::BUBBLE_AREA_HEIGHT - info_height;
+
+                let _ = info_window.set_position(tauri::Position::Logical(
+                    tauri::LogicalPosition::new(info_x, info_y),
+                ));
+                return;
+            }
+        }
+    }
+
+    // 找不到渲染窗口则居中
+    let _ = info_window.center();
 }
 
 /// 销毁 AI 工具信息窗口
@@ -651,7 +713,24 @@ fn match_triggers(ai_response: &str, triggers: &[AiToolTriggerConfig]) -> Vec<St
         .collect()
 }
 
+/// 向信息窗口推送一条消息
+fn emit_info_message(app: &tauri::AppHandle, tool_name: &str, message: &str) {
+    let _ = super::event_manager::emit(
+        app,
+        super::event_manager::events::AI_TOOL_INFO_MESSAGE,
+        serde_json::json!({
+            "tool": tool_name,
+            "message": message,
+        }),
+    );
+}
+
 /// 截图后执行 AI 识别 + trigger 匹配的完整流程
+///
+/// 当工具配置了 `show_info_window=true` 或 `triggers` 非空时，
+/// 都会将截图发送给 AI 处理。AI 回复文本会：
+/// - 若 `show_info_window=true`，推送到信息窗口显示
+/// - 若 `triggers` 非空，匹配触发器并执行对应事件
 async fn process_capture_with_ai(
     cfg: &AiToolTaskConfig,
     file_prefix: &str,
@@ -665,8 +744,9 @@ async fn process_capture_with_ai(
         return;
     };
 
-    // 2. 如果 triggers 为空，仅截图不调用 AI
-    if cfg.triggers.is_empty() {
+    // 2. 如果既不需要信息窗口也没有 triggers，仅截图不调用 AI
+    let need_ai = cfg.show_info_window || !cfg.triggers.is_empty();
+    if !need_ai {
         return;
     }
 
@@ -689,6 +769,9 @@ async fn process_capture_with_ai(
             "[AiToolManager] Skipping AI call for {}: API key is empty",
             tool_name
         );
+        if cfg.show_info_window {
+            emit_info_message(app, tool_name, "[Error] AI API key is empty, please configure it in Settings");
+        }
         return;
     }
 
@@ -706,6 +789,9 @@ async fn process_capture_with_ai(
                 "[AiToolManager] Failed to encode screenshot for {}: {}",
                 tool_name, e
             );
+            if cfg.show_info_window {
+                emit_info_message(app, tool_name, &format!("[Error] Failed to encode screenshot: {}", e));
+            }
             return;
         }
         Err(e) => {
@@ -755,52 +841,65 @@ async fn process_capture_with_ai(
                 "[AiToolManager] AI API call failed for '{}': {}",
                 tool_name, e
             );
+            if cfg.show_info_window {
+                emit_info_message(app, tool_name, &format!("[Error] AI API call failed: {}", e));
+            }
             return;
         }
     };
 
-    // 6. 匹配 triggers
-    let matched = match_triggers(&ai_response, &cfg.triggers);
-    if matched.is_empty() {
-        #[cfg(debug_assertions)]
-        println!(
-            "[AiToolManager] No trigger matched for '{}'",
-            tool_name
-        );
-        return;
+    // 6. 将 AI 回复推送到信息窗口
+    if cfg.show_info_window {
+        emit_info_message(app, tool_name, &ai_response);
     }
 
-    // 7. 触发匹配到的事件
-    for trigger_event_name in &matched {
-        #[cfg(debug_assertions)]
-        println!(
-            "[AiToolManager] Triggering '{}' for tool '{}'",
-            trigger_event_name, tool_name
-        );
+    // 7. 匹配 triggers（如果有）
+    if !cfg.triggers.is_empty() {
+        let matched = match_triggers(&ai_response, &cfg.triggers);
+        if matched.is_empty() {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] No trigger matched for '{}'",
+                tool_name
+            );
+            return;
+        }
 
-        use tauri::Manager;
-        if let Some(app_state) = app.try_state::<crate::app_state::AppState>() {
-            match app_state.trigger_event(trigger_event_name, false) {
-                Ok(true) => {
-                    #[cfg(debug_assertions)]
-                    println!(
-                        "[AiToolManager] Trigger '{}' fired successfully",
-                        trigger_event_name
-                    );
-                }
-                Ok(false) => {
-                    #[cfg(debug_assertions)]
-                    println!(
-                        "[AiToolManager] Trigger '{}' did not match any state",
-                        trigger_event_name
-                    );
-                }
-                Err(e) => {
-                    #[cfg(debug_assertions)]
-                    println!(
-                        "[AiToolManager] Trigger '{}' error: {}",
-                        trigger_event_name, e
-                    );
+        // 8. 触发匹配到的事件
+        for trigger_event_name in &matched {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] Triggering '{}' for tool '{}'",
+                trigger_event_name, tool_name
+            );
+
+            use tauri::Manager;
+            if let Some(app_state) = app.try_state::<crate::app_state::AppState>() {
+                match app_state.trigger_event(trigger_event_name, false) {
+                    Ok(true) => {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[AiToolManager] Trigger '{}' fired successfully",
+                            trigger_event_name
+                        );
+                        if cfg.show_info_window {
+                            emit_info_message(app, tool_name, &format!("[Trigger] '{}' fired", trigger_event_name));
+                        }
+                    }
+                    Ok(false) => {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[AiToolManager] Trigger '{}' did not match any state",
+                            trigger_event_name
+                        );
+                    }
+                    Err(e) => {
+                        #[cfg(debug_assertions)]
+                        println!(
+                            "[AiToolManager] Trigger '{}' error: {}",
+                            trigger_event_name, e
+                        );
+                    }
                 }
             }
         }

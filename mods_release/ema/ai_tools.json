@@ -29,13 +29,13 @@
           "auto_start": false,
           "type": "manual",
           "capture_rect": {
-            "x": 0,
-            "y": 0,
-            "width": 1920,
-            "height": 1080
+            "x": 500,
+            "y": 500,
+            "width": 300,
+            "height": 300
           },
           "prompts": [
-            "识别当前游戏界面状态"
+            "识别图片是否带有文本，是返回文本，否返回空字符串"
           ],
           "triggers": [],
           "show_info_window": true

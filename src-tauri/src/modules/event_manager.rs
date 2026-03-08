@@ -95,6 +95,9 @@ pub mod events {
 
     /// AI 工具数据变更事件（tool_data 列表及启用状态推送到前端）
     pub const AI_TOOL_DATA_CHANGED: &str = "ai-tool-data-changed";
+
+    /// AI 工具信息窗口消息事件（后端推送截图识别结果到信息窗口）
+    pub const AI_TOOL_INFO_MESSAGE: &str = "ai-tool-info-message";
 }
 
 // ========================================================================= //
