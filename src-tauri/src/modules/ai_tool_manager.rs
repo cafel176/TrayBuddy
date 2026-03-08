@@ -14,6 +14,22 @@ use tokio::task::JoinHandle;
 
 use super::screenshot;
 
+// ========================================================================= //
+// 全局复用的 HTTP 客户端（避免每次 API 调用都新建连接池）
+// ========================================================================= //
+
+static HTTP_CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+
+fn get_http_client() -> &'static reqwest::Client {
+    HTTP_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .pool_max_idle_per_host(2)
+            .tcp_keepalive(std::time::Duration::from_secs(30))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new())
+    })
+}
+
 /// AI 工具触发器配置（从 ai_tools.json 传入）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiToolTriggerConfig {
@@ -619,6 +635,10 @@ async fn do_capture(
 ///
 /// 无论原始格式（BMP/PNG 等），统一输出 PNG 格式的 base64，
 /// 以确保与 SiliconFlow 等 API 的兼容性。
+///
+/// 注意：AI 截图流程已改用 `screenshot::capture_screen_region_as_png_base64`
+/// 直接在内存完成，此函数保留供其他可能需要从磁盘文件转换 base64 的场景使用。
+#[allow(dead_code)]
 fn read_image_as_png_base64(path: &std::path::Path) -> Result<String, String> {
     use image::ImageReader;
     use std::io::Cursor;
@@ -678,7 +698,7 @@ async fn call_chat_vision_api(
         "temperature": 0.1
     });
 
-    let client = reqwest::Client::new();
+    let client = get_http_client();
     let resp = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", api_key))
@@ -743,6 +763,9 @@ fn emit_info_message(app: &tauri::AppHandle, tool_name: &str, message: &str) {
 /// 都会将截图发送给 AI 处理。AI 回复文本会：
 /// - 若 `show_info_window=true`，推送到信息窗口显示
 /// - 若 `triggers` 非空，匹配触发器并执行对应事件
+///
+/// 性能优化：当需要 AI 处理时，使用内存中截图→PNG→base64 的零磁盘 I/O 路径，
+/// 仅在 keep_screenshots 模式下才额外写磁盘保存。
 async fn process_capture_with_ai(
     cfg: &AiToolTaskConfig,
     file_prefix: &str,
@@ -750,19 +773,70 @@ async fn process_capture_with_ai(
     tool_name: &str,
     app: &tauri::AppHandle,
 ) {
-    // 1. 截图
-    let Some(screenshot_path) = do_capture(cfg, file_prefix, screenshots_dir, tool_name).await
-    else {
-        return;
-    };
-
-    // 2. 如果既不需要信息窗口也没有 triggers，仅截图不调用 AI
-    let need_ai = cfg.show_info_window || !cfg.triggers.is_empty();
-    if !need_ai {
+    if cfg.capture_width == 0 || cfg.capture_height == 0 {
         return;
     }
 
-    // 3. 从 settings 读取 API 配置（通过 spawn_blocking 避免阻塞 tokio 线程）
+    let need_ai = cfg.show_info_window || !cfg.triggers.is_empty();
+
+    if !need_ai {
+        // 仅截图不调用 AI（通过磁盘路径）
+        do_capture(cfg, file_prefix, screenshots_dir, tool_name).await;
+        return;
+    }
+
+    // AI 路径：直接在内存中完成截图→PNG→base64，避免磁盘 I/O 和双重编解码
+    let x = cfg.capture_x;
+    let y = cfg.capture_y;
+    let w = cfg.capture_width;
+    let h = cfg.capture_height;
+
+    let image_b64 = match tokio::task::spawn_blocking(move || {
+        screenshot::capture_screen_region_as_png_base64(x, y, w, h)
+    })
+    .await
+    {
+        Ok(Ok(b64)) => b64,
+        Ok(Err(e)) => {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] In-memory capture failed for {}: {}",
+                tool_name, e
+            );
+            if cfg.show_info_window {
+                emit_info_message(app, tool_name, &format!("[Error] Capture failed: {}", e));
+            }
+            return;
+        }
+        Err(e) => {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] Capture task join error for {}: {}",
+                tool_name, e
+            );
+            return;
+        }
+    };
+
+    // 如果开启了截图保留模式，异步写入磁盘（不阻塞 AI 调用流程）
+    if KEEP_SCREENSHOTS.load(Ordering::Relaxed) {
+        let screenshots_dir = screenshots_dir.to_path_buf();
+        let prefix = file_prefix.to_string();
+        let b64_clone = image_b64.clone();
+        tokio::task::spawn_blocking(move || {
+            let ts = chrono::Local::now().format("%Y%m%d_%H%M%S_%3f");
+            let filename = format!("{}_{}.png", prefix, ts);
+            let save_path = screenshots_dir.join(&filename);
+            if let Ok(png_bytes) = base64::Engine::decode(
+                &base64::engine::general_purpose::STANDARD,
+                &b64_clone,
+            ) {
+                let _ = std::fs::write(&save_path, &png_bytes);
+            }
+        });
+    }
+
+    // 从 settings 读取 API 配置
     let (api_key, base_url, model) = {
         let app_clone = app.clone();
         tokio::task::spawn_blocking(move || {
@@ -792,36 +866,7 @@ async fn process_capture_with_ai(
         return;
     }
 
-    // 4. 读取截图为 base64
-    let image_b64 = match tokio::task::spawn_blocking({
-        let path = screenshot_path.clone();
-        move || read_image_as_png_base64(&path)
-    })
-    .await
-    {
-        Ok(Ok(b64)) => b64,
-        Ok(Err(e)) => {
-            #[cfg(debug_assertions)]
-            println!(
-                "[AiToolManager] Failed to encode screenshot for {}: {}",
-                tool_name, e
-            );
-            if cfg.show_info_window {
-                emit_info_message(app, tool_name, &format!("[Error] Failed to encode screenshot: {}", e));
-            }
-            return;
-        }
-        Err(e) => {
-            #[cfg(debug_assertions)]
-            println!(
-                "[AiToolManager] Encode task join error for {}: {}",
-                tool_name, e
-            );
-            return;
-        }
-    };
-
-    // 5. 调用 AI API
+    // 调用 AI API
     #[cfg(debug_assertions)]
     println!(
         "[AiToolManager] Calling AI API for tool '{}' (model: {}, prompts: {})",
@@ -860,12 +905,12 @@ async fn process_capture_with_ai(
         }
     };
 
-    // 6. 将 AI 回复推送到信息窗口
+    // 将 AI 回复推送到信息窗口
     if cfg.show_info_window {
         emit_info_message(app, tool_name, &ai_response);
     }
 
-    // 7. 匹配 triggers（如果有）
+    // 匹配 triggers（如果有）
     if !cfg.triggers.is_empty() {
         let matched = match_triggers(&ai_response, &cfg.triggers);
         if matched.is_empty() {
@@ -877,10 +922,6 @@ async fn process_capture_with_ai(
             return;
         }
 
-        // 8. 触发匹配到的事件
-        //    trigger_event 内部获取 storage → resource_manager → state_manager 三把
-        //    std::sync::Mutex，在 tokio async 任务中直接调用会阻塞工作线程，
-        //    因此将每次触发移到 spawn_blocking 执行。
         for trigger_event_name in &matched {
             #[cfg(debug_assertions)]
             println!(
@@ -997,18 +1038,37 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
         match cfg.tool_type {
             ToolType::Auto => {
                 // 自动模式：按间隔不断截图 + AI 识别
+                // 优化：每 10 次循环才重新读取 interval 设置，减少 spawn_blocking 开销
+                let mut cached_interval_secs: f64 = {
+                    let app_clone = app.clone();
+                    tokio::task::spawn_blocking(move || {
+                        use tauri::Manager;
+                        let app_state: tauri::State<crate::app_state::AppState> = app_clone.state();
+                        let storage = app_state.storage.lock().unwrap();
+                        storage.data.settings.ai_screenshot_interval.max(0.1) as f64
+                    })
+                    .await
+                    .unwrap_or(1.0)
+                };
+                let mut loop_count: u32 = 0;
+                const REFRESH_INTERVAL_EVERY_N: u32 = 10;
+
                 loop {
-                    let interval_secs = {
+                    // 定期刷新 interval 设置（避免每次循环都 spawn_blocking）
+                    if loop_count > 0 && loop_count % REFRESH_INTERVAL_EVERY_N == 0 {
                         let app_clone = app.clone();
-                        tokio::task::spawn_blocking(move || {
+                        if let Ok(v) = tokio::task::spawn_blocking(move || {
                             use tauri::Manager;
                             let app_state: tauri::State<crate::app_state::AppState> = app_clone.state();
                             let storage = app_state.storage.lock().unwrap();
                             storage.data.settings.ai_screenshot_interval.max(0.1) as f64
                         })
                         .await
-                        .unwrap_or(1.0)
-                    };
+                        {
+                            cached_interval_secs = v;
+                        }
+                    }
+                    loop_count = loop_count.wrapping_add(1);
 
                     process_capture_with_ai(
                         &cfg,
@@ -1019,7 +1079,7 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                     )
                     .await;
 
-                    tokio::time::sleep(std::time::Duration::from_secs_f64(interval_secs)).await;
+                    tokio::time::sleep(std::time::Duration::from_secs_f64(cached_interval_secs)).await;
                 }
             }
             ToolType::Manual => {

@@ -29,6 +29,22 @@ use crate::AppState;
 const TIME_FORMAT_SHORT: &str = "%H:%M:%S";
 
 // ========================================================================= //
+// 缓存的可执行文件名（进程生命周期内不变，避免每次检查都调用 current_exe()）
+// ========================================================================= //
+
+static CACHED_SELF_EXE_NAME: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+
+fn get_self_exe_name() -> Option<&'static str> {
+    CACHED_SELF_EXE_NAME
+        .get_or_init(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()))
+        })
+        .as_deref()
+}
+
+// ========================================================================= //
 // 调试信息
 // ========================================================================= //
 
@@ -193,10 +209,24 @@ impl SystemObserver {
         ) {
             // 当发生前景切换或位置变化时
             if event == EVENT_SYSTEM_FOREGROUND || event == EVENT_OBJECT_LOCATIONCHANGE {
-                // 发送自定义消息到当前线程的消息队列，通知检查状态
-                // 这里我们简化处理：因为这是在回调中，我们不能直接调用 app_handle 逻辑（跨线程/重入风险）
-                // 我们使用全局通道发送信号
-                // 注意：使用 ok() 而非 unwrap()，避免在锁被污染时 panic
+                // LOCATIONCHANGE 事件非常频繁（窗口拖拽时每帧触发），
+                // 在回调中节流：100ms 内只发送一次信号，大幅减少锁获取和通道发送。
+                // FOREGROUND 事件始终立即发送。
+                if event == EVENT_OBJECT_LOCATIONCHANGE {
+                    let now_ms = {
+                        use std::time::{SystemTime, UNIX_EPOCH};
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .map(|d| d.as_millis() as u64)
+                            .unwrap_or(0)
+                    };
+                    let last = LAST_EVENT_SEND_MS.load(std::sync::atomic::Ordering::Relaxed);
+                    if now_ms.saturating_sub(last) < EVENT_CALLBACK_THROTTLE_MS {
+                        return; // 节流：跳过此事件
+                    }
+                    LAST_EVENT_SEND_MS.store(now_ms, std::sync::atomic::Ordering::Relaxed);
+                }
+
                 if let Ok(guard) = GLOBAL_TX.lock() {
                     if let Some(sender) = &*guard {
                         let _ = sender.send(());
@@ -331,20 +361,16 @@ impl SystemObserver {
             app_state.session_locked.load(std::sync::atomic::Ordering::SeqCst)
         };
 
-        // 3. 检测是否全屏/繁忙（耗时操作，放到阻塞线程池）
-        let is_fullscreen = tokio::task::spawn_blocking(|| unsafe { Self::is_fullscreen_busy() })
+        // 3. 并行执行三个独立的 Win32 查询（合并为单个 spawn_blocking 减少上下文切换）
+        let (is_fullscreen, focused_process, focused_window_title) =
+            tokio::task::spawn_blocking(|| {
+                let fs = unsafe { Self::is_fullscreen_busy() };
+                let proc = Self::get_foreground_process_name();
+                let title = Self::get_foreground_window_title();
+                (fs, proc, title)
+            })
             .await
-            .unwrap_or(false);
-
-        // 4. 获取当前焦点窗口的进程名
-        let focused_process = tokio::task::spawn_blocking(|| Self::get_foreground_process_name())
-            .await
-            .unwrap_or_default();
-
-        // 4.1 获取当前焦点窗口的标题（用于 AI 工具匹配 + 调试信息）
-        let focused_window_title = tokio::task::spawn_blocking(|| Self::get_foreground_window_title())
-            .await
-            .unwrap_or_default();
+            .unwrap_or((false, String::new(), String::new()));
         update_cached_focused_window_title(focused_window_title.clone());
 
         // 5. AI 工具窗口名匹配：检测焦点窗口标题是否匹配当前 Mod 的 ai_tools 配置
@@ -356,12 +382,9 @@ impl SystemObserver {
             // 判断焦点进程是否为 TrayBuddy 自身
             let is_self = if !focused_process.is_empty() {
                 let fp_lower = focused_process.to_lowercase();
-                // 获取当前可执行文件名（兼容 release / debug 模式）
-                let self_exe_name = std::env::current_exe()
-                    .ok()
-                    .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()));
-                if let Some(ref self_name) = self_exe_name {
-                    fp_lower == *self_name
+                // 使用缓存的可执行文件名（进程生命周期内不变）
+                if let Some(self_name) = get_self_exe_name() {
+                    fp_lower == self_name
                 } else {
                     // 回退：通过产品名匹配
                     fp_lower.starts_with("traybuddy")
@@ -817,6 +840,11 @@ impl SystemObserver {
 lazy_static::lazy_static! {
     static ref GLOBAL_TX: Mutex<Option<mpsc::UnboundedSender<()>>> = Mutex::new(None);
 }
+
+/// LOCATIONCHANGE 事件的最小发送间隔（毫秒），在回调中节流，
+/// 避免窗口拖拽时每帧都获取锁+发送通道消息。
+static LAST_EVENT_SEND_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+const EVENT_CALLBACK_THROTTLE_MS: u64 = 100;
 
 #[cfg(test)]
 mod tests {

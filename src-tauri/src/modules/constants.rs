@@ -319,8 +319,9 @@ pub const SYSTEM_OBSERVER_POLL_INTERVAL_SECS: u64 = 3;
 /// 系统观察者去抖动延迟（毫秒）
 ///
 /// **用途**: 窗口切换事件后等待窗口动效完成再检测全屏状态，
-/// 避免动画过程中的误判。
-pub const SYSTEM_OBSERVER_DEBOUNCE_MS: u64 = 1500;
+/// 避免动画过程中的误判。500ms 足以覆盖大多数窗口切换动效，
+/// 同时保证 AI 工具匹配的及时响应。
+pub const SYSTEM_OBSERVER_DEBOUNCE_MS: u64 = 500;
 
 /// 锁屏时是否允许触发免打扰模式
 ///
