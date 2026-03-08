@@ -154,5 +154,21 @@
   {
     "name": "snow",
     "audio": "jp/speech/snow.wav"
+  },
+  {
+    "name": "kill1",
+    "audio": "jp/speech/kill1.wav"
+  },
+  {
+    "name": "kill2",
+    "audio": "jp/speech/kill2.wav"
+  },
+  {
+    "name": "kill3",
+    "audio": "jp/speech/kill3.wav"
+  },
+  {
+    "name": "kill4",
+    "audio": "jp/speech/kill4.wav"
   }
 ]

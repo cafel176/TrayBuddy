@@ -213,5 +213,25 @@
     "name": "snow",
     "text": "It's snowing outside...\nThe roads might be slippery, so be careful not to fall, okay?",
     "duration": 3
+  },
+  {
+    "name": "kill1",
+    "text": "",
+    "duration": 1
+  },
+  {
+    "name": "kill2",
+    "text": "",
+    "duration": 1
+  },
+  {
+    "name": "kill3",
+    "text": "",
+    "duration": 1
+  },
+  {
+    "name": "kill4",
+    "text": "",
+    "duration": 1
   }
 ]

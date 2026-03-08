@@ -1489,6 +1489,106 @@
       "mod_data_counter": null,
       "branch": [],
       "live2d_params": null
+    },
+    {
+      "name": "kill1",
+      "persistent": false,
+      "anima": "",
+      "audio": "kill1",
+      "text": "kill1",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "kill2",
+      "persistent": false,
+      "anima": "",
+      "audio": "kill2",
+      "text": "kill2",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "kill3",
+      "persistent": false,
+      "anima": "",
+      "audio": "kill3",
+      "text": "kill3",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
+    },
+    {
+      "name": "kill4",
+      "persistent": false,
+      "anima": "",
+      "audio": "kill4",
+      "text": "kill4",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "branch": [],
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "mod_data_counter": null,
+      "branch_show_bubble": true
     }
   ],
   "triggers": [
@@ -1756,6 +1856,33 @@
           "states": [
             {
               "state": "work",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "kill",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "kill1",
+              "weight": 1
+            },
+            {
+              "state": "kill2",
+              "weight": 1
+            },
+            {
+              "state": "kill3",
+              "weight": 1
+            },
+            {
+              "state": "kill4",
               "weight": 1
             }
           ],
