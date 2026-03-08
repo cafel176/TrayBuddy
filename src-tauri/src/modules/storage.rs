@@ -98,9 +98,8 @@ impl Default for UserSettings {
             ai_api_key: "".into(),
             ai_chat_base_url: "https://api.siliconflow.cn/v1".into(),
             ai_chat_model: "Pro/Qwen/Qwen2.5-VL-7B-Instruct".into(),
-            ai_screenshot_interval: 1.0,
+            ai_screenshot_interval: 0.5,
             ai_tool_hotkey: "F1".into(),
-
         }
     }
 }
