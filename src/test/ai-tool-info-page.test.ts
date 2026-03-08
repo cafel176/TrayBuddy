@@ -151,8 +151,6 @@ describe("AI Tool Info Page", () => {
   });
 
   it("shows resize cursor and triggers resize dragging at window edge", async () => {
-    const mockWindow = vi.mocked(getCurrentWindow)();
-
     // Set window dimensions for edge detection using configurable getters
     const origInnerWidth = Object.getOwnPropertyDescriptor(window, "innerWidth");
     const origInnerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
@@ -161,6 +159,10 @@ describe("AI Tool Info Page", () => {
 
     const { container } = render(AiToolInfoPage);
     await flushAsync();
+
+    // Get the mock object that the component actually holds (the first call to getCurrentWindow)
+    const gwMock = vi.mocked(getCurrentWindow);
+    const mockWindow = gwMock.mock.results[0]?.value as ReturnType<typeof getCurrentWindow>;
 
     const infoWindow = container.querySelector(
       ".info-window",
@@ -193,8 +195,6 @@ describe("AI Tool Info Page", () => {
   });
 
   it("triggers startDragging when mousedown in center (non-edge)", async () => {
-    const mockWindow = vi.mocked(getCurrentWindow)();
-
     const origInnerWidth = Object.getOwnPropertyDescriptor(window, "innerWidth");
     const origInnerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
     Object.defineProperty(window, "innerWidth", { value: 800, configurable: true });
@@ -202,6 +202,10 @@ describe("AI Tool Info Page", () => {
 
     const { container } = render(AiToolInfoPage);
     await flushAsync();
+
+    // Get the mock object that the component actually holds
+    const gwMock = vi.mocked(getCurrentWindow);
+    const mockWindow = gwMock.mock.results[0]?.value as ReturnType<typeof getCurrentWindow>;
 
     const infoWindow = container.querySelector(
       ".info-window",
@@ -218,8 +222,6 @@ describe("AI Tool Info Page", () => {
   });
 
   it("skips dragging when clicking scrollbar area", async () => {
-    const mockWindow = vi.mocked(getCurrentWindow)();
-
     const origInnerWidth = Object.getOwnPropertyDescriptor(window, "innerWidth");
     const origInnerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
     Object.defineProperty(window, "innerWidth", { value: 800, configurable: true });
@@ -227,6 +229,10 @@ describe("AI Tool Info Page", () => {
 
     const { container } = render(AiToolInfoPage);
     await flushAsync();
+
+    // Get the mock object that the component actually holds
+    const gwMock = vi.mocked(getCurrentWindow);
+    const mockWindow = gwMock.mock.results[0]?.value as ReturnType<typeof getCurrentWindow>;
 
     const infoWindow = container.querySelector(
       ".info-window",

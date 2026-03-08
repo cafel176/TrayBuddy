@@ -122,7 +122,30 @@ const mockInvoke = vi.fn(async (command: string) => {
       return "morning";
 
     case "get_settings":
-      return {};
+      return {
+        nickname: "",
+        birthday: null,
+        lang: "en",
+        auto_start: false,
+        no_audio_mode: false,
+        volume: 0.5,
+        silence_mode: false,
+        auto_silence_when_fullscreen: false,
+        streamer_mode: false,
+        show_character: true,
+        show_border: false,
+        animation_scale: 1.0,
+        live2d_mouse_follow: false,
+        live2d_auto_interact: false,
+        threed_cross_fade_duration: 0.3,
+        ai_api_key: "",
+        ai_chat_base_url: "",
+        ai_chat_model: "",
+        ai_image_base_url: "",
+        ai_image_model: "",
+        ai_screenshot_interval: 1.0,
+        ai_tool_hotkey: "F1",
+      };
     case "is_state_locked":
     case "is_sbuddy_supported":
       return false;

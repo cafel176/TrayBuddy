@@ -45,6 +45,18 @@ rmdir /s /q "%~dp0src-tauri\target\debug\mods"
 :: 确保 tauri.conf.json 引用的 resource 目录存在
 if not exist "%~dp0tbuddy_release" mkdir "%~dp0tbuddy_release"
 
+:: 确保 node_modules 存在（安装前端依赖，包括 @tauri-apps/cli）
+if not exist "%~dp0node_modules\" (
+    echo node_modules not found, running pnpm install...
+    call pnpm install
+    if errorlevel 1 (
+        echo.
+        echo [ERROR] pnpm install failed!
+        pause
+        exit /b 1
+    )
+)
+
 echo Starting Tauri dev server...
 call pnpm tauri dev --verbose
 @REM pnpm tauri dev --verbose > tauri-dev.log 2>&1

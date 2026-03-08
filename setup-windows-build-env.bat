@@ -92,44 +92,28 @@ call :ensure_pnpm
 call :ensure_rust
 call :ensure_msvc
 
-rem Install JS deps if requested, or if missing
+rem Always install JS deps (ensures node_modules and @tauri-apps/cli are available)
 set "DEPS_INSTALLED="
 if exist "%~dp0package.json" (
-  if "%DO_INSTALL_DEPS%"=="1" (
-    echo.
-    echo === Installing JS deps ^(pnpm install^) ===
-    echo.
-    pushd "%~dp0"
-    call :allow_pnpm_build_scripts
-    call pnpm install
-
-    if errorlevel 1 (
-      echo [ERROR] pnpm install failed.
-      popd
-      pause
-      exit /b 1
-    )
-    popd
-    set "DEPS_INSTALLED=1"
+  echo.
+  if not exist "%~dp0node_modules\" (
+    echo === node_modules missing; running pnpm install ===
   ) else (
-    if not exist "%~dp0node_modules\" (
-      echo.
-      echo === node_modules missing; running pnpm install ===
-      echo.
-      pushd "%~dp0"
-      call :allow_pnpm_build_scripts
-      call pnpm install
-
-      if errorlevel 1 (
-        echo [ERROR] pnpm install failed.
-        popd
-        pause
-        exit /b 1
-      )
-      popd
-      set "DEPS_INSTALLED=1"
-    )
+    echo === Ensuring JS deps are up-to-date ^(pnpm install^) ===
   )
+  echo.
+  pushd "%~dp0"
+  call :allow_pnpm_build_scripts
+  call pnpm install
+
+  if errorlevel 1 (
+    echo [ERROR] pnpm install failed.
+    popd
+    pause
+    exit /b 1
+  )
+  popd
+  set "DEPS_INSTALLED=1"
 )
 
 :maybe_build
