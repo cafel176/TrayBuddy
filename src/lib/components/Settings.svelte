@@ -77,6 +77,14 @@
 
     /** AI API Key */
     ai_api_key: string;
+    /** AI 识别 API Base URL */
+    ai_chat_base_url: string;
+    /** AI 图像识别/理解模型 */
+    ai_chat_model: string;
+    /** AI 生图 API Base URL */
+    ai_image_base_url: string;
+    /** AI 图像生成模型 */
+    ai_image_model: string;
     /** AI 截图频率（秒） */
     ai_screenshot_interval: number;
     /** 启动 AI 主动工具的快捷键 (F1-F12) */
@@ -674,6 +682,54 @@
         bind:value={settings.ai_api_key}
         onchange={saveSettings}
         placeholder={_("settings.aiApiKeyPlaceholder")}
+      />
+    </div>
+
+    <!-- AI Chat Base URL -->
+    <div class="form-group">
+      <label for="ai_chat_base_url">{_("settings.aiChatBaseUrl")}</label>
+      <input
+        id="ai_chat_base_url"
+        type="text"
+        bind:value={settings.ai_chat_base_url}
+        onchange={saveSettings}
+        placeholder="https://api.siliconflow.cn/v1"
+      />
+    </div>
+
+    <!-- AI Chat Model -->
+    <div class="form-group">
+      <label for="ai_chat_model">{_("settings.aiChatModel")}</label>
+      <input
+        id="ai_chat_model"
+        type="text"
+        bind:value={settings.ai_chat_model}
+        onchange={saveSettings}
+        placeholder="Qwen/Qwen2.5-VL-7B-Instruct"
+      />
+    </div>
+
+    <!-- AI Image Base URL -->
+    <div class="form-group">
+      <label for="ai_image_base_url">{_("settings.aiImageBaseUrl")}</label>
+      <input
+        id="ai_image_base_url"
+        type="text"
+        bind:value={settings.ai_image_base_url}
+        onchange={saveSettings}
+        placeholder="https://api.siliconflow.cn/v1"
+      />
+    </div>
+
+    <!-- AI Image Model -->
+    <div class="form-group">
+      <label for="ai_image_model">{_("settings.aiImageModel")}</label>
+      <input
+        id="ai_image_model"
+        type="text"
+        bind:value={settings.ai_image_model}
+        onchange={saveSettings}
+        placeholder="black-forest-labs/FLUX.1-schnell"
       />
     </div>
 
