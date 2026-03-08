@@ -147,6 +147,34 @@ impl AppState {
         // 4. 执行触发
         TriggerManager::trigger_event(event_name, force, &rm, &mut sm, &limits_ctx)
     }
+
+    /// 在 `spawn_blocking` 中读取 `UserSettings` 的指定字段，避免在 async 上下文中阻塞 tokio 线程。
+    ///
+    /// # 用法
+    /// ```ignore
+    /// let (key, url) = AppState::read_settings_async(&app, |s| {
+    ///     (s.ai_api_key.to_string(), s.ai_chat_base_url.to_string())
+    /// }, (String::new(), String::new())).await;
+    /// ```
+    pub async fn read_settings_async<T, F>(
+        app: &tauri::AppHandle,
+        f: F,
+        default: T,
+    ) -> T
+    where
+        T: Send + 'static,
+        F: FnOnce(&crate::modules::storage::UserSettings) -> T + Send + 'static,
+    {
+        let app_clone = app.clone();
+        tokio::task::spawn_blocking(move || {
+            use tauri::Manager;
+            let app_state: tauri::State<AppState> = app_clone.state();
+            let storage = app_state.storage.lock().unwrap();
+            f(&storage.data.settings)
+        })
+        .await
+        .unwrap_or(default)
+    }
 }
 
 // ========================================================================= //

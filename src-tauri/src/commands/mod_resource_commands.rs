@@ -534,25 +534,9 @@ pub(crate) async fn toggle_ai_tool(
     enabled: bool,
 ) -> Result<bool, String> {
     use crate::modules::ai_tool_manager;
-    use crate::modules::event_manager::{emit, events};
 
     let result = ai_tool_manager::toggle_tool(&name, enabled, &app).await;
-
-    // 发送更新后的工具状态到前端（含完整 type / show_info_window 信息）
-    if let Some((window_name, tool_items)) = ai_tool_manager::build_tool_items_for_event() {
-        let _ = emit(
-            &app,
-            events::AI_TOOL_DATA_CHANGED,
-            serde_json::json!({
-                "window_name": window_name,
-                "tools": tool_items,
-            }),
-        );
-    }
-
-    // 推送调试快照
-    ai_tool_manager::emit_debug_snapshot(&app).await;
-
+    ai_tool_manager::emit_ai_tool_state_update(&app).await;
     Ok(result)
 }
 
@@ -564,23 +548,9 @@ pub(crate) async fn toggle_ai_tool_info_window(
     visible: bool,
 ) -> Result<(), String> {
     use crate::modules::ai_tool_manager;
-    use crate::modules::event_manager::{emit, events};
 
     ai_tool_manager::toggle_info_window(&app, &name, visible);
-
-    // 发送更新后的工具状态到前端（含完整 type / show_info_window 信息）
-    if let Some((window_name, tool_items)) = ai_tool_manager::build_tool_items_for_event() {
-        let _ = emit(
-            &app,
-            events::AI_TOOL_DATA_CHANGED,
-            serde_json::json!({
-                "window_name": window_name,
-                "tools": tool_items,
-            }),
-        );
-    }
-
-    ai_tool_manager::emit_debug_snapshot(&app).await;
+    ai_tool_manager::emit_ai_tool_state_update(&app).await;
     Ok(())
 }
 

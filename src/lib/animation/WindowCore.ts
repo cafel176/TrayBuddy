@@ -1116,7 +1116,7 @@ export function createWindowCore(options: {
       bindings.setShowBorder(settings.show_border);
       bindings.setAnimationScale(settings.animation_scale);
       bindings.setSilenceMode(settings.silence_mode);
-      bindings.setUserNickname(settings.nickname || "User");
+      bindings.setUserNickname(settings.nickname || i18nT("common.defaultUserName"));
 
       try {
         const usage = await invoke<{
@@ -1198,7 +1198,7 @@ export function createWindowCore(options: {
             callbacks.onTransitionDurationChanged?.(payload.threed_cross_fade_duration);
           }
           if ("nickname" in payload) {
-            bindings.setUserNickname(payload.nickname || "User");
+            bindings.setUserNickname(payload.nickname || i18nT("common.defaultUserName"));
           }
 
           const borderReady = callbacks.getBorderPlayerReady?.() ?? false;

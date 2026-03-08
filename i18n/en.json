@@ -183,7 +183,9 @@
   },
   "aiTool": {
     "activated": "AI Tool Activated",
-    "togglePanel": "AI Tool Panel"
+    "togglePanel": "AI Tool Panel",
+    "panelHeader": "AI Tools",
+    "toggleInfoWindow": "Toggle info window"
   },
   "aiToolDebug": {
     "title": "AI Tool Manager",

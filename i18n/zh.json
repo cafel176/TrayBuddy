@@ -183,7 +183,9 @@
   },
   "aiTool": {
     "activated": "AI工具启动",
-    "togglePanel": "AI工具面板"
+    "togglePanel": "AI工具面板",
+    "panelHeader": "AI 工具",
+    "toggleInfoWindow": "切换信息窗口"
   },
   "aiToolDebug": {
     "title": "AI 工具管理器",

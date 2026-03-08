@@ -183,7 +183,9 @@
   },
   "aiTool": {
     "activated": "AIツール起動",
-    "togglePanel": "AIツールパネル"
+    "togglePanel": "AIツールパネル",
+    "panelHeader": "AIツール",
+    "toggleInfoWindow": "情報ウィンドウ切替"
   },
   "aiToolDebug": {
     "title": "AIツールマネージャー",

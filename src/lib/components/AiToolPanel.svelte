@@ -21,6 +21,9 @@ AI 工具面板组件 (AiToolPanel.svelte)
 -->
 
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { t, onLangChange } from "$lib/i18n";
+
   /** 面板中的单个工具项 */
   export interface AiToolItem {
     name: string;
@@ -28,6 +31,15 @@ AI 工具面板组件 (AiToolPanel.svelte)
     enabled: boolean;
     showInfoWindow: boolean;
     infoWindowVisible: boolean;
+  }
+
+  /** i18n 响应式支持 */
+  let _langVersion = $state(0);
+  let unsubLang: (() => void) | null = null;
+
+  function _(key: string, params?: Record<string, string | number>): string {
+    void _langVersion;
+    return t(key, params);
   }
 
   /** 面板是否可见 */
@@ -47,11 +59,16 @@ AI 工具面板组件 (AiToolPanel.svelte)
     const target = e.target as HTMLInputElement;
     onToggleInfoWindow?.(toolName, target.checked);
   }
+
+  onMount(() => {
+    unsubLang = onLangChange(() => { _langVersion++; });
+    return () => { unsubLang?.(); };
+  });
 </script>
 
 {#if visible && tools.length > 0}
   <div class="ai-tool-panel">
-    <div class="ai-tool-header">AI Tools</div>
+    <div class="ai-tool-header">{_("aiTool.panelHeader")}</div>
     <div class="ai-tool-list">
       {#each tools as tool (tool.name)}
         <div class="ai-tool-item-group">
@@ -66,7 +83,7 @@ AI 工具面板组件 (AiToolPanel.svelte)
               <span class="ai-tool-type">{tool.type}</span>
             </label>
             {#if tool.showInfoWindow && tool.enabled}
-              <label class="ai-tool-info-toggle" title="Toggle info window">
+              <label class="ai-tool-info-toggle" title={_("aiTool.toggleInfoWindow")}>
                 <input
                   type="checkbox"
                   checked={tool.infoWindowVisible}

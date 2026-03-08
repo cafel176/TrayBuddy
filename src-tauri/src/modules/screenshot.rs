@@ -10,12 +10,123 @@ use std::path::Path;
 // 屏幕区域截图 — Windows 实现
 // ========================================================================= //
 
-/// 截取屏幕指定矩形区域并保存为 PNG 文件
+/// 内部公共函数：通过 GDI API 截取屏幕指定区域，返回 RGB `ImageBuffer`。
 ///
-/// # 参数
-/// - `x`, `y`: 截取区域左上角的屏幕坐标
-/// - `width`, `height`: 截取区域的宽高（像素）
-/// - `save_path`: PNG 文件保存路径
+/// 所有公开截图函数共享此实现，仅在最终输出格式上有差异。
+#[cfg(target_os = "windows")]
+fn capture_screen_region_raw(
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+) -> Result<image::ImageBuffer<image::Rgb<u8>, Vec<u8>>, String> {
+    use windows::Win32::Graphics::Gdi::{
+        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits,
+        GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+        SRCCOPY,
+    };
+
+    unsafe {
+        let hdc_screen = GetDC(None);
+        if hdc_screen.is_invalid() {
+            return Err("GetDC failed".into());
+        }
+
+        let hdc_mem = CreateCompatibleDC(hdc_screen);
+        if hdc_mem.is_invalid() {
+            ReleaseDC(None, hdc_screen);
+            return Err("CreateCompatibleDC failed".into());
+        }
+
+        let hbm = CreateCompatibleBitmap(hdc_screen, width as i32, height as i32);
+        if hbm.is_invalid() {
+            DeleteDC(hdc_mem);
+            ReleaseDC(None, hdc_screen);
+            return Err("CreateCompatibleBitmap failed".into());
+        }
+
+        let old_bm = SelectObject(hdc_mem, hbm);
+
+        let blt_result = BitBlt(
+            hdc_mem,
+            0,
+            0,
+            width as i32,
+            height as i32,
+            hdc_screen,
+            x,
+            y,
+            SRCCOPY,
+        );
+        if blt_result.is_err() {
+            SelectObject(hdc_mem, old_bm);
+            DeleteObject(hbm);
+            DeleteDC(hdc_mem);
+            ReleaseDC(None, hdc_screen);
+            return Err("BitBlt failed".into());
+        }
+
+        // 准备 BITMAPINFO — 自顶向下，24 位 BGR
+        let bmi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: width as i32,
+                biHeight: -(height as i32), // 自顶向下
+                biPlanes: 1,
+                biBitCount: 24,
+                biCompression: BI_RGB.0 as u32,
+                biSizeImage: 0,
+                biXPelsPerMeter: 0,
+                biYPelsPerMeter: 0,
+                biClrUsed: 0,
+                biClrImportant: 0,
+            },
+            bmiColors: [Default::default()],
+        };
+
+        // 每行字节数须 4 字节对齐
+        let row_bytes = ((width * 3 + 3) / 4) * 4;
+        let image_size = (row_bytes * height) as usize;
+        let mut pixel_data = vec![0u8; image_size];
+
+        let lines = GetDIBits(
+            hdc_mem,
+            hbm,
+            0,
+            height,
+            Some(pixel_data.as_mut_ptr() as *mut _),
+            &bmi as *const _ as *mut _,
+            DIB_RGB_COLORS,
+        );
+
+        // 清理 GDI 资源
+        SelectObject(hdc_mem, old_bm);
+        DeleteObject(hbm);
+        DeleteDC(hdc_mem);
+        ReleaseDC(None, hdc_screen);
+
+        if lines == 0 {
+            return Err("GetDIBits failed".into());
+        }
+
+        // GDI 返回 BGR 格式，转换为 RGB 并去除行对齐填充
+        let mut rgb_data = Vec::with_capacity((width * height * 3) as usize);
+        for row in 0..height {
+            let start = (row * row_bytes) as usize;
+            for col in 0..width {
+                let px = start + (col * 3) as usize;
+                rgb_data.push(pixel_data[px + 2]); // R
+                rgb_data.push(pixel_data[px + 1]); // G
+                rgb_data.push(pixel_data[px]);     // B
+            }
+        }
+
+        image::ImageBuffer::from_raw(width, height, rgb_data)
+            .ok_or_else(|| "Failed to create image buffer".to_string())
+    }
+}
+
+/// 截取屏幕指定矩形区域并保存为 PNG 文件
 ///
 /// # 平台支持
 /// - **Windows**: 完整实现（GDI API + image crate PNG 编码）
@@ -29,128 +140,17 @@ pub fn capture_screen_region(
     height: u32,
     save_path: &Path,
 ) -> Result<(), String> {
-    use windows::Win32::Graphics::Gdi::{
-        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits,
-        GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
-        SRCCOPY,
-    };
-
-    unsafe {
-        let hdc_screen = GetDC(None);
-        if hdc_screen.is_invalid() {
-            return Err("GetDC failed".into());
-        }
-
-        let hdc_mem = CreateCompatibleDC(hdc_screen);
-        if hdc_mem.is_invalid() {
-            ReleaseDC(None, hdc_screen);
-            return Err("CreateCompatibleDC failed".into());
-        }
-
-        let hbm = CreateCompatibleBitmap(hdc_screen, width as i32, height as i32);
-        if hbm.is_invalid() {
-            DeleteDC(hdc_mem);
-            ReleaseDC(None, hdc_screen);
-            return Err("CreateCompatibleBitmap failed".into());
-        }
-
-        let old_bm = SelectObject(hdc_mem, hbm);
-
-        let blt_result = BitBlt(
-            hdc_mem,
-            0,
-            0,
-            width as i32,
-            height as i32,
-            hdc_screen,
-            x,
-            y,
-            SRCCOPY,
-        );
-        if blt_result.is_err() {
-            SelectObject(hdc_mem, old_bm);
-            DeleteObject(hbm);
-            DeleteDC(hdc_mem);
-            ReleaseDC(None, hdc_screen);
-            return Err("BitBlt failed".into());
-        }
-
-        // 准备 BITMAPINFO — 自顶向下，24 位 BGR
-        let bmi = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: width as i32,
-                biHeight: -(height as i32), // 自顶向下
-                biPlanes: 1,
-                biBitCount: 24,
-                biCompression: BI_RGB.0 as u32,
-                biSizeImage: 0,
-                biXPelsPerMeter: 0,
-                biYPelsPerMeter: 0,
-                biClrUsed: 0,
-                biClrImportant: 0,
-            },
-            bmiColors: [Default::default()],
-        };
-
-        // 每行字节数须 4 字节对齐
-        let row_bytes = ((width * 3 + 3) / 4) * 4;
-        let image_size = (row_bytes * height) as usize;
-        let mut pixel_data = vec![0u8; image_size];
-
-        let lines = GetDIBits(
-            hdc_mem,
-            hbm,
-            0,
-            height,
-            Some(pixel_data.as_mut_ptr() as *mut _),
-            &bmi as *const _ as *mut _,
-            DIB_RGB_COLORS,
-        );
-
-        // 清理 GDI 资源
-        SelectObject(hdc_mem, old_bm);
-        DeleteObject(hbm);
-        DeleteDC(hdc_mem);
-        ReleaseDC(None, hdc_screen);
-
-        if lines == 0 {
-            return Err("GetDIBits failed".into());
-        }
-
-        // GDI 返回 BGR 格式，转换为 RGB 并去除行对齐填充
-        let mut rgb_data = Vec::with_capacity((width * height * 3) as usize);
-        for row in 0..height {
-            let start = (row * row_bytes) as usize;
-            for col in 0..width {
-                let px = start + (col * 3) as usize;
-                rgb_data.push(pixel_data[px + 2]); // R
-                rgb_data.push(pixel_data[px + 1]); // G
-                rgb_data.push(pixel_data[px]);     // B
-            }
-        }
-
-        // 使用 image crate 编码为 PNG 并保存
-        let img: image::ImageBuffer<image::Rgb<u8>, _> =
-            image::ImageBuffer::from_raw(width, height, rgb_data)
-                .ok_or_else(|| "Failed to create image buffer".to_string())?;
-        img.save(save_path)
-            .map_err(|e| format!("Failed to save PNG: {}", e))?;
-
-        Ok(())
-    }
+    let img = capture_screen_region_raw(x, y, width, height)?;
+    img.save(save_path)
+        .map_err(|e| format!("Failed to save PNG: {}", e))?;
+    Ok(())
 }
 
-/// 截取屏幕指定矩形区域，直接在内存中编码为 PNG base64 字符串
+/// 截取屏幕指定矩形区域，直接在内存中编码为 PNG 字节
 ///
 /// 相比 `capture_screen_region` + 文件读取 + 重新编码，此函数：
 /// - 不写入磁盘，避免文件 I/O
-/// - 不进行双重 PNG 编解码，直接从像素数据编码为 PNG → base64
 /// - 适用于高频 AI 截图场景
-///
-/// # 参数
-/// - `x`, `y`: 截取区域左上角的屏幕坐标
-/// - `width`, `height`: 截取区域的宽高（像素）
 ///
 /// # 返回
 /// 成功时返回 PNG 格式的原始字节 (`Vec<u8>`)，由调用方按需编码为 base64 或直接写磁盘
@@ -161,121 +161,14 @@ pub fn capture_screen_region_as_png_bytes(
     width: u32,
     height: u32,
 ) -> Result<Vec<u8>, String> {
-    use windows::Win32::Graphics::Gdi::{
-        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits,
-        GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
-        SRCCOPY,
-    };
-
-    unsafe {
-        let hdc_screen = GetDC(None);
-        if hdc_screen.is_invalid() {
-            return Err("GetDC failed".into());
-        }
-
-        let hdc_mem = CreateCompatibleDC(hdc_screen);
-        if hdc_mem.is_invalid() {
-            ReleaseDC(None, hdc_screen);
-            return Err("CreateCompatibleDC failed".into());
-        }
-
-        let hbm = CreateCompatibleBitmap(hdc_screen, width as i32, height as i32);
-        if hbm.is_invalid() {
-            DeleteDC(hdc_mem);
-            ReleaseDC(None, hdc_screen);
-            return Err("CreateCompatibleBitmap failed".into());
-        }
-
-        let old_bm = SelectObject(hdc_mem, hbm);
-
-        let blt_result = BitBlt(
-            hdc_mem,
-            0,
-            0,
-            width as i32,
-            height as i32,
-            hdc_screen,
-            x,
-            y,
-            SRCCOPY,
-        );
-        if blt_result.is_err() {
-            SelectObject(hdc_mem, old_bm);
-            DeleteObject(hbm);
-            DeleteDC(hdc_mem);
-            ReleaseDC(None, hdc_screen);
-            return Err("BitBlt failed".into());
-        }
-
-        // 准备 BITMAPINFO — 自顶向下，24 位 BGR
-        let bmi = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: width as i32,
-                biHeight: -(height as i32), // 自顶向下
-                biPlanes: 1,
-                biBitCount: 24,
-                biCompression: BI_RGB.0 as u32,
-                biSizeImage: 0,
-                biXPelsPerMeter: 0,
-                biYPelsPerMeter: 0,
-                biClrUsed: 0,
-                biClrImportant: 0,
-            },
-            bmiColors: [Default::default()],
-        };
-
-        // 每行字节数须 4 字节对齐
-        let row_bytes = ((width * 3 + 3) / 4) * 4;
-        let image_size = (row_bytes * height) as usize;
-        let mut pixel_data = vec![0u8; image_size];
-
-        let lines = GetDIBits(
-            hdc_mem,
-            hbm,
-            0,
-            height,
-            Some(pixel_data.as_mut_ptr() as *mut _),
-            &bmi as *const _ as *mut _,
-            DIB_RGB_COLORS,
-        );
-
-        // 清理 GDI 资源
-        SelectObject(hdc_mem, old_bm);
-        DeleteObject(hbm);
-        DeleteDC(hdc_mem);
-        ReleaseDC(None, hdc_screen);
-
-        if lines == 0 {
-            return Err("GetDIBits failed".into());
-        }
-
-        // GDI 返回 BGR 格式，转换为 RGB 并去除行对齐填充
-        let mut rgb_data = Vec::with_capacity((width * height * 3) as usize);
-        for row in 0..height {
-            let start = (row * row_bytes) as usize;
-            for col in 0..width {
-                let px = start + (col * 3) as usize;
-                rgb_data.push(pixel_data[px + 2]); // R
-                rgb_data.push(pixel_data[px + 1]); // G
-                rgb_data.push(pixel_data[px]);     // B
-            }
-        }
-
-        // 直接在内存中编码为 PNG 字节（不写磁盘，不编码 base64）
-        let img: image::ImageBuffer<image::Rgb<u8>, _> =
-            image::ImageBuffer::from_raw(width, height, rgb_data)
-                .ok_or_else(|| "Failed to create image buffer".to_string())?;
-
-        let mut png_buf = Vec::new();
-        img.write_to(
-            &mut std::io::Cursor::new(&mut png_buf),
-            image::ImageFormat::Png,
-        )
-        .map_err(|e| format!("Failed to encode PNG: {}", e))?;
-
-        Ok(png_buf)
-    }
+    let img = capture_screen_region_raw(x, y, width, height)?;
+    let mut png_buf = Vec::new();
+    img.write_to(
+        &mut std::io::Cursor::new(&mut png_buf),
+        image::ImageFormat::Png,
+    )
+    .map_err(|e| format!("Failed to encode PNG: {}", e))?;
+    Ok(png_buf)
 }
 
 /// 非 Windows 平台占位

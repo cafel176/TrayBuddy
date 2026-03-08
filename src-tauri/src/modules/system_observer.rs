@@ -19,6 +19,7 @@ use tokio::sync::mpsc;
 use super::constants::{STATE_SILENCE_END, STATE_SILENCE_START};
 use super::event_manager::{DEBUG_EVENT_TYPE_SYSTEM, emit, emit_debug_update, emit_settings, events};
 use super::utils::window::get_visual_window_rect;
+use super::utils::CachedValue;
 use crate::AppState;
 
 // ========================================================================= //
@@ -48,10 +49,10 @@ fn get_self_exe_name() -> Option<&'static str> {
 // 调试信息
 // ========================================================================= //
 
-static CACHED_DEBUG_INFO: Mutex<Option<SystemDebugInfo>> = Mutex::new(None);
+static CACHED_DEBUG_INFO: CachedValue<SystemDebugInfo> = CachedValue::new();
 
 /// 缓存的当前焦点窗口标题
-static CACHED_FOCUSED_WINDOW_TITLE: Mutex<Option<String>> = Mutex::new(None);
+static CACHED_FOCUSED_WINDOW_TITLE: CachedValue<String> = CachedValue::new();
 
 /// 系统观察器调试信息
 #[derive(Debug, Clone, Serialize)]
@@ -76,36 +77,27 @@ pub struct SystemDebugInfo {
 
 /// 获取缓存的调试信息
 pub fn get_cached_debug_info() -> Option<SystemDebugInfo> {
-    CACHED_DEBUG_INFO
-        .lock()
-        .ok()
-        .and_then(|guard| guard.clone())
+    CACHED_DEBUG_INFO.get()
 }
 
 /// 更新调试信息
 fn update_cached_debug_info(info: SystemDebugInfo) {
-    if let Ok(mut guard) = CACHED_DEBUG_INFO.lock() {
-        *guard = Some(info);
-    }
+    CACHED_DEBUG_INFO.set(info);
 }
 
 /// 获取缓存的焦点窗口标题
 pub fn get_cached_focused_window_title() -> String {
-    CACHED_FOCUSED_WINDOW_TITLE
-        .lock()
-        .ok()
-        .and_then(|guard| guard.clone())
-        .unwrap_or_default()
+    CACHED_FOCUSED_WINDOW_TITLE.get().unwrap_or_default()
 }
 
 /// 更新缓存的焦点窗口标题（仅在标题变化时才写入，避免无意义的堆分配+释放）
 fn update_cached_focused_window_title(title: String) {
-    if let Ok(mut guard) = CACHED_FOCUSED_WINDOW_TITLE.lock() {
-        if guard.as_deref() == Some(title.as_str()) {
+    CACHED_FOCUSED_WINDOW_TITLE.with_lock(|opt| {
+        if opt.as_deref() == Some(title.as_str()) {
             return; // 未变化，跳过写入
         }
-        *guard = Some(title);
-    }
+        *opt = Some(title);
+    });
 }
 
 // ========================================================================= //
@@ -334,19 +326,12 @@ impl SystemObserver {
         let app_state: tauri::State<AppState> = app_handle.state();
 
         // 1. 获取设置（通过 spawn_blocking 避免在 async 中阻塞 tokio 线程）
-        let (auto_silence, is_silence_mode) = {
-            let app_clone = app_handle.clone();
-            tokio::task::spawn_blocking(move || {
-                let app_state: tauri::State<AppState> = app_clone.state();
-                let storage = app_state.storage.lock().unwrap();
-                (
-                    storage.data.settings.auto_silence_when_fullscreen,
-                    storage.data.settings.silence_mode,
-                )
-            })
-            .await
-            .unwrap_or((false, false))
-        };
+        let (auto_silence, is_silence_mode) = crate::app_state::AppState::read_settings_async(
+            app_handle,
+            |s| (s.auto_silence_when_fullscreen, s.silence_mode),
+            (false, false),
+        )
+        .await;
 
         // 如果未开启自动检测功能且我们没有处于自动开启状态，我们仍然通过 check_loop 更新调试信息
         // 但不执行后续的切换逻辑
