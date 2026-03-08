@@ -392,12 +392,33 @@ impl SystemObserver {
             if changed {
                 if let Some(ref proc) = matched_proc {
                     // 新匹配到进程：初始化工具管理器
-                    let tools: Vec<(String, bool)> = proc
+                    let tools: Vec<ai_tool_manager::ToolInitInfo> = proc
                         .tool_data
                         .iter()
-                        .map(|td| (td.name.to_string(), td.auto_start))
+                        .map(|td| {
+                            let tool_type = match td.tool_type {
+                                crate::modules::resource::AiToolType::Auto => {
+                                    ai_tool_manager::ToolType::Auto
+                                }
+                                crate::modules::resource::AiToolType::Manual => {
+                                    ai_tool_manager::ToolType::Manual
+                                }
+                            };
+                            ai_tool_manager::ToolInitInfo {
+                                name: td.name.to_string(),
+                                auto_start: td.auto_start,
+                                config: ai_tool_manager::AiToolTaskConfig {
+                                    process_name: proc.process_name.to_string(),
+                                    tool_type,
+                                    capture_x: td.capture_rect.x,
+                                    capture_y: td.capture_rect.y,
+                                    capture_width: td.capture_rect.width,
+                                    capture_height: td.capture_rect.height,
+                                },
+                            }
+                        })
                         .collect();
-                    ai_tool_manager::initialize_tools(&tools).await;
+                    ai_tool_manager::initialize_tools(&tools, app_handle).await;
                     ai_tool_manager::set_matched_ai_tool_process(matched_name.clone());
 
                     // 发送 AI 工具激活事件（气泡通知）

@@ -8,10 +8,10 @@
           "auto_start": true,
           "type": "auto",
           "capture_rect": {
-            "x": 0,
-            "y": 0,
-            "width": 1920,
-            "height": 1080
+            "x": 500,
+            "y": 500,
+            "width": 300,
+            "height": 300
           },
           "prompts": [
             "识别图片是否带有骷髅头图案，是返回true，否则返回false"

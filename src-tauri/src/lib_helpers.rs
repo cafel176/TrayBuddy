@@ -530,6 +530,37 @@ fn emit_global_keyboard_event(code: &str, pressed: bool) {
     );
 }
 
+/// 检查按下的键是否为 AI 工具热键，如果是且当前有匹配进程，则触发 manual 截图
+#[cfg(target_os = "windows")]
+fn check_ai_tool_hotkey(code: &str, app: &tauri::AppHandle) {
+    use crate::modules::ai_tool_manager;
+
+    // 必须当前有匹配的 AI 工具进程
+    if ai_tool_manager::get_matched_ai_tool_process().is_none() {
+        return;
+    }
+
+    // 读取用户设置的热键
+    let hotkey = {
+        let app_state: tauri::State<AppState> = app.state();
+        let storage = app_state.storage.lock().unwrap();
+        storage.data.settings.ai_tool_hotkey.to_string()
+    };
+
+    // 比较按键码与热键设置（不区分大小写）
+    if code.eq_ignore_ascii_case(&hotkey) {
+        ai_tool_manager::notify_manual_capture();
+    }
+}
+
+/// macOS 占位：全局键盘 hook 尚未实现，AI 工具热键检测无操作
+#[cfg(target_os = "macos")]
+fn check_ai_tool_hotkey(_code: &str, _app: &tauri::AppHandle) {}
+
+/// Linux 占位：全局键盘 hook 尚未实现，AI 工具热键检测无操作
+#[cfg(target_os = "linux")]
+fn check_ai_tool_hotkey(_code: &str, _app: &tauri::AppHandle) {}
+
 #[cfg(target_os = "windows")]
 fn emit_global_mouse_state(button: &str, pressed: bool) {
     let Some(ctx) = get_global_input_context() else {
@@ -578,46 +609,42 @@ unsafe extern "system" fn global_keyboard_hook_proc(
         return CallNextHookEx(null_hook, code, wparam, lparam);
     };
 
-    if !ctx.keyboard_enabled.load(Ordering::Relaxed) {
-        if GLOBAL_KEYBOARD_LAST_ENABLED.swap(false, Ordering::Relaxed) {
-            reset_global_key_states();
-        }
-        return CallNextHookEx(null_hook, code, wparam, lparam);
-    }
-
-    if !GLOBAL_KEYBOARD_LAST_ENABLED.swap(true, Ordering::Relaxed) {
-        reset_global_key_states();
-    }
-
+    // AI 工具热键始终检测（不受 keyboard_enabled 开关影响）
     let msg = wparam.0 as u32;
     let is_down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
     let is_up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
 
-    if !is_down && !is_up {
-        return CallNextHookEx(null_hook, code, wparam, lparam);
-    }
+    if is_down || is_up {
+        let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
+        let vk = kbd.vkCode as usize;
+        if vk < 256 {
+            if let Some(key_code) = map_vk_code(kbd.vkCode) {
+                // AI 工具热键：无论 keyboard_enabled 如何都检测
+                if is_down {
+                    check_ai_tool_hotkey(key_code, &ctx.app_handle);
+                }
 
-    let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
-    let vk = kbd.vkCode as usize;
-    if vk >= 256 {
-        return CallNextHookEx(null_hook, code, wparam, lparam);
-    }
-
-    let Some(key_code) = map_vk_code(kbd.vkCode) else {
-        return CallNextHookEx(null_hook, code, wparam, lparam);
-    };
-
-    let mut states = get_global_key_states().lock().unwrap();
-    let was_pressed = states[vk];
-
-    if is_down && !was_pressed {
-        states[vk] = true;
-        drop(states);
-        emit_global_keyboard_event(key_code, true);
-    } else if is_up && was_pressed {
-        states[vk] = false;
-        drop(states);
-        emit_global_keyboard_event(key_code, false);
+                // 其余全局键盘事件仍受 keyboard_enabled 控制
+                if ctx.keyboard_enabled.load(Ordering::Relaxed) {
+                    if !GLOBAL_KEYBOARD_LAST_ENABLED.swap(true, Ordering::Relaxed) {
+                        reset_global_key_states();
+                    }
+                    let mut states = get_global_key_states().lock().unwrap();
+                    let was_pressed = states[vk];
+                    if is_down && !was_pressed {
+                        states[vk] = true;
+                        drop(states);
+                        emit_global_keyboard_event(key_code, true);
+                    } else if is_up && was_pressed {
+                        states[vk] = false;
+                        drop(states);
+                        emit_global_keyboard_event(key_code, false);
+                    }
+                } else if GLOBAL_KEYBOARD_LAST_ENABLED.swap(false, Ordering::Relaxed) {
+                    reset_global_key_states();
+                }
+            }
+        }
     }
 
     CallNextHookEx(null_hook, code, wparam, lparam)

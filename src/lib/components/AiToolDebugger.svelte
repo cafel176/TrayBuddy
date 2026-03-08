@@ -35,6 +35,7 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
 
     interface AiToolDebugItem {
         name: string;
+        tool_type: "auto" | "manual";
         enabled: boolean;
         has_task: boolean;
         task_id: string | null;
@@ -45,6 +46,7 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
         tools: AiToolDebugItem[];
         active_task_count: number;
         last_update_time: string;
+        keep_screenshots: boolean;
     }
 
     // ======================================================================= //
@@ -68,6 +70,16 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
             }
         } catch (e) {
             statusMsg = `${_("common.loadFailed")} ${e}`;
+        }
+    }
+
+    async function toggleKeepScreenshots(e: Event) {
+        const target = e.target as HTMLInputElement;
+        const keep = target.checked;
+        try {
+            await invoke("toggle_keep_screenshots", { keep });
+        } catch (err) {
+            console.error("[AiToolDebugger] toggle keep_screenshots failed:", err);
         }
     }
 
@@ -156,6 +168,20 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
             </div>
         </section>
 
+        <!-- 截图设置 -->
+        <section class="section">
+            <h5>{_("aiToolDebug.screenshotSettings")}</h5>
+            <label class="toggle-row">
+                <input
+                    type="checkbox"
+                    checked={debugInfo.keep_screenshots}
+                    onchange={toggleKeepScreenshots}
+                />
+                <span>{_("aiToolDebug.keepScreenshots")}</span>
+                <span class="toggle-hint">{_("aiToolDebug.keepScreenshotsHint")}</span>
+            </label>
+        </section>
+
         <!-- 工具列表 -->
         <section class="section">
             <h5>{_("aiToolDebug.toolList")}</h5>
@@ -163,6 +189,7 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
                 <div class="tool-table">
                     <div class="tool-row tool-header">
                         <span class="tool-cell name-cell">{_("aiToolDebug.toolName")}</span>
+                        <span class="tool-cell">{_("aiToolDebug.toolType")}</span>
                         <span class="tool-cell">{_("aiToolDebug.enabled")}</span>
                         <span class="tool-cell">{_("aiToolDebug.hasTask")}</span>
                         <span class="tool-cell">{_("aiToolDebug.taskId")}</span>
@@ -170,6 +197,11 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
                     {#each debugInfo.tools as tool}
                         <div class="tool-row">
                             <span class="tool-cell name-cell mono">{tool.name}</span>
+                            <span class="tool-cell">
+                                <span class="badge type-badge" class:type-auto={tool.tool_type === "auto"} class:type-manual={tool.tool_type === "manual"}>
+                                    {tool.tool_type}
+                                </span>
+                            </span>
                             <span class="tool-cell">
                                 <span class="badge" class:on={tool.enabled} class:off={!tool.enabled}>
                                     {tool.enabled ? _("common.on") : _("common.off")}
@@ -342,7 +374,7 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
 
     .tool-row {
         display: grid;
-        grid-template-columns: 1fr 80px 80px 80px;
+        grid-template-columns: 1fr 70px 80px 80px 80px;
         gap: 8px;
         padding: 6px 8px;
         border-radius: 4px;
@@ -389,11 +421,45 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
         border: 1px solid #ef9a9a;
     }
 
+    .type-badge.type-auto {
+        background: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #90caf9;
+    }
+
+    .type-badge.type-manual {
+        background: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffcc80;
+    }
+
     .empty-hint {
         text-align: center;
         padding: 20px;
         color: #adb5bd;
         font-size: 0.9em;
+    }
+
+    .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+        font-size: 0.9em;
+    }
+
+    .toggle-row input[type="checkbox"] {
+        width: 15px;
+        height: 15px;
+        cursor: pointer;
+        accent-color: #9b59b6;
+    }
+
+    .toggle-hint {
+        font-size: 0.8em;
+        color: #868e96;
+        margin-left: auto;
     }
 
     /* 状态卡片 */
@@ -500,6 +566,18 @@ AI 工具管理器调试组件 (AiToolDebugger.svelte)
             background: #4a1c1c;
             color: #ef9a9a;
             border-color: #c62828;
+        }
+
+        .type-badge.type-auto {
+            background: #0d2137;
+            color: #90caf9;
+            border-color: #1565c0;
+        }
+
+        .type-badge.type-manual {
+            background: #3e2200;
+            color: #ffcc80;
+            border-color: #e65100;
         }
 
         .empty-hint {

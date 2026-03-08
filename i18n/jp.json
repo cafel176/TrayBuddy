@@ -200,12 +200,16 @@
     "enabled": "有効",
     "hasTask": "バックグラウンドタスク",
     "taskId": "タスクID",
+    "toolType": "タイプ",
     "noTools": "ツールなし",
     "overview": "概要",
     "processMatch": "プロセスマッチ",
     "taskStatus": "タスク状態",
     "tasksRunning": "{count} タスク実行中",
-    "noTasks": "アクティブタスクなし"
+    "noTasks": "アクティブタスクなし",
+    "screenshotSettings": "スクリーンショット設定",
+    "keepScreenshots": "すべてのスクリーンショットを保持",
+    "keepScreenshotsHint": "ON:タイムスタンプ付き保持、OFF:上書き"
   },
   "environment": {
     "title": "環境デバッグパネル",

@@ -21,6 +21,7 @@ pub mod mod_archive;
 pub mod process_observer;
 pub mod render_tuning_config;
 pub mod resource;
+pub mod screenshot;
 pub mod state;
 pub mod storage;
 pub mod system_observer;

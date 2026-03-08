@@ -200,12 +200,16 @@
     "enabled": "Enabled",
     "hasTask": "Background Task",
     "taskId": "Task ID",
+    "toolType": "Type",
     "noTools": "No tools available",
     "overview": "Overview",
     "processMatch": "Process Match",
     "taskStatus": "Task Status",
     "tasksRunning": "{count} task(s) running",
-    "noTasks": "No active tasks"
+    "noTasks": "No active tasks",
+    "screenshotSettings": "Screenshot Settings",
+    "keepScreenshots": "Keep all screenshots",
+    "keepScreenshotsHint": "On: timestamped, keep all; Off: overwrite"
   },
   "environment": {
     "title": "Environment Debug Panel",

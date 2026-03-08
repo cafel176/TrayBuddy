@@ -200,12 +200,16 @@
     "enabled": "启用",
     "hasTask": "后台任务",
     "taskId": "任务ID",
+    "toolType": "类型",
     "noTools": "暂无工具",
     "overview": "总览",
     "processMatch": "进程匹配",
     "taskStatus": "任务状态",
     "tasksRunning": "{count} 个任务运行中",
-    "noTasks": "无活跃任务"
+    "noTasks": "无活跃任务",
+    "screenshotSettings": "截图设置",
+    "keepScreenshots": "保留所有截图",
+    "keepScreenshotsHint": "开启后截图带时间戳，每张保留；关闭则覆盖"
   },
   "environment": {
     "title": "Environment 调试面板",

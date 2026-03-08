@@ -64,6 +64,8 @@
 |---------|------|------|
 | `start_global_input_hook()` [非 Windows 分支] | 待实现 | macOS: CGEventTap（需辅助功能权限）；Linux: XRecord 或 /dev/input |
 | `is_user_logged_in_desktop()` [非 Windows 分支] | 待实现 | macOS: CGSessionCopyCurrentDictionary 检测锁屏；Linux: D-Bus org.freedesktop.login1 |
+| `check_ai_tool_hotkey()` [macOS] | 待实现 | macOS: 依赖 `start_global_input_hook` 实现后获取按键事件，通过 CGEventTap / NSEvent addGlobalMonitorForEvents 接收全局键盘事件 |
+| `check_ai_tool_hotkey()` [Linux] | 待实现 | Linux: 依赖 `start_global_input_hook` 实现后获取按键事件，通过 X11 XGrabKey / libinput / evdev 接收全局键盘事件 |
 | `start_session_observer()` [非 Windows 分支] | 待实现 | macOS: NSDistributedNotificationCenter (screenIsLocked/Unlocked)；Linux: D-Bus Lock/Unlock 信号 |
 | `start_background_services_non_windows()` | 基本可用 | 当各观察器的跨平台实现完成后可与 Windows 版统一 |
 | `trigger_login_events_non_windows()` | 基本可用 | 同上 |
@@ -76,7 +78,15 @@
 | `sbuddy_command()` — 隐藏控制台窗口 | 已完成 | 已通过 `#[cfg(windows)]` 设置 CREATE_NO_WINDOW |
 | Unix 权限设置 | 已完成 | 已通过 `#[cfg(unix)]` 设置 chmod 0o755 |
 
-### 8. 工具模块 — `src/modules/utils/`
+### 8. 屏幕截图 — `src/modules/screenshot.rs`
+
+| 占位函数 | 状态 | 说明 |
+|---------|------|------|
+| `capture_screen_region()` [Windows] | 已完成 | 使用 GDI API（GetDC → CreateCompatibleDC → BitBlt → GetDIBits）截取屏幕指定矩形区域，保存为 BMP 文件 |
+| `capture_screen_region()` [macOS] | 待实现 | macOS: CoreGraphics `CGWindowListCreateImage` 截取指定区域，通过 `CGImageDestination` 保存为 PNG/BMP；或调用 `screencapture` 命令行工具 |
+| `capture_screen_region()` [Linux] | 待实现 | X11: `XGetImage` 或 `XShmGetImage` 截取指定区域；Wayland: `xdg-desktop-portal` 的 `org.freedesktop.portal.Screenshot` 或 PipeWire 屏幕录制 API；通用降级: `import` (ImageMagick) 或 `scrot` 命令行 |
+
+### 9. 工具模块 — `src/modules/utils/`
 
 #### `os_version.rs`
 
@@ -106,19 +116,19 @@
 |---------|------|------|
 | `set_current_thread_description()` [非 Windows 分支] | 待实现 | macOS/Linux: pthread_setname_np（注意 15 字节限制） |
 
-### 9. 环境信息 — `src/modules/environment.rs`
+### 10. 环境信息 — `src/modules/environment.rs`
 
 | 占位函数 | 状态 | 说明 |
 |---------|------|------|
 | `fallback_location_from_timezone()` [非 Windows 分支] | 基本可用 | 当前使用 $TZ 环境变量；macOS: NSTimeZone.localTimeZone；Linux: /etc/timezone |
 
-### 10. 常量定义 — `src/modules/constants.rs`
+### 11. 常量定义 — `src/modules/constants.rs`
 
 | 位置 | 状态 | 说明 |
 |---------|------|------|
 | `SESSION_OBSERVER_POLL_INTERVAL_SECS` | 已完成 | 非 Windows 平台会话检测轮询间隔（2秒），被 `start_session_observer` 非 Windows 分支使用 |
 
-### 11. 构建脚本 — `build.rs`
+### 12. 构建脚本 — `build.rs`
 
 | 位置 | 状态 | 说明 |
 |---------|------|------|
@@ -127,13 +137,13 @@
 | `find_msvc_tool()` | 已完成 | 已通过 `#[cfg(windows)]` 隔离 |
 | sbuddy-crypto 嵌入 | 已完成 | 已通过 `cfg!(windows)` 区分文件名 |
 
-### 12. Mod 资源切换 — `src/commands/mod_resource_commands.rs`
+### 13. Mod 资源切换 — `src/commands/mod_resource_commands.rs`
 
 | 位置 | 状态 | 说明 |
 |---------|------|------|
 | `trigger_login_events` 分支调用 | 已完成 | 已通过 `#[cfg]` 分别调用 Windows/非 Windows 版本 |
 
-### 13. 条件导入 — 多文件
+### 14. 条件导入 — 多文件
 
 以下文件通过 `#[cfg(windows)]` 条件导入 Windows 专用模块（已完成，不需要额外工作）：
 

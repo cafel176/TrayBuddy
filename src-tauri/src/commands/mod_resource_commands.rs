@@ -536,7 +536,7 @@ pub(crate) async fn toggle_ai_tool(
     use crate::modules::ai_tool_manager;
     use crate::modules::event_manager::{emit, events};
 
-    let result = ai_tool_manager::toggle_tool(&name, enabled).await;
+    let result = ai_tool_manager::toggle_tool(&name, enabled, &app).await;
 
     // 发送更新后的工具状态到前端
     if let Some(map) = ai_tool_manager::get_tool_enabled_map() {
@@ -565,6 +565,22 @@ pub(crate) async fn toggle_ai_tool(
     ai_tool_manager::emit_debug_snapshot(&app).await;
 
     Ok(result)
+}
+
+/// 切换 AI 截图保留模式
+#[tauri::command]
+pub(crate) async fn toggle_keep_screenshots(
+    app: tauri::AppHandle,
+    keep: bool,
+) -> Result<bool, String> {
+    use crate::modules::ai_tool_manager;
+
+    ai_tool_manager::set_keep_screenshots(keep);
+
+    // 推送调试快照
+    ai_tool_manager::emit_debug_snapshot(&app).await;
+
+    Ok(keep)
 }
 
 #[cfg(test)]
