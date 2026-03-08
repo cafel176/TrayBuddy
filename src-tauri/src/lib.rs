@@ -622,6 +622,7 @@ pub fn run() {
             get_bubble_style,
             get_ai_tools,
             toggle_ai_tool,
+            toggle_ai_tool_info_window,
             toggle_keep_screenshots,
             // 状态管理
             get_all_states,

@@ -1173,7 +1173,7 @@ async fn restore_window_icons_async(app: tauri::AppHandle) {
 /// 内部函数：为窗口设置正确的图标（Mod 图标或默认图标）
 ///
 /// 优化：使用共享的 get_app_icon 函数，避免重复的锁获取和路径解析逻辑
-fn apply_window_icon(app: &tauri::AppHandle, window: &WebviewWindow) {
+pub(crate) fn apply_window_icon(app: &tauri::AppHandle, window: &WebviewWindow) {
     if let Some(icon) = get_app_icon(app) {
         let _ = window.set_icon(icon);
     }

@@ -414,6 +414,7 @@ impl SystemObserver {
                                     capture_y: td.capture_rect.y,
                                     capture_width: td.capture_rect.width,
                                     capture_height: td.capture_rect.height,
+                                    show_info_window: td.show_info_window,
                                 },
                             }
                         })
@@ -441,6 +442,8 @@ impl SystemObserver {
                                     crate::modules::resource::AiToolType::Manual => "manual",
                                 },
                                 "enabled": td.auto_start,
+                                "show_info_window": td.show_info_window,
+                                "info_window_visible": td.auto_start && td.show_info_window,
                             })
                         })
                         .collect();
@@ -464,7 +467,7 @@ impl SystemObserver {
                     ai_tool_manager::emit_debug_snapshot(app_handle).await;
                 } else {
                     // 不再匹配任何进程：清空管理器
-                    ai_tool_manager::clear_all().await;
+                    ai_tool_manager::clear_all(app_handle).await;
 
                     // 通知前端清空面板
                     let null_name: Option<String> = None;

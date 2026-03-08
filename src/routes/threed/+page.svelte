@@ -92,6 +92,14 @@
     }
   }
 
+  async function handleAiToolInfoWindowToggle(name: string, visible: boolean) {
+    try {
+      await invoke("toggle_ai_tool_info_window", { name, visible });
+    } catch (e) {
+      console.error("[AiToolPanel] info window toggle failed:", e);
+    }
+  }
+
   async function initThreeDPlayer() {
     try {
       const mod = (await invoke("get_current_mod")) as ModInfo | null;
@@ -362,6 +370,7 @@
           visible={showAiToolPanel}
           tools={aiToolItems}
           onToggle={handleAiToolToggle}
+          onToggleInfoWindow={handleAiToolInfoWindowToggle}
         />
       </div>
     {/if}

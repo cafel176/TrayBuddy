@@ -331,6 +331,14 @@ Live2D 渲染层暂为空占位。
     }
   }
 
+  async function handleAiToolInfoWindowToggle(name: string, visible: boolean) {
+    try {
+      await invoke("toggle_ai_tool_info_window", { name, visible });
+    } catch (e) {
+      console.error("[AiToolPanel] info window toggle failed:", e);
+    }
+  }
+
 
   async function initLive2DPlayer() {
     try {
@@ -628,6 +636,7 @@ Live2D 渲染层暂为空占位。
           visible={showAiToolPanel}
           tools={aiToolItems}
           onToggle={handleAiToolToggle}
+          onToggleInfoWindow={handleAiToolInfoWindowToggle}
         />
       </div>
     {/if}

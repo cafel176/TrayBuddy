@@ -8,12 +8,14 @@ AI 工具面板组件 (AiToolPanel.svelte)
 - 每个工具显示 checkbox、name、type
 - checkbox 控制工具的开启/关闭
 - auto_start 工具默认勾选
+- 支持 show_info_window 的工具显示信息窗口控制 checkbox
 
 使用方式:
   <AiToolPanel
     visible={showAiToolPanel}
     tools={aiToolList}
-    on:toggle={(e) => handleToggle(e.detail)}
+    onToggle={(name, enabled) => ...}
+    onToggleInfoWindow={(name, visible) => ...}
   />
 =========================================================================
 -->
@@ -24,18 +26,26 @@ AI 工具面板组件 (AiToolPanel.svelte)
     name: string;
     type: string;
     enabled: boolean;
+    showInfoWindow: boolean;
+    infoWindowVisible: boolean;
   }
 
   /** 面板是否可见 */
-  let { visible = false, tools = [], onToggle }: {
+  let { visible = false, tools = [], onToggle, onToggleInfoWindow }: {
     visible: boolean;
     tools: AiToolItem[];
     onToggle?: (name: string, enabled: boolean) => void;
+    onToggleInfoWindow?: (name: string, visible: boolean) => void;
   } = $props();
 
   function handleCheckboxChange(toolName: string, e: Event) {
     const target = e.target as HTMLInputElement;
     onToggle?.(toolName, target.checked);
+  }
+
+  function handleInfoWindowChange(toolName: string, e: Event) {
+    const target = e.target as HTMLInputElement;
+    onToggleInfoWindow?.(toolName, target.checked);
   }
 </script>
 
@@ -44,15 +54,29 @@ AI 工具面板组件 (AiToolPanel.svelte)
     <div class="ai-tool-header">AI Tools</div>
     <div class="ai-tool-list">
       {#each tools as tool (tool.name)}
-        <label class="ai-tool-item">
-          <input
-            type="checkbox"
-            checked={tool.enabled}
-            onchange={(e) => handleCheckboxChange(tool.name, e)}
-          />
-          <span class="ai-tool-name">{tool.name}</span>
-          <span class="ai-tool-type">{tool.type}</span>
-        </label>
+        <div class="ai-tool-item-group">
+          <div class="ai-tool-row">
+            <label class="ai-tool-item">
+              <input
+                type="checkbox"
+                checked={tool.enabled}
+                onchange={(e) => handleCheckboxChange(tool.name, e)}
+              />
+              <span class="ai-tool-name">{tool.name}</span>
+              <span class="ai-tool-type">{tool.type}</span>
+            </label>
+            {#if tool.showInfoWindow && tool.enabled}
+              <label class="ai-tool-info-toggle" title="Toggle info window">
+                <input
+                  type="checkbox"
+                  checked={tool.infoWindowVisible}
+                  onchange={(e) => handleInfoWindowChange(tool.name, e)}
+                />
+                <span class="ai-tool-info-label">📋</span>
+              </label>
+            {/if}
+          </div>
+        </div>
       {/each}
     </div>
   </div>
@@ -66,8 +90,9 @@ AI 工具面板组件 (AiToolPanel.svelte)
     z-index: 350;
     pointer-events: auto;
 
-    min-width: 140px;
-    max-width: 220px;
+    min-width: 180px;
+    max-width: 320px;
+    width: max-content;
     padding: 6px 8px;
     border-radius: 8px;
 
@@ -98,6 +123,18 @@ AI 工具面板组件 (AiToolPanel.svelte)
     gap: 2px;
   }
 
+  .ai-tool-item-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .ai-tool-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .ai-tool-item {
     display: flex;
     align-items: center;
@@ -107,6 +144,8 @@ AI 工具面板组件 (AiToolPanel.svelte)
     user-select: none;
     border-radius: 4px;
     transition: background 0.15s;
+    flex: 1;
+    min-width: 0;
   }
 
   .ai-tool-item:hover {
@@ -138,5 +177,38 @@ AI 工具面板组件 (AiToolPanel.svelte)
     background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.6);
     flex-shrink: 0;
+  }
+
+  .ai-tool-info-toggle {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 4px;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    padding-left: 6px;
+  }
+
+  .ai-tool-info-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .ai-tool-info-toggle input[type="checkbox"] {
+    width: 11px;
+    height: 11px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #81c784;
+    flex-shrink: 0;
+  }
+
+  .ai-tool-info-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1;
   }
 </style>

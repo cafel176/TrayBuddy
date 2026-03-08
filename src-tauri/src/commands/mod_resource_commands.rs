@@ -538,19 +538,8 @@ pub(crate) async fn toggle_ai_tool(
 
     let result = ai_tool_manager::toggle_tool(&name, enabled, &app).await;
 
-    // 发送更新后的工具状态到前端
-    if let Some(map) = ai_tool_manager::get_tool_enabled_map() {
-        let process_name = ai_tool_manager::get_matched_ai_tool_process();
-        let tool_items: Vec<serde_json::Value> = map
-            .iter()
-            .map(|(n, e)| {
-                serde_json::json!({
-                    "name": n,
-                    "type": "", // 前端已有完整 type 信息
-                    "enabled": e,
-                })
-            })
-            .collect();
+    // 发送更新后的工具状态到前端（含完整 type / show_info_window 信息）
+    if let Some((process_name, tool_items)) = ai_tool_manager::build_tool_items_for_event() {
         let _ = emit(
             &app,
             events::AI_TOOL_DATA_CHANGED,
@@ -565,6 +554,34 @@ pub(crate) async fn toggle_ai_tool(
     ai_tool_manager::emit_debug_snapshot(&app).await;
 
     Ok(result)
+}
+
+/// 切换 AI 工具信息窗口的显示/隐藏
+#[tauri::command]
+pub(crate) async fn toggle_ai_tool_info_window(
+    app: tauri::AppHandle,
+    name: String,
+    visible: bool,
+) -> Result<(), String> {
+    use crate::modules::ai_tool_manager;
+    use crate::modules::event_manager::{emit, events};
+
+    ai_tool_manager::toggle_info_window(&app, &name, visible);
+
+    // 发送更新后的工具状态到前端（含完整 type / show_info_window 信息）
+    if let Some((process_name, tool_items)) = ai_tool_manager::build_tool_items_for_event() {
+        let _ = emit(
+            &app,
+            events::AI_TOOL_DATA_CHANGED,
+            serde_json::json!({
+                "process_name": process_name,
+                "tools": tool_items,
+            }),
+        );
+    }
+
+    ai_tool_manager::emit_debug_snapshot(&app).await;
+    Ok(())
 }
 
 /// 切换 AI 截图保留模式

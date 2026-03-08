@@ -295,6 +295,14 @@
     }
   }
 
+  async function handleAiToolInfoWindowToggle(name: string, visible: boolean) {
+    try {
+      await invoke("toggle_ai_tool_info_window", { name, visible });
+    } catch (e) {
+      console.error("[AiToolPanel] info window toggle failed:", e);
+    }
+  }
+
   async function initSequenceMemoryDebug() {
     const memoryDebugEnabled = await initMemoryDebug();
     if (memoryDebugEnabled) {
@@ -476,6 +484,7 @@
           visible={showAiToolPanel}
           tools={aiToolItems}
           onToggle={handleAiToolToggle}
+          onToggleInfoWindow={handleAiToolInfoWindowToggle}
         />
       </div>
     {/if}

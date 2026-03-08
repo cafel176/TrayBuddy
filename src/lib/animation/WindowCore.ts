@@ -34,7 +34,13 @@ import {
 export type ModDataToast = { id: number; delta: number };
 
 /** AI 工具面板项 */
-export type AiToolItem = { name: string; type: string; enabled: boolean };
+export type AiToolItem = {
+  name: string;
+  type: string;
+  enabled: boolean;
+  showInfoWindow: boolean;
+  infoWindowVisible: boolean;
+};
 
 /** 调试边框颜色配置。 */
 export type DebugColors = {
@@ -1238,12 +1244,18 @@ export function createWindowCore(options: {
       // 监听 AI 工具数据变更事件：更新面板工具列表
       unlistenAiToolData = await listen<{
         process_name: string | null;
-        tools: { name: string; type: string; enabled: boolean }[];
+        tools: { name: string; type: string; enabled: boolean; show_info_window: boolean; info_window_visible: boolean }[];
       }>("ai-tool-data-changed", (event) => {
         const { tools, process_name } = event.payload;
         if (process_name && tools.length > 0) {
           bindings.setAiToolItems(
-            tools.map((t) => ({ name: t.name, type: t.type, enabled: t.enabled })),
+            tools.map((t) => ({
+              name: t.name,
+              type: t.type,
+              enabled: t.enabled,
+              showInfoWindow: t.show_info_window,
+              infoWindowVisible: t.info_window_visible,
+            })),
           );
           bindings.setAiToolPanelAvailable(true);
         } else {

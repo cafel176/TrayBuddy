@@ -41,6 +41,9 @@ static TOOL_CONFIGS: Mutex<Option<HashMap<String, AiToolTaskConfig>>> = Mutex::n
 /// 截图保留模式：true=每张截图带时间戳后缀全部保留，false=同名覆盖
 static KEEP_SCREENSHOTS: AtomicBool = AtomicBool::new(false);
 
+/// 信息窗口可见状态：工具名 -> 是否可见
+static INFO_WINDOW_VISIBLE: Mutex<Option<HashMap<String, bool>>> = Mutex::new(None);
+
 /// 手动截图通知：当用户按下热键时，notify_waiters() 唤醒所有 manual 类型任务
 static MANUAL_CAPTURE_NOTIFY: std::sync::OnceLock<Notify> = std::sync::OnceLock::new();
 
@@ -84,6 +87,8 @@ pub struct AiToolTaskConfig {
     pub capture_y: i32,
     pub capture_width: u32,
     pub capture_height: u32,
+    /// 是否需要信息窗口
+    pub show_info_window: bool,
 }
 
 // ========================================================================= //
@@ -118,6 +123,10 @@ pub struct AiToolDebugItem {
     pub has_task: bool,
     /// 后台任务的 tokio task ID（若有运行中的任务）
     pub task_id: Option<String>,
+    /// 是否配置了信息窗口
+    pub show_info_window: bool,
+    /// 信息窗口当前是否可见
+    pub info_window_visible: bool,
 }
 
 /// 缓存的调试信息
@@ -147,6 +156,7 @@ pub async fn snapshot_debug_info() -> AiToolDebugInfo {
 
     let tools: Vec<AiToolDebugItem> = if let Some(ref map) = enabled_map {
         let configs = TOOL_CONFIGS.lock().ok();
+        let info_visible = INFO_WINDOW_VISIBLE.lock().ok();
         map.iter()
             .map(|(name, enabled)| {
                 let task_id = tasks
@@ -156,12 +166,22 @@ pub async fn snapshot_debug_info() -> AiToolDebugInfo {
                     .as_ref()
                     .and_then(|g| g.as_ref()?.get(name).map(|c| c.tool_type))
                     .unwrap_or_default();
+                let show_info_window = configs
+                    .as_ref()
+                    .and_then(|g| g.as_ref()?.get(name).map(|c| c.show_info_window))
+                    .unwrap_or(false);
+                let info_window_visible = info_visible
+                    .as_ref()
+                    .and_then(|g| g.as_ref()?.get(name).copied())
+                    .unwrap_or(false);
                 AiToolDebugItem {
                     name: name.clone(),
                     tool_type,
                     enabled: *enabled,
                     has_task: tasks.contains_key(name),
                     task_id,
+                    show_info_window,
+                    info_window_visible,
                 }
             })
             .collect()
@@ -268,6 +288,47 @@ pub fn is_tool_enabled(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// 构建用于前端事件推送的完整工具列表（含 type、show_info_window 等完整信息）。
+/// 供 toggle_ai_tool / toggle_ai_tool_info_window 命令发送事件使用。
+pub fn build_tool_items_for_event() -> Option<(Option<String>, Vec<serde_json::Value>)> {
+    let enabled_map = get_tool_enabled_map()?;
+    let process_name = get_matched_ai_tool_process();
+    let configs = TOOL_CONFIGS.lock().ok();
+    let info_visible = INFO_WINDOW_VISIBLE.lock().ok();
+
+    let items: Vec<serde_json::Value> = enabled_map
+        .iter()
+        .map(|(name, enabled)| {
+            let (tool_type_str, show_info) = configs
+                .as_ref()
+                .and_then(|g| {
+                    let cfg = g.as_ref()?.get(name)?;
+                    let t = match cfg.tool_type {
+                        ToolType::Auto => "auto",
+                        ToolType::Manual => "manual",
+                    };
+                    Some((t, cfg.show_info_window))
+                })
+                .unwrap_or(("manual", false));
+
+            let info_visible_val = info_visible
+                .as_ref()
+                .and_then(|g| g.as_ref()?.get(name).copied())
+                .unwrap_or(false);
+
+            serde_json::json!({
+                "name": name,
+                "type": tool_type_str,
+                "enabled": enabled,
+                "show_info_window": show_info,
+                "info_window_visible": info_visible_val,
+            })
+        })
+        .collect();
+
+    Some((process_name, items))
+}
+
 // ========================================================================= //
 // 公共接口 — 工具配置
 // ========================================================================= //
@@ -290,6 +351,120 @@ pub fn notify_manual_capture() {
     get_manual_notify().notify_waiters();
     #[cfg(debug_assertions)]
     println!("[AiToolManager] Manual capture triggered by hotkey");
+}
+
+// ========================================================================= //
+// 公共接口 — 信息窗口管理
+// ========================================================================= //
+
+/// AI 工具信息窗口的标签前缀
+const AI_TOOL_INFO_WINDOW_PREFIX: &str = "ai_tool_info_";
+
+/// 生成信息窗口标签：`ai_tool_info_{tool_name}`
+pub fn info_window_label(tool_name: &str) -> String {
+    format!("{}{}", AI_TOOL_INFO_WINDOW_PREFIX, tool_name)
+}
+
+/// 获取信息窗口可见状态
+pub fn is_info_window_visible(tool_name: &str) -> bool {
+    INFO_WINDOW_VISIBLE
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref()?.get(tool_name).copied())
+        .unwrap_or(false)
+}
+
+/// 设置信息窗口可见状态
+fn set_info_window_visible(tool_name: &str, visible: bool) {
+    if let Ok(mut guard) = INFO_WINDOW_VISIBLE.lock() {
+        if let Some(ref mut map) = *guard {
+            if let Some(val) = map.get_mut(tool_name) {
+                *val = visible;
+            }
+        }
+    }
+}
+
+/// 创建 AI 工具信息窗口
+pub fn create_info_window(app: &tauri::AppHandle, tool_name: &str) {
+    use tauri::Manager;
+    use tauri::WebviewWindowBuilder;
+    use tauri::WebviewUrl;
+
+    let label = info_window_label(tool_name);
+
+    // 已存在则显示
+    if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.show();
+        let _ = window.set_focus();
+        set_info_window_visible(tool_name, true);
+        return;
+    }
+
+    let title = format!("AI Tool Info - {}", tool_name);
+    let url = format!("ai_tool_info?tool={}", tool_name);
+
+    let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(url.into()))
+        .title(&title)
+        .inner_size(420.0, 320.0)
+        .resizable(true)
+        .center();
+
+    if let Ok(window) = builder.build() {
+        crate::lib_helpers::apply_window_icon(app, &window);
+        set_info_window_visible(tool_name, true);
+
+        #[cfg(debug_assertions)]
+        println!("[AiToolManager] Info window created for tool: {}", tool_name);
+    }
+}
+
+/// 销毁 AI 工具信息窗口
+pub fn destroy_info_window(app: &tauri::AppHandle, tool_name: &str) {
+    use tauri::Manager;
+
+    let label = info_window_label(tool_name);
+    if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.destroy();
+    }
+    set_info_window_visible(tool_name, false);
+
+    #[cfg(debug_assertions)]
+    println!("[AiToolManager] Info window destroyed for tool: {}", tool_name);
+}
+
+/// 切换信息窗口显示/隐藏
+pub fn toggle_info_window(app: &tauri::AppHandle, tool_name: &str, visible: bool) {
+    use tauri::Manager;
+
+    let label = info_window_label(tool_name);
+    if visible {
+        if let Some(window) = app.get_webview_window(&label) {
+            let _ = window.show();
+            let _ = window.set_focus();
+        } else {
+            create_info_window(app, tool_name);
+        }
+    } else if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.hide();
+    }
+    set_info_window_visible(tool_name, visible);
+}
+
+/// 销毁所有 AI 工具信息窗口
+fn destroy_all_info_windows(app: &tauri::AppHandle) {
+    use tauri::Manager;
+
+    if let Ok(guard) = INFO_WINDOW_VISIBLE.lock() {
+        if let Some(ref map) = *guard {
+            for name in map.keys() {
+                let label = info_window_label(name);
+                if let Some(window) = app.get_webview_window(&label) {
+                    let _ = window.destroy();
+                }
+            }
+        }
+    }
 }
 
 // ========================================================================= //
@@ -355,6 +530,7 @@ async fn do_capture(
 /// 为指定工具启动一个后台任务。
 /// - `auto` 类型：按 ai_screenshot_interval 间隔自动截图
 /// - `manual` 类型：等待热键触发（MANUAL_CAPTURE_NOTIFY）后截图一次
+/// - 若工具配置了 show_info_window，启动时自动创建信息窗口
 pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
     let mut tasks = get_task_map().lock().await;
 
@@ -364,6 +540,14 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
     }
 
     let config = get_tool_config(&tool_name);
+
+    // 若配置了 show_info_window，创建信息窗口
+    if let Some(ref cfg) = config {
+        if cfg.show_info_window {
+            create_info_window(&app, &tool_name);
+        }
+    }
+
     let name_clone = tool_name.clone();
 
     let handle = tokio::spawn(async move {
@@ -434,18 +618,21 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
     tasks.insert(tool_name, handle);
 }
 
-/// 停止指定工具的后台任务
-pub async fn stop_tool_task(tool_name: &str) {
+/// 停止指定工具的后台任务并销毁对应信息窗口
+pub async fn stop_tool_task(tool_name: &str, app: &tauri::AppHandle) {
     let mut tasks = get_task_map().lock().await;
     if let Some(handle) = tasks.remove(tool_name) {
         handle.abort();
         #[cfg(debug_assertions)]
         println!("[AiToolManager] Task stopped for tool: {}", tool_name);
     }
+
+    // 销毁信息窗口（如果有）
+    destroy_info_window(app, tool_name);
 }
 
-/// 停止所有工具的后台任务并清空状态
-pub async fn clear_all() {
+/// 停止所有工具的后台任务、销毁所有信息窗口并清空状态
+pub async fn clear_all(app: &tauri::AppHandle) {
     // 清空任务
     {
         let mut tasks = get_task_map().lock().await;
@@ -454,6 +641,14 @@ pub async fn clear_all() {
             #[cfg(debug_assertions)]
             println!("[AiToolManager] Task aborted for tool: {}", name);
         }
+    }
+
+    // 销毁所有信息窗口
+    destroy_all_info_windows(app);
+
+    // 清空信息窗口可见状态
+    if let Ok(mut guard) = INFO_WINDOW_VISIBLE.lock() {
+        *guard = None;
     }
 
     // 清空启用状态
@@ -481,18 +676,27 @@ pub struct ToolInitInfo {
 /// 根据 tool_data 初始化工具列表：设置启用状态并为 auto_start 工具启动任务
 pub async fn initialize_tools(tools: &[ToolInitInfo], app: &tauri::AppHandle) {
     // 先清除旧状态
-    clear_all().await;
+    clear_all(app).await;
 
-    // 构建启用映射和配置映射
+    // 构建启用映射、配置映射和信息窗口可见映射
     let mut enabled_map = HashMap::new();
     let mut config_map = HashMap::new();
+    let mut info_visible_map = HashMap::new();
     for info in tools {
         enabled_map.insert(info.name.clone(), info.auto_start);
         config_map.insert(info.name.clone(), info.config.clone());
+        // 初始可见状态：auto_start 且有 show_info_window 的默认可见
+        info_visible_map.insert(
+            info.name.clone(),
+            info.auto_start && info.config.show_info_window,
+        );
     }
     set_tool_enabled_map(Some(enabled_map));
     if let Ok(mut guard) = TOOL_CONFIGS.lock() {
         *guard = Some(config_map);
+    }
+    if let Ok(mut guard) = INFO_WINDOW_VISIBLE.lock() {
+        *guard = Some(info_visible_map);
     }
 
     // 为 auto_start 的工具启动任务
@@ -513,7 +717,7 @@ pub async fn toggle_tool(tool_name: &str, enabled: bool, app: &tauri::AppHandle)
     if enabled {
         start_tool_task(tool_name.to_string(), app.clone()).await;
     } else {
-        stop_tool_task(tool_name).await;
+        stop_tool_task(tool_name, app).await;
     }
 
     enabled
