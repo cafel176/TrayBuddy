@@ -816,6 +816,26 @@
   "msg_import_audio_from_mod_copy_failed": "Failed to copy audio file \"{name}\"",
   "msg_import_audio_from_mod_single_ok": "Imported audio \"{name}\"",
   "msg_import_audio_from_mod_batch_ok": "Imported {count} audio entries",
-  "msg_import_audio_from_mod_batch_partial": "Imported {count} audio entries, {fail} failed to copy"
+  "msg_import_audio_from_mod_batch_partial": "Imported {count} audio entries, {fail} failed to copy",
+
+  "btn_import_states_from_mod": "Import from Mod",
+  "modal_import_state_title": "Import States from Another Mod",
+  "import_state_placeholder": "Please select a Mod directory first",
+  "msg_import_state_folder_failed": "Failed to open directory: {error}",
+  "msg_import_state_no_manifest": "No valid manifest.json found in the selected directory",
+  "msg_import_state_no_data": "No normal states found",
+  "msg_import_state_single_ok": "Imported state \"{name}\"",
+  "msg_import_state_batch_ok": "Imported {count} states",
+  "msg_import_state_none_selected": "No state items selected",
+
+  "btn_import_triggers_from_mod": "Import from Mod",
+  "modal_import_trigger_title": "Import Triggers from Another Mod",
+  "import_trigger_placeholder": "Please select a Mod directory first",
+  "msg_import_trigger_folder_failed": "Failed to open directory: {error}",
+  "msg_import_trigger_no_manifest": "No valid manifest.json found in the selected directory",
+  "msg_import_trigger_no_data": "No triggers found",
+  "msg_import_trigger_single_ok": "Imported trigger \"{name}\"",
+  "msg_import_trigger_batch_ok": "Imported {count} triggers",
+  "msg_import_trigger_none_selected": "No trigger items selected"
 }
 

@@ -816,6 +816,26 @@
   "msg_import_audio_from_mod_copy_failed": "オーディオファイル「{name}」のコピーに失敗しました",
   "msg_import_audio_from_mod_single_ok": "オーディオ「{name}」をインポートしました",
   "msg_import_audio_from_mod_batch_ok": "{count} 件のオーディオをインポートしました",
-  "msg_import_audio_from_mod_batch_partial": "{count} 件のオーディオをインポート、{fail} 件のコピーに失敗しました"
+  "msg_import_audio_from_mod_batch_partial": "{count} 件のオーディオをインポート、{fail} 件のコピーに失敗しました",
+
+  "btn_import_states_from_mod": "他のModからインポート",
+  "modal_import_state_title": "他の Mod から普通状態をインポート",
+  "import_state_placeholder": "まず Mod ディレクトリを選択してください",
+  "msg_import_state_folder_failed": "ディレクトリの読み込みに失敗しました：{error}",
+  "msg_import_state_no_manifest": "選択したディレクトリに有効な manifest.json が見つかりません",
+  "msg_import_state_no_data": "普通状態データが見つかりません",
+  "msg_import_state_single_ok": "状態「{name}」をインポートしました",
+  "msg_import_state_batch_ok": "{count} 件の状態をインポートしました",
+  "msg_import_state_none_selected": "状態項目が選択されていません",
+
+  "btn_import_triggers_from_mod": "他のModからインポート",
+  "modal_import_trigger_title": "他の Mod からトリガーをインポート",
+  "import_trigger_placeholder": "まず Mod ディレクトリを選択してください",
+  "msg_import_trigger_folder_failed": "ディレクトリの読み込みに失敗しました：{error}",
+  "msg_import_trigger_no_manifest": "選択したディレクトリに有効な manifest.json が見つかりません",
+  "msg_import_trigger_no_data": "トリガーデータが見つかりません",
+  "msg_import_trigger_single_ok": "トリガー「{name}」をインポートしました",
+  "msg_import_trigger_batch_ok": "{count} 件のトリガーをインポートしました",
+  "msg_import_trigger_none_selected": "トリガー項目が選択されていません"
 }
 

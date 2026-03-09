@@ -12277,3 +12277,398 @@ async function importSelectedAudioEntries() {
   }
   closeImportAudioModal();
 }
+
+// ============================================================================
+//  从其他 Mod 导入普通状态
+// ============================================================================
+
+/** 外部 Mod 加载的普通状态数据缓存 */
+let _importStatesData = [];
+
+/**
+ * 打开「从其他 Mod 导入普通状态」流程：
+ * 1. 让用户选择一个 Mod 根目录（或 .tbuddy 文件）
+ * 2. 读取其 manifest.json 中的 states 数组
+ * 3. 弹窗展示
+ */
+async function openImportStatesFromMod() {
+  if (!currentMod) return;
+
+  if (!('showDirectoryPicker' in window)) {
+    showToast(window.i18n.t('msg_browser_not_support'), 'error');
+    return;
+  }
+
+  let sourceDirHandle;
+  try {
+    sourceDirHandle = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    showToast(
+      (window.i18n.t('msg_import_state_folder_failed') || '打开目录失败：{error}').replace('{error}', e.message || String(e)),
+      'error'
+    );
+    return;
+  }
+
+  _importStatesData = [];
+
+  // 读取 manifest.json
+  let manifest;
+  try {
+    const manifestHandle = await sourceDirHandle.getFileHandle('manifest.json');
+    const manifestFile = await manifestHandle.getFile();
+    manifest = JSON.parse(await manifestFile.text());
+  } catch (e) {
+    showToast(window.i18n.t('msg_import_state_no_manifest') || '所选目录下未找到有效的 manifest.json', 'error');
+    return;
+  }
+
+  if (!manifest || !Array.isArray(manifest.states) || manifest.states.length === 0) {
+    showToast(window.i18n.t('msg_import_state_no_data') || '未找到任何普通状态数据', 'warning');
+    return;
+  }
+
+  _importStatesData = manifest.states;
+
+  renderImportStateModal();
+  document.getElementById('import-state-modal').classList.add('show');
+}
+
+/**
+ * 关闭导入状态弹窗
+ */
+function closeImportStateModal() {
+  document.getElementById('import-state-modal').classList.remove('show');
+  _importStatesData = [];
+}
+
+/**
+ * 渲染导入状态弹窗中的状态列表
+ */
+function renderImportStateModal() {
+  const listEl = document.getElementById('import-state-list');
+  listEl.innerHTML = '';
+
+  if (_importStatesData.length === 0) {
+    listEl.innerHTML = `<p class="import-speech-placeholder">${window.i18n.t('msg_import_state_no_data') || '未找到任何普通状态数据'}</p>`;
+    return;
+  }
+
+  // 获取当前 Mod 已有的状态名称集合
+  const existingNames = new Set();
+  const currentStates = currentMod.manifest.states || [];
+  currentStates.forEach(s => {
+    if (s && s.name) existingNames.add(s.name);
+  });
+
+  _importStatesData.forEach((state, index) => {
+    const name = String(state?.name || '');
+    const alreadyExists = existingNames.has(name);
+
+    const item = document.createElement('div');
+    item.className = 'import-speech-item' + (alreadyExists ? ' import-speech-item--exists' : '');
+
+    const checkboxId = `import-state-cb-${index}`;
+
+    // 构建状态摘要信息
+    const anima = state.anima ? escapeHtml(String(state.anima)) : '-';
+    const audio = state.audio ? escapeHtml(String(state.audio)) : '-';
+    const text = state.text ? escapeHtml(String(state.text)) : '-';
+    const persistent = state.persistent ? window.i18n.t('yes') : window.i18n.t('no');
+    const priority = Number.isFinite(state.priority) ? state.priority : 2;
+    const nextState = state.next_state ? escapeHtml(String(state.next_state)) : '-';
+    const canTriggerCount = (state.can_trigger_states || []).length;
+    const branchCount = (state.branch || []).length;
+
+    item.innerHTML = `
+      <input type="checkbox" class="import-speech-checkbox import-state-checkbox" id="${checkboxId}" data-import-idx="${index}" ${alreadyExists ? '' : 'checked'}>
+      <div class="import-speech-info" style="flex:1;min-width:0;">
+        <div class="import-speech-name">
+          <span>${escapeHtml(name) || '<em>(' + (window.i18n.t('import_speech_unnamed') || '未命名') + ')</em>'}</span>
+          ${alreadyExists ? `<span class="badge-exists">${window.i18n.t('import_speech_already_exists') || '已存在'}</span>` : ''}
+        </div>
+        <div class="import-speech-text" style="font-size:0.85em;color:var(--text-secondary);line-height:1.4;">
+          ${window.i18n.t('persistent_label') || 'Persistent'}: ${persistent}
+          &nbsp;|&nbsp; ${window.i18n.t('priority_label') || 'Priority'}: ${priority}
+          &nbsp;|&nbsp; ${window.i18n.t('anima_label') || 'Anima'}: ${anima}
+          &nbsp;|&nbsp; ${window.i18n.t('audio_label') || 'Audio'}: ${audio}
+          &nbsp;|&nbsp; ${window.i18n.t('text_label') || 'Text'}: ${text}
+          &nbsp;|&nbsp; ${window.i18n.t('next_state_label') || 'Next'}: ${nextState}
+          ${canTriggerCount > 0 ? `&nbsp;|&nbsp; ${window.i18n.t('can_trigger_states_label') || 'Triggers'}: ${canTriggerCount}` : ''}
+          ${branchCount > 0 ? `&nbsp;|&nbsp; ${window.i18n.t('section_branches') || 'Branches'}: ${branchCount}` : ''}
+        </div>
+      </div>
+      <div class="import-speech-actions">
+        <button class="btn btn-sm btn-primary" onclick="importSingleStateFromMod(${index})">📥 ${window.i18n.t('btn_import_single') || '导入'}</button>
+      </div>
+    `;
+
+    listEl.appendChild(item);
+  });
+}
+
+/**
+ * 导入单条状态
+ */
+function importSingleStateFromMod(index) {
+  if (!currentMod) return;
+  const state = _importStatesData[index];
+  if (!state) return;
+
+  if (!currentMod.manifest.states) {
+    currentMod.manifest.states = [];
+  }
+
+  // 深拷贝状态对象，避免引用问题
+  const clonedState = JSON.parse(JSON.stringify(state));
+
+  currentMod.manifest.states.push(clonedState);
+
+  renderStates();
+  markUnsaved();
+
+  const name = String(state.name || '');
+  showToast(
+    (window.i18n.t('msg_import_state_single_ok') || '已导入状态「{name}」').replace('{name}', name || '?'),
+    'success'
+  );
+
+  // 刷新弹窗中的已存在标记
+  renderImportStateModal();
+}
+
+/**
+ * 批量导入选中的状态
+ */
+function importSelectedStates() {
+  if (!currentMod) return;
+  if (_importStatesData.length === 0) return;
+
+  if (!currentMod.manifest.states) {
+    currentMod.manifest.states = [];
+  }
+
+  const checkboxes = document.querySelectorAll('.import-state-checkbox:checked');
+  let count = 0;
+
+  for (const cb of checkboxes) {
+    const idx = parseInt(cb.dataset.importIdx, 10);
+    const state = _importStatesData[idx];
+    if (!state) continue;
+
+    const clonedState = JSON.parse(JSON.stringify(state));
+    currentMod.manifest.states.push(clonedState);
+    count++;
+  }
+
+  if (count === 0) {
+    showToast(window.i18n.t('msg_import_state_none_selected') || '未选中任何状态项', 'warning');
+    return;
+  }
+
+  renderStates();
+  markUnsaved();
+
+  showToast(
+    (window.i18n.t('msg_import_state_batch_ok') || '已导入 {count} 条状态').replace('{count}', String(count)),
+    'success'
+  );
+  closeImportStateModal();
+}
+
+// ============================================================================
+//  从其他 Mod 导入触发器
+// ============================================================================
+
+/** 外部 Mod 加载的触发器数据缓存 */
+let _importTriggersData = [];
+
+/**
+ * 打开「从其他 Mod 导入触发器」流程：
+ * 1. 让用户选择一个 Mod 根目录
+ * 2. 读取其 manifest.json 中的 triggers 数组
+ * 3. 弹窗展示
+ */
+async function openImportTriggersFromMod() {
+  if (!currentMod) return;
+
+  if (!('showDirectoryPicker' in window)) {
+    showToast(window.i18n.t('msg_browser_not_support'), 'error');
+    return;
+  }
+
+  let sourceDirHandle;
+  try {
+    sourceDirHandle = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    showToast(
+      (window.i18n.t('msg_import_trigger_folder_failed') || '打开目录失败：{error}').replace('{error}', e.message || String(e)),
+      'error'
+    );
+    return;
+  }
+
+  _importTriggersData = [];
+
+  // 读取 manifest.json
+  let manifest;
+  try {
+    const manifestHandle = await sourceDirHandle.getFileHandle('manifest.json');
+    const manifestFile = await manifestHandle.getFile();
+    manifest = JSON.parse(await manifestFile.text());
+  } catch (e) {
+    showToast(window.i18n.t('msg_import_trigger_no_manifest') || '所选目录下未找到有效的 manifest.json', 'error');
+    return;
+  }
+
+  if (!manifest || !Array.isArray(manifest.triggers) || manifest.triggers.length === 0) {
+    showToast(window.i18n.t('msg_import_trigger_no_data') || '未找到任何触发器数据', 'warning');
+    return;
+  }
+
+  _importTriggersData = manifest.triggers;
+
+  renderImportTriggerModal();
+  document.getElementById('import-trigger-modal').classList.add('show');
+}
+
+/**
+ * 关闭导入触发器弹窗
+ */
+function closeImportTriggerModal() {
+  document.getElementById('import-trigger-modal').classList.remove('show');
+  _importTriggersData = [];
+}
+
+/**
+ * 渲染导入触发器弹窗中的触发器列表
+ */
+function renderImportTriggerModal() {
+  const listEl = document.getElementById('import-trigger-list');
+  listEl.innerHTML = '';
+
+  if (_importTriggersData.length === 0) {
+    listEl.innerHTML = `<p class="import-speech-placeholder">${window.i18n.t('msg_import_trigger_no_data') || '未找到任何触发器数据'}</p>`;
+    return;
+  }
+
+  // 获取当前 Mod 已有的触发器事件名集合
+  const existingEvents = new Set();
+  const currentTriggers = currentMod.manifest.triggers || [];
+  currentTriggers.forEach(t => {
+    if (t && t.event) existingEvents.add(t.event);
+  });
+
+  _importTriggersData.forEach((trigger, index) => {
+    const eventName = String(trigger?.event || '');
+    const alreadyExists = existingEvents.has(eventName);
+
+    const item = document.createElement('div');
+    item.className = 'import-speech-item' + (alreadyExists ? ' import-speech-item--exists' : '');
+
+    const checkboxId = `import-trigger-cb-${index}`;
+
+    // 构建触发器摘要信息
+    const groups = trigger.can_trigger_states || [];
+    let groupsSummary = '';
+    if (groups.length === 0) {
+      groupsSummary = window.i18n.t('no_trigger_states') || '无触发状态';
+    } else {
+      const parts = groups.map(g => {
+        const ps = g.persistent_state || '*';
+        const stateNames = (g.states || []).map(s => s.state || '?').join(', ');
+        return `[${escapeHtml(ps)}] → ${escapeHtml(stateNames || '-')}`;
+      });
+      groupsSummary = parts.join(' &nbsp;|&nbsp; ');
+    }
+
+    item.innerHTML = `
+      <input type="checkbox" class="import-speech-checkbox import-trigger-checkbox" id="${checkboxId}" data-import-idx="${index}" ${alreadyExists ? '' : 'checked'}>
+      <div class="import-speech-info" style="flex:1;min-width:0;">
+        <div class="import-speech-name">
+          <code class="trigger-event-code">${escapeHtml(eventName) || '<em>(' + (window.i18n.t('import_speech_unnamed') || '未命名') + ')</em>'}</code>
+          ${alreadyExists ? `<span class="badge-exists">${window.i18n.t('import_speech_already_exists') || '已存在'}</span>` : ''}
+        </div>
+        <div class="import-speech-text" style="font-size:0.85em;color:var(--text-secondary);line-height:1.4;">
+          ${window.i18n.t('section_trigger_groups') || '触发状态组'}: ${groupsSummary}
+        </div>
+      </div>
+      <div class="import-speech-actions">
+        <button class="btn btn-sm btn-primary" onclick="importSingleTriggerFromMod(${index})">📥 ${window.i18n.t('btn_import_single') || '导入'}</button>
+      </div>
+    `;
+
+    listEl.appendChild(item);
+  });
+}
+
+/**
+ * 导入单条触发器
+ */
+function importSingleTriggerFromMod(index) {
+  if (!currentMod) return;
+  const trigger = _importTriggersData[index];
+  if (!trigger) return;
+
+  if (!currentMod.manifest.triggers) {
+    currentMod.manifest.triggers = [];
+  }
+
+  // 深拷贝触发器对象
+  const clonedTrigger = JSON.parse(JSON.stringify(trigger));
+
+  currentMod.manifest.triggers.push(clonedTrigger);
+
+  renderTriggers();
+  markUnsaved();
+
+  const eventName = String(trigger.event || '');
+  showToast(
+    (window.i18n.t('msg_import_trigger_single_ok') || '已导入触发器「{name}」').replace('{name}', eventName || '?'),
+    'success'
+  );
+
+  // 刷新弹窗中的已存在标记
+  renderImportTriggerModal();
+}
+
+/**
+ * 批量导入选中的触发器
+ */
+function importSelectedTriggers() {
+  if (!currentMod) return;
+  if (_importTriggersData.length === 0) return;
+
+  if (!currentMod.manifest.triggers) {
+    currentMod.manifest.triggers = [];
+  }
+
+  const checkboxes = document.querySelectorAll('.import-trigger-checkbox:checked');
+  let count = 0;
+
+  for (const cb of checkboxes) {
+    const idx = parseInt(cb.dataset.importIdx, 10);
+    const trigger = _importTriggersData[idx];
+    if (!trigger) continue;
+
+    const clonedTrigger = JSON.parse(JSON.stringify(trigger));
+    currentMod.manifest.triggers.push(clonedTrigger);
+    count++;
+  }
+
+  if (count === 0) {
+    showToast(window.i18n.t('msg_import_trigger_none_selected') || '未选中任何触发器项', 'warning');
+    return;
+  }
+
+  renderTriggers();
+  markUnsaved();
+
+  showToast(
+    (window.i18n.t('msg_import_trigger_batch_ok') || '已导入 {count} 条触发器').replace('{count}', String(count)),
+    'success'
+  );
+  closeImportTriggerModal();
+}

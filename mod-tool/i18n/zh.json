@@ -817,6 +817,26 @@
   "msg_import_audio_from_mod_copy_failed": "复制音频文件「{name}」失败",
   "msg_import_audio_from_mod_single_ok": "已导入音频「{name}」",
   "msg_import_audio_from_mod_batch_ok": "已导入 {count} 条音频",
-  "msg_import_audio_from_mod_batch_partial": "已导入 {count} 条音频，{fail} 条复制失败"
+  "msg_import_audio_from_mod_batch_partial": "已导入 {count} 条音频，{fail} 条复制失败",
+
+  "btn_import_states_from_mod": "从其他Mod导入",
+  "modal_import_state_title": "从其他 Mod 导入普通状态",
+  "import_state_placeholder": "请先选择一个 Mod 目录",
+  "msg_import_state_folder_failed": "打开目录失败：{error}",
+  "msg_import_state_no_manifest": "所选目录下未找到有效的 manifest.json",
+  "msg_import_state_no_data": "未找到任何普通状态数据",
+  "msg_import_state_single_ok": "已导入状态「{name}」",
+  "msg_import_state_batch_ok": "已导入 {count} 条状态",
+  "msg_import_state_none_selected": "未选中任何状态项",
+
+  "btn_import_triggers_from_mod": "从其他Mod导入",
+  "modal_import_trigger_title": "从其他 Mod 导入触发器",
+  "import_trigger_placeholder": "请先选择一个 Mod 目录",
+  "msg_import_trigger_folder_failed": "打开目录失败：{error}",
+  "msg_import_trigger_no_manifest": "所选目录下未找到有效的 manifest.json",
+  "msg_import_trigger_no_data": "未找到任何触发器数据",
+  "msg_import_trigger_single_ok": "已导入触发器「{name}」",
+  "msg_import_trigger_batch_ok": "已导入 {count} 条触发器",
+  "msg_import_trigger_none_selected": "未选中任何触发器项"
 }
 

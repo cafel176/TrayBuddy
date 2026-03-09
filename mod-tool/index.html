@@ -329,6 +329,7 @@
                 <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_state_list">普通状态列表</span></h3>
                 <div class="section-actions">
                   <button class="btn btn-sm btn-ghost" onclick="pasteStateFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                  <button class="btn btn-sm btn-secondary" onclick="openImportStatesFromMod()">📥 <span data-i18n="btn_import_states_from_mod">从其他Mod导入</span></button>
                   <button class="btn btn-sm btn-primary" onclick="addState()">➕ <span data-i18n="btn_add_state">添加状态</span></button>
                   <button class="btn btn-sm btn-danger" onclick="deleteAllStates()">🗑️ <span data-i18n="btn_delete_all">全部删除</span></button>
                 </div>
@@ -365,6 +366,7 @@
                 <h3><span class="section-collapse-arrow" aria-hidden="true"></span><span data-i18n="section_triggers">触发器 (事件响应)</span></h3>
                 <div class="section-actions">
                   <button class="btn btn-sm btn-ghost" onclick="pasteTriggerFromClipboard()">📋 <span data-i18n="btn_paste_from_clipboard">粘贴</span></button>
+                  <button class="btn btn-sm btn-secondary" onclick="openImportTriggersFromMod()">📥 <span data-i18n="btn_import_triggers_from_mod">从其他Mod导入</span></button>
                   <button class="btn btn-sm btn-primary" onclick="addTrigger()">➕ <span data-i18n="btn_add_trigger">添加触发器</span></button>
                   <button class="btn btn-sm btn-danger" onclick="deleteAllTriggers()">🗑️ <span data-i18n="btn_delete_all">全部删除</span></button>
                 </div>
@@ -1949,6 +1951,48 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeCaptureRectModal()" data-i18n="btn_cancel">取消</button>
         <button class="btn btn-primary" onclick="confirmCaptureRect()" data-i18n="btn_confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 从其他 Mod 导入触发器弹窗 -->
+  <div class="modal" id="import-trigger-modal">
+    <div class="modal-overlay" onclick="closeImportTriggerModal()"></div>
+    <div class="modal-content modal-large" style="max-width:900px;">
+      <div class="modal-header">
+        <h3>📥 <span data-i18n="modal_import_trigger_title">从其他 Mod 导入触发器</span></h3>
+        <button class="modal-close" onclick="closeImportTriggerModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px;overflow-y:auto;">
+        <!-- 触发器列表 -->
+        <div class="import-speech-list" id="import-trigger-list">
+          <p class="import-speech-placeholder" data-i18n="import_trigger_placeholder">请先选择一个 Mod 目录</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportTriggerModal()" data-i18n="btn_close">关闭</button>
+        <button class="btn btn-primary" onclick="importSelectedTriggers()" data-i18n="btn_import_selected">导入选中项</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 从其他 Mod 导入普通状态弹窗 -->
+  <div class="modal" id="import-state-modal">
+    <div class="modal-overlay" onclick="closeImportStateModal()"></div>
+    <div class="modal-content modal-large" style="max-width:900px;">
+      <div class="modal-header">
+        <h3>📥 <span data-i18n="modal_import_state_title">从其他 Mod 导入普通状态</span></h3>
+        <button class="modal-close" onclick="closeImportStateModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px;overflow-y:auto;">
+        <!-- 状态列表 -->
+        <div class="import-speech-list" id="import-state-list">
+          <p class="import-speech-placeholder" data-i18n="import_state_placeholder">请先选择一个 Mod 目录</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportStateModal()" data-i18n="btn_close">关闭</button>
+        <button class="btn btn-primary" onclick="importSelectedStates()" data-i18n="btn_import_selected">导入选中项</button>
       </div>
     </div>
   </div>
