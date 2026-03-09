@@ -39,9 +39,6 @@ use std::collections::HashMap;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
 
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-
 pub mod mod_archive_commands;
 pub mod mod_resource_commands;
 pub mod open_with_commands;
@@ -682,31 +679,16 @@ pub fn get_tbuddy_source_path(state: State<'_, AppState>, mod_id: String) -> Opt
 
 /// 打开指定目录
 #[tauri::command]
-pub fn open_dir(path: String) -> Result<(), String> {
+pub fn open_dir(path: String, app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
     if !std::path::Path::new(&path).exists() {
         return Err(format!("Path does not exist: {}", path));
     }
 
-    let dir_path = path;
-
-    // 使用 open_path 逻辑打开目录
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        std::process::Command::new("explorer")
-            .arg(&dir_path)
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-
-    /// macOS: open; Linux: xdg-open
-    #[cfg(not(target_os = "windows"))]
-    {
-        open_dir_non_windows(&dir_path)?;
-    }
-
-    Ok(())
+    app.opener()
+        .open_path(&path, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 // ========================================================================= //
@@ -890,34 +872,6 @@ pub fn start_login_detection(app: AppHandle) -> Result<(), String> {
 // ========================================================================= //
 // 非 Windows 平台占位函数
 // ========================================================================= //
-
-/// 非 Windows 平台打开目录。
-///
-/// TODO(cross-platform): macOS — 使用 `open <dir>`；
-///                        Linux — 使用 `xdg-open <dir>`。
-#[cfg(not(target_os = "windows"))]
-fn open_dir_non_windows(dir_path: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(dir_path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(dir_path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    #[allow(unreachable_code)]
-    Err("open_dir not implemented for this platform".to_string())
-}
 
 /// 非 Windows 平台获取系统托盘/Dock 位置（用于窗口吸附定位）。
 ///

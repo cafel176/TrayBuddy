@@ -49,13 +49,11 @@
 | `set_drag_end_tracking()` [非 Windows 分支] | 待实现 | macOS/Linux: 根据平台实现拖拽追踪 |
 | `get_cursor_position()` [非 Windows 分支] | 待实现 | macOS: NSEvent.mouseLocation；Linux: X11 XQueryPointer 或 Wayland 指针协议 |
 | `is_cursor_in_interact_area()` [非 Windows 分支] | 待实现 | 已复用 `get_cursor_position()` 及共享的 Canvas/气泡区域判断逻辑，当 `get_cursor_position` 实现后自动可用 |
-| `open_path_non_windows()` | 基本可用 | macOS: `open -R`；Linux: `xdg-open` 父目录（无法直接选中文件） |
 
 ### 5. 通用命令 — `src/commands/mod.rs`
 
 | 占位函数 | 状态 | 说明 |
 |---------|------|------|
-| `open_dir_non_windows()` | 基本可用 | macOS: `open`；Linux: `xdg-open` |
 | `get_tray_position_non_windows()` | 待实现 | 已在 `get_tray_position()` 中通过 `#[cfg]` 分发调用。macOS: NSScreen.visibleFrame 推算 Dock 位置；Linux: _NET_WORKAREA X11 属性推算面板位置 |
 
 ### 6. 核心辅助逻辑 — `src/lib_helpers.rs`
@@ -104,18 +102,6 @@
 | `is_compositor_enabled_non_windows()` | 待实现 | macOS: 始终 true；Linux: 检测 Wayland/X11 合成器 |
 | `get_work_area_non_windows()` | 待实现 | macOS: NSScreen.visibleFrame；Linux: _NET_WORKAREA |
 
-#### `http.rs`
-
-| 占位函数 | 状态 | 说明 |
-|---------|------|------|
-| `http_get()` [非 Windows 分支] | 基本可用 | 已使用 curl（macOS/Linux 通常预装）；TODO: 考虑使用 reqwest 等纯 Rust HTTP 库统一 |
-
-#### `thread.rs`
-
-| 占位函数 | 状态 | 说明 |
-|---------|------|------|
-| `set_current_thread_description()` [非 Windows 分支] | 待实现 | macOS/Linux: pthread_setname_np（注意 15 字节限制） |
-
 ### 10. 环境信息 — `src/modules/environment.rs`
 
 | 占位函数 | 状态 | 说明 |
@@ -150,8 +136,6 @@
 | 文件 | 导入内容 |
 |------|---------|
 | `src/lib.rs` | `std::os::windows::process::CommandExt` |
-| `src/commands/mod.rs` | `std::os::windows::process::CommandExt` |
-| `src/commands/window_system_commands.rs` | `std::os::windows::process::CommandExt` |
 
 ---
 
@@ -217,6 +201,4 @@
 9. `event_loop_non_windows` / `is_fullscreen_busy_non_windows` — 全屏/免打扰
 
 ### P3 — 体验优化
-10. `set_current_thread_description` — 线程命名（调试用）
-11. `fallback_location_from_timezone` — 本地时区回退优化
-12. `http_get` — 统一为纯 Rust HTTP 库
+10. `fallback_location_from_timezone` — 本地时区回退优化

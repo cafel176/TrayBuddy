@@ -14,7 +14,6 @@ pub mod fs;
 pub mod http;
 pub mod i18n;
 pub mod os_version;
-pub mod thread;
 pub mod window;
 
 // 重导出常用类型

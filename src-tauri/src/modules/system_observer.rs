@@ -132,7 +132,6 @@ impl SystemObserver {
         let _ = thread::Builder::new()
             .name("traybuddy-system-observer".to_string())
             .spawn(move || {
-                crate::modules::utils::thread::set_current_thread_description("traybuddy: system-observer");
                 Self::event_loop(app_handle, running);
             });
     }

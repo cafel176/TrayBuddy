@@ -260,7 +260,6 @@ impl StateManager {
         let _ = std::thread::Builder::new()
             .name("traybuddy-mod-data".to_string())
             .spawn(move || {
-                crate::modules::utils::thread::set_current_thread_description("traybuddy: mod-data-counter");
                 let Some(app_state) = app_handle.try_state::<AppState>() else {
                     return;
                 };

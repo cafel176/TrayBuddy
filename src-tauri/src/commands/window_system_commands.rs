@@ -18,9 +18,6 @@ use crate::modules::event_manager::{emit, events};
 use tauri::{AppHandle, LogicalSize, Manager, State};
 
 
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-
 // ========================================================================= //
 // 窗口和系统命令
 // ========================================================================= //
@@ -286,29 +283,16 @@ pub(crate) fn set_animation_scale(
 
 /// 在文件管理器中打开指定路径
 #[tauri::command]
-pub(crate) fn open_path(path: String) -> Result<(), String> {
+pub(crate) fn open_path(path: String, app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
     if !std::path::Path::new(&path).exists() {
         return Err(format!("Path does not exist: {}", path));
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        std::process::Command::new("explorer")
-            .arg("/select,")
-            .arg(&path)
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-
-    /// macOS: 使用 open -R 选中文件；Linux: 使用 xdg-open 打开所在目录。
-    #[cfg(not(target_os = "windows"))]
-    {
-        open_path_non_windows(&path)?;
-    }
-
-    Ok(())
+    app.opener()
+        .reveal_item_in_dir(&path)
+        .map_err(|e| e.to_string())
 }
 
 // ========================================================================= //
@@ -356,44 +340,6 @@ pub(crate) async fn recreate_threed_window(app: AppHandle) -> Result<(), String>
 #[tauri::command]
 pub(crate) async fn recreate_pngremix_window(app: AppHandle) -> Result<(), String> {
     recreate_render_window_impl(&app, WINDOW_LABEL_PNGREMIX, crate::inner_create_pngremix_window).await
-}
-
-// ========================================================================= //
-// 非 Windows 平台占位函数
-// ========================================================================= //
-
-/// 非 Windows 平台打开文件管理器并选中指定路径。
-///
-/// TODO(cross-platform): macOS — `open -R <path>` 在 Finder 中选中文件；
-///                        Linux — `xdg-open` 打开所在目录（不支持直接选中文件）。
-#[cfg(not(target_os = "windows"))]
-fn open_path_non_windows(path: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg("-R")
-            .arg(path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        // xdg-open 打开所在目录（无法直接选中文件）
-        let parent = std::path::Path::new(path)
-            .parent()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| path.to_string());
-        std::process::Command::new("xdg-open")
-            .arg(&parent)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    #[allow(unreachable_code)]
-    Err("open_path not implemented for this platform".to_string())
 }
 
 #[cfg(test)]

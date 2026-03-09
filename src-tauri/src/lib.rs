@@ -523,7 +523,6 @@ pub fn run() {
             let _ = std::thread::Builder::new()
                 .name("traybuddy-env".to_string())
                 .spawn(move || {
-                    crate::modules::utils::thread::set_current_thread_description("traybuddy: env-init");
                     init_environment(Some(app_handle_env));
                 });
 
