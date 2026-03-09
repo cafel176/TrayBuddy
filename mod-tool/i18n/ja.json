@@ -805,6 +805,17 @@
   "msg_import_speech_no_data": "対話テキストデータが見つかりません",
   "msg_import_speech_single_ok": "テキスト「{name}」をインポートしました",
   "msg_import_speech_batch_ok": "{count} 件の対話テキストをインポートしました",
-  "msg_import_speech_none_selected": "テキスト項目が選択されていません"
+  "msg_import_speech_none_selected": "テキスト項目が選択されていません",
+
+  "btn_import_audio_from_mod": "他のModからインポート",
+  "modal_import_audio_title": "他の Mod からオーディオをインポート",
+  "import_audio_placeholder": "まず Mod ディレクトリを選択してください",
+  "msg_import_audio_from_mod_folder_failed": "ディレクトリの読み込みに失敗しました：{error}",
+  "msg_import_audio_from_mod_no_audio_dir": "選択したディレクトリに audio/ フォルダが見つかりません",
+  "msg_import_audio_from_mod_no_data": "オーディオデータが見つかりません",
+  "msg_import_audio_from_mod_copy_failed": "オーディオファイル「{name}」のコピーに失敗しました",
+  "msg_import_audio_from_mod_single_ok": "オーディオ「{name}」をインポートしました",
+  "msg_import_audio_from_mod_batch_ok": "{count} 件のオーディオをインポートしました",
+  "msg_import_audio_from_mod_batch_partial": "{count} 件のオーディオをインポート、{fail} 件のコピーに失敗しました"
 }
 

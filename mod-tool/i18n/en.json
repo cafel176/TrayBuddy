@@ -805,6 +805,17 @@
   "msg_import_speech_no_data": "No dialogue text data found",
   "msg_import_speech_single_ok": "Imported text \"{name}\"",
   "msg_import_speech_batch_ok": "Imported {count} dialogue texts",
-  "msg_import_speech_none_selected": "No text items selected"
+  "msg_import_speech_none_selected": "No text items selected",
+
+  "btn_import_audio_from_mod": "Import from Mod",
+  "modal_import_audio_title": "Import Audio from Another Mod",
+  "import_audio_placeholder": "Please select a Mod directory first",
+  "msg_import_audio_from_mod_folder_failed": "Failed to open directory: {error}",
+  "msg_import_audio_from_mod_no_audio_dir": "No audio/ folder found in the selected directory",
+  "msg_import_audio_from_mod_no_data": "No audio data found",
+  "msg_import_audio_from_mod_copy_failed": "Failed to copy audio file \"{name}\"",
+  "msg_import_audio_from_mod_single_ok": "Imported audio \"{name}\"",
+  "msg_import_audio_from_mod_batch_ok": "Imported {count} audio entries",
+  "msg_import_audio_from_mod_batch_partial": "Imported {count} audio entries, {fail} failed to copy"
 }
 

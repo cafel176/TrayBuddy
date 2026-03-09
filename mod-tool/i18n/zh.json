@@ -806,6 +806,17 @@
   "msg_import_speech_no_data": "未找到任何对话文本数据",
   "msg_import_speech_single_ok": "已导入文本「{name}」",
   "msg_import_speech_batch_ok": "已导入 {count} 条对话文本",
-  "msg_import_speech_none_selected": "未选中任何文本项"
+  "msg_import_speech_none_selected": "未选中任何文本项",
+
+  "btn_import_audio_from_mod": "从其他Mod导入",
+  "modal_import_audio_title": "从其他 Mod 导入音频",
+  "import_audio_placeholder": "请先选择一个 Mod 目录",
+  "msg_import_audio_from_mod_folder_failed": "打开目录失败：{error}",
+  "msg_import_audio_from_mod_no_audio_dir": "所选目录下未找到 audio/ 文件夹",
+  "msg_import_audio_from_mod_no_data": "未找到任何音频数据",
+  "msg_import_audio_from_mod_copy_failed": "复制音频文件「{name}」失败",
+  "msg_import_audio_from_mod_single_ok": "已导入音频「{name}」",
+  "msg_import_audio_from_mod_batch_ok": "已导入 {count} 条音频",
+  "msg_import_audio_from_mod_batch_partial": "已导入 {count} 条音频，{fail} 条复制失败"
 }
 

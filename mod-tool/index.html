@@ -1363,6 +1363,7 @@
                   <div class="section-actions">
                     <button class="btn btn-sm btn-secondary" id="audio-speech-import-btn" onclick="importAudioEntries()">⬇️ <span data-i18n="btn_import_audio">一键导入</span></button>
                     <button class="btn btn-sm btn-secondary" id="audio-speech-import-file-btn" onclick="importSingleAudioEntry()">📥 <span data-i18n="btn_import_file">导入</span></button>
+                    <button class="btn btn-sm btn-secondary" id="audio-speech-import-mod-btn" onclick="openImportAudioFromMod()">📥 <span data-i18n="btn_import_audio_from_mod">从其他Mod导入</span></button>
                     <button class="btn btn-sm btn-primary" id="audio-speech-add-btn" onclick="addAudioEntry()">➕ <span data-i18n="btn_add_audio">添加音频</span></button>
                   </div>
                 </div>
@@ -1948,6 +1949,29 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeCaptureRectModal()" data-i18n="btn_cancel">取消</button>
         <button class="btn btn-primary" onclick="confirmCaptureRect()" data-i18n="btn_confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 从其他 Mod 导入音频弹窗 -->
+  <div class="modal" id="import-audio-modal">
+    <div class="modal-overlay" onclick="closeImportAudioModal()"></div>
+    <div class="modal-content modal-large" style="max-width:900px;">
+      <div class="modal-header">
+        <h3>📥 <span data-i18n="modal_import_audio_title">从其他 Mod 导入音频</span></h3>
+        <button class="modal-close" onclick="closeImportAudioModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px;overflow-y:auto;">
+        <!-- 语言标签页 -->
+        <div class="import-speech-lang-tabs" id="import-audio-lang-tabs"></div>
+        <!-- 音频列表 -->
+        <div class="import-speech-list" id="import-audio-list">
+          <p class="import-speech-placeholder" data-i18n="import_audio_placeholder">请先选择一个 Mod 目录</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportAudioModal()" data-i18n="btn_close">关闭</button>
+        <button class="btn btn-primary" onclick="importSelectedAudioEntries()" data-i18n="btn_import_selected">导入选中项</button>
       </div>
     </div>
   </div>

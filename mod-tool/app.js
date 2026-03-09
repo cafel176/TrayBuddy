@@ -731,6 +731,7 @@ function populateAudioSpeechToggle() {
   const addBtn = document.getElementById('audio-speech-add-btn');
   const importBtn = document.getElementById('audio-speech-import-btn');
   const importFileBtn = document.getElementById('audio-speech-import-file-btn');
+  const importModBtn = document.getElementById('audio-speech-import-mod-btn');
 
   if (checkbox) checkbox.checked = enabled;
   if (fields) {
@@ -740,6 +741,7 @@ function populateAudioSpeechToggle() {
   if (addBtn) addBtn.disabled = !enabled;
   if (importBtn) importBtn.disabled = !enabled;
   if (importFileBtn) importFileBtn.disabled = !enabled;
+  if (importModBtn) importModBtn.disabled = !enabled;
 }
 
 
@@ -11963,4 +11965,315 @@ function importSelectedSpeechTexts() {
     'success'
   );
   closeImportSpeechModal();
+}
+
+// ============================================================================
+//  从其他 Mod 导入音频
+// ============================================================================
+
+/** 外部 Mod 加载的音频数据缓存 { [lang]: { speech: [...], dirHandle } } */
+let _importAudioData = {};
+/** 外部 Mod 的根目录句柄 */
+let _importAudioSourceHandle = null;
+/** 当前在导入音频弹窗中选中的语言 */
+let _importAudioLang = '';
+
+/**
+ * 打开「从其他 Mod 导入音频」流程：
+ * 1. 让用户选择一个 Mod 根目录
+ * 2. 读取其 audio/ 下所有语言的 speech.json
+ * 3. 弹窗展示
+ */
+async function openImportAudioFromMod() {
+  if (!currentMod) return;
+  if (currentMod.audioSpeechEnabled !== true) return;
+
+  if (!modFolderHandle) {
+    showToast(window.i18n.t('msg_import_audio_need_folder') || '需要从文件夹打开 Mod 才能导入音频文件', 'warning');
+    return;
+  }
+
+  if (!('showDirectoryPicker' in window)) {
+    showToast(window.i18n.t('msg_browser_not_support'), 'error');
+    return;
+  }
+
+  let sourceDirHandle;
+  try {
+    sourceDirHandle = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    showToast(window.i18n.t('msg_import_audio_from_mod_folder_failed').replace('{error}', e.message || String(e)), 'error');
+    return;
+  }
+
+  _importAudioData = {};
+  _importAudioLang = '';
+  _importAudioSourceHandle = sourceDirHandle;
+  let foundAny = false;
+
+  try {
+    const audioDir = await sourceDirHandle.getDirectoryHandle('audio');
+    for await (const entry of audioDir.values()) {
+      if (entry.kind !== 'directory') continue;
+      const langDir = await audioDir.getDirectoryHandle(entry.name);
+      const langData = { speech: [], dirHandle: langDir };
+
+      // 读取 speech.json
+      try {
+        const speechHandle = await langDir.getFileHandle('speech.json');
+        const speechFile = await speechHandle.getFile();
+        langData.speech = JSON.parse(await speechFile.text());
+        if (Array.isArray(langData.speech) && langData.speech.length > 0) {
+          foundAny = true;
+        }
+      } catch (_) {}
+
+      _importAudioData[entry.name] = langData;
+    }
+  } catch (e) {
+    showToast(window.i18n.t('msg_import_audio_from_mod_no_audio_dir'), 'error');
+    return;
+  }
+
+  if (!foundAny) {
+    showToast(window.i18n.t('msg_import_audio_from_mod_no_data'), 'warning');
+    return;
+  }
+
+  // 默认选中当前语言（如果源 Mod 中存在），否则选第一个有数据的
+  const availLangs = Object.keys(_importAudioData).filter(
+    lang => Array.isArray(_importAudioData[lang].speech) && _importAudioData[lang].speech.length > 0
+  );
+  if (availLangs.includes(currentAudioLang)) {
+    _importAudioLang = currentAudioLang;
+  } else {
+    _importAudioLang = availLangs[0] || '';
+  }
+
+  renderImportAudioModal();
+  document.getElementById('import-audio-modal').classList.add('show');
+}
+
+/**
+ * 关闭导入音频弹窗
+ */
+function closeImportAudioModal() {
+  document.getElementById('import-audio-modal').classList.remove('show');
+  _importAudioData = {};
+  _importAudioLang = '';
+  _importAudioSourceHandle = null;
+}
+
+/**
+ * 渲染导入音频弹窗中的语言标签页和音频列表
+ */
+function renderImportAudioModal() {
+  const tabsEl = document.getElementById('import-audio-lang-tabs');
+  const listEl = document.getElementById('import-audio-list');
+  tabsEl.innerHTML = '';
+  listEl.innerHTML = '';
+
+  const availLangs = Object.keys(_importAudioData).filter(
+    lang => Array.isArray(_importAudioData[lang].speech) && _importAudioData[lang].speech.length > 0
+  );
+
+  if (availLangs.length === 0) {
+    listEl.innerHTML = `<p class="import-speech-placeholder">${window.i18n.t('msg_import_audio_from_mod_no_data')}</p>`;
+    return;
+  }
+
+  // 渲染语言标签页
+  availLangs.forEach(lang => {
+    const tab = document.createElement('div');
+    tab.className = `import-speech-lang-tab ${lang === _importAudioLang ? 'active' : ''}`;
+    tab.textContent = lang;
+    tab.onclick = () => {
+      _importAudioLang = lang;
+      renderImportAudioModal();
+    };
+    tabsEl.appendChild(tab);
+  });
+
+  // 获取当前 Mod 当前音频语言的已有名称集合
+  const existingNames = new Set();
+  const currentAudios = currentMod.audio[currentAudioLang] || [];
+  currentAudios.forEach(a => {
+    if (a.name) existingNames.add(a.name);
+  });
+
+  // 渲染音频列表
+  const audios = _importAudioData[_importAudioLang]?.speech || [];
+
+  audios.forEach((audio, index) => {
+    const name = String(audio?.name || '');
+    const audioPath = String(audio?.audio || '');
+    const alreadyExists = existingNames.has(name);
+
+    const item = document.createElement('div');
+    item.className = 'import-speech-item' + (alreadyExists ? ' import-speech-item--exists' : '');
+
+    const checkboxId = `import-audio-cb-${index}`;
+    item.innerHTML = `
+      <input type="checkbox" class="import-speech-checkbox import-audio-checkbox" id="${checkboxId}" data-import-idx="${index}" ${alreadyExists ? '' : 'checked'}>
+      <div class="import-speech-info">
+        <div class="import-speech-name">
+          <span>${escapeHtml(name) || '<em>(' + window.i18n.t('import_speech_unnamed') + ')</em>'}</span>
+          ${alreadyExists ? `<span class="badge-exists">${window.i18n.t('import_speech_already_exists')}</span>` : ''}
+        </div>
+        <div class="import-speech-text">${escapeHtml(audioPath)}</div>
+      </div>
+      <div class="import-speech-actions">
+        <button class="btn btn-sm btn-primary" onclick="importSingleAudioFromMod(${index})">📥 ${window.i18n.t('btn_import_single')}</button>
+      </div>
+    `;
+
+    listEl.appendChild(item);
+  });
+}
+
+/**
+ * 从源 Mod 的 audio/<lang>/speech/ 目录复制单个音频文件到当前 Mod
+ * @param {string} audioPath - 如 "jp/speech/morning.wav"
+ * @returns {Promise<boolean>} 是否复制成功
+ */
+async function _copyAudioFileFromSource(audioPath) {
+  if (!_importAudioSourceHandle || !modFolderHandle) return false;
+
+  try {
+    // audioPath 格式: "<lang>/speech/<filename>"
+    const parts = audioPath.split('/');
+    if (parts.length < 2) return false;
+
+    // 在源目录中找到该文件
+    let sourceDir = await _importAudioSourceHandle.getDirectoryHandle('audio');
+    for (let i = 0; i < parts.length - 1; i++) {
+      sourceDir = await sourceDir.getDirectoryHandle(parts[i]);
+    }
+    const fileName = parts[parts.length - 1];
+    const sourceFileHandle = await sourceDir.getFileHandle(fileName);
+    const sourceFile = await sourceFileHandle.getFile();
+
+    // 在目标目录中创建对应路径并写入
+    // 目标路径: audio/<currentAudioLang>/speech/<filename>
+    const targetSpeechDir = await getOrCreateDir(modFolderHandle, ['audio', currentAudioLang, 'speech']);
+    await writeFileToDir(targetSpeechDir, sourceFile);
+
+    return true;
+  } catch (e) {
+    console.warn('Failed to copy audio file:', audioPath, e);
+    return false;
+  }
+}
+
+/**
+ * 导入单条音频
+ */
+async function importSingleAudioFromMod(index) {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
+  const audios = _importAudioData[_importAudioLang]?.speech || [];
+  const audio = audios[index];
+  if (!audio) return;
+
+  if (!currentMod.audio[currentAudioLang]) {
+    currentMod.audio[currentAudioLang] = [];
+  }
+
+  const name = String(audio.name || '');
+  const srcAudioPath = String(audio.audio || '');
+
+  // 提取文件名
+  const pathParts = srcAudioPath.split('/');
+  const fileName = pathParts[pathParts.length - 1] || '';
+  const targetAudioPath = `${currentAudioLang}/speech/${fileName}`;
+
+  // 复制音频文件
+  const copied = await _copyAudioFileFromSource(srcAudioPath);
+  if (!copied) {
+    showToast(
+      window.i18n.t('msg_import_audio_from_mod_copy_failed').replace('{name}', name || '?'),
+      'error'
+    );
+    return;
+  }
+
+  currentMod.audio[currentAudioLang].push({
+    name: name,
+    audio: targetAudioPath
+  });
+
+  renderAudioList();
+  markUnsaved();
+
+  showToast(
+    window.i18n.t('msg_import_audio_from_mod_single_ok').replace('{name}', name || '?'),
+    'success'
+  );
+
+  // 刷新弹窗中的已存在标记
+  renderImportAudioModal();
+}
+
+/**
+ * 批量导入选中的音频
+ */
+async function importSelectedAudioEntries() {
+  if (!currentMod || currentMod.audioSpeechEnabled !== true) return;
+  const audios = _importAudioData[_importAudioLang]?.speech || [];
+  if (audios.length === 0) return;
+
+  if (!currentMod.audio[currentAudioLang]) {
+    currentMod.audio[currentAudioLang] = [];
+  }
+
+  const checkboxes = document.querySelectorAll('.import-audio-checkbox:checked');
+  let count = 0;
+  let failCount = 0;
+
+  for (const cb of checkboxes) {
+    const idx = parseInt(cb.dataset.importIdx, 10);
+    const audio = audios[idx];
+    if (!audio) continue;
+
+    const name = String(audio.name || '');
+    const srcAudioPath = String(audio.audio || '');
+    const pathParts = srcAudioPath.split('/');
+    const fileName = pathParts[pathParts.length - 1] || '';
+    const targetAudioPath = `${currentAudioLang}/speech/${fileName}`;
+
+    const copied = await _copyAudioFileFromSource(srcAudioPath);
+    if (!copied) {
+      failCount++;
+      continue;
+    }
+
+    currentMod.audio[currentAudioLang].push({
+      name: name,
+      audio: targetAudioPath
+    });
+    count++;
+  }
+
+  if (count === 0 && failCount === 0) {
+    showToast(window.i18n.t('msg_import_speech_none_selected'), 'warning');
+    return;
+  }
+
+  renderAudioList();
+  markUnsaved();
+
+  if (failCount > 0) {
+    showToast(
+      window.i18n.t('msg_import_audio_from_mod_batch_partial')
+        .replace('{count}', String(count))
+        .replace('{fail}', String(failCount)),
+      'warning'
+    );
+  } else {
+    showToast(
+      window.i18n.t('msg_import_audio_from_mod_batch_ok').replace('{count}', String(count)),
+      'success'
+    );
+  }
+  closeImportAudioModal();
 }
