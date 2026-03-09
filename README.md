@@ -55,6 +55,7 @@
 鸣谢：
 <a href="https://b23.tv/K9ceDZ8" target="_blank" rel="noopener noreferrer">INORGANIC_盐</a>&nbsp;&nbsp;&nbsp;
 <a href="https://b23.tv/cTCT0hn" target="_blank" rel="noopener noreferrer">Snoworld_</a>&nbsp;&nbsp;&nbsp;
+<a href="https://b23.tv/5gVvCq9" target="_blank" rel="noopener noreferrer">拉特兰的莫斯提马本人</a>&nbsp;&nbsp;&nbsp;
 
 演示素材作者：
 <a href="https://b23.tv/vuFXqCX" target="_blank" rel="noopener noreferrer">dazeroyuu</a>&nbsp;&nbsp;&nbsp;
@@ -653,6 +654,7 @@ Standard version includes all default mods, more content<br>
 Credits:
 <a href="https://b23.tv/K9ceDZ8" target="_blank" rel="noopener noreferrer">INORGANIC_盐</a>&nbsp;&nbsp;&nbsp;
 <a href="https://b23.tv/cTCT0hn" target="_blank" rel="noopener noreferrer">Snoworld_</a>&nbsp;&nbsp;&nbsp;
+<a href="https://b23.tv/5gVvCq9" target="_blank" rel="noopener noreferrer">拉特兰的莫斯提马本人</a>&nbsp;&nbsp;&nbsp;
 
 Demo material author:
 <a href="https://b23.tv/vuFXqCX" target="_blank" rel="noopener noreferrer">dazeroyuu</a>&nbsp;&nbsp;&nbsp;
@@ -1251,6 +1253,7 @@ TrayBuddy/
 クレジット：
 <a href="https://b23.tv/K9ceDZ8" target="_blank" rel="noopener noreferrer">INORGANIC_盐</a>&nbsp;&nbsp;&nbsp;
 <a href="https://b23.tv/cTCT0hn" target="_blank" rel="noopener noreferrer">Snoworld_</a>&nbsp;&nbsp;&nbsp;
+<a href="https://b23.tv/5gVvCq9" target="_blank" rel="noopener noreferrer">拉特兰的莫斯提马本人</a>&nbsp;&nbsp;&nbsp;
 
 デモ素材の作者：
 <a href="https://b23.tv/vuFXqCX" target="_blank" rel="noopener noreferrer">dazeroyuu</a>&nbsp;&nbsp;&nbsp;
