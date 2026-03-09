@@ -791,6 +791,21 @@
   "params_browser_hint": "显示 cdi3.json 中定义的所有 Live2D 模型参数，按分组折叠展示",
   "params_browser_placeholder": "点击「从文件读取」加载模型参数信息",
   "trigger_weather_no_limit": "(不限制：不选择任何项)",
-  "custom_option": "自定义"
+  "custom_option": "自定义",
+
+  "btn_import_speech_from_mod": "从其他Mod导入",
+  "modal_import_speech_title": "从其他 Mod 导入对话文本",
+  "import_speech_placeholder": "请先选择一个 Mod 目录",
+  "import_speech_unnamed": "未命名",
+  "import_speech_already_exists": "已存在",
+  "btn_import_single": "导入",
+  "btn_import_selected": "导入选中项",
+  "btn_close": "关闭",
+  "msg_import_speech_folder_failed": "打开目录失败：{error}",
+  "msg_import_speech_no_text_dir": "所选目录下未找到 text/ 文件夹",
+  "msg_import_speech_no_data": "未找到任何对话文本数据",
+  "msg_import_speech_single_ok": "已导入文本「{name}」",
+  "msg_import_speech_batch_ok": "已导入 {count} 条对话文本",
+  "msg_import_speech_none_selected": "未选中任何文本项"
 }
 

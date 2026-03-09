@@ -652,6 +652,7 @@ function toggleTextSpeech() {
   const enabled = document.getElementById('text-speech-enable')?.checked === true;
   const fields = document.getElementById('text-speech-fields');
   const addBtn = document.getElementById('text-speech-add-btn');
+  const importBtn = document.getElementById('text-speech-import-btn');
 
   if (fields) {
     if (enabled) {
@@ -663,6 +664,7 @@ function toggleTextSpeech() {
     }
   }
   if (addBtn) addBtn.disabled = !enabled;
+  if (importBtn) importBtn.disabled = !enabled;
 
   if (currentMod) {
     currentMod.textSpeechEnabled = enabled;
@@ -710,6 +712,7 @@ function populateTextSpeechToggle() {
   const checkbox = document.getElementById('text-speech-enable');
   const fields = document.getElementById('text-speech-fields');
   const addBtn = document.getElementById('text-speech-add-btn');
+  const importBtn = document.getElementById('text-speech-import-btn');
 
   if (checkbox) checkbox.checked = enabled;
   if (fields) {
@@ -717,6 +720,7 @@ function populateTextSpeechToggle() {
     fields.classList.toggle('feature-disabled', !enabled);
   }
   if (addBtn) addBtn.disabled = !enabled;
+  if (importBtn) importBtn.disabled = !enabled;
 }
 
 function populateAudioSpeechToggle() {
@@ -11718,4 +11722,245 @@ function _crBindCanvasEvents() {
   document.addEventListener('mouseup', onMouseUp);
 
   _crBoundHandler = { onMouseDown, onMouseMove, onMouseUp, onCanvasMove };
+}
+
+// ============================================================================
+//  从其他 Mod 导入对话文本
+// ============================================================================
+
+/** 外部 Mod 加载的文本数据缓存 { [lang]: { info, speech } } */
+let _importSpeechData = {};
+/** 当前在导入弹窗中选中的语言 */
+let _importSpeechLang = '';
+
+/**
+ * 打开「从其他 Mod 导入对话文本」流程：
+ * 1. 让用户选择一个 Mod 根目录
+ * 2. 读取其 text/ 下所有语言的 speech.json
+ * 3. 弹窗展示
+ */
+async function openImportSpeechFromMod() {
+  if (!currentMod) return;
+  if (currentMod.textSpeechEnabled !== true) return;
+
+  if (!('showDirectoryPicker' in window)) {
+    showToast(window.i18n.t('msg_browser_not_support'), 'error');
+    return;
+  }
+
+  let sourceDirHandle;
+  try {
+    sourceDirHandle = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (e) {
+    if (e.name === 'AbortError') return; // 用户取消
+    showToast(window.i18n.t('msg_import_speech_folder_failed').replace('{error}', e.message || String(e)), 'error');
+    return;
+  }
+
+  // 读取 text/ 目录
+  _importSpeechData = {};
+  _importSpeechLang = '';
+  let foundAny = false;
+
+  try {
+    const textDir = await sourceDirHandle.getDirectoryHandle('text');
+    for await (const entry of textDir.values()) {
+      if (entry.kind !== 'directory') continue;
+      const langDir = await textDir.getDirectoryHandle(entry.name);
+      const langData = { info: null, speech: [] };
+
+      // 读取 info.json（可选）
+      try {
+        const infoHandle = await langDir.getFileHandle('info.json');
+        const infoFile = await infoHandle.getFile();
+        langData.info = JSON.parse(await infoFile.text());
+      } catch (_) {}
+
+      // 读取 speech.json
+      try {
+        const speechHandle = await langDir.getFileHandle('speech.json');
+        const speechFile = await speechHandle.getFile();
+        langData.speech = JSON.parse(await speechFile.text());
+        if (Array.isArray(langData.speech) && langData.speech.length > 0) {
+          foundAny = true;
+        }
+      } catch (_) {}
+
+      _importSpeechData[entry.name] = langData;
+    }
+  } catch (e) {
+    showToast(window.i18n.t('msg_import_speech_no_text_dir'), 'error');
+    return;
+  }
+
+  if (!foundAny) {
+    showToast(window.i18n.t('msg_import_speech_no_data'), 'warning');
+    return;
+  }
+
+  // 默认选中当前语言（如果在源 Mod 中存在），否则选第一个有数据的语言
+  const availLangs = Object.keys(_importSpeechData).filter(
+    lang => Array.isArray(_importSpeechData[lang].speech) && _importSpeechData[lang].speech.length > 0
+  );
+  if (availLangs.includes(currentTextLang)) {
+    _importSpeechLang = currentTextLang;
+  } else {
+    _importSpeechLang = availLangs[0] || '';
+  }
+
+  renderImportSpeechModal();
+  document.getElementById('import-speech-modal').classList.add('show');
+}
+
+/**
+ * 关闭导入弹窗
+ */
+function closeImportSpeechModal() {
+  document.getElementById('import-speech-modal').classList.remove('show');
+  _importSpeechData = {};
+  _importSpeechLang = '';
+}
+
+/**
+ * 渲染导入弹窗中的语言标签页和文本列表
+ */
+function renderImportSpeechModal() {
+  const tabsEl = document.getElementById('import-speech-lang-tabs');
+  const listEl = document.getElementById('import-speech-list');
+  tabsEl.innerHTML = '';
+  listEl.innerHTML = '';
+
+  const availLangs = Object.keys(_importSpeechData).filter(
+    lang => Array.isArray(_importSpeechData[lang].speech) && _importSpeechData[lang].speech.length > 0
+  );
+
+  if (availLangs.length === 0) {
+    listEl.innerHTML = `<p class="import-speech-placeholder">${window.i18n.t('msg_import_speech_no_data')}</p>`;
+    return;
+  }
+
+  // 渲染语言标签页
+  availLangs.forEach(lang => {
+    const tab = document.createElement('div');
+    tab.className = `import-speech-lang-tab ${lang === _importSpeechLang ? 'active' : ''}`;
+    const langLabel = _importSpeechData[lang]?.info?.lang || lang;
+    tab.textContent = langLabel;
+    tab.onclick = () => {
+      _importSpeechLang = lang;
+      renderImportSpeechModal();
+    };
+    tabsEl.appendChild(tab);
+  });
+
+  // 获取当前 Mod 当前语言的已有文本名称集合（用于判断是否已存在）
+  const existingNames = new Set();
+  const currentSpeech = currentMod.texts[currentTextLang]?.speech || [];
+  currentSpeech.forEach(s => {
+    if (s.name) existingNames.add(s.name);
+  });
+
+  // 渲染文本列表
+  const speeches = _importSpeechData[_importSpeechLang]?.speech || [];
+
+  speeches.forEach((speech, index) => {
+    const name = String(speech?.name || '');
+    const text = String(speech?.text || '');
+    const duration = Number.isFinite(Number(speech?.duration)) ? Number(speech.duration) : 3;
+    const alreadyExists = existingNames.has(name);
+
+    const item = document.createElement('div');
+    item.className = 'import-speech-item' + (alreadyExists ? ' import-speech-item--exists' : '');
+
+    const checkboxId = `import-speech-cb-${index}`;
+    item.innerHTML = `
+      <input type="checkbox" class="import-speech-checkbox" id="${checkboxId}" data-import-idx="${index}" ${alreadyExists ? '' : 'checked'}>
+      <div class="import-speech-info">
+        <div class="import-speech-name">
+          <span>${escapeHtml(name) || '<em>(' + window.i18n.t('import_speech_unnamed') + ')</em>'}</span>
+          ${alreadyExists ? `<span class="badge-exists">${window.i18n.t('import_speech_already_exists')}</span>` : ''}
+        </div>
+        <div class="import-speech-text">${escapeHtml(text)}</div>
+        <div class="import-speech-duration">${window.i18n.t('text_duration_label')}: ${duration}s</div>
+      </div>
+      <div class="import-speech-actions">
+        <button class="btn btn-sm btn-primary" onclick="importSingleSpeechText(${index})">📥 ${window.i18n.t('btn_import_single')}</button>
+      </div>
+    `;
+
+    listEl.appendChild(item);
+  });
+}
+
+/**
+ * 导入单条对话文本
+ */
+function importSingleSpeechText(index) {
+  if (!currentMod || currentMod.textSpeechEnabled !== true) return;
+  const speeches = _importSpeechData[_importSpeechLang]?.speech || [];
+  const speech = speeches[index];
+  if (!speech) return;
+
+  if (!currentMod.texts[currentTextLang]) {
+    currentMod.texts[currentTextLang] = { info: {}, speech: [] };
+  }
+
+  const newItem = {
+    name: String(speech.name || ''),
+    text: String(speech.text || ''),
+    duration: Number.isFinite(Number(speech.duration)) ? Number(speech.duration) : 3
+  };
+
+  currentMod.texts[currentTextLang].speech.push(newItem);
+  renderSpeechTexts();
+  markUnsaved();
+
+  showToast(
+    window.i18n.t('msg_import_speech_single_ok').replace('{name}', newItem.name || '?'),
+    'success'
+  );
+
+  // 刷新弹窗中的已存在标记
+  renderImportSpeechModal();
+}
+
+/**
+ * 批量导入选中的对话文本
+ */
+function importSelectedSpeechTexts() {
+  if (!currentMod || currentMod.textSpeechEnabled !== true) return;
+  const speeches = _importSpeechData[_importSpeechLang]?.speech || [];
+  if (speeches.length === 0) return;
+
+  if (!currentMod.texts[currentTextLang]) {
+    currentMod.texts[currentTextLang] = { info: {}, speech: [] };
+  }
+
+  // 收集选中的 checkbox
+  const checkboxes = document.querySelectorAll('.import-speech-checkbox:checked');
+  let count = 0;
+  checkboxes.forEach(cb => {
+    const idx = parseInt(cb.dataset.importIdx, 10);
+    const speech = speeches[idx];
+    if (!speech) return;
+
+    currentMod.texts[currentTextLang].speech.push({
+      name: String(speech.name || ''),
+      text: String(speech.text || ''),
+      duration: Number.isFinite(Number(speech.duration)) ? Number(speech.duration) : 3
+    });
+    count++;
+  });
+
+  if (count === 0) {
+    showToast(window.i18n.t('msg_import_speech_none_selected'), 'warning');
+    return;
+  }
+
+  renderSpeechTexts();
+  markUnsaved();
+  showToast(
+    window.i18n.t('msg_import_speech_batch_ok').replace('{count}', String(count)),
+    'success'
+  );
+  closeImportSpeechModal();
 }

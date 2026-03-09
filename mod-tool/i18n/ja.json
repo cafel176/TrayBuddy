@@ -790,6 +790,21 @@
   "params_browser_hint": "cdi3.json に定義された全 Live2D モデルパラメータをグループ別に表示",
   "params_browser_placeholder": "「ファイルから読み込み」をクリックしてモデルパラメータ情報を読み込みます",
   "trigger_weather_no_limit": "(制限なし：いずれも選択しないでください)",
-  "custom_option": "カスタム"
+  "custom_option": "カスタム",
+
+  "btn_import_speech_from_mod": "他のModからインポート",
+  "modal_import_speech_title": "他の Mod から対話テキストをインポート",
+  "import_speech_placeholder": "まず Mod ディレクトリを選択してください",
+  "import_speech_unnamed": "名前なし",
+  "import_speech_already_exists": "既存",
+  "btn_import_single": "インポート",
+  "btn_import_selected": "選択項目をインポート",
+  "btn_close": "閉じる",
+  "msg_import_speech_folder_failed": "ディレクトリの読み込みに失敗しました：{error}",
+  "msg_import_speech_no_text_dir": "選択したディレクトリに text/ フォルダが見つかりません",
+  "msg_import_speech_no_data": "対話テキストデータが見つかりません",
+  "msg_import_speech_single_ok": "テキスト「{name}」をインポートしました",
+  "msg_import_speech_batch_ok": "{count} 件の対話テキストをインポートしました",
+  "msg_import_speech_none_selected": "テキスト項目が選択されていません"
 }
 

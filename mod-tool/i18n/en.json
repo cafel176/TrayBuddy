@@ -790,6 +790,21 @@
   "params_browser_hint": "Display all Live2D model parameters defined in cdi3.json, grouped and collapsible",
   "params_browser_placeholder": "Click \"Load from File\" to load model parameter info",
   "trigger_weather_no_limit": "(No restriction: do not select any item)",
-  "custom_option": "custom"
+  "custom_option": "custom",
+
+  "btn_import_speech_from_mod": "Import from Mod",
+  "modal_import_speech_title": "Import Dialogues from Another Mod",
+  "import_speech_placeholder": "Please select a Mod directory first",
+  "import_speech_unnamed": "Unnamed",
+  "import_speech_already_exists": "Exists",
+  "btn_import_single": "Import",
+  "btn_import_selected": "Import Selected",
+  "btn_close": "Close",
+  "msg_import_speech_folder_failed": "Failed to open directory: {error}",
+  "msg_import_speech_no_text_dir": "No text/ folder found in the selected directory",
+  "msg_import_speech_no_data": "No dialogue text data found",
+  "msg_import_speech_single_ok": "Imported text \"{name}\"",
+  "msg_import_speech_batch_ok": "Imported {count} dialogue texts",
+  "msg_import_speech_none_selected": "No text items selected"
 }
 

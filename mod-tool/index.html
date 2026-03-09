@@ -1294,6 +1294,7 @@
                     </label>
                   </div>
                   <button class="btn btn-sm btn-primary" id="text-speech-add-btn" onclick="addSpeechText()">➕ <span data-i18n="btn_add_text">添加文本</span></button>
+                  <button class="btn btn-sm btn-secondary" id="text-speech-import-btn" onclick="openImportSpeechFromMod()">📥 <span data-i18n="btn_import_speech_from_mod">从其他Mod导入</span></button>
                 </div>
               </div>
               <small class="section-hint" data-i18n="text_speech_enable_hint">关闭后将不会生成 text/&lt;lang&gt;/speech.json</small>
@@ -1947,6 +1948,29 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeCaptureRectModal()" data-i18n="btn_cancel">取消</button>
         <button class="btn btn-primary" onclick="confirmCaptureRect()" data-i18n="btn_confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 从其他 Mod 导入对话文本弹窗 -->
+  <div class="modal" id="import-speech-modal">
+    <div class="modal-overlay" onclick="closeImportSpeechModal()"></div>
+    <div class="modal-content modal-large" style="max-width:900px;">
+      <div class="modal-header">
+        <h3>📥 <span data-i18n="modal_import_speech_title">从其他 Mod 导入对话文本</span></h3>
+        <button class="modal-close" onclick="closeImportSpeechModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px;overflow-y:auto;">
+        <!-- 语言标签页 -->
+        <div class="import-speech-lang-tabs" id="import-speech-lang-tabs"></div>
+        <!-- 文本列表 -->
+        <div class="import-speech-list" id="import-speech-list">
+          <p class="import-speech-placeholder" data-i18n="import_speech_placeholder">请先选择一个 Mod 目录</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportSpeechModal()" data-i18n="btn_close">关闭</button>
+        <button class="btn btn-primary" onclick="importSelectedSpeechTexts()" data-i18n="btn_import_selected">导入选中项</button>
       </div>
     </div>
   </div>
