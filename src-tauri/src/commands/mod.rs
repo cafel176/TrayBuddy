@@ -662,7 +662,7 @@ pub fn open_storage_dir(app_handle: AppHandle) -> Result<(), String> {
         .app_config_dir()
         .map_err(|e| e.to_string())?;
 
-    open_dir(storage_dir.to_string_lossy().to_string())
+    open_dir(storage_dir.to_string_lossy().to_string(), app_handle)
 }
 
 /// 获取 tbuddy archive mod 的 .tbuddy 文件实际磁盘路径

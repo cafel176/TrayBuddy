@@ -1591,7 +1591,7 @@ pub(crate) fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 });
 
             if let Some(path) = resolved {
-                if let Err(e) = open_dir(path.to_string_lossy().to_string()) {
+                if let Err(e) = open_dir(path.to_string_lossy().to_string(), app.clone()) {
                     eprintln!("[Menu] Failed to open dir '{}': {}", subdir, e);
                 }
             } else {
