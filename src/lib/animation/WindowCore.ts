@@ -28,6 +28,10 @@ import {
 import {
   formatDurationHms as _formatDurationHms,
   calcDaysUsed,
+  isDragThresholdExceeded,
+  isPlaybackComplete,
+  replaceSpeechPlaceholders,
+  calcModDataDelta,
 } from "./animation_utils";
 
 /** ModData 变化提示（用于 +1/-1 浮层）。 */
@@ -233,17 +237,13 @@ export function createWindowCore(options: {
    * 处理气泡文本中的占位符，如 {nickname}/{days_used}/{uptime}。
    */
   function applySpeechPlaceholders(raw: string): string {
-
-    let text = raw;
-    const nickname = bindings.getUserNickname();
-    text = text.replace(/\{nickname\}/g, nickname);
-    text = text.replace(/\{days_used\}/g, String(getDaysUsedNow()));
-    text = text.replace(
-      /\{(?:usage_hours|total_usage_hours)\}/g,
-      String(getTotalUsageHoursNow()),
+    return replaceSpeechPlaceholders(
+      raw,
+      bindings.getUserNickname(),
+      getDaysUsedNow(),
+      getTotalUsageHoursNow(),
+      formatDurationHms(getSessionUptimeSecondsNow()),
     );
-    text = text.replace(/\{uptime\}/g, formatDurationHms(getSessionUptimeSecondsNow()));
-    return text;
   }
 
   let firstLoginTs: number | null = null;
@@ -293,7 +293,6 @@ export function createWindowCore(options: {
    * 同步 ModData 面板并计算变化提示。
    */
   function applyModDataUpdate(data: ModData | null) {
-
     const next = data?.value;
     if (typeof next !== "number") {
       bindings.setCurrentModData(data);
@@ -301,9 +300,9 @@ export function createWindowCore(options: {
       return;
     }
 
-    const last = bindings.getLastModDataValue();
-    if (typeof last === "number" && next !== last) {
-      pushModDataToast(next - last);
+    const delta = calcModDataDelta(next, bindings.getLastModDataValue());
+    if (delta !== null) {
+      pushModDataToast(delta);
     }
 
     bindings.setCurrentModData(data);
@@ -625,9 +624,7 @@ export function createWindowCore(options: {
   function handleMouseMove(e: MouseEvent) {
     if (!isMouseDown || isDragging) return;
 
-    const dx = Math.abs(e.screenX - mouseDownPos.x);
-    const dy = Math.abs(e.screenY - mouseDownPos.y);
-    if (dx <= DRAG_THRESHOLD && dy <= DRAG_THRESHOLD) return;
+    if (!isDragThresholdExceeded(mouseDownPos.x, mouseDownPos.y, e.screenX, e.screenY, DRAG_THRESHOLD)) return;
 
     isDragging = true;
     const session = activeDragSession;
@@ -949,7 +946,7 @@ export function createWindowCore(options: {
   function checkComplete() {
     emitPlaybackStatus();
 
-    if (isPlayOnce && animationComplete && audioComplete && bubbleComplete) {
+    if (isPlaybackComplete(isPlayOnce, animationComplete, audioComplete, bubbleComplete)) {
       setTimeout(() => invoke("on_animation_complete"), 0);
     }
   }

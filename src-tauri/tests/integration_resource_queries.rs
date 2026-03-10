@@ -8,11 +8,10 @@ fn mods_test_dir() -> PathBuf {
 }
 
 #[test]
+#[ignore = "requires mods_test directory with real mod data"]
 fn resource_manager_query_helpers_work() {
     let mods_dir = mods_test_dir();
-    if !mods_dir.exists() {
-        return;
-    }
+    assert!(mods_dir.exists(), "mods_test directory not found");
 
     let mut rm = ResourceManager::new_with_search_paths(vec![mods_dir]);
     let mods = rm.list_mods();

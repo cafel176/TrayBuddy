@@ -31,7 +31,14 @@
         setupI18nWithUpdate,
         currentLang,
     } from "$lib/i18n";
-    import type { ModManifest, ModInfo, ModType, CharacterInfo } from "$lib/types/asset";
+    import type { ModInfo, ModType } from "$lib/types/asset";
+    import {
+        tokenizeLinks,
+        toErrorMessage,
+        needsHydrateSbuddy as needsHydrateSbuddyPure,
+        resolveCharInfo,
+        type DescToken,
+    } from "$lib/animation/animation_utils";
 
     import { message } from "@tauri-apps/plugin-dialog";
 
@@ -101,13 +108,10 @@
         // 显式引用 _langVersion 以建立 Svelte 响应式依赖
         void _langVersion;
 
-        const lang = currentLang();
-        const defaultLang = selectedModInfo.manifest.default_text_lang_id;
-
-        return (
-            selectedModInfo.info[lang] ||
-            selectedModInfo.info[defaultLang] ||
-            Object.values(selectedModInfo.info)[0]
+        return resolveCharInfo(
+            selectedModInfo.info,
+            currentLang(),
+            selectedModInfo.manifest.default_text_lang_id,
         );
     });
 
@@ -125,54 +129,6 @@
         if (t === "3d" || t === "threed") return _("modWindow.modType3D");
         if (t === "unknown") return _("common.unknown");
         return modType || _("common.unknown");
-    }
-
-    type DescToken =
-        | { kind: "text"; value: string }
-        | { kind: "link"; href: string; text: string };
-
-    function tokenizeLinks(input: string): DescToken[] {
-        if (!input) return [];
-
-        const tokens: DescToken[] = [];
-        const regex = /\bhttps?:\/\/[^\s<>"']+/gi;
-        let lastIndex = 0;
-
-        for (const m of input.matchAll(regex)) {
-            const raw = m[0];
-            const index = m.index ?? 0;
-
-            if (index > lastIndex) {
-                tokens.push({ kind: "text", value: input.slice(lastIndex, index) });
-            }
-
-            // 处理结尾常见标点，避免把 ")" / "," 等算进 URL
-            let href = raw;
-            let trailing = "";
-            while (href.length > 0 && /[),.;!?]$/.test(href)) {
-                trailing = href.slice(-1) + trailing;
-                href = href.slice(0, -1);
-            }
-
-            if (href) {
-                tokens.push({ kind: "link", href, text: href });
-            } else {
-                // 极端兜底：如果被裁剪到空，按原文输出
-                tokens.push({ kind: "text", value: raw });
-            }
-
-            if (trailing) {
-                tokens.push({ kind: "text", value: trailing });
-            }
-
-            lastIndex = index + raw.length;
-        }
-
-        if (lastIndex < input.length) {
-            tokens.push({ kind: "text", value: input.slice(lastIndex) });
-        }
-
-        return tokens.length ? tokens : [{ kind: "text", value: input }];
     }
 
     async function openExternal(url: string) {
@@ -208,10 +164,9 @@
     let hydrateTotal = $state(0);
 
     function needsHydrateSbuddy(m: ModInfo): boolean {
-        // 仅针对 archive（tbuddy-archive://）且 version 为空的条目：这在快速摘要阶段代表 `.sbuddy` 占位
-        return (
-            isArchiveMod(m.path) &&
-            (!m.manifest?.version || m.manifest.version.trim().length === 0)
+        return needsHydrateSbuddyPure(
+            isArchiveMod(m.path),
+            m.manifest?.version,
         );
     }
 
@@ -580,20 +535,6 @@
     async function keepLoadedAndExit() {
         // 用户选择保留已加载的：流程直接结束
         closeConflictDialog();
-    }
-
-    function toErrorMessage(e: unknown): string {
-        if (typeof e === "string") return e;
-        if (e && typeof e === "object") {
-            // Tauri v2 可能将错误包装为 { message: string } 或其他形式
-            const obj = e as Record<string, unknown>;
-            if (typeof obj.message === "string") return obj.message;
-            // 尝试所有字符串值
-            for (const val of Object.values(obj)) {
-                if (typeof val === "string") return val;
-            }
-        }
-        return String(e);
     }
 
     async function showImportError(e: unknown) {

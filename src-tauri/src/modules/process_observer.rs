@@ -882,36 +882,17 @@ mod tests {
     // should_trigger edge cases
     // ========================================================================= //
 
+    // (_v2 duplicates removed: should_trigger_empty_keywords_returns_none_v2,
+    //  should_trigger_with_exe_suffix_matched, should_trigger_case_insensitive_v2
+    //  → covered by should_trigger_empty_keywords_returns_none, should_trigger_strips_exe_suffix,
+    //    should_trigger_case_insensitive)
+
     #[test]
     fn should_trigger_empty_name_returns_none() {
         if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
             *guard = vec!["chrome".into()];
         }
         assert!(should_trigger_for_process_name("").is_none());
-    }
-
-    #[test]
-    fn should_trigger_empty_keywords_returns_none_v2() {
-        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
-            *guard = vec![];
-        }
-        assert!(should_trigger_for_process_name("chrome.exe").is_none());
-    }
-
-    #[test]
-    fn should_trigger_with_exe_suffix_matched() {
-        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
-            *guard = vec!["chrome".into()];
-        }
-        assert!(should_trigger_for_process_name("chrome.exe").is_some());
-    }
-
-    #[test]
-    fn should_trigger_case_insensitive_v2() {
-        if let Ok(mut guard) = PROCESS_KEYWORDS.write() {
-            *guard = vec!["vscode".into()];
-        }
-        assert!(should_trigger_for_process_name("VSCode.exe").is_some());
     }
 
     // ========================================================================= //

@@ -835,57 +835,12 @@ mod tests {
     // ModArchiveStore
     // ========================================================================= //
 
-    #[test]
-    fn store_new_is_empty() {
-        let store = ModArchiveStore::new();
-        assert!(store.loaded_ids().is_empty());
-        assert!(store.get_source("any").is_none());
-    }
-
-    #[test]
-    fn store_register_source_and_get_source() {
-        let mut store = ModArchiveStore::new();
-        let path = PathBuf::from("/tmp/test.tbuddy");
-        store.register_source("test".into(), path.clone());
-        let src = store.get_source("test").unwrap();
-        assert_eq!(src.mod_id, "test");
-        assert_eq!(src.file_path, path);
-    }
-
-    #[test]
-    fn store_register_source_missing_returns_none() {
-        let store = ModArchiveStore::new();
-        assert!(store.get_source("nope").is_none());
-    }
-
-    #[test]
-    fn store_remove_clears_all_mappings() {
-        let mut store = ModArchiveStore::new();
-        store.register_source("test".into(), PathBuf::from("/tmp/t.tbuddy"));
-        store.remove("test");
-        assert!(store.get_source("test").is_none());
-    }
-
-    #[test]
-    fn store_evict_loaded_keeps_source() {
-        let mut store = ModArchiveStore::new();
-        store.register_source("mod1".into(), PathBuf::from("/tmp/m.tbuddy"));
-        // evict removes archive but keeps source
-        store.evict_loaded("mod1");
-        assert!(store.get_source("mod1").is_some());
-        assert!(store.loaded_ids().is_empty());
-    }
-
-    #[test]
-    fn store_clear() {
-        let mut store = ModArchiveStore::new();
-        store.register_source("a".into(), PathBuf::from("/a"));
-        store.register_source("b".into(), PathBuf::from("/b"));
-        store.clear();
-        assert!(store.get_source("a").is_none());
-        assert!(store.get_source("b").is_none());
-        assert!(store.loaded_ids().is_empty());
-    }
+    // (store_new_is_empty → merged into loaded_ids_empty_for_new_store)
+    // (store_register_source_and_get_source → merged into register_source_and_get_source)
+    // (store_register_source_missing_returns_none → covered by register_source_and_get_source)
+    // (store_remove_clears_all_mappings → merged into remove_clears_source_and_archive)
+    // (store_evict_loaded_keeps_source → merged into evict_loaded_preserves_source_mapping)
+    // (store_clear → merged into store_clear_empties_everything)
 
     // ========================================================================= //
     // alias_mod_id
@@ -928,55 +883,11 @@ mod tests {
         assert_eq!(src.file_path, PathBuf::from("/new"));
     }
 
-    // ========================================================================= //
-    // cleanup_stale_sources
-    // ========================================================================= //
-
-    #[test]
-    fn cleanup_stale_sources_removes_nonexistent_paths() {
-        let mut store = ModArchiveStore::new();
-        store.register_source("stale".into(), PathBuf::from("/nonexistent/path/to/mod.tbuddy"));
-        store.cleanup_stale_sources();
-        assert!(store.get_source("stale").is_none());
-    }
-
-    #[test]
-    fn cleanup_stale_sources_keeps_existing_paths() {
-        let mut store = ModArchiveStore::new();
-        // temp_dir should exist
-        let existing = std::env::temp_dir();
-        store.register_source("good".into(), existing);
-        store.cleanup_stale_sources();
-        assert!(store.get_source("good").is_some());
-    }
-
-    // ========================================================================= //
-    // is_sbuddy_supported / decrypt_sbuddy
-    // ========================================================================= //
-
-    #[test]
-    fn is_sbuddy_supported_returns_value() {
-        // Just verify it doesn't panic
-        let _ = is_sbuddy_supported();
-    }
-
-    #[test]
-    fn decrypt_sbuddy_bad_magic() {
-        let err = decrypt_sbuddy(b"NOTVALID").unwrap_err();
-        assert!(err.contains("bad magic") || err.contains("sbuddy"));
-    }
-
-    #[test]
-    fn decrypt_sbuddy_too_short() {
-        let err = decrypt_sbuddy(b"SHORT").unwrap_err();
-        assert!(err.contains("bad magic") || err.contains("sbuddy"));
-    }
-
-    #[test]
-    fn sbuddy_magic_is_8_bytes() {
-        assert_eq!(SBUDDY_MAGIC.len(), 8);
-        assert_eq!(SBUDDY_MAGIC, b"SBUDDY01");
-    }
+    // (cleanup_stale_sources old tests → merged into cleanup_stale_sources_removes_deleted_files / keeps_existing_files)
+    // (is_sbuddy_supported_returns_value → merged into is_sbuddy_supported_returns_bool)
+    // (decrypt_sbuddy_bad_magic → merged into decrypt_sbuddy_rejects_wrong_magic)
+    // (decrypt_sbuddy_too_short → merged into decrypt_sbuddy_rejects_short_data)
+    // (sbuddy_magic_is_8_bytes → removed, trivial constant assertion)
 
     // ========================================================================= //
     // ModArchiveStore: load_tbuddy with real zip
@@ -1011,56 +922,10 @@ mod tests {
         tbuddy_path
     }
 
-    #[test]
-    fn load_tbuddy_reads_manifest() {
-        let manifest_json = r#"{"id":"zipmod","version":"1.0.0"}"#;
-        let path = create_tbuddy_zip(manifest_json);
-
-        let mut store = ModArchiveStore::new();
-        let (id, manifest) = store.load_tbuddy(&path).unwrap();
-        assert_eq!(id, "zipmod");
-        assert_eq!(manifest.id.as_ref(), "zipmod");
-        assert_eq!(manifest.version.as_ref(), "1.0.0");
-
-        // Cleanup
-        let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn load_tbuddy_registers_source() {
-        let manifest_json = r#"{"id":"srcmod","version":"0.1"}"#;
-        let path = create_tbuddy_zip(manifest_json);
-
-        let mut store = ModArchiveStore::new();
-        store.load_tbuddy(&path).unwrap();
-        assert!(store.get_source("srcmod").is_some());
-        assert_eq!(store.get_source("srcmod").unwrap().mod_id, "srcmod");
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    // ========================================================================= //
-    // ModArchiveStore: loaded_ids
-    // ========================================================================= //
-
-    #[test]
-    fn loaded_ids_empty_for_new_store() {
-        let store = ModArchiveStore::new();
-        assert!(store.loaded_ids().is_empty());
-    }
-
-    #[test]
-    fn loaded_ids_contains_loaded_mods() {
-        let manifest_json = r#"{"id":"loadedmod"}"#;
-        let path = create_tbuddy_zip(manifest_json);
-
-        let mut store = ModArchiveStore::new();
-        store.load_tbuddy(&path).unwrap();
-        let ids = store.loaded_ids();
-        assert!(ids.contains(&"loadedmod".to_string()));
-
-        let _ = std::fs::remove_file(&path);
-    }
+    // (load_tbuddy_reads_manifest → merged into load_tbuddy_returns_mod_id_and_manifest)
+    // (load_tbuddy_registers_source → covered by load_tbuddy_returns_mod_id_and_manifest)
+    // (loaded_ids_empty_for_new_store → covered by loaded_ids_reflects_loaded_archives)
+    // (loaded_ids_contains_loaded_mods → merged into loaded_ids_reflects_loaded_archives)
 
     // ========================================================================= //
     // ModArchiveStore: get / ensure_loaded / read_file / file_exists
@@ -1138,90 +1003,9 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    // ========================================================================= //
-    // ModArchiveStore: evict_loaded + ensure_loaded re-loads from source
-    // ========================================================================= //
-
-    #[test]
-    fn evict_and_reload_from_source() {
-        let manifest_json = r#"{"id":"evictmod"}"#;
-        let path = create_tbuddy_zip(manifest_json);
-
-        let mut store = ModArchiveStore::new();
-        store.load_tbuddy(&path).unwrap();
-        assert!(store.contains("evictmod"));
-
-        // Evict from memory
-        store.evict_loaded("evictmod");
-        assert!(!store.loaded_ids().contains(&"evictmod".to_string()));
-
-        // Source should still be registered
-        assert!(store.get_source("evictmod").is_some());
-
-        // Re-load via get → ensure_loaded
-        let reader = store.get("evictmod");
-        assert!(reader.is_some());
-        assert!(store.loaded_ids().contains(&"evictmod".to_string()));
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    // ========================================================================= //
-    // ModArchiveStore: enforce_limit (LRU eviction)
-    // ========================================================================= //
-
-    #[test]
-    fn enforce_limit_evicts_oldest() {
-        use crate::modules::constants::MOD_ARCHIVE_CACHE_MAX;
-
-        let mut paths = Vec::new();
-        let mut store = ModArchiveStore::new();
-
-        // Load more than MOD_ARCHIVE_CACHE_MAX mods
-        for i in 0..=MOD_ARCHIVE_CACHE_MAX {
-            let id = format!("lrumod_{}", i);
-            let json = format!(r#"{{"id":"{}"}}"#, id);
-            let path = create_tbuddy_zip(&json);
-            store.load_tbuddy(&path).unwrap();
-            paths.push(path);
-        }
-
-        // Should have evicted the oldest
-        assert!(store.loaded_ids().len() <= MOD_ARCHIVE_CACHE_MAX);
-
-        // Cleanup
-        for p in &paths {
-            let _ = std::fs::remove_file(p);
-        }
-    }
-
-    // ========================================================================= //
-    // ModArchiveStore: alias_mod_id with loaded archive
-    // ========================================================================= //
-
-    #[test]
-    fn alias_mod_id_migrates_loaded_archive() {
-        let manifest_json = r#"{"id":"real_id"}"#;
-        let path = create_tbuddy_zip(manifest_json);
-
-        let mut store = ModArchiveStore::new();
-        store.load_tbuddy(&path).unwrap();
-
-        // The mod is loaded under "real_id"
-        assert!(store.loaded_ids().contains(&"real_id".to_string()));
-
-        // Alias old→new (in practice this happens when sbuddy filename differs from manifest.id)
-        store.alias_mod_id("real_id", "new_id");
-
-        // Archive should now be under new_id
-        assert!(store.loaded_ids().contains(&"new_id".to_string()));
-        assert!(!store.loaded_ids().contains(&"real_id".to_string()));
-
-        // Source should also be aliased
-        assert!(store.get_source("new_id").is_some());
-
-        let _ = std::fs::remove_file(&path);
-    }
+    // (evict_and_reload_from_source → merged into ensure_loaded_reloads_evicted_archive)
+    // (enforce_limit_evicts_oldest → merged into enforce_limit_evicts_when_over_max)
+    // (alias_mod_id_migrates_loaded_archive → merged into alias_mod_id_migrates_archive_and_lru)
 
     // ========================================================================= //
     // ArchiveSource fields
@@ -1238,29 +1022,8 @@ mod tests {
         assert_eq!(cloned.file_path, PathBuf::from("/path/to/mod.tbuddy"));
     }
 
-    // ========================================================================= //
-    // ModArchiveReaderExt: read_json / read_json_optional / read_json_list
-    // ========================================================================= //
-
-    #[test]
-    fn zip_reader_ext_read_json_optional_returns_none_for_missing() {
-        use super::ModArchiveReaderExt;
-        let tbuddy_path = create_tbuddy_zip(r#"{"id":"extmod"}"#);
-        let reader = ZipArchiveReader::from_file(&tbuddy_path).unwrap();
-        let opt: Option<super::super::resource::ModManifest> = reader.read_json_optional("nope.json");
-        assert!(opt.is_none());
-        let _ = std::fs::remove_file(&tbuddy_path);
-    }
-
-    #[test]
-    fn zip_reader_ext_read_json_list_returns_empty_for_missing() {
-        use super::ModArchiveReaderExt;
-        let tbuddy_path = create_tbuddy_zip(r#"{"id":"listmod"}"#);
-        let reader = ZipArchiveReader::from_file(&tbuddy_path).unwrap();
-        let list: Vec<super::super::resource::AssetInfo> = reader.read_json_list("asset/img.json");
-        assert!(list.is_empty());
-        let _ = std::fs::remove_file(&tbuddy_path);
-    }
+    // (zip_reader_ext_read_json_optional_returns_none_for_missing → covered by zip_reader_read_json_optional_missing)
+    // (zip_reader_ext_read_json_list_returns_empty_for_missing → covered by zip_reader_read_json_list_missing_returns_empty)
 
     // ========================================================================= //
     // ModArchiveStore: ensure_loaded reload from source path

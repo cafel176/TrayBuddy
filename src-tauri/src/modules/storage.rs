@@ -761,8 +761,8 @@ mod tests {
         assert!(s.live2d_auto_interact);
         assert_eq!(s.threed_cross_fade_duration, 0.3);
         assert_eq!(s.ai_api_key.as_ref(), "");
-        assert_eq!(s.ai_chat_base_url.as_ref(), "https://api.siliconflow.cn/v1");
-        assert_eq!(s.ai_chat_model.as_ref(), "Pro/Qwen/Qwen2.5-VL-7B-Instruct");
+        assert_eq!(s.ai_chat_base_url.as_ref(), "");
+        assert_eq!(s.ai_chat_model.as_ref(), "");
         assert_eq!(s.ai_screenshot_interval, 1.0);
         assert_eq!(s.ai_tool_hotkey.as_ref(), "F1");
         assert!(s.ai_window_configs.is_empty());

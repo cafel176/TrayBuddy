@@ -447,44 +447,9 @@ mod tests {
         assert!(fail.should_fail());
     }
 
-    #[test]
-    fn emit_options_silent_neither_logs_nor_fails() {
-        let silent = EmitOptions::Silent;
-        assert!(!silent.should_log());
-        assert!(!silent.should_fail());
-    }
-
-    #[test]
-    fn emit_options_log_on_failure_logs_but_no_fail() {
-        let opt = EmitOptions::LogOnFailure;
-        assert!(opt.should_log());
-        assert!(!opt.should_fail());
-    }
-
-    #[test]
-    fn emit_options_fail_on_failure_logs_and_fails() {
-        let opt = EmitOptions::FailOnFailure;
-        assert!(opt.should_log());
-        assert!(opt.should_fail());
-    }
-
-    #[test]
-    fn emit_options_default_is_silent() {
-        let opt = EmitOptions::default();
-        assert!(matches!(opt, EmitOptions::Silent));
-    }
-
-    // ========================================================================= //
-    // EmitError Display
-    // ========================================================================= //
-
-    #[test]
-    fn emit_error_display_format() {
-        // We can't easily create a tauri::Error, but we can test the Display impl
-        // indirectly by checking the format string pattern
-        let display_str = format!("{}", "Emitter error: test");
-        assert!(display_str.contains("Emitter error"));
-    }
+    // (emit_options_silent/log/fail individual tests → covered by emit_options_flags)
+    // (emit_options_default_is_silent → covered by emit_options_flags)
+    // (emit_error_display_format → removed: doesn't test EmitError, tests string literal)
 
     // ========================================================================= //
     // Event name constants

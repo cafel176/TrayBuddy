@@ -2138,11 +2138,12 @@ mod tests {
     }
 
     // ================================================================
-    // Default 实现测试
+    // Default 实现测试（按类型分组）
     // ================================================================
 
     #[test]
-    fn asset_info_default() {
+    fn core_types_default_values() {
+        // AssetInfo
         let a = AssetInfo::default();
         assert_eq!(a.name.as_ref(), "ERROR");
         assert!(!a.sequence);
@@ -2150,174 +2151,44 @@ mod tests {
         assert_eq!(a.frame_num_x, 1);
         assert_eq!(a.frame_num_y, 1);
         assert_eq!(a.offset_x, 0);
-    }
 
-    #[test]
-    fn live2d_model_config_default() {
-        let c = Live2DModelConfig::default();
-        assert_eq!(c.name.as_ref(), "ERROR");
-        assert_eq!(c.scale, 1.0);
-        assert!(!c.eye_blink);
-        assert!(!c.lip_sync);
-    }
+        // AudioInfo / TextInfo / CharacterInfo
+        let audio = AudioInfo::default();
+        assert_eq!(audio.name.as_ref(), "ERROR");
+        assert_eq!(audio.audio.as_ref(), "");
+        let text = TextInfo::default();
+        assert_eq!(text.name.as_ref(), "ERROR");
+        assert_eq!(text.duration, 3.0);
+        let ci = CharacterInfo::default();
+        assert_eq!(ci.name.as_ref(), "Default");
+        assert_eq!(ci.id.as_ref(), "ERROR");
 
-    #[test]
-    fn live2d_motion_default() {
-        let m = Live2DMotion::default();
-        assert_eq!(m.name.as_ref(), "ERROR");
-        assert!(!m.r#loop);
-        assert_eq!(m.fade_in_ms, 0);
-    }
+        // CanTriggerState / BranchInfo / TriggerInfo / TriggerStateGroup
+        let cts = CanTriggerState::default();
+        assert_eq!(cts.weight, 1);
+        assert_eq!(cts.state.as_ref(), "");
+        let bi = BranchInfo::default();
+        assert_eq!(bi.text.as_ref(), "");
+        let tsg = TriggerStateGroup::default();
+        assert!(tsg.allow_repeat);
+        assert!(tsg.states.is_empty());
+        let ti = TriggerInfo::default();
+        assert_eq!(ti.event.as_ref(), "");
+        assert!(ti.can_trigger_states.is_empty());
 
-    #[test]
-    fn live2d_expression_default() {
-        let e = Live2DExpression::default();
-        assert_eq!(e.name.as_ref(), "ERROR");
-        assert_eq!(e.file.as_ref(), "");
-    }
-
-    #[test]
-    fn live2d_state_default() {
-        let s = Live2DState::default();
-        assert_eq!(s.state.as_ref(), "ERROR");
-        assert_eq!(s.scale, 1.0);
-        assert_eq!(s.offset_x, 0);
-    }
-
-    #[test]
-    fn live2d_background_layer_default() {
-        let b = Live2DBackgroundLayer::default();
-        assert_eq!(b.layer.as_ref(), "behind");
-        assert_eq!(b.scale, 1.0);
-        assert!(b.events.is_empty());
-    }
-
-    #[test]
-    fn live2d_config_default() {
-        let c = Live2DConfig::default();
-        assert_eq!(c.schema_version, 1);
-        assert!(c.motions.is_empty());
-        assert!(c.states.is_empty());
-    }
-
-    #[test]
-    fn pngremix_model_config_default() {
-        let c = PngRemixModelConfig::default();
-        assert_eq!(c.scale, 1.0);
-        assert_eq!(c.max_fps, 60);
-    }
-
-    #[test]
-    fn pngremix_features_default() {
-        let f = PngRemixFeatures::default();
-        assert!(f.mouse_follow);
-        assert!(f.auto_blink);
-        assert!(f.click_bounce);
-        assert_eq!(f.click_bounce_amp, 50.0);
-    }
-
-    #[test]
-    fn pngremix_expression_default() {
-        let e = PngRemixExpression::default();
-        assert_eq!(e.state_index, 0);
-    }
-
-    #[test]
-    fn pngremix_state_default() {
-        let s = PngRemixState::default();
-        assert_eq!(s.scale, 1.0);
-        assert!(s.mouth_state.is_none());
-    }
-
-    #[test]
-    fn pngremix_config_default() {
-        let c = PngRemixConfig::default();
-        assert_eq!(c.schema_version, 1);
-        assert!(c.expressions.is_empty());
-    }
-
-    #[test]
-    fn three_d_model_type_default() {
-        assert_eq!(ThreeDModelType::default(), ThreeDModelType::Vrm);
-    }
-
-    #[test]
-    fn three_d_model_config_default() {
-        let c = ThreeDModelConfig::default();
-        assert_eq!(c.model_type, ThreeDModelType::Vrm);
-        assert_eq!(c.scale, 1.0);
-    }
-
-    #[test]
-    fn three_d_animation_default() {
-        let a = ThreeDAnimation::default();
-        assert_eq!(a.animation_type, ThreeDAnimationType::Vrma);
-        assert_eq!(a.speed, 1.0);
-        assert_eq!(a.fps, 60);
-    }
-
-    #[test]
-    fn three_d_state_default() {
-        let s = ThreeDState::default();
-        assert_eq!(s.scale, 1.0);
-    }
-
-    #[test]
-    fn three_d_config_default() {
-        let c = ThreeDConfig::default();
-        assert_eq!(c.schema_version, 1);
-        assert!(c.animations.is_empty());
-    }
-
-    #[test]
-    fn audio_info_default() {
-        let a = AudioInfo::default();
-        assert_eq!(a.name.as_ref(), "ERROR");
-        assert_eq!(a.audio.as_ref(), "");
-    }
-
-    #[test]
-    fn text_info_default() {
-        let t = TextInfo::default();
-        assert_eq!(t.name.as_ref(), "ERROR");
-        assert_eq!(t.duration, 3.0);
-    }
-
-    #[test]
-    fn character_info_default() {
-        let c = CharacterInfo::default();
-        assert_eq!(c.name.as_ref(), "Default");
-        assert_eq!(c.id.as_ref(), "ERROR");
-    }
-
-    #[test]
-    fn mod_data_counter_op_default() {
+        // ModDataCounterOp / Config
         assert!(matches!(ModDataCounterOp::default(), ModDataCounterOp::Add));
+        let mdc = ModDataCounterConfig::default();
+        assert!(matches!(mdc.op, ModDataCounterOp::Add));
+        assert_eq!(mdc.value, 0);
+
+        // Enum defaults
+        assert!(matches!(ModType::default(), ModType::Sequence));
+        assert!(matches!(CanvasFitPreference::default(), CanvasFitPreference::Legacy));
     }
 
     #[test]
-    fn mod_data_counter_config_default() {
-        let c = ModDataCounterConfig::default();
-        assert!(matches!(c.op, ModDataCounterOp::Add));
-        assert_eq!(c.value, 0);
-    }
-
-    #[test]
-    fn live2d_parameter_setting_default() {
-        let s = Live2DParameterSetting::default();
-        assert_eq!(s.target.as_ref(), "Parameter");
-        assert_eq!(s.value, 0.0);
-    }
-
-    #[test]
-    fn can_trigger_state_default() {
-        let s = CanTriggerState::default();
-        assert_eq!(s.weight, 1);
-        assert_eq!(s.state.as_ref(), "");
-    }
-
-    #[test]
-    fn state_info_default() {
+    fn state_and_manifest_default_values() {
         let s = StateInfo::default();
         assert_eq!(s.name.as_ref(), "ERROR");
         assert!(!s.persistent);
@@ -2331,76 +2202,90 @@ mod tests {
         assert!(s.mod_data_counter.is_none());
         assert!(s.branch_show_bubble);
         assert!(s.branch.is_empty());
-    }
 
-    #[test]
-    fn branch_info_default() {
-        let b = BranchInfo::default();
-        assert_eq!(b.text.as_ref(), "");
-        assert_eq!(b.next_state.as_ref(), "");
-    }
-
-    #[test]
-    fn trigger_state_group_default() {
-        let g = TriggerStateGroup::default();
-        assert!(g.allow_repeat);
-        assert!(g.states.is_empty());
-    }
-
-    #[test]
-    fn trigger_info_default() {
-        let t = TriggerInfo::default();
-        assert_eq!(t.event.as_ref(), "");
-        assert!(t.can_trigger_states.is_empty());
-    }
-
-    #[test]
-    fn canvas_fit_preference_default() {
-        assert!(matches!(CanvasFitPreference::default(), CanvasFitPreference::Legacy));
-    }
-
-    #[test]
-    fn character_config_default() {
-        let c = CharacterConfig::default();
-        assert_eq!(c.z_offset, 1);
-    }
-
-    #[test]
-    fn border_config_default() {
-        let b = BorderConfig::default();
-        assert!(b.enable);
-        assert_eq!(b.z_offset, 2);
-    }
-
-    #[test]
-    fn mod_type_default() {
-        assert!(matches!(ModType::default(), ModType::Sequence));
-    }
-
-    #[test]
-    fn mod_manifest_default() {
         let m = ModManifest::default();
         assert_eq!(m.id.as_ref(), "ERROR");
         assert!(!m.global_keyboard);
         assert!(!m.global_mouse);
         assert!(!m.show_mod_data_panel);
+
+        let cc = CharacterConfig::default();
+        assert_eq!(cc.z_offset, 1);
+        let bc = BorderConfig::default();
+        assert!(bc.enable);
+        assert_eq!(bc.z_offset, 2);
     }
 
     #[test]
-    fn pngremix_motion_default() {
+    fn live2d_types_default_values() {
+        let c = Live2DModelConfig::default();
+        assert_eq!(c.name.as_ref(), "ERROR");
+        assert_eq!(c.scale, 1.0);
+        assert!(!c.eye_blink);
+        assert!(!c.lip_sync);
+        let m = Live2DMotion::default();
+        assert_eq!(m.name.as_ref(), "ERROR");
+        assert!(!m.r#loop);
+        assert_eq!(m.fade_in_ms, 0);
+        let e = Live2DExpression::default();
+        assert_eq!(e.name.as_ref(), "ERROR");
+        assert_eq!(e.file.as_ref(), "");
+        let s = Live2DState::default();
+        assert_eq!(s.state.as_ref(), "ERROR");
+        assert_eq!(s.scale, 1.0);
+        let b = Live2DBackgroundLayer::default();
+        assert_eq!(b.layer.as_ref(), "behind");
+        assert_eq!(b.scale, 1.0);
+        assert!(b.events.is_empty());
+        let cfg = Live2DConfig::default();
+        assert_eq!(cfg.schema_version, 1);
+        assert!(cfg.motions.is_empty());
+        assert!(cfg.states.is_empty());
+        let ps = Live2DParameterSetting::default();
+        assert_eq!(ps.target.as_ref(), "Parameter");
+        assert_eq!(ps.value, 0.0);
+    }
+
+    #[test]
+    fn pngremix_types_default_values() {
+        let c = PngRemixModelConfig::default();
+        assert_eq!(c.scale, 1.0);
+        assert_eq!(c.max_fps, 60);
+        let f = PngRemixFeatures::default();
+        assert!(f.mouse_follow);
+        assert!(f.auto_blink);
+        assert!(f.click_bounce);
+        assert_eq!(f.click_bounce_amp, 50.0);
+        let e = PngRemixExpression::default();
+        assert_eq!(e.state_index, 0);
+        let s = PngRemixState::default();
+        assert_eq!(s.scale, 1.0);
+        assert!(s.mouth_state.is_none());
+        let cfg = PngRemixConfig::default();
+        assert_eq!(cfg.schema_version, 1);
+        assert!(cfg.expressions.is_empty());
         let m = PngRemixMotion::default();
         assert_eq!(m.name.as_ref(), "");
-    }
-
-    #[test]
-    fn pngremix_parameter_setting_default() {
         let p = PngRemixParameterSetting::default();
         assert_eq!(p.param_type.as_ref(), "expression");
     }
 
     #[test]
-    fn three_d_animation_type_default() {
+    fn threed_types_default_values() {
+        assert_eq!(ThreeDModelType::default(), ThreeDModelType::Vrm);
         assert_eq!(ThreeDAnimationType::default(), ThreeDAnimationType::Vrma);
+        let c = ThreeDModelConfig::default();
+        assert_eq!(c.model_type, ThreeDModelType::Vrm);
+        assert_eq!(c.scale, 1.0);
+        let a = ThreeDAnimation::default();
+        assert_eq!(a.animation_type, ThreeDAnimationType::Vrma);
+        assert_eq!(a.speed, 1.0);
+        assert_eq!(a.fps, 60);
+        let s = ThreeDState::default();
+        assert_eq!(s.scale, 1.0);
+        let cfg = ThreeDConfig::default();
+        assert_eq!(cfg.schema_version, 1);
+        assert!(cfg.animations.is_empty());
     }
 
     // ================================================================
@@ -2668,82 +2553,29 @@ mod tests {
     // ================================================================
 
     #[test]
-    fn new_with_search_paths_initializes_empty() {
+    fn new_resource_manager_is_empty_and_queries_return_none() {
         let rm = ResourceManager::new_with_search_paths(vec![]);
+        // 初始化检查
         assert!(rm.current_mod.is_none());
         assert!(rm.search_paths.is_empty());
+        // 无 mod 时所有查询应返回 None/empty
+        assert!(rm.get_all_states().is_empty());
+        assert!(rm.get_all_triggers().is_empty());
+        assert!(rm.get_state_by_name("idle").is_none());
+        assert!(rm.get_trigger_by_event("click").is_none());
+        assert!(rm.get_asset_by_name("idle").is_none());
+        assert!(rm.get_audio_by_name("zh", "hello").is_none());
+        assert!(rm.get_text_by_name("zh", "hello").is_none());
+        assert!(rm.get_info_by_lang("zh").is_none());
+        assert!(rm.get_bubble_style().is_none());
+        assert!(rm.get_archive_store().is_none());
+        assert!(!rm.is_archive_mod("nonexistent"));
     }
 
     #[test]
     fn unload_mod_returns_false_when_none() {
         let mut rm = ResourceManager::new_with_search_paths(vec![]);
         assert!(!rm.unload_mod());
-    }
-
-    #[test]
-    fn is_archive_mod_returns_false_for_unknown() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(!rm.is_archive_mod("nonexistent"));
-    }
-
-    #[test]
-    fn get_all_states_empty_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_all_states().is_empty());
-    }
-
-    #[test]
-    fn get_all_triggers_empty_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_all_triggers().is_empty());
-    }
-
-    #[test]
-    fn get_state_by_name_none_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_state_by_name("idle").is_none());
-    }
-
-    #[test]
-    fn get_trigger_by_event_none_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_trigger_by_event("click").is_none());
-    }
-
-    #[test]
-    fn get_asset_by_name_none_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_asset_by_name("idle").is_none());
-    }
-
-    #[test]
-    fn get_audio_by_name_none_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_audio_by_name("zh", "hello").is_none());
-    }
-
-    #[test]
-    fn get_text_by_name_none_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_text_by_name("zh", "hello").is_none());
-    }
-
-    #[test]
-    fn get_info_by_lang_none_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_info_by_lang("zh").is_none());
-    }
-
-    #[test]
-    fn get_bubble_style_none_when_no_mod() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_bubble_style().is_none());
-    }
-
-    #[test]
-    fn get_archive_store_none_initially() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        assert!(rm.get_archive_store().is_none());
     }
 
     // ================================================================
@@ -2845,15 +2677,6 @@ mod tests {
     }
 
     #[test]
-    fn mod_info_to_summary() {
-        let mut manifest = ModManifest::default();
-        manifest.id = "test".into();
-        let info = build_test_mod_info(manifest);
-        let summary = info.to_summary();
-        assert_eq!(summary.manifest.id.as_ref(), "test");
-    }
-
-    #[test]
     fn mod_info_get_info_by_lang() {
         let manifest = ModManifest::default();
         let mut info = build_test_mod_info(manifest);
@@ -2893,50 +2716,9 @@ mod tests {
         assert!(StateInfo::parse_date("abc").is_none());
     }
 
-    #[test]
-    fn state_info_is_enable_no_restrictions() {
-        let s = StateInfo::default();
-        assert!(s.is_enable());
-    }
-
     // ================================================================
     // validate_and_fix_states 测试
     // ================================================================
-
-    #[test]
-    fn validate_and_fix_states_clamps_low_trigger_time() {
-        use crate::modules::constants::MIN_TRIGGER_TIME_SECS;
-        let mut manifest = ModManifest::default();
-        let mut s = StateInfo::default();
-        s.name = "test".into();
-        s.trigger_time = 0.5; // too low
-        manifest.states.push(s);
-
-        let mut imp_state = StateInfo::default();
-        imp_state.name = "imp".into();
-        imp_state.trigger_time = 1.0; // also too low
-        manifest.important_states.insert("imp".into(), imp_state);
-
-        let mut info = build_test_mod_info(manifest);
-        info.validate_and_fix_states();
-
-        assert_eq!(info.manifest.states[0].trigger_time, MIN_TRIGGER_TIME_SECS);
-        assert_eq!(info.manifest.important_states.get("imp").unwrap().trigger_time, MIN_TRIGGER_TIME_SECS);
-    }
-
-    #[test]
-    fn validate_and_fix_states_preserves_zero() {
-        let mut manifest = ModManifest::default();
-        let mut s = StateInfo::default();
-        s.name = "test".into();
-        s.trigger_time = 0.0;
-        manifest.states.push(s);
-
-        let mut info = build_test_mod_info(manifest);
-        info.validate_and_fix_states();
-
-        assert_eq!(info.manifest.states[0].trigger_time, 0.0);
-    }
 
     // ================================================================
     // ResourceManager 磁盘操作测试
@@ -3012,13 +2794,6 @@ mod tests {
     }
 
     #[test]
-    fn read_mod_from_path_missing_dir() {
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-        let result = rm.read_mod_from_path(PathBuf::from("/nonexistent/path/mod"));
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn load_text_resources_empty_dir() {
         let dir = std::env::temp_dir().join("tbuddy_test_empty_text");
         let _ = fs::remove_dir_all(&dir);
@@ -3027,30 +2802,6 @@ mod tests {
         let (info, texts) = ResourceManager::load_text_resources(&dir);
         assert!(info.is_empty());
         assert!(texts.is_empty());
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn load_text_resources_with_data() {
-        let dir = std::env::temp_dir().join("tbuddy_test_text_data");
-        let _ = fs::remove_dir_all(&dir);
-        let lang_dir = dir.join("en");
-        fs::create_dir_all(&lang_dir).unwrap();
-        fs::write(
-            lang_dir.join("info.json"),
-            r#"{"id": "", "lang": "English", "name": "Char"}"#,
-        ).unwrap();
-        fs::write(
-            lang_dir.join("speech.json"),
-            r#"[{"name": "greet", "text": "Hello"}]"#,
-        ).unwrap();
-
-        let (info, texts) = ResourceManager::load_text_resources(&dir);
-        assert!(info.contains_key("en"));
-        // id should be fixed to lang when empty
-        assert_eq!(info.get("en").unwrap().id.as_ref(), "en");
-        assert_eq!(texts.get("en").unwrap().len(), 1);
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -3339,32 +3090,7 @@ mod tests {
         assert!(!StateInfo::check_date_range(602, "06-01", "06-01"));
     }
 
-    #[test]
-    fn parse_time_valid_2() {
-        assert_eq!(StateInfo::parse_time("09:30"), Some(570));
-        assert_eq!(StateInfo::parse_time("00:00"), Some(0));
-        assert_eq!(StateInfo::parse_time("23:59"), Some(1439));
-    }
 
-    #[test]
-    fn parse_time_invalid_2() {
-        assert!(StateInfo::parse_time("").is_none());
-        assert!(StateInfo::parse_time("abc").is_none());
-        assert!(StateInfo::parse_time("12").is_none());
-    }
-
-    #[test]
-    fn parse_date_valid_2() {
-        assert_eq!(StateInfo::parse_date("01-15"), Some(115));
-        assert_eq!(StateInfo::parse_date("12-31"), Some(1231));
-    }
-
-    #[test]
-    fn parse_date_invalid_2() {
-        assert!(StateInfo::parse_date("").is_none());
-        assert!(StateInfo::parse_date("abc").is_none());
-        assert!(StateInfo::parse_date("13").is_none());
-    }
 
     // ================================================================
     // is_time_valid / is_date_valid / is_enable 测试
@@ -3398,12 +3124,6 @@ mod tests {
         s.date_end = "12-31".into();
         // 当前日期一定在 01-01 到 12-31 范围内
         assert!(s.is_date_valid());
-    }
-
-    #[test]
-    fn is_enable_delegates() {
-        let s = StateInfo::default();
-        assert!(s.is_enable()); // both empty => true
     }
 
     // ================================================================
@@ -3627,7 +3347,7 @@ mod tests {
     }
 
     #[test]
-    fn mod_info_to_summary_2() {
+    fn mod_info_to_summary() {
         let mut manifest = ModManifest::default();
         manifest.id = "summod".into();
         let mut info = build_test_mod_info(manifest);

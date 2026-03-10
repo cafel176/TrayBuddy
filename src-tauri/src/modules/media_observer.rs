@@ -1860,14 +1860,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    // ========================================================================= //
-    // get_cached_media_state
-    // ========================================================================= //
-
-    #[test]
-    fn get_cached_media_state_returns_option() {
-        let _ = get_cached_media_state();
-    }
+    // (get_cached_media_state_returns_option removed: zero-assertion test)
 
     // ========================================================================= //
     // MediaObserverState: additional edge cases

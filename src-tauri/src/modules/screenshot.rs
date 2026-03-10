@@ -269,59 +269,36 @@ pub fn capture_screen_region(
 mod tests {
     use super::*;
 
+    /// Smoke test: capture_screen_region with various inputs must not panic.
+    /// Actual results are platform-dependent (Windows GDI vs stub), so only
+    /// panics and crashes are treated as failures.
     #[test]
-    fn capture_zero_size_returns_error_or_ok() {
-        // 零尺寸截图：Windows 上 GDI 会返回错误，其他平台返回占位错误
+    fn capture_screen_region_smoke() {
         let dir = std::env::temp_dir();
-        let path = dir.join("test_screenshot_zero.png");
-        let result = capture_screen_region(0, 0, 0, 0, &path);
-        // 不做断言——零尺寸在不同平台行为不同，只确保不 panic
-        let _ = result;
-        // 清理
-        let _ = std::fs::remove_file(&path);
+
+        // zero size
+        let p0 = dir.join("test_screenshot_zero.png");
+        let _ = capture_screen_region(0, 0, 0, 0, &p0);
+        let _ = std::fs::remove_file(&p0);
+
+        // normal 1×1
+        let p1 = dir.join("test_screenshot_1x1.png");
+        let _ = capture_screen_region(0, 0, 1, 1, &p1);
+        let _ = std::fs::remove_file(&p1);
+
+        // invalid save path
+        let _ = capture_screen_region(0, 0, 10, 10, Path::new("/nonexistent_dir_12345/screenshot.png"));
+
+        // large out-of-bounds coordinates
+        let p2 = dir.join("test_screenshot_large_coords.png");
+        let _ = capture_screen_region(99999, 99999, 10, 10, &p2);
+        let _ = std::fs::remove_file(&p2);
     }
 
+    /// Smoke test: capture_screen_region_as_png_bytes with various inputs must not panic.
     #[test]
-    fn capture_normal_size_does_not_panic() {
-        // 截取一个小区域：仅确保不 panic
-        let dir = std::env::temp_dir();
-        let path = dir.join("test_screenshot_1x1.png");
-        let result = capture_screen_region(0, 0, 1, 1, &path);
-        let _ = result;
-        let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn capture_png_bytes_zero_size() {
-        let result = capture_screen_region_as_png_bytes(0, 0, 0, 0);
-        let _ = result; // 不做断言，只确保不 panic
-    }
-
-    #[test]
-    fn capture_png_bytes_small_region() {
-        let result = capture_screen_region_as_png_bytes(0, 0, 1, 1);
-        // Windows: 可能成功也可能失败（取决于 CI 环境）
-        // 非 Windows: 返回 Err
-        let _ = result;
-    }
-
-    #[test]
-    fn capture_invalid_path_returns_error() {
-        // 使用一个不存在的目录作为保存路径
-        let path = Path::new("/nonexistent_dir_12345/screenshot.png");
-        let result = capture_screen_region(0, 0, 10, 10, path);
-        // Windows GDI 可能成功截图但保存失败，非 Windows 直接返回占位错误
-        // 仅确保不 panic
-        let _ = result;
-    }
-
-    #[test]
-    fn capture_large_coordinates_does_not_panic() {
-        let dir = std::env::temp_dir();
-        let path = dir.join("test_screenshot_large_coords.png");
-        // 超出屏幕范围的坐标
-        let result = capture_screen_region(99999, 99999, 10, 10, &path);
-        let _ = result;
-        let _ = std::fs::remove_file(&path);
+    fn capture_png_bytes_smoke() {
+        let _ = capture_screen_region_as_png_bytes(0, 0, 0, 0);
+        let _ = capture_screen_region_as_png_bytes(0, 0, 1, 1);
     }
 }

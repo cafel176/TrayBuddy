@@ -1309,54 +1309,52 @@ mod tests {
     }
 
     #[test]
-    fn change_state_blocks_music_start_during_music() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
+    fn change_state_blocks_transition_start_during_active_or_ending() {
+        // Tests that *_start transitions are blocked during matching *_active or *_end states
+        let pairs: &[(&str, &str)] = &[
+            // (persistent/current state, blocked transition)
+            (STATE_MUSIC, STATE_MUSIC_START),
+            (STATE_SILENCE, STATE_SILENCE_START),
+            (STATE_DRAGGING, STATE_DRAG_START),
+        ];
+        for &(active_name, start_name) in pairs {
+            let mut sm = StateManager::new();
+            let rm = ResourceManager::new_with_search_paths(vec![]);
 
-        let mut music = StateInfo::default();
-        music.name = STATE_MUSIC.into();
-        music.persistent = true;
-        sm.set_persistent_state(music, true, &rm).unwrap();
+            let mut active = StateInfo::default();
+            active.name = active_name.into();
+            active.persistent = true;
+            sm.set_persistent_state(active, true, &rm).unwrap();
 
-        let mut ms = StateInfo::default();
-        ms.name = STATE_MUSIC_START.into();
-        ms.persistent = false;
-        let result = sm.change_state(ms, &rm);
-        assert!(!result.unwrap());
-    }
+            let mut start = StateInfo::default();
+            start.name = start_name.into();
+            start.persistent = false;
+            let result = sm.change_state(start, &rm);
+            assert!(!result.unwrap(), "should block {} during {}", start_name, active_name);
+        }
 
-    #[test]
-    fn change_state_blocks_silence_start_during_silence() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
+        // Also test blocking during *_end states
+        let end_pairs: &[(&str, &str)] = &[
+            (STATE_MUSIC_END, STATE_MUSIC_START),
+            (STATE_SILENCE_END, STATE_SILENCE_START),
+            (STATE_DRAG_END, STATE_DRAG_START),
+        ];
+        for &(end_name, start_name) in end_pairs {
+            let mut sm = StateManager::new();
+            let rm = ResourceManager::new_with_search_paths(vec![]);
 
-        let mut silence = StateInfo::default();
-        silence.name = STATE_SILENCE.into();
-        silence.persistent = true;
-        sm.set_persistent_state(silence, true, &rm).unwrap();
+            let mut end_state = StateInfo::default();
+            end_state.name = end_name.into();
+            end_state.persistent = false;
+            sm.set_current_state(end_state, true, &rm).unwrap();
 
-        let mut ss = StateInfo::default();
-        ss.name = STATE_SILENCE_START.into();
-        ss.persistent = false;
-        let result = sm.change_state(ss, &rm);
-        assert!(!result.unwrap());
-    }
-
-    #[test]
-    fn change_state_blocks_drag_start_during_dragging() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-
-        let mut drag = StateInfo::default();
-        drag.name = STATE_DRAGGING.into();
-        drag.persistent = true;
-        sm.set_persistent_state(drag, true, &rm).unwrap();
-
-        let mut ds = StateInfo::default();
-        ds.name = STATE_DRAG_START.into();
-        ds.persistent = false;
-        let result = sm.change_state(ds, &rm);
-        assert!(!result.unwrap());
+            let mut start = StateInfo::default();
+            start.name = start_name.into();
+            start.persistent = false;
+            sm.locked = false; // unlock to test the guard
+            let result = sm.change_state(start, &rm);
+            assert!(!result.unwrap(), "should block {} during {}", start_name, end_name);
+        }
     }
 
     // ================================================================
@@ -1430,12 +1428,7 @@ mod tests {
     // 天气测试（补充）
     // ================================================================
 
-    #[test]
-    fn weather_empty_array_allows_any() {
-        let state = StateInfo::default();
-        assert!(StateManager::is_state_allowed_by_weather_any(&state, None));
-        assert!(StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("100", "晴"))));
-    }
+    // (weather_empty_array_allows_any → covered by weather_matching_supports_code_and_text)
 
     #[test]
     fn weather_whitespace_only_items_ignored() {
@@ -1444,13 +1437,7 @@ mod tests {
         assert!(StateManager::is_state_allowed_by_weather_any(&state, None));
     }
 
-    #[test]
-    fn weather_code_match_returns_true() {
-        let mut state = StateInfo::default();
-        state.trigger_weather = vec!["100".into()];
-        assert!(StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("100", "晴"))));
-        assert!(!StateManager::is_state_allowed_by_weather_any(&state, Some(&weather("101", "多云"))));
-    }
+    // (weather_code_match_returns_true → covered by weather_matching_supports_code_and_text)
 
     #[test]
     fn weather_text_case_insensitive() {
@@ -1483,11 +1470,7 @@ mod tests {
         assert!(!StateManager::is_state_allowed_by_limits_static(&state, 11, 0, None, None));
     }
 
-    #[test]
-    fn limits_static_all_default_passes() {
-        let state = StateInfo::default();
-        assert!(StateManager::is_state_allowed_by_limits_static(&state, 0, 0, None, None));
-    }
+    // (limits_static_all_default_passes → covered by state_limits_context_is_allowed_no_restrictions)
 
     #[test]
     fn limits_static_fails_on_any_check() {
@@ -1669,63 +1652,7 @@ mod tests {
         assert!(json.contains("play_once"));
     }
 
-    // ================================================================
-    // change_state music/silence/drag 状态机补充测试
-    // ================================================================
-
-    #[test]
-    fn change_state_blocks_music_start_during_music_end() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-
-        let mut me = StateInfo::default();
-        me.name = STATE_MUSIC_END.into();
-        me.persistent = false;
-        sm.set_current_state(me, true, &rm).unwrap();
-
-        let mut ms = StateInfo::default();
-        ms.name = STATE_MUSIC_START.into();
-        ms.persistent = false;
-        sm.locked = false; // unlock to test the music guard
-        let result = sm.change_state(ms, &rm);
-        assert!(!result.unwrap());
-    }
-
-    #[test]
-    fn change_state_blocks_silence_start_during_silence_end() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-
-        let mut se = StateInfo::default();
-        se.name = STATE_SILENCE_END.into();
-        se.persistent = false;
-        sm.set_current_state(se, true, &rm).unwrap();
-
-        let mut ss = StateInfo::default();
-        ss.name = STATE_SILENCE_START.into();
-        ss.persistent = false;
-        sm.locked = false;
-        let result = sm.change_state(ss, &rm);
-        assert!(!result.unwrap());
-    }
-
-    #[test]
-    fn change_state_blocks_drag_start_during_drag_end() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-
-        let mut de = StateInfo::default();
-        de.name = STATE_DRAG_END.into();
-        de.persistent = false;
-        sm.set_current_state(de, true, &rm).unwrap();
-
-        let mut ds = StateInfo::default();
-        ds.name = STATE_DRAG_START.into();
-        ds.persistent = false;
-        sm.locked = false;
-        let result = sm.change_state(ds, &rm);
-        assert!(!result.unwrap());
-    }
+    // (blocks_*_start_during_*_end tests merged into change_state_blocks_transition_start_during_active_or_ending above)
 
     // ================================================================
     // change_state_internal 成功切换后 timer_enabled 更新
@@ -1758,57 +1685,28 @@ mod tests {
     // ================================================================
 
     #[test]
-    fn change_state_allows_non_music_start_during_music() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
+    fn change_state_allows_non_matching_start_during_special_states() {
+        // Non-matching transitions should pass through the music/silence/drag guards
+        let cases: &[(&str, &str)] = &[
+            (STATE_MUSIC, "click"),
+            (STATE_SILENCE, "click"),
+            (STATE_DRAGGING, "click"),
+        ];
+        for &(persistent_name, target_name) in cases {
+            let mut sm = StateManager::new();
+            let rm = ResourceManager::new_with_search_paths(vec![]);
 
-        // current = music (persistent)
-        let mut music = StateInfo::default();
-        music.name = STATE_MUSIC.into();
-        music.persistent = true;
-        sm.set_persistent_state(music, true, &rm).unwrap();
+            let mut active = StateInfo::default();
+            active.name = persistent_name.into();
+            active.persistent = true;
+            sm.set_persistent_state(active, true, &rm).unwrap();
 
-        // target = click (non-music_start) → should pass through music guard
-        let mut click = StateInfo::default();
-        click.name = "click".into();
-        click.persistent = false;
-        let result = sm.change_state(click, &rm);
-        assert!(result.unwrap());
-        assert_eq!(sm.get_current_state().unwrap().name.as_ref(), "click");
-    }
-
-    #[test]
-    fn change_state_allows_non_silence_start_during_silence() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-
-        let mut silence = StateInfo::default();
-        silence.name = STATE_SILENCE.into();
-        silence.persistent = true;
-        sm.set_persistent_state(silence, true, &rm).unwrap();
-
-        let mut click = StateInfo::default();
-        click.name = "click".into();
-        click.persistent = false;
-        let result = sm.change_state(click, &rm);
-        assert!(result.unwrap());
-    }
-
-    #[test]
-    fn change_state_allows_non_drag_start_during_dragging() {
-        let mut sm = StateManager::new();
-        let rm = ResourceManager::new_with_search_paths(vec![]);
-
-        let mut drag = StateInfo::default();
-        drag.name = STATE_DRAGGING.into();
-        drag.persistent = true;
-        sm.set_persistent_state(drag, true, &rm).unwrap();
-
-        let mut click = StateInfo::default();
-        click.name = "click".into();
-        click.persistent = false;
-        let result = sm.change_state(click, &rm);
-        assert!(result.unwrap());
+            let mut target = StateInfo::default();
+            target.name = target_name.into();
+            target.persistent = false;
+            let result = sm.change_state(target, &rm);
+            assert!(result.unwrap(), "should allow {} during {}", target_name, persistent_name);
+        }
     }
 
     // ================================================================

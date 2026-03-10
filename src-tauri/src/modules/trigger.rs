@@ -255,21 +255,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn triggered_state_history_keeps_recent_items() {
-        reset_history();
-
-        let event = "click";
-        let persistent = "idle";
-
-        add_triggered_state_to_history(event, persistent, "a");
-        add_triggered_state_to_history(event, persistent, "b");
-        add_triggered_state_to_history(event, persistent, "c");
-        add_triggered_state_to_history(event, persistent, "d");
-
-        let history = get_triggered_state_history(event, persistent);
-        assert_eq!(history, vec!["b", "c", "d"]);
-    }
+    // (triggered_state_history_keeps_recent_items → covered by history_overflow_evicts_oldest)
 
     #[test]
     fn history_max_size_is_3() {

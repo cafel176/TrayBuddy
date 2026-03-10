@@ -10,11 +10,10 @@ fn mods_test_dir() -> PathBuf {
 }
 
 #[test]
+#[ignore = "requires mods_test directory with real mod data"]
 fn resource_manager_can_list_and_load_mod() {
     let mods_dir = mods_test_dir();
-    if !mods_dir.exists() {
-        return;
-    }
+    assert!(mods_dir.exists(), "mods_test directory not found");
 
     let mut rm = ResourceManager::new_with_search_paths(vec![mods_dir]);
     let mods = rm.list_mods();
@@ -31,11 +30,10 @@ fn resource_manager_can_list_and_load_mod() {
 }
 
 #[test]
+#[ignore = "requires mods_test directory with real mod data"]
 fn state_manager_can_switch_state_from_loaded_mod() {
     let mods_dir = mods_test_dir();
-    if !mods_dir.exists() {
-        return;
-    }
+    assert!(mods_dir.exists(), "mods_test directory not found");
 
     let mut rm = ResourceManager::new_with_search_paths(vec![mods_dir]);
     let mods = rm.list_mods();
