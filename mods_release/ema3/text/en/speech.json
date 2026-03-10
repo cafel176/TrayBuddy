@@ -213,5 +213,75 @@
     "name": "snow",
     "text": "It's snowing outside...\nThe roads might be slippery, so be careful not to fall, okay?",
     "duration": 3
+  },
+  {
+    "name": "kill1",
+    "text": "Ah... that's amazing...! Great job!",
+    "duration": 3
+  },
+  {
+    "name": "kill2",
+    "text": "Wow... that hit just now was incredible!",
+    "duration": 3
+  },
+  {
+    "name": "kill3",
+    "text": "Ehehe... that was just right. It's perfect.",
+    "duration": 3
+  },
+  {
+    "name": "kill4",
+    "text": "Huh, it hit...! Right on target!",
+    "duration": 3
+  },
+  {
+    "name": "kill5",
+    "text": "Uh, c-confirming...! That last one should've finished it...!",
+    "duration": 3
+  },
+  {
+    "name": "defend1",
+    "text": "Y-Yeah, you really blocked that one just now. That's great...!",
+    "duration": 3
+  },
+  {
+    "name": "defend2",
+    "text": "W-Wow... you scared me...! My heart almost jumped out...!",
+    "duration": 3
+  },
+  {
+    "name": "hurt1",
+    "text": "Th-That was dangerous...! But it's okay. Let's be careful... okay?",
+    "duration": 3
+  },
+  {
+    "name": "hurt2",
+    "text": "I-It hurts... sorry, I might be a little sore...",
+    "duration": 3
+  },
+  {
+    "name": "low_power",
+    "text": "We're running low on power...!\nSorry, I might not have noticed.",
+    "duration": 3
+  },
+  {
+    "name": "low_money",
+    "text": "We don't have enough funds.\nI'm a bit panicked... what should we do?",
+    "duration": 3
+  },
+  {
+    "name": "hungry",
+    "text": "Um... our hunger is too low!\nWe should eat something first, or it could get dangerous.",
+    "duration": 3
+  },
+  {
+    "name": "low_san",
+    "text": "Ah... your sanity is really low, isn't it?\nDon't force yourself—could you rest a little?",
+    "duration": 3
+  },
+  {
+    "name": "low_hp",
+    "text": "Huh, your HP is too low!\nThat's not okay—heal up quickly...!",
+    "duration": 3
   }
 ]

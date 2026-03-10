@@ -3208,6 +3208,37 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
         <textarea class="ait-prompts" data-pidx="${pIdx}" data-tidx="${tIdx}" rows="3" style="font-size:13px;">${escapeHtml(promptsStr)}</textarea>
       </div>
       <div class="form-group" style="grid-column:span 2;">
+        <label>${window.i18n?.t('aitools_field_result_processors') || '结果处理器'} <small style="color:#64748b;">(${window.i18n?.t('aitools_field_result_processors_hint') || 'AI 返回结果的二次处理规则'})</small></label>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:end;">
+          <div style="flex:1;min-width:100px;">
+            <small style="color:#64748b;">${window.i18n?.t('aitools_rp_type') || '类型'}</small>
+            <select id="ait-rp-type-input-${pIdx}-${tIdx}" style="width:100%;">
+              <option value="number">number</option>
+              <option value="keyword">keyword</option>
+              <option value="regex">regex</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:80px;">
+            <small style="color:#64748b;">${window.i18n?.t('aitools_rp_result') || '输出结果'}</small>
+            <input type="text" id="ait-rp-result-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_rp_result_hint') || '匹配后输出'}" style="width:100%;">
+          </div>
+          <div style="flex:0.7;min-width:60px;">
+            <small style="color:#64748b;">min</small>
+            <input type="number" id="ait-rp-min-input-${pIdx}-${tIdx}" placeholder="min" style="width:100%;">
+          </div>
+          <div style="flex:0.7;min-width:60px;">
+            <small style="color:#64748b;">max</small>
+            <input type="number" id="ait-rp-max-input-${pIdx}-${tIdx}" placeholder="max" style="width:100%;">
+          </div>
+          <div style="flex:1;min-width:80px;">
+            <small style="color:#64748b;">pattern</small>
+            <input type="text" id="ait-rp-pattern-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_rp_pattern_hint') || '关键词/正则'}" style="width:100%;">
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="addAiToolResultProcessor(${pIdx},${tIdx})" style="flex-shrink:0;">➕</button>
+        </div>
+        ${renderAiToolResultProcessorsList(tool.result_processors, pIdx, tIdx)}
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
         <label>${window.i18n?.t('aitools_field_triggers') || '触发器映射'}</label>
         <div style="display:flex;gap:4px;">
           <input type="text" id="ait-trigger-keyword-input-${pIdx}-${tIdx}" placeholder="${window.i18n?.t('aitools_trigger_keyword_hint') || '关键词'}" style="flex:1;">
@@ -3255,6 +3286,89 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
 }
 
 /* ---- 触发器映射列表操作 ---- */
+
+/**
+ * 渲染结果处理器可视化列表
+ */
+function renderAiToolResultProcessorsList(processors, pIdx, tIdx) {
+  const id = `ait-rp-list-${pIdx}-${tIdx}`;
+  let html = `<div id="${id}" class="tag-list" style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">`;
+  (processors || []).forEach((rp, i) => {
+    const typeLabel = escapeHtml(rp.type || '');
+    const resultLabel = escapeHtml(rp.result || '');
+    let detailParts = [];
+    if (rp.type === 'number') {
+      if (rp.min != null) detailParts.push(`min:${rp.min}`);
+      if (rp.max != null) detailParts.push(`max:${rp.max}`);
+    } else {
+      if (rp.pattern) detailParts.push(`pattern:${escapeHtml(rp.pattern)}`);
+    }
+    const detailStr = detailParts.length > 0 ? ` (${detailParts.join(', ')})` : '';
+    html += `<span class="tag-item" style="display:inline-flex;align-items:center;gap:6px;padding:3px 8px;background:#1e3a5f;border-radius:4px;font-size:12px;color:#93c5fd;">
+      <span style="color:#fbbf24;font-weight:600;">[${typeLabel}]</span>
+      <span>${detailStr}</span>
+      <span>→</span>
+      <span style="color:#34d399;font-weight:600;">${resultLabel}</span>
+      <button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;line-height:1;margin-left:auto;" onclick="removeAiToolResultProcessor(${pIdx},${tIdx},${i})">×</button>
+    </span>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+function addAiToolResultProcessor(pIdx, tIdx) {
+  const typeInput = document.getElementById(`ait-rp-type-input-${pIdx}-${tIdx}`);
+  const resultInput = document.getElementById(`ait-rp-result-input-${pIdx}-${tIdx}`);
+  const minInput = document.getElementById(`ait-rp-min-input-${pIdx}-${tIdx}`);
+  const maxInput = document.getElementById(`ait-rp-max-input-${pIdx}-${tIdx}`);
+  const patternInput = document.getElementById(`ait-rp-pattern-input-${pIdx}-${tIdx}`);
+  if (!typeInput || !resultInput) return;
+
+  const type = typeInput.value;
+  const result = resultInput.value.trim();
+  if (!result) return;
+
+  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+  if (!proc?.tool_data?.[tIdx]) return;
+  if (!Array.isArray(proc.tool_data[tIdx].result_processors)) proc.tool_data[tIdx].result_processors = [];
+
+  const rp = { type, result };
+  if (type === 'number') {
+    const minVal = minInput?.value?.trim();
+    const maxVal = maxInput?.value?.trim();
+    if (minVal !== '' && minVal != null) rp.min = parseFloat(minVal);
+    if (maxVal !== '' && maxVal != null) rp.max = parseFloat(maxVal);
+  } else {
+    const pattern = patternInput?.value?.trim();
+    if (pattern) rp.pattern = pattern;
+  }
+
+  proc.tool_data[tIdx].result_processors.push(rp);
+
+  // 清空输入
+  resultInput.value = '';
+  if (minInput) minInput.value = '';
+  if (maxInput) maxInput.value = '';
+  if (patternInput) patternInput.value = '';
+
+  const listContainer = document.getElementById(`ait-rp-list-${pIdx}-${tIdx}`);
+  if (listContainer) {
+    listContainer.outerHTML = renderAiToolResultProcessorsList(proc.tool_data[tIdx].result_processors, pIdx, tIdx);
+  }
+  markUnsaved();
+}
+
+function removeAiToolResultProcessor(pIdx, tIdx, rpIdx) {
+  const proc = currentMod?.aiTools?.ai_tools?.[pIdx];
+  if (!proc?.tool_data?.[tIdx]?.result_processors) return;
+  proc.tool_data[tIdx].result_processors.splice(rpIdx, 1);
+
+  const listContainer = document.getElementById(`ait-rp-list-${pIdx}-${tIdx}`);
+  if (listContainer) {
+    listContainer.outerHTML = renderAiToolResultProcessorsList(proc.tool_data[tIdx].result_processors, pIdx, tIdx);
+  }
+  markUnsaved();
+}
 
 function addAiToolTrigger(pIdx, tIdx) {
   const keywordInput = document.getElementById(`ait-trigger-keyword-input-${pIdx}-${tIdx}`);
@@ -3393,6 +3507,7 @@ function addAiToolData(pIdx) {
     type: 'manual',
     capture_rect: { x: 0, y: 0, width: 1920, height: 1080 },
     prompts: [],
+    result_processors: [],
     triggers: [],
     show_info_window: false
   });

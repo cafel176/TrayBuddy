@@ -330,9 +330,25 @@
         <tr><td data-i18n="aitools_intro_field_auto_start">auto_start</td><td data-i18n="aitools_intro_auto_start_desc">是否在检测到目标进程时自动启动</td></tr>
         <tr><td data-i18n="aitools_intro_field_capture_rect">capture_rect</td><td data-i18n="aitools_intro_capture_rect_desc">截取区域 (x, y, width, height)</td></tr>
         <tr><td data-i18n="aitools_intro_field_prompts">prompts</td><td data-i18n="aitools_intro_prompts_desc">发送给 AI 的提示词列表</td></tr>
+        <tr><td data-i18n="aitools_intro_field_result_processors">result_processors</td><td data-i18n="aitools_intro_result_processors_desc">AI 返回结果的二次处理规则列表（可选）</td></tr>
         <tr><td data-i18n="aitools_intro_field_triggers">triggers</td><td data-i18n="aitools_intro_triggers_desc">关键词→触发器映射列表（keyword + trigger name）</td></tr>
         <tr><td data-i18n="aitools_intro_field_show_info_window">show_info_window</td><td data-i18n="aitools_intro_show_info_window_desc">是否显示信息窗口（默认 false）</td></tr>
       </table>
+
+      <h3 data-i18n="aitools_intro_rp_title">结果处理器 (result_processors)</h3>
+      <p data-i18n="aitools_intro_rp_desc">结果处理器对 AI 返回的原始文本进行二次处理。按顺序依次匹配，第一个命中的处理器的 result 替代原始文本传给 triggers。</p>
+      <table>
+        <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
+        <tr><td data-i18n="aitools_intro_rp_field_type">type</td><td data-i18n="aitools_intro_rp_type_desc">处理类型：number（数值范围匹配）、keyword（关键词包含匹配）、regex（正则匹配）</td></tr>
+        <tr><td data-i18n="aitools_intro_rp_field_result">result</td><td data-i18n="aitools_intro_rp_result_desc">匹配成功后输出的结果字符串（传给 triggers 做关键词匹配）</td></tr>
+        <tr><td data-i18n="aitools_intro_rp_field_min_max">min / max</td><td data-i18n="aitools_intro_rp_min_max_desc">数值型的阈值范围（含），仅 type = "number" 时有效</td></tr>
+        <tr><td data-i18n="aitools_intro_rp_field_pattern">pattern</td><td data-i18n="aitools_intro_rp_pattern_desc">关键词或正则表达式，仅 type = "keyword" / "regex" 时有效</td></tr>
+      </table>
+
+      <div class="callout callout-info">
+        <div class="callout-title" data-i18n="aitools_intro_rp_example_title">💡 示例</div>
+        <p data-i18n="aitools_intro_rp_example_desc">例如：type="number", result="hungry", min=0, max=35 — AI 返回 "32" 时，提取数值 32，在 [0,35] 范围内，输出 "hungry" 传给 triggers。</p>
+      </div>
     </section>
 
     <!-- 动画管理 -->

@@ -11,7 +11,8 @@
     "pose_json": "mao_pro.pose3.json",
     "eye_blink": true,
     "lip_sync": true,
-    "scale": 1
+    "scale": 1,
+    "breath_json": ""
   },
   "motions": [
     {

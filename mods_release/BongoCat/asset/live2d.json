@@ -11,7 +11,8 @@
     "pose_json": "",
     "eye_blink": true,
     "lip_sync": true,
-    "scale": 1.3
+    "scale": 1.3,
+    "breath_json": ""
   },
   "motions": [
     {

@@ -213,5 +213,75 @@
     "name": "snow",
     "text": "外面下雪了呢……\n路面可能很滑要小心哦，别摔倒了好吗？",
     "duration": 3
+  },
+  {
+    "name": "kill1",
+    "text": "啊、好厉害……！干得漂亮！",
+    "duration": 3
+  },
+  {
+    "name": "kill2",
+    "text": "哇……刚才那一击太棒了！",
+    "duration": 3
+  },
+  {
+    "name": "kill3",
+    "text": "欸嘿嘿……打得刚刚好。真是完美呢。",
+    "duration": 3
+  },
+  {
+    "name": "kill4",
+    "text": "咦、命中了……！正中靶心！",
+    "duration": 3
+  },
+  {
+    "name": "kill5",
+    "text": "咦、确、确认……！应该刚刚那下就击杀了吧……！",
+    "duration": 3
+  },
+  {
+    "name": "defend1",
+    "text": "嗯、刚才那个，确实格挡住了呢。太好了……！",
+    "duration": 3
+  },
+  {
+    "name": "defend2",
+    "text": "哇……吓、吓我一跳……！我心脏都跳起来了……！",
+    "duration": 3
+  },
+  {
+    "name": "hurt1",
+    "text": "好、好危险……！但没事的，我们小心点……好吗。",
+    "duration": 3
+  },
+  {
+    "name": "hurt2",
+    "text": "好、好痛……对不起，我可能有点疼……。",
+    "duration": 3
+  },
+  {
+    "name": "low_power",
+    "text": "电力不太够了……！\n对不起，我可能没注意到。",
+    "duration": 3
+  },
+  {
+    "name": "low_money",
+    "text": "资金不够了。\n我有点慌……怎么办呢。",
+    "duration": 3
+  },
+  {
+    "name": "hungry",
+    "text": "嗯……饥饿值太低了！\n得先吃点东西，不然可能会很危险。",
+    "duration": 3
+  },
+  {
+    "name": "low_san",
+    "text": "啊……精神值已经很低了吧。\n别硬撑，稍微休息一下好吗？",
+    "duration": 3
+  },
+  {
+    "name": "low_hp",
+    "text": "咦，生命值（HP）太低了！\n这可不算没事吧，快回复一下…！",
+    "duration": 3
   }
 ]

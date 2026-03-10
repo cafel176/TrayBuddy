@@ -1,0 +1,194 @@
+{
+  "ai_tools": [
+    {
+      "window_name": "slay the spire",
+      "tool_data": [
+        {
+          "name": "check_damage",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 1219,
+            "y": 1068,
+            "width": 1301,
+            "height": 181
+          },
+          "prompts": [
+            "分析这张游戏截图中的血条状态，判断血条上是否有橙色区域。是返回damage，否返回none"
+          ],
+          "result_processors": [],
+          "triggers": [
+            {
+              "keyword": "damage",
+              "trigger": "kill"
+            }
+          ],
+          "show_info_window": false
+        },
+        {
+          "name": "check_hurt",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 438,
+            "y": 757,
+            "width": 408,
+            "height": 447
+          },
+          "prompts": [
+            "分析这张游戏截图中的血条状态，判断血条上是否有橙色区域。是返回hurt，否返回none"
+          ],
+          "result_processors": [],
+          "triggers": [
+            {
+              "keyword": "hurt",
+              "trigger": "hurt"
+            }
+          ],
+          "show_info_window": false
+        },
+        {
+          "name": "check_defend",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 438,
+            "y": 757,
+            "width": 408,
+            "height": 447
+          },
+          "prompts": [
+            "分析这张游戏截图中的文字，判断是否有汉字“格挡”。是返回defend，否返回none"
+          ],
+          "result_processors": [],
+          "triggers": [
+            {
+              "keyword": "defend",
+              "trigger": "defend"
+            }
+          ],
+          "show_info_window": false
+        }
+      ]
+    },
+    {
+      "window_name": "Duckov",
+      "tool_data": [
+        {
+          "name": "check_damage",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 1107,
+            "y": 956,
+            "width": 320,
+            "height": 190
+          },
+          "prompts": [
+            "分析这张游戏截图，判断是否有有数字。是返回damage，否返回none"
+          ],
+          "result_processors": [],
+          "triggers": [
+            {
+              "keyword": "damage",
+              "trigger": "kill"
+            }
+          ],
+          "show_info_window": false
+        }
+      ]
+    },
+    {
+      "window_name": "Don't Starve Together",
+      "tool_data": [
+        {
+          "name": "hungry",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 2178,
+            "y": 332,
+            "width": 113,
+            "height": 63
+          },
+          "prompts": [
+            "识别出图中数字并返回"
+          ],
+          "result_processors": [
+            {
+              "type": "number",
+              "result": "hungry",
+              "min": 0,
+              "max": 35
+            }
+          ],
+          "triggers": [
+            {
+              "keyword": "hungry",
+              "trigger": "hungry"
+            }
+          ],
+          "show_info_window": false
+        },
+        {
+          "name": "low_san",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 2320,
+            "y": 335,
+            "width": 83,
+            "height": 51
+          },
+          "prompts": [
+            "识别出图中数字并返回"
+          ],
+          "result_processors": [
+            {
+              "type": "number",
+              "result": "low",
+              "min": 0,
+              "max": 35
+            }
+          ],
+          "triggers": [
+            {
+              "keyword": "low",
+              "trigger": "low_san"
+            }
+          ],
+          "show_info_window": false
+        },
+        {
+          "name": "low_hp",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 2438,
+            "y": 332,
+            "width": 92,
+            "height": 57
+          },
+          "prompts": [
+            "识别出图中数字并返回"
+          ],
+          "result_processors": [
+            {
+              "type": "number",
+              "result": "low",
+              "min": 0,
+              "max": 35
+            }
+          ],
+          "triggers": [
+            {
+              "keyword": "low",
+              "trigger": "low_hp"
+            }
+          ],
+          "show_info_window": false
+        }
+      ]
+    }
+  ]
+}
