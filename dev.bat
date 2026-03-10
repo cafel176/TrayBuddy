@@ -111,6 +111,119 @@ if errorlevel 1 goto :_tb_sbuddy_failed
 
 :_tb_after_sbuddy
 
+:: ================================================================
+:: Node.js / pnpm 环境检查与自动安装
+:: ================================================================
+
+:: 检查 Node.js 是否可用
+where node >nul 2>&1
+if errorlevel 1 goto :_tb_install_node
+node --version >nul 2>&1
+if errorlevel 1 goto :_tb_install_node
+goto :_tb_node_ready
+
+:_tb_install_node
+echo.
+echo [INFO] Node.js not found. Installing Node.js automatically...
+echo.
+
+:: 使用 winget 安装 Node.js LTS（Windows 10+ 自带 winget）
+where winget >nul 2>&1
+if errorlevel 1 goto :_tb_node_no_winget
+
+echo Installing Node.js via winget...
+winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
+if errorlevel 1 goto :_tb_node_install_failed
+
+:: 刷新当前会话的 PATH（winget 安装后 PATH 不会自动在当前 cmd 生效）
+call :_tb_refresh_path
+goto :_tb_verify_node
+
+:_tb_node_no_winget
+:: winget 不可用，用 PowerShell 下载 Node.js MSI 安装
+echo winget not available, downloading Node.js installer via PowerShell...
+set "TB_NODE_INSTALLER=%TEMP%\node-lts-install.msi"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ProgressPreference='SilentlyContinue'; " ^
+  "try { " ^
+  "  $url='https://nodejs.org/dist/v22.14.0/node-v22.14.0-x64.msi'; " ^
+  "  Write-Host 'Downloading Node.js v22.14.0 LTS...'; " ^
+  "  Invoke-WebRequest -Uri $url -OutFile '%TB_NODE_INSTALLER%' -UseBasicParsing; " ^
+  "  Write-Host 'Download complete. Installing...' " ^
+  "} catch { " ^
+  "  Write-Host '[ERROR] Download failed:' $_.Exception.Message; " ^
+  "  exit 1 " ^
+  "}"
+if errorlevel 1 goto :_tb_node_install_failed
+
+:: 静默安装 Node.js MSI
+echo Running Node.js installer (silent)...
+msiexec /i "%TB_NODE_INSTALLER%" /qn /norestart
+if errorlevel 1 (
+    echo [WARN] Silent install returned error, trying passive mode...
+    msiexec /i "%TB_NODE_INSTALLER%" /passive /norestart
+    if errorlevel 1 goto :_tb_node_install_failed
+)
+del /q "%TB_NODE_INSTALLER%" >nul 2>&1
+
+:: 刷新 PATH
+call :_tb_refresh_path
+
+:_tb_verify_node
+:: 验证安装成功
+where node >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Node.js installation succeeded but 'node' is still not in PATH.
+    echo Please restart your terminal or computer, then re-run dev.bat.
+    pause
+    exit /b 1
+)
+echo.
+for /f "tokens=*" %%v in ('node --version') do echo [OK] Node.js %%v installed successfully.
+echo.
+goto :_tb_node_ready
+
+:_tb_node_install_failed
+echo.
+echo [ERROR] Failed to install Node.js automatically.
+echo Please install Node.js manually from: https://nodejs.org/
+echo Then re-run dev.bat.
+pause
+exit /b 1
+
+:_tb_node_ready
+
+:: 检查 pnpm 是否可用，没有则通过 corepack 或 npm 安装
+where pnpm >nul 2>&1
+if not errorlevel 1 goto :_tb_pnpm_ready
+
+echo.
+echo [INFO] pnpm not found. Installing pnpm...
+:: 优先尝试 corepack（Node.js 16.9+ 自带）
+where corepack >nul 2>&1
+if errorlevel 1 goto :_tb_pnpm_via_npm
+
+echo Enabling pnpm via corepack...
+call corepack enable
+call corepack prepare pnpm@latest --activate >nul 2>&1
+where pnpm >nul 2>&1
+if not errorlevel 1 goto :_tb_pnpm_ready
+
+:_tb_pnpm_via_npm
+echo Installing pnpm via npm...
+call npm install -g pnpm
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Failed to install pnpm!
+    echo Please run: npm install -g pnpm
+    pause
+    exit /b 1
+)
+
+:_tb_pnpm_ready
+for /f "tokens=*" %%v in ('pnpm --version') do echo [OK] pnpm v%%v
+
 :: 确保 node_modules 存在（安装前端依赖，包括 @tauri-apps/cli）
 if not exist "%~dp0node_modules\" (
     echo node_modules not found, running pnpm install...
@@ -177,6 +290,21 @@ if !TB_SBUDDY_COUNT! LEQ 0 (
 )
 
 endlocal
+exit /b 0
+
+:: ================================================================
+:: 子过程：刷新当前 CMD 会话的 PATH 环境变量
+:: 安装 Node.js 后，新的 PATH 不会自动在当前会话生效
+:: ================================================================
+:_tb_refresh_path
+echo Refreshing PATH...
+for /f "tokens=2*" %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul') do set "TB_SYS_PATH=%%B"
+for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "TB_USR_PATH=%%B"
+if defined TB_SYS_PATH if defined TB_USR_PATH (
+    set "PATH=%TB_SYS_PATH%;%TB_USR_PATH%"
+) else if defined TB_SYS_PATH (
+    set "PATH=%TB_SYS_PATH%"
+)
 exit /b 0
 
 :_tb_pack_failed
