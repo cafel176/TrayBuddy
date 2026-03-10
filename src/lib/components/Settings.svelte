@@ -314,6 +314,16 @@
     await saveSettings();
   }
 
+  /** 窗口 AI 配置卡片的折叠状态（key=索引, value=是否折叠） */
+  let collapsedWac = $state<Record<number, boolean>>({});
+
+  /**
+   * 切换指定窗口 AI 配置卡片的折叠状态
+   */
+  function toggleWacCollapse(idx: number) {
+    collapsedWac[idx] = !collapsedWac[idx];
+  }
+
   /**
    * 添加一个新的窗口 AI 配置条目
    */
@@ -341,6 +351,14 @@
     settings.ai_window_configs = settings.ai_window_configs.filter(
       (_, i) => i !== index,
     );
+    // 重建折叠状态（索引向前移位）
+    const newCollapsed: Record<number, boolean> = {};
+    for (const [k, v] of Object.entries(collapsedWac)) {
+      const ki = Number(k);
+      if (ki < index) newCollapsed[ki] = v;
+      else if (ki > index) newCollapsed[ki - 1] = v;
+    }
+    collapsedWac = newCollapsed;
     await saveSettings();
   }
 
@@ -789,57 +807,67 @@
 
     {#if settings.ai_window_configs && settings.ai_window_configs.length > 0}
       {#each settings.ai_window_configs as wc, idx}
-        <div class="window-ai-config-card">
-          <div class="window-ai-config-header">
-            <span class="window-ai-config-index">#{idx + 1}</span>
+        <div class="window-ai-config-card" class:collapsed={collapsedWac[idx]}>
+          <div class="window-ai-config-header" onclick={() => toggleWacCollapse(idx)} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleWacCollapse(idx); }}>
+            <div class="window-ai-config-title">
+              <span class="collapse-arrow">{collapsedWac[idx] ? '▶' : '▼'}</span>
+              <span class="window-ai-config-index">#{idx + 1}</span>
+              {#if collapsedWac[idx] && wc.window_name}
+                <span class="window-ai-config-summary">{wc.window_name}{wc.ai_chat_model ? ` · ${wc.ai_chat_model}` : ''}</span>
+              {/if}
+            </div>
             <button
               type="button"
               class="remove-btn"
-              onclick={() => removeWindowAiConfig(idx)}
+              onclick={(e) => { e.stopPropagation(); removeWindowAiConfig(idx); }}
             >{_("settings.aiWindowConfigRemove")}</button>
           </div>
-          <div class="form-group compact">
-            <label for="wac_name_{idx}">{_("settings.aiWindowConfigWindowName")}</label>
-            <input
-              id="wac_name_{idx}"
-              type="text"
-              bind:value={wc.window_name}
-              onchange={saveSettings}
-              placeholder={_("settings.aiWindowConfigWindowNamePlaceholder")}
-            />
-          </div>
-          <div class="form-group compact">
-            <label for="wac_url_{idx}">{_("settings.aiWindowConfigBaseUrl")}</label>
-            <input
-              id="wac_url_{idx}"
-              type="text"
-              bind:value={wc.ai_chat_base_url}
-              onchange={saveSettings}
-              placeholder="https://api.siliconflow.cn/v1"
-            />
-          </div>
-          <div class="form-group compact">
-            <label for="wac_model_{idx}">{_("settings.aiWindowConfigModel")}</label>
-            <input
-              id="wac_model_{idx}"
-              type="text"
-              bind:value={wc.ai_chat_model}
-              onchange={saveSettings}
-              placeholder="Qwen/Qwen2.5-VL-7B-Instruct"
-            />
-          </div>
-          <div class="form-group compact">
-            <label for="wac_interval_{idx}">{_("settings.aiWindowConfigInterval")} ({wc.ai_screenshot_interval.toFixed(1)}s)</label>
-            <input
-              id="wac_interval_{idx}"
-              type="range"
-              min="0.1"
-              max="10.0"
-              step="0.1"
-              value={wc.ai_screenshot_interval}
-              oninput={(e) => onWindowAiIntervalChange(idx, e)}
-            />
-          </div>
+          {#if !collapsedWac[idx]}
+            <div class="window-ai-config-body">
+              <div class="form-group compact">
+                <label for="wac_name_{idx}">{_("settings.aiWindowConfigWindowName")}</label>
+                <input
+                  id="wac_name_{idx}"
+                  type="text"
+                  bind:value={wc.window_name}
+                  onchange={saveSettings}
+                  placeholder={_("settings.aiWindowConfigWindowNamePlaceholder")}
+                />
+              </div>
+              <div class="form-group compact">
+                <label for="wac_url_{idx}">{_("settings.aiWindowConfigBaseUrl")}</label>
+                <input
+                  id="wac_url_{idx}"
+                  type="text"
+                  bind:value={wc.ai_chat_base_url}
+                  onchange={saveSettings}
+                  placeholder="https://api.siliconflow.cn/v1"
+                />
+              </div>
+              <div class="form-group compact">
+                <label for="wac_model_{idx}">{_("settings.aiWindowConfigModel")}</label>
+                <input
+                  id="wac_model_{idx}"
+                  type="text"
+                  bind:value={wc.ai_chat_model}
+                  onchange={saveSettings}
+                  placeholder="Qwen/Qwen2.5-VL-7B-Instruct"
+                />
+              </div>
+              <div class="form-group compact">
+                <label for="wac_interval_{idx}">{_("settings.aiWindowConfigInterval")} ({wc.ai_screenshot_interval.toFixed(1)}s)</label>
+                <input
+                  id="wac_interval_{idx}"
+                  type="range"
+                  min="0.1"
+                  max="10.0"
+                  step="0.1"
+                  value={wc.ai_screenshot_interval}
+                  oninput={(e) => onWindowAiIntervalChange(idx, e)}
+                />
+              </div>
+            </div>
+          {/if}
         </div>
       {/each}
     {/if}
@@ -1012,6 +1040,63 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
+    cursor: pointer;
+    user-select: none;
+    padding: 2px 0;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+
+  .window-ai-config-header:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .window-ai-config-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .collapse-arrow {
+    font-size: 0.7em;
+    color: #95a5a6;
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+    transition: transform 0.2s;
+  }
+
+  .window-ai-config-summary {
+    font-size: 0.8em;
+    color: #7f8c8d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .window-ai-config-card.collapsed {
+    padding: 8px 12px;
+  }
+
+  .window-ai-config-card.collapsed .window-ai-config-header {
+    margin-bottom: 0;
+  }
+
+  .window-ai-config-body {
+    animation: wacSlideDown 0.15s ease-out;
+  }
+
+  @keyframes wacSlideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .window-ai-config-index {
@@ -1092,6 +1177,12 @@
     .window-ai-config-card {
       background: #34495e;
       border-color: #455a64;
+    }
+    .window-ai-config-header:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .window-ai-config-summary {
+      color: #95a5a6;
     }
     .hint-text {
       color: #7f8c8d;
