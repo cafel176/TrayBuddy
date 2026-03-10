@@ -5,27 +5,10 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import BranchOptions from "$lib/bubble/BranchOptions.svelte";
 import { bubbleStyle, defaultStyle } from "$lib/bubble/bubbleStyle";
-
-
-async function flush() {
-  await tick();
-  await new Promise((r) => setTimeout(r, 0));
-  await tick();
-}
-
-function resetStyle() {
-  bubbleStyle.set({
-    bubble: { ...defaultStyle.bubble },
-    branch: {
-      ...defaultStyle.branch,
-      decoration_left: { ...defaultStyle.branch.decoration_left },
-      decoration_right: { ...defaultStyle.branch.decoration_right },
-    },
-  });
-}
+import { flushAsync as flush, resetBubbleStyle } from "./test-utils";
 
 afterEach(() => {
-  resetStyle();
+  resetBubbleStyle();
 });
 
 describe("BranchOptions", () => {

@@ -26,6 +26,7 @@ vite.config.ts.timestamp-*
 .vs.*
 
 *.log
+*.txt
 
 text_list/data
 

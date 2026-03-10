@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { TriggerManager } from "$lib/trigger/TriggerManager";
+import { TriggerManager, getTriggerManager, resetTriggerManagerInstance } from "$lib/trigger/TriggerManager";
 
 describe("TriggerManager", () => {
+  beforeEach(() => {
+    resetTriggerManagerInstance();
+  });
+
   it("validates supported events", () => {
     const manager = new TriggerManager();
     expect(manager.isEventSupported("click")).toBe(true);
@@ -55,6 +59,42 @@ describe("TriggerManager", () => {
 
     const result = await manager.trigger("click");
     expect(result).toBe(false);
+
+    invokeMock.mockImplementation(original ?? (async () => null));
+  });
+
+  it("destroy does not throw", () => {
+    const manager = new TriggerManager();
+    expect(() => manager.destroy()).not.toThrow();
+  });
+
+  it("getTriggerManager returns singleton", () => {
+    const a = getTriggerManager();
+    const b = getTriggerManager();
+    expect(a).toBe(b);
+    expect(a).toBeInstanceOf(TriggerManager);
+  });
+
+  it("resetTriggerManagerInstance clears singleton", () => {
+    const a = getTriggerManager();
+    resetTriggerManagerInstance();
+    const b = getTriggerManager();
+    expect(a).not.toBe(b);
+  });
+
+  it("trigger with default force=false", async () => {
+    const manager = new TriggerManager();
+    const invokeMock = vi.mocked(invoke);
+    const original = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "trigger_event") return true;
+      return original ? original(command, args as never) : null;
+    });
+
+    const result = await manager.trigger("login");
+    expect(result).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith("trigger_event", { eventName: "login", force: false });
 
     invokeMock.mockImplementation(original ?? (async () => null));
   });

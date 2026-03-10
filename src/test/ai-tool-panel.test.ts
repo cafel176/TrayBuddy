@@ -11,16 +11,10 @@
  * - i18n header 和 tooltip
  */
 import { fireEvent, render } from "@testing-library/svelte";
-import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AiToolPanel from "../lib/components/AiToolPanel.svelte";
-
-async function flushAsync() {
-  await tick();
-  await new Promise((r) => setTimeout(r, 0));
-  await tick();
-}
+import { flushAsync } from "./test-utils";
 
 const MOCK_TOOLS = [
   {

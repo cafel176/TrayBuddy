@@ -39,6 +39,16 @@ import {
   pngHasChunk,
   tryReadPngSize,
   tryReadGifSize,
+  // WindowCore 提取的纯逻辑
+  isDragThresholdExceeded,
+  isPlaybackComplete,
+  replaceSpeechPlaceholders,
+  calcModDataDelta,
+  // Mods 页面提取的纯逻辑
+  tokenizeLinks,
+  toErrorMessage,
+  needsHydrateSbuddy,
+  resolveCharInfo,
 } from "$lib/animation/animation_utils";
 
 // ============================================================================
@@ -781,5 +791,350 @@ describe("tryReadGifSize", () => {
   it("returns null for too short data", () => {
     const sig = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00]);
     expect(tryReadGifSize(sig)).toBeNull();
+  });
+});
+
+// ============================================================================
+// WindowCore 提取的纯逻辑
+// ============================================================================
+
+describe("isDragThresholdExceeded", () => {
+  it("returns false when within threshold", () => {
+    expect(isDragThresholdExceeded(100, 100, 103, 102, 5)).toBe(false);
+  });
+
+  it("returns true when dx exceeds threshold", () => {
+    expect(isDragThresholdExceeded(100, 100, 106, 100, 5)).toBe(true);
+  });
+
+  it("returns true when dy exceeds threshold", () => {
+    expect(isDragThresholdExceeded(100, 100, 100, 106, 5)).toBe(true);
+  });
+
+  it("returns false at exact threshold", () => {
+    expect(isDragThresholdExceeded(100, 100, 105, 100, 5)).toBe(false);
+  });
+
+  it("handles negative movement", () => {
+    expect(isDragThresholdExceeded(100, 100, 94, 100, 5)).toBe(true);
+  });
+
+  it("handles zero threshold", () => {
+    expect(isDragThresholdExceeded(100, 100, 101, 100, 0)).toBe(true);
+  });
+
+  it("returns false when start equals current", () => {
+    expect(isDragThresholdExceeded(50, 50, 50, 50, 5)).toBe(false);
+  });
+});
+
+describe("isPlaybackComplete", () => {
+  it("returns true when all conditions met", () => {
+    expect(isPlaybackComplete(true, true, true, true)).toBe(true);
+  });
+
+  it("returns false when not playOnce", () => {
+    expect(isPlaybackComplete(false, true, true, true)).toBe(false);
+  });
+
+  it("returns false when animation not complete", () => {
+    expect(isPlaybackComplete(true, false, true, true)).toBe(false);
+  });
+
+  it("returns false when audio not complete", () => {
+    expect(isPlaybackComplete(true, true, false, true)).toBe(false);
+  });
+
+  it("returns false when bubble not complete", () => {
+    expect(isPlaybackComplete(true, true, true, false)).toBe(false);
+  });
+
+  it("returns false when none complete", () => {
+    expect(isPlaybackComplete(true, false, false, false)).toBe(false);
+  });
+
+  it("returns false when all complete but not playOnce", () => {
+    expect(isPlaybackComplete(false, true, true, true)).toBe(false);
+  });
+});
+
+describe("replaceSpeechPlaceholders", () => {
+  it("replaces {nickname}", () => {
+    expect(replaceSpeechPlaceholders("Hello {nickname}!", "Alice", 1, 0, "00:00:00"))
+      .toBe("Hello Alice!");
+  });
+
+  it("replaces {days_used}", () => {
+    expect(replaceSpeechPlaceholders("Day {days_used}", "Bob", 42, 0, "00:00:00"))
+      .toBe("Day 42");
+  });
+
+  it("replaces {usage_hours}", () => {
+    expect(replaceSpeechPlaceholders("{usage_hours}h used", "X", 1, 100, "00:00:00"))
+      .toBe("100h used");
+  });
+
+  it("replaces {total_usage_hours}", () => {
+    expect(replaceSpeechPlaceholders("{total_usage_hours}h", "X", 1, 55, "00:00:00"))
+      .toBe("55h");
+  });
+
+  it("replaces {uptime}", () => {
+    expect(replaceSpeechPlaceholders("Uptime: {uptime}", "X", 1, 0, "01:23:45"))
+      .toBe("Uptime: 01:23:45");
+  });
+
+  it("replaces multiple placeholders", () => {
+    const result = replaceSpeechPlaceholders(
+      "Hi {nickname}, day {days_used}, {usage_hours}h, uptime {uptime}",
+      "Test", 10, 5, "02:30:00",
+    );
+    expect(result).toBe("Hi Test, day 10, 5h, uptime 02:30:00");
+  });
+
+  it("replaces multiple occurrences of same placeholder", () => {
+    expect(replaceSpeechPlaceholders("{nickname} is {nickname}", "Eve", 1, 0, "00:00:00"))
+      .toBe("Eve is Eve");
+  });
+
+  it("returns text unchanged when no placeholders", () => {
+    expect(replaceSpeechPlaceholders("plain text", "X", 1, 0, "00:00:00"))
+      .toBe("plain text");
+  });
+
+  it("handles empty string", () => {
+    expect(replaceSpeechPlaceholders("", "X", 1, 0, "00:00:00")).toBe("");
+  });
+});
+
+describe("calcModDataDelta", () => {
+  it("returns null for undefined next value", () => {
+    expect(calcModDataDelta(undefined, 10)).toBeNull();
+  });
+
+  it("returns null when next is not a number", () => {
+    expect(calcModDataDelta(undefined, null)).toBeNull();
+  });
+
+  it("returns null when last is null (first time)", () => {
+    expect(calcModDataDelta(10, null)).toBeNull();
+  });
+
+  it("returns positive delta", () => {
+    expect(calcModDataDelta(15, 10)).toBe(5);
+  });
+
+  it("returns negative delta", () => {
+    expect(calcModDataDelta(3, 10)).toBe(-7);
+  });
+
+  it("returns null when values are equal", () => {
+    expect(calcModDataDelta(10, 10)).toBeNull();
+  });
+
+  it("handles zero values", () => {
+    expect(calcModDataDelta(0, 5)).toBe(-5);
+    expect(calcModDataDelta(5, 0)).toBe(5);
+  });
+
+  it("handles negative numbers", () => {
+    expect(calcModDataDelta(-3, -10)).toBe(7);
+  });
+});
+
+// ============================================================================
+// Mods 页面提取的纯逻辑
+// ============================================================================
+
+describe("tokenizeLinks", () => {
+  it("returns empty array for empty string", () => {
+    expect(tokenizeLinks("")).toEqual([]);
+  });
+
+  it("returns single text token for plain text", () => {
+    expect(tokenizeLinks("hello world")).toEqual([
+      { kind: "text", value: "hello world" },
+    ]);
+  });
+
+  it("extracts a single HTTP URL", () => {
+    const result = tokenizeLinks("Visit https://example.com for details");
+    expect(result).toEqual([
+      { kind: "text", value: "Visit " },
+      { kind: "link", href: "https://example.com", text: "https://example.com" },
+      { kind: "text", value: " for details" },
+    ]);
+  });
+
+  it("extracts HTTP URL (not just HTTPS)", () => {
+    const result = tokenizeLinks("Go to http://example.com now");
+    expect(result).toEqual([
+      { kind: "text", value: "Go to " },
+      { kind: "link", href: "http://example.com", text: "http://example.com" },
+      { kind: "text", value: " now" },
+    ]);
+  });
+
+  it("handles URL at start of text", () => {
+    const result = tokenizeLinks("https://example.com is great");
+    expect(result).toEqual([
+      { kind: "link", href: "https://example.com", text: "https://example.com" },
+      { kind: "text", value: " is great" },
+    ]);
+  });
+
+  it("handles URL at end of text", () => {
+    const result = tokenizeLinks("Visit https://example.com");
+    expect(result).toEqual([
+      { kind: "text", value: "Visit " },
+      { kind: "link", href: "https://example.com", text: "https://example.com" },
+    ]);
+  });
+
+  it("strips trailing punctuation from URLs", () => {
+    const result = tokenizeLinks("See https://example.com, for info.");
+    expect(result).toHaveLength(4);
+    expect(result[1]).toEqual({ kind: "link", href: "https://example.com", text: "https://example.com" });
+    expect(result[2]).toEqual({ kind: "text", value: "," });
+  });
+
+  it("strips trailing parenthesis", () => {
+    const result = tokenizeLinks("(https://example.com/path)");
+    expect(result.find(t => t.kind === "link")).toEqual({
+      kind: "link",
+      href: "https://example.com/path",
+      text: "https://example.com/path",
+    });
+  });
+
+  it("handles multiple URLs", () => {
+    const result = tokenizeLinks("A https://a.com B https://b.com C");
+    const links = result.filter(t => t.kind === "link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toEqual({ kind: "link", href: "https://a.com", text: "https://a.com" });
+    expect(links[1]).toEqual({ kind: "link", href: "https://b.com", text: "https://b.com" });
+  });
+
+  it("handles URL with path and query", () => {
+    const result = tokenizeLinks("https://example.com/path?key=val&foo=bar");
+    expect(result).toEqual([
+      { kind: "link", href: "https://example.com/path?key=val&foo=bar", text: "https://example.com/path?key=val&foo=bar" },
+    ]);
+  });
+
+  it("returns text token for input without URLs", () => {
+    expect(tokenizeLinks("no links here")).toEqual([
+      { kind: "text", value: "no links here" },
+    ]);
+  });
+
+  it("strips multiple trailing punctuation marks", () => {
+    const result = tokenizeLinks("Check https://example.com!!");
+    const link = result.find(t => t.kind === "link");
+    expect(link).toEqual({ kind: "link", href: "https://example.com", text: "https://example.com" });
+  });
+});
+
+describe("toErrorMessage", () => {
+  it("returns string error directly", () => {
+    expect(toErrorMessage("something failed")).toBe("something failed");
+  });
+
+  it("extracts message from Error object", () => {
+    expect(toErrorMessage(new Error("oops"))).toBe("oops");
+  });
+
+  it("extracts message from object with message property", () => {
+    expect(toErrorMessage({ message: "custom error" })).toBe("custom error");
+  });
+
+  it("extracts first string value from arbitrary object", () => {
+    expect(toErrorMessage({ code: 404, detail: "not found" })).toBe("not found");
+  });
+
+  it("returns String(e) for number", () => {
+    expect(toErrorMessage(42)).toBe("42");
+  });
+
+  it("returns String(e) for null", () => {
+    expect(toErrorMessage(null)).toBe("null");
+  });
+
+  it("returns String(e) for undefined", () => {
+    expect(toErrorMessage(undefined)).toBe("undefined");
+  });
+
+  it("handles empty object", () => {
+    expect(toErrorMessage({})).toBe("[object Object]");
+  });
+
+  it("handles object with only non-string values", () => {
+    expect(toErrorMessage({ code: 500, count: 3 })).toBe("[object Object]");
+  });
+});
+
+describe("needsHydrateSbuddy", () => {
+  it("returns true for archive mod with empty version", () => {
+    expect(needsHydrateSbuddy(true, "")).toBe(true);
+  });
+
+  it("returns true for archive mod with whitespace version", () => {
+    expect(needsHydrateSbuddy(true, "  ")).toBe(true);
+  });
+
+  it("returns true for archive mod with null version", () => {
+    expect(needsHydrateSbuddy(true, null)).toBe(true);
+  });
+
+  it("returns true for archive mod with undefined version", () => {
+    expect(needsHydrateSbuddy(true, undefined)).toBe(true);
+  });
+
+  it("returns false for archive mod with valid version", () => {
+    expect(needsHydrateSbuddy(true, "1.0.0")).toBe(false);
+  });
+
+  it("returns false for non-archive mod with empty version", () => {
+    expect(needsHydrateSbuddy(false, "")).toBe(false);
+  });
+
+  it("returns false for non-archive mod with valid version", () => {
+    expect(needsHydrateSbuddy(false, "2.0")).toBe(false);
+  });
+});
+
+describe("resolveCharInfo", () => {
+  const info = {
+    zh: { name: "中文名" },
+    en: { name: "English Name" },
+    ja: { name: "日本語名" },
+  };
+
+  it("returns current language match", () => {
+    expect(resolveCharInfo(info, "zh", "en")).toEqual({ name: "中文名" });
+  });
+
+  it("falls back to default language", () => {
+    expect(resolveCharInfo(info, "fr", "en")).toEqual({ name: "English Name" });
+  });
+
+  it("falls back to first available entry", () => {
+    expect(resolveCharInfo(info, "fr", "ko")).toEqual({ name: "中文名" });
+  });
+
+  it("returns null for null info", () => {
+    expect(resolveCharInfo(null, "zh", "en")).toBeNull();
+  });
+
+  it("returns null for undefined info", () => {
+    expect(resolveCharInfo(undefined, "zh", "en")).toBeNull();
+  });
+
+  it("returns null for empty info object", () => {
+    expect(resolveCharInfo({}, "zh", "en")).toBeNull();
+  });
+
+  it("handles single language info", () => {
+    expect(resolveCharInfo({ de: { name: "Deutsch" } }, "fr", "en")).toEqual({ name: "Deutsch" });
   });
 });

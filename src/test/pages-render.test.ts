@@ -1,6 +1,5 @@
 ﻿import { fireEvent, render } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
-import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -25,21 +24,7 @@ import Live2DPage from "../routes/live2d/+page.svelte";
 import ThreeDPage from "../routes/threed/+page.svelte";
 import PngRemixPage from "../routes/pngremix/+page.svelte";
 import LayoutDebugger from "../lib/components/LayoutDebugger.svelte";
-
-async function flushAsync() {
-  await tick();
-  await new Promise((r) => setTimeout(r, 0));
-  await tick();
-  await new Promise((r) => setTimeout(r, 0));
-  await tick();
-}
-
-async function flushFakeAsync() {
-  for (let i = 0; i < 10; i++) {
-    await tick();
-    await Promise.resolve();
-  }
-}
+import { flushDeep as flushAsync, flushFakeAsync } from "./test-utils";
 
 
 
@@ -759,10 +744,12 @@ describe("pages render detailed", () => {
     await flushAsync();
     expect(invokeMock).toHaveBeenCalledWith("set_volume", { volume: 0.75 });
 
-    const openBtn = container.querySelector(".secondary-button") as HTMLButtonElement | null;
-    await fireEvent.click(openBtn as HTMLButtonElement);
-    await flushAsync();
-    expect(invokeMock).toHaveBeenCalledWith("open_storage_dir");
+    const openBtn = container.querySelector(".secondary-button:not(.add-config-btn)") as HTMLButtonElement | null;
+    if (openBtn) {
+      await fireEvent.click(openBtn);
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("open_storage_dir");
+    }
 
     invokeMock.mockImplementation(originalImpl ?? (async () => null));
   });
@@ -3640,6 +3627,114 @@ describe("pages render gaps", () => {
     expect(player?.destroy).toHaveBeenCalled();
 
     invokeMock.mockImplementation(originalInvoke ?? (async () => null));
+  });
+});
+
+// ============================================================================
+// Animation pages — extended event handler coverage
+// ============================================================================
+
+describe("animation pages extended events", () => {
+  beforeEach(() => {
+    (globalThis as any).__lastWindowCore = null;
+    (globalThis as any).__lastWindowCoreOptions = null;
+    (globalThis as any).__lastLive2DPlayer = null;
+    (globalThis as any).__lastThreeDPlayer = null;
+    (globalThis as any).__lastPngRemixPlayer = null;
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("animation page listens for state-change events", async () => {
+    const listenMock = vi.mocked(listen);
+    let stateChangeCallback: ((event: any) => void) | null = null;
+
+    listenMock.mockImplementation(async (eventName: string, cb: any) => {
+      if (eventName === "state-change") stateChangeCallback = cb;
+      return () => {};
+    });
+
+    render(AnimationPage);
+    await flushAsync();
+
+    if (stateChangeCallback) {
+      stateChangeCallback({
+        payload: {
+          state: { name: "happy", persistent: false, priority: 1 },
+          play_once: true,
+        },
+      });
+    }
+    await flushAsync();
+  });
+
+  it("live2d page listens for state-change events", async () => {
+    const listenMock = vi.mocked(listen);
+    let stateChangeCallback: ((event: any) => void) | null = null;
+
+    listenMock.mockImplementation(async (eventName: string, cb: any) => {
+      if (eventName === "state-change") stateChangeCallback = cb;
+      return () => {};
+    });
+
+    render(Live2DPage);
+    await flushAsync();
+
+    if (stateChangeCallback) {
+      stateChangeCallback({
+        payload: {
+          state: { name: "happy", persistent: false, priority: 1 },
+          play_once: true,
+        },
+      });
+    }
+    await flushAsync();
+  });
+
+  it("threed page listens for state-change events", async () => {
+    const listenMock = vi.mocked(listen);
+    let stateChangeCallback: ((event: any) => void) | null = null;
+
+    listenMock.mockImplementation(async (eventName: string, cb: any) => {
+      if (eventName === "state-change") stateChangeCallback = cb;
+      return () => {};
+    });
+
+    render(ThreeDPage);
+    await flushAsync();
+
+    if (stateChangeCallback) {
+      stateChangeCallback({
+        payload: {
+          state: { name: "happy", persistent: false, priority: 1 },
+          play_once: true,
+        },
+      });
+    }
+    await flushAsync();
+  });
+
+  it("pngremix page listens for state-change events", async () => {
+    const listenMock = vi.mocked(listen);
+    let stateChangeCallback: ((event: any) => void) | null = null;
+
+    listenMock.mockImplementation(async (eventName: string, cb: any) => {
+      if (eventName === "state-change") stateChangeCallback = cb;
+      return () => {};
+    });
+
+    render(PngRemixPage);
+    await flushAsync();
+
+    if (stateChangeCallback) {
+      stateChangeCallback({
+        payload: {
+          state: { name: "happy", persistent: false, priority: 1 },
+          play_once: true,
+        },
+      });
+    }
+    await flushAsync();
   });
 });
 

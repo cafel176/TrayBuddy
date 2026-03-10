@@ -142,6 +142,7 @@ const mockInvoke = vi.fn(async (command: string) => {
         ai_chat_base_url: "",
         ai_chat_model: "",
         ai_screenshot_interval: 1.0,
+        ai_window_configs: [],
         ai_tool_hotkey: "F1",
       };
     case "is_state_locked":

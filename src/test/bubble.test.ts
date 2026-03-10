@@ -3,17 +3,7 @@ import { tick } from "svelte";
 import { describe, expect, it, vi } from "vitest";
 import Bubble from "$lib/bubble/Bubble.svelte";
 import { bubbleStyle, defaultStyle } from "$lib/bubble/bubbleStyle";
-
-function resetStyle() {
-  bubbleStyle.set({
-    bubble: { ...defaultStyle.bubble },
-    branch: {
-      ...defaultStyle.branch,
-      decoration_left: { ...defaultStyle.branch.decoration_left },
-      decoration_right: { ...defaultStyle.branch.decoration_right },
-    },
-  });
-}
+import { resetBubbleStyle as resetStyle } from "./test-utils";
 
 describe("Bubble", () => {
   it("renders branches immediately without text", async () => {

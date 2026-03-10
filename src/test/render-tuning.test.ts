@@ -5,7 +5,10 @@ import {
   isAntialiasEnabled,
   getRenderMaxFps,
   capFps,
+  getIdleThrottleFps,
+  IdleThrottle,
 } from "$lib/animation/render_tuning";
+import { RENDER_TUNING } from "$lib/constants";
 
 describe("render_tuning", () => {
   // ========================================================================
@@ -116,6 +119,154 @@ describe("render_tuning", () => {
     it("clamps to 240 for very large input then caps to global 30", () => {
       // clamp(999, 1, 240) = 240, min(240, 30) = 30
       expect(capFps(999)).toBe(30);
+    });
+  });
+
+  // ========================================================================
+  // getIdleThrottleFps
+  // ========================================================================
+
+  describe("getIdleThrottleFps", () => {
+    it("returns a number in [1, 30]", () => {
+      const fps = getIdleThrottleFps();
+      expect(fps).toBeGreaterThanOrEqual(1);
+      expect(fps).toBeLessThanOrEqual(30);
+    });
+  });
+
+  // ========================================================================
+  // IdleThrottle
+  // ========================================================================
+
+  describe("IdleThrottle", () => {
+    it("poke resets idle state", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
+      try {
+        const throttle = new IdleThrottle();
+        expect(throttle.idle).toBe(false);
+        throttle.poke();
+        expect(throttle.idle).toBe(false);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+      }
+    });
+
+    it("shouldSkipFrame returns false when not idle", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
+      try {
+        const throttle = new IdleThrottle();
+        throttle.poke();
+        const ts = performance.now() + 100;
+        expect(throttle.shouldSkipFrame(ts)).toBe(false);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+      }
+    });
+
+    it("enters idle after delay and throttles frames", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
+      try {
+        const throttle = new IdleThrottle();
+        // Simulate time passing beyond the delay threshold
+        const now = performance.now();
+        // Force idle by advancing timestamp well beyond delay
+        const futureTs = now + 60000; // 60 seconds later
+        // First call should detect idle transition and render
+        const skip1 = throttle.shouldSkipFrame(futureTs);
+        expect(throttle.idle).toBe(true);
+        expect(skip1).toBe(false); // First frame after entering idle should render
+
+        // Immediately subsequent frame should be skipped (within idleMinDeltaMs)
+        const skip2 = throttle.shouldSkipFrame(futureTs + 1);
+        expect(skip2).toBe(true);
+
+        // Frame well after idle delta should render
+        const skip3 = throttle.shouldSkipFrame(futureTs + 1000);
+        expect(skip3).toBe(false);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+      }
+    });
+
+    it("poke exits idle state", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
+      try {
+        const throttle = new IdleThrottle();
+        const now = performance.now();
+        // Force into idle
+        throttle.shouldSkipFrame(now + 60000);
+        expect(throttle.idle).toBe(true);
+        // Poke should exit idle
+        throttle.poke();
+        expect(throttle.idle).toBe(false);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+      }
+    });
+
+    it("shouldSkipFrame returns false when throttle is disabled", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = false;
+      try {
+        const throttle = new IdleThrottle();
+        const ts = performance.now() + 60000;
+        expect(throttle.shouldSkipFrame(ts)).toBe(false);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+      }
+    });
+  });
+
+  // ========================================================================
+  // getRenderDpr with DPR_CLAMP_ENABLED = false
+  // ========================================================================
+
+  describe("getRenderDpr (clamp disabled)", () => {
+    it("returns raw dpr when clamp is disabled", () => {
+      const origEnabled = RENDER_TUNING.DPR_CLAMP_ENABLED;
+      RENDER_TUNING.DPR_CLAMP_ENABLED = false;
+      try {
+        (window as any).devicePixelRatio = 3;
+        expect(getRenderDpr()).toBe(3);
+      } finally {
+        RENDER_TUNING.DPR_CLAMP_ENABLED = origEnabled;
+      }
+    });
+  });
+
+  // ========================================================================
+  // getRenderMaxFps with FPS_LIMIT_ENABLED = false
+  // ========================================================================
+
+  describe("getRenderMaxFps (limit disabled)", () => {
+    it("returns null when fps limit is disabled", () => {
+      const origEnabled = RENDER_TUNING.FPS_LIMIT_ENABLED;
+      RENDER_TUNING.FPS_LIMIT_ENABLED = false;
+      try {
+        expect(getRenderMaxFps()).toBeNull();
+      } finally {
+        RENDER_TUNING.FPS_LIMIT_ENABLED = origEnabled;
+      }
+    });
+  });
+
+  // ========================================================================
+  // capFps with no global cap
+  // ========================================================================
+
+  describe("capFps (no global cap)", () => {
+    it("returns player fps directly when global cap is null", () => {
+      const origEnabled = RENDER_TUNING.FPS_LIMIT_ENABLED;
+      RENDER_TUNING.FPS_LIMIT_ENABLED = false;
+      try {
+        expect(capFps(120)).toBe(120);
+      } finally {
+        RENDER_TUNING.FPS_LIMIT_ENABLED = origEnabled;
+      }
     });
   });
 });

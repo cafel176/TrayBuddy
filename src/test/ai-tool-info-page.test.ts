@@ -10,18 +10,12 @@
  * - resize 方向判断
  */
 import { fireEvent, render } from "@testing-library/svelte";
-import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import AiToolInfoPage from "../routes/ai_tool_info/+page.svelte";
-
-async function flushAsync() {
-  await tick();
-  await new Promise((r) => setTimeout(r, 0));
-  await tick();
-}
+import { flushAsync } from "./test-utils";
 
 describe("AI Tool Info Page", () => {
   beforeEach(() => {

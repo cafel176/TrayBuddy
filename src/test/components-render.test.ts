@@ -3,7 +3,6 @@
  * 覆盖 src/lib/components/ 下 10 个调试/设置组件的脚本逻辑
  */
 import { fireEvent, render } from "@testing-library/svelte";
-import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
@@ -18,12 +17,7 @@ import StateDebugger from "../lib/components/StateDebugger.svelte";
 import TriggerDebugger from "../lib/components/TriggerDebugger.svelte";
 import SettingsComponent from "../lib/components/Settings.svelte";
 import ResourceManagerDebugger from "../lib/components/ResourceManagerDebugger.svelte";
-
-async function flushAsync() {
-  await tick();
-  await new Promise((r) => setTimeout(r, 0));
-  await tick();
-}
+import { flushAsync } from "./test-utils";
 
 // ============================================================================
 // SystemDebugger
@@ -1800,6 +1794,7 @@ describe("Settings", () => {
       ai_chat_base_url: "https://api.test.com/v1",
       ai_chat_model: "test-model",
       ai_screenshot_interval: 1.0,
+      ai_window_configs: [],
       ai_tool_hotkey: "F1",
     };
   }
@@ -2343,6 +2338,348 @@ describe("Settings", () => {
 
     invokeMock.mockImplementation(originalImpl ?? (async () => null));
   });
+
+  // ========================================================================
+  // Window AI Config CRUD 测试
+  // ========================================================================
+
+  function createMockSettingsWithWac() {
+    return {
+      ...createMockSettings(),
+      ai_window_configs: [
+        {
+          window_name: "Game",
+          ai_chat_base_url: "https://game-api.com/v1",
+          ai_chat_model: "game-model",
+          ai_screenshot_interval: 2.0,
+        },
+      ],
+    };
+  }
+
+  it("renders window AI configs when present", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettingsWithWac();
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    // Should render config card
+    const configCards = container.querySelectorAll(".window-ai-config-card");
+    expect(configCards.length).toBe(1);
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("addWindowAiConfig adds a new config entry", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettingsWithWac();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    // Click the add button
+    const addBtn = container.querySelector(".add-config-btn") as HTMLButtonElement;
+    expect(addBtn).toBeTruthy();
+    if (addBtn) {
+      await fireEvent.click(addBtn);
+      await flushAsync();
+
+      // Should now have 2 config cards
+      const configCards = container.querySelectorAll(".window-ai-config-card");
+      expect(configCards.length).toBe(2);
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("removeWindowAiConfig removes a config entry", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettingsWithWac();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const removeBtn = container.querySelector(".remove-btn") as HTMLButtonElement;
+    expect(removeBtn).toBeTruthy();
+    if (removeBtn) {
+      await fireEvent.click(removeBtn);
+      await flushAsync();
+
+      const configCards = container.querySelectorAll(".window-ai-config-card");
+      expect(configCards.length).toBe(0);
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("toggleWacCollapse folds and unfolds config card", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettingsWithWac();
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const header = container.querySelector(".window-ai-config-header") as HTMLElement;
+    expect(header).toBeTruthy();
+    if (header) {
+      // Click to collapse
+      await fireEvent.click(header);
+      await flushAsync();
+
+      const collapsed = container.querySelector(".window-ai-config-card.collapsed");
+      expect(collapsed).toBeTruthy();
+
+      // Click again to expand
+      await fireEvent.click(header);
+      await flushAsync();
+
+      const expanded = container.querySelector(".window-ai-config-card:not(.collapsed)");
+      expect(expanded).toBeTruthy();
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("toggleWacCollapse responds to keyboard Enter", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettingsWithWac();
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const header = container.querySelector(".window-ai-config-header") as HTMLElement;
+    if (header) {
+      await fireEvent.keyDown(header, { key: "Enter" });
+      await flushAsync();
+
+      const collapsed = container.querySelector(".window-ai-config-card.collapsed");
+      expect(collapsed).toBeTruthy();
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("window AI config interval slider triggers update", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettingsWithWac();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const wacSlider = container.querySelector("#wac_interval_0") as HTMLInputElement;
+    if (wacSlider) {
+      await fireEvent.input(wacSlider, { target: { value: "3.0" } });
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("update_settings", expect.anything());
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // 更多 Settings 未覆盖路径测试
+  // ========================================================================
+
+  it("nickname input change triggers saveSettings", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettings();
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const nicknameInput = container.querySelector("#nickname") as HTMLInputElement;
+    if (nicknameInput) {
+      await fireEvent.change(nicknameInput, { target: { value: "NewNickname" } });
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("update_settings", expect.anything());
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("volume slider is disabled when no_audio_mode is true", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") {
+        return { ...createMockSettings(), no_audio_mode: true };
+      }
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const volumeSlider = container.querySelector("#volume") as HTMLInputElement;
+    if (volumeSlider) {
+      expect(volumeSlider.disabled).toBe(true);
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("show_border checkbox is disabled when show_character is false", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") {
+        return { ...createMockSettings(), show_character: false, show_border: false };
+      }
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    // The show_border checkbox should be disabled when show_character is false
+    const checkboxes = container.querySelectorAll("input[type='checkbox']");
+    let foundDisabledBorder = false;
+    for (const cb of checkboxes) {
+      if ((cb as HTMLInputElement).disabled) {
+        foundDisabledBorder = true;
+        break;
+      }
+    }
+    expect(foundDisabledBorder).toBe(true);
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("3D transition duration slider triggers update", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettings();
+      if (command === "get_current_mod") {
+        return { manifest: { mod_type: "3d" } };
+      }
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    const durationSlider = container.querySelector("#threed_cross_fade_duration") as HTMLInputElement;
+    if (durationSlider) {
+      await fireEvent.input(durationSlider, { target: { value: "0.8" } });
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("update_settings", expect.anything());
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("applySilenceEffect handles isPlaying=false path", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return createMockSettings();
+      if (command === "get_current_mod") return null;
+      if (command === "get_media_status") return false; // isPlaying = false
+      if (command === "force_change_state") return true;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    // Find and click the silence_mode checkbox
+    const checkboxes = container.querySelectorAll("input[type='checkbox']");
+    if (checkboxes.length >= 5) {
+      for (let i = 3; i < Math.min(6, checkboxes.length); i++) {
+        await fireEvent.click(checkboxes[i] as HTMLInputElement);
+        await flushAsync();
+      }
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("addWindowAiConfig on empty list initializes array", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    // Settings without ai_window_configs field
+    const settings = createMockSettings() as any;
+    // no ai_window_configs property at all
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_settings") return settings;
+      if (command === "get_current_mod") return null;
+      if (command === "update_settings") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(SettingsComponent);
+    await flushAsync();
+
+    // Click add button
+    const addBtn = container.querySelector(".add-config-btn") as HTMLButtonElement;
+    if (addBtn) {
+      await fireEvent.click(addBtn);
+      await flushAsync();
+
+      const configCards = container.querySelectorAll(".window-ai-config-card");
+      expect(configCards.length).toBe(1);
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
 });
 
 // ============================================================================
@@ -2691,6 +3028,522 @@ describe("ResourceManagerDebugger", () => {
     });
 
     render(ResourceManagerDebugger);
+    await flushAsync();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+});
+
+// ============================================================================
+// TriggerDebugger — extended coverage
+// ============================================================================
+
+describe("TriggerDebugger extended", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("clicking all quick trigger buttons covers all triggerEvent paths", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_triggers") return [];
+      if (command === "trigger_event") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(TriggerDebugger);
+    await flushAsync();
+
+    // Click ALL quick trigger buttons
+    const quickBtns = container.querySelectorAll(".btn-quick");
+    for (let i = 0; i < quickBtns.length; i++) {
+      await fireEvent.click(quickBtns[i] as HTMLButtonElement);
+      await flushAsync();
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("Enter key in custom event input triggers custom event", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_triggers") return [];
+      if (command === "trigger_event") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(TriggerDebugger);
+    await flushAsync();
+
+    const input = container.querySelector("input[type='text']") as HTMLInputElement;
+    if (input) {
+      await fireEvent.input(input, { target: { value: "test_event" } });
+      await flushAsync();
+      await fireEvent.keyDown(input, { key: "Enter" });
+      await flushAsync();
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("clear log button clears event log", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_triggers") return [];
+      if (command === "trigger_event") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(TriggerDebugger);
+    await flushAsync();
+
+    // Generate some logs by clicking a quick button
+    const quickBtns = container.querySelectorAll(".btn-quick");
+    if (quickBtns.length > 0) {
+      await fireEvent.click(quickBtns[0] as HTMLButtonElement);
+      await flushAsync();
+    }
+
+    // Click the clear log button (btn-tiny)
+    const clearBtn = container.querySelector(".btn-tiny") as HTMLButtonElement;
+    if (clearBtn) {
+      await fireEvent.click(clearBtn);
+      await flushAsync();
+    }
+
+    // After clearing, the log should show empty message
+    const logEmpty = container.querySelector(".log-empty");
+    expect(logEmpty).toBeTruthy();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("refresh button reloads data", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_triggers") return [];
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(TriggerDebugger);
+    await flushAsync();
+
+    // Click refresh button
+    const refreshBtn = container.querySelector("button.refresh") as HTMLButtonElement;
+    if (refreshBtn) {
+      await fireEvent.click(refreshBtn);
+      await flushAsync();
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("trigger buttons in the trigger list fire events", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_triggers") {
+        return [
+          {
+            event: "click",
+            can_trigger_states: [
+              { persistent_state: "idle", allow_repeat: false, states: [{ state: "happy", weight: 2 }] },
+            ],
+          },
+          {
+            event: "right_click",
+            can_trigger_states: [
+              { persistent_state: null, states: [{ state: "wave" }] },
+            ],
+          },
+        ];
+      }
+      if (command === "trigger_event") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(TriggerDebugger);
+    await flushAsync();
+
+    // Click trigger buttons in trigger cards
+    const trigBtns = container.querySelectorAll(".btn-trigger");
+    for (const btn of trigBtns) {
+      await fireEvent.click(btn as HTMLButtonElement);
+      await flushAsync();
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("unmount cleans up listeners", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_triggers") return [];
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { unmount } = render(TriggerDebugger);
+    await flushAsync();
+
+    // Unmount should call unlisten functions
+    unmount();
+    await flushAsync();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("renders with rich persistent state including counter/temp/weather/live2d/pngremix params", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_triggers") return [];
+      if (command === "get_current_state") {
+        return {
+          name: "idle", persistent: true, priority: 0,
+          anima: "idle.anim", audio: "idle_audio", text: "Hi!",
+          next_state: "happy", trigger_time: 5000, trigger_rate: 0.5,
+          mod_data_counter: { op: "add", value: 1 },
+          trigger_counter_start: 0, trigger_counter_end: 10,
+          trigger_temp_start: -10, trigger_temp_end: 35,
+          trigger_uptime: 60,
+          trigger_weather: ["Clear", "Rain"],
+          date_start: "01-01", date_end: "12-31",
+          time_start: "08:00", time_end: "22:00",
+          can_trigger_states: [{ state: "happy", weight: 1 }],
+          live2d_params: [{ name: "ParamEyeLOpen", value: 0.5 }],
+          pngremix_params: [{ name: "expression", value: "smile" }],
+          branch_show_bubble: false,
+          branch: [{ text: "Option A", next_state: "happy" }, { text: "Option B", next_state: "sleep" }],
+        };
+      }
+      if (command === "get_persistent_state") {
+        return {
+          name: "idle", persistent: true, priority: 0,
+          trigger_time: 3000, trigger_rate: 1.0,
+          mod_data_counter: { op: "set", value: 5 },
+          trigger_counter_start: 0, trigger_counter_end: 100,
+          trigger_temp_start: -5, trigger_temp_end: 40,
+          trigger_uptime: 120,
+          trigger_weather: ["Snow"],
+          can_trigger_states: [{ state: "happy", weight: 2 }, { state: "dance", weight: 1 }],
+          live2d_params: [{ name: "ParamAngleX", value: 10 }],
+          pngremix_params: [{ name: "motion", value: "wave" }],
+        };
+      }
+      if (command === "get_next_state") return { name: "happy", persistent: false };
+      if (command === "is_state_locked") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(TriggerDebugger);
+    await flushAsync();
+
+    expect(container.querySelector(".trigger-debugger")).toBeTruthy();
+    // Verify branch info is rendered
+    expect(container.querySelector(".branch-info")).toBeTruthy();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+});
+
+// ============================================================================
+// StateDebugger — extended branch coverage
+// ============================================================================
+
+describe("StateDebugger extended", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders with full state details (all fields populated)", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_states") {
+        return [
+          {
+            name: "idle", persistent: true, priority: 0, play_once: false,
+            anima: "idle.anim", audio: "idle_audio.wav", text: "Hello!",
+            next_state: "happy", trigger_time: 5000, trigger_rate: 0.8,
+            mod_data_counter: { op: "set", value: 5 },
+            trigger_counter_start: 0, trigger_counter_end: 50,
+            trigger_temp_start: -10, trigger_temp_end: 40,
+            trigger_uptime: 60,
+            trigger_weather: ["Clear", "Cloudy", "Rain"],
+            date_start: "01-01", date_end: "06-30",
+            time_start: "08:00", time_end: "20:00",
+            can_trigger_states: [{ state: "happy", weight: 2 }, { state: "dance", weight: 1 }],
+            live2d_params: [{ name: "ParamEyeLOpen", value: 1.0 }],
+            pngremix_params: [{ name: "expression", value: "smile" }],
+            branch: [{ text: "Option A", next_state: "happy" }],
+            branch_show_bubble: false,
+          },
+          {
+            name: "happy", persistent: false, priority: 1, play_once: true,
+            mod_data_counter: { op: "sub", value: 0 }, // not effective (sub 0)
+            trigger_counter_start: -2147483648, trigger_counter_end: 2147483647, // full range = not limited
+          },
+          {
+            name: "dance", persistent: false, priority: 2, play_once: true,
+            mod_data_counter: { op: "add", value: 3 }, // effective
+          },
+        ];
+      }
+      if (command === "get_current_state") {
+        return {
+          name: "idle", persistent: true, priority: 0, play_once: false,
+          anima: "idle.anim", audio: "idle_audio.wav", text: "Hello!",
+          next_state: "happy", trigger_time: 5000, trigger_rate: 0.8,
+          mod_data_counter: { op: "set", value: 5 },
+          trigger_counter_start: 0, trigger_counter_end: 50,
+          trigger_temp_start: -10, trigger_temp_end: 40,
+          trigger_uptime: 60,
+          trigger_weather: ["Clear"],
+          date_start: "01-01", date_end: "06-30",
+          time_start: "08:00", time_end: "20:00",
+          can_trigger_states: [{ state: "happy", weight: 2 }],
+          live2d_params: [{ name: "ParamEyeLOpen", value: 1.0 }],
+          pngremix_params: [{ name: "expression", value: "smile" }],
+          branch: [{ text: "Go", next_state: "happy" }],
+          branch_show_bubble: false,
+        };
+      }
+      if (command === "get_persistent_state") {
+        return { name: "idle", persistent: true, priority: 0, trigger_time: 5000, trigger_rate: 0.8 };
+      }
+      if (command === "get_next_state") return { name: "happy", persistent: false };
+      if (command === "is_state_locked") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(StateDebugger);
+    await flushAsync();
+
+    expect(container.querySelector(".state-debugger") || container.innerHTML).toBeTruthy();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("renders with no next state and unlocked", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_states") {
+        return [{ name: "idle", persistent: true, priority: 0, play_once: false }];
+      }
+      if (command === "get_current_state") {
+        return { name: "idle", persistent: true, priority: 0, play_once: false };
+      }
+      if (command === "get_persistent_state") {
+        return { name: "idle", persistent: true, priority: 0 };
+      }
+      if (command === "get_next_state") return null;
+      if (command === "is_state_locked") return false;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(StateDebugger);
+    await flushAsync();
+
+    expect(container.querySelector(".state-debugger") || container.innerHTML).toBeTruthy();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("unmount cleans up event listeners", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_all_states") return [];
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { unmount } = render(StateDebugger);
+    await flushAsync();
+
+    unmount();
+    await flushAsync();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+});
+
+// ============================================================================
+// ResourceManagerDebugger — extended coverage
+// ============================================================================
+
+describe("ResourceManagerDebugger extended", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const baseManifest = {
+    author: "test",
+    default_audio_lang_id: "zh",
+    default_text_lang_id: "zh",
+    show_mod_data_panel: false,
+    mod_data_default_int: 0,
+    enable_texture_downsample: false,
+    texture_downsample_start_dim: 512,
+    global_keyboard: false,
+    global_mouse: false,
+    character: { z_offset: 0, canvas_fit_preference: "long" },
+    border: { enable: false, anima: "", z_offset: 0 },
+    triggers: [],
+  };
+
+  function createSeqMod2(overrides: Record<string, any> = {}) {
+    const { manifest: mOverrides, ...rest } = overrides;
+    return {
+      path: "C:/mods/demo",
+      imgs: [], sequences: [], audios: {}, texts: {}, info: {},
+      ...rest,
+      manifest: { id: "demo", version: "1.0", mod_type: "sequence", important_states: {}, states: [], ...baseManifest, ...mOverrides },
+    };
+  }
+
+  it("loadSelectedMod clicks button and loads mod", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_mod_search_paths") return ["C:/mods"];
+      if (command === "get_available_mods") return ["testmod"];
+      if (command === "get_current_mod") return null;
+      if (command === "load_mod") return createSeqMod2({ manifest: { id: "testmod" } });
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Find and click load button
+    const loadBtns = container.querySelectorAll("button");
+    for (const btn of loadBtns) {
+      const text = btn.textContent || "";
+      if (text.includes("Load") || text.includes("加载") || text.includes("読み込み")) {
+        await fireEvent.click(btn);
+        await flushAsync();
+        break;
+      }
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("unloadMod clicks button and unloads mod", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") return createSeqMod2();
+      if (command === "unload_mod") return true;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Find unload button
+    const btns = container.querySelectorAll("button");
+    for (const btn of btns) {
+      const text = btn.textContent || "";
+      if (text.includes("Unload") || text.includes("卸载") || text.includes("アンロード")) {
+        await fireEvent.click(btn);
+        await flushAsync();
+        break;
+      }
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("refresh button reloads mod list", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_mod_search_paths") return ["C:/mods"];
+      if (command === "get_available_mods") return ["mod1", "mod2"];
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Find refresh button
+    const btns = container.querySelectorAll("button");
+    for (const btn of btns) {
+      const text = btn.textContent || "";
+      if (text.includes("Refresh") || text.includes("刷新") || text.includes("更新")) {
+        await fireEvent.click(btn);
+        await flushAsync();
+        break;
+      }
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("renders threed mod with animation data", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createSeqMod2({
+          manifest: { mod_type: "3d" },
+          threed: {
+            model: { name: "demo", type: "gltf", file: "m.glb", scale: 1, offset_x: 0, offset_y: 0 },
+            animations: [
+              { name: "idle", type: "embedded", file: "", speed: 1, fps: 30 },
+              { name: "walk", type: "file", file: "walk.anim", speed: 1, fps: 30 },
+            ],
+            states: [
+              { state: "idle", animation: "idle" },
+              { state: "walk", animation: "walk" },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    render(ResourceManagerDebugger);
+    await flushAsync();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("unmount cleans up listeners", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { unmount } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    unmount();
     await flushAsync();
 
     invokeMock.mockImplementation(originalImpl ?? (async () => null));

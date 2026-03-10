@@ -597,3 +597,180 @@ export function tryReadGifSize(
     return null;
   }
 }
+
+// ============================================================================
+// WindowCore 纯逻辑 — 从内联闭包提取的可测试函数
+// ============================================================================
+
+/**
+ * 判断拖拽阈值是否被超过。
+ * @param startX - 鼠标按下时的 screenX
+ * @param startY - 鼠标按下时的 screenY
+ * @param currentX - 当前 screenX
+ * @param currentY - 当前 screenY
+ * @param threshold - 位移阈值（像素）
+ */
+export function isDragThresholdExceeded(
+  startX: number,
+  startY: number,
+  currentX: number,
+  currentY: number,
+  threshold: number,
+): boolean {
+  return (
+    Math.abs(currentX - startX) > threshold ||
+    Math.abs(currentY - startY) > threshold
+  );
+}
+
+/**
+ * 判断 playOnce 播放是否三要素全部完成。
+ */
+export function isPlaybackComplete(
+  isPlayOnce: boolean,
+  animationComplete: boolean,
+  audioComplete: boolean,
+  bubbleComplete: boolean,
+): boolean {
+  return isPlayOnce && animationComplete && audioComplete && bubbleComplete;
+}
+
+/**
+ * 替换气泡文本中的占位符（纯文本变换）。
+ * @param raw - 原始文本
+ * @param nickname - 用户昵称
+ * @param daysUsed - 使用天数
+ * @param totalUsageHours - 总使用小时数
+ * @param uptimeFormatted - 已格式化的 session uptime (HH:MM:SS)
+ */
+export function replaceSpeechPlaceholders(
+  raw: string,
+  nickname: string,
+  daysUsed: number,
+  totalUsageHours: number,
+  uptimeFormatted: string,
+): string {
+  let text = raw;
+  text = text.replace(/\{nickname\}/g, nickname);
+  text = text.replace(/\{days_used\}/g, String(daysUsed));
+  text = text.replace(
+    /\{(?:usage_hours|total_usage_hours)\}/g,
+    String(totalUsageHours),
+  );
+  text = text.replace(/\{uptime\}/g, uptimeFormatted);
+  return text;
+}
+
+/**
+ * 计算 ModData 变化 delta。
+ * @returns delta 数值，如果没有变化或输入无效则返回 null
+ */
+export function calcModDataDelta(
+  nextValue: number | undefined,
+  lastValue: number | null,
+): number | null {
+  if (typeof nextValue !== "number") return null;
+  if (typeof lastValue === "number" && nextValue !== lastValue) {
+    return nextValue - lastValue;
+  }
+  return null;
+}
+
+// ============================================================================
+// Mods 页面纯逻辑 — 从 +page.svelte 提取的可测试函数
+// ============================================================================
+
+/**
+ * 从文本中提取 URL 链接，返回 text/link 混合 token 数组。
+ * 处理结尾常见标点裁剪（避免把 ")" / "," 等算进 URL）。
+ */
+export type DescToken =
+  | { kind: "text"; value: string }
+  | { kind: "link"; href: string; text: string };
+
+export function tokenizeLinks(input: string): DescToken[] {
+  if (!input) return [];
+
+  const tokens: DescToken[] = [];
+  const regex = /\bhttps?:\/\/[^\s<>"']+/gi;
+  let lastIndex = 0;
+
+  for (const m of input.matchAll(regex)) {
+    const raw = m[0];
+    const index = m.index ?? 0;
+
+    if (index > lastIndex) {
+      tokens.push({ kind: "text", value: input.slice(lastIndex, index) });
+    }
+
+    // 处理结尾常见标点，避免把 ")" / "," 等算进 URL
+    let href = raw;
+    let trailing = "";
+    while (href.length > 0 && /[),.;!?]$/.test(href)) {
+      trailing = href.slice(-1) + trailing;
+      href = href.slice(0, -1);
+    }
+
+    if (href) {
+      tokens.push({ kind: "link", href, text: href });
+    } else {
+      // 极端兜底：如果被裁剪到空，按原文输出
+      tokens.push({ kind: "text", value: raw });
+    }
+
+    if (trailing) {
+      tokens.push({ kind: "text", value: trailing });
+    }
+
+    lastIndex = index + raw.length;
+  }
+
+  if (lastIndex < input.length) {
+    tokens.push({ kind: "text", value: input.slice(lastIndex) });
+  }
+
+  return tokens.length ? tokens : [{ kind: "text", value: input }];
+}
+
+/**
+ * 将各种错误类型统一转为字符串消息。
+ */
+export function toErrorMessage(e: unknown): string {
+  if (typeof e === "string") return e;
+  if (e && typeof e === "object") {
+    const obj = e as Record<string, unknown>;
+    if (typeof obj.message === "string") return obj.message;
+    for (const val of Object.values(obj)) {
+      if (typeof val === "string") return val;
+    }
+  }
+  return String(e);
+}
+
+/**
+ * 判断一个 mod 是否需要后台 hydrate（archive 路径且 version 为空）。
+ * @param isArchive - 路径是否为 archive mod
+ * @param version - mod manifest version
+ */
+export function needsHydrateSbuddy(
+  isArchive: boolean,
+  version: string | undefined | null,
+): boolean {
+  return isArchive && (!version || version.trim().length === 0);
+}
+
+/**
+ * 多语言角色信息回退选择。
+ * @param info - 角色信息字典 {lang: CharacterInfo}
+ * @param currentLang - 当前语言
+ * @param defaultLang - 默认语言
+ * @returns 匹配的 CharacterInfo 或 null
+ */
+export function resolveCharInfo<T>(
+  info: Record<string, T> | null | undefined,
+  currentLang: string,
+  defaultLang: string,
+): T | null {
+  if (!info) return null;
+  return info[currentLang] || info[defaultLang] || Object.values(info)[0] || null;
+}

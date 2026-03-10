@@ -11,18 +11,12 @@
  * - 空工具列表
  */
 import { fireEvent, render } from "@testing-library/svelte";
-import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 import AiToolDebugger from "../lib/components/AiToolDebugger.svelte";
-
-async function flushAsync() {
-  await tick();
-  await new Promise((r) => setTimeout(r, 0));
-  await tick();
-}
+import { flushAsync } from "./test-utils";
 
 const MOCK_DEBUG_INFO = {
   matched_window: "Visual Studio Code",
