@@ -261,4 +261,7 @@ downloadBtn.addEventListener('click', () => {
 });
 
 window.addEventListener('languageChanged', () => {
-  if (gifFi
+  if (gifFile && !zipBlob) {
+    setStatus(t('msg_ready'));
+  }
+});

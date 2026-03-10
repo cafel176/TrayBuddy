@@ -1927,4 +1927,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Reinitialize icons
-    
+    if (window.lucide) lucide.createIcons();
+
+    // --- Language Change Handler ---
+    window.addEventListener('languageChanged', () => {
+        applyModeUI();
+    });
+});

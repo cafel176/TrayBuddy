@@ -9,6 +9,13 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $rootFull = (Resolve-Path -LiteralPath $Root).Path
+$projectRoot = (Resolve-Path -LiteralPath (Join-Path $rootFull '..')).Path
+
+# Mount table: URL prefix -> filesystem directory  (same as Node dev-server)
+$mounts = @(
+  @{ UrlPrefix = '/tools-common'; Dir = (Join-Path $projectRoot 'tools-common') }
+  @{ UrlPrefix = '/static';       Dir = (Join-Path $projectRoot 'static') }
+)
 
 $mime = @{
   '.html' = 'text/html; charset=utf-8'
@@ -22,10 +29,15 @@ $mime = @{
   '.webp' = 'image/webp'
   '.gif'  = 'image/gif'
   '.svg'  = 'image/svg+xml; charset=utf-8'
-  '.ico'  = 'image/x-icon'
+  '.ico'   = 'image/x-icon'
+  '.woff'  = 'font/woff'
+  '.woff2' = 'font/woff2'
+  '.ttf'   = 'font/ttf'
+  '.otf'   = 'font/otf'
+  '.wasm'  = 'application/wasm'
 }
 
-function Get-SafePath([string]$UrlPath) {
+function Get-SafePath([string]$BaseDir, [string]$UrlPath) {
   $rel = $UrlPath
   if ([string]::IsNullOrEmpty($rel)) { $rel = '/' }
   $rel = $rel.TrimStart('/')
@@ -33,17 +45,35 @@ function Get-SafePath([string]$UrlPath) {
   # Convert URL separators to OS separators
   $rel = $rel -replace '/', [IO.Path]::DirectorySeparatorChar
 
-  $candidate = [IO.Path]::GetFullPath((Join-Path -Path $rootFull -ChildPath $rel))
-  $rootNorm = $rootFull.TrimEnd([IO.Path]::DirectorySeparatorChar)
+  $baseNorm = $BaseDir.TrimEnd([IO.Path]::DirectorySeparatorChar)
+  $candidate = [IO.Path]::GetFullPath((Join-Path -Path $baseNorm -ChildPath $rel))
 
-  if ($candidate.Length -lt $rootNorm.Length) { return $null }
+  if ($candidate.Length -lt $baseNorm.Length) { return $null }
 
   $candLower = $candidate.ToLowerInvariant()
-  $rootLower = $rootNorm.ToLowerInvariant()
+  $baseLower = $baseNorm.ToLowerInvariant()
 
-  if ($candLower -eq $rootLower) { return $candidate }
-  if ($candLower.StartsWith($rootLower + [IO.Path]::DirectorySeparatorChar)) { return $candidate }
+  if ($candLower -eq $baseLower) { return $candidate }
+  if ($candLower.StartsWith($baseLower + [IO.Path]::DirectorySeparatorChar)) { return $candidate }
 
+  return $null
+}
+
+# Resolve URL path against mount table; returns @{ Dir; Rest } or $null
+function Resolve-Mount([string]$UrlPath) {
+  foreach ($m in $mounts) {
+    $prefix = $m.UrlPrefix
+    if (-not $prefix.StartsWith('/')) { $prefix = '/' + $prefix }
+    $prefixSlash = if ($prefix.EndsWith('/')) { $prefix } else { $prefix + '/' }
+
+    if ($UrlPath -eq $prefix) {
+      return @{ Dir = $m.Dir; Rest = '/' }
+    }
+    if ($UrlPath.StartsWith($prefixSlash)) {
+      $rest = '/' + $UrlPath.Substring($prefixSlash.Length)
+      return @{ Dir = $m.Dir; Rest = $rest }
+    }
+  }
   return $null
 }
 
@@ -90,7 +120,13 @@ try {
         continue
       }
 
-      $filePath = Get-SafePath $urlPath
+      $filePath = $null
+      $mountMatch = Resolve-Mount $urlPath
+      if ($mountMatch) {
+        $filePath = Get-SafePath $mountMatch.Dir $mountMatch.Rest
+      } else {
+        $filePath = Get-SafePath $rootFull $urlPath
+      }
       if (-not $filePath) {
         $res.StatusCode = 400
         $res.ContentType = 'text/plain; charset=utf-8'

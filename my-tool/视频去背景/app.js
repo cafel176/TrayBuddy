@@ -3552,6 +3552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Try to use gif.js if available
         if (window.GIF) {
             const gif = new GIF({
+                workerScript: '/tools-common/vendor/gif-0.2.0.worker.js',
                 workers: 2,
                 quality: 10,
                 width: canvas.width,
