@@ -44,7 +44,7 @@
   "capture_rect_placeholder": "まず画像をインポートしてください",
   "capture_rect_visual_edit": "ビジュアル編集",
   "aitools_field_prompts": "プロンプト",
-  "aitools_field_prompts_hint": "1行に1つ",
+  "aitools_field_prompts_hint": "複数行対応、全体を1つのプロンプトとして扱います",
   "aitools_field_result_processors": "結果プロセッサ",
   "aitools_field_result_processors_hint": "AI応答の後処理ルール",
   "aitools_rp_type": "タイプ",

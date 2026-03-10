@@ -44,7 +44,7 @@
   "capture_rect_placeholder": "请先导入一张图片",
   "capture_rect_visual_edit": "可视化编辑",
   "aitools_field_prompts": "提示词",
-  "aitools_field_prompts_hint": "每行一条",
+  "aitools_field_prompts_hint": "支持多行，整体作为一条提示词",
   "aitools_field_result_processors": "结果处理器",
   "aitools_field_result_processors_hint": "AI 返回结果的二次处理规则",
   "aitools_rp_type": "类型",

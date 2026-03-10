@@ -43,7 +43,7 @@
   "capture_rect_placeholder": "Please import an image first",
   "capture_rect_visual_edit": "Visual Edit",
   "aitools_field_prompts": "Prompts",
-  "aitools_field_prompts_hint": "One per line",
+  "aitools_field_prompts_hint": "Supports multiple lines as a single prompt",
   "aitools_field_result_processors": "Result Processors",
   "aitools_field_result_processors_hint": "Post-processing rules for AI responses",
   "aitools_rp_type": "Type",

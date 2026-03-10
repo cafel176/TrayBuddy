@@ -3204,7 +3204,7 @@ function renderAiToolDataItem(pIdx, tIdx, tool) {
         </div>
       </div>
       <div class="form-group" style="grid-column:span 2;">
-        <label>${window.i18n?.t('aitools_field_prompts') || '提示词'} <small style="color:#64748b;">(${window.i18n?.t('aitools_field_prompts_hint') || '每行一条'})</small></label>
+        <label>${window.i18n?.t('aitools_field_prompts') || '提示词'} <small style="color:#64748b;">(${window.i18n?.t('aitools_field_prompts_hint') || '支持多行，整体作为一条提示词'})</small></label>
         <textarea class="ait-prompts" data-pidx="${pIdx}" data-tidx="${tIdx}" rows="3" style="font-size:13px;">${escapeHtml(promptsStr)}</textarea>
       </div>
       <div class="form-group" style="grid-column:span 2;">
@@ -3583,7 +3583,8 @@ function collectAiTools() {
     // prompts
     const promptsEl = document.querySelector(`.ait-prompts[data-pidx="${pIdx}"][data-tidx="${tIdx}"]`);
     if (promptsEl) {
-      tool.prompts = promptsEl.value.split('\n').map(s => s.trim()).filter(Boolean);
+      const pVal = promptsEl.value.trim();
+      tool.prompts = pVal ? [pVal] : [];
     }
   });
 }
