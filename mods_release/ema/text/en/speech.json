@@ -258,5 +258,30 @@
     "name": "hurt2",
     "text": "",
     "duration": 3
+  },
+  {
+    "name": "low_power",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "low_money",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "hungry",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "low_san",
+    "text": "",
+    "duration": 3
+  },
+  {
+    "name": "low_hp",
+    "text": "",
+    "duration": 3
   }
 ]

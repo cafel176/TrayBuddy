@@ -81,10 +81,6 @@
     ai_chat_base_url: string;
     /** AI 图像识别/理解模型 */
     ai_chat_model: string;
-    /** AI 生图 API Base URL */
-    ai_image_base_url: string;
-    /** AI 图像生成模型 */
-    ai_image_model: string;
     /** AI 截图频率（秒） */
     ai_screenshot_interval: number;
     /** 启动 AI 主动工具的快捷键 (F1-F12) */

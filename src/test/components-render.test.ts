@@ -1799,8 +1799,6 @@ describe("Settings", () => {
       ai_api_key: "test-key-123",
       ai_chat_base_url: "https://api.test.com/v1",
       ai_chat_model: "test-model",
-      ai_image_base_url: "",
-      ai_image_model: "",
       ai_screenshot_interval: 1.0,
       ai_tool_hotkey: "F1",
     };

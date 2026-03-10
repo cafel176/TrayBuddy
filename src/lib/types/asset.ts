@@ -583,6 +583,17 @@ export interface UserSettings {
   /** 3D 动画切换过渡时长（秒） */
   threed_cross_fade_duration: number;
 
+  /** AI API Key */
+  ai_api_key: string;
+  /** AI 识别 API Base URL（兼容 OpenAI 的 chat/completions 端点） */
+  ai_chat_base_url: string;
+  /** AI 图像识别/理解模型（用于 chat completions + vision） */
+  ai_chat_model: string;
+  /** AI 截图频率（秒） */
+  ai_screenshot_interval: number;
+  /** 启动 AI 主动工具的快捷键 (F1-F12) */
+  ai_tool_hotkey: string;
+
 }
 
 /**

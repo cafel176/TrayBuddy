@@ -67,6 +67,100 @@
           "show_info_window": false
         }
       ]
+    },
+    {
+      "window_name": "Duckov",
+      "tool_data": [
+        {
+          "name": "check_damage",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 1107,
+            "y": 956,
+            "width": 320,
+            "height": 190
+          },
+          "prompts": [
+            "分析这张游戏截图，判断是否有有数字。是返回damage，否返回none"
+          ],
+          "triggers": [
+            {
+              "keyword": "damage",
+              "trigger": "kill"
+            }
+          ],
+          "show_info_window": false
+        }
+      ]
+    },
+    {
+      "window_name": "Don't Starve Together",
+      "tool_data": [
+        {
+          "name": "hungry",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 2178,
+            "y": 332,
+            "width": 113,
+            "height": 63
+          },
+          "prompts": [
+            "分析这张游戏截图，判断数字是否小于35。是返回hungry，否返回none"
+          ],
+          "triggers": [
+            {
+              "keyword": "hungry",
+              "trigger": "hungry"
+            }
+          ],
+          "show_info_window": false
+        },
+        {
+          "name": "low_san",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 2320,
+            "y": 335,
+            "width": 83,
+            "height": 51
+          },
+          "prompts": [
+            "分析这张游戏截图，判断数字是否小于35。是返回low，否返回none"
+          ],
+          "triggers": [
+            {
+              "keyword": "low",
+              "trigger": "low_san"
+            }
+          ],
+          "show_info_window": false
+        },
+        {
+          "name": "low_hp",
+          "auto_start": true,
+          "type": "auto",
+          "capture_rect": {
+            "x": 2438,
+            "y": 332,
+            "width": 92,
+            "height": 57
+          },
+          "prompts": [
+            "分析这张游戏截图，判断数字是否小于35。是返回low，否返回none"
+          ],
+          "triggers": [
+            {
+              "keyword": "low",
+              "trigger": "low_hp"
+            }
+          ],
+          "show_info_window": false
+        }
+      ]
     }
   ]
 }

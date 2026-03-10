@@ -258,5 +258,30 @@
     "name": "hurt2",
     "text": "好、好痛……对不起，我可能有点疼……。",
     "duration": 3
+  },
+  {
+    "name": "low_power",
+    "text": "电力不太够了……！\n对不起，我可能没注意到。",
+    "duration": 3
+  },
+  {
+    "name": "low_money",
+    "text": "资金不够了。\n我有点慌……怎么办呢。",
+    "duration": 3
+  },
+  {
+    "name": "hungry",
+    "text": "嗯……饥饿值太低了！\n得先吃点东西，不然可能会很危险。",
+    "duration": 3
+  },
+  {
+    "name": "low_san",
+    "text": "啊……精神值已经很低了吧。\n别硬撑，稍微休息一下好吗？",
+    "duration": 3
+  },
+  {
+    "name": "low_hp",
+    "text": "咦，生命值（HP）太低了！\n这可不算没事吧，快回复一下…！",
+    "duration": 3
   }
 ]

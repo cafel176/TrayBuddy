@@ -141,8 +141,6 @@ const mockInvoke = vi.fn(async (command: string) => {
         ai_api_key: "",
         ai_chat_base_url: "",
         ai_chat_model: "",
-        ai_image_base_url: "",
-        ai_image_model: "",
         ai_screenshot_interval: 1.0,
         ai_tool_hotkey: "F1",
       };

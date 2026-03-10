@@ -190,5 +190,25 @@
   {
     "name": "hurt2",
     "audio": "jp/speech/hurt2.wav"
+  },
+  {
+    "name": "low_power",
+    "audio": "jp/speech/low_power.wav"
+  },
+  {
+    "name": "low_money",
+    "audio": "jp/speech/low_money.wav"
+  },
+  {
+    "name": "hungry",
+    "audio": "jp/speech/hungry.wav"
+  },
+  {
+    "name": "low_san",
+    "audio": "jp/speech/low_san.wav"
+  },
+  {
+    "name": "low_hp",
+    "audio": "jp/speech/low_hp.wav"
   }
 ]
