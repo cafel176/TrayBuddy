@@ -443,6 +443,15 @@ impl SystemObserver {
                                     capture_height: td.capture_rect.height,
                                     show_info_window: td.show_info_window,
                                     prompts: td.prompts.iter().map(|p| p.to_string()).collect(),
+                                    result_processors: td.result_processors.iter().map(|rp| {
+                                        ai_tool_manager::AiResultProcessorConfig {
+                                            processor_type: rp.processor_type.to_string(),
+                                            result: rp.result.to_string(),
+                                            min: rp.min,
+                                            max: rp.max,
+                                            pattern: rp.pattern.as_ref().map(|p| p.to_string()),
+                                        }
+                                    }).collect(),
                                     triggers: td.triggers.iter().map(|t| {
                                         ai_tool_manager::AiToolTriggerConfig {
                                             keyword: t.keyword.to_string(),

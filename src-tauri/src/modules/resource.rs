@@ -1496,6 +1496,31 @@ pub enum AiToolType {
     Auto,
 }
 
+/// AI 返回结果的二次处理规则
+///
+/// 对 AI 返回的原始文本进行结构化匹配与转换。
+/// 支持的处理类型：
+/// - `"number"`: 从 AI 返回文本中提取数值，判断是否在 [min, max] 范围内
+/// - `"keyword"`: 检查 AI 返回文本中是否包含指定关键词（不区分大小写）
+/// - `"regex"`: 使用正则表达式匹配 AI 返回文本
+///
+/// 匹配成功时，输出 `result` 字段指定的文本（替代原始 AI 返回文本传递给 triggers）。
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(default)]
+pub struct AiResultProcessor {
+    /// 处理类型：`"number"` / `"keyword"` / `"regex"`
+    #[serde(rename = "type")]
+    pub processor_type: Box<str>,
+    /// 匹配成功后输出的结果字符串（传递给 triggers 做关键词匹配）
+    pub result: Box<str>,
+    /// 数值型匹配的最小阈值（含），仅 `type = "number"` 时有效
+    pub min: Option<f64>,
+    /// 数值型匹配的最大阈值（含），仅 `type = "number"` 时有效
+    pub max: Option<f64>,
+    /// 关键词 / 正则表达式模式，仅 `type = "keyword"` 或 `type = "regex"` 时有效
+    pub pattern: Option<Box<str>>,
+}
+
 /// AI 工具触发映射：关键词 → 触发器名称
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
@@ -1521,6 +1546,9 @@ pub struct AiToolData {
     pub capture_rect: AiCaptureRect,
     /// 提示词组，指导 AI 如何识别截图
     pub prompts: Vec<Box<str>>,
+    /// AI 返回结果的二次处理规则列表（可选）
+    /// 按顺序依次尝试匹配，第一个匹配成功的处理器的 `result` 将替代原始 AI 返回文本传给 triggers
+    pub result_processors: Vec<AiResultProcessor>,
     /// 关键词 → 触发器映射列表：AI 识别结果命中关键词时触发对应的 trigger
     pub triggers: Vec<AiToolTrigger>,
     /// 是否显示信息窗口（截图结果/AI 回复等）

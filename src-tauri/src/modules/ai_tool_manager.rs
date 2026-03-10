@@ -38,6 +38,26 @@ pub struct AiToolTriggerConfig {
     pub trigger: String,
 }
 
+/// AI 返回结果二次处理器配置（从 ai_tools.json 传入）
+///
+/// 支持的处理类型：
+/// - `"number"`: 从 AI 返回文本中提取第一个浮点数，判断是否在 [min, max] 范围内
+/// - `"keyword"`: 检查 AI 返回文本中是否包含 pattern 指定的关键词（不区分大小写）
+/// - `"regex"`: 使用 pattern 作为正则表达式匹配 AI 返回文本
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiResultProcessorConfig {
+    /// 处理类型
+    pub processor_type: String,
+    /// 匹配成功后输出的结果字符串
+    pub result: String,
+    /// 数值型最小阈值（含）
+    pub min: Option<f64>,
+    /// 数值型最大阈值（含）
+    pub max: Option<f64>,
+    /// 关键词或正则模式
+    pub pattern: Option<String>,
+}
+
 // ========================================================================= //
 // 全局缓存
 // ========================================================================= //
@@ -118,6 +138,8 @@ pub struct AiToolTaskConfig {
     pub show_info_window: bool,
     /// 提示词列表（发送给 AI 的 prompt）
     pub prompts: Vec<String>,
+    /// AI 返回结果的二次处理器列表
+    pub result_processors: Vec<AiResultProcessorConfig>,
     /// 触发器列表（AI 返回文本中匹配 keyword 则触发对应 trigger）
     pub triggers: Vec<AiToolTriggerConfig>,
 }
@@ -746,6 +768,73 @@ async fn call_chat_vision_api(
     Ok(content)
 }
 
+/// 从文本中提取第一个浮点数（支持负数、小数）
+fn extract_first_number(text: &str) -> Option<f64> {
+    // 匹配可选负号 + 整数或小数
+    let re = regex::Regex::new(r"-?\d+\.?\d*").ok()?;
+    re.find(text).and_then(|m| m.as_str().parse::<f64>().ok())
+}
+
+/// 对 AI 返回的原始文本应用二次处理器列表。
+///
+/// 按顺序依次尝试每个处理器：
+/// - `number`: 提取文本中第一个数值，判断是否在 [min, max] 范围内
+/// - `keyword`: 检查文本中是否包含 pattern 指定的关键词（不区分大小写）
+/// - `regex`: 用 pattern 做正则匹配
+///
+/// 第一个匹配成功的处理器，其 `result` 字段替代原始文本返回。
+/// 若所有处理器都未匹配，返回原始文本。
+fn process_ai_result(ai_response: &str, processors: &[AiResultProcessorConfig]) -> String {
+    if processors.is_empty() {
+        return ai_response.to_string();
+    }
+
+    for proc in processors {
+        let matched = match proc.processor_type.as_str() {
+            "number" => {
+                if let Some(num) = extract_first_number(ai_response) {
+                    let above_min = proc.min.map_or(true, |min| num >= min);
+                    let below_max = proc.max.map_or(true, |max| num <= max);
+                    above_min && below_max
+                } else {
+                    false
+                }
+            }
+            "keyword" => {
+                if let Some(ref pattern) = proc.pattern {
+                    let response_lower = ai_response.to_lowercase();
+                    let pattern_lower = pattern.to_lowercase();
+                    response_lower.contains(&pattern_lower)
+                } else {
+                    false
+                }
+            }
+            "regex" => {
+                if let Some(ref pattern) = proc.pattern {
+                    regex::Regex::new(pattern)
+                        .map(|re| re.is_match(ai_response))
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        };
+
+        if matched {
+            #[cfg(debug_assertions)]
+            println!(
+                "[AiToolManager] Result processor matched: type={}, result={}",
+                proc.processor_type, proc.result
+            );
+            return proc.result.clone();
+        }
+    }
+
+    // 所有处理器都未匹配，返回原始文本
+    ai_response.to_string()
+}
+
 /// 将 AI 回复文本与触发器列表匹配，返回所有匹配的 trigger 事件名
 fn match_triggers(ai_response: &str, triggers: &[AiToolTriggerConfig]) -> Vec<String> {
     let response_lower = ai_response.to_lowercase();
@@ -916,9 +1005,27 @@ async fn process_capture_with_ai(
         emit_info_message(app, tool_name, &ai_response);
     }
 
-    // 匹配 triggers（如果有）
+    // 对 AI 返回结果应用二次处理器
+    let processed_response = if !cfg.result_processors.is_empty() {
+        let result = process_ai_result(&ai_response, &cfg.result_processors);
+        #[cfg(debug_assertions)]
+        if result != ai_response {
+            println!(
+                "[AiToolManager] Result processed for '{}': '{}' -> '{}'",
+                tool_name, ai_response, result
+            );
+        }
+        if cfg.show_info_window && result != ai_response {
+            emit_info_message(app, tool_name, &format!("[Processed] {}", result));
+        }
+        result
+    } else {
+        ai_response.clone()
+    };
+
+    // 匹配 triggers（如果有），使用经过二次处理后的文本
     if !cfg.triggers.is_empty() {
-        let matched = match_triggers(&ai_response, &cfg.triggers);
+        let matched = match_triggers(&processed_response, &cfg.triggers);
         if matched.is_empty() {
             #[cfg(debug_assertions)]
             println!(
@@ -1474,6 +1581,7 @@ mod tests {
             capture_height: 600,
             show_info_window: true,
             prompts: vec!["What is on screen?".to_string()],
+            result_processors: vec![],
             triggers: vec![AiToolTriggerConfig {
                 keyword: "error".to_string(),
                 trigger: "alert_state".to_string(),
@@ -1696,6 +1804,7 @@ mod tests {
             capture_height: 100,
             show_info_window: true,
             prompts: vec![],
+            result_processors: vec![],
             triggers: vec![],
         }));
         TOOL_CONFIGS.set(config_map);
@@ -1781,6 +1890,7 @@ mod tests {
             capture_height: 150,
             show_info_window: false,
             prompts: vec!["test prompt".to_string()],
+            result_processors: vec![],
             triggers: vec![],
         }));
         TOOL_CONFIGS.set(config_map);
@@ -1796,5 +1906,271 @@ mod tests {
         assert!(get_tool_config("nonexistent").is_none());
 
         TOOL_CONFIGS.clear();
+    }
+
+    // ===================================================================== //
+    // extract_first_number
+    // ===================================================================== //
+
+    #[test]
+    fn extract_number_from_text() {
+        assert_eq!(extract_first_number("数字是 42"), Some(42.0));
+        assert_eq!(extract_first_number("HP: 35.5 / 100"), Some(35.5));
+        assert_eq!(extract_first_number("-10 damage"), Some(-10.0));
+        assert_eq!(extract_first_number("no numbers here"), None);
+        assert_eq!(extract_first_number(""), None);
+        assert_eq!(extract_first_number("value: 0"), Some(0.0));
+        assert_eq!(extract_first_number("123abc456"), Some(123.0));
+    }
+
+    // ===================================================================== //
+    // process_ai_result — number 类型
+    // ===================================================================== //
+
+    #[test]
+    fn process_number_in_range() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "low_hp".to_string(),
+            min: Some(0.0),
+            max: Some(35.0),
+            pattern: None,
+        }];
+        assert_eq!(process_ai_result("当前血量: 25", &processors), "low_hp");
+        assert_eq!(process_ai_result("当前血量: 35", &processors), "low_hp");
+        assert_eq!(process_ai_result("当前血量: 0", &processors), "low_hp");
+    }
+
+    #[test]
+    fn process_number_out_of_range() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "low_hp".to_string(),
+            min: Some(0.0),
+            max: Some(35.0),
+            pattern: None,
+        }];
+        // 超过范围，返回原始文本
+        assert_eq!(
+            process_ai_result("当前血量: 80", &processors),
+            "当前血量: 80"
+        );
+    }
+
+    #[test]
+    fn process_number_no_number_in_text() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "low_hp".to_string(),
+            min: Some(0.0),
+            max: Some(35.0),
+            pattern: None,
+        }];
+        assert_eq!(
+            process_ai_result("没有数字", &processors),
+            "没有数字"
+        );
+    }
+
+    #[test]
+    fn process_number_only_min() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "high".to_string(),
+            min: Some(50.0),
+            max: None,
+            pattern: None,
+        }];
+        assert_eq!(process_ai_result("值: 80", &processors), "high");
+        assert_eq!(process_ai_result("值: 30", &processors), "值: 30");
+    }
+
+    #[test]
+    fn process_number_only_max() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "low".to_string(),
+            min: None,
+            max: Some(20.0),
+            pattern: None,
+        }];
+        assert_eq!(process_ai_result("值: 10", &processors), "low");
+        assert_eq!(process_ai_result("值: 50", &processors), "值: 50");
+    }
+
+    // ===================================================================== //
+    // process_ai_result — keyword 类型
+    // ===================================================================== //
+
+    #[test]
+    fn process_keyword_match() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "keyword".to_string(),
+            result: "danger".to_string(),
+            min: None,
+            max: None,
+            pattern: Some("error".to_string()),
+        }];
+        assert_eq!(process_ai_result("There was an ERROR", &processors), "danger");
+    }
+
+    #[test]
+    fn process_keyword_no_match() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "keyword".to_string(),
+            result: "danger".to_string(),
+            min: None,
+            max: None,
+            pattern: Some("error".to_string()),
+        }];
+        assert_eq!(
+            process_ai_result("Everything is fine", &processors),
+            "Everything is fine"
+        );
+    }
+
+    #[test]
+    fn process_keyword_no_pattern() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "keyword".to_string(),
+            result: "danger".to_string(),
+            min: None,
+            max: None,
+            pattern: None,
+        }];
+        assert_eq!(
+            process_ai_result("some text", &processors),
+            "some text"
+        );
+    }
+
+    // ===================================================================== //
+    // process_ai_result — regex 类型
+    // ===================================================================== //
+
+    #[test]
+    fn process_regex_match() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "regex".to_string(),
+            result: "found_digits".to_string(),
+            min: None,
+            max: None,
+            pattern: Some(r"\d{3,}".to_string()),
+        }];
+        assert_eq!(process_ai_result("code 404 error", &processors), "found_digits");
+    }
+
+    #[test]
+    fn process_regex_no_match() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "regex".to_string(),
+            result: "found_digits".to_string(),
+            min: None,
+            max: None,
+            pattern: Some(r"\d{3,}".to_string()),
+        }];
+        assert_eq!(
+            process_ai_result("no digits here", &processors),
+            "no digits here"
+        );
+    }
+
+    #[test]
+    fn process_regex_invalid_pattern() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "regex".to_string(),
+            result: "match".to_string(),
+            min: None,
+            max: None,
+            pattern: Some(r"[invalid".to_string()),
+        }];
+        // 无效正则应不匹配，返回原文
+        assert_eq!(
+            process_ai_result("some text", &processors),
+            "some text"
+        );
+    }
+
+    // ===================================================================== //
+    // process_ai_result — 多个处理器（优先级 / 短路逻辑）
+    // ===================================================================== //
+
+    #[test]
+    fn process_first_match_wins() {
+        let processors = vec![
+            AiResultProcessorConfig {
+                processor_type: "number".to_string(),
+                result: "low".to_string(),
+                min: Some(0.0),
+                max: Some(30.0),
+                pattern: None,
+            },
+            AiResultProcessorConfig {
+                processor_type: "number".to_string(),
+                result: "medium".to_string(),
+                min: Some(31.0),
+                max: Some(60.0),
+                pattern: None,
+            },
+            AiResultProcessorConfig {
+                processor_type: "number".to_string(),
+                result: "high".to_string(),
+                min: Some(61.0),
+                max: Some(100.0),
+                pattern: None,
+            },
+        ];
+        assert_eq!(process_ai_result("HP: 25", &processors), "low");
+        assert_eq!(process_ai_result("HP: 45", &processors), "medium");
+        assert_eq!(process_ai_result("HP: 80", &processors), "high");
+        // 超出所有范围
+        assert_eq!(process_ai_result("HP: 150", &processors), "HP: 150");
+    }
+
+    #[test]
+    fn process_empty_processors_returns_original() {
+        assert_eq!(process_ai_result("hello", &[]), "hello");
+    }
+
+    #[test]
+    fn process_unknown_type_skipped() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "unknown_type".to_string(),
+            result: "match".to_string(),
+            min: None,
+            max: None,
+            pattern: None,
+        }];
+        assert_eq!(
+            process_ai_result("some text", &processors),
+            "some text"
+        );
+    }
+
+    // ===================================================================== //
+    // AiResultProcessorConfig 序列化
+    // ===================================================================== //
+
+    #[test]
+    fn ai_result_processor_config_serde() {
+        let proc = AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "low_hp".to_string(),
+            min: Some(0.0),
+            max: Some(35.0),
+            pattern: None,
+        };
+        let json = serde_json::to_string(&proc).unwrap();
+        assert!(json.contains("\"processor_type\":\"number\""));
+        assert!(json.contains("\"result\":\"low_hp\""));
+        assert!(json.contains("\"min\":0.0"));
+        assert!(json.contains("\"max\":35.0"));
+
+        let parsed: AiResultProcessorConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.processor_type, "number");
+        assert_eq!(parsed.result, "low_hp");
+        assert_eq!(parsed.min, Some(0.0));
+        assert_eq!(parsed.max, Some(35.0));
+        assert!(parsed.pattern.is_none());
     }
 }

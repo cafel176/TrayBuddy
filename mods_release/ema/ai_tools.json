@@ -16,6 +16,7 @@
           "prompts": [
             "分析这张游戏截图中的血条状态，判断血条上是否有橙色区域。是返回damage，否返回none"
           ],
+          "result_processors": [],
           "triggers": [
             {
               "keyword": "damage",
@@ -37,6 +38,7 @@
           "prompts": [
             "分析这张游戏截图中的血条状态，判断血条上是否有橙色区域。是返回hurt，否返回none"
           ],
+          "result_processors": [],
           "triggers": [
             {
               "keyword": "hurt",
@@ -56,8 +58,9 @@
             "height": 447
           },
           "prompts": [
-            "分析这张游戏截图中的文字，判断是否有文字“格挡”。是返回defend，否返回none"
+            "分析这张游戏截图中的文字，判断是否有汉字“格挡”。是返回defend，否返回none"
           ],
+          "result_processors": [],
           "triggers": [
             {
               "keyword": "defend",
@@ -84,6 +87,7 @@
           "prompts": [
             "分析这张游戏截图，判断是否有有数字。是返回damage，否返回none"
           ],
+          "result_processors": [],
           "triggers": [
             {
               "keyword": "damage",
@@ -108,7 +112,15 @@
             "height": 63
           },
           "prompts": [
-            "分析这张游戏截图，判断数字是否小于35。是返回hungry，否返回none"
+            "识别出图中数字并返回"
+          ],
+          "result_processors": [
+            {
+              "type": "number",
+              "result": "hungry",
+              "min": 0,
+              "max": 35
+            }
           ],
           "triggers": [
             {
@@ -129,7 +141,15 @@
             "height": 51
           },
           "prompts": [
-            "分析这张游戏截图，判断数字是否小于35。是返回low，否返回none"
+            "识别出图中数字并返回"
+          ],
+          "result_processors": [
+            {
+              "type": "number",
+              "result": "low",
+              "min": 0,
+              "max": 35
+            }
           ],
           "triggers": [
             {
@@ -150,7 +170,15 @@
             "height": 57
           },
           "prompts": [
-            "分析这张游戏截图，判断数字是否小于35。是返回low，否返回none"
+            "识别出图中数字并返回"
+          ],
+          "result_processors": [
+            {
+              "type": "number",
+              "result": "low",
+              "min": 0,
+              "max": 35
+            }
           ],
           "triggers": [
             {

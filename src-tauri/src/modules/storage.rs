@@ -96,8 +96,8 @@ impl Default for UserSettings {
             threed_cross_fade_duration: 0.3,
 
             ai_api_key: "".into(),
-            ai_chat_base_url: "https://api.siliconflow.cn/v1".into(),
-            ai_chat_model: "Pro/Qwen/Qwen2.5-VL-7B-Instruct".into(),
+            ai_chat_base_url: "".into(),//https://api.siliconflow.cn/v1
+            ai_chat_model: "".into(),//Qwen/Qwen3-VL-8B-Instruct  Pro/Qwen/Qwen2.5-VL-7B-Instruct
             ai_screenshot_interval: 1.0,
             ai_tool_hotkey: "F1".into(),
         }

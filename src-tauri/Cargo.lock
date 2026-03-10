@@ -4702,6 +4702,7 @@ dependencies = [
  "image",
  "lazy_static",
  "raw-window-handle",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
