@@ -37,6 +37,20 @@
   // ======================================================================= //
 
   /**
+   * 窗口特定的 AI 参数配置
+   */
+  interface WindowAiConfig {
+    /** 窗口名（不区分大小写匹配） */
+    window_name: string;
+    /** AI 识别 API Base URL */
+    ai_chat_base_url: string;
+    /** AI 图像识别/理解模型 */
+    ai_chat_model: string;
+    /** AI 截图频率（秒） */
+    ai_screenshot_interval: number;
+  }
+
+  /**
    * 用户设置接口
    * 对应后端的 UserSettings 结构体
    */
@@ -83,6 +97,8 @@
     ai_chat_model: string;
     /** AI 截图频率（秒） */
     ai_screenshot_interval: number;
+    /** 窗口特定的 AI 参数配置列表 */
+    ai_window_configs: WindowAiConfig[];
     /** 启动 AI 主动工具的快捷键 (F1-F12) */
     ai_tool_hotkey: string;
   }
@@ -294,6 +310,48 @@
     const interval = parseFloat(target.value);
     if (settings) {
       settings.ai_screenshot_interval = interval;
+    }
+    await saveSettings();
+  }
+
+  /**
+   * 添加一个新的窗口 AI 配置条目
+   */
+  async function addWindowAiConfig() {
+    if (!settings) return;
+    if (!settings.ai_window_configs) {
+      settings.ai_window_configs = [];
+    }
+    settings.ai_window_configs = [
+      ...settings.ai_window_configs,
+      {
+        window_name: "",
+        ai_chat_base_url: "",
+        ai_chat_model: "",
+        ai_screenshot_interval: 1.0,
+      },
+    ];
+  }
+
+  /**
+   * 删除指定索引的窗口 AI 配置
+   */
+  async function removeWindowAiConfig(index: number) {
+    if (!settings) return;
+    settings.ai_window_configs = settings.ai_window_configs.filter(
+      (_, i) => i !== index,
+    );
+    await saveSettings();
+  }
+
+  /**
+   * 处理窗口 AI 配置中截图频率滑块变化
+   */
+  async function onWindowAiIntervalChange(index: number, e: Event) {
+    const target = e.target as HTMLInputElement;
+    const interval = parseFloat(target.value);
+    if (settings && settings.ai_window_configs[index]) {
+      settings.ai_window_configs[index].ai_screenshot_interval = interval;
     }
     await saveSettings();
   }
@@ -722,6 +780,74 @@
       />
     </div>
 
+    <!-- 窗口专属 AI 参数 -->
+    <div class="form-group">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>{_("settings.aiWindowConfigs")}</label>
+      <div class="hint-text">{_("settings.aiWindowConfigsDesc")}</div>
+    </div>
+
+    {#if settings.ai_window_configs && settings.ai_window_configs.length > 0}
+      {#each settings.ai_window_configs as wc, idx}
+        <div class="window-ai-config-card">
+          <div class="window-ai-config-header">
+            <span class="window-ai-config-index">#{idx + 1}</span>
+            <button
+              type="button"
+              class="remove-btn"
+              onclick={() => removeWindowAiConfig(idx)}
+            >{_("settings.aiWindowConfigRemove")}</button>
+          </div>
+          <div class="form-group compact">
+            <label for="wac_name_{idx}">{_("settings.aiWindowConfigWindowName")}</label>
+            <input
+              id="wac_name_{idx}"
+              type="text"
+              bind:value={wc.window_name}
+              onchange={saveSettings}
+              placeholder={_("settings.aiWindowConfigWindowNamePlaceholder")}
+            />
+          </div>
+          <div class="form-group compact">
+            <label for="wac_url_{idx}">{_("settings.aiWindowConfigBaseUrl")}</label>
+            <input
+              id="wac_url_{idx}"
+              type="text"
+              bind:value={wc.ai_chat_base_url}
+              onchange={saveSettings}
+              placeholder="https://api.siliconflow.cn/v1"
+            />
+          </div>
+          <div class="form-group compact">
+            <label for="wac_model_{idx}">{_("settings.aiWindowConfigModel")}</label>
+            <input
+              id="wac_model_{idx}"
+              type="text"
+              bind:value={wc.ai_chat_model}
+              onchange={saveSettings}
+              placeholder="Qwen/Qwen2.5-VL-7B-Instruct"
+            />
+          </div>
+          <div class="form-group compact">
+            <label for="wac_interval_{idx}">{_("settings.aiWindowConfigInterval")} ({wc.ai_screenshot_interval.toFixed(1)}s)</label>
+            <input
+              id="wac_interval_{idx}"
+              type="range"
+              min="0.1"
+              max="10.0"
+              step="0.1"
+              value={wc.ai_screenshot_interval}
+              oninput={(e) => onWindowAiIntervalChange(idx, e)}
+            />
+          </div>
+        </div>
+      {/each}
+    {/if}
+
+    <button type="button" class="secondary-button add-config-btn" onclick={addWindowAiConfig}>
+      + {_("settings.aiWindowConfigAdd")}
+    </button>
+
     <!-- AI 主动工具快捷键 -->
     <div class="form-group">
       <label for="ai_tool_hotkey">{_("settings.aiToolHotkey")}</label>
@@ -867,6 +993,69 @@
     background: #dee2e6;
   }
 
+  .hint-text {
+    font-size: 0.78em;
+    color: #95a5a6;
+    line-height: 1.4;
+  }
+
+  .window-ai-config-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+  }
+
+  .window-ai-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .window-ai-config-index {
+    font-size: 0.8em;
+    font-weight: 700;
+    color: #95a5a6;
+  }
+
+  .remove-btn {
+    background: none;
+    border: 1px solid #e74c3c;
+    color: #e74c3c;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .remove-btn:hover {
+    background: #e74c3c;
+    color: white;
+  }
+
+  .form-group.compact {
+    margin-bottom: 8px;
+    gap: 3px;
+  }
+
+  .form-group.compact label {
+    font-size: 0.8em;
+  }
+
+  .form-group.compact input[type="text"] {
+    padding: 6px 8px;
+    font-size: 0.9em;
+  }
+
+  .add-config-btn {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
   .status-bar {
     margin-top: 15px;
     font-size: 0.85em;
@@ -899,6 +1088,21 @@
     }
     .divider::after {
       background: #34495e;
+    }
+    .window-ai-config-card {
+      background: #34495e;
+      border-color: #455a64;
+    }
+    .hint-text {
+      color: #7f8c8d;
+    }
+    .remove-btn {
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+    .remove-btn:hover {
+      background: #e74c3c;
+      color: white;
     }
   }
 </style>

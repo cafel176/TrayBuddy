@@ -1225,14 +1225,16 @@ export function createWindowCore(options: {
       });
 
       // 监听 AI 工具激活事件：焦点窗口匹配到 ai_tools 配置时弹气泡
-      unlistenAiToolActivated = await listen<{ window_name: string }>(
+      unlistenAiToolActivated = await listen<{ window_name: string; model?: string }>(
         "ai-tool-activated",
         (event) => {
           const bm = refs.getBubbleManager();
           if (bm && !bm.isShowing()) {
             const windowName = event.payload.window_name;
+            const model = event.payload.model;
+            const modelInfo = model ? `\n🤖 ${model}` : "";
             bm.show({
-              text: `${windowName} ${i18nT("aiTool.activated")}`,
+              text: `${windowName} ${i18nT("aiTool.activated")}${modelInfo}`,
               duration: 3000,
               position: "top",
               typeSpeed: 30,

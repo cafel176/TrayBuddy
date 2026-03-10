@@ -98,6 +98,30 @@ fn get_manual_notify() -> &'static Notify {
     MANUAL_CAPTURE_NOTIFY.get_or_init(Notify::new)
 }
 
+/// 解析指定窗口名实际使用的 AI 模型名（优先匹配窗口特定配置）。
+///
+/// 供系统观察器在发送气泡通知时调用，让用户知道当前使用的是哪个模型。
+pub async fn resolve_ai_model_for_window(app: &tauri::AppHandle, window_name: &str) -> String {
+    let wn = window_name.to_string();
+    crate::app_state::AppState::read_settings_async(
+        app,
+        move |s| {
+            let wn_lower = wn.to_lowercase();
+            let matched = s.ai_window_configs.iter().find(|wc| {
+                let cfg_name = wc.window_name.to_lowercase();
+                !cfg_name.is_empty() && (wn_lower.contains(&cfg_name) || cfg_name.contains(&wn_lower))
+            });
+            matched
+                .map(|wc| wc.ai_chat_model.as_ref())
+                .filter(|m| !m.is_empty())
+                .unwrap_or(s.ai_chat_model.as_ref())
+                .to_string()
+        },
+        String::new(),
+    )
+    .await
+}
+
 // ========================================================================= //
 // 工具类型
 // ========================================================================= //
@@ -937,14 +961,30 @@ async fn process_capture_with_ai(
         &png_bytes,
     );
 
-    // 从 settings 读取 API 配置
+    // 从 settings 读取 API 配置（优先匹配窗口特定参数，找不到则使用默认值）
+    let window_name_for_match = cfg.window_name.clone();
     let (api_key, base_url, model) = crate::app_state::AppState::read_settings_async(
         app,
-        |s| (
-            s.ai_api_key.to_string(),
-            s.ai_chat_base_url.to_string(),
-            s.ai_chat_model.to_string(),
-        ),
+        move |s| {
+            let api_key = s.ai_api_key.to_string();
+            // 查找匹配的窗口特定配置（不区分大小写）
+            let wn_lower = window_name_for_match.to_lowercase();
+            let matched_cfg = s.ai_window_configs.iter().find(|wc| {
+                let cfg_name = wc.window_name.to_lowercase();
+                !cfg_name.is_empty() && (wn_lower.contains(&cfg_name) || cfg_name.contains(&wn_lower))
+            });
+            let base_url = matched_cfg
+                .map(|wc| wc.ai_chat_base_url.as_ref())
+                .filter(|u| !u.is_empty())
+                .unwrap_or(s.ai_chat_base_url.as_ref())
+                .to_string();
+            let model = matched_cfg
+                .map(|wc| wc.ai_chat_model.as_ref())
+                .filter(|m| !m.is_empty())
+                .unwrap_or(s.ai_chat_model.as_ref())
+                .to_string();
+            (api_key, base_url, model)
+        },
         (String::new(), String::new(), String::new()),
     )
     .await;
@@ -1161,10 +1201,22 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                 // - 实际请求间隔 = interval（固定），而非 interval + API 延迟
                 //
                 // 优化：每 10 次循环才重新读取 interval 设置，减少 spawn_blocking 开销
+                let window_name_for_interval = cfg.window_name.clone();
                 let mut cached_interval_secs: f64 =
                     crate::app_state::AppState::read_settings_async(
                         &app,
-                        |s| s.ai_screenshot_interval.max(0.1) as f64,
+                        move |s| {
+                            let wn_lower = window_name_for_interval.to_lowercase();
+                            let matched = s.ai_window_configs.iter().find(|wc| {
+                                let cfg_name = wc.window_name.to_lowercase();
+                                !cfg_name.is_empty() && (wn_lower.contains(&cfg_name) || cfg_name.contains(&wn_lower))
+                            });
+                            let interval = matched
+                                .map(|wc| wc.ai_screenshot_interval)
+                                .filter(|&v| v > 0.0)
+                                .unwrap_or(s.ai_screenshot_interval);
+                            interval.max(0.1) as f64
+                        },
                         1.0,
                     )
                     .await;
@@ -1187,11 +1239,22 @@ pub async fn start_tool_task(tool_name: String, app: tauri::AppHandle) {
                     if loop_count > 0 && loop_count % REFRESH_INTERVAL_EVERY_N == 0 {
                         if let Ok(v) = tokio::task::spawn_blocking({
                             let app_clone = app.clone();
+                            let wn = cfg.window_name.clone();
                             move || {
                                 use tauri::Manager;
                                 let app_state: tauri::State<crate::app_state::AppState> = app_clone.state();
                                 let storage = app_state.storage.lock().unwrap();
-                                storage.data.settings.ai_screenshot_interval.max(0.1) as f64
+                                let s = &storage.data.settings;
+                                let wn_lower = wn.to_lowercase();
+                                let matched = s.ai_window_configs.iter().find(|wc| {
+                                    let cfg_name = wc.window_name.to_lowercase();
+                                    !cfg_name.is_empty() && (wn_lower.contains(&cfg_name) || cfg_name.contains(&wn_lower))
+                                });
+                                let interval = matched
+                                    .map(|wc| wc.ai_screenshot_interval)
+                                    .filter(|&v| v > 0.0)
+                                    .unwrap_or(s.ai_screenshot_interval);
+                                interval.max(0.1) as f64
                             }
                         })
                         .await

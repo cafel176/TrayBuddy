@@ -23,6 +23,34 @@ use tauri::Manager;
 
 // ========================================================================= //
 
+/// 窗口特定的 AI 参数配置
+///
+/// 允许为不同的窗口名配置独立的 AI API 参数，
+/// AI 工具运行时会优先匹配窗口特定配置，找不到时才使用默认参数。
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct WindowAiConfig {
+    /// 窗口名（不区分大小写匹配）
+    pub window_name: Box<str>,
+    /// AI 识别 API Base URL
+    pub ai_chat_base_url: Box<str>,
+    /// AI 图像识别/理解模型
+    pub ai_chat_model: Box<str>,
+    /// AI 截图频率（秒）
+    pub ai_screenshot_interval: f32,
+}
+
+impl Default for WindowAiConfig {
+    fn default() -> Self {
+        Self {
+            window_name: "".into(),
+            ai_chat_base_url: "".into(),
+            ai_chat_model: "".into(),
+            ai_screenshot_interval: 1.0,
+        }
+    }
+}
+
 /// 用户个性化设置
 ///
 /// 包含所有可由用户自定义的应用配置项。
@@ -64,6 +92,10 @@ pub struct UserSettings {
     pub ai_chat_model: Box<str>,
     /// AI 截图频率（秒）
     pub ai_screenshot_interval: f32,
+    /// 窗口特定的 AI 参数配置列表
+    /// 运行时优先匹配窗口名，找不到时使用上方的默认 AI 参数
+    pub ai_window_configs: Vec<WindowAiConfig>,
+
     /// 启动 AI 主动工具的快捷键 (F1-F12)
     pub ai_tool_hotkey: Box<str>,
 
@@ -99,7 +131,8 @@ impl Default for UserSettings {
             ai_chat_base_url: "".into(),//https://api.siliconflow.cn/v1
             ai_chat_model: "".into(),//Qwen/Qwen3-VL-8B-Instruct  Pro/Qwen/Qwen2.5-VL-7B-Instruct
             ai_screenshot_interval: 1.0,
-            ai_tool_hotkey: "F1".into(),
+            ai_window_configs: Vec::new(),
+            ai_tool_hotkey: "F1".into()
         }
     }
 }
@@ -732,6 +765,7 @@ mod tests {
         assert_eq!(s.ai_chat_model.as_ref(), "Pro/Qwen/Qwen2.5-VL-7B-Instruct");
         assert_eq!(s.ai_screenshot_interval, 1.0);
         assert_eq!(s.ai_tool_hotkey.as_ref(), "F1");
+        assert!(s.ai_window_configs.is_empty());
     }
 
     // ========================================================================= //

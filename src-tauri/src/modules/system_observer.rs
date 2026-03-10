@@ -467,10 +467,11 @@ impl SystemObserver {
 
                     // 发送 AI 工具激活事件（气泡通知）
                     let window_name = proc.window_name.to_string();
+                    let ai_model = ai_tool_manager::resolve_ai_model_for_window(app_handle, &window_name).await;
                     let _ = emit(
                         app_handle,
                         events::AI_TOOL_ACTIVATED,
-                        serde_json::json!({ "window_name": &window_name }),
+                        serde_json::json!({ "window_name": &window_name, "model": &ai_model }),
                     );
 
                     // 发送 tool_data 到前端（含启用状态）
