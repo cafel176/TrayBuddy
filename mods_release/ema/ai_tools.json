@@ -8,13 +8,13 @@
           "auto_start": true,
           "type": "auto",
           "capture_rect": {
-            "x": 1219,
-            "y": 1068,
-            "width": 1301,
-            "height": 181
+            "x": 988,
+            "y": 994,
+            "width": 1532,
+            "height": 255
           },
           "prompts": [
-            "1. 找到画面中的横向血条。\n2. 只观察血条内部的颜色，不考虑数字、背景和图标。\n3. 判断血条中是否出现橙色区域。\n\n输出规则\n- 如果血条中存在橙色区域，输出：damage\n- 如果血条中没有橙色区域，输出：none"
+            "判断血条内是否有橙色区域，有输出damage，没有输出none"
           ],
           "result_processors": [],
           "triggers": [
@@ -30,13 +30,13 @@
           "auto_start": true,
           "type": "auto",
           "capture_rect": {
-            "x": 438,
-            "y": 757,
+            "x": 447,
+            "y": 1127,
             "width": 408,
-            "height": 447
+            "height": 89
           },
           "prompts": [
-            "1. 找到画面中的横向血条。\n2. 只观察血条内部的颜色，不考虑数字、背景和图标。\n3. 判断血条中是否出现橙色区域。\n\n输出规则\n- 如果血条中存在橙色区域，输出：hurt\n- 如果血条中没有橙色区域，输出：none"
+            "判断血条内是否有橙色区域，有输出hurt，没有输出none"
           ],
           "result_processors": [],
           "triggers": [
@@ -49,7 +49,7 @@
         },
         {
           "name": "check_defend",
-          "auto_start": true,
+          "auto_start": false,
           "type": "auto",
           "capture_rect": {
             "x": 438,
@@ -58,7 +58,7 @@
             "height": 447
           },
           "prompts": [
-            "判断图片中是否出现汉字“格挡”。\n1. 只要画面中出现完整的“格挡”两个汉字（顺序为“格挡”），即可判定为存在。\n2. 忽略颜色、字体、大小、特效，只判断文字内容。\n\n输出规则：\n- 如果存在“格挡”，只输出：defend\n- 如果不存在“格挡”，只输出：none"
+            "分析这张游戏截图中的文字，判断是否有汉字“格挡”。是返回defend，否返回none"
           ],
           "result_processors": [],
           "triggers": [
@@ -112,13 +112,13 @@
             "height": 63
           },
           "prompts": [
-            "识别图片中的整数，输出识别到整数"
+            "识别出图中整数并输出，如果识别到非整数或超过一个的整数，输出error"
           ],
           "result_processors": [
             {
               "type": "number",
               "result": "hungry",
-              "min": 0,
+              "min": 1,
               "max": 35
             }
           ],
@@ -141,13 +141,13 @@
             "height": 51
           },
           "prompts": [
-            "识别图片中的整数，输出识别到整数"
+            "识别出图中整数并输出，如果识别到非整数或超过一个的整数，输出error"
           ],
           "result_processors": [
             {
               "type": "number",
               "result": "low",
-              "min": 0,
+              "min": 1,
               "max": 35
             }
           ],
@@ -170,13 +170,13 @@
             "height": 57
           },
           "prompts": [
-            "识别图片中的整数，输出识别到整数"
+            "识别出图中整数并输出，如果识别到非整数或超过一个的整数，输出error"
           ],
           "result_processors": [
             {
               "type": "number",
               "result": "low",
-              "min": 0,
+              "min": 1,
               "max": 35
             }
           ],

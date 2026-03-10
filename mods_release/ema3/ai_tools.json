@@ -8,13 +8,13 @@
           "auto_start": true,
           "type": "auto",
           "capture_rect": {
-            "x": 1219,
-            "y": 1068,
-            "width": 1301,
-            "height": 181
+            "x": 988,
+            "y": 994,
+            "width": 1532,
+            "height": 255
           },
           "prompts": [
-            "分析这张游戏截图中的血条状态，判断血条上是否有橙色区域。是返回damage，否返回none"
+            "判断血条内是否有橙色区域，有输出damage，没有输出none"
           ],
           "result_processors": [],
           "triggers": [
@@ -30,13 +30,13 @@
           "auto_start": true,
           "type": "auto",
           "capture_rect": {
-            "x": 438,
-            "y": 757,
+            "x": 447,
+            "y": 1127,
             "width": 408,
-            "height": 447
+            "height": 89
           },
           "prompts": [
-            "分析这张游戏截图中的血条状态，判断血条上是否有橙色区域。是返回hurt，否返回none"
+            "判断血条内是否有橙色区域，有输出hurt，没有输出none"
           ],
           "result_processors": [],
           "triggers": [
@@ -49,7 +49,7 @@
         },
         {
           "name": "check_defend",
-          "auto_start": true,
+          "auto_start": false,
           "type": "auto",
           "capture_rect": {
             "x": 438,
@@ -112,13 +112,13 @@
             "height": 63
           },
           "prompts": [
-            "识别出图中数字并返回"
+            "识别出图中整数并输出，如果识别到非整数或超过一个的整数，输出error"
           ],
           "result_processors": [
             {
               "type": "number",
               "result": "hungry",
-              "min": 0,
+              "min": 1,
               "max": 35
             }
           ],
@@ -141,13 +141,13 @@
             "height": 51
           },
           "prompts": [
-            "识别出图中数字并返回"
+            "识别出图中整数并输出，如果识别到非整数或超过一个的整数，输出error"
           ],
           "result_processors": [
             {
               "type": "number",
               "result": "low",
-              "min": 0,
+              "min": 1,
               "max": 35
             }
           ],
@@ -170,13 +170,13 @@
             "height": 57
           },
           "prompts": [
-            "识别出图中数字并返回"
+            "识别出图中整数并输出，如果识别到非整数或超过一个的整数，输出error"
           ],
           "result_processors": [
             {
               "type": "number",
               "result": "low",
-              "min": 0,
+              "min": 1,
               "max": 35
             }
           ],
