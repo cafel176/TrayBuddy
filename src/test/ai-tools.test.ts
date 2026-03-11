@@ -54,12 +54,12 @@ describe("aiTools module", () => {
     const mockConfig = {
       ai_tools: [
         {
-          process_name: "chrome.exe",
+          window_name: "chrome.exe",
           tool_data: [
             {
               name: "web-monitor",
               auto_start: true,
-              tool_type: "auto",
+              type: "auto",
               capture_rect: { x: 0, y: 0, width: 100, height: 100 },
               prompts: ["What do you see?"],
               triggers: [{ keyword: "error", trigger: "alert" }],

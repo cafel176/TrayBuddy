@@ -60,7 +60,13 @@ echo [3/4] Running backend tests...
 pushd src-tauri
 
 :: Build test binaries first
-cargo test --lib --no-run 2>nul
+> "%LOG_DIR%\backend-tests.log" echo [build] cargo test --lib --no-run
+cargo test --lib --no-run >> "%LOG_DIR%\backend-tests.log" 2>&1
+if errorlevel 1 (
+  set BACKEND_OK=1
+  echo   FAILED: Backend test build failed.
+  echo   See log: %LOG_DIR%\backend-tests.log
+)
 
 :: Deploy comctl32 v6 manifest for test executables
 for /f "delims=" %%E in ('dir /b /s target\debug\deps\traybuddy_lib-*.exe 2^>nul') do (
@@ -71,7 +77,9 @@ for /f "delims=" %%E in ('dir /b /s target\debug\deps\traybuddy_lib-*.exe 2^>nul
 )
 
 :: Run all tests (normal + ignored)
-cargo test -- --test-threads=1 --nocapture > "%LOG_DIR%\backend-tests.log" 2>&1
+echo.>> "%LOG_DIR%\backend-tests.log"
+echo [test] cargo test -- --test-threads=1 --nocapture>> "%LOG_DIR%\backend-tests.log"
+cargo test -- --test-threads=1 --nocapture >> "%LOG_DIR%\backend-tests.log" 2>&1
 if errorlevel 1 (
   set BACKEND_OK=1
   echo   FAILED: Some backend tests did not pass.
@@ -94,8 +102,10 @@ if errorlevel 1 (
 echo [4/4] Generating backend coverage report...
 
 set "COV_IGNORE_REGEX=app_state\.rs$|lib\.rs$|main\.rs$|lib_helpers\.rs$|commands[\\/].*\.rs$|resource_runtime\.rs$|resource_fs_runtime\.rs$|state_runtime\.rs$|environment_runtime\.rs$|mod_archive_runtime\.rs$|storage_runtime\.rs$|media_observer\.rs$|system_observer\.rs$|process_observer\.rs$|event_manager\.rs$|window\.rs$|thread\.rs$|i18n\.rs$"
+set "BACKEND_COV_LOG=%LOG_DIR%\backend-coverage.log"
 
-cargo llvm-cov --workspace --tests --no-run --ignore-filename-regex "%COV_IGNORE_REGEX%" 2>nul
+> "%BACKEND_COV_LOG%" echo [build] cargo llvm-cov --workspace --tests --no-run --ignore-filename-regex "%COV_IGNORE_REGEX%"
+cargo llvm-cov --workspace --tests --no-run --ignore-filename-regex "%COV_IGNORE_REGEX%" >> "%BACKEND_COV_LOG%" 2>&1
 
 :: Deploy manifest for coverage test executables
 for /f "delims=" %%E in ('dir /b /s target\llvm-cov-target\debug\deps\traybuddy_lib-*.exe 2^>nul') do (
@@ -109,10 +119,17 @@ echo.
 echo ----------------------------------------------------------------
 echo   Backend Coverage
 echo ----------------------------------------------------------------
-cargo llvm-cov --workspace --tests --summary-only --ignore-filename-regex "%COV_IGNORE_REGEX%" -- --test-threads=1
-if errorlevel 1 (
+echo.>> "%BACKEND_COV_LOG%"
+echo [summary] cargo llvm-cov --workspace --tests --summary-only --ignore-filename-regex "%COV_IGNORE_REGEX%" -- --test-threads=1>> "%BACKEND_COV_LOG%"
+cargo llvm-cov --workspace --tests --summary-only --ignore-filename-regex "%COV_IGNORE_REGEX%" -- --test-threads=1 >> "%BACKEND_COV_LOG%" 2>&1
+set "COV_EXIT=!errorlevel!"
+
+powershell -NoProfile -Command "if (Test-Path '%BACKEND_COV_LOG%') { Get-Content '%BACKEND_COV_LOG%' -Tail 200 }" 2>nul
+
+if not "!COV_EXIT!"=="0" (
   set BACKEND_COV_OK=1
   echo   FAILED: Backend coverage generation failed.
+  echo   See log: %LOG_DIR%\backend-coverage.log
 ) else (
   echo.
 )

@@ -8,8 +8,11 @@ use std::sync::Mutex;
 /// 线程安全的全局缓存值。
 ///
 /// 使用方式：
-/// ```ignore
+/// ```rust,no_run
+/// use crate::modules::utils::CachedValue;
+///
 /// static CACHED_FOO: CachedValue<String> = CachedValue::new();
+///
 /// CACHED_FOO.set("hello".to_string());
 /// let val: Option<String> = CACHED_FOO.get();
 /// CACHED_FOO.clear();

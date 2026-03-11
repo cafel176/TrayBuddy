@@ -151,7 +151,8 @@ impl AppState {
     /// 在 `spawn_blocking` 中读取 `UserSettings` 的指定字段，避免在 async 上下文中阻塞 tokio 线程。
     ///
     /// # 用法
-    /// ```ignore
+    /// ```text
+    /// // 注意：该函数需要 `tauri::AppHandle`，且必须在 async 上下文中调用。
     /// let (key, url) = AppState::read_settings_async(&app, |s| {
     ///     (s.ai_api_key.to_string(), s.ai_chat_base_url.to_string())
     /// }, (String::new(), String::new())).await;
