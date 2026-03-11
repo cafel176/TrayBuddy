@@ -298,9 +298,40 @@
     return getModType() === "pngremix";
   }
 
+  function toFiniteNumber(v: unknown): number | null {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /**
+   * PngRemix：鼠标跟随幅度缩放
+   * - 缺失时：兼容旧 mod，回退到 motion_amp_scale；再缺失则为 1.0
+   */
+  function getPngRemixFollowAmpScale(): number {
+    const raw = toFiniteNumber(currentModInfo?.manifest?.pngremix_follow_amp_scale);
+    if (raw !== null) return raw;
+    const motionAmp = toFiniteNumber(currentModInfo?.manifest?.pngremix_motion_amp_scale);
+    return motionAmp ?? 1.0;
+  }
+
+  /**
+   * PngRemix：摆动幅度缩放（缺失时默认 1.0）
+   */
+  function getPngRemixMotionAmpScale(): number {
+    return toFiniteNumber(currentModInfo?.manifest?.pngremix_motion_amp_scale) ?? 1.0;
+  }
+
+  /**
+   * PngRemix：摆动频率缩放（缺失时默认 1.0）
+   */
+  function getPngRemixMotionFrqScale(): number {
+    return toFiniteNumber(currentModInfo?.manifest?.pngremix_motion_frq_scale) ?? 1.0;
+  }
+
   function isSequenceMod(): boolean {
     return getModType() === "sequence";
   }
+
 
   function isThreeDMod(): boolean {
     return getModType() === "3d";
@@ -542,11 +573,28 @@
                 <span class="info-value"
                   >{currentModInfo.manifest.global_mouse ? _("common.yes") : _("common.no")}</span>
               </div>
+
+              {#if isPngremixMod()}
+                <div class="info-row">
+                  <span class="info-label">{_("resource.pngremixFollowAmpScale")}</span>
+                  <span class="info-value">{getPngRemixFollowAmpScale()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">{_("resource.pngremixMotionAmpScale")}</span>
+                  <span class="info-value">{getPngRemixMotionAmpScale()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">{_("resource.pngremixMotionFrqScale")}</span>
+                  <span class="info-value">{getPngRemixMotionFrqScale()}</span>
+                </div>
+              {/if}
+
               <div class="info-row">
                 <span class="info-label">{_("resource.aiTools")}</span>
                 <span class="info-value"
                   >{currentModInfo.ai_tools ? currentModInfo.ai_tools.ai_tools.length + " window(s)" : _("resource.aiToolsNotSet")}</span>
               </div>
+
             </div>
 
             {#if currentModInfo.ai_tools && currentModInfo.ai_tools.ai_tools.length > 0}

@@ -468,7 +468,13 @@
     "textureDownsampleStartDim": "ダウンサンプリング開始サイズ",
     "globalKeyboard": "グローバルキーボード",
     "globalMouse": "グローバルマウス",
+
+    "pngremixFollowAmpScale": "PngRemix 追従振幅スケール",
+    "pngremixMotionAmpScale": "PngRemix 揺れ振幅スケール",
+    "pngremixMotionFrqScale": "PngRemix 揺れ周波数スケール",
+
     "aiTools": "AIツール設定",
+
     "aiToolsNotSet": "未設定",
     "aiToolsProcessName": "ウィンドウ名",
     "aiToolsToolName": "ツール名",

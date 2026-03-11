@@ -468,7 +468,13 @@
     "textureDownsampleStartDim": "Downsample Start Texture Size",
     "globalKeyboard": "Global Keyboard",
     "globalMouse": "Global Mouse",
+
+    "pngremixFollowAmpScale": "PngRemix Follow Amp Scale",
+    "pngremixMotionAmpScale": "PngRemix Motion Amp Scale",
+    "pngremixMotionFrqScale": "PngRemix Motion Freq Scale",
+
     "aiTools": "AI Tools Config",
+
     "aiToolsNotSet": "Not configured",
     "aiToolsProcessName": "Window Name",
     "aiToolsToolName": "Tool Name",

@@ -467,7 +467,13 @@
     "textureDownsampleStartDim": "开始降采样的贴图尺寸",
     "globalKeyboard": "全局键盘监听",
     "globalMouse": "全局鼠标监听",
+
+    "pngremixFollowAmpScale": "PngRemix 跟随幅度缩放",
+    "pngremixMotionAmpScale": "PngRemix 摆动幅度缩放",
+    "pngremixMotionFrqScale": "PngRemix 摆动频率缩放",
+
     "aiTools": "AI 工具配置",
+
     "aiToolsNotSet": "未配置",
     "aiToolsProcessName": "窗口名",
     "aiToolsToolName": "工具名",
