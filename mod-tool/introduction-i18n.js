@@ -349,6 +349,13 @@ const introductionTranslations = {
 
     aitools_intro_rp_title: "结果处理器 (result_processors)",
     aitools_intro_rp_desc: "结果处理器对 AI 返回的原始文本进行二次处理。按顺序依次匹配，第一个命中的处理器的 result 替代原始文本传给 triggers。",
+
+    aitools_list_ops_title: "列表操作",
+    aitools_list_ops_desc: "窗口列表与工具列表提供多种便捷操作，便于快速搭建与迁移配置：",
+    aitools_list_op_drag: "<strong>拖拽排序</strong>：使用卡片左侧的拖拽手柄可调整窗口/工具的顺序",
+    aitools_list_op_copy_paste: "<strong>复制/粘贴</strong>：可复制单个工具或整个窗口配置到剪切板，并在其他 Mod 中粘贴复用",
+    aitools_list_op_search: "<strong>搜索</strong>：支持在窗口内按关键字快速筛选工具列表",
+
     aitools_intro_rp_field_type: "type",
     aitools_intro_rp_type_desc: "处理类型：number（提取数值判断范围）、keyword（关键词包含匹配，不区分大小写）、regex（正则匹配）",
     aitools_intro_rp_field_result: "result",
@@ -489,6 +496,13 @@ const introductionTranslations = {
     pngremix_expressions_config_desc: "管理 PngRemix 模型的表情列表。每个表情通过切换状态索引实现。",
     pngremix_expression_name_desc: "表情名称，供状态映射和 pngremix_params 引用",
     pngremix_expression_index_desc: "对应的模型状态索引（从 0 开始）",
+
+    section_pngremix_expr_add_state: "从表情新增同名状态",
+    pngremix_expr_add_state_desc: "在表情列表中，每个表情右侧也提供「新增同名状态」按钮，可快速创建同名状态，并自动把该表情写入 pngremix_params：",
+    pngremix_expr_add_state_params: "<strong>自动写入参数</strong>：创建的状态会包含 <code>pngremix_params</code>，默认加入 <code>{ type: \"expression\", name: 表情名 }</code>",
+    pngremix_expr_add_state_text: "<strong>联动文本</strong>：若存在同名的对话文本条目，自动关联到 state.text",
+    pngremix_expr_add_state_audio: "<strong>联动音频</strong>：若存在同名的音频条目，自动关联到 state.audio",
+
     section_pngremix_motions_config: "动作配置",
     pngremix_motions_config_desc: "管理 PngRemix 模型的动作列表。动作可通过热键触发。",
     pngremix_motion_name_desc: "动作名称，供状态映射和 pngremix_params 引用",
@@ -598,6 +612,10 @@ const introductionTranslations = {
     export_tbuddy_desc: "点击「📦 导出」→「📦 到 .tbuddy」生成压缩包（包内会以 Mod ID 作为根目录）。",
     export_sbuddy_title: "导出为 .sbuddy",
     export_sbuddy_desc: "当同目录下存在 sbuddy-crypto.exe 时，会显示「🔒 到 .sbuddy」按钮。点击后先导出 .tbuddy 再由外部工具转换为加密的 .sbuddy 格式。",
+
+    save_export_resources_tip_title: "💡 资源补齐提示",
+    save_export_resources_tip_desc: "如果你是从 .tbuddy 打开的 Mod，编辑器在“保存到文件夹/导出”时会尽量从原始压缩包中补齐非 JSON 资源文件，避免出现“只有 json 没有资源”的情况（Live2D/3D 等尤为常见）。不过仍建议优先使用“打开文件夹”工作流，资源更直观也更不易遗漏。",
+
     saved_files_title: "保存/导出的文件",
     live2d_export_all_files: "下的所有文件（.model3.json、.moc3、贴图、.motion3.json、.exp3.json 等）将完整打包",
     saved_files_bubble_note: "（开启气泡样式时生成）",
@@ -976,6 +994,13 @@ const introductionTranslations = {
 
     aitools_intro_rp_title: "Result Processors (result_processors)",
     aitools_intro_rp_desc: "Result processors apply post-processing to the raw AI response text. They are matched in order; the first matching processor's result replaces the original text passed to triggers.",
+
+    aitools_list_ops_title: "List Operations",
+    aitools_list_ops_desc: "The window list and tool list provide convenient operations to quickly build and reuse configurations:",
+    aitools_list_op_drag: "<strong>Drag to reorder</strong>: Use the drag handle on the left of cards to reorder windows/tools",
+    aitools_list_op_copy_paste: "<strong>Copy/Paste</strong>: Copy a single tool or an entire window configuration to clipboard and paste it into another Mod",
+    aitools_list_op_search: "<strong>Search</strong>: Quickly filter tools within a window by keyword",
+
     aitools_intro_rp_field_type: "type",
     aitools_intro_rp_type_desc: "Processor type: number (extract number & check range), keyword (case-insensitive contains match), regex (regex match)",
     aitools_intro_rp_field_result: "result",
@@ -1116,6 +1141,13 @@ const introductionTranslations = {
     pngremix_expressions_config_desc: "Manage PngRemix model expressions. Each expression is achieved by switching state index.",
     pngremix_expression_name_desc: "Expression name, referenced by state mappings and pngremix_params",
     pngremix_expression_index_desc: "Corresponding model state index (starting from 0)",
+
+    section_pngremix_expr_add_state: "Create Same-Name State from Expression",
+    pngremix_expr_add_state_desc: "In the expression list, each expression also has a \"Create Same-Name State\" button. It quickly creates a state with the same name and writes the expression into pngremix_params:",
+    pngremix_expr_add_state_params: "<strong>Auto params</strong>: The created state includes <code>pngremix_params</code> with default <code>{ type: \"expression\", name: \"&lt;expression name&gt;\" }</code>",
+    pngremix_expr_add_state_text: "<strong>Link text</strong>: If a dialogue text entry with the same name exists, it is linked to state.text",
+    pngremix_expr_add_state_audio: "<strong>Link audio</strong>: If an audio entry with the same name exists, it is linked to state.audio",
+
     section_pngremix_motions_config: "Motions Configuration",
     pngremix_motions_config_desc: "Manage PngRemix model motions. Motions can be triggered via hotkeys.",
     pngremix_motion_name_desc: "Motion name, referenced by state mappings and pngremix_params",
@@ -1225,6 +1257,10 @@ const introductionTranslations = {
     export_tbuddy_desc: "Click \"📦 Export\" → \"📦 To .tbuddy\" to generate a zip package (root folder is the Mod ID).",
     export_sbuddy_title: "Export to .sbuddy",
     export_sbuddy_desc: "When sbuddy-crypto.exe is present in the same directory, a \"🔒 To .sbuddy\" button appears. It first exports .tbuddy then converts it to the encrypted .sbuddy format via the external tool.",
+
+    save_export_resources_tip_title: "💡 Resource Fallback",
+    save_export_resources_tip_desc: "If the Mod was opened from a .tbuddy file, the editor will try to copy non-JSON resource files from the original package during \"Save to folder\" / \"Export\" to avoid ending up with only JSON without assets (especially for Live2D/3D). Still, using the \"Open folder\" workflow is recommended because assets are easier to manage and less likely to be missed.",
+
     saved_files_title: "Saved / Exported Files",
     live2d_export_all_files: "All files under this directory (.model3.json, .moc3, textures, .motion3.json, .exp3.json, etc.) will be fully packaged",
     saved_files_bubble_note: " (generated when bubble style is enabled)",
@@ -1601,6 +1637,13 @@ const introductionTranslations = {
 
     aitools_intro_rp_title: "結果プロセッサ (result_processors)",
     aitools_intro_rp_desc: "結果プロセッサはAIの生テキストに後処理を適用します。順番にマッチし、最初にヒットしたプロセッサのresultが元のテキストに代わってtriggersに渡されます。",
+
+    aitools_list_ops_title: "リスト操作",
+    aitools_list_ops_desc: "ウィンドウ一覧とツール一覧には、設定を素早く作成・再利用するための便利機能があります：",
+    aitools_list_op_drag: "<strong>ドラッグで並び替え</strong>：カード左側のドラッグハンドルでウィンドウ/ツールの順序を変更できます",
+    aitools_list_op_copy_paste: "<strong>コピー/貼り付け</strong>：単体ツールやウィンドウ設定をクリップボードへコピーし、他の Mod へ貼り付けて再利用できます",
+    aitools_list_op_search: "<strong>検索</strong>：ウィンドウ内でキーワード検索してツール一覧を素早く絞り込みできます",
+
     aitools_intro_rp_field_type: "type",
     aitools_intro_rp_type_desc: "処理タイプ：number（数値抽出＆範囲判定）、keyword（大文字小文字を区別しない包含マッチ）、regex（正規表現マッチ）",
     aitools_intro_rp_field_result: "result",
@@ -1741,6 +1784,13 @@ const introductionTranslations = {
     pngremix_expressions_config_desc: "PngRemix モデルの表情リストを管理します。各表情は状態インデックスの切り替えで実現されます。",
     pngremix_expression_name_desc: "表情名（状態マッピングや pngremix_params で参照）",
     pngremix_expression_index_desc: "対応するモデル状態インデックス（0 から開始）",
+
+    section_pngremix_expr_add_state: "表情から同名の状態を作成",
+    pngremix_expr_add_state_desc: "表情リストでも各表情の右側に「同名の状態を作成」ボタンがあり、同名の状態を素早く作成し、表情を pngremix_params に書き込みます：",
+    pngremix_expr_add_state_params: "<strong>パラメータ自動設定</strong>：作成された状態には <code>pngremix_params</code> が含まれ、既定で <code>{ type: \"expression\", name: \"&lt;表情名&gt;\" }</code> を追加します",
+    pngremix_expr_add_state_text: "<strong>テキスト連携</strong>：同名の対話テキストがあれば state.text に自動リンクします",
+    pngremix_expr_add_state_audio: "<strong>音声連携</strong>：同名の音声エントリがあれば state.audio に自動リンクします",
+
     section_pngremix_motions_config: "モーション設定",
     pngremix_motions_config_desc: "PngRemix モデルのモーションリストを管理します。モーションはホットキーでトリガーできます。",
     pngremix_motion_name_desc: "モーション名（状態マッピングや pngremix_params で参照）",
@@ -1849,6 +1899,10 @@ const introductionTranslations = {
     export_tbuddy_desc: "「📦 エクスポート」→「📦 .tbuddy へ」で圧縮パッケージを生成します（ルートフォルダは Mod ID です）。", 
     export_sbuddy_title: ".sbuddy にエクスポート",
     export_sbuddy_desc: "同じディレクトリに sbuddy-crypto.exe がある場合、「🔒 .sbuddy へ」ボタンが表示されます。クリックするとまず .tbuddy をエクスポートし、外部ツールで暗号化された .sbuddy 形式に変換します。",
+
+    save_export_resources_tip_title: "💡 リソース補完のヒント",
+    save_export_resources_tip_desc: ".tbuddy から開いた Mod の場合、「フォルダへ保存/エクスポート」時に元の圧縮パッケージから JSON 以外のリソースファイルを可能な限り補完し、「json だけでアセットがない」状態を防ぎます（特に Live2D/3D で起こりがち）。ただし、基本は「フォルダを開く」ワークフローを推奨します。",
+
     saved_files_title: "保存/エクスポートされるファイル",
     live2d_export_all_files: "下のすべてのファイル（.model3.json、.moc3、テクスチャ、.motion3.json、.exp3.json など）が完全にパッケージされます",
     saved_files_bubble_note: "（吹き出しスタイルが有効な場合に生成）",

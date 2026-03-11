@@ -337,6 +337,15 @@
 
       <h3 data-i18n="aitools_intro_rp_title">结果处理器 (result_processors)</h3>
       <p data-i18n="aitools_intro_rp_desc">结果处理器对 AI 返回的原始文本进行二次处理。按顺序依次匹配，第一个命中的处理器的 result 替代原始文本传给 triggers。</p>
+
+      <h3 data-i18n="aitools_list_ops_title">列表操作</h3>
+      <p data-i18n="aitools_list_ops_desc">窗口列表与工具列表提供多种便捷操作，便于快速搭建与迁移配置：</p>
+      <ul>
+        <li data-i18n="aitools_list_op_drag"><strong>拖拽排序</strong>：使用卡片左侧的拖拽手柄可调整窗口/工具的顺序</li>
+        <li data-i18n="aitools_list_op_copy_paste"><strong>复制/粘贴</strong>：可复制单个工具或整个窗口配置到剪切板，并在其他 Mod 中粘贴复用</li>
+        <li data-i18n="aitools_list_op_search"><strong>搜索</strong>：支持在窗口内按关键字快速筛选工具列表</li>
+      </ul>
+
       <table>
         <tr><th data-i18n="table_field">字段</th><th data-i18n="table_desc">说明</th></tr>
         <tr><td data-i18n="aitools_intro_rp_field_type">type</td><td data-i18n="aitools_intro_rp_type_desc">处理类型：number（数值范围匹配）、keyword（关键词包含匹配）、regex（正则匹配）</td></tr>
@@ -530,6 +539,14 @@
         <tr><td data-i18n="pngremix_expression_name">name</td><td data-i18n="pngremix_expression_name_desc">表情名称，供状态映射和 pngremix_params 引用</td></tr>
         <tr><td data-i18n="pngremix_expression_index">state_index</td><td data-i18n="pngremix_expression_index_desc">对应的模型状态索引（从 0 开始）</td></tr>
       </table>
+
+      <h3 data-i18n="section_pngremix_expr_add_state">从表情新增同名状态</h3>
+      <p data-i18n="pngremix_expr_add_state_desc">在表情列表中，每个表情右侧也提供「新增同名状态」按钮，可快速创建同名状态，并自动把该表情写入 pngremix_params：</p>
+      <ul>
+        <li data-i18n="pngremix_expr_add_state_params"><strong>自动写入参数</strong>：创建的状态会包含 <code>pngremix_params</code>，默认加入 <code>{ type: "expression", name: 表情名 }</code></li>
+        <li data-i18n="pngremix_expr_add_state_text"><strong>联动文本</strong>：若存在同名的对话文本条目，自动关联到 state.text</li>
+        <li data-i18n="pngremix_expr_add_state_audio"><strong>联动音频</strong>：若存在同名的音频条目，自动关联到 state.audio</li>
+      </ul>
 
 
       <h3 data-i18n="section_pngremix_motions_config">动作配置</h3>

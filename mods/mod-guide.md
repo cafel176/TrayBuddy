@@ -4,6 +4,10 @@
 
 ## 1. 目录结构
 
+> 说明：下列目录结构按 `mod_type` 分类展示，但**部分文件对所有 Mod 类型通用**：
+> - `bubble_style.json`：可选，对话气泡与分支按钮样式配置
+> - `ai_tools.json`：可选，AI 工具窗口/工具配置（用于在外部软件/游戏中触发自定义事件，驱动 `manifest.json` 的 `triggers`）
+
 ### 1.1 序列帧 Mod（mod_type: "sequence"）
 
 ```text
@@ -135,6 +139,9 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `states` | Array | 其他普通状态定义数组 |
 ||| `triggers` | Array | 事件触发定义数组 |
 
+> 兼容性提示：
+> - `mod_type` 在解析层面**有默认值**（默认 `sequence`），并且程序可能根据实际资源文件（如 `asset/live2d.json` / `asset/pngremix.json` / `asset/3d.json`）推断并修正类型；但为了可读性与跨版本兼容，仍**强烈建议显式填写**。
+> - `texture_downsample_start_dim` 等优化字段可省略，省略时使用默认值。
 
 #### 2.1.1 角色配置对象 (Character Object)
 
@@ -178,8 +185,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `trigger_uptime` | Number | 启动时长触发门槛（分钟）。当“本次程序启动已运行分钟数” >= trigger_uptime 时，该状态才允许触发。默认 0（不限制） |
 ||| `trigger_weather` | Array | 天气触发条件（数组任意匹配）。空数组表示不限制；若数组项为纯数字则匹配 environment.condition_code（weatherCode），否则匹配 environment.condition（天气描述，精确匹配）。默认 [] |
 ||| `mod_data_counter` | Object / null | 进入该状态时对 Mod 数据执行的操作 (可选) |
-||| `live2d_params` | Array | （Live2D Mod）进入该状态时覆写 Live2D 参数（数组；可为空）。元素结构：`{id, value, target}`，其中 `target` 可选，取值 `Parameter`（参数值）或 `PartOpacity`（部件透明度），省略时默认 `Parameter` |
-||| `pngremix_params` | Array | （PngRemix Mod）进入该状态时触发表情/动作（数组；可为空；元素为 `{type,name}`） |
+||| `live2d_params` | Array / null | （Live2D Mod）进入该状态时覆写 Live2D 参数。可为数组、`[]`、`null` 或直接省略。元素结构：`{id, value, target}`，其中 `target` 可选，取值 `Parameter`（参数值）或 `PartOpacity`（部件透明度），省略时默认 `Parameter` |
+||| `pngremix_params` | Array / null | （PngRemix Mod）进入该状态时触发表情/动作。可为数组、`[]`、`null` 或直接省略。元素结构：`{type,name}`，其中 `type` 常用为 `expression`（表情）或 `motion`（动作） |
 
 ||| `branch_show_bubble` | Boolean | “显示气泡”：控制对话分支选项是否以气泡形式展示（默认 true） |
 ||| `branch` | Array | 固定对话分支选项数组，用于交互式对话（为空则无分支） |
@@ -198,7 +205,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 
 ||| 字段 | 类型 | 说明 |
 ||| :--- | :--- | :--- |
-||| `event` | String | 事件名称（如 `click`, `click_up`, `right_click`, `right_click_up`, `global_click`, `global_click_up`, `global_right_click`, `global_right_click_up`, `global_keydown`, `global_keyup`, `login`, `work`, `birthday`, `firstday`, `login_silence`, `music_start`, `music_end`, `drag_start`, `drag_end`, `keydown:<Key>`, `keyup:<Key>`） |
+||| `event` | String | 事件名称。支持内置事件（如 `click`, `right_click`, `global_click`, `global_keydown`, `login`, `music_start`, `drag_start`, `keydown:<Key>`, `keyup:<Key>` 等），也支持**自定义事件名**（例如由 `ai_tools.json` 中的 AI 工具触发的 `hungry` / `hurt` / `kill` 等），只要与本 Mod 的 `triggers[].event` 精确匹配即可触发 |
 ||| `can_trigger_states` | Array | 触发条件状态组数组，定义在不同持久状态下可触发的状态列表 |
 
 
@@ -306,6 +313,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `motions` | Array | 动作列表 |
 ||| `expressions` | Array | 表情列表 |
 ||| `states` | Array | 状态-动画映射列表 |
+||| `resources` | Array | [可选] 事件激活的图片资源列表（用于按键高亮叠加等） |
+||| `background_layers` | Array | [可选] 背景/叠加图片层（模型前后、按键显示/隐藏等） |
 
 #### 2.4.2 模型配置对象 (model)
 
@@ -321,6 +330,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `pose_json` | String | 姿势配置文件名（可为空） |
 ||| `eye_blink` | Boolean | 是否启用自动眨眼 |
 ||| `lip_sync` | Boolean | 是否启用口型同步 |
+||| `scale` | Number | [可选] 模型整体缩放（默认 `1`） |
+||| `breath_json` | String | [可选] 呼吸配置文件（相对于 `base_dir`；为空字符串表示不启用） |
 
 #### 2.4.3 动作对象 (Motion Object)
 
@@ -377,6 +388,8 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `scale` | Number | 缩放比例（默认 `1`） |
 ||| `offset_x` / `offset_y` | Number | 位置偏移（默认 `0`） |
 ||| `events` | Array | 事件列表；为空则常驻显示；非空则在事件触发时显示/隐藏 |
+||| `dir` | String | [可选] 目录（用于工具侧分组/筛选） |
+||| `audio` | String | [可选] 事件触发时播放的音效名称（对应 `audio/<lang>/speech.json` 的 `name`；空字符串表示不播放） |
 
 **示例：**
 ```json
@@ -429,7 +442,45 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 
 > **注意**：`features.blink_chance` 的语义为 `1/N`（N>=1，值越大越不容易触发眨眼）。
 
-#### 2.5.2 状态映射对象 (State Mapping Object)
+#### 2.5.2 模型配置对象 (model)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 模型显示名称 |
+||| `pngremix_file` | String | `.pngRemix` 模型文件路径（相对于 Mod 根目录；通常放在 `asset/` 下） |
+||| `default_state_index` | Number | 默认状态索引（用于模型初始状态；从 0 开始） |
+||| `max_fps` | Number | 最大渲染帧率（常用 `60`） |
+||| `scale` | Number | [可选] 模型整体缩放（默认 `1`） |
+
+#### 2.5.3 交互特性对象 (features)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `mouse_follow` | Boolean | 鼠标跟随 |
+||| `auto_blink` | Boolean | 自动眨眼 |
+||| `click_bounce` | Boolean | 点击弹跳 |
+||| `click_bounce_amp` | Number | 点击弹跳幅度 |
+||| `click_bounce_duration` | Number | 点击弹跳持续时间（秒） |
+||| `blink_speed` | Number | 眨眼速度倍率 |
+||| `blink_chance` | Number | 眨眼触发概率参数（语义为 `1/N`） |
+||| `blink_hold_ratio` | Number | 眨眼闭合保持比例（0-1） |
+
+#### 2.5.4 表情对象 (Expression Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 表情名称（供状态映射与 `manifest.states[].pngremix_params` 引用） |
+||| `state_index` | Number | 对应的模型状态索引（从 0 开始） |
+
+#### 2.5.5 动作对象 (Motion Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 动作名称（供状态映射与 `manifest.states[].pngremix_params` 引用） |
+||| `hotkey` | String | [可选] 热键提示文本（展示用途；如 `F2`） |
+||| `description` | String | [可选] 动作描述（展示用途） |
+
+#### 2.5.6 状态映射对象 (State Mapping Object)
 
 ||| 字段 | 类型 | 说明 |
 ||| :--- | :--- | :--- |
@@ -558,7 +609,7 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `text` | String | 显示的对话内容（支持简易 Markdown，支持变量如 `{nickname}` / `{days_used}` / `{usage_hours}` / `{total_usage_hours}` / `{uptime}`） |
 ||| `duration` | Number | 气泡持续时间（秒，可选）。默认 5 秒，文本显示完成后开始计时 |
 
-#### 2.8.1 简易 Markdown 语法
+#### 2.9.1 简易 Markdown 语法
 气泡系统支持以下 Markdown 语法：
 
 ||| 语法 | 说明 | 示例 |
@@ -577,7 +628,101 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ```
 
 ### 2.10 `bubble_style.json` (可选)
-用于自定义对话气泡的视觉样式（颜色、边框、字体大小等）。若不存在，则使用系统默认样式。
+用于自定义对话气泡与分支按钮的视觉样式。若不存在，则使用系统默认样式。
+
+#### 2.10.1 顶层结构
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `bubble` | Object | 气泡主体样式 |
+||| `branch` | Object | 分支按钮样式 |
+
+> 说明：绝大多数字段值都是 **CSS 字符串**（例如 `"14px"`、`"1.5"`、`"linear-gradient(...)"`）。
+
+#### 2.10.2 `bubble` 样式对象
+
+常用字段（均为可选）：
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `background` | String | 背景（支持纯色/渐变） |
+||| `border` | String | 边框（例如 `"1px solid rgba(...)"`） |
+||| `border_radius` | String | 圆角（例如 `"16px"`） |
+||| `padding` | String | 内边距（例如 `"10px 14px"`） |
+||| `min_width` / `max_width` | String | 最小/最大宽度 |
+||| `color` | String | 文字颜色 |
+||| `font_size` | String | 字号 |
+||| `line_height` | String | 行高 |
+||| `font_family` | String | 字体族 |
+||| `box_shadow` | String | 阴影 |
+||| `backdrop_filter` | String | 背景滤镜（例如 `"blur(12px)"`） |
+||| `decoration_top` | Object | 顶部装饰（可选，常见字段：`content/top/right/font_size/color/...`） |
+||| `decoration_bottom` | Object | 底部装饰（可选，常见字段：`content/bottom/left/font_size/color/...`） |
+||| `tail` | Object | 气泡尾巴（可选，常见字段：`size/color/shadow`） |
+
+#### 2.10.3 `branch` 样式对象
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `container` | Object | 分支容器样式（如 `gap/margin_top/padding_top/border_top`） |
+||| `button` | Object | 按钮默认样式（如 `padding/min_width/background/border/border_radius/color/font_size/...`） |
+||| `button_hover` | Object | hover 状态覆写（如 `background/border_color/box_shadow/color/transform`） |
+||| `button_active` | Object | active 状态覆写（如 `background/box_shadow/transform`） |
+||| `decoration_left` | Object | 按钮左侧装饰（如 `content/left/font_size/color/color_hover`） |
+||| `decoration_right` | Object | 按钮右侧装饰（如 `content/content_hover/right/font_size/font_size_hover/color/color_hover`） |
+
+### 2.11 `ai_tools.json` (可选)
+用于定义 AI 工具（按窗口匹配），从外部软件/游戏截图中识别信息，并在命中规则时触发**自定义事件**，从而驱动 `manifest.json` 中的 `triggers` 切换状态。
+
+> 关键点：`ai_tools.json` 中工具触发的事件名，需要与 `manifest.triggers[].event` 精确匹配。
+
+#### 2.11.1 顶层结构
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `ai_tools` | Array | 窗口列表（按窗口标题匹配） |
+
+#### 2.11.2 窗口对象 (Window Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `window_name` | String | 目标窗口名称（用于匹配窗口标题） |
+||| `tool_data` | Array | 该窗口下的工具列表 |
+
+#### 2.11.3 工具对象 (Tool Object)
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `name` | String | 工具名称（标识用） |
+||| `auto_start` | Boolean | 是否随窗口匹配自动启动 |
+||| `type` | String | 工具类型（当前常见为 `auto`） |
+||| `capture_rect` | Object | 截图区域（像素坐标） |
+||| `prompts` | Array | Prompt 列表（用于让 AI 从截图中提取信息） |
+||| `result_processors` | Array | [可选] 结果处理器（对 AI 原始文本做二次处理） |
+||| `triggers` | Array | 触发规则（当结果命中 keyword 时触发事件） |
+||| `show_info_window` | Boolean | 是否显示该工具的调试/信息窗口 |
+
+`capture_rect` 字段：
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `x` / `y` | Number | 左上角坐标 |
+||| `width` / `height` | Number | 宽高 |
+
+`result_processors` 常见结构（示例：数字范围处理器）：
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `type` | String | 处理器类型（如 `number`） |
+||| `result` | String | 命中时输出的关键词（供 triggers 匹配） |
+||| `min` / `max` | Number | 数值范围（`number` 处理器常用） |
+
+`triggers` 规则对象：
+
+||| 字段 | 类型 | 说明 |
+||| :--- | :--- | :--- |
+||| `keyword` | String | 关键词（匹配 AI 输出/处理后的结果） |
+||| `trigger` | String | 触发的事件名（应与 `manifest.triggers[].event` 对应） |
 
 ---
 
