@@ -19,6 +19,11 @@
   "texture_downsample_start_dim": 0,
   "global_keyboard": false,
   "global_mouse": false,
+
+  "pngremix_follow_amp_scale": 1.0,
+  "pngremix_motion_amp_scale": 1.0,
+  "pngremix_motion_frq_scale": 1.0,
+
   "important_states": {
     "idle": {
       "name": "idle",

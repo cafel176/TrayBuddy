@@ -246,6 +246,28 @@
               </div>
             </section>
 
+            <!-- PngRemix 参数缩放（仅 PngRemix Mod 生效） -->
+            <section class="form-section" id="section-pngremix-scales">
+              <h3 data-i18n="section_pngremix_scales">PngRemix 参数缩放</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="pngremix-follow-amp-scale" data-i18n="pngremix_follow_amp_scale_label">鼠标跟随幅度缩放</label>
+                  <input type="number" id="pngremix-follow-amp-scale" value="1" min="0" max="2" step="0.05">
+                  <small data-i18n="pngremix_follow_amp_scale_hint">仅对 PngRemix 生效；1.0 默认；0.0~2.0 建议范围（越小跟随越弱）</small>
+                </div>
+                <div class="form-group">
+                  <label for="pngremix-motion-amp-scale" data-i18n="pngremix_motion_amp_scale_label">摆动幅度缩放</label>
+                  <input type="number" id="pngremix-motion-amp-scale" value="1" min="0" max="2" step="0.05">
+                  <small data-i18n="pngremix_motion_amp_scale_hint">缩放 xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr 等；1.0 默认；0.0~2.0</small>
+                </div>
+                <div class="form-group">
+                  <label for="pngremix-motion-frq-scale" data-i18n="pngremix_motion_frq_scale_label">摆动频率缩放</label>
+                  <input type="number" id="pngremix-motion-frq-scale" value="1" min="0" max="2" step="0.05">
+                  <small data-i18n="pngremix_motion_frq_scale_hint">缩放 xFrq/yFrq、wiggle_freq、rot_frq 等；1.0 默认；0.0~2.0（越小越慢）</small>
+                </div>
+              </div>
+            </section>
+
             <!-- 预览图 -->
             <section class="form-section">
               <h3 data-i18n="section_preview">预览图</h3>

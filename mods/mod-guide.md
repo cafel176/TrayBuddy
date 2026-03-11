@@ -135,6 +135,9 @@ mod主要信息清单文件，决定了程序如何加载该mod。
 ||| `texture_downsample_start_dim` | Number | 开始降采样的贴图尺寸阈值（像素；最长边）。0 表示不限制；>0 表示仅当 max(width,height) ≥ 阈值时才允许触发降采样（默认 300） |
 ||| `global_keyboard` | Boolean | 是否开启全局键盘监听（开启后无需聚焦动画窗口也能触发 keydown/keyup/global_keydown/global_keyup） |
 ||| `global_mouse` | Boolean | 是否开启全局鼠标监听（开启后鼠标点击/松开任意位置可触发 global_click/global_click_up/global_right_click/global_right_click_up） |
+||| `pngremix_follow_amp_scale` | Number | （PngRemix）鼠标跟随幅度缩放，默认 1.0；<1.0 减弱跟随，>1.0 增强跟随（建议 0.0~2.0） |
+||| `pngremix_motion_amp_scale` | Number | （PngRemix）摆动/晃动幅度缩放（影响 xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr 等），默认 1.0（建议 0.0~2.0） |
+||| `pngremix_motion_frq_scale` | Number | （PngRemix）摆动/晃动频率缩放（影响 xFrq/yFrq、wiggle_freq、rot_frq 等），默认 1.0（建议 0.0~2.0；越小越慢） |
 ||| `important_states` | Object | 关键状态映射 (如 `idle`, `silence`)，Key 为状态名，Value 为状态对象 |
 ||| `states` | Array | 其他普通状态定义数组 |
 ||| `triggers` | Array | 事件触发定义数组 |

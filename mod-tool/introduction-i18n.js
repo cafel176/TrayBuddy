@@ -197,6 +197,13 @@ const introductionTranslations = {
     global_keyboard_desc: "配置 global_keyboard 为 true 后，即使动画窗口未获得焦点，也能触发 keydown 事件。适用于需要实时响应键盘输入的桌面宠物模型。",
     section_global_mouse: "全局鼠标监听",
     global_mouse_desc: "配置 global_mouse 为 true 后，鼠标点击任意位置都可触发 global_click / global_right_click 事件，无需点击在角色身上。",
+
+    section_pngremix_scales_intro: "PngRemix 参数缩放",
+    pngremix_scales_desc: "仅对 mod_type=pngremix 生效，用于整体压住“鼠标跟随/摆动”的幅度与频率（默认 1.0）。",
+    pngremix_follow_amp_scale_desc: "鼠标跟随幅度缩放（建议 0.0~2.0）",
+    pngremix_motion_amp_scale_desc: "摆动幅度缩放（影响 xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr 等）",
+    pngremix_motion_frq_scale_desc: "摆动频率缩放（影响 xFrq/yFrq、wiggle_freq、rot_frq 等）",
+
     section_preview_icon: "预览图与图标",
     preview_icon_desc: "预览图支持 PNG/JPG/JPEG/WebP 格式，图标支持 ICO 格式。",
 
@@ -842,6 +849,13 @@ const introductionTranslations = {
     global_keyboard_desc: "Set global_keyboard to true to trigger keydown events even when the animation window is not focused. Useful for desktop pet models that need real-time keyboard input.",
     section_global_mouse: "Global Mouse Listener",
     global_mouse_desc: "Set global_mouse to true to trigger global_click / global_right_click events when clicking anywhere, without needing to click on the character.",
+
+    section_pngremix_scales_intro: "PngRemix Scales",
+    pngremix_scales_desc: "Applies to mod_type=pngremix only. Used to scale overall follow/motion amplitude and motion frequency (default 1.0).",
+    pngremix_follow_amp_scale_desc: "Follow amplitude scale (suggested 0.0~2.0)",
+    pngremix_motion_amp_scale_desc: "Motion amplitude scale (affects xAmp/yAmp, wiggle_amp, stretchAmount, rdragStr, etc.)",
+    pngremix_motion_frq_scale_desc: "Motion frequency scale (affects xFrq/yFrq, wiggle_freq, rot_frq, etc.)",
+
     section_preview_icon: "Preview & Icon",
     preview_icon_desc: "Preview supports PNG/JPG/JPEG/WebP. Icon supports ICO.",
 
@@ -1487,6 +1501,13 @@ const introductionTranslations = {
     global_keyboard_desc: "global_keyboard を true に設定すると、アニメーションウィンドウにフォーカスがなくても keydown イベントが発火します。リアルタイムのキーボード入力が必要なデスクトップペットモデルに適しています。",
     section_global_mouse: "グローバルマウス監視",
     global_mouse_desc: "global_mouse を true に設定すると、任意の場所でクリックしても global_click / global_right_click イベントが発火します。キャラクターをクリックする必要はありません。",
+
+    section_pngremix_scales_intro: "PngRemix スケール",
+    pngremix_scales_desc: "mod_type=pngremix のみ有効。追従/揺れの振幅と、揺れ周波数をまとめてスケールします（既定 1.0）。",
+    pngremix_follow_amp_scale_desc: "追従振幅スケール（推奨 0.0~2.0）",
+    pngremix_motion_amp_scale_desc: "揺れ振幅スケール（xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr などに影響）",
+    pngremix_motion_frq_scale_desc: "揺れ周波数スケール（xFrq/yFrq、wiggle_freq、rot_frq などに影響）",
+
     section_preview_icon: "プレビューとアイコン",
     preview_icon_desc: "プレビューは PNG/JPG/JPEG/WebP 対応。アイコンは ICO 対応。",
 

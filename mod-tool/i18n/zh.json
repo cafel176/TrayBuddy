@@ -108,6 +108,15 @@
   "section_mouse": "鼠标设置",
   "global_mouse_label": "全局鼠标监听",
   "global_mouse_hint": "开启后鼠标点击任意位置都可触发 global_click / global_right_click 事件",
+
+  "section_pngremix_scales": "PngRemix 参数缩放",
+  "pngremix_follow_amp_scale_label": "鼠标跟随幅度缩放",
+  "pngremix_follow_amp_scale_hint": "仅对 PngRemix 生效；1.0 默认；0.0~2.0 建议范围（越小跟随越弱）",
+  "pngremix_motion_amp_scale_label": "摆动幅度缩放",
+  "pngremix_motion_amp_scale_hint": "缩放 xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr 等；1.0 默认；0.0~2.0",
+  "pngremix_motion_frq_scale_label": "摆动频率缩放",
+  "pngremix_motion_frq_scale_hint": "缩放 xFrq/yFrq、wiggle_freq、rot_frq 等；1.0 默认；0.0~2.0（越小越慢）",
+
   "section_preview": "预览图",
   "preview_placeholder": "点击上传预览图",
   "preview_alt": "预览图",

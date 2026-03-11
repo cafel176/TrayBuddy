@@ -107,6 +107,15 @@
   "section_mouse": "マウス設定",
   "global_mouse_label": "グローバルマウス監視",
   "global_mouse_hint": "有効にすると任意の場所でクリックしても global_click / global_right_click イベントが発火します",
+
+  "section_pngremix_scales": "PngRemix スケール",
+  "pngremix_follow_amp_scale_label": "追従振幅スケール",
+  "pngremix_follow_amp_scale_hint": "PngRemix のみ。既定 1.0。推奨 0.0~2.0（小さいほど追従が弱い）",
+  "pngremix_motion_amp_scale_label": "揺れ振幅スケール",
+  "pngremix_motion_amp_scale_hint": "xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr などをスケール。既定 1.0。0.0~2.0",
+  "pngremix_motion_frq_scale_label": "揺れ周波数スケール",
+  "pngremix_motion_frq_scale_hint": "xFrq/yFrq、wiggle_freq、rot_frq などをスケール。既定 1.0。0.0~2.0（小さいほど遅い）",
+
   "section_preview": "プレビュー画像",
   "preview_placeholder": "クリックしてプレビュー画像をアップロード",
   "preview_alt": "プレビュー画像",

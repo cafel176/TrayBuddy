@@ -107,6 +107,15 @@
   "section_mouse": "Mouse Settings",
   "global_mouse_label": "Global Mouse Listener",
   "global_mouse_hint": "Enable to trigger global_click / global_right_click events when clicking anywhere",
+
+  "section_pngremix_scales": "PngRemix Scales",
+  "pngremix_follow_amp_scale_label": "Follow amplitude scale",
+  "pngremix_follow_amp_scale_hint": "PngRemix only. Default 1.0. Suggested range 0.0~2.0 (smaller = weaker follow)",
+  "pngremix_motion_amp_scale_label": "Motion amplitude scale",
+  "pngremix_motion_amp_scale_hint": "Scales xAmp/yAmp, wiggle_amp, stretchAmount, rdragStr, etc. Default 1.0. Range 0.0~2.0",
+  "pngremix_motion_frq_scale_label": "Motion frequency scale",
+  "pngremix_motion_frq_scale_hint": "Scales xFrq/yFrq, wiggle_freq, rot_frq, etc. Default 1.0. Range 0.0~2.0 (smaller = slower)",
+
   "section_preview": "Preview Image",
   "preview_placeholder": "Click to upload preview image",
   "preview_alt": "Preview",

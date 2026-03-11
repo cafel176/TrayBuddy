@@ -1530,6 +1530,22 @@ function normalizeManifestForEditor(manifest) {
   if (typeof manifest.global_keyboard !== 'boolean') manifest.global_keyboard = false;
   if (typeof manifest.global_mouse !== 'boolean') manifest.global_mouse = false;
 
+  // PngRemix：缩放参数（可选；默认 1.0）
+  // 兼容：旧 mod 可能只有 motion_amp_scale；此时 follow_amp_scale 默认跟随 motion_amp_scale。
+  {
+    const motionAmp = Number(manifest.pngremix_motion_amp_scale);
+    if (!Number.isFinite(motionAmp)) manifest.pngremix_motion_amp_scale = 1.0;
+
+    const motionFrq = Number(manifest.pngremix_motion_frq_scale);
+    if (!Number.isFinite(motionFrq)) manifest.pngremix_motion_frq_scale = 1.0;
+
+    const followAmp = Number(manifest.pngremix_follow_amp_scale);
+    if (!Number.isFinite(followAmp)) {
+      manifest.pngremix_follow_amp_scale = Number.isFinite(motionAmp) ? motionAmp : 1.0;
+    }
+  }
+
+
   manifest.character = manifest.character || { z_offset: 1 };
   if (!Number.isFinite(Number(manifest.character.z_offset))) manifest.character.z_offset = 1;
 
@@ -3627,12 +3643,37 @@ function populateManifestForm() {
   // 全局鼠标
   document.getElementById('global-mouse').checked = m.global_mouse === true;
 
-  // Mod 类型显示
+  // PngRemix 缩放参数（仅 PngRemix Mod 生效）
   const modType = m.mod_type || 'sequence';
+  const isPngRemix = modType === 'pngremix';
+
+  const pngScaleSection = document.getElementById('section-pngremix-scales');
+  if (pngScaleSection) pngScaleSection.style.display = isPngRemix ? '' : 'none';
+
+  const followAmpEl = document.getElementById('pngremix-follow-amp-scale');
+  if (followAmpEl) {
+    const v = Number(m.pngremix_follow_amp_scale);
+    followAmpEl.value = Number.isFinite(v) ? String(v) : '1';
+  }
+
+  const motionAmpEl = document.getElementById('pngremix-motion-amp-scale');
+  if (motionAmpEl) {
+    const v = Number(m.pngremix_motion_amp_scale);
+    motionAmpEl.value = Number.isFinite(v) ? String(v) : '1';
+  }
+
+  const motionFrqEl = document.getElementById('pngremix-motion-frq-scale');
+  if (motionFrqEl) {
+    const v = Number(m.pngremix_motion_frq_scale);
+    motionFrqEl.value = Number.isFinite(v) ? String(v) : '1';
+  }
+
+  // Mod 类型显示
   const modTypeDisplay = document.getElementById('mod-type-display');
   if (modTypeDisplay) {
     modTypeDisplay.value = getModTypeDisplayText(modType);
   }
+
 
   // 根据类型切换资产编辑区
   toggleAssetSections(modType);
@@ -3725,6 +3766,35 @@ function collectManifestData() {
   // 全局鼠标
   m.global_mouse = document.getElementById('global-mouse').checked;
 
+  // PngRemix 缩放参数（仅 PngRemix Mod 生效；即使隐藏也尽量保持可保存）
+  {
+    const clamp01to2 = (x) => Math.min(2, Math.max(0, x));
+
+    const followAmpEl = document.getElementById('pngremix-follow-amp-scale');
+    if (followAmpEl) {
+      const v = Number(followAmpEl.value);
+      m.pngremix_follow_amp_scale = Number.isFinite(v) ? clamp01to2(v) : (Number.isFinite(Number(m.pngremix_follow_amp_scale)) ? Number(m.pngremix_follow_amp_scale) : 1.0);
+    } else if (!Number.isFinite(Number(m.pngremix_follow_amp_scale))) {
+      m.pngremix_follow_amp_scale = 1.0;
+    }
+
+    const motionAmpEl = document.getElementById('pngremix-motion-amp-scale');
+    if (motionAmpEl) {
+      const v = Number(motionAmpEl.value);
+      m.pngremix_motion_amp_scale = Number.isFinite(v) ? clamp01to2(v) : (Number.isFinite(Number(m.pngremix_motion_amp_scale)) ? Number(m.pngremix_motion_amp_scale) : 1.0);
+    } else if (!Number.isFinite(Number(m.pngremix_motion_amp_scale))) {
+      m.pngremix_motion_amp_scale = 1.0;
+    }
+
+    const motionFrqEl = document.getElementById('pngremix-motion-frq-scale');
+    if (motionFrqEl) {
+      const v = Number(motionFrqEl.value);
+      m.pngremix_motion_frq_scale = Number.isFinite(v) ? clamp01to2(v) : (Number.isFinite(Number(m.pngremix_motion_frq_scale)) ? Number(m.pngremix_motion_frq_scale) : 1.0);
+    } else if (!Number.isFinite(Number(m.pngremix_motion_frq_scale))) {
+      m.pngremix_motion_frq_scale = 1.0;
+    }
+  }
+
   // 收集 Live2D 模型配置
   if (m.mod_type === 'live2d') {
     collectLive2dModelData();
@@ -3733,6 +3803,7 @@ function collectManifestData() {
   if (m.mod_type === 'pngremix') {
     collectPngRemixModelData();
   }
+
   // 收集 3D 配置
   if (m.mod_type === 'threed') {
     collectThreeDModelData();
