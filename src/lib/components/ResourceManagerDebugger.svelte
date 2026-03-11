@@ -21,28 +21,17 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
-  import { loadBubbleStyle } from "$lib/bubble/bubbleStyle";
-  import { loadAiTools } from "$lib/aiTools";
   import { t, onLangChange } from "$lib/i18n";
-  import { isError } from "$lib/utils/statusMessage";
-  import { formatTriggerCounterRange, isTriggerCounterRangeLimited, formatTempRange, isTempRangeLimited, isModDataCounterEffective } from "$lib/utils/stateFormatters";
+  import {
+    formatTriggerCounterRange,
+    isTriggerCounterRangeLimited,
+    formatTempRange,
+    isTempRangeLimited,
+    isModDataCounterEffective,
+  } from "$lib/utils/stateFormatters";
   import { buildModAssetUrl } from "$lib/utils/modAssetUrl";
-  import type {
-    AssetInfo,
-    AudioInfo,
-    BorderConfig,
-    CharacterConfig,
-    CharacterInfo,
-    Live2DConfig,
-    ModManifest,
-    ModInfo,
-    ModType,
-    PngRemixConfig,
-    TextInfo,
-    ThreeDConfig,
-    StateInfo,
-    TriggerInfo,
-  } from "$lib/types/asset";
+  import type { ModInfo, ModType, StateInfo } from "$lib/types/asset";
+
 
 
 
@@ -62,18 +51,17 @@
   let searchPaths: string[] = $state([]);
   let mods: string[] = $state([]);
   let selectedMod = $state("");
-  let statusMsg = $state(t("resource.statusWaiting"));
   let currentModInfo = $state<ModInfo | null>(null);
-  let loading = $state(false);
-  // i18n 鍝嶅簲寮忔敮鎸?
+
+  // i18n 响应式支持
   let _langVersion = $state(0);
   let unsubLang: (() => void) | null = null;
 
   function _(key: string, params?: Record<string, string | number>): string {
-
     void _langVersion;
     return t(key, params);
   }
+
 
 
 
@@ -99,79 +87,24 @@
 
   /**
    * 刷新 Mod 列表与当前已加载 Mod 信息。
-   * 同时更新搜索路径与状态提示。
    */
   async function refreshMods() {
-
-
     try {
       searchPaths = await invoke("get_mod_search_paths");
       mods = await invoke("get_available_mods");
 
       const info = (await invoke("get_current_mod")) as ModInfo | null;
-      if (info) {
-        currentModInfo = info;
-        selectedMod = info.manifest.id;
-        statusMsg = _("resource.statusCurrentLoaded") + " " + info.manifest.id;
-      } else {
-        statusMsg = _("resource.statusRefreshed", { count: mods.length });
-        if (mods.length > 0 && !selectedMod) {
-          selectedMod = mods[0];
-        }
-      }
-    } catch (e) {
-      statusMsg = _("resource.statusRefreshFailed") + " " + e;
-    }
-  }
-
-  /**
-   * 加载当前选中的 Mod，并同步状态提示与气泡样式。
-   */
-  async function loadSelectedMod() {
-
-    if (!selectedMod) {
-      statusMsg = _("resource.statusSelectMod");
-      return;
-    }
-    loading = true;
-    statusMsg = _("resource.statusLoading");
-    try {
-      const info = (await invoke("load_mod", {
-        modId: selectedMod,
-      })) as ModInfo;
       currentModInfo = info;
-      statusMsg = _("resource.statusLoadSuccessTpl", {
-        id: info.manifest.id,
-        version: info.manifest.version,
-      });
-      await loadBubbleStyle();
-      await loadAiTools();
-
-    } catch (e) {
-      statusMsg = _("resource.statusLoadFailed") + " " + e;
-      currentModInfo = null;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * 卸载当前 Mod，并恢复到未加载状态。
-   */
-  async function unloadMod() {
-
-    try {
-      const success = await invoke("unload_mod");
-      if (success) {
-        statusMsg = _("resource.statusUnloaded");
-        currentModInfo = null;
-      } else {
-        statusMsg = _("resource.statusNoMod");
+      if (info) {
+        selectedMod = info.manifest.id;
+      } else if (mods.length > 0 && !selectedMod) {
+        selectedMod = mods[0];
       }
     } catch (e) {
-      statusMsg = _("resource.statusUnloadFailed") + " " + e;
+      console.error("refreshMods failed:", e);
     }
   }
+
 
   async function openAssetFile(relativePath: string) {
     if (!currentModInfo) return;
@@ -183,9 +116,10 @@
       );
       await invoke("open_path", { path: fullPath });
     } catch (e) {
-      statusMsg = _("resource.statusOpenFailed") + " " + e;
+      console.error("openAssetFile failed:", e);
     }
   }
+
 
   // ======================================================================= //
   // 资源预览与文件打开
@@ -247,7 +181,7 @@
     };
 
     currentAudio.onerror = () => {
-      statusMsg = _("resource.statusPlayFailed") + " " + audioName;
+      console.error("Audio play failed:", audioName);
       playingAudioName = null;
       currentAudio = null;
     };
@@ -260,6 +194,34 @@
     const bb = String(b || "").replace(/\\/g, "/").replace(/^\/+/, "");
     if (!aa) return bb;
     return aa.endsWith("/") ? `${aa}${bb}` : `${aa}/${bb}`;
+  }
+
+  function formatAiPrompts(prompts: unknown): string {
+    if (!prompts) return "-";
+    if (Array.isArray(prompts)) {
+      return prompts.map((p) => (typeof p === "string" ? p : JSON.stringify(p))).join("; ") || "-";
+    }
+    return String(prompts);
+  }
+
+  function formatAiTriggers(triggers: unknown): string {
+    if (!Array.isArray(triggers) || triggers.length === 0) return "-";
+    return (
+      triggers
+        .map((t) => `${(t as any)?.keyword ?? ""}→${(t as any)?.trigger ?? ""}`.trim())
+        .filter(Boolean)
+        .join(", ") || "-"
+    );
+  }
+
+  function formatAiResultProcessors(resultProcessors: unknown): string {
+    if (!Array.isArray(resultProcessors) || resultProcessors.length === 0) return "-";
+    return (
+      resultProcessors
+        .map((rp) => `${(rp as any)?.type ?? "?"}:${(rp as any)?.result ?? ""}`.trim())
+        .filter(Boolean)
+        .join(", ") || "-"
+    );
   }
 
   /**
@@ -583,7 +545,7 @@
               <div class="info-row">
                 <span class="info-label">{_("resource.aiTools")}</span>
                 <span class="info-value"
-                  >{currentModInfo.ai_tools ? currentModInfo.ai_tools.ai_tools.length + " process(es)" : _("resource.aiToolsNotSet")}</span>
+                  >{currentModInfo.ai_tools ? currentModInfo.ai_tools.ai_tools.length + " window(s)" : _("resource.aiToolsNotSet")}</span>
               </div>
             </div>
 
@@ -593,52 +555,64 @@
               <div class="info-grid compact" style="margin-bottom: 8px;">
                 <div class="info-row">
                   <span class="info-label">{_("resource.aiToolsProcessName")}</span>
-                  <span class="info-value">{process.process_name}</span>
+                  <span class="info-value">{process.window_name || process.process_name || "-"}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">{_("resource.aiToolsToolCount")}</span>
-                  <span class="info-value">{process.tool_data.length}</span>
+                  <span class="info-value">{process.tool_data?.length ?? 0}</span>
                 </div>
               </div>
-              {#each process.tool_data as tool, toolIdx}
+              {#each (process.tool_data || []) as tool, toolIdx}
+                {@const toolType = (tool as any)?.type ?? (tool as any)?.tool_type}
                 <details>
                   <summary style="cursor: pointer; font-size: 0.85em; margin-left: 8px;">
-                    #{toolIdx + 1} {tool.name || "(unnamed)"} — {tool.tool_type === "auto" ? _("resource.aiToolsTypeAuto") : _("resource.aiToolsTypeManual")}
+                    #{toolIdx + 1} {(tool as any)?.name || "(unnamed)"} — {toolType === "auto" ? _("resource.aiToolsTypeAuto") : _("resource.aiToolsTypeManual")}
                   </summary>
                   <div class="info-grid compact" style="margin-left: 16px;">
                     <div class="info-row">
                       <span class="info-label">{_("resource.aiToolsToolName")}</span>
-                      <span class="info-value">{tool.name || "-"}</span>
+                      <span class="info-value">{(tool as any)?.name || "-"}</span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">{_("resource.aiToolsAutoStart")}</span>
-                      <span class="info-value">{tool.auto_start ? _("common.yes") : _("common.no")}</span>
+                      <span class="info-value">{(tool as any)?.auto_start ? _("common.yes") : _("common.no")}</span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">{_("resource.aiToolsType")}</span>
-                      <span class="info-value">{tool.tool_type === "auto" ? _("resource.aiToolsTypeAuto") : _("resource.aiToolsTypeManual")}</span>
+                      <span class="info-value">{toolType === "auto" ? _("resource.aiToolsTypeAuto") : _("resource.aiToolsTypeManual")}</span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">{_("resource.aiToolsCaptureRect")}</span>
-                      <span class="info-value">({tool.capture_rect.x}, {tool.capture_rect.y}) {tool.capture_rect.width}×{tool.capture_rect.height}</span>
+                      <span class="info-value">
+                        {#if (tool as any)?.capture_rect}
+                          ({(tool as any).capture_rect.x}, {(tool as any).capture_rect.y}) {(tool as any).capture_rect.width}×{(tool as any).capture_rect.height}
+                        {:else}
+                          -
+                        {/if}
+                      </span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">{_("resource.aiToolsPrompts")}</span>
-                      <span class="info-value">{tool.prompts.join("; ") || "-"}</span>
+                      <span class="info-value">{formatAiPrompts((tool as any)?.prompts)}</span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">{_("resource.aiToolsTriggers")}</span>
-                      <span class="info-value">{tool.triggers?.map(t => `${t.keyword}→${t.trigger}`).join(", ") || "-"}</span>
+                      <span class="info-value">{formatAiTriggers((tool as any)?.triggers)}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">result_processors</span>
+                      <span class="info-value">{formatAiResultProcessors((tool as any)?.result_processors)}</span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">{_("resource.aiToolsShowInfoWindow")}</span>
-                      <span class="info-value">{tool.show_info_window ? _("common.yes") : _("common.no")}</span>
+                      <span class="info-value">{(tool as any)?.show_info_window ? _("common.yes") : _("common.no")}</span>
                     </div>
                   </div>
                 </details>
               {/each}
             {/each}
             {/if}
+
 
 
             {#if isSequenceMod()}

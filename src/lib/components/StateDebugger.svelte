@@ -21,18 +21,10 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, emit } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
-  import type {
-    StateInfo,
-    StateChangeEvent,
-    CanTriggerState,
-    Live2DParameterSetting,
-    PngRemixParameterSetting,
-  } from "$lib/types/asset";
+  import type { StateInfo, StateChangeEvent } from "$lib/types/asset";
   import { t, onLangChange } from "$lib/i18n";
   import { isError } from "$lib/utils/statusMessage";
   import {
-    I32_MIN,
-    I32_MAX,
     formatTriggerCounterRange,
     isTriggerCounterRangeLimited,
     formatTempRange,

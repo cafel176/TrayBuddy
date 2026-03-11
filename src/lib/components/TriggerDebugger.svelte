@@ -22,8 +22,6 @@
   import { t, onLangChange } from "$lib/i18n";
   import { isError } from "$lib/utils/statusMessage";
   import {
-    I32_MIN,
-    I32_MAX,
     formatTriggerCounterRange,
     isTriggerCounterRangeLimited,
     formatTempRange,
@@ -35,14 +33,8 @@
     formatPngRemixParams,
     isModDataCounterEffective,
   } from "$lib/utils/stateFormatters";
-  import type {
-    StateInfo,
-    StateChangeEvent,
-    TriggerInfo,
-    CanTriggerState,
-    Live2DParameterSetting,
-    PngRemixParameterSetting,
-  } from "$lib/types/asset";
+  import type { StateInfo, StateChangeEvent, TriggerInfo } from "$lib/types/asset";
+
 
   // ======================================================================= //
   // 响应式翻译函数

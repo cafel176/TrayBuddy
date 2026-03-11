@@ -765,7 +765,7 @@ export interface CharacterInfo {
 }
 
 // ========================================================================= //
-// AI Tools 配置
+// AI Tools 配置（与后端 `resource.rs` 序列化字段对齐）
 // ========================================================================= //
 
 /** AI 工具截取矩形区域 */
@@ -784,37 +784,61 @@ export interface AiToolTrigger {
   trigger: string;
 }
 
-/** 单个 AI 小工具配置 */
+/** AI 返回结果二次处理器（ai_tools.json 的 result_processors） */
+export interface AiResultProcessor {
+  /** 处理类型：number/keyword/regex（或未来扩展） */
+  type: "number" | "keyword" | "regex" | string;
+  /** 匹配成功后输出的结果字符串 */
+  result: string;
+  /** 数值型最小阈值（含），仅 number 有意义 */
+  min?: number;
+  /** 数值型最大阈值（含），仅 number 有意义 */
+  max?: number;
+  /** keyword/regex 的匹配模式 */
+  pattern?: string;
+}
+
+/** 单个 AI 小工具配置（对应 ai_tools.json -> tool_data[]） */
 export interface AiToolData {
   /** 工具名称 */
   name: string;
   /** 是否自动启动 */
   auto_start: boolean;
-  /** 类型：manual 或 auto */
-  tool_type: "manual" | "auto";
+  /**
+   * 工具类型。
+   * 注意：后端/配置文件字段名为 `type`（不是 tool_type）。
+   */
+  type: "manual" | "auto";
+  /** 兼容历史字段：tool_type */
+  tool_type?: "manual" | "auto";
   /** 屏幕截取矩形区域 */
   capture_rect: AiCaptureRect;
   /** 提示词组 */
   prompts: string[];
+  /** AI 返回结果二次处理器列表（可选） */
+  result_processors?: AiResultProcessor[];
   /** 关键词 → 触发器映射列表 */
   triggers: AiToolTrigger[];
   /** 是否显示信息窗口 */
   show_info_window: boolean;
 }
 
-/** 单个进程的 AI 工具配置 */
+/** 单个窗口名的 AI 工具配置（对应 ai_tools.json 的一项） */
 export interface AiToolProcess {
-  /** 进程名 */
-  process_name: string;
+  /** 窗口名（用于与焦点窗口标题做匹配） */
+  window_name: string;
+  /** 兼容历史字段：process_name */
+  process_name?: string;
   /** AI 小工具列表 */
   tool_data: AiToolData[];
 }
 
 /** AI 工具配置文件顶层结构 */
 export interface AiToolsConfig {
-  /** AI 工具列表（每项对应一个进程） */
+  /** AI 工具列表（每项对应一个窗口名） */
   ai_tools: AiToolProcess[];
 }
+
 
 /**
  * Mod 完整信息接口
@@ -824,8 +848,8 @@ export interface AiToolsConfig {
 export interface ModInfo {
   /** Mod 文件系统路径 */
   path: string;
-  /** 气泡样式名称 */
-  bubble_style?: string;
+  /** 气泡样式配置（后端从 bubble_style.json 读取并透传 JSON；不存在则为 null/undefined） */
+  bubble_style?: Record<string, any> | null;
   /** AI 工具配置（从 ai_tools.json 加载） */
   ai_tools?: AiToolsConfig | null;
   /** 图标路径 */
