@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "71",
+    "pngremix_file": "asset/71.pngRemix",
+    "default_state_index": 0,
+    "scale": 1,
+    "max_fps": 60
+  },
+  "features": {
+    "mouse_follow": true,
+    "auto_blink": true,
+    "click_bounce": true,
+    "click_bounce_amp": 50,
+    "click_bounce_duration": 0.5,
+    "blink_speed": 1,
+    "blink_chance": 4,
+    "blink_hold_ratio": 0.2
+  },
+  "expressions": [
+    {
+      "name": "state_0",
+      "state_index": 0
+    }
+  ],
+  "motions": [],
+  "states": [
+    {
+      "state": "state_0",
+      "expression": "state_0",
+      "motion": "",
+      "scale": 1,
+      "offset_x": 0,
+      "offset_y": 0
+    }
+  ]
+}

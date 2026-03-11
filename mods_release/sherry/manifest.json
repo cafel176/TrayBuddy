@@ -18,6 +18,9 @@
   "enable_texture_downsample": true,
   "global_keyboard": true,
   "global_mouse": false,
+  "pngremix_follow_amp_scale": 1.0,
+  "pngremix_motion_amp_scale": 1.0,
+  "pngremix_motion_frq_scale": 1.0,
   "important_states": {
     "idle": {
       "name": "idle",
