@@ -16,7 +16,7 @@
   "show_mod_data_panel": false,
   "mod_data_default_int": 0,
   "enable_texture_downsample": true,
-  "global_keyboard": false,
+  "global_keyboard": true,
   "global_mouse": false,
   "important_states": {
     "idle": {
@@ -34,26 +34,31 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0.1,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
-      "mod_data_counter": null,
       "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
       "pngremix_params": [
         {
           "type": "expression",
           "name": "normal"
+        },
+        {
+          "type": "motion",
+          "name": "idle"
         }
-      ]
+      ],
+      "branch": []
     },
     "silence": {
       "name": "silence",
       "persistent": true,
-      "anima": "",
+      "anima": "idle",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -65,15 +70,26 @@
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": true,
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "normal"
+        },
+        {
+          "type": "motion",
+          "name": "idle"
+        }
+      ],
+      "branch": []
     },
     "silence_start": {
       "name": "silence_start",
@@ -161,19 +177,21 @@
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "dragging",
+      "next_state": "",
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": true,
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
     },
     "drag_end": {
       "name": "drag_end",
@@ -203,7 +221,7 @@
     "music": {
       "name": "music",
       "persistent": true,
-      "anima": "idle",
+      "anima": "",
       "audio": "",
       "text": "",
       "priority": 1,
@@ -238,19 +256,21 @@
       "date_end": "",
       "time_start": "",
       "time_end": "",
-      "next_state": "music",
+      "next_state": "",
       "can_trigger_states": [],
       "trigger_time": 0,
       "trigger_rate": 0,
-      "branch": [],
       "trigger_counter_start": -2147483648,
       "trigger_counter_end": 2147483647,
       "trigger_temp_start": -2147483648,
       "trigger_temp_end": 2147483647,
       "trigger_uptime": 0,
       "trigger_weather": [],
+      "branch_show_bubble": true,
       "mod_data_counter": null,
-      "branch_show_bubble": true
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
     },
     "music_end": {
       "name": "music_end",
@@ -544,6 +564,321 @@
         }
       ],
       "branch": []
+    },
+    {
+      "name": "F1",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle1",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "F2",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle2",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "F3",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle3",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "F4",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle4",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "F5",
+      "persistent": false,
+      "anima": "",
+      "audio": "",
+      "text": "",
+      "priority": 2,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "idle5",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": null,
+      "branch": []
+    },
+    {
+      "name": "idle2",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "shy"
+        },
+        {
+          "type": "motion",
+          "name": "idle"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "idle3",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "surprised"
+        },
+        {
+          "type": "motion",
+          "name": "idle"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "idle4",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "serious"
+        },
+        {
+          "type": "motion",
+          "name": "idle"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "idle5",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "cry"
+        },
+        {
+          "type": "motion",
+          "name": "idle"
+        }
+      ],
+      "branch": []
+    },
+    {
+      "name": "idle1",
+      "persistent": true,
+      "anima": "idle",
+      "audio": "",
+      "text": "",
+      "priority": 1,
+      "date_start": "",
+      "date_end": "",
+      "time_start": "",
+      "time_end": "",
+      "next_state": "",
+      "can_trigger_states": [],
+      "trigger_time": 0,
+      "trigger_rate": 0,
+      "trigger_counter_start": -2147483648,
+      "trigger_counter_end": 2147483647,
+      "trigger_temp_start": -2147483648,
+      "trigger_temp_end": 2147483647,
+      "trigger_uptime": 0,
+      "trigger_weather": [],
+      "branch_show_bubble": true,
+      "mod_data_counter": null,
+      "live2d_params": null,
+      "pngremix_params": [
+        {
+          "type": "expression",
+          "name": "normal"
+        },
+        {
+          "type": "motion",
+          "name": "idle"
+        }
+      ],
+      "branch": []
     }
   ],
   "triggers": [
@@ -582,6 +917,81 @@
           "states": [
             {
               "state": "silence_start",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keydown:F1",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "F1",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keydown:F2",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "F2",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keydown:F3",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "F3",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keydown:F4",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "F4",
+              "weight": 1
+            }
+          ],
+          "allow_repeat": true
+        }
+      ]
+    },
+    {
+      "event": "keydown:F5",
+      "can_trigger_states": [
+        {
+          "persistent_state": "",
+          "states": [
+            {
+              "state": "F5",
               "weight": 1
             }
           ],

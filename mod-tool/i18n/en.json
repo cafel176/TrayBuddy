@@ -706,6 +706,7 @@
   "msg_confirm_delete_pngremix_motion": "Are you sure you want to delete this motion?",
   "msg_confirm_delete_pngremix_state": "Are you sure you want to delete this mapping?",
   "msg_state_created_from_pngremix": "Created state from PngRemix mapping",
+  "msg_state_created_from_pngremix_expression": "Created state from PngRemix expression",
 
   "section_pngremix_params": "PngRemix Parameter Override (PngRemix Parameters)",
   "btn_add_pngremix_param": "Add Parameter",

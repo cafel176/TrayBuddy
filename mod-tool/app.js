@@ -7873,9 +7873,19 @@ function renderPngRemixExpressions(expressions) {
   const nameRaw = (document.getElementById('pngremix-expressions-filter-name')?.value || '').trim();
   const nameNdl = nameRaw.toLowerCase();
 
+  const existingManifestStateNames = new Set(
+    getAllStateNames().map(n => String(n || '').trim()).filter(Boolean)
+  );
+
   expressions.forEach((expr, index) => {
     const eName = String(expr.name || '');
     if (nameNdl && !eName.toLowerCase().includes(nameNdl)) return;
+
+    const trimmedName = eName.trim();
+    const canAddState = !!trimmedName && !existingManifestStateNames.has(trimmedName);
+    const addStateBtnHtml = `
+      <button class="btn btn-sm btn-ghost" onclick="createStateFromPngRemixExpression(${index})" ${canAddState ? '' : 'disabled'} title="${window.i18n.t('btn_add_same_name_state')}">➕</button>
+    `;
 
     const card = document.createElement('div');
     card.className = 'asset-card tb-sort-item';
@@ -7887,6 +7897,7 @@ function renderPngRemixExpressions(expressions) {
           <span class="asset-card-name">${highlightNeedleHtml(eName, nameRaw)}</span>
         </div>
         <div class="asset-card-actions">
+          ${addStateBtnHtml}
           <button class="btn btn-sm btn-ghost" onclick="copyPngRemixItem('expression', ${index})" title="${window.i18n.t('btn_copy_to_clipboard')}">📋</button>
           <button class="btn btn-sm btn-ghost" onclick="editPngRemixExpression(${index})">✏️</button>
           <button class="btn btn-sm btn-ghost" onclick="deletePngRemixExpression(${index})">🗑️</button>
@@ -8409,6 +8420,51 @@ function createStateFromPngRemixMapping(index) {
   renderPngRemixAssets();
   markUnsaved();
   showToast(window.i18n.t('msg_state_created_from_pngremix') || '已从 PngRemix 映射创建同名状态', 'success');
+}
+
+/**
+ * 从 PngRemix 表情创建同名 manifest 状态
+ * 自动将当前表情加入 pngremix_params
+ */
+function createStateFromPngRemixExpression(index) {
+  ensurePngRemixData();
+  const expr = currentMod.assets.pngremix.expressions[index];
+  if (!expr) return;
+
+  const stateName = String(expr.name || '').trim();
+  if (!stateName) {
+    showToast(window.i18n.t('msg_enter_expression_name') || '请先填写表情名称', 'warning');
+    return;
+  }
+
+  const exists = currentMod.manifest.states.some(s => s.name === stateName) ||
+                 (currentMod.manifest.important_states && currentMod.manifest.important_states[stateName]);
+  if (exists) {
+    showToast(window.i18n.t('msg_state_same_name_exists'), 'warning');
+    return;
+  }
+
+  const newState = createDefaultState(stateName);
+  newState.anima = stateName;
+
+  // 自动将当前表情加入 pngremix_params
+  newState.pngremix_params = [{ type: 'expression', name: stateName }];
+
+  // 若有同名对话文本，则自动关联
+  if (doesAnySpeechTextExistByName(stateName)) {
+    newState.text = stateName;
+  }
+
+  // 若有同名音频，则自动关联
+  if (doesAnyAudioEntryExistByName(stateName)) {
+    newState.audio = stateName;
+  }
+
+  currentMod.manifest.states.push(newState);
+  renderStates();
+  renderPngRemixAssets();
+  markUnsaved();
+  showToast(window.i18n.t('msg_state_created_from_pngremix_expression') || '已从 PngRemix 表情创建同名状态', 'success');
 }
 
 // ============================================================================

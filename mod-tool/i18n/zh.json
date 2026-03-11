@@ -707,6 +707,7 @@
   "msg_confirm_delete_pngremix_motion": "确定要删除这个动作吗？",
   "msg_confirm_delete_pngremix_state": "确定要删除这个映射吗？",
   "msg_state_created_from_pngremix": "已从 PngRemix 映射创建同名状态",
+  "msg_state_created_from_pngremix_expression": "已从 PngRemix 表情创建同名状态",
 
   "section_pngremix_params": "PngRemix 参数覆写 (PngRemix Parameters)",
   "btn_add_pngremix_param": "添加参数",

@@ -706,6 +706,7 @@
   "msg_confirm_delete_pngremix_motion": "このモーションを削除してもよろしいですか？",
   "msg_confirm_delete_pngremix_state": "このマッピングを削除してもよろしいですか？",
   "msg_state_created_from_pngremix": "PngRemix マッピングから同名の状態を作成しました",
+  "msg_state_created_from_pngremix_expression": "PngRemix 表情から同名の状態を作成しました",
 
   "section_pngremix_params": "PngRemix パラメーター上書き (PngRemix Parameters)",
   "btn_add_pngremix_param": "パラメーターを追加",
