@@ -1417,6 +1417,28 @@ pub struct ModManifest {
     /// 全局鼠标监听：为 true 时即使鼠标未点击角色也能触发 global_click / global_right_click 事件
     pub global_mouse: bool,
 
+    /// PngRemix 专用：鼠标跟随幅度缩放（仅影响 follow 相关：pos/rot/scale/animate_to_mouse 的范围）
+    ///
+    /// - 1.0：默认（不缩放）
+    /// - <1.0：减小跟随幅度
+    /// - >1.0：增大跟随幅度
+    pub pngremix_follow_amp_scale: f32,
+
+    /// PngRemix 专用：组件摆动幅度缩放（仅影响 motion 幅度相关：xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr 等）
+    ///
+    /// - 1.0：默认（不缩放）
+    /// - <1.0：减小摆动幅度
+    /// - >1.0：增大摆动幅度
+    pub pngremix_motion_amp_scale: f32,
+
+    /// PngRemix 专用：组件摆动频率缩放（仅影响 motion 频率相关：xFrq/yFrq、wiggle_freq、rot_frq 等）
+    ///
+    /// - 1.0：默认（不缩放）
+    /// - <1.0：降低摆动频率（更慢）
+    /// - >1.0：提高摆动频率（更快）
+    pub pngremix_motion_frq_scale: f32,
+
+
     /// 核心状态（如 idle）
     pub important_states: HashMap<Box<str>, StateInfo>,
     /// 其他状态列表
@@ -1443,7 +1465,11 @@ impl Default for ModManifest {
             texture_downsample_start_dim: 0,
             global_keyboard: false,
             global_mouse: false,
+            pngremix_follow_amp_scale: 1.0,
+            pngremix_motion_amp_scale: 1.0,
+            pngremix_motion_frq_scale: 1.0,
             important_states: HashMap::new(),
+
             states: Vec::new(),
             triggers: Vec::new(),
         }

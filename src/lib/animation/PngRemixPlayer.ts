@@ -1001,11 +1001,43 @@ function getMouthNumber(scene: RuntimeScene, st: any, baseKey: string, fallback 
   const n = Number(st?.[getMouthKeyForState(scene, st, baseKey)]);
   return Number.isFinite(n) ? n : fallback;
 }
+
+/**
+ * 读取数值参数（支持别名键）。
+ * 用于兼容部分模型文件里使用 xFreq/yFreq，而本项目历史实现使用 xFrq/yFrq。
+ */
+function getMouthNumberWithAlias(
+  scene: RuntimeScene,
+  st: any,
+  primaryKey: string,
+  aliasKey: string,
+  fallback = 0,
+): number {
+  const v1 = getMouthNumber(scene, st, primaryKey, Number.NaN);
+  if (Number.isFinite(v1)) return v1;
+  return getMouthNumber(scene, st, aliasKey, fallback);
+}
+
 function getMouthBool(scene: RuntimeScene, st: any, baseKey: string, fallback = false): boolean {
   const v = st?.[getMouthKeyForState(scene, st, baseKey)];
   if (typeof v === "boolean") return v;
   if (v === 0 || v === 1) return !!v;
   return fallback;
+}
+
+/**
+ * 频率兼容：Remix 导出里 frq 有两种常见量纲。
+ * - “每 tick（60Hz）”：值通常很小，例如 0.02。
+ * - “每秒”：值会显著更大，例如 2~5。
+ *
+ * 本播放器的 `scene.tick` 使用 60Hz tick，因此这里把“明显偏大”的 frq 视为“每秒”并换算成每 tick。
+ */
+function normalizePngRemixFrq(frqRaw: number): number {
+  const frq = Number(frqRaw);
+  if (!Number.isFinite(frq)) return 0;
+  const abs = Math.abs(frq);
+  // 启发式阈值：>0.5 基本不可能是每 tick（会快到离谱），更像是“每秒”。
+  return abs > 0.5 ? (frq / 60) : frq;
 }
 
 // ============================================================================
@@ -1162,12 +1194,21 @@ function computeSceneBaseWorldPositions(scene: RuntimeScene) {
  * 注意：该函数会同时更runtimeFrame 与跟移动的缓冲状态，
  * PngRemix 动画效果的核心路径
  */
-function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, enableMouseFollow: boolean, mouseWorld: Vec2, hasMouse: boolean) {
+function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, enableMouseFollow: boolean, mouseWorld: Vec2, hasMouse: boolean, followAmpScale: number, motionAmpScale: number, motionFrqScale: number) {
 
   const st = node.getState(scene.stateId); if (!st) return;
 
   const shouldDelta = scene.model?.settings?.should_delta !== false;
   const smoothing = 1 - Math.pow(1 - 0.05, dtSec * 60);
+
+  // PngRemix：缩放参数
+  // - follow：只影响鼠标跟随幅度（pos/rot/scale/animate_to_mouse 的范围）
+  // - motion_amp：只影响摆动幅度（xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr 等）
+  // - motion_frq：只影响摆动频率（xFrq/yFrq、wiggle_freq、rot_frq 等）
+  const followScale = Number.isFinite(followAmpScale) ? clamp(followAmpScale, 0, 2) : 1;
+  const motionAmp = Number.isFinite(motionAmpScale) ? clamp(motionAmpScale, 0, 2) : 1;
+  const motionFrq = Number.isFinite(motionFrqScale) ? clamp(motionFrqScale, 0, 2) : 1;
+
 
   // --- Sprite sheet animation ---
   const hf = Math.max(1, Math.floor(Number(st.hframes) || 1));
@@ -1197,8 +1238,9 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
     const mx = mouseWorld.x - base.x, my = mouseWorld.y - base.y;
     const dist = Math.hypot(mx, my);
     const dirx = dist > 1e-6 ? mx / dist : 0, diry = dist > 1e-6 ? my / dist : 0;
-    const rangeX = Math.max(0, getMouthNumber(scene, st, "look_at_mouse_pos", 0));
-    const rangeY = Math.max(0, getMouthNumber(scene, st, "look_at_mouse_pos_y", 0));
+    const rangeX = Math.max(0, getMouthNumber(scene, st, "look_at_mouse_pos", 0)) * followScale;
+    const rangeY = Math.max(0, getMouthNumber(scene, st, "look_at_mouse_pos_y", 0)) * followScale;
+
     if (rangeX > 1e-6 && rangeY > 1e-6) {
       const distX = dirx * Math.min(dist, rangeX), distY = diry * Math.min(dist, rangeY);
       const normX = distX / (2 * rangeX) + 0.5, normY = distY / (2 * rangeY) + 0.5;
@@ -1214,7 +1256,8 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
 
   // --- Wiggle ---
   if (st.wiggle) {
-    const target = Math.sin((scene.tick || 0) * (Number(st.wiggle_freq) || 0)) * toRad(Number(st.wiggle_amp) || 0);
+    const wf = normalizePngRemixFrq((Number(st.wiggle_freq) || 0)) * motionFrq;
+    const target = Math.sin((scene.tick || 0) * wf) * toRad((Number(st.wiggle_amp) || 0) * motionAmp);
     node.runtimeWiggleRotation = lerp(node.runtimeWiggleRotation, target, smoothing);
   } else { node.runtimeWiggleRotation = lerp(node.runtimeWiggleRotation, 0, smoothing); }
   if (st.follow_parent_effects) {
@@ -1261,8 +1304,8 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
     const dv = { x: Math.tanh(md.x), y: Math.tanh(md.y) };
     const dirVelX = -Math.sign(md.x), dirVelY = -Math.sign(md.y);
     const lenV = Math.hypot(dv.x, dv.y);
-    const lookX = getMouthNumber(scene, st, "look_at_mouse_pos", 0);
-    const lookY = getMouthNumber(scene, st, "look_at_mouse_pos_y", 0);
+    const lookX = getMouthNumber(scene, st, "look_at_mouse_pos", 0) * followScale;
+    const lookY = getMouthNumber(scene, st, "look_at_mouse_pos_y", 0) * followScale;
     node._follow.lastDist.x = lerp(node._follow.lastDist.x, dirVelX * lenV * lookX, 0.5);
     node._follow.lastDist.y = lerp(node._follow.lastDist.y, dirVelY * lenV * lookY, 0.5);
     node._follow.dirVelAnimX = md.x; node._follow.dirVelAnimY = md.y;
@@ -1273,10 +1316,11 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
   // 因为后面 runtimeFollowPos 还会 lerp(targetPos)，对"移动目标"会形成二阶低通，体感更黏、更滞后
   // 直接计算目标位置（targetPos），只保runtimeFollowPos 的一次平滑即可
   function followPositionCalculations(dir: Vec2, mDist: Vec2 | null) {
-    const posXMin = getMouthNumber(scene, st, "pos_x_min", 0);
-    const posXMax = getMouthNumber(scene, st, "pos_x_max", 0);
-    const posYMin = getMouthNumber(scene, st, "pos_y_min", 0);
-    const posYMax = getMouthNumber(scene, st, "pos_y_max", 0);
+    const posXMin = getMouthNumber(scene, st, "pos_x_min", 0) * followScale;
+    const posXMax = getMouthNumber(scene, st, "pos_x_max", 0) * followScale;
+    const posYMin = getMouthNumber(scene, st, "pos_y_min", 0) * followScale;
+    const posYMax = getMouthNumber(scene, st, "pos_y_max", 0) * followScale;
+
 
     const snap = !!st.snap_pos;
 
@@ -1339,8 +1383,9 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
     const toRadMaybe = (v: number) => { const n = Number(v) || 0; return Math.abs(n) > 6.5 ? toRad(n) : n; };
     function followControllerRotation(axis: Vec2) {
       const normalized = clamp(axis.x, -1, 1);
-      const rotMin = toRadMaybe(getMouthNumber(scene, st, "rot_min", 0));
-      const rotMax = toRadMaybe(getMouthNumber(scene, st, "rot_max", 0));
+      const rotMin = toRadMaybe(getMouthNumber(scene, st, "rot_min", 0)) * followScale;
+      const rotMax = toRadMaybe(getMouthNumber(scene, st, "rot_max", 0)) * followScale;
+
       const safeMin = clamp(getMouthNumber(scene, st, "rLimitMin", -180), -360, 360);
       const safeMax = clamp(getMouthNumber(scene, st, "rLimitMax", 180), -360, 360);
       return clamp(lerp(rotMin, rotMax, Math.max((normalized + 1) / 2, 0.001)), toRad(safeMin), toRad(safeMax));
@@ -1352,8 +1397,9 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
         const vx = node._follow.dirVelAnimX || 0;
         const normX = Math.abs(vx) > 1e-6 ? vx / Math.abs(vx) : 0;
         const normalizedMouse = clamp(normX / 2, -1, 1);
-        const rotMin = toRadMaybe(getMouthNumber(scene, st, "rot_min", 0));
-        const rotMax = toRadMaybe(getMouthNumber(scene, st, "rot_max", 0));
+        const rotMin = toRadMaybe(getMouthNumber(scene, st, "rot_min", 0)) * followScale;
+        const rotMax = toRadMaybe(getMouthNumber(scene, st, "rot_max", 0)) * followScale;
+
         const safeMin = clamp(getMouthNumber(scene, st, "rLimitMin", -180), -360, 360);
         const safeMax = clamp(getMouthNumber(scene, st, "rLimitMax", 180), -360, 360);
         targetRot = clamp(normalizedMouse * lerp(rotMin, rotMax, Math.max(0.01, normalizedMouse * 0.5)) * toRad(90), toRad(safeMin), toRad(safeMax));
@@ -1369,8 +1415,9 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
     node.runtimeFollowScale.x = lerp(node.runtimeFollowScale.x, 1, tRs);
     node.runtimeFollowScale.y = lerp(node.runtimeFollowScale.y, 1, tRs);
   } else {
-    const sMinX = getMouthNumber(scene, st, "scale_x_min", 0), sMaxX = getMouthNumber(scene, st, "scale_x_max", 0);
-    const sMinY = getMouthNumber(scene, st, "scale_y_min", 0), sMaxY = getMouthNumber(scene, st, "scale_y_max", 0);
+    const sMinX = getMouthNumber(scene, st, "scale_x_min", 0) * followScale, sMaxX = getMouthNumber(scene, st, "scale_x_max", 0) * followScale;
+    const sMinY = getMouthNumber(scene, st, "scale_y_min", 0) * followScale, sMaxY = getMouthNumber(scene, st, "scale_y_max", 0) * followScale;
+
     let xVal = 0, yVal = 0;
     if (followType3 === 0) {
       if (!enableMouseFollow || !hasMouse) { xVal = 0; yVal = 0; }
@@ -1391,14 +1438,21 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
   }
 
   // --- movements ---
-  const xAmp = getMouthNumber(scene, st, "xAmp", 0), xFrq = getMouthNumber(scene, st, "xFrq", 0);
-  const yAmp = getMouthNumber(scene, st, "yAmp", 0), yFrq = getMouthNumber(scene, st, "yFrq", 0);
+  const xAmp = getMouthNumber(scene, st, "xAmp", 0) * motionAmp;
+
+  const xFrq = normalizePngRemixFrq(getMouthNumberWithAlias(scene, st, "xFrq", "xFreq", 0)) * motionFrq;
+  const yAmp = getMouthNumber(scene, st, "yAmp", 0) * motionAmp;
+
+  const yFrq = normalizePngRemixFrq(getMouthNumberWithAlias(scene, st, "yFrq", "yFreq", 0)) * motionFrq;
   const dragSpeed = getMouthNumber(scene, st, "dragSpeed", 0);
-  const stretchAmount = getMouthNumber(scene, st, "stretchAmount", 0);
-  const rdragStr = getMouthNumber(scene, st, "rdragStr", 0);
-  const rotFrq = getMouthNumber(scene, st, "rot_frq", 0);
+  const stretchAmount = getMouthNumber(scene, st, "stretchAmount", 0) * motionAmp;
+
+  const rdragStr = getMouthNumber(scene, st, "rdragStr", 0) * motionAmp;
+
+  const rotFrq = normalizePngRemixFrq(getMouthNumber(scene, st, "rot_frq", 0)) * motionFrq;
   const rLimitMin = getMouthNumber(scene, st, "rLimitMin", -180);
   const rLimitMax = getMouthNumber(scene, st, "rLimitMax", 180);
+
 
   const dragSnap = getMouthNumber(scene, st, "drag_snap", 999999);
   if (Number.isFinite(dragSnap) && dragSnap !== 999999) {
@@ -1470,26 +1524,36 @@ function stepNodeRuntime(scene: RuntimeScene, node: RuntimeNode, dtSec: number, 
 // stepSceneRuntime
 // ============================================================================
 
-function stepSceneRuntime(scene: RuntimeScene, dtSec: number, enableMouseFollow: boolean, mouseWorld: Vec2, hasMouse: boolean) {
+function stepSceneRuntime(scene: RuntimeScene, dtSec: number, enableMouseFollow: boolean, mouseWorld: Vec2, hasMouse: boolean, followAmpScale: number, motionAmpScale: number, motionFrqScale: number) {
   computeSceneBaseWorldPositions(scene);
   function walk(n: RuntimeNode) {
-    stepNodeRuntime(scene, n, dtSec, enableMouseFollow, mouseWorld, hasMouse);
+    stepNodeRuntime(scene, n, dtSec, enableMouseFollow, mouseWorld, hasMouse, followAmpScale, motionAmpScale, motionFrqScale);
     for (const c of n.children) walk(c);
   }
   for (const r of scene.roots) walk(r);
 }
 
+
 // ============================================================================
 // updateGlobalBounce
 // ============================================================================
 
-function updateGlobalBounce(scene: RuntimeScene, dtSec: number, features: PngRemixConfig["features"]) {
+function updateGlobalBounce(scene: RuntimeScene, dtSec: number, features: PngRemixConfig["features"], motionAmpScale: number, motionFrqScale: number) {
   const settings = scene.model?.settings || {};
-  const enabled = !!settings.bounce_state;
-  const yAmpV = enabled ? (Number(settings.yAmp) || 0) : 0;
-  const yFrqV = enabled ? (Number(settings.yFrq) || 0) : 0;
+  const enabled = !!(settings as any).bounce_state;
 
-  const targetY = yAmpV && yFrqV ? Math.sin(scene.tick * yFrqV) * yAmpV : 0;
+  const motionAmp = Number.isFinite(motionAmpScale) ? clamp(motionAmpScale, 0, 2) : 1;
+  const motionFrq = Number.isFinite(motionFrqScale) ? clamp(motionFrqScale, 0, 2) : 1;
+
+  // 兼容字段别名：yFrq / yFreq
+  const yAmpV = enabled ? (Number((settings as any).yAmp) || 0) : 0;
+  const yFrqRaw = Number((settings as any).yFrq);
+  const yFreqRaw = Number((settings as any).yFreq);
+  const yFrqVRaw = enabled ? (Number.isFinite(yFrqRaw) ? yFrqRaw : (Number.isFinite(yFreqRaw) ? yFreqRaw : 0)) : 0;
+  const yFrqV = normalizePngRemixFrq(yFrqVRaw);
+
+
+  const targetY = yAmpV && yFrqV ? Math.sin(scene.tick * yFrqV * motionFrq) * yAmpV * motionAmp : 0;
   const sm = 1 - Math.pow(1 - 0.08, dtSec * 60);
   scene._bouncePosY = lerp(scene._bouncePosY, targetY, clamp(sm, 0, 1));
 
@@ -2244,6 +2308,16 @@ export class PngRemixPlayer {
   private enableClickBounce = true;
   private enableAutoBlink = true;
 
+  // PngRemix：鼠标跟随幅度缩放（来自 manifest.pngremix_follow_amp_scale）
+  private followAmpScale = 1;
+
+  // PngRemix：摆动/晃动幅度缩放（来自 manifest.pngremix_motion_amp_scale）
+  private motionAmpScale = 1;
+
+  // PngRemix：摆动/晃动频率缩放（来自 manifest.pngremix_motion_frq_scale）
+  private motionFrqScale = 1;
+
+
   // Animation scale (from WindowCore)
   private animationScale = 0.4;
 
@@ -2345,7 +2419,7 @@ export class PngRemixPlayer {
   /**
    * 初始化播放器并加PngRemix 模型资源
    */
-  async init(modPath: string, config: PngRemixConfig, manifest?: { enable_texture_downsample?: boolean; texture_downsample_start_dim?: number }): Promise<void> {
+  async init(modPath: string, config: PngRemixConfig, manifest?: { enable_texture_downsample?: boolean; texture_downsample_start_dim?: number; pngremix_follow_amp_scale?: number; pngremix_motion_amp_scale?: number; pngremix_motion_frq_scale?: number }): Promise<void> {
     if (this.destroyed) {
       throw new Error("PngRemixPlayer has been destroyed");
     }
@@ -2354,6 +2428,21 @@ export class PngRemixPlayer {
     this.resetBindingsForInitOrDestroy();
     this.releaseSceneResources(this.scene);
     this.scene = null;
+
+    // PngRemix：缩放参数（manifest 可配置）
+    const followRaw = Number((manifest as any)?.pngremix_follow_amp_scale);
+    const motionAmpRaw = Number((manifest as any)?.pngremix_motion_amp_scale);
+    const motionFrqRaw = Number((manifest as any)?.pngremix_motion_frq_scale);
+
+    // 幅度缩放：只影响摆动幅度
+    this.motionAmpScale = Number.isFinite(motionAmpRaw) ? clamp(motionAmpRaw, 0, 2) : 1;
+
+    // 频率缩放：只影响摆动频率
+    this.motionFrqScale = Number.isFinite(motionFrqRaw) ? clamp(motionFrqRaw, 0, 2) : 1;
+
+    // 兼容：旧 mod 只有 pngremix_motion_amp_scale 时，让它也能控制“鼠标跟随幅度”
+    this.followAmpScale = Number.isFinite(followRaw) ? clamp(followRaw, 0, 2) : this.motionAmpScale;
+
 
     // backend current_mod 为准，确保切Mod 时序正确
     const ds = await resolveTextureDownsampleSettingsFromBackend(modPath, {
@@ -2926,12 +3015,13 @@ export class PngRemixPlayer {
       this.scene._lastTs = ts;
 
       const shouldDelta = this.scene.model?.settings?.should_delta !== false;
+      // PngRemix 的 tick 按 60Hz 累计（与 Remix/Godot 常见实现一致）。
       this.scene.tick += shouldDelta ? dtSec * 60 : 1;
 
-      if (this.config) updateGlobalBounce(this.scene, dtSec, this.config.features);
+      if (this.config) updateGlobalBounce(this.scene, dtSec, this.config.features, this.motionAmpScale, this.motionFrqScale);
 
       this.updateMouseWorld();
-      stepSceneRuntime(this.scene, dtSec, this.enableMouseFollow, this.mouseWorld, this.hasMouse);
+      stepSceneRuntime(this.scene, dtSec, this.enableMouseFollow, this.mouseWorld, this.hasMouse, this.followAmpScale, this.motionAmpScale, this.motionFrqScale);
       this.resizeCanvas();
       renderScene(this.scene, this.renderer, this.zoom, this.panX, this.panY, true);
 
@@ -2944,8 +3034,10 @@ export class PngRemixPlayer {
   private stopPlayback(): void {
     if (!this.scene) return;
     this.scene.playing = false;
-    if (this.scene._rafId) { cancelAnimationFrame(this.scene._rafId); this.scene._rafId = 0; }
+    if (this.scene._rafId) {
+      cancelAnimationFrame(this.scene._rafId);
+      this.scene._rafId = 0;
+    }
     this.scene._lastTs = 0;
   }
 }
-

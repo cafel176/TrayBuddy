@@ -1,7 +1,5 @@
 {
   "manifest": "manifest.json",
-  "bubble_style": "bubble_style.json",
-  "ai_tools": "ai_tools.json",
   "assets": {
     "sequence": "asset/sequence.json",
     "img": "asset/img.json",

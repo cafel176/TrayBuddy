@@ -701,6 +701,31 @@ export interface ModManifest {
   global_keyboard: boolean;
   /** 是否启用全局鼠标监听 */
   global_mouse: boolean;
+
+  /**
+   * PngRemix 专用：鼠标跟随幅度缩放（仅影响 follow 相关：pos/rot/scale/animate_to_mouse 的范围）。
+   * - 1.0：默认（不缩放）
+   * - <1.0：减小跟随幅度
+   * - >1.0：增大跟随幅度
+   */
+  pngremix_follow_amp_scale?: number;
+
+  /**
+   * PngRemix 专用：摆动/晃动幅度缩放（仅影响 motion 相关：xAmp/yAmp、wiggle_amp、stretchAmount、rdragStr 等）。
+   * - 1.0：默认（不缩放）
+   * - <1.0：减小摆动幅度
+   * - >1.0：增大摆动幅度
+   */
+  pngremix_motion_amp_scale?: number;
+
+  /**
+   * PngRemix 专用：摆动/晃动频率缩放（仅影响 motion 相关：xFrq/yFrq、wiggle_freq、rot_frq 等）。
+   * - 1.0：默认（不缩放）
+   * - <1.0：降低摆动频率（更慢）
+   * - >1.0：提高摆动频率（更快）
+   */
+  pngremix_motion_frq_scale?: number;
+
   /** 重要状态映射 */
   important_states: Record<string, StateInfo>;
   /** 所有状态列表 */
