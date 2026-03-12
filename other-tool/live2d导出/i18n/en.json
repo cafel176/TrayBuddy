@@ -44,7 +44,10 @@
   "loading_text": "Loading model...",
 
   "reset_expression": "Reset",
-  "error_no_model": "No .model3.json file found",
+  "error_no_model": "No .model3.json or recognizable model*.json entry found",
+  "error_cubism2_not_supported": "Detected Cubism 2 model (.moc). This tool supports Cubism 3/4 (.moc3) only.",
+
+
   "error_loading": "Failed to load model: ",
   "export_frames_title": "🎞️ Export Frame Sequence",
   "export_expression_label": "😊 Select Expression",

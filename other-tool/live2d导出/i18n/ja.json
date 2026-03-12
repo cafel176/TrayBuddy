@@ -44,7 +44,10 @@
   "loading_text": "モデル読み込み中...",
 
   "reset_expression": "リセット",
-  "error_no_model": ".model3.jsonファイルが見つかりません",
+  "error_no_model": ".model3.json または認識可能な model*.json が見つかりません",
+  "error_cubism2_not_supported": "Cubism 2 モデル（.moc）を検出しました。現在は Cubism 3/4（.moc3）のみ対応しています。",
+
+
   "error_loading": "モデルの読み込みに失敗しました: ",
   "export_frames_title": "🎞️ 連番画像を出力",
   "export_expression_label": "😊 表情を選択",

@@ -435,17 +435,99 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // === Model Loading ===
+
+    /**
+     * 优先加载标准 Cubism 3/4 的 .model3.json；
+     * 若不存在，则尝试兼容部分“简化/改名”的模型入口（如 model0.json / model.json / *.vtube.json）。
+     */
+    async function detectModelJsonFile() {
+        const keys = Object.keys(modelFiles);
+
+        // 1) Standard Cubism model file
+        const model3 = keys.find((f) => f.toLowerCase().endsWith('.model3.json'));
+        if (model3) return model3;
+
+        // 2) VTube Studio manifest: *.vtube.json -> FileReferences.Model
+        const vtube = keys.find((f) => f.toLowerCase().endsWith('.vtube.json'));
+        if (vtube) {
+            try {
+                const txt = await readFileAsText(modelFiles[vtube]);
+                const j = JSON.parse(txt);
+                const modelRef = j?.FileReferences?.Model;
+                if (typeof modelRef === 'string' && modelRef.trim()) {
+                    const hit = keys.find((k) => k === modelRef || k.endsWith('/' + modelRef) || k.endsWith(modelRef));
+                    if (hit) {
+                        debug.log('Using model from VTS manifest:', vtube, '->', hit);
+                        return hit;
+                    }
+                }
+            } catch (e) {
+                debug.warn('Failed to parse VTS manifest for model:', e);
+            }
+        }
+
+        // 3) Fallback: model*.json with FileReferences.Moc + Textures (Cubism 3/4 style)
+        const baseName = (p) => String(p || '').replace(/\\/g, '/').split('/').pop();
+        const score = (p) => {
+            const n = (baseName(p) || '').toLowerCase();
+            if (n === 'model0.json') return 0;
+            if (n === 'model.json') return 1;
+            if (n.startsWith('model') && n.endsWith('.json')) return 2;
+            return 9;
+        };
+
+        const candidates = keys
+            .filter((f) => f.toLowerCase().endsWith('.json') && !f.toLowerCase().endsWith('.model3.json'))
+            .filter((f) => /model/i.test(baseName(f)))
+            .sort((a, b) => score(a) - score(b));
+
+        for (const f of candidates) {
+            try {
+                const txt = await readFileAsText(modelFiles[f]);
+                const j = JSON.parse(txt);
+                const moc = j?.FileReferences?.Moc;
+                const tex = j?.FileReferences?.Textures;
+
+                if (typeof moc !== 'string' || !moc.trim()) continue;
+                if (!Array.isArray(tex) || tex.length === 0) continue;
+
+                const mocHit = keys.find((k) => k === moc || k.endsWith('/' + moc) || k.endsWith(moc));
+                if (!mocHit) continue;
+
+                debug.log('Fallback model json detected:', f);
+                return f;
+            } catch {
+                // ignore and continue
+            }
+        }
+
+        return null;
+    }
+
     async function loadModel() {
         try {
-            const modelJsonFile = Object.keys(modelFiles).find(f => f.endsWith('.model3.json'));
+            const modelJsonFile = await detectModelJsonFile();
             
             if (!modelJsonFile) {
                 hideLoading();
-                showToast(t('error_no_model'), 'error');
+
+                // Detect legacy Cubism 2 models (.moc). This tool currently supports Cubism 3/4 only.
+                const keys = Object.keys(modelFiles);
+                const hasMoc = keys.some((k) => k.toLowerCase().endsWith('.moc'));
+                const hasMoc3 = keys.some((k) => k.toLowerCase().endsWith('.moc3'));
+
+                if (hasMoc && !hasMoc3) {
+                    showToast(t('error_cubism2_not_supported'), 'error');
+                } else {
+                    showToast(t('error_no_model'), 'error');
+                }
+
                 return;
             }
 
+
             console.log('Found model:', modelJsonFile);
+
 
             // Cache all files
             cachedFileData = {};
@@ -571,11 +653,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // === UI Updates ===
     function updateModelInfo(modelJson, fileName) {
         modelInfo.classList.add('show');
-        modelName.textContent = fileName.replace('.model3.json', '');
+        const base = String(fileName || '').replace(/\\/g, '/').split('/').pop();
+        modelName.textContent = base.replace(/\.model3\.json$/i, '').replace(/\.json$/i, '');
         modelVersion.textContent = t('model_version_format', { version: modelJson.Version || '3' });
         modelFileCount.textContent = t('model_file_count', { count: Object.keys(modelFiles).length });
 
     }
+
 
     function updateExpressions() {
         expressionList.innerHTML = '';
