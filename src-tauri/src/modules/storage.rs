@@ -129,7 +129,7 @@ impl Default for UserSettings {
 
             ai_api_key: "".into(),
             ai_chat_base_url: "".into(),//https://api.siliconflow.cn/v1
-            ai_chat_model: "".into(),//zai-org/GLM-4.6V  Pro/Qwen/Qwen2.5-VL-7B-Instruct
+            ai_chat_model: "".into(),//zai-org/GLM-4.6V  Qwen/Qwen3-Omni-30B-A3B-Thinking
             ai_screenshot_interval: 1.0,
             ai_window_configs: Vec::new(),
             ai_tool_hotkey: "F1".into()
