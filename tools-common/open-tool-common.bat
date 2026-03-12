@@ -101,7 +101,13 @@ set "URL=http://%HOST%:%PORT%/"
 echo [open-tool] Opening: %URL%
 if defined TB_NO_BROWSER goto :eof
 set "TB_URL=%URL%"
-powershell -NoProfile -Command "Start-Process -FilePath $env:TB_URL"
+
+REM Open URL via built-in cmd 'start' (avoid PowerShell Start-Process ArgumentList validation issues)
+if "%URL%"=="" (
+  echo [open-tool] URL is empty. Skip opening browser.
+  goto :eof
+)
+start "" "%URL%" >nul 2>nul
 
 goto :eof
 
