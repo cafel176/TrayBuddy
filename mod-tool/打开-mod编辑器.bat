@@ -13,3 +13,5 @@ set "TB_SERVER_ENTRY=dev-server.mjs"
 set "TB_DEFAULT_TOOL="
 
 call "%~dp0..\tools-common\open-tool-common.bat" %*
+
+pause
