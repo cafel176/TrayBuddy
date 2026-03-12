@@ -1931,6 +1931,18 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[test]
+    fn read_image_as_png_base64_directory_path() {
+        let result = read_image_as_png_base64(std::path::Path::new("."));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_image_as_png_base64_empty_path() {
+        let result = read_image_as_png_base64(std::path::Path::new(""));
+        assert!(result.is_err());
+    }
+
     // ===================================================================== //
     // get_tool_config
     // ===================================================================== //
@@ -1986,6 +1998,46 @@ mod tests {
         assert_eq!(extract_first_number("123abc456"), Some(123.0));
     }
 
+    #[test]
+    fn extract_number_decimal_only() {
+        assert_eq!(extract_first_number("0.5"), Some(0.5));
+        assert_eq!(extract_first_number("3.14159"), Some(3.14159));
+    }
+
+    #[test]
+    fn extract_number_negative_decimal() {
+        assert_eq!(extract_first_number("-0.5"), Some(-0.5));
+        assert_eq!(extract_first_number("damage: -99.9"), Some(-99.9));
+    }
+
+    #[test]
+    fn extract_number_large_number() {
+        assert_eq!(extract_first_number("total: 999999999"), Some(999999999.0));
+    }
+
+    #[test]
+    fn extract_number_multiple_numbers_returns_first() {
+        assert_eq!(extract_first_number("10 20 30"), Some(10.0));
+        assert_eq!(extract_first_number("a1b2c3"), Some(1.0));
+    }
+
+    #[test]
+    fn extract_number_whitespace_only() {
+        assert_eq!(extract_first_number("   "), None);
+    }
+
+    #[test]
+    fn extract_number_special_chars() {
+        assert_eq!(extract_first_number("!@#$%^&*()"), None);
+    }
+
+    #[test]
+    fn extract_number_zero_variants() {
+        assert_eq!(extract_first_number("0"), Some(0.0));
+        assert_eq!(extract_first_number("0.0"), Some(0.0));
+        assert_eq!(extract_first_number("-0"), Some(0.0));
+    }
+
     // ===================================================================== //
     // process_ai_result — number 类型
     // ===================================================================== //
@@ -2013,7 +2065,6 @@ mod tests {
             max: Some(35.0),
             pattern: None,
         }];
-        // 超过范围，返回原始文本
         assert_eq!(
             process_ai_result("当前血量: 80", &processors),
             "当前血量: 80"
@@ -2059,6 +2110,52 @@ mod tests {
         }];
         assert_eq!(process_ai_result("值: 10", &processors), "low");
         assert_eq!(process_ai_result("值: 50", &processors), "值: 50");
+    }
+
+    #[test]
+    fn process_number_no_min_no_max() {
+        // 没有 min 和 max 限制，只要有数字就匹配
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "has_number".to_string(),
+            min: None,
+            max: None,
+            pattern: None,
+        }];
+        assert_eq!(process_ai_result("值: 999", &processors), "has_number");
+        assert_eq!(process_ai_result("值: -100", &processors), "has_number");
+    }
+
+    #[test]
+    fn process_number_negative_range() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "negative".to_string(),
+            min: Some(-100.0),
+            max: Some(-1.0),
+            pattern: None,
+        }];
+        assert_eq!(process_ai_result("temp: -50", &processors), "negative");
+        assert_eq!(process_ai_result("temp: 10", &processors), "temp: 10");
+    }
+
+    #[test]
+    fn process_number_boundary_values() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "number".to_string(),
+            result: "in_range".to_string(),
+            min: Some(10.0),
+            max: Some(20.0),
+            pattern: None,
+        }];
+        // 边界值：恰好等于 min
+        assert_eq!(process_ai_result("val: 10", &processors), "in_range");
+        // 边界值：恰好等于 max
+        assert_eq!(process_ai_result("val: 20", &processors), "in_range");
+        // 刚好小于 min
+        assert_eq!(process_ai_result("val: 9", &processors), "val: 9");
+        // 刚好大于 max
+        assert_eq!(process_ai_result("val: 21", &processors), "val: 21");
     }
 
     // ===================================================================== //
@@ -2107,6 +2204,46 @@ mod tests {
         );
     }
 
+    #[test]
+    fn process_keyword_empty_pattern() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "keyword".to_string(),
+            result: "matched".to_string(),
+            min: None,
+            max: None,
+            pattern: Some("".to_string()),
+        }];
+        // 空字符串总是包含在任何字符串中
+        assert_eq!(process_ai_result("anything", &processors), "matched");
+    }
+
+    #[test]
+    fn process_keyword_empty_response() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "keyword".to_string(),
+            result: "found".to_string(),
+            min: None,
+            max: None,
+            pattern: Some("test".to_string()),
+        }];
+        assert_eq!(process_ai_result("", &processors), "");
+    }
+
+    #[test]
+    fn process_keyword_unicode() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "keyword".to_string(),
+            result: "chinese_detected".to_string(),
+            min: None,
+            max: None,
+            pattern: Some("错误".to_string()),
+        }];
+        assert_eq!(
+            process_ai_result("发生了一个错误", &processors),
+            "chinese_detected"
+        );
+    }
+
     // ===================================================================== //
     // process_ai_result — regex 类型
     // ===================================================================== //
@@ -2147,10 +2284,43 @@ mod tests {
             max: None,
             pattern: Some(r"[invalid".to_string()),
         }];
-        // 无效正则应不匹配，返回原文
         assert_eq!(
             process_ai_result("some text", &processors),
             "some text"
+        );
+    }
+
+    #[test]
+    fn process_regex_no_pattern() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "regex".to_string(),
+            result: "match".to_string(),
+            min: None,
+            max: None,
+            pattern: None,
+        }];
+        assert_eq!(
+            process_ai_result("some text", &processors),
+            "some text"
+        );
+    }
+
+    #[test]
+    fn process_regex_complex_pattern() {
+        let processors = vec![AiResultProcessorConfig {
+            processor_type: "regex".to_string(),
+            result: "email_found".to_string(),
+            min: None,
+            max: None,
+            pattern: Some(r"[\w.]+@[\w.]+\.\w+".to_string()),
+        }];
+        assert_eq!(
+            process_ai_result("contact: user@example.com", &processors),
+            "email_found"
+        );
+        assert_eq!(
+            process_ai_result("no email here", &processors),
+            "no email here"
         );
     }
 
@@ -2186,7 +2356,6 @@ mod tests {
         assert_eq!(process_ai_result("HP: 25", &processors), "low");
         assert_eq!(process_ai_result("HP: 45", &processors), "medium");
         assert_eq!(process_ai_result("HP: 80", &processors), "high");
-        // 超出所有范围
         assert_eq!(process_ai_result("HP: 150", &processors), "HP: 150");
     }
 
@@ -2207,6 +2376,73 @@ mod tests {
         assert_eq!(
             process_ai_result("some text", &processors),
             "some text"
+        );
+    }
+
+    #[test]
+    fn process_mixed_types_first_keyword_then_number() {
+        let processors = vec![
+            AiResultProcessorConfig {
+                processor_type: "keyword".to_string(),
+                result: "has_error".to_string(),
+                min: None,
+                max: None,
+                pattern: Some("error".to_string()),
+            },
+            AiResultProcessorConfig {
+                processor_type: "number".to_string(),
+                result: "low_value".to_string(),
+                min: Some(0.0),
+                max: Some(10.0),
+                pattern: None,
+            },
+        ];
+        // keyword 匹配优先
+        assert_eq!(
+            process_ai_result("error code 5", &processors),
+            "has_error"
+        );
+        // keyword 不匹配，number 匹配
+        assert_eq!(
+            process_ai_result("value: 5", &processors),
+            "low_value"
+        );
+        // 两个都不匹配
+        assert_eq!(
+            process_ai_result("all good 999", &processors),
+            "all good 999"
+        );
+    }
+
+    #[test]
+    fn process_mixed_types_regex_then_keyword() {
+        let processors = vec![
+            AiResultProcessorConfig {
+                processor_type: "regex".to_string(),
+                result: "ip_found".to_string(),
+                min: None,
+                max: None,
+                pattern: Some(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}".to_string()),
+            },
+            AiResultProcessorConfig {
+                processor_type: "keyword".to_string(),
+                result: "has_server".to_string(),
+                min: None,
+                max: None,
+                pattern: Some("server".to_string()),
+            },
+        ];
+        assert_eq!(
+            process_ai_result("server at 192.168.1.1", &processors),
+            "ip_found"
+        );
+        assert_eq!(
+            process_ai_result("server is down", &processors),
+            "has_server"
+        );
+        assert_eq!(
+            process_ai_result("nothing", &processors),
+            "nothing"
         );
     }
 
@@ -2235,5 +2471,301 @@ mod tests {
         assert_eq!(parsed.min, Some(0.0));
         assert_eq!(parsed.max, Some(35.0));
         assert!(parsed.pattern.is_none());
+    }
+
+    #[test]
+    fn ai_result_processor_config_serde_with_pattern() {
+        let proc = AiResultProcessorConfig {
+            processor_type: "keyword".to_string(),
+            result: "found".to_string(),
+            min: None,
+            max: None,
+            pattern: Some("test_pattern".to_string()),
+        };
+        let json = serde_json::to_string(&proc).unwrap();
+        assert!(json.contains("\"pattern\":\"test_pattern\""));
+
+        let parsed: AiResultProcessorConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.pattern, Some("test_pattern".to_string()));
+        assert!(parsed.min.is_none());
+        assert!(parsed.max.is_none());
+    }
+
+    #[test]
+    fn ai_result_processor_config_serde_all_none() {
+        let proc = AiResultProcessorConfig {
+            processor_type: "regex".to_string(),
+            result: "r".to_string(),
+            min: None,
+            max: None,
+            pattern: None,
+        };
+        let json = serde_json::to_string(&proc).unwrap();
+        assert!(json.contains("\"min\":null"));
+        assert!(json.contains("\"max\":null"));
+        assert!(json.contains("\"pattern\":null"));
+    }
+
+    // ===================================================================== //
+    // ToolType — 完整覆盖
+    // ===================================================================== //
+
+    #[test]
+    fn tool_type_equality() {
+        assert_eq!(ToolType::Auto, ToolType::Auto);
+        assert_eq!(ToolType::Manual, ToolType::Manual);
+        assert_ne!(ToolType::Auto, ToolType::Manual);
+    }
+
+    #[test]
+    fn tool_type_clone() {
+        let t = ToolType::Auto;
+        let cloned = t.clone();
+        assert_eq!(t, cloned);
+    }
+
+    #[test]
+    fn tool_type_debug() {
+        assert_eq!(format!("{:?}", ToolType::Auto), "Auto");
+        assert_eq!(format!("{:?}", ToolType::Manual), "Manual");
+    }
+
+    #[test]
+    fn tool_type_copy() {
+        let t = ToolType::Manual;
+        let copied = t; // Copy
+        assert_eq!(t, copied);
+    }
+
+    #[test]
+    fn tool_type_serde_invalid_value() {
+        let result: Result<ToolType, _> = serde_json::from_str("\"invalid\"");
+        assert!(result.is_err());
+    }
+
+    // ===================================================================== //
+    // AiToolTaskConfig — 更多序列化场景
+    // ===================================================================== //
+
+    #[test]
+    fn ai_tool_task_config_empty_fields() {
+        let config = AiToolTaskConfig {
+            window_name: "".to_string(),
+            tool_type: ToolType::Manual,
+            capture_x: 0,
+            capture_y: 0,
+            capture_width: 0,
+            capture_height: 0,
+            show_info_window: false,
+            prompts: vec![],
+            result_processors: vec![],
+            triggers: vec![],
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: AiToolTaskConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.window_name, "");
+        assert_eq!(parsed.capture_width, 0);
+        assert!(parsed.prompts.is_empty());
+        assert!(parsed.triggers.is_empty());
+        assert!(parsed.result_processors.is_empty());
+    }
+
+    #[test]
+    fn ai_tool_task_config_with_result_processors() {
+        let config = AiToolTaskConfig {
+            window_name: "App".to_string(),
+            tool_type: ToolType::Auto,
+            capture_x: 10,
+            capture_y: 20,
+            capture_width: 100,
+            capture_height: 100,
+            show_info_window: true,
+            prompts: vec!["p1".to_string(), "p2".to_string()],
+            result_processors: vec![
+                AiResultProcessorConfig {
+                    processor_type: "number".to_string(),
+                    result: "low".to_string(),
+                    min: Some(0.0),
+                    max: Some(50.0),
+                    pattern: None,
+                },
+                AiResultProcessorConfig {
+                    processor_type: "keyword".to_string(),
+                    result: "alert".to_string(),
+                    min: None,
+                    max: None,
+                    pattern: Some("danger".to_string()),
+                },
+            ],
+            triggers: vec![],
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: AiToolTaskConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.result_processors.len(), 2);
+        assert_eq!(parsed.result_processors[0].processor_type, "number");
+        assert_eq!(parsed.result_processors[1].processor_type, "keyword");
+        assert_eq!(parsed.prompts.len(), 2);
+    }
+
+    #[test]
+    fn ai_tool_task_config_negative_coordinates() {
+        let config = AiToolTaskConfig {
+            window_name: "Test".to_string(),
+            tool_type: ToolType::Manual,
+            capture_x: -100,
+            capture_y: -200,
+            capture_width: 50,
+            capture_height: 50,
+            show_info_window: false,
+            prompts: vec![],
+            result_processors: vec![],
+            triggers: vec![],
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: AiToolTaskConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.capture_x, -100);
+        assert_eq!(parsed.capture_y, -200);
+    }
+
+    // ===================================================================== //
+    // AiToolDebugItem — 更多测试
+    // ===================================================================== //
+
+    #[test]
+    fn ai_tool_debug_item_serde() {
+        let item = AiToolDebugItem {
+            name: "test_tool".to_string(),
+            tool_type: ToolType::Manual,
+            enabled: false,
+            has_task: false,
+            task_id: None,
+            show_info_window: false,
+            info_window_visible: false,
+        };
+
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains("\"name\":\"test_tool\""));
+        assert!(json.contains("\"tool_type\":\"manual\""));
+        assert!(json.contains("\"task_id\":null"));
+
+        let parsed: AiToolDebugItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "test_tool");
+        assert!(!parsed.enabled);
+        assert!(parsed.task_id.is_none());
+    }
+
+    #[test]
+    fn ai_tool_debug_item_clone_and_debug() {
+        let item = AiToolDebugItem {
+            name: "x".to_string(),
+            tool_type: ToolType::Auto,
+            enabled: true,
+            has_task: true,
+            task_id: Some("tid".to_string()),
+            show_info_window: true,
+            info_window_visible: true,
+        };
+
+        let cloned = item.clone();
+        assert_eq!(cloned.name, "x");
+        assert_eq!(cloned.task_id, Some("tid".to_string()));
+        assert!(cloned.info_window_visible);
+
+        let debug = format!("{:?}", item);
+        assert!(debug.contains("Auto"));
+    }
+
+    // ===================================================================== //
+    // AiToolDebugInfo — 更多测试
+    // ===================================================================== //
+
+    #[test]
+    fn ai_tool_debug_info_empty_tools() {
+        let info = AiToolDebugInfo {
+            matched_window: None,
+            tools: vec![],
+            active_task_count: 0,
+            last_update_time: "".to_string(),
+            keep_screenshots: false,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: AiToolDebugInfo = serde_json::from_str(&json).unwrap();
+        assert!(parsed.tools.is_empty());
+        assert_eq!(parsed.active_task_count, 0);
+    }
+
+    #[test]
+    fn ai_tool_debug_info_multiple_tools() {
+        let info = AiToolDebugInfo {
+            matched_window: Some("Win".to_string()),
+            tools: vec![
+                AiToolDebugItem {
+                    name: "t1".to_string(),
+                    tool_type: ToolType::Auto,
+                    enabled: true,
+                    has_task: true,
+                    task_id: Some("1".to_string()),
+                    show_info_window: true,
+                    info_window_visible: true,
+                },
+                AiToolDebugItem {
+                    name: "t2".to_string(),
+                    tool_type: ToolType::Manual,
+                    enabled: false,
+                    has_task: false,
+                    task_id: None,
+                    show_info_window: false,
+                    info_window_visible: false,
+                },
+            ],
+            active_task_count: 1,
+            last_update_time: "12:34:56".to_string(),
+            keep_screenshots: true,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: AiToolDebugInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.tools.len(), 2);
+        assert_eq!(parsed.tools[0].name, "t1");
+        assert_eq!(parsed.tools[1].name, "t2");
+        assert_eq!(parsed.active_task_count, 1);
+        assert!(parsed.keep_screenshots);
+    }
+
+    // ===================================================================== //
+    // get_http_client — 单例
+    // ===================================================================== //
+
+    #[test]
+    fn get_http_client_returns_same_instance() {
+        let c1 = get_http_client();
+        let c2 = get_http_client();
+        assert!(std::ptr::eq(c1, c2));
+    }
+
+    // ===================================================================== //
+    // get_manual_notify — 单例
+    // ===================================================================== //
+
+    #[test]
+    fn get_manual_notify_returns_same_instance() {
+        let n1 = get_manual_notify();
+        let n2 = get_manual_notify();
+        assert!(std::ptr::eq(n1, n2));
+    }
+
+    // ===================================================================== //
+    // get_task_map — 单例
+    // ===================================================================== //
+
+    #[test]
+    fn get_task_map_returns_same_instance() {
+        let m1 = get_task_map();
+        let m2 = get_task_map();
+        assert!(std::ptr::eq(m1, m2));
     }
 }

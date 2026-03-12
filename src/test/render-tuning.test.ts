@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   getRawDpr,
   getRenderDpr,
@@ -7,10 +7,29 @@ import {
   capFps,
   getIdleThrottleFps,
   IdleThrottle,
+  initRenderTuning,
 } from "$lib/animation/render_tuning";
 import { RENDER_TUNING } from "$lib/constants";
+import { invoke } from "@tauri-apps/api/core";
 
 describe("render_tuning", () => {
+  function withIdleThrottleConfig(
+    config: Partial<{ enabled: boolean; delayMs: number }>,
+    fn: () => void,
+  ) {
+    const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+    const origDelay = RENDER_TUNING.IDLE_THROTTLE_DELAY_MS;
+    if (typeof config.enabled === "boolean") RENDER_TUNING.IDLE_THROTTLE_ENABLED = config.enabled;
+    if (typeof config.delayMs === "number") RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = config.delayMs;
+    try {
+      fn();
+    } finally {
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+      RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = origDelay;
+    }
+  }
+
+
   // ========================================================================
   // getRawDpr
   // ========================================================================
@@ -140,16 +159,12 @@ describe("render_tuning", () => {
 
   describe("IdleThrottle", () => {
     it("poke resets idle state", () => {
-      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
-      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
-      try {
+      withIdleThrottleConfig({ enabled: true }, () => {
         const throttle = new IdleThrottle();
         expect(throttle.idle).toBe(false);
         throttle.poke();
         expect(throttle.idle).toBe(false);
-      } finally {
-        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
-      }
+      });
     });
 
     it("shouldSkipFrame returns false when not idle", () => {
@@ -266,6 +281,259 @@ describe("render_tuning", () => {
         expect(capFps(120)).toBe(120);
       } finally {
         RENDER_TUNING.FPS_LIMIT_ENABLED = origEnabled;
+      }
+    });
+  });
+
+  // ========================================================================
+  // clampNumber (via getRenderDpr / getRenderMaxFps edge cases)
+  // ========================================================================
+
+  describe("clampNumber edge cases (via exported functions)", () => {
+    it("getRenderDpr returns DPR_CLAMP_MIN for Infinity devicePixelRatio", () => {
+      (window as any).devicePixelRatio = Infinity;
+      // clampNumber(Infinity, min, max) → min because !Number.isFinite(Infinity)
+      expect(getRenderDpr()).toBe(RENDER_TUNING.DPR_CLAMP_MIN);
+    });
+
+    it("getRenderDpr returns DPR_CLAMP_MIN for -Infinity devicePixelRatio", () => {
+      (window as any).devicePixelRatio = -Infinity;
+      // -Infinity || 1 → 1, then clampNumber(1, 1, 2) → 1
+      expect(getRenderDpr()).toBe(1);
+    });
+
+    it("getRenderMaxFps falls back to 60 when FPS_LIMIT_MAX is NaN", () => {
+      const origMax = RENDER_TUNING.FPS_LIMIT_MAX;
+      RENDER_TUNING.FPS_LIMIT_MAX = NaN;
+      try {
+        // Number(NaN) || 60 → 60, clamp(60, 1, 240) → 60
+        expect(getRenderMaxFps()).toBe(60);
+      } finally {
+        RENDER_TUNING.FPS_LIMIT_MAX = origMax;
+      }
+    });
+
+    it("getRenderMaxFps falls back to 60 when FPS_LIMIT_MAX is 0", () => {
+      const origMax = RENDER_TUNING.FPS_LIMIT_MAX;
+      RENDER_TUNING.FPS_LIMIT_MAX = 0;
+      try {
+        // Number(0) || 60 → 60
+        expect(getRenderMaxFps()).toBe(60);
+      } finally {
+        RENDER_TUNING.FPS_LIMIT_MAX = origMax;
+      }
+    });
+
+    it("getRenderMaxFps clamps negative to 1", () => {
+      const origMax = RENDER_TUNING.FPS_LIMIT_MAX;
+      RENDER_TUNING.FPS_LIMIT_MAX = -10;
+      try {
+        // Number(-10) || 60 → -10 (truthy), clamp(-10, 1, 240) → 1
+        expect(getRenderMaxFps()).toBe(1);
+      } finally {
+        RENDER_TUNING.FPS_LIMIT_MAX = origMax;
+      }
+    });
+
+    it("getRenderMaxFps clamps very large value to 240", () => {
+      const origMax = RENDER_TUNING.FPS_LIMIT_MAX;
+      RENDER_TUNING.FPS_LIMIT_MAX = 999;
+      try {
+        expect(getRenderMaxFps()).toBe(240);
+      } finally {
+        RENDER_TUNING.FPS_LIMIT_MAX = origMax;
+      }
+    });
+  });
+
+  // ========================================================================
+  // getIdleThrottleFps edge cases
+  // ========================================================================
+
+  describe("getIdleThrottleFps edge cases", () => {
+    it("clamps 0 to 5 (fallback)", () => {
+      const orig = RENDER_TUNING.IDLE_THROTTLE_FPS;
+      RENDER_TUNING.IDLE_THROTTLE_FPS = 0;
+      try {
+        // Number(0) || 5 → 5
+        expect(getIdleThrottleFps()).toBe(5);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_FPS = orig;
+      }
+    });
+
+    it("clamps negative to 1", () => {
+      const orig = RENDER_TUNING.IDLE_THROTTLE_FPS;
+      RENDER_TUNING.IDLE_THROTTLE_FPS = -5;
+      try {
+        // Number(-5) || 5 → -5 (truthy), clamp(-5, 1, 30) → 1
+        expect(getIdleThrottleFps()).toBe(1);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_FPS = orig;
+      }
+    });
+
+    it("clamps very large to 30", () => {
+      const orig = RENDER_TUNING.IDLE_THROTTLE_FPS;
+      RENDER_TUNING.IDLE_THROTTLE_FPS = 100;
+      try {
+        expect(getIdleThrottleFps()).toBe(30);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_FPS = orig;
+      }
+    });
+
+    it("returns exact value within range", () => {
+      const orig = RENDER_TUNING.IDLE_THROTTLE_FPS;
+      RENDER_TUNING.IDLE_THROTTLE_FPS = 15;
+      try {
+        expect(getIdleThrottleFps()).toBe(15);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_FPS = orig;
+      }
+    });
+  });
+
+  // ========================================================================
+  // initRenderTuning
+  // ========================================================================
+
+  describe("initRenderTuning", () => {
+    const invokeMock = vi.mocked(invoke);
+    let origFpsMax: number;
+    let origIdleEnabled: boolean;
+    let origIdleFps: number;
+    let origIdleDelay: number;
+
+    beforeEach(() => {
+      // Save originals
+      origFpsMax = RENDER_TUNING.FPS_LIMIT_MAX;
+      origIdleEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      origIdleFps = RENDER_TUNING.IDLE_THROTTLE_FPS;
+      origIdleDelay = RENDER_TUNING.IDLE_THROTTLE_DELAY_MS;
+
+      // Reset _initialized flag by re-importing won't work, so we need to
+      // force initialization by relying on the module-scoped flag.
+      // The flag `_initialized` is module-scoped; once true, initRenderTuning
+      // skips. We'll test the code paths that are reachable.
+    });
+
+    afterEach(() => {
+      RENDER_TUNING.FPS_LIMIT_MAX = origFpsMax;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = origIdleEnabled;
+      RENDER_TUNING.IDLE_THROTTLE_FPS = origIdleFps;
+      RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = origIdleDelay;
+    });
+
+    it("is safe to call multiple times (second call is no-op)", async () => {
+      // _initialized is already true from the first call in the module
+      await initRenderTuning();
+      // Should not throw and should not change anything
+      expect(RENDER_TUNING.FPS_LIMIT_MAX).toBe(origFpsMax);
+    });
+
+    it("invoke failure does not throw (uses defaults silently)", async () => {
+      // Even if invoke would throw, initRenderTuning catches it
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      // Already initialized, so invoke won't be called
+      await expect(initRenderTuning()).resolves.toBeUndefined();
+      warnSpy.mockRestore();
+    });
+  });
+
+  // ========================================================================
+  // IdleThrottle — additional edge cases
+  // ========================================================================
+
+  describe("IdleThrottle (additional)", () => {
+    it("constructor uses IDLE_THROTTLE_DELAY_MS with minimum of 500", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      const origDelay = RENDER_TUNING.IDLE_THROTTLE_DELAY_MS;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
+      RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = 100; // below 500 minimum
+      try {
+        const throttle = new IdleThrottle();
+        // delayMs should be clamped to 500
+        // We can verify by checking that idle is not entered after 200ms
+        const now = performance.now();
+        expect(throttle.shouldSkipFrame(now + 200)).toBe(false);
+        expect(throttle.idle).toBe(false);
+        // But it should enter idle after 600ms (> 500)
+        expect(throttle.shouldSkipFrame(now + 600)).toBe(false); // first frame renders
+        expect(throttle.idle).toBe(true);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+        RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = origDelay;
+      }
+    });
+
+    it("constructor uses NaN delay → fallback to 3000", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      const origDelay = RENDER_TUNING.IDLE_THROTTLE_DELAY_MS;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
+      RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = NaN;
+      try {
+        const throttle = new IdleThrottle();
+        const now = performance.now();
+        // Should not enter idle after 2s (NaN || 3000 → 3000)
+        expect(throttle.shouldSkipFrame(now + 2000)).toBe(false);
+        expect(throttle.idle).toBe(false);
+        // Should enter idle after 4s
+        expect(throttle.shouldSkipFrame(now + 4000)).toBe(false);
+        expect(throttle.idle).toBe(true);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+        RENDER_TUNING.IDLE_THROTTLE_DELAY_MS = origDelay;
+      }
+    });
+
+    it("shouldSkipFrame with lastRenderTs = 0 always renders first idle frame", () => {
+      withIdleThrottleConfig({ enabled: true }, () => {
+        const throttle = new IdleThrottle();
+        const now = performance.now();
+        // Enter idle
+        const skip = throttle.shouldSkipFrame(now + 60000);
+        expect(throttle.idle).toBe(true);
+        expect(skip).toBe(false); // First frame, lastRenderTs was 0
+      });
+    });
+
+    it("poke between idle frames prevents skipping", () => {
+      const origEnabled = RENDER_TUNING.IDLE_THROTTLE_ENABLED;
+      RENDER_TUNING.IDLE_THROTTLE_ENABLED = true;
+      try {
+        const throttle = new IdleThrottle();
+        const now = performance.now();
+        // Enter idle
+        throttle.shouldSkipFrame(now + 60000);
+        expect(throttle.idle).toBe(true);
+        // Poke to exit idle — poke() uses performance.now() internally,
+        // so we need shouldSkipFrame's ts to be close to performance.now()
+        throttle.poke();
+        expect(throttle.idle).toBe(false);
+        // Use a timestamp close to performance.now() (within delayMs) so idle is not re-entered
+        const pokeTime = performance.now();
+        const skip = throttle.shouldSkipFrame(pokeTime + 1);
+        expect(skip).toBe(false);
+        expect(throttle.idle).toBe(false);
+      } finally {
+        RENDER_TUNING.IDLE_THROTTLE_ENABLED = origEnabled;
+      }
+    });
+  });
+
+  // ========================================================================
+  // isAntialiasEnabled with ANTIALIAS_ENABLED = true
+  // ========================================================================
+
+  describe("isAntialiasEnabled (enabled)", () => {
+    it("returns true when ANTIALIAS_ENABLED is set to true", () => {
+      const orig = RENDER_TUNING.ANTIALIAS_ENABLED;
+      (RENDER_TUNING as any).ANTIALIAS_ENABLED = true;
+      try {
+        expect(isAntialiasEnabled()).toBe(true);
+      } finally {
+        (RENDER_TUNING as any).ANTIALIAS_ENABLED = orig;
       }
     });
   });

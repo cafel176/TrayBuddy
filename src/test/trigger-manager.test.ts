@@ -43,7 +43,7 @@ describe("TriggerManager", () => {
 
     const result = await manager.trigger("click", true);
     expect(result).toBe(true);
-    expect(invokeMock).toHaveBeenCalledWith("trigger_event", { event_name: "click", force: true });
+    expect(invokeMock).toHaveBeenCalledWith("trigger_event", { eventName: "click", force: true });
 
     invokeMock.mockImplementation(original ?? (async () => null));
   });
@@ -95,7 +95,7 @@ describe("TriggerManager", () => {
 
     const result = await manager.trigger("login");
     expect(result).toBe(true);
-    expect(invokeMock).toHaveBeenCalledWith("trigger_event", { event_name: "login", force: false });
+    expect(invokeMock).toHaveBeenCalledWith("trigger_event", { eventName: "login", force: false });
 
     invokeMock.mockImplementation(original ?? (async () => null));
   });

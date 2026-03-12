@@ -179,10 +179,10 @@ echo.
 set /a TOTAL_ERR=FRONTEND_OK+BACKEND_OK+FRONTEND_COV_OK+BACKEND_COV_OK
 if !TOTAL_ERR! gtr 0 (
   echo Some steps failed. Check the logs above.
-  pause
+  if not defined TBUDDY_NO_PAUSE pause
   exit /b 1
 )
 
 echo All tests passed!
-pause
+if not defined TBUDDY_NO_PAUSE pause
 exit /b 0

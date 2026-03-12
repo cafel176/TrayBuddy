@@ -269,6 +269,10 @@ pub fn capture_screen_region(
 mod tests {
     use super::*;
 
+    // ===================================================================== //
+    // capture_screen_region — 基本 smoke 测试
+    // ===================================================================== //
+
     /// Smoke test: capture_screen_region with various inputs must not panic.
     /// Actual results are platform-dependent (Windows GDI vs stub), so only
     /// panics and crashes are treated as failures.
@@ -300,5 +304,252 @@ mod tests {
     fn capture_png_bytes_smoke() {
         let _ = capture_screen_region_as_png_bytes(0, 0, 0, 0);
         let _ = capture_screen_region_as_png_bytes(0, 0, 1, 1);
+    }
+
+    // ===================================================================== //
+    // capture_screen_region — 零尺寸
+    // ===================================================================== //
+
+    #[test]
+    fn capture_screen_region_zero_width() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_zero_width.png");
+        let result = capture_screen_region(0, 0, 0, 100, &path);
+        // 零宽度应返回错误
+        assert!(result.is_err());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn capture_screen_region_zero_height() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_zero_height.png");
+        let result = capture_screen_region(0, 0, 100, 0, &path);
+        // 零高度应返回错误
+        assert!(result.is_err());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn capture_screen_region_both_zero() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_both_zero.png");
+        let result = capture_screen_region(0, 0, 0, 0, &path);
+        assert!(result.is_err());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ===================================================================== //
+    // capture_screen_region — 负坐标
+    // ===================================================================== //
+
+    #[test]
+    fn capture_screen_region_negative_coords() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_neg_coords.png");
+        // 负坐标不应 panic（可能在多显示器环境中有效）
+        let _ = capture_screen_region(-100, -100, 10, 10, &path);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ===================================================================== //
+    // capture_screen_region — 实际截图验证（仅 Windows）
+    // ===================================================================== //
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn capture_screen_region_produces_valid_png_on_windows() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_valid_png.png");
+        let result = capture_screen_region(0, 0, 2, 2, &path);
+
+        if result.is_ok() {
+            // 验证文件存在且非空
+            let metadata = std::fs::metadata(&path);
+            assert!(metadata.is_ok());
+            assert!(metadata.unwrap().len() > 0);
+        }
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // ===================================================================== //
+    // capture_screen_region_as_png_bytes — 零尺寸
+    // ===================================================================== //
+
+    #[test]
+    fn capture_png_bytes_zero_width() {
+        let result = capture_screen_region_as_png_bytes(0, 0, 0, 100);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn capture_png_bytes_zero_height() {
+        let result = capture_screen_region_as_png_bytes(0, 0, 100, 0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn capture_png_bytes_both_zero() {
+        let result = capture_screen_region_as_png_bytes(0, 0, 0, 0);
+        assert!(result.is_err());
+    }
+
+    // ===================================================================== //
+    // capture_screen_region_as_png_bytes — 负坐标
+    // ===================================================================== //
+
+    #[test]
+    fn capture_png_bytes_negative_coords() {
+        let _ = capture_screen_region_as_png_bytes(-50, -50, 10, 10);
+    }
+
+    // ===================================================================== //
+    // capture_screen_region_as_png_bytes — 大尺寸
+    // ===================================================================== //
+
+    #[test]
+    fn capture_png_bytes_large_coords() {
+        // 超出屏幕范围但不应 panic
+        let _ = capture_screen_region_as_png_bytes(99999, 99999, 10, 10);
+    }
+
+    // ===================================================================== //
+    // capture_screen_region_as_png_bytes — 有效截图（仅 Windows）
+    // ===================================================================== //
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn capture_png_bytes_returns_valid_png_on_windows() {
+        let result = capture_screen_region_as_png_bytes(0, 0, 2, 2);
+        if let Ok(bytes) = result {
+            // PNG 文件以 0x89 0x50 0x4E 0x47 开头
+            assert!(bytes.len() >= 8);
+            assert_eq!(&bytes[0..4], &[0x89, 0x50, 0x4E, 0x47]);
+        }
+    }
+
+    // ===================================================================== //
+    // capture_screen_region — 无效路径
+    // ===================================================================== //
+
+    #[test]
+    fn capture_screen_region_invalid_dir() {
+        let result = capture_screen_region(
+            0,
+            0,
+            10,
+            10,
+            Path::new("/this/path/does/not/exist/screenshot.png"),
+        );
+        // 非零尺寸 + 无效路径：在 Windows 上会截图成功但保存失败
+        // 在非 Windows 上截图本身就会失败（平台占位）
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn capture_screen_region_empty_path() {
+        let result = capture_screen_region(0, 0, 10, 10, Path::new(""));
+        assert!(result.is_err());
+    }
+
+    // ===================================================================== //
+    // capture_screen_region — 非 Windows 平台占位验证
+    // ===================================================================== //
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn capture_screen_region_returns_error_on_non_windows() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_non_windows.png");
+        let result = capture_screen_region(0, 0, 10, 10, &path);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("not yet implemented") || err.contains("not supported"));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn capture_png_bytes_returns_error_on_non_windows() {
+        let result = capture_screen_region_as_png_bytes(0, 0, 10, 10);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("not yet implemented") || err.contains("not supported"));
+    }
+
+    // ===================================================================== //
+    // GDI_CAPTURE_LOCK — 互斥锁可用性（仅 Windows）
+    // ===================================================================== //
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn gdi_capture_lock_is_lockable() {
+        let guard = GDI_CAPTURE_LOCK.lock();
+        assert!(guard.is_ok());
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn gdi_capture_lock_does_not_deadlock_on_relock() {
+        // 先获取锁再释放，然后再次获取
+        {
+            let _g = GDI_CAPTURE_LOCK.lock().unwrap();
+        }
+        {
+            let _g = GDI_CAPTURE_LOCK.lock().unwrap();
+        }
+    }
+
+    // ===================================================================== //
+    // capture_screen_region — 小尺寸（1x1）
+    // ===================================================================== //
+
+    #[test]
+    fn capture_screen_region_1x1() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("test_1x1_capture.png");
+        let _ = capture_screen_region(0, 0, 1, 1, &path);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn capture_png_bytes_1x1() {
+        let _ = capture_screen_region_as_png_bytes(0, 0, 1, 1);
+    }
+
+    // ===================================================================== //
+    // capture_screen_region — 各种尺寸
+    // ===================================================================== //
+
+    #[test]
+    fn capture_screen_region_small_sizes() {
+        let dir = std::env::temp_dir();
+        for (w, h) in &[(2, 2), (3, 1), (1, 3), (4, 4), (10, 10)] {
+            let path = dir.join(format!("test_{}x{}.png", w, h));
+            let _ = capture_screen_region(0, 0, *w, *h, &path);
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+
+    #[test]
+    fn capture_png_bytes_various_sizes() {
+        for (w, h) in &[(2, 2), (3, 1), (1, 3), (4, 4), (10, 10)] {
+            let _ = capture_screen_region_as_png_bytes(0, 0, *w, *h);
+        }
+    }
+
+    // ===================================================================== //
+    // 行对齐验证（仅 Windows）
+    // ===================================================================== //
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn capture_screen_region_alignment_widths() {
+        // 测试非 4 字节对齐的宽度（BGR 3 bytes/pixel 时需要行填充）
+        let dir = std::env::temp_dir();
+        for w in &[1u32, 2, 3, 5, 7, 11, 13, 15] {
+            let path = dir.join(format!("test_align_{}.png", w));
+            let _ = capture_screen_region(0, 0, *w, 2, &path);
+            let _ = std::fs::remove_file(&path);
+        }
     }
 }

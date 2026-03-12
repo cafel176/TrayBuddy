@@ -145,6 +145,10 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    // ===================================================================== //
+    // get_nested_value — 基本路径查找
+    // ===================================================================== //
+
     #[test]
     fn get_nested_value_returns_nested_string() {
         let data = json!({
@@ -167,6 +171,10 @@ mod tests {
         let data = json!({ "hello": "world" });
         assert_eq!(get_nested_value(&data, "hello"), Some("world".to_string()));
     }
+
+    // ===================================================================== //
+    // get_nested_value — 非字符串类型返回 None
+    // ===================================================================== //
 
     #[test]
     fn get_nested_value_returns_none_for_non_string() {
@@ -193,10 +201,39 @@ mod tests {
     }
 
     #[test]
+    fn get_nested_value_returns_none_for_boolean() {
+        let data = json!({ "flag": true });
+        assert_eq!(get_nested_value(&data, "flag"), None);
+    }
+
+    #[test]
+    fn get_nested_value_returns_none_for_float() {
+        let data = json!({ "pi": 3.14 });
+        assert_eq!(get_nested_value(&data, "pi"), None);
+    }
+
+    // ===================================================================== //
+    // get_nested_value — 深层嵌套
+    // ===================================================================== //
+
+    #[test]
     fn get_nested_value_deeply_nested() {
         let data = json!({ "a": { "b": { "c": { "d": "deep" } } } });
         assert_eq!(get_nested_value(&data, "a.b.c.d"), Some("deep".to_string()));
     }
+
+    #[test]
+    fn get_nested_value_five_levels_deep() {
+        let data = json!({ "l1": { "l2": { "l3": { "l4": { "l5": "bottom" } } } } });
+        assert_eq!(
+            get_nested_value(&data, "l1.l2.l3.l4.l5"),
+            Some("bottom".to_string())
+        );
+    }
+
+    // ===================================================================== //
+    // get_nested_value — 边界条件
+    // ===================================================================== //
 
     #[test]
     fn get_nested_value_empty_key() {
@@ -205,18 +242,223 @@ mod tests {
     }
 
     #[test]
+    fn get_nested_value_key_not_found_at_root() {
+        let data = json!({ "a": "value" });
+        assert_eq!(get_nested_value(&data, "b"), None);
+    }
+
+    #[test]
+    fn get_nested_value_key_not_found_in_nested() {
+        let data = json!({ "a": { "b": "value" } });
+        assert_eq!(get_nested_value(&data, "a.c"), None);
+    }
+
+    #[test]
+    fn get_nested_value_partial_path_is_not_string() {
+        // a.b 是一个对象，不是字符串
+        let data = json!({ "a": { "b": { "c": "value" } } });
+        assert_eq!(get_nested_value(&data, "a.b"), None);
+    }
+
+    #[test]
+    fn get_nested_value_path_through_non_object() {
+        // a 是一个字符串，试图继续访问 a.b 应返回 None
+        let data = json!({ "a": "string_value" });
+        assert_eq!(get_nested_value(&data, "a.b"), None);
+    }
+
+    #[test]
+    fn get_nested_value_path_through_array() {
+        let data = json!({ "a": [1, 2, 3] });
+        assert_eq!(get_nested_value(&data, "a.0"), None);
+    }
+
+    #[test]
+    fn get_nested_value_path_through_null() {
+        let data = json!({ "a": null });
+        assert_eq!(get_nested_value(&data, "a.b"), None);
+    }
+
+    #[test]
+    fn get_nested_value_empty_string_value() {
+        let data = json!({ "empty": "" });
+        assert_eq!(get_nested_value(&data, "empty"), Some("".to_string()));
+    }
+
+    #[test]
+    fn get_nested_value_unicode_key_and_value() {
+        let data = json!({ "菜单": { "关于": "TrayBuddy" } });
+        assert_eq!(
+            get_nested_value(&data, "菜单.关于"),
+            Some("TrayBuddy".to_string())
+        );
+    }
+
+    #[test]
+    fn get_nested_value_key_with_spaces() {
+        let data = json!({ "key with spaces": "val" });
+        assert_eq!(
+            get_nested_value(&data, "key with spaces"),
+            Some("val".to_string())
+        );
+    }
+
+    #[test]
+    fn get_nested_value_key_with_special_chars() {
+        let data = json!({ "key-name_1": "val" });
+        assert_eq!(
+            get_nested_value(&data, "key-name_1"),
+            Some("val".to_string())
+        );
+    }
+
+    #[test]
+    fn get_nested_value_consecutive_dots() {
+        // "a..b" splits into ["a", "", "b"]
+        let data = json!({ "a": { "": { "b": "deep_empty" } } });
+        assert_eq!(
+            get_nested_value(&data, "a..b"),
+            Some("deep_empty".to_string())
+        );
+    }
+
+    #[test]
+    fn get_nested_value_on_empty_json_object() {
+        let data = json!({});
+        assert_eq!(get_nested_value(&data, "any"), None);
+    }
+
+    // ===================================================================== //
+    // clear_i18n_cache
+    // ===================================================================== //
+
+    #[test]
     fn clear_i18n_cache_does_not_panic() {
-        // Just verify it doesn't panic when called multiple times
         clear_i18n_cache();
         clear_i18n_cache();
     }
 
     #[test]
+    fn clear_i18n_cache_clears_stored_data() {
+        // 手动设置缓存然后清除
+        {
+            let mut guard = get_cache().lock().unwrap();
+            *guard = Some(I18nCache {
+                lang: "en".to_string(),
+                data: json!({"test": "value"}),
+            });
+        }
+
+        clear_i18n_cache();
+
+        {
+            let guard = get_cache().lock().unwrap();
+            assert!(guard.is_none());
+        }
+    }
+
+    // ===================================================================== //
+    // get_cache — 单例检查
+    // ===================================================================== //
+
+    #[test]
     fn get_cache_returns_same_instance() {
         let cache1 = get_cache();
         let cache2 = get_cache();
-        // Both should point to the same static
         assert!(std::ptr::eq(cache1, cache2));
+    }
+
+    #[test]
+    fn get_cache_returns_lockable_mutex() {
+        let cache = get_cache();
+        let guard = cache.lock();
+        assert!(guard.is_ok());
+    }
+
+    // ===================================================================== //
+    // I18nCache 结构体 — 直接操作
+    // ===================================================================== //
+
+    #[test]
+    fn i18n_cache_set_and_read() {
+        let mut guard = get_cache().lock().unwrap();
+        *guard = Some(I18nCache {
+            lang: "zh".to_string(),
+            data: json!({"menu": {"about": "关于"}}),
+        });
+
+        if let Some(ref cache) = *guard {
+            assert_eq!(cache.lang, "zh");
+            assert_eq!(
+                get_nested_value(&cache.data, "menu.about"),
+                Some("关于".to_string())
+            );
+        } else {
+            panic!("Cache should not be None");
+        }
+
+        // 清理
+        *guard = None;
+    }
+
+    #[test]
+    fn i18n_cache_language_switch() {
+        let mut guard = get_cache().lock().unwrap();
+
+        // 先设中文
+        *guard = Some(I18nCache {
+            lang: "zh".to_string(),
+            data: json!({"hello": "你好"}),
+        });
+
+        assert_eq!(guard.as_ref().unwrap().lang, "zh");
+
+        // 切换为英文
+        *guard = Some(I18nCache {
+            lang: "en".to_string(),
+            data: json!({"hello": "Hello"}),
+        });
+
+        assert_eq!(guard.as_ref().unwrap().lang, "en");
+        assert_eq!(
+            get_nested_value(&guard.as_ref().unwrap().data, "hello"),
+            Some("Hello".to_string())
+        );
+
+        // 清理
+        *guard = None;
+    }
+
+    #[test]
+    fn i18n_cache_need_reload_check() {
+        let mut guard = get_cache().lock().unwrap();
+
+        // 缓存为 None 时需要 reload
+        let need_reload_none = guard.is_none();
+        assert!(need_reload_none);
+
+        // 设置为 zh
+        *guard = Some(I18nCache {
+            lang: "zh".to_string(),
+            data: json!({}),
+        });
+
+        // 同语言不需要 reload
+        let need_reload_same = match &*guard {
+            Some(cache) => cache.lang != "zh",
+            None => true,
+        };
+        assert!(!need_reload_same);
+
+        // 不同语言需要 reload
+        let need_reload_diff = match &*guard {
+            Some(cache) => cache.lang != "en",
+            None => true,
+        };
+        assert!(need_reload_diff);
+
+        // 清理
+        *guard = None;
     }
 }
 

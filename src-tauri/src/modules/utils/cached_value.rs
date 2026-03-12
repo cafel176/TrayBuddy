@@ -9,7 +9,7 @@ use std::sync::Mutex;
 ///
 /// 使用方式：
 /// ```rust,no_run
-/// use crate::modules::utils::CachedValue;
+/// use traybuddy_lib::modules::utils::CachedValue;
 ///
 /// static CACHED_FOO: CachedValue<String> = CachedValue::new();
 ///

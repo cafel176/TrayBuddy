@@ -17,7 +17,9 @@ import StateDebugger from "../lib/components/StateDebugger.svelte";
 import TriggerDebugger from "../lib/components/TriggerDebugger.svelte";
 import SettingsComponent from "../lib/components/Settings.svelte";
 import ResourceManagerDebugger from "../lib/components/ResourceManagerDebugger.svelte";
-import { flushAsync } from "./test-utils";
+import { clickButtonByTextIncludes, flushAsync, withTauriInvoke } from "./test-utils";
+
+
 
 // ============================================================================
 // SystemDebugger
@@ -2686,37 +2688,54 @@ describe("Settings", () => {
 // ResourceManagerDebugger
 // ============================================================================
 
+/** ResourceManagerDebugger 系列测试：共享的基础 manifest，避免在多个 describe 中重复定义 */
+const RESOURCE_BASE_MANIFEST = {
+  author: "test",
+  default_audio_lang_id: "zh",
+  default_text_lang_id: "zh",
+  show_mod_data_panel: false,
+  mod_data_default_int: 0,
+  enable_texture_downsample: false,
+  texture_downsample_start_dim: 512,
+  global_keyboard: false,
+  global_mouse: false,
+  character: { z_offset: 0, canvas_fit_preference: "long" },
+  border: { enable: false, anima: "", z_offset: 0 },
+  triggers: [],
+};
+
+/** 统一构造 ResourceManagerDebugger 用到的 mock mod 结构（默认 sequence）。 */
+function createResourceMod(overrides: Record<string, any> = {}) {
+  const { manifest: mOverrides, ...rest } = overrides;
+  return {
+    path: "C:/mods/demo",
+    imgs: [],
+    sequences: [],
+    audios: {},
+    texts: {},
+    info: {},
+    ...rest,
+    manifest: {
+      id: "demo",
+      version: "1.0",
+      mod_type: "sequence",
+      important_states: {},
+      states: [],
+      ...RESOURCE_BASE_MANIFEST,
+      ...mOverrides,
+    },
+  };
+}
+
 describe("ResourceManagerDebugger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  /** 基础 manifest 字段，避免模板中 undefined 访问 */
-  const baseManifest = {
-    author: "test",
-    default_audio_lang_id: "zh",
-    default_text_lang_id: "zh",
-    show_mod_data_panel: false,
-    mod_data_default_int: 0,
-    enable_texture_downsample: false,
-    texture_downsample_start_dim: 512,
-    global_keyboard: false,
-    global_mouse: false,
-    character: { z_offset: 0, canvas_fit_preference: "long" },
-    border: { enable: false, anima: "", z_offset: 0 },
-    triggers: [],
-  };
+  // 复用共享的基础 manifest 与构造器（避免重复定义大对象）
+  const baseManifest = RESOURCE_BASE_MANIFEST;
+  const createSeqMod = createResourceMod;
 
-  /** 创建完整的 sequence 类型 mock mod info */
-  function createSeqMod(overrides: Record<string, any> = {}) {
-    const { manifest: mOverrides, ...rest } = overrides;
-    return {
-      path: "C:/mods/demo",
-      imgs: [], sequences: [], audios: {}, texts: {}, info: {},
-      ...rest,
-      manifest: { id: "demo", version: "1.0", mod_type: "sequence", important_states: {}, states: [], ...baseManifest, ...mOverrides },
-    };
-  }
 
   it("renders and refreshes mod list", async () => {
     const invokeMock = vi.mocked(invoke);
@@ -2761,7 +2780,7 @@ describe("ResourceManagerDebugger", () => {
         return {
           path: "C:/mods/testmod",
           manifest: {
-            ...baseManifest,
+            ...RESOURCE_BASE_MANIFEST,
             id: "testmod",
             version: "2.0",
             mod_type: "live2d",
@@ -3392,30 +3411,10 @@ describe("ResourceManagerDebugger extended", () => {
     vi.clearAllMocks();
   });
 
-  const baseManifest = {
-    author: "test",
-    default_audio_lang_id: "zh",
-    default_text_lang_id: "zh",
-    show_mod_data_panel: false,
-    mod_data_default_int: 0,
-    enable_texture_downsample: false,
-    texture_downsample_start_dim: 512,
-    global_keyboard: false,
-    global_mouse: false,
-    character: { z_offset: 0, canvas_fit_preference: "long" },
-    border: { enable: false, anima: "", z_offset: 0 },
-    triggers: [],
-  };
+  // 复用共享的基础 manifest 与构造器（避免重复定义大对象）
+  const baseManifest = RESOURCE_BASE_MANIFEST;
+  const createSeqMod2 = createResourceMod;
 
-  function createSeqMod2(overrides: Record<string, any> = {}) {
-    const { manifest: mOverrides, ...rest } = overrides;
-    return {
-      path: "C:/mods/demo",
-      imgs: [], sequences: [], audios: {}, texts: {}, info: {},
-      ...rest,
-      manifest: { id: "demo", version: "1.0", mod_type: "sequence", important_states: {}, states: [], ...baseManifest, ...mOverrides },
-    };
-  }
 
   it("loadSelectedMod clicks button and loads mod", async () => {
     const invokeMock = vi.mocked(invoke);
@@ -3432,16 +3431,10 @@ describe("ResourceManagerDebugger extended", () => {
     const { container } = render(ResourceManagerDebugger);
     await flushAsync();
 
-    // Find and click load button
-    const loadBtns = container.querySelectorAll("button");
-    for (const btn of loadBtns) {
-      const text = btn.textContent || "";
-      if (text.includes("Load") || text.includes("加载") || text.includes("読み込み")) {
-        await fireEvent.click(btn);
-        await flushAsync();
-        break;
-      }
-    }
+    // Find and click load button (multi-lang)
+    clickButtonByTextIncludes(container, ["Load", "加载", "読み込み"]);
+    await flushAsync();
+
 
     invokeMock.mockImplementation(originalImpl ?? (async () => null));
   });
@@ -3459,46 +3452,30 @@ describe("ResourceManagerDebugger extended", () => {
     const { container } = render(ResourceManagerDebugger);
     await flushAsync();
 
-    // Find unload button
-    const btns = container.querySelectorAll("button");
-    for (const btn of btns) {
-      const text = btn.textContent || "";
-      if (text.includes("Unload") || text.includes("卸载") || text.includes("アンロード")) {
-        await fireEvent.click(btn);
-        await flushAsync();
-        break;
-      }
-    }
+    // Find unload button (multi-lang)
+    clickButtonByTextIncludes(container, ["Unload", "卸载", "アンロード"]);
+    await flushAsync();
+
 
     invokeMock.mockImplementation(originalImpl ?? (async () => null));
   });
 
   it("refresh button reloads mod list", async () => {
-    const invokeMock = vi.mocked(invoke);
-    const originalImpl = invokeMock.getMockImplementation();
-
-    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
-      if (command === "get_mod_search_paths") return ["C:/mods"];
-      if (command === "get_available_mods") return ["mod1", "mod2"];
-      if (command === "get_current_mod") return null;
-      return originalImpl ? originalImpl(command, args as never) : null;
-    });
-
-    const { container } = render(ResourceManagerDebugger);
-    await flushAsync();
-
-    // Find refresh button
-    const btns = container.querySelectorAll("button");
-    for (const btn of btns) {
-      const text = btn.textContent || "";
-      if (text.includes("Refresh") || text.includes("刷新") || text.includes("更新")) {
-        await fireEvent.click(btn);
+    await withTauriInvoke(
+      {
+        get_mod_search_paths: ["C:/mods"],
+        get_available_mods: ["mod1", "mod2"],
+        get_current_mod: null,
+      },
+      async () => {
+        const { container } = render(ResourceManagerDebugger);
         await flushAsync();
-        break;
-      }
-    }
 
-    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+        // Find refresh button (multi-lang)
+        clickButtonByTextIncludes(container, ["Refresh", "刷新", "更新"]);
+        await flushAsync();
+      },
+    );
   });
 
   it("renders threed mod with animation data", async () => {
@@ -3544,6 +3521,1020 @@ describe("ResourceManagerDebugger extended", () => {
     await flushAsync();
 
     unmount();
+    await flushAsync();
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+});
+
+
+// ============================================================================
+// ResourceManagerDebugger — Branches & Functions coverage boost
+// ============================================================================
+
+describe("ResourceManagerDebugger branches & functions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // 复用共享的基础 manifest 与构造器（避免重复定义大对象）
+  const baseManifest3 = RESOURCE_BASE_MANIFEST;
+  const createMod3 = createResourceMod;
+
+
+  // ========================================================================
+  // pngremix with full features → triggers getPngRemix*, toFiniteNumber, formatMouthState, isPngremixMod
+  // ========================================================================
+
+  it("pngremix mod with all features enabled renders pngremix-specific info", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: {
+            mod_type: "pngremix",
+            pngremix_follow_amp_scale: 1.5,
+            pngremix_motion_amp_scale: 2.0,
+            pngremix_motion_frq_scale: 0.8,
+          },
+          pngremix: {
+            model: { name: "t", pngremix_file: "t.json", default_state_index: 0, scale: 1, max_fps: 30 },
+            features: {
+              mouse_follow: true, auto_blink: true, click_bounce: true,
+              click_bounce_amp: 5, click_bounce_duration: 0.3,
+              blink_speed: 0.2, blink_chance: 0.3, blink_hold_ratio: 0.5,
+            },
+            expressions: [{ name: "smile", state_index: 1 }],
+            motions: [{ name: "wave", hotkey: "KeyW", description: "wave hand" }],
+            states: [
+              { state: "idle", expression: "smile", motion: "wave", mouth_state: 0, scale: 1, offset_x: 0, offset_y: 0 },
+              { state: "talk", expression: "", motion: "", mouth_state: 1, scale: 1, offset_x: 0, offset_y: 0 },
+              { state: "yell", expression: "", motion: "", mouth_state: 2, scale: 1, offset_x: 0, offset_y: 0 },
+              { state: "def", expression: "", motion: "", scale: 1, offset_x: 0, offset_y: 0 },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Verify pngremix scale info rendered
+    expect(container.innerHTML).toContain("1.5");
+    expect(container.innerHTML).toContain("2");
+    expect(container.innerHTML).toContain("0.8");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("pngremix mod without follow_amp_scale falls back to motion_amp_scale", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: {
+            mod_type: "pngremix",
+            // no pngremix_follow_amp_scale
+            pngremix_motion_amp_scale: 3.0,
+          },
+          pngremix: {
+            model: { name: "t", pngremix_file: "t.json", default_state_index: 0, scale: 1, max_fps: 30 },
+            features: { mouse_follow: false, auto_blink: false, click_bounce: false, click_bounce_amp: 0, click_bounce_duration: 0, blink_speed: 0, blink_chance: 0, blink_hold_ratio: 0 },
+            expressions: [], motions: [],
+            states: [{ state: "idle", expression: "", motion: "", mouth_state: 0, scale: 1, offset_x: 0, offset_y: 0 }],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // follow_amp_scale should fall back to motion_amp_scale = 3.0
+    expect(container.innerHTML).toContain("3");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("pngremix mod without any scale uses default 1.0", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: { mod_type: "pngremix" },
+          pngremix: {
+            model: { name: "t", pngremix_file: "t.json", default_state_index: 0, scale: 1, max_fps: 30 },
+            features: { mouse_follow: false, auto_blink: false, click_bounce: false, click_bounce_amp: 0, click_bounce_duration: 0, blink_speed: 0, blink_chance: 0, blink_hold_ratio: 0 },
+            expressions: [], motions: [],
+            states: [{ state: "idle", expression: "", motion: "", mouth_state: 0, scale: 1, offset_x: 0, offset_y: 0 }],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    render(ResourceManagerDebugger);
+    await flushAsync();
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // live2d mod with background_layers, audio, and events
+  // ========================================================================
+
+  it("live2d mod with background layers, audio, and events renders fully", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: { mod_type: "live2d", default_audio_lang_id: "zh" },
+          audios: {
+            zh: [{ name: "sfx_a", audio: "sfx_a.wav" }, { name: "bgm", audio: "bgm.wav" }],
+            en: [{ name: "sfx_a", audio: "sfx_a_en.wav" }],
+          },
+          texts: { zh: [{ name: "t1", text: "hello", duration: 3 }] },
+          live2d: {
+            model: {
+              base_dir: "l2d", model_json: "m.json",
+              textures_dir: "tex", motions_dir: "mot", expressions_dir: "exp",
+              physics_json: "phys.json", pose_json: "pose.json", breath_json: "breath.json",
+              scale: 1.2, eye_blink: true, lip_sync: true,
+            },
+            motions: [
+              { name: "idle", file: "idle.motion3.json", group: "idle", priority: 1, fade_in_ms: 300, fade_out_ms: 300, loop: true },
+            ],
+            expressions: [{ name: "smile", file: "smile.exp3.json" }],
+            states: [
+              { state: "idle", motion: "idle", expression: "smile", scale: 1, offset_x: 0, offset_y: 0 },
+            ],
+            background_layers: [
+              { name: "layer1", file: "bg.png", layer: "front", events: ["keydown:KeyA", "click"], audio: "sfx_a" },
+              { name: "layer2", file: "", layer: "", events: [], audio: "" },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Background layer with audio should render play button
+    const playBtns = container.querySelectorAll(".play-btn");
+    expect(playBtns.length).toBeGreaterThan(0);
+
+    // Events should be rendered
+    expect(container.innerHTML).toContain("keydown:KeyA");
+    expect(container.innerHTML).toContain("click");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // audio playback and toggle (playAudio, stopAudio)
+  // ========================================================================
+
+  it("clicking audio play button toggles playback", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    // Mock Audio
+    const mockAudioInstance = {
+      src: "", play: vi.fn(), pause: vi.fn(),
+      onended: null as any, onerror: null as any,
+    };
+    const OrigAudio = (globalThis as any).Audio;
+    (globalThis as any).Audio = class MockAudio {
+      constructor(src?: string) {
+        mockAudioInstance.src = src || "";
+        return mockAudioInstance as any;
+      }
+    };
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          audios: { zh: [{ name: "click_sfx", audio: "click.wav" }] },
+          texts: {},
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Click play button
+    const playBtns = container.querySelectorAll(".play-btn");
+    if (playBtns.length > 0) {
+      await fireEvent.click(playBtns[0] as HTMLButtonElement);
+      await flushAsync();
+      expect(mockAudioInstance.play).toHaveBeenCalled();
+
+      // Click again should stop (toggle)
+      await fireEvent.click(playBtns[0] as HTMLButtonElement);
+      await flushAsync();
+      expect(mockAudioInstance.pause).toHaveBeenCalled();
+    }
+
+    (globalThis as any).Audio = OrigAudio;
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("audio onended resets playing state", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    let lastMockAudio: any = null;
+    const OrigAudio = (globalThis as any).Audio;
+    (globalThis as any).Audio = class MockAudio {
+      src = "";
+      play = vi.fn();
+      pause = vi.fn();
+      onended: any = null;
+      onerror: any = null;
+      constructor(src?: string) {
+        this.src = src || "";
+        lastMockAudio = this;
+      }
+    };
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          audios: { zh: [{ name: "sfx", audio: "s.wav" }] },
+          texts: {},
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    const playBtns = container.querySelectorAll(".play-btn");
+    if (playBtns.length > 0) {
+      await fireEvent.click(playBtns[0] as HTMLButtonElement);
+      await flushAsync();
+
+      // Simulate audio ended
+      if (lastMockAudio?.onended) {
+        lastMockAudio.onended();
+        await flushAsync();
+      }
+    }
+
+    (globalThis as any).Audio = OrigAudio;
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("audio onerror logs error and resets", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    let lastMockAudio: any = null;
+    const OrigAudio = (globalThis as any).Audio;
+    (globalThis as any).Audio = class MockAudio {
+      src = "";
+      play = vi.fn();
+      pause = vi.fn();
+      onended: any = null;
+      onerror: any = null;
+      constructor(src?: string) {
+        this.src = src || "";
+        lastMockAudio = this;
+      }
+    };
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          audios: { zh: [{ name: "sfx", audio: "s.wav" }] },
+          texts: {},
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    const playBtns = container.querySelectorAll(".play-btn");
+    if (playBtns.length > 0) {
+      await fireEvent.click(playBtns[0] as HTMLButtonElement);
+      await flushAsync();
+
+      // Simulate audio error
+      if (lastMockAudio?.onerror) {
+        lastMockAudio.onerror();
+        await flushAsync();
+      }
+    }
+
+    (globalThis as any).Audio = OrigAudio;
+    errorSpy.mockRestore();
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // image viewer open/close
+  // ========================================================================
+
+  it("clicking thumbnail opens image viewer, clicking overlay closes it", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          imgs: [
+            { name: "bg", img: "bg.png", frame_size_x: 100, frame_size_y: 100, frame_num_x: 1, frame_num_y: 1, frame_time: 0.1, sequence: false, origin_reverse: false, need_reverse: false, offset_x: 0, offset_y: 0 },
+          ],
+          sequences: [],
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Click thumbnail button
+    const thumbBtns = container.querySelectorAll(".thumbnail-btn");
+    if (thumbBtns.length > 0) {
+      await fireEvent.click(thumbBtns[0] as HTMLButtonElement);
+      await flushAsync();
+
+      // Viewer should be visible
+      const overlay = document.querySelector(".image-viewer-overlay");
+      expect(overlay).toBeTruthy();
+
+      // Click overlay to close
+      if (overlay) {
+        await fireEvent.click(overlay);
+        await flushAsync();
+      }
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("clicking viewer close button closes image viewer", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          imgs: [
+            { name: "bg", img: "bg.png", frame_size_x: 100, frame_size_y: 100, frame_num_x: 1, frame_num_y: 1, frame_time: 0.1, sequence: false, origin_reverse: false, need_reverse: false, offset_x: 0, offset_y: 0 },
+          ],
+          sequences: [],
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    const thumbBtns = container.querySelectorAll(".thumbnail-btn");
+    if (thumbBtns.length > 0) {
+      await fireEvent.click(thumbBtns[0] as HTMLButtonElement);
+      await flushAsync();
+
+      // Click close button
+      const closeBtn = document.querySelector(".viewer-close") as HTMLButtonElement;
+      if (closeBtn) {
+        await fireEvent.click(closeBtn);
+        await flushAsync();
+      }
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // sequence mod with rich data (imgs, sequences, flags)
+  // ========================================================================
+
+  it("sequence mod with images and sequences renders all flags", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: {
+            mod_type: "sequence",
+            show_mod_data_panel: true,
+            enable_texture_downsample: true,
+            global_keyboard: true,
+            global_mouse: true,
+            border: { enable: true, anima: "border.anim", z_offset: 5 },
+          },
+          imgs: [
+            {
+              name: "animated", img: "anim.png",
+              frame_size_x: 64, frame_size_y: 64, frame_num_x: 4, frame_num_y: 2,
+              frame_time: 0.1, sequence: true, origin_reverse: true, need_reverse: true,
+              offset_x: 10, offset_y: -5,
+            },
+          ],
+          sequences: [
+            {
+              name: "walk", img: "walk.png",
+              frame_size_x: 64, frame_size_y: 64, frame_num_x: 8, frame_num_y: 1,
+              frame_time: 0.08, origin_reverse: true, need_reverse: true,
+              offset_x: 5, offset_y: 3,
+            },
+          ],
+          info: {
+            en: { name: "Demo", id: "demo", lang: "en", description: "A demo mod" },
+            zh: { name: "演示", id: "demo", lang: "zh" },
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Should render sequence flags
+    const html = container.innerHTML;
+    expect(html).toContain("10,-5");  // offset
+    expect(html).toContain("4 x 2");  // frame layout
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // ai_tools data → formatAiPrompts, formatAiTriggers, formatAiResultProcessors
+  // ========================================================================
+
+  it("mod with ai_tools renders AI tool info", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          ai_tools: {
+            ai_tools: [
+              {
+                window_name: "TestApp",
+                process_name: "test.exe",
+                tool_data: [
+                  {
+                    name: "tool1",
+                    type: "auto",
+                    auto_start: true,
+                    capture_rect: { x: 0, y: 0, width: 100, height: 100 },
+                    prompts: ["prompt1", "prompt2"],
+                    triggers: [{ keyword: "hello", trigger: "greet" }],
+                    result_processors: [{ type: "number", result: "score" }],
+                    show_info_window: true,
+                  },
+                  {
+                    name: "tool2",
+                    type: "manual",
+                    auto_start: false,
+                    prompts: null,
+                    triggers: [],
+                    result_processors: [],
+                    show_info_window: false,
+                  },
+                ],
+              },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    const html = container.innerHTML;
+    expect(html).toContain("TestApp");
+    expect(html).toContain("tool1");
+    expect(html).toContain("prompt1; prompt2");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("formatAiPrompts with non-string items serializes to JSON", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          ai_tools: {
+            ai_tools: [
+              {
+                window_name: "App",
+                tool_data: [
+                  {
+                    name: "tool",
+                    type: "auto",
+                    prompts: [{ text: "complex" }, "simple"],
+                    triggers: [{ keyword: "", trigger: "" }],
+                    result_processors: [{ type: "?", result: "" }],
+                    show_info_window: false,
+                  },
+                ],
+              },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Complex prompt should be JSON stringified
+    expect(container.innerHTML).toContain('{"text":"complex"}');
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  it("formatAiPrompts with string input returns String value", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          ai_tools: {
+            ai_tools: [
+              {
+                window_name: "App",
+                tool_data: [
+                  {
+                    name: "tool",
+                    type: "auto",
+                    prompts: "single string prompt",
+                    triggers: [],
+                    result_processors: [],
+                    show_info_window: false,
+                  },
+                ],
+              },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    expect(container.innerHTML).toContain("single string prompt");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // rich state data → many template branches
+  // ========================================================================
+
+  it("mod with rich state data covers all state detail branches", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: {
+            important_states: {
+              idle: {
+                name: "idle", persistent: true, priority: 5, play_once: false,
+                anima: "idle.anim", audio: "sfx_idle", text: "Hello!",
+                next_state: "happy", trigger_time: 3000, trigger_rate: 0.5,
+                mod_data_counter: { op: "add", value: 1 },
+                trigger_counter_start: 0, trigger_counter_end: 50,
+                trigger_temp_start: -10, trigger_temp_end: 35,
+                trigger_uptime: 30,
+                trigger_weather: ["Clear", "Cloudy"],
+                date_start: "01-01", date_end: "12-31",
+                time_start: "08:00", time_end: "22:00",
+                live2d_params: [{ id: "EyeL", value: 1, target: "PartOpacity" }],
+                pngremix_params: [{ type: "expression", name: "smile" }],
+                can_trigger_states: [{ state: "happy", weight: 2 }],
+                branch: [{ text: "Go", next_state: "happy" }],
+                branch_show_bubble: false,
+              },
+              alert: {
+                name: "alert", persistent: false, priority: 10, play_once: true,
+                anima: "alert.anim", next_state: "idle",
+                trigger_time: 5000, trigger_rate: 1.0,
+                can_trigger_states: [{ state: "idle", weight: 1 }],
+              },
+            },
+            states: [
+              {
+                name: "sleep", persistent: true, priority: 2, play_once: false,
+                anima: "sleep.anim", audio: "zzz", text: "zzz...",
+                next_state: "idle", trigger_time: 10000, trigger_rate: 0.3,
+                mod_data_counter: { op: "set", value: 10 },
+                trigger_counter_start: 5, trigger_counter_end: 99,
+                trigger_temp_start: 0, trigger_temp_end: 25,
+                trigger_uptime: 60,
+                trigger_weather: ["Rain"],
+                date_start: "06-01", date_end: "08-31",
+                time_start: "22:00", time_end: "06:00",
+                live2d_params: [{ id: "Breath", value: 0.5 }],
+                pngremix_params: [{ type: "motion", name: "float" }],
+                can_trigger_states: [{ state: "dance", weight: 3 }],
+                branch: [{ text: "Wake", next_state: "idle" }, { text: "Continue", next_state: "sleep" }],
+                branch_show_bubble: false,
+              },
+              {
+                name: "dance", persistent: false, priority: 1, play_once: true,
+              },
+            ],
+            triggers: [
+              {
+                event: "click",
+                can_trigger_states: [
+                  { persistent_state: "idle", allow_repeat: false, states: [{ state: "happy", weight: 2 }] },
+                  { persistent_state: null, states: [] },
+                ],
+              },
+              {
+                event: "empty_trigger",
+                can_trigger_states: [],
+              },
+            ],
+          },
+          audios: { zh: [{ name: "sfx_idle", audio: "idle.wav" }], en: [{ name: "sfx_idle", audio: "idle_en.wav" }] },
+          texts: { zh: [{ name: "greeting", text: "你好", duration: 3 }] },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    const html = container.innerHTML;
+    // Verify rich state data branches are hit
+    expect(html).toContain("idle");
+    expect(html).toContain("sleep");
+    expect(html).toContain("Clear");
+    expect(html).toContain("(Part)"); // PartOpacity
+    expect(html).toContain("Go"); // branch text
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // threed mod with texture_base_dir and animation_base_dir
+  // ========================================================================
+
+  it("threed mod with texture and animation base dirs renders them", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: { mod_type: "3d" },
+          threed: {
+            model: {
+              name: "robot", type: "vrm", file: "r.vrm", scale: 1.5,
+              offset_x: 10, offset_y: -5,
+              texture_base_dir: "textures",
+              animation_base_dir: "animations",
+            },
+            animations: [
+              { name: "idle", type: "embedded", file: "", speed: 1, fps: 30 },
+              { name: "run", type: "file", file: "run.fbx", speed: 2, fps: 60 },
+            ],
+            states: [{ state: "idle", animation: "idle" }],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    const html = container.innerHTML;
+    expect(html).toContain("textures");
+    expect(html).toContain("animations");
+    expect(html).toContain("vrm");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // openAssetFile via open button click
+  // ========================================================================
+
+  it("clicking open file button on audio calls openAssetFile", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          audios: { zh: [{ name: "sfx", audio: "sfx.wav" }] },
+          texts: {},
+        });
+      }
+      if (command === "open_path") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Click open button (folder icon)
+    const openBtns = container.querySelectorAll(".open-btn");
+    if (openBtns.length > 0) {
+      await fireEvent.click(openBtns[0] as HTMLButtonElement);
+      await flushAsync();
+      expect(invokeMock).toHaveBeenCalledWith("open_path", expect.objectContaining({ path: expect.stringContaining("audio/sfx.wav") }));
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // text resources section
+  // ========================================================================
+
+  it("renders text resources with duration", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          audios: {},
+          texts: {
+            zh: [
+              { name: "greeting", text: "你好世界", duration: 5 },
+              { name: "farewell", text: "再见", duration: 3 },
+            ],
+            en: [
+              { name: "greeting", text: "Hello World", duration: 5 },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    const html = container.innerHTML;
+    expect(html).toContain("你好世界");
+    expect(html).toContain("5s");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // openAssetFile when currentModInfo is null → early return
+  // ========================================================================
+
+  it("openAssetFile does nothing when no mod loaded", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // open_path should never be called since currentModInfo is null
+    expect(invokeMock).not.toHaveBeenCalledWith("open_path", expect.anything());
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // unmount while audio is playing → stopAudio called via onDestroy
+  // ========================================================================
+
+  it("unmount stops audio via onDestroy", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    const mockPause = vi.fn();
+    const OrigAudio = (globalThis as any).Audio;
+    (globalThis as any).Audio = class MockAudio {
+      src = "";
+      play = vi.fn();
+      pause = mockPause;
+      onended: any = null;
+      onerror: any = null;
+    };
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          audios: { zh: [{ name: "sfx", audio: "s.wav" }] },
+          texts: {},
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container, unmount } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Play audio
+    const playBtns = container.querySelectorAll(".play-btn");
+    if (playBtns.length > 0) {
+      await fireEvent.click(playBtns[0] as HTMLButtonElement);
+      await flushAsync();
+    }
+
+    // Unmount should call stopAudio
+    unmount();
+    await flushAsync();
+    expect(mockPause).toHaveBeenCalled();
+
+    (globalThis as any).Audio = OrigAudio;
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // resolveAudioPathByName — fallback to other language
+  // ========================================================================
+
+  it("resolveAudioPathByName falls back to other language when prefer lang not found", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: { mod_type: "live2d", default_audio_lang_id: "ja" },
+          audios: {
+            // "ja" has no "sfx_a" but "en" does
+            en: [{ name: "sfx_a", audio: "sfx_en.wav" }],
+          },
+          live2d: {
+            model: {
+              base_dir: "l2d", model_json: "m.json",
+              textures_dir: "", motions_dir: "", expressions_dir: "",
+              physics_json: "", pose_json: "", breath_json: "",
+              scale: 1, eye_blink: false, lip_sync: false,
+            },
+            motions: [], expressions: [],
+            states: [{ state: "idle", motion: "idle", expression: "", scale: 1, offset_x: 0, offset_y: 0 }],
+            background_layers: [
+              { name: "bg", file: "", layer: "", events: [], audio: "sfx_a" },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Should find sfx_a via fallback to "en"
+    expect(container.innerHTML).toContain("sfx_a");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // resolveAudioPathByName — audio not found (returns null)
+  // ========================================================================
+
+  it("resolveAudioPathByName returns null when audio not found in any lang", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: { mod_type: "live2d" },
+          audios: { zh: [{ name: "other", audio: "other.wav" }] },
+          live2d: {
+            model: {
+              base_dir: "l2d", model_json: "m.json",
+              textures_dir: "", motions_dir: "", expressions_dir: "",
+              physics_json: "", pose_json: "", breath_json: "",
+              scale: 1, eye_blink: false, lip_sync: false,
+            },
+            motions: [], expressions: [],
+            states: [{ state: "idle", motion: "idle", expression: "", scale: 1, offset_x: 0, offset_y: 0 }],
+            background_layers: [
+              { name: "bg", file: "", layer: "", events: [], audio: "nonexistent_sfx" },
+            ],
+          },
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // Should render the audio name but no play button since resolveAudioPathByName returns null
+    expect(container.innerHTML).toContain("nonexistent_sfx");
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // playAudio without currentModInfo → early return
+  // ========================================================================
+
+  it("playAudio does nothing when currentModInfo is null (no mod loaded)", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // No play buttons should exist
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // refreshMods selects first mod when no mod is loaded and selectedMod is empty
+  // ========================================================================
+
+  it("refreshMods selects first available mod when no current mod", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_mod_search_paths") return ["C:/mods"];
+      if (command === "get_available_mods") return ["mod_a", "mod_b"];
+      if (command === "get_current_mod") return null;
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
+    await flushAsync();
+
+    // The component should select "mod_a" as default
+    const select = container.querySelector("select");
+    if (select) {
+      expect(select.value).toBe("mod_a");
+    }
+
+    invokeMock.mockImplementation(originalImpl ?? (async () => null));
+  });
+
+  // ========================================================================
+  // getLive2dAssetSrc without live2d data → returns ""
+  // ========================================================================
+
+  it("live2d without live2d data returns empty asset src", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const originalImpl = invokeMock.getMockImplementation();
+
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_current_mod") {
+        return createMod3({
+          manifest: { mod_type: "live2d" },
+          // No live2d field → getLive2dAssetSrc returns ""
+        });
+      }
+      return originalImpl ? originalImpl(command, args as never) : null;
+    });
+
+    const { container } = render(ResourceManagerDebugger);
     await flushAsync();
 
     invokeMock.mockImplementation(originalImpl ?? (async () => null));

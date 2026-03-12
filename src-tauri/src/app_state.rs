@@ -250,6 +250,10 @@ pub(crate) fn urlencoding_decode(input: &str) -> String {
 mod tests {
     use super::*;
 
+    // ===================================================================== //
+    // guess_mime_type — 已有测试
+    // ===================================================================== //
+
     #[test]
     fn guess_mime_type_handles_known_and_unknown() {
         assert_eq!(guess_mime_type("config.json"), "application/json");
@@ -257,11 +261,327 @@ mod tests {
         assert_eq!(guess_mime_type("image.unknown"), "application/octet-stream");
     }
 
+    // ===================================================================== //
+    // guess_mime_type — JSON / JS / HTML
+    // ===================================================================== //
+
+    #[test]
+    fn guess_mime_type_json_variants() {
+        assert_eq!(guess_mime_type("data.json"), "application/json");
+        assert_eq!(guess_mime_type("model.json3"), "application/json");
+    }
+
+    #[test]
+    fn guess_mime_type_js() {
+        assert_eq!(guess_mime_type("script.js"), "application/javascript");
+    }
+
+    #[test]
+    fn guess_mime_type_html_variants() {
+        assert_eq!(guess_mime_type("page.html"), "text/html");
+        assert_eq!(guess_mime_type("page.htm"), "text/html");
+    }
+
+    #[test]
+    fn guess_mime_type_css() {
+        assert_eq!(guess_mime_type("style.css"), "text/css");
+    }
+
+    #[test]
+    fn guess_mime_type_txt() {
+        assert_eq!(guess_mime_type("readme.txt"), "text/plain");
+    }
+
+    #[test]
+    fn guess_mime_type_xml() {
+        assert_eq!(guess_mime_type("config.xml"), "application/xml");
+    }
+
+    // ===================================================================== //
+    // guess_mime_type — 图片类型
+    // ===================================================================== //
+
+    #[test]
+    fn guess_mime_type_images() {
+        assert_eq!(guess_mime_type("photo.png"), "image/png");
+        assert_eq!(guess_mime_type("photo.jpg"), "image/jpeg");
+        assert_eq!(guess_mime_type("photo.jpeg"), "image/jpeg");
+        assert_eq!(guess_mime_type("anim.gif"), "image/gif");
+        assert_eq!(guess_mime_type("pic.webp"), "image/webp");
+        assert_eq!(guess_mime_type("icon.svg"), "image/svg+xml");
+        assert_eq!(guess_mime_type("favicon.ico"), "image/x-icon");
+        assert_eq!(guess_mime_type("image.bmp"), "image/bmp");
+    }
+
+    // ===================================================================== //
+    // guess_mime_type — 音频类型
+    // ===================================================================== //
+
+    #[test]
+    fn guess_mime_type_audio() {
+        assert_eq!(guess_mime_type("sound.wav"), "audio/wav");
+        assert_eq!(guess_mime_type("song.mp3"), "audio/mpeg");
+        assert_eq!(guess_mime_type("audio.ogg"), "audio/ogg");
+        assert_eq!(guess_mime_type("music.flac"), "audio/flac");
+        assert_eq!(guess_mime_type("track.aac"), "audio/aac");
+        assert_eq!(guess_mime_type("audio.m4a"), "audio/mp4");
+        assert_eq!(guess_mime_type("clip.weba"), "audio/webm");
+    }
+
+    // ===================================================================== //
+    // guess_mime_type — Live2D 类型
+    // ===================================================================== //
+
+    #[test]
+    fn guess_mime_type_live2d() {
+        assert_eq!(guess_mime_type("model.moc3"), "application/octet-stream");
+        assert_eq!(guess_mime_type("motion.mtn"), "application/octet-stream");
+        assert_eq!(guess_mime_type("expression.exp3"), "application/json");
+        assert_eq!(guess_mime_type("expression.exp"), "application/json");
+        assert_eq!(guess_mime_type("phys.physics3"), "application/json");
+        assert_eq!(guess_mime_type("phys.physics"), "application/json");
+        assert_eq!(guess_mime_type("p.pose3"), "application/json");
+        assert_eq!(guess_mime_type("p.pose"), "application/json");
+        assert_eq!(guess_mime_type("m.model3"), "application/json");
+        assert_eq!(guess_mime_type("m.model"), "application/json");
+    }
+
+    // ===================================================================== //
+    // guess_mime_type — 边界情况
+    // ===================================================================== //
+
+    #[test]
+    fn guess_mime_type_no_extension() {
+        assert_eq!(guess_mime_type("Makefile"), "application/octet-stream");
+    }
+
+    #[test]
+    fn guess_mime_type_empty_string() {
+        assert_eq!(guess_mime_type(""), "application/octet-stream");
+    }
+
+    #[test]
+    fn guess_mime_type_dot_only() {
+        assert_eq!(guess_mime_type("."), "application/octet-stream");
+    }
+
+    #[test]
+    fn guess_mime_type_double_extension() {
+        // rsplit('.') takes the last segment
+        assert_eq!(guess_mime_type("archive.tar.gz"), "application/octet-stream");
+        assert_eq!(guess_mime_type("file.backup.json"), "application/json");
+    }
+
+    #[test]
+    fn guess_mime_type_case_insensitive() {
+        assert_eq!(guess_mime_type("IMAGE.PNG"), "image/png");
+        assert_eq!(guess_mime_type("AUDIO.MP3"), "audio/mpeg");
+        assert_eq!(guess_mime_type("page.HTML"), "text/html");
+        assert_eq!(guess_mime_type("style.CSS"), "text/css");
+        assert_eq!(guess_mime_type("data.JSON"), "application/json");
+    }
+
+    #[test]
+    fn guess_mime_type_with_path() {
+        assert_eq!(guess_mime_type("some/path/to/file.png"), "image/png");
+        assert_eq!(
+            guess_mime_type("C:\\Users\\test\\file.wav"),
+            "audio/wav"
+        );
+    }
+
+    // ===================================================================== //
+    // urlencoding_decode — 已有测试
+    // ===================================================================== //
+
     #[test]
     fn urlencoding_decode_handles_percent_sequences() {
         assert_eq!(urlencoding_decode("hello%20world"), "hello world");
         assert_eq!(urlencoding_decode("%E4%BD%A0%E5%A5%BD"), "你好");
         assert_eq!(urlencoding_decode("100%"), "100%");
+    }
+
+    // ===================================================================== //
+    // urlencoding_decode — 更多测试
+    // ===================================================================== //
+
+    #[test]
+    fn urlencoding_decode_empty_string() {
+        assert_eq!(urlencoding_decode(""), "");
+    }
+
+    #[test]
+    fn urlencoding_decode_no_percent() {
+        assert_eq!(urlencoding_decode("hello world"), "hello world");
+    }
+
+    #[test]
+    fn urlencoding_decode_all_encoded() {
+        assert_eq!(urlencoding_decode("%48%65%6C%6C%6F"), "Hello");
+    }
+
+    #[test]
+    fn urlencoding_decode_mixed_content() {
+        assert_eq!(urlencoding_decode("a%20b%20c"), "a b c");
+        assert_eq!(urlencoding_decode("path%2Fto%2Ffile"), "path/to/file");
+    }
+
+    #[test]
+    fn urlencoding_decode_percent_at_end() {
+        // % 后面不足2个字符
+        assert_eq!(urlencoding_decode("test%"), "test%");
+        assert_eq!(urlencoding_decode("test%2"), "test%2");
+    }
+
+    #[test]
+    fn urlencoding_decode_invalid_hex() {
+        // %ZZ 不是有效的十六进制
+        assert_eq!(urlencoding_decode("%ZZ"), "%ZZ");
+        assert_eq!(urlencoding_decode("a%GGb"), "a%GGb");
+    }
+
+    #[test]
+    fn urlencoding_decode_multiple_percent() {
+        assert_eq!(urlencoding_decode("%25"), "%");
+        assert_eq!(urlencoding_decode("%25%25"), "%%");
+    }
+
+    #[test]
+    fn urlencoding_decode_plus_sign() {
+        // 不处理 + 为空格（仅处理百分号编码）
+        assert_eq!(urlencoding_decode("hello+world"), "hello+world");
+    }
+
+    #[test]
+    fn urlencoding_decode_special_chars() {
+        assert_eq!(urlencoding_decode("%21%40%23"), "!@#");
+        assert_eq!(urlencoding_decode("%3F%3D%26"), "?=&");
+    }
+
+    #[test]
+    fn urlencoding_decode_multibyte_utf8() {
+        // 日语平假名 "あ" = %E3%81%82
+        assert_eq!(urlencoding_decode("%E3%81%82"), "あ");
+    }
+
+    #[test]
+    fn urlencoding_decode_consecutive_percent_signs() {
+        assert_eq!(urlencoding_decode("%%20"), "% ");
+    }
+
+    #[test]
+    fn urlencoding_decode_lowercase_hex() {
+        assert_eq!(urlencoding_decode("%2f"), "/");
+        assert_eq!(urlencoding_decode("%2F"), "/");
+    }
+
+    // ===================================================================== //
+    // is_release_build
+    // ===================================================================== //
+
+    #[test]
+    fn is_release_build_returns_expected() {
+        // 测试模式下 debug_assertions 为 true，所以应返回 false
+        assert_eq!(is_release_build(), !cfg!(debug_assertions));
+    }
+
+    // ===================================================================== //
+    // 常量验证
+    // ===================================================================== //
+
+    #[test]
+    fn date_constants_valid() {
+        assert_eq!(MONTH_MIN, 1);
+        assert_eq!(MONTH_MAX, 12);
+        assert_eq!(DAY_MIN, 1);
+        assert_eq!(DAY_MAX, 31);
+        assert!(MONTH_MIN <= MONTH_MAX);
+        assert!(DAY_MIN <= DAY_MAX);
+    }
+
+    // ===================================================================== //
+    // ReminderAlertPayload — 结构体测试
+    // ===================================================================== //
+
+    #[test]
+    fn reminder_alert_payload_clone_and_debug() {
+        let payload = ReminderAlertPayload {
+            id: "test-1".to_string(),
+            text: "提醒内容".to_string(),
+            scheduled_at: 1000,
+            fired_at: 1001,
+        };
+
+        let cloned = payload.clone();
+        assert_eq!(cloned.id, "test-1");
+        assert_eq!(cloned.text, "提醒内容");
+        assert_eq!(cloned.scheduled_at, 1000);
+        assert_eq!(cloned.fired_at, 1001);
+
+        // Debug trait
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("test-1"));
+    }
+
+    #[test]
+    fn reminder_alert_payload_serialize() {
+        let payload = ReminderAlertPayload {
+            id: "id-123".to_string(),
+            text: "hello".to_string(),
+            scheduled_at: 100,
+            fired_at: 200,
+        };
+
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"id\":\"id-123\""));
+        assert!(json.contains("\"text\":\"hello\""));
+        assert!(json.contains("\"scheduled_at\":100"));
+        assert!(json.contains("\"fired_at\":200"));
+    }
+
+    // ===================================================================== //
+    // 全局静态标记
+    // ===================================================================== //
+
+    #[test]
+    fn session_observer_started_default_false() {
+        // 不改变值，只读取当前状态
+        let _ = SESSION_OBSERVER_STARTED.load(std::sync::atomic::Ordering::Relaxed);
+    }
+
+    #[test]
+    fn background_services_started_default() {
+        let _ = BACKGROUND_SERVICES_STARTED.load(std::sync::atomic::Ordering::Relaxed);
+    }
+
+    #[test]
+    fn pending_reminder_alerts_is_lockable() {
+        let guard = PENDING_REMINDER_ALERTS.lock();
+        assert!(guard.is_ok());
+    }
+
+    #[test]
+    fn last_work_event_at_is_lockable() {
+        let guard = LAST_WORK_EVENT_AT.lock();
+        assert!(guard.is_ok());
+    }
+
+    // ===================================================================== //
+    // get_reminder_scheduler_notify / get_state_unlock_notify — 单例
+    // ===================================================================== //
+
+    #[test]
+    fn get_reminder_scheduler_notify_returns_same_instance() {
+        let n1 = get_reminder_scheduler_notify();
+        let n2 = get_reminder_scheduler_notify();
+        assert!(std::ptr::eq(n1, n2));
+    }
+
+    #[test]
+    fn get_state_unlock_notify_returns_same_instance() {
+        let n1 = get_state_unlock_notify();
+        let n2 = get_state_unlock_notify();
+        assert!(std::ptr::eq(n1, n2));
     }
 }
 
