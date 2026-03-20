@@ -49,7 +49,7 @@
 纯净版（pure）仅包含教程mod，体积更小<br>
 标准版（standard）包含了所有默认mod，内容更多<br>
 mod包（mods）包含所有没有被加入exe的mod<br>
-<a href="https://pan.baidu.com/s/5xPn--lWTiKHAfBCB5gta3Q" target="_blank" rel="noopener noreferrer">百度网盘</a>&nbsp;&nbsp;&nbsp;
+<a href="https://pan.baidu.com/s/5674aiDV7d4JWbMEySD28Ew" target="_blank" rel="noopener noreferrer">百度网盘</a>&nbsp;&nbsp;&nbsp;
 <a href="https://pan.quark.cn/s/6c6c08b57fba?pwd=CiSm" target="_blank" rel="noopener noreferrer">夸克网盘</a>&nbsp;&nbsp;&nbsp;
 <a href="https://github.com/cafel176/TrayBuddy/releases" target="_blank" rel="noopener noreferrer">github releases</a>
 
@@ -668,7 +668,7 @@ Download:<br>
 Pure version includes only the tutorial mod, smaller in size<br>
 Standard version includes all default mods, more content<br>
 mod pack contains all mods that are not included in the executable file.<br>
-<a href="https://pan.baidu.com/s/5xPn--lWTiKHAfBCB5gta3Q" target="_blank" rel="noopener noreferrer">Baidu Netdisk</a>&nbsp;&nbsp;&nbsp;
+<a href="https://pan.baidu.com/s/5674aiDV7d4JWbMEySD28Ew" target="_blank" rel="noopener noreferrer">Baidu Netdisk</a>&nbsp;&nbsp;&nbsp;
 <a href="https://pan.quark.cn/s/6c6c08b57fba?pwd=CiSm" target="_blank" rel="noopener noreferrer">Quark Netdisk</a>&nbsp;&nbsp;&nbsp;
 <a href="https://github.com/cafel176/TrayBuddy/releases" target="_blank" rel="noopener noreferrer">github releases</a>&nbsp;&nbsp;&nbsp;
 
@@ -1287,7 +1287,7 @@ TrayBuddy/
 ピュア版（pure）はチュートリアルmodのみを含み、サイズが小さいです<br>
 スタンダード版（standard）はすべてのデフォルトmodを含み、コンテンツが豊富です<br>
 mod パック (mods) には、実行可能ファイルに含まれていないすべての mod が含まれています。<br>
-<a href="https://pan.baidu.com/s/5xPn--lWTiKHAfBCB5gta3Q" target="_blank" rel="noopener noreferrer">百度網盤</a>&nbsp;&nbsp;&nbsp;
+<a href="https://pan.baidu.com/s/5674aiDV7d4JWbMEySD28Ew" target="_blank" rel="noopener noreferrer">百度網盤</a>&nbsp;&nbsp;&nbsp;
 <a href="https://pan.quark.cn/s/6c6c08b57fba?pwd=CiSm" target="_blank" rel="noopener noreferrer">夸克網盤</a>&nbsp;&nbsp;&nbsp;
 <a href="https://github.com/cafel176/TrayBuddy/releases" target="_blank" rel="noopener noreferrer">github releases</a>&nbsp;&nbsp;&nbsp;
 
